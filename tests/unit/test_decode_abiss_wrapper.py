@@ -60,3 +60,17 @@ def test_decode_abiss_raises_if_output_missing():
     with pytest.raises(FileNotFoundError, match="did not produce output file"):
         decode_abiss(pred, command=command)
 
+
+def test_decode_abiss_with_relative_script_command_outside_repo_cwd(monkeypatch, tmp_path):
+    pred = np.zeros((3, 6, 8, 10), dtype=np.float32)
+    pred[:, 1:5, 2:7, 3:9] = 1.0
+
+    monkeypatch.chdir(tmp_path)
+
+    command = "python scripts/run_abiss_single.py --input {input_h5} --output {output_h5}"
+
+    seg = decode_abiss(pred, command=command)
+    assert seg.shape == (6, 8, 10)
+    assert np.issubdtype(seg.dtype, np.integer)
+    assert seg.max() >= 1
+    assert seg[2, 3, 4] >= 1

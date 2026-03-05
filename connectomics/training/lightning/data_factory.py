@@ -15,12 +15,7 @@ from ...data.augment.build import (
 from ...data.dataset import create_data_dicts_from_paths
 from ...data.io import get_vol_shape
 from .data import ConnectomicsDataModule
-from .path_utils import expand_file_paths as _expand_file_paths
-
-
-def expand_file_paths(path_or_pattern) -> List[str]:
-    """Expand file path inputs via shared path helper."""
-    return _expand_file_paths(path_or_pattern)
+from .path_utils import expand_file_paths
 
 
 def _maybe_prepare_random_data(cfg: Config, mode: str) -> None:
@@ -418,41 +413,14 @@ def create_datamodule(
                     mask_paths=val_mask_paths,
                 )
 
-    def _eval_split(data_cfg):
-        """Prefer data.test when set; otherwise use data.val."""
-        test_split = getattr(data_cfg, "test", None)
-        # Backward compatibility: legacy aliases under data.*
-        if test_split is not None and getattr(test_split, "image", None) is None:
-            legacy_image = getattr(data_cfg, "test_image", None)
-            if legacy_image is not None:
-                test_split.image = legacy_image
-                test_split.label = getattr(data_cfg, "test_label", None)
-                test_split.mask = getattr(data_cfg, "test_mask", None)
-                test_split.path = getattr(data_cfg, "test_path", "") or ""
-                test_split.resolution = getattr(data_cfg, "test_resolution", None)
-        if test_split is not None and getattr(test_split, "image", None):
-            return test_split
-        return data_cfg.val
-
     # Create test data dicts if in test or tune mode
     test_data_dicts = None
     if mode == "test":
-        split = _eval_split(cfg.test.data) if hasattr(cfg.test, "data") else None
-        if (
-            not hasattr(cfg, "test")
-            or cfg.test is None
-            or not hasattr(cfg.test, "data")
-            or split is None
-            or not split.image
-        ):
-            test_image_val = (
-                split.image if split is not None else "N/A"
-                if hasattr(cfg, "test") and cfg.test and hasattr(cfg.test, "data")
-                else "N/A"
-            )
+        split = cfg.data.test
+        if not split.image:
             raise ValueError(
-                "Test mode requires test.data.test.image or test.data.val.image to be set.\n"
-                f"Current resolved image = {test_image_val}"
+                "Test mode requires data.test.image to be set.\n"
+                f"Current resolved image = {split.image}"
             )
         print(f"  🧪 Creating test dataset from: {split.image}")
 
@@ -461,23 +429,11 @@ def create_datamodule(
         test_label_paths = expand_file_paths(split.label) if split.label else None
         test_mask_paths = expand_file_paths(split.mask) if split.mask else None
     elif mode == "tune":
-        split = _eval_split(cfg.tune.data) if hasattr(cfg.tune, "data") else None
-        # For tune mode, read from cfg.tune.data
-        if (
-            not hasattr(cfg, "tune")
-            or cfg.tune is None
-            or not hasattr(cfg.tune, "data")
-            or split is None
-            or not split.image
-        ):
-            tune_image_val = (
-                split.image if split is not None else "N/A"
-                if hasattr(cfg, "tune") and cfg.tune and hasattr(cfg.tune, "data")
-                else "N/A"
-            )
+        split = cfg.data.test
+        if not split.image:
             raise ValueError(
-                "Tune mode requires tune.data.test.image or tune.data.val.image to be set.\n"
-                f"Current resolved image = {tune_image_val}"
+                "Tune mode requires data.test.image to be set.\n"
+                f"Current resolved image = {split.image}"
             )
 
         print(f"  🎯 Creating tune dataset from: {split.image}")
@@ -790,9 +746,6 @@ def create_datamodule(
                 # For test mode, return empty list (user should use standard datamodule)
                 return []
 
-            def setup(self, stage=None):
-                pass
-
         datamodule = SimpleDataModule(train_loader, val_loader)
     elif use_lazy_zarr:
         # Lazy zarr crop loading: keep zarr handles, read only sampled patches.
@@ -905,9 +858,6 @@ def create_datamodule(
             def test_dataloader(self):
                 return []
 
-            def setup(self, stage=None):
-                pass
-
         datamodule = SimpleDataModule(train_loader, val_loader)
     elif dataset_type == "filename":
         # Filename-based dataset using JSON file lists
@@ -922,10 +872,8 @@ def create_datamodule(
             json_path=cfg.data.train.json,
             train_transforms=train_transforms,
             val_transforms=val_transforms,
-            train_val_split=(
-                cfg.data.train.split_ratio if getattr(cfg.data.train, "split_ratio", None) else 0.9
-            ),
-            random_seed=cfg.system.seed if hasattr(cfg.system, "seed") else 42,
+            train_val_split=cfg.data.train.split_ratio if cfg.data.train.split_ratio else 0.9,
+            random_seed=cfg.system.seed,
             images_key=cfg.data.train.image_key,
             labels_key=cfg.data.train.label_key,
             use_labels=True,
@@ -971,9 +919,6 @@ def create_datamodule(
 
             def test_dataloader(self):
                 return []
-
-            def setup(self, stage=None):
-                pass
 
         datamodule = FilenameDataModule(
             train_ds=train_dataset,

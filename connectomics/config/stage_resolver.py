@@ -13,6 +13,7 @@ from typing import Any, Callable, Dict
 
 from omegaconf import DictConfig, ListConfig, OmegaConf
 
+from .dict_utils import as_plain_dict
 from .schema import Config
 from .schema.root import MergeContext
 
@@ -87,21 +88,6 @@ def _as_path_set(value: Any) -> set[str]:
     return set(value)
 
 
-def _as_dict(value: Any) -> Dict[str, Any]:
-    """Convert a config value into a plain dict, or {} if not mapping-like."""
-    if value is None:
-        return {}
-    if isinstance(value, str):
-        return {}
-
-    try:
-        container = OmegaConf.to_container(_to_omegaconf(value), resolve=True)
-    except Exception:
-        return {}
-
-    return container if isinstance(container, dict) else {}
-
-
 def _get_merge_context(cfg: Config) -> MergeContext:
     """Get typed merge context from config, creating one if needed."""
     merge_context = getattr(cfg, "_merge_context", None)
@@ -132,7 +118,7 @@ def _extract_explicit_patch(
     has_explicit_path: Callable[[str], bool],
 ) -> Dict[str, Any]:
     """Extract only explicitly provided YAML keys under a section path."""
-    section_map = _as_dict(section_obj)
+    section_map = as_plain_dict(section_obj)
     if not section_map:
         return {}
 
@@ -269,6 +255,10 @@ def _merge_runtime_sections(
         setattr(cfg, section_name, _merge_dataclass(target_section, default_section, stage_section))
 
 
+def _is_selector_key(key: str) -> bool:
+    return key == "profile" or key == "transform_profile" or key.endswith("_profile")
+
+
 def _collect_unresolved_selector_paths(node: Any, path: str = "") -> list[str]:
     unresolved: list[str] = []
 
@@ -278,35 +268,22 @@ def _collect_unresolved_selector_paths(node: Any, path: str = "") -> list[str]:
             unresolved.extend(_collect_unresolved_selector_paths(item, item_path))
         return unresolved
 
+    # Iterate key-value pairs from dataclass fields or dict entries
     if is_dataclass(node):
-        for field_info in fields(node):
-            key_str = field_info.name
-            if key_str.startswith("_"):
-                continue
-            child_path = f"{path}.{key_str}" if path else key_str
-            child_value = getattr(node, key_str)
-            is_selector_key = (
-                key_str == "profile" or key_str == "transform_profile" or key_str.endswith("_profile")
-            )
-            if is_selector_key and child_value not in (None, ""):
-                unresolved.append(child_path)
-            unresolved.extend(_collect_unresolved_selector_paths(child_value, child_path))
-        return unresolved
-
-    if isinstance(node, (dict, DictConfig)):
-        keys = node.keys()
+        items = (
+            (f.name, getattr(node, f.name))
+            for f in fields(node)
+            if not f.name.startswith("_")
+        )
+    elif isinstance(node, (dict, DictConfig)):
+        items = ((str(k), node[k]) for k in node.keys())
     else:
         return unresolved
 
-    for key in keys:
-        key_str = str(key)
+    for key_str, child_value in items:
         child_path = f"{path}.{key_str}" if path else key_str
-        child_value = node[key]
-
-        is_selector_key = key_str == "profile" or key_str == "transform_profile" or key_str.endswith("_profile")
-        if is_selector_key and child_value not in (None, ""):
+        if _is_selector_key(key_str) and child_value not in (None, ""):
             unresolved.append(child_path)
-
         unresolved.extend(_collect_unresolved_selector_paths(child_value, child_path))
 
     return unresolved

@@ -7,6 +7,7 @@ The legacy dataset creation functions have been removed to keep the codebase cle
 """
 
 from __future__ import annotations
+import logging
 from typing import Dict, Any, Optional, Sequence, Tuple
 import numpy as np
 
@@ -17,6 +18,8 @@ import torch.utils.data
 from monai.data import Dataset, CacheDataset, PersistentDataset
 from monai.transforms import Compose
 from monai.utils import ensure_tuple_rep
+
+logger = logging.getLogger(__name__)
 
 
 class MonaiConnectomicsDataset(Dataset):
@@ -274,10 +277,20 @@ class MonaiCachedConnectomicsDataset(CacheDataset):
             self.current_epoch = epoch
             effective_seed = self.base_seed + epoch
             random.seed(effective_seed)
-            
-            # IMPORTANT: Print to verify reseeding is happening
-            print(f"[Validation] Set epoch={epoch}, base_seed={base_seed}, effective_seed={effective_seed}")
-            print(f"[Validation] Dataset: {type(self).__name__}@{id(self)}, mode={self.mode}, iter_num={self.iter_num}")
+
+            logger.debug(
+                "[Validation] Set epoch=%s, base_seed=%s, effective_seed=%s",
+                epoch,
+                base_seed,
+                effective_seed,
+            )
+            logger.debug(
+                "[Validation] Dataset: %s@%s, mode=%s, iter_num=%s",
+                type(self).__name__,
+                id(self),
+                self.mode,
+                self.iter_num,
+            )
     
     def get_sampling_fingerprint(self, num_samples: int = 5) -> str:
         """

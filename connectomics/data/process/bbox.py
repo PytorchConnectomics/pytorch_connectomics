@@ -1,4 +1,3 @@
-from __future__ import division, print_function
 from collections import OrderedDict
 from typing import Optional, Union, Tuple
 
@@ -13,7 +12,6 @@ __all__ = [
     "index2bbox",
     "crop_ND",
     "replace_ND",
-    "crop_pad_data",
     "rand_window",
     "compute_bbox_all",
     "compute_bbox_all_2d",
@@ -141,29 +139,6 @@ def replace_ND(
 
     img[slicing] = replacement
     return img.copy()
-
-
-def crop_pad_data(data, z, bbox_2d, pad_val=0, mask=None, return_box=False):
-    """Crop a 2D patch from 3D volume given the z index and 2d bbox."""
-    sz = data.shape[1:]
-    y1o, y2o, x1o, x2o = bbox_2d  # region to crop
-    y1m, y2m, x1m, x2m = 0, sz[0], 0, sz[1]
-    y1, x1 = max(y1o, y1m), max(x1o, x1m)
-    y2, x2 = min(y2o, y2m), min(x2o, x2m)
-    cropped = data[z, y1:y2, x1:x2]
-
-    if mask is not None:
-        mask_2d = mask[z, y1:y2, x1:x2]
-        cropped = cropped * (mask_2d != 0).astype(cropped.dtype)
-
-    pad = ((y1 - y1o, y2o - y2), (x1 - x1o, x2o - x2))
-    if not all(v == 0 for v in pad):
-        cropped = np.pad(cropped, pad, mode="constant", constant_values=pad_val)
-
-    if not return_box:
-        return cropped
-
-    return cropped, [y1, y2, x1, x2], pad
 
 
 def rand_window(w0, w1, sz, rand_shift: int = 0):

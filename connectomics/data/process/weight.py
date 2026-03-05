@@ -1,4 +1,3 @@
-from __future__ import print_function, division
 import numpy as np
 from scipy.ndimage import distance_transform_edt
 from skimage.morphology import binary_dilation

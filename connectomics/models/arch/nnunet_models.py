@@ -89,16 +89,17 @@ class nnUNetWrapper(ConnectomicsModel):
         Returns:
             Output tensor with segmentation logits
         """
+        was_5d = x.dim() == 5
+
         # For 2D models with 3D input (e.g., from sliding window), squeeze depth
-        if self.spatial_dims == 2 and x.dim() == 5 and x.size(2) == 1:
+        if self.spatial_dims == 2 and was_5d and x.size(2) == 1:
             x = x.squeeze(2)  # [B, C, 1, H, W] -> [B, C, H, W]
 
         # Forward through network
         output = self.network(x)
 
         # For 2D models, add back depth dimension if input was 5D
-        if self.spatial_dims == 2 and output.dim() == 4 and x.dim() == 4:
-            # Check if original input was 5D (before squeeze)
+        if self.spatial_dims == 2 and output.dim() == 4 and was_5d:
             output = output.unsqueeze(2)  # [B, C, H, W] -> [B, C, 1, H, W]
 
         return output
@@ -266,13 +267,16 @@ def build_nnunet_pretrained(cfg) -> ConnectomicsModel:
     # Move to device
     network = network.to(device)
 
-    # Determine spatial dimensions from configuration
-    spatial_dims = 3  # Default to 3D
-    if "dimension" in str(configuration_name).lower():
-        if "2d" in str(configuration_name).lower():
-            spatial_dims = 2
-        elif "3d" in str(configuration_name).lower():
-            spatial_dims = 3
+    spatial_dims = getattr(cfg.model.nnunet, "spatial_dims", None)
+    if spatial_dims is None:
+        patch_size = getattr(configuration_manager, "patch_size", None)
+        if patch_size is not None:
+            spatial_dims = len(tuple(patch_size))
+    if spatial_dims not in (2, 3):
+        raise ValueError(
+            "Could not determine nnUNet spatial dimensions. "
+            "Set model.nnunet.spatial_dims to 2 or 3."
+        )
 
     # Check if model was trained with deep supervision
     # (we disable it for inference, but track for metadata)

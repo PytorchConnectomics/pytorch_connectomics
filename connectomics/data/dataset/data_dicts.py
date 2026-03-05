@@ -6,7 +6,6 @@ from typing import Dict, List, Optional
 
 __all__ = [
     "create_data_dicts_from_paths",
-    "create_volume_data_dicts",
 ]
 
 
@@ -40,21 +39,3 @@ def create_data_dicts_from_paths(
         data_dicts.append(data_dict)
 
     return data_dicts
-
-
-def create_volume_data_dicts(
-    image_paths: List[str],
-    label_paths: Optional[List[str]] = None,
-    mask_paths: Optional[List[str]] = None,
-) -> List[Dict[str, object]]:
-    """
-    Create MONAI data dictionaries for volume datasets.
-
-    This is a convenience wrapper around ``create_data_dicts_from_paths``
-    for volume-specific use cases.
-    """
-    return create_data_dicts_from_paths(
-        image_paths=image_paths,
-        label_paths=label_paths,
-        mask_paths=mask_paths,
-    )

@@ -26,7 +26,7 @@ from connectomics.config import (
     resolve_default_profiles,
 )
 from connectomics.config.schema import TestConfig as HydraTestConfig, TuneConfig
-from connectomics.data.augment.build import build_test_transforms
+from connectomics.data.augment.build import build_test_transforms, build_val_transforms
 
 
 def test_default_config_creation():
@@ -37,6 +37,7 @@ def test_default_config_creation():
     assert cfg.data.dataloader.batch_size == 4
     assert cfg.optimization.optimizer.name == 'AdamW'
     assert cfg.optimization.max_epochs == 200
+    assert cfg.monitor.logging.images.channel_mode == "all"
     print("✅ Default config creation works")
 
 
@@ -80,6 +81,23 @@ def test_cross_section_validation_rejects_out_channel_mismatch():
             "weight": 1.0,
             "pred_slice": [0, 3],
             "target_slice": [0, 3],
+        }
+    ]
+
+    with pytest.raises(ValueError, match="model.out_channels .* require at least 3 channels"):
+        validate_config(cfg)
+
+
+def test_cross_section_validation_rejects_out_channel_mismatch_with_negative_slice():
+    """Negative slice bounds should still enforce a concrete channel lower bound."""
+    cfg = Config()
+    cfg.model.out_channels = 2
+    cfg.model.loss.losses = [
+        {
+            "function": "DiceLoss",
+            "weight": 1.0,
+            "pred_slice": [0, -2],
+            "target_slice": [0, -2],
         }
     ]
 
@@ -574,7 +592,8 @@ def test_runtime_merge_and_inference_profile_for_test_mode():
     cfg.test.model.monai.dropout = 0.15
     cfg.default.inference.test_time_augmentation.enabled = False
     cfg.default.inference.sliding_window.overlap = 0.3
-    cfg.test.inference.sliding_window.overlap = 0.4
+    test_inference_cfg = getattr(cfg.test, "inference")
+    test_inference_cfg.sliding_window.overlap = 0.4
     cfg._merge_context.explicit_field_paths = {
         "default.model.arch.type",
         "test.model.monai.dropout",
@@ -621,7 +640,8 @@ def test_inference_system_overrides_runtime_system_in_test_mode():
     cfg.test = HydraTestConfig()
     cfg.default.inference.system.num_gpus = 2
     cfg.default.inference.system.num_workers = 3
-    cfg.test.inference.system.num_workers = 5
+    test_inference_cfg = getattr(cfg.test, "inference")
+    test_inference_cfg.system.num_workers = 5
     cfg._merge_context.explicit_field_paths = {
         "default.inference.system.num_gpus",
         "default.inference.system.num_workers",
@@ -665,7 +685,7 @@ optimization:
     cfg = resolve_default_profiles(cfg, mode="train")
 
     assert cfg.inference.test_time_augmentation.enabled is False
-    assert cfg.inference.save_prediction.enabled is True
+    assert cfg.inference.save_prediction.enabled is False
     assert cfg.inference.evaluation.enabled is False
     assert cfg.monitor.logging.images.enabled is False
     assert cfg.optimization.ema.enabled is False
@@ -706,15 +726,63 @@ default:
     print("✅ Shared inference decoding profile-list ref resolves")
 
 
+def test_loss_profile_positional_overrides(tmp_path):
+    """Loss profile + overrides dict patches individual list entries by index."""
+    base_yaml = tmp_path / "base.yaml"
+    base_yaml.write_text(
+        """
+loss_profiles:
+  loss_binary:
+    - function: WeightedBCEWithLogitsLoss
+      weight: 1.0
+      kwargs: {reduction: mean}
+    - function: DiceLoss
+      weight: 1.0
+      kwargs: {sigmoid: true, smooth_nr: 1e-5, smooth_dr: 1e-5}
+""".strip()
+    )
+
+    config_yaml = tmp_path / "config.yaml"
+    config_yaml.write_text(
+        f"""
+_base_: {base_yaml.name}
+default:
+  model:
+    loss:
+      profile: loss_binary
+      overrides:
+        0: {{pos_weight: auto}}
+        1: {{weight: 0.5}}
+""".strip()
+    )
+
+    cfg = load_config(config_yaml)
+    cfg = resolve_default_profiles(cfg, mode="train")
+    losses = cfg.model.loss.losses
+    assert len(losses) == 2
+
+    # Entry 0: BCE fields merged (pos_weight added, kwargs kept)
+    assert losses[0]["function"] == "WeightedBCEWithLogitsLoss"
+    assert losses[0]["pos_weight"] == "auto"
+    assert losses[0]["kwargs"]["reduction"] == "mean"
+    assert losses[0]["weight"] == 1.0
+
+    # Entry 1: Dice weight overridden from 1.0 to 0.5
+    assert losses[1]["function"] == "DiceLoss"
+    assert losses[1]["weight"] == 0.5
+    assert losses[1]["kwargs"]["sigmoid"] is True
+    print("✅ Loss profile positional overrides work")
+
+
 def test_build_test_transforms_with_mask_transform_resize_binarize():
     """Test test-mode mask_transform resize+binarize pipeline creation."""
     cfg = Config()
-    cfg.test = HydraTestConfig()
-    cfg.test.data.val.image = "dummy_image.h5"
-    cfg.test.data.val.mask = "dummy_mask.h5"
-    cfg.test.data.data_transform.resize = [1, 2, 2]
-    cfg.test.data.data_transform.binarize = True
-    cfg.test.data.data_transform.threshold = 0.0
+    # build_test_transforms reads from cfg.data (after stage resolution in production)
+    cfg.data.test.image = "dummy_image.h5"
+    cfg.data.test.mask = "dummy_mask.h5"
+    cfg.data.data_transform.resize = [1, 2, 2]
+    cfg.data.data_transform.binarize = True
+    cfg.data.data_transform.threshold = 0.0
 
     transforms = build_test_transforms(cfg)
     transform_names = [type(t).__name__ for t in transforms.transforms]
@@ -728,13 +796,13 @@ def test_mask_binarize_uses_strict_greater_than_threshold():
     """Ensure mask binarization preserves zeros when threshold=0.0 (mask > 0)."""
     cfg = Config()
     cfg.data.dataloader.patch_size = [0, 0, 0]  # Disable padding for this unit test.
-    cfg.test = HydraTestConfig()
-    cfg.test.data.val.image = "dummy_image.h5"
-    cfg.test.data.val.mask = "dummy_mask.h5"
-    cfg.test.data.image_transform.normalize = "none"
-    cfg.test.data.data_transform.resize = None
-    cfg.test.data.data_transform.binarize = True
-    cfg.test.data.data_transform.threshold = 0.0
+    # build_test_transforms reads from cfg.data (after stage resolution in production)
+    cfg.data.test.image = "dummy_image.h5"
+    cfg.data.test.mask = "dummy_mask.h5"
+    cfg.data.image_transform.normalize = "none"
+    cfg.data.data_transform.resize = None
+    cfg.data.data_transform.binarize = True
+    cfg.data.data_transform.threshold = 0.0
 
     transforms = build_test_transforms(cfg)
 
@@ -753,6 +821,41 @@ def test_mask_binarize_uses_strict_greater_than_threshold():
     assert mask[0, 0, 1, 1] == 0.0
     assert mask[0, 0, 0, 1] == 1.0
     print("✅ Mask binarization uses strict > threshold semantics")
+
+
+def test_debug_env_prints_stats_only_for_test_transforms(monkeypatch, capsys):
+    """Debug env should add post-normalization stats hook to test transforms only."""
+    cfg = Config()
+    cfg.data.dataloader.patch_size = [0, 0, 0]  # Disable padding for deterministic transform order.
+    cfg.data.image_transform.normalize = "0-1"
+    cfg.test = HydraTestConfig()
+    cfg.test.data.test.image = "dummy_image.h5"
+    cfg.test.data.image_transform.normalize = "0-1"
+
+    monkeypatch.setenv("CONNECTOMICS_DEBUG_TEST_INPUT_STATS", "1")
+
+    test_transforms = build_test_transforms(cfg)
+    val_transforms = build_val_transforms(cfg)
+
+    test_names = [type(t).__name__ for t in test_transforms.transforms]
+    val_names = [type(t).__name__ for t in val_transforms.transforms]
+
+    norm_idx = test_names.index("SmartNormalizeIntensityd")
+    lambda_after_norm = any(
+        idx > norm_idx and name == "Lambdad" for idx, name in enumerate(test_names)
+    )
+
+    assert lambda_after_norm
+    assert "Lambdad" not in val_names
+
+    from connectomics.utils.debug_utils import reset_debug_state
+
+    reset_debug_state()
+    _ = test_transforms({"image": np.arange(8, dtype=np.float32).reshape(1, 2, 2, 2)})
+    captured = capsys.readouterr()
+    assert "TEST PIPELINE: AFTER image_normalization" in captured.out
+    assert "IMAGE Statistics:" in captured.out
+    print("✅ Debug env injects post-normalization stats hook only for test transforms")
 
 
 def main():

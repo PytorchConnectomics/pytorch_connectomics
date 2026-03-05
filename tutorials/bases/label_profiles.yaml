@@ -11,3 +11,21 @@ label_profiles:
       - name: instance_edt
         kwargs:
           mode: "2d"
+  label_affinity_12:
+    erosion: 1
+    targets:
+      - name: affinity
+        kwargs:
+          offsets:
+            - 0-0-1
+            - 0-1-0
+            - 1-0-0
+            - 2-0-0
+            - 3-0-0
+            - 4-0-0
+            - 0-0-3
+            - 0-0-9
+            - 0-0-27
+            - 0-3-0
+            - 0-9-0
+            - 0-27-0

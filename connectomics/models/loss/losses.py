@@ -124,48 +124,9 @@ class WeightedMSELoss(nn.Module):
         Returns:
             Loss value (should be < 4 for range [-1, 1])
         """
-        from ...utils.debug_utils import DEBUG_NORM, print_tensor_stats
-
-        # DEBUG: Print input to loss function (before tanh)
-        if DEBUG_NORM and not hasattr(self, "_debug_loss_printed"):
-            self._debug_loss_printed = True
-            print_tensor_stats(
-                pred,
-                stage_name="STAGE 7: LOSS FUNCTION INPUT (before tanh)",
-                tensor_name="pred",
-                print_once=False,
-                extra_info={
-                    "tanh_enabled": self.tanh,
-                    "reduction": self.reduction,
-                    "weight_provided": weight is not None,
-                },
-            )
-            print_tensor_stats(
-                target,
-                stage_name="STAGE 7: LOSS FUNCTION INPUT (target)",
-                tensor_name="target",
-                print_once=False,
-                extra_info={"expected_range": "[-1, 1] for SDT"},
-            )
-
         # Apply tanh activation if enabled (constrains pred to [-1, 1])
         if self.tanh:
             pred = torch.tanh(pred)
-
-            # DEBUG: Print after tanh activation
-            if DEBUG_NORM and not hasattr(self, "_debug_tanh_printed"):
-                self._debug_tanh_printed = True
-                print_tensor_stats(
-                    pred,
-                    stage_name="STAGE 6: PREDICTION AFTER TANH",
-                    tensor_name="pred_after_tanh",
-                    print_once=False,
-                    extra_info={
-                        "activation_applied": "tanh",
-                        "expected_range": "[-1, 1]",
-                        "note": "Should now match target range",
-                    },
-                )
 
         # Compute MSE (for range [-1,1], max error is (1-(-1))^2 = 4)
         mse = (pred - target) ** 2
@@ -174,55 +135,38 @@ class WeightedMSELoss(nn.Module):
             mse = mse * weight
 
         loss_value = _reduce_weighted_tensor(mse, weight, self.reduction)
-
-        # DEBUG: Print loss output
-        if DEBUG_NORM and not hasattr(self, "_debug_loss_output_printed"):
-            self._debug_loss_output_printed = True
-            print(f"\n{'=' * 80}")
-            print("[DEBUG NORM] STAGE 8: LOSS FUNCTION OUTPUT")
-            print(f"{'=' * 80}")
-            print(f"LOSS VALUE: {loss_value.item():.6f}")
-            print("  Expected range: [0, 4] for MSE with values in [-1, 1]")
-            if loss_value.item() > 4:
-                print("  ⚠️  WARNING: Loss > 4 suggests tanh might not be working!")
-            else:
-                print("  ✅ Loss is reasonable")
-            print(f"{'=' * 80}\n")
-
         return loss_value
 
 
 class WeightedBCEWithLogitsLoss(nn.Module):
     """
-    Wrapper for BCEWithLogitsLoss with support for pos_weight (class rebalancing).
+    Wrapper for BCEWithLogitsLoss with optional class and spatial weighting.
 
-    Useful for handling class imbalance in binary segmentation, especially
-    for affinity prediction in connectomics where foreground is often sparse.
+    Supports static ``pos_weight`` (configured once) and optional per-call
+    ``pos_weight`` override (used by auto class-ratio mode in orchestration).
 
     Args:
-        pos_weight: Weight for positive class (tensor or float)
-                   Set to neg_samples/pos_samples for balanced loss
-                   If None, no rebalancing is applied
+        pos_weight: Optional positive-class weight (scalar or tensor)
         reduction: Reduction method ('mean', 'sum', 'none')
-
-    Examples:
-        # Auto-calculate from data
-        pos_weight = (target == 0).sum() / (target == 1).sum()
-        loss_fn = WeightedBCEWithLogitsLoss(pos_weight=pos_weight)
-
-        # Manual weight (e.g., 10x weight for positive class)
-        loss_fn = WeightedBCEWithLogitsLoss(pos_weight=10.0)
     """
 
     def __init__(
-        self, pos_weight: Union[float, torch.Tensor, None] = None, reduction: str = "mean"
+        self,
+        pos_weight: Union[float, torch.Tensor, None] = None,
+        reduction: str = "mean",
+        **kwargs,
     ):
         super().__init__()
+        if kwargs:
+            unexpected = ", ".join(sorted(kwargs.keys()))
+            raise TypeError(
+                f"Unexpected argument(s) for WeightedBCEWithLogitsLoss: {unexpected}"
+            )
         self.reduction = reduction
-
-        # Convert float to tensor if needed
         if pos_weight is not None and isinstance(pos_weight, (int, float)):
-            self.register_buffer("pos_weight", torch.tensor([pos_weight]))
+            if float(pos_weight) <= 0:
+                raise ValueError(f"pos_weight must be > 0, got {float(pos_weight)}")
+            self.register_buffer("pos_weight", torch.tensor([float(pos_weight)]))
         elif pos_weight is not None:
             self.register_buffer("pos_weight", pos_weight)
         else:
@@ -233,6 +177,7 @@ class WeightedBCEWithLogitsLoss(nn.Module):
         input: torch.Tensor,
         target: torch.Tensor,
         weight: torch.Tensor = None,
+        pos_weight: Union[float, torch.Tensor, None] = None,
     ) -> torch.Tensor:
         """
         Compute weighted BCE with logits loss.
@@ -241,14 +186,30 @@ class WeightedBCEWithLogitsLoss(nn.Module):
             input: Model output (logits) [B, C, ...]
             target: Ground truth [B, C, ...]
             weight: Optional spatial weights/mask.
+            pos_weight: Optional per-call positive-class weight override.
 
         Returns:
             Loss value
         """
+        if pos_weight is not None and isinstance(pos_weight, (int, float)):
+            if float(pos_weight) <= 0:
+                raise ValueError(f"pos_weight must be > 0, got {float(pos_weight)}")
+            effective_pos_weight = torch.tensor(
+                [float(pos_weight)],
+                device=input.device,
+                dtype=input.dtype,
+            )
+        elif pos_weight is not None:
+            effective_pos_weight = pos_weight.to(device=input.device, dtype=input.dtype)
+        elif self.pos_weight is not None:
+            effective_pos_weight = self.pos_weight.to(device=input.device, dtype=input.dtype)
+        else:
+            effective_pos_weight = None
+
         bce = F.binary_cross_entropy_with_logits(
             input,
             target,
-            pos_weight=self.pos_weight,
+            pos_weight=effective_pos_weight,
             reduction="none",
         )
 
@@ -423,7 +384,10 @@ class GANLoss(nn.Module):
 
 
 __all__ = [
+    "CrossEntropyLossWrapper",
+    "WeightedBCEWithLogitsLoss",
     "WeightedMSELoss",
     "WeightedMAELoss",
+    "SmoothL1Loss",
     "GANLoss",
 ]

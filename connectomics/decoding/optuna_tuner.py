@@ -110,9 +110,14 @@ class OptunaDecodingTuner:
         # Validate data shapes
         self._validate_data()
 
-        # Extract config sections
-        self.tune_cfg = cfg.tune
-        self.param_space_cfg = cfg.tune.parameter_space
+        # Extract tune-only optimization config through local handles.
+        self.tune_cfg = getattr(cfg, "tune", None)
+        if self.tune_cfg is None:
+            raise ValueError("Missing tune configuration required for Optuna tuning")
+
+        self.param_space_cfg = getattr(self.tune_cfg, "parameter_space", None)
+        if self.param_space_cfg is None:
+            raise ValueError("Missing tune.parameter_space configuration for Optuna tuning")
 
         # Initialize trial counter
         self.trial_count = 0
@@ -623,33 +628,6 @@ class OptunaDecodingTuner:
 
         return postproc_params
 
-    def _compute_metric(self, segmentation: np.ndarray, metric_name: str) -> float:
-        """
-        Compute evaluation metric.
-
-        Args:
-            segmentation: Predicted segmentation (D, H, W)
-            metric_name: Name of metric to compute
-
-        Returns:
-            Metric value
-        """
-        # Apply mask if provided
-        if self.mask is not None:
-            gt_masked = self.ground_truth * self.mask
-            seg_masked = segmentation * self.mask
-        else:
-            gt_masked = self.ground_truth
-            seg_masked = segmentation
-
-        if metric_name == "adapted_rand":
-            # Compute adapted Rand error (lower is better)
-            are = adapted_rand(seg_masked, gt_masked)
-            return are  # Return error directly (0 = perfect, 1 = worst)
-
-        else:
-            raise ValueError(f"Unknown metric: {metric_name}")
-
     def _print_results(self, study: optuna.Study):
         """Print optimization results."""
         print(f"\n{'='*80}")
@@ -787,11 +765,10 @@ def run_tuning(model, trainer, cfg, checkpoint_path=None):
             "Optuna is required for parameter tuning. " "Install with: pip install optuna"
         )
 
-    # Get output directory from tune config
-    if cfg.tune is None or not hasattr(cfg.tune, "output") or not cfg.tune.output.output_dir:
-        raise ValueError("Missing tune.output.output_dir in configuration")
-
-    output_dir = Path(cfg.tune.output.output_dir)
+    output_pred_dir = getattr(cfg.inference.save_prediction, "output_path", None)
+    if not output_pred_dir:
+        raise ValueError("Missing inference.save_prediction.output_path in configuration")
+    output_dir = Path(output_pred_dir).parent / "tuning"
     output_dir.mkdir(parents=True, exist_ok=True)
 
     best_params_file = output_dir / "best_params.yaml"
@@ -818,29 +795,20 @@ def run_tuning(model, trainer, cfg, checkpoint_path=None):
 
     print("\n[1/4] Running inference on tuning dataset...")
 
-    # Get tune config sections (used later for loading predictions, ground truth, masks)
-    tune_data = getattr(cfg.tune, "data", None)
-    tune_output = getattr(cfg.tune, "output", None)
+    tune_data = cfg.data
 
-    if tune_data is None:
-        raise ValueError("Missing tune.data in configuration")
-    if tune_output is None:
-        raise ValueError("Missing tune.output in configuration")
-
-    # Create datamodule with tune mode (reads from cfg.tune.data)
-    # Uses inference settings from cfg.inference (sliding window, TTA, save_predictions, etc.)
+    # Create datamodule with tune mode using merged runtime cfg.data/cfg.inference.
     datamodule = create_datamodule(cfg, mode="tune")
 
     # Run test (will check for cached files and skip inference if they exist)
-    # test_step will read output path and cache suffix from cfg.tune.output
     results = trainer.test(model, datamodule=datamodule, ckpt_path=checkpoint_path)
 
     print(f"✓ Test completed. Results: {results}")
 
     # Step 2: Load predictions from saved files
     print("\n[2/4] Loading predictions from saved files...")
-    output_pred_dir = getattr(tune_output, "output_pred", str(output_dir.parent / "results"))
-    cache_suffix = getattr(tune_output, "cache_suffix", "_tta_prediction.h5")
+    output_pred_dir = cfg.inference.save_prediction.output_path
+    cache_suffix = getattr(cfg.inference.save_prediction, "cache_suffix", "_tta_prediction.h5")
     predictions_dir = Path(output_pred_dir)
 
     # Find all prediction files using cache_suffix from config
@@ -867,10 +835,10 @@ def run_tuning(model, trainer, cfg, checkpoint_path=None):
 
     # Step 3: Load ground truth
     print("\n[3/4] Loading ground truth labels...")
-    tune_label_pattern = getattr(getattr(tune_data, "val", None), "label", None)
+    tune_label_pattern = getattr(getattr(tune_data, "test", None), "label", None)
 
     if tune_label_pattern is None:
-        raise ValueError("Missing tune.data.val.label in configuration")
+        raise ValueError("Missing data.test.label in configuration")
 
     # Handle both string patterns and pre-resolved lists
     if isinstance(tune_label_pattern, list):
@@ -899,7 +867,7 @@ def run_tuning(model, trainer, cfg, checkpoint_path=None):
 
     # Load mask if available
     all_masks = None
-    tune_mask_pattern = getattr(getattr(tune_data, "val", None), "mask", None)
+    tune_mask_pattern = getattr(getattr(tune_data, "test", None), "mask", None)
     if tune_mask_pattern:
         # Handle both string patterns and pre-resolved lists
         if isinstance(tune_mask_pattern, list):
@@ -907,7 +875,7 @@ def run_tuning(model, trainer, cfg, checkpoint_path=None):
         elif isinstance(tune_mask_pattern, str):
             mask_files = sorted(glob.glob(tune_mask_pattern))
         else:
-            raise TypeError(f"tune.data.val.mask must be string or list, got {type(tune_mask_pattern)}")
+            raise TypeError(f"data.test.mask must be string or list, got {type(tune_mask_pattern)}")
 
         if not mask_files:
             print(f"  ⚠️  No mask files found matching pattern: {tune_mask_pattern}")
@@ -967,13 +935,12 @@ def load_and_apply_best_params(cfg):
     Example:
         >>> cfg = load_config('tutorials/misc/hydra-lv.yaml')
         >>> cfg = load_and_apply_best_params(cfg)
-        >>> # cfg.test now has optimized decoding parameters
+        >>> # cfg.inference now has optimized decoding parameters
     """
-    # Get output directory from tune config
-    if cfg.tune is None or not hasattr(cfg.tune, "output") or not cfg.tune.output.output_dir:
-        raise ValueError("Missing tune.output.output_dir in configuration")
-
-    output_dir = Path(cfg.tune.output.output_dir)
+    output_pred_dir = getattr(cfg.inference.save_prediction, "output_path", None)
+    if not output_pred_dir:
+        raise ValueError("Missing inference.save_prediction.output_path in configuration")
+    output_dir = Path(output_pred_dir).parent / "tuning"
     best_params_file = output_dir / "best_params.yaml"
 
     if not best_params_file.exists():
@@ -990,12 +957,9 @@ def load_and_apply_best_params(cfg):
     print("✓ Loaded best parameters:")
     print(OmegaConf.to_yaml(best_params))
 
-    # Apply to test.decoding config
-    if cfg.test is None:
-        cfg.test = OmegaConf.create({})
-
-    if not hasattr(cfg.test, "decoding") or cfg.test.decoding is None:
-        cfg.test.decoding = []
+    # Apply to merged runtime inference.decoding config
+    if getattr(cfg.inference, "decoding", None) is None:
+        cfg.inference.decoding = []
 
     # Find the decoding function in test.decoding that matches the tuned function
     decoding_function = best_params.get("decoding_function", None)
@@ -1006,7 +970,7 @@ def load_and_apply_best_params(cfg):
     else:
         # Find decoder with matching function name
         decoder_idx = None
-        for idx, decoder in enumerate(cfg.test.decoding):
+        for idx, decoder in enumerate(cfg.inference.decoding):
             decoder_name = (
                 decoder.get("name") if isinstance(decoder, dict) else getattr(decoder, "name", None)
             )
@@ -1016,12 +980,12 @@ def load_and_apply_best_params(cfg):
 
         if decoder_idx is None:
             # Create new decoder entry
-            decoder_idx = len(cfg.test.decoding)
-            cfg.test.decoding.append({"name": decoding_function, "kwargs": {}})
+            decoder_idx = len(cfg.inference.decoding)
+            cfg.inference.decoding.append({"name": decoding_function, "kwargs": {}})
 
     # Update parameters
-    if decoder_idx < len(cfg.test.decoding):
-        decoder = cfg.test.decoding[decoder_idx]
+    if decoder_idx < len(cfg.inference.decoding):
+        decoder = cfg.inference.decoding[decoder_idx]
 
         # Handle both dict and config object
         if isinstance(decoder, dict):
@@ -1035,6 +999,6 @@ def load_and_apply_best_params(cfg):
             for key, value in best_params["decoding_params"].items():
                 decoder.kwargs[key] = value
 
-        print(f"✓ Applied best parameters to test.decoding[{decoder_idx}]")
+        print(f"✓ Applied best parameters to inference.decoding[{decoder_idx}]")
 
     return cfg

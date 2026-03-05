@@ -10,7 +10,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from connectomics.config import load_config, resolve_data_paths  # noqa: E402
-from scripts.main import create_datamodule  # noqa: E402
+from connectomics.training.lightning import create_datamodule  # noqa: E402
 
 
 def profile_dataloader(config_path: str, num_batches: int = 10):

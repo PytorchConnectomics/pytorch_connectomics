@@ -2,8 +2,9 @@ import argparse
 from pathlib import Path
 
 from connectomics.config import Config, save_config
+from connectomics.config.schema.inference import EvaluationConfig
 from connectomics.training.lightning.utils import setup_config
-from scripts.main import resolve_test_stage_runtime
+from scripts.main import _is_test_evaluation_enabled, resolve_test_stage_runtime
 
 
 def _make_args(config_path: Path, mode: str = "test"):
@@ -43,3 +44,28 @@ def test_resolve_test_stage_runtime_reapplies_resource_sentinels(tmp_path):
     assert switched_cfg.system.num_workers >= 0
     assert switched_cfg.system.num_workers != -1
     assert switched_cfg.system.num_gpus >= 0
+
+
+def test_is_test_evaluation_enabled_uses_runtime_inference_config():
+    cfg = Config()
+    cfg.inference.evaluation.enabled = True
+
+    assert _is_test_evaluation_enabled(cfg) is True
+
+    cfg.inference.evaluation.enabled = False
+    assert _is_test_evaluation_enabled(cfg) is False
+
+
+def test_is_test_evaluation_enabled_supports_mapping_or_dataclass_config():
+    cfg = Config()
+    cfg.inference.evaluation = {"enabled": False}
+    assert _is_test_evaluation_enabled(cfg) is False
+
+    cfg.inference.evaluation = {"enabled": True}
+    assert _is_test_evaluation_enabled(cfg) is True
+
+    cfg.inference.evaluation = EvaluationConfig(enabled=False)
+    assert _is_test_evaluation_enabled(cfg) is False
+
+    cfg.inference.evaluation.enabled = True
+    assert _is_test_evaluation_enabled(cfg) is True

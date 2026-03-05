@@ -8,7 +8,7 @@ This module provides utilities for:
     - IoU calculations (intersection_over_union)
 """
 
-from __future__ import print_function, division, annotations
+from __future__ import annotations
 from typing import List, TYPE_CHECKING
 import numpy as np
 
@@ -25,6 +25,7 @@ from skimage.feature import peak_local_max
 import mahotas
 
 from connectomics.data.process import bbox_ND, crop_ND, replace_ND
+from connectomics.utils.label_overlap import compute_label_overlap
 
 
 __all__ = [
@@ -245,21 +246,7 @@ def _label_overlap(x: np.ndarray, y: np.ndarray) -> np.ndarray:
         numpy.ndarray: A ND-array matrix recording the pixel overlaps,
             size:math:`[x.max()+1, y.max()+1]`
     """
-    # flatten the 2D label arrays
-    x = x.ravel()
-    y = y.ravel()
-
-    assert len(x) == len(y), "The label masks must have the same shape"
-
-    # initialize the lookup table
-    overlap = np.zeros((1 + x.max(), 1 + y.max()), dtype=np.uint)
-
-    # loop over the labels in x and add to the corresponding
-    # overlap entry. If label A in x and label B in y share P
-    # pixels, then the resulting overlap is P
-    for i in range(len(x)):
-        overlap[x[i], y[i]] += 1
-    return overlap
+    return compute_label_overlap(x, y)
 
 
 def apply_binary_postprocessing(

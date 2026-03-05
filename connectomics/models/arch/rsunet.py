@@ -39,7 +39,8 @@ class BilinearUp3d(nn.Module):
         self, in_channels: int, out_channels: int, factor: Tuple[int, int, int] = (1, 2, 2)
     ):
         super().__init__()
-        assert in_channels == out_channels, "BilinearUp3d requires in_channels == out_channels"
+        if in_channels != out_channels:
+            raise ValueError("BilinearUp3d requires in_channels == out_channels")
         self.groups = in_channels
         self.factor = factor
         self.kernel_size = [(2 * f) - (f % 2) for f in self.factor]
@@ -56,7 +57,8 @@ class BilinearUp3d(nn.Module):
         weight = torch.Tensor(self.groups, 1, *self.kernel_size)
         width = weight.size(-1)
         height = weight.size(-2)
-        assert width == height, "Bilinear weight assumes square kernel in HW"
+        if width != height:
+            raise ValueError("Bilinear weight assumes square kernel in HW")
         f = float(math.ceil(width / 2.0))
         c = float(width - 1) / (2.0 * f)
         for w in range(width):
@@ -312,7 +314,8 @@ class RSUNet(ConnectomicsModel):
     ):
         super().__init__()
 
-        assert len(width) > 1, "Need at least 2 levels"
+        if len(width) <= 1:
+            raise ValueError("Need at least 2 levels")
         self.depth = len(width) - 1
         self.width = width
         self.supports_deep_supervision = deep_supervision
@@ -321,7 +324,10 @@ class RSUNet(ConnectomicsModel):
         # Default: anisotropic downsampling (1,2,2) for EM data
         if down_factors is None:
             down_factors = [(1, 2, 2)] * self.depth
-        assert len(down_factors) == self.depth
+        if len(down_factors) != self.depth:
+            raise ValueError(
+                f"down_factors length ({len(down_factors)}) must match depth ({self.depth})"
+            )
 
         # Process kernel sizes
         if isinstance(kernel_sizes, int):
@@ -502,7 +508,7 @@ def build_rsunet(cfg) -> RSUNet:
         norm=getattr(cfg.model.rsunet, "norm", "batch"),
         activation=getattr(cfg.model.rsunet, "activation", "relu"),
         num_groups=getattr(cfg.model.rsunet, "num_groups", 8),
-        deep_supervision=getattr(getattr(cfg.model, "loss", None), "deep_supervision", False),
+        deep_supervision=getattr(cfg.model.loss, "deep_supervision", False),
         down_factors=down_factors,
         depth_2d=getattr(cfg.model.rsunet, "depth_2d", 0),
         kernel_2d=kernel_2d,
@@ -528,7 +534,7 @@ def build_rsunet_iso(cfg) -> RSUNet:
         norm=getattr(cfg.model.rsunet, "norm", "batch"),
         activation=getattr(cfg.model.rsunet, "activation", "relu"),
         num_groups=getattr(cfg.model.rsunet, "num_groups", 8),
-        deep_supervision=getattr(getattr(cfg.model, "loss", None), "deep_supervision", False),
+        deep_supervision=getattr(cfg.model.loss, "deep_supervision", False),
     )
 
 

@@ -139,41 +139,10 @@ class SegToInstanceEDTd(MapTransform):
         self.quantize = quantize
 
     def __call__(self, data: Dict[str, Any]) -> Dict[str, Any]:
-        from ...utils.debug_utils import print_tensor_stats
-        
         d = dict(data)
         for key in self.key_iterator(d):
             if key in d:
-                # DEBUG: Print raw label before EDT transform
-                print_tensor_stats(
-                    d[key],
-                    stage_name="STAGE 3: RAW LABEL (instance IDs, before EDT)",
-                    tensor_name="label",
-                    print_once=True,
-                    extra_info={
-                        "transform": "instance_edt",
-                        "mode": self.mode,
-                        "quantize": self.quantize,
-                        "unique_instances": len(np.unique(d[key]))
-                    }
-                )
-                
-                # Apply EDT transform
                 d[key] = seg_to_instance_edt(d[key], mode=self.mode, quantize=self.quantize)
-                
-                # DEBUG: Print after EDT transform
-                print_tensor_stats(
-                    d[key],
-                    stage_name="STAGE 4: AFTER LABEL TRANSFORM (SDT generated)",
-                    tensor_name="label_sdt",
-                    print_once=True,
-                    extra_info={
-                        "transform_applied": "instance_edt",
-                        "expected_range": "[-1, 1]",
-                        "positive_values": "inside instances",
-                        "negative_values": "background"
-                    }
-                )
         return d
 
 

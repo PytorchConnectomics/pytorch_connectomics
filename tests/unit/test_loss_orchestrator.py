@@ -111,9 +111,22 @@ class MaskPredPredSpyLoss(nn.Module):
         return loss.mean()
 
 
-def _expected_foreground_weight(target: torch.Tensor) -> torch.Tensor:
+def _expected_pos_weight(target: torch.Tensor) -> torch.Tensor:
+    valid = torch.ones_like(target, dtype=torch.bool)
+    pos = (target > 0) & valid
+    neg = (target <= 0) & valid
+    pos_count = int(torch.count_nonzero(pos).item())
+    neg_count = int(torch.count_nonzero(neg).item())
+
     out = torch.ones_like(target)
-    out[target > 0] = 2.0
+    if pos_count == 0 or neg_count == 0:
+        return out
+
+    valid_count = float(pos_count + neg_count)
+    bg_weight = valid_count / (2.0 * float(neg_count))
+    fg_weight = valid_count / (2.0 * float(pos_count))
+    out.fill_(bg_weight)
+    out[target > 0] = fg_weight
     return out
 
 
@@ -139,6 +152,18 @@ def test_create_loss_attaches_metadata_for_supervised_and_regularization_losses(
     assert reg_meta.spatial_weight_arg == "mask"
 
 
+def test_weighted_bce_accepts_pos_weight_constructor_kwarg():
+    loss_fn = create_loss("WeightedBCEWithLogitsLoss", pos_weight=10.0)
+    assert isinstance(loss_fn, WeightedBCEWithLogitsLoss)
+    assert loss_fn.pos_weight is not None
+    assert torch.isclose(loss_fn.pos_weight[0], torch.tensor(10.0))
+
+
+def test_weighted_bce_rejects_unknown_loss_kwargs():
+    with pytest.raises(TypeError, match="Unexpected argument\\(s\\) for WeightedBCEWithLogitsLoss"):
+        create_loss("WeightedBCEWithLogitsLoss", unknown_kwarg=True)
+
+
 def test_loss_orchestrator_requires_explicit_losses():
     with pytest.raises(ValueError, match="model\\.loss\\.losses is required"):
         LossOrchestrator(
@@ -150,7 +175,7 @@ def test_loss_orchestrator_requires_explicit_losses():
         )
 
 
-def test_standard_loss_uses_foreground_weight_only_for_weight_aware_losses():
+def test_standard_loss_uses_pos_weight_only_for_weight_aware_losses():
     weighted_loss = WeightAwareSpyLoss()
     no_weight_loss = NoWeightSpyLoss()
     orchestrator = LossOrchestrator(
@@ -179,10 +204,99 @@ def test_standard_loss_uses_foreground_weight_only_for_weight_aware_losses():
     assert len(weighted_loss.calls) == 1
     received_weight = weighted_loss.calls[0]["weight"]
     assert received_weight is not None
-    assert torch.equal(received_weight, _expected_foreground_weight(labels))
+    assert torch.equal(received_weight, _expected_pos_weight(labels))
 
 
-def test_standard_loss_supports_constant_foreground_weight_from_config():
+def test_pred_target_defaults_to_all_channels_when_slices_omitted():
+    weighted_loss = WeightAwareSpyLoss()
+    orchestrator = LossOrchestrator(
+        cfg=_cfg(
+            losses=[
+                {
+                    "weight": 1.0,
+                },
+            ]
+        ),
+        loss_functions=nn.ModuleList([weighted_loss]),
+        loss_weights=[1.0],
+        enable_nan_detection=False,
+        debug_on_nan=False,
+    )
+
+    outputs = torch.zeros(1, 2, 2, 2, 2)
+    labels = torch.randn(1, 2, 2, 2, 2)
+
+    total_loss, loss_dict = orchestrator.compute_standard_loss(outputs, labels, stage="train")
+
+    assert torch.isfinite(total_loss)
+    assert "train_loss_total" in loss_dict
+    assert len(weighted_loss.calls) == 1
+    assert weighted_loss.calls[0]["pred_shape"] == tuple(outputs.shape)
+    assert weighted_loss.calls[0]["target_shape"] == tuple(labels.shape)
+
+
+def test_standard_loss_supports_negative_channel_slice_bounds():
+    head_loss = WeightAwareSpyLoss()
+    aux_loss = WeightAwareSpyLoss()
+    orchestrator = LossOrchestrator(
+        cfg=_cfg(
+            losses=[
+                {
+                    "pred_slice": [0, -2],
+                    "target_slice": [0, -2],
+                    "weight": 1.0,
+                },
+                {
+                    "pred_slice": [-2, -1],
+                    "target_slice": [-2, -1],
+                    "weight": 1.0,
+                },
+            ]
+        ),
+        loss_functions=nn.ModuleList([head_loss, aux_loss]),
+        loss_weights=[1.0, 1.0],
+        enable_nan_detection=False,
+        debug_on_nan=False,
+    )
+
+    outputs = torch.zeros(1, 6, 2, 2, 2)
+    labels = torch.randn(1, 6, 2, 2, 2)
+    total_loss, loss_dict = orchestrator.compute_standard_loss(outputs, labels, stage="train")
+
+    assert torch.isfinite(total_loss)
+    assert "train_loss_total" in loss_dict
+    assert head_loss.calls[0]["pred_shape"] == (1, 4, 2, 2, 2)
+    assert head_loss.calls[0]["target_shape"] == (1, 4, 2, 2, 2)
+    assert aux_loss.calls[0]["pred_shape"] == (1, 1, 2, 2, 2)
+    assert aux_loss.calls[0]["target_shape"] == (1, 1, 2, 2, 2)
+
+
+def test_standard_loss_rejects_invalid_runtime_negative_channel_slice():
+    weighted_loss = WeightAwareSpyLoss()
+    orchestrator = LossOrchestrator(
+        cfg=_cfg(
+            losses=[
+                {
+                    "pred_slice": [0, -2],
+                    "target_slice": [0, -2],
+                    "weight": 1.0,
+                },
+            ]
+        ),
+        loss_functions=nn.ModuleList([weighted_loss]),
+        loss_weights=[1.0],
+        enable_nan_detection=False,
+        debug_on_nan=False,
+    )
+
+    outputs = torch.zeros(1, 2, 2, 2, 2)
+    labels = torch.zeros(1, 2, 2, 2, 2)
+
+    with pytest.raises(ValueError, match="Invalid channel slice"):
+        orchestrator.compute_standard_loss(outputs, labels, stage="train")
+
+
+def test_standard_loss_supports_constant_pos_weight_from_config():
     weighted_loss = WeightAwareSpyLoss()
     orchestrator = LossOrchestrator(
         cfg=_cfg(
@@ -191,7 +305,7 @@ def test_standard_loss_supports_constant_foreground_weight_from_config():
                     "pred_slice": [0, 1],
                     "target_slice": [0, 1],
                     "weight": 1.0,
-                    "foreground_weight": 3.5,
+                    "pos_weight": 3.5,
                 },
             ]
         ),
@@ -211,7 +325,131 @@ def test_standard_loss_supports_constant_foreground_weight_from_config():
     assert torch.equal(received_weight, expected)
 
 
-def test_standard_loss_supports_ratio_foreground_weight_and_respects_mask():
+def test_weighted_bce_defaults_to_unweighted_pos_weight_when_omitted():
+    orchestrator = LossOrchestrator(
+        cfg=_cfg(
+            losses=[
+                {
+                    "pred_slice": [0, 1],
+                    "target_slice": [0, 1],
+                    "weight": 1.0,
+                },
+            ]
+        ),
+        loss_functions=nn.ModuleList([WeightedBCEWithLogitsLoss(reduction="mean")]),
+        loss_weights=[1.0],
+        enable_nan_detection=False,
+        debug_on_nan=False,
+    )
+
+    outputs = torch.tensor([[[[[0.0, 0.0], [0.0, 0.0]]]]])
+    labels = torch.tensor([[[[[0.0, 1.0], [0.0, 1.0]]]]])
+    total_loss, _ = orchestrator.compute_standard_loss(outputs, labels, stage="train")
+
+    # With pos_weight defaulting to 1, this matches standard BCE mean.
+    expected = torch.nn.functional.binary_cross_entropy_with_logits(
+        outputs, labels, reduction="mean"
+    )
+    assert torch.isclose(total_loss, expected)
+
+
+def test_weighted_bce_supports_constant_pos_weight_from_config():
+    orchestrator = LossOrchestrator(
+        cfg=_cfg(
+            losses=[
+                {
+                    "pred_slice": [0, 1],
+                    "target_slice": [0, 1],
+                    "weight": 1.0,
+                    "pos_weight": 3.5,
+                },
+            ]
+        ),
+        loss_functions=nn.ModuleList([WeightedBCEWithLogitsLoss(reduction="mean")]),
+        loss_weights=[1.0],
+        enable_nan_detection=False,
+        debug_on_nan=False,
+    )
+
+    outputs = torch.tensor([[[[[0.0, 0.0], [0.0, 0.0]]]]])
+    labels = torch.tensor([[[[[0.0, 1.0], [0.0, 1.0]]]]])
+    total_loss, _ = orchestrator.compute_standard_loss(outputs, labels, stage="train")
+
+    expected = torch.nn.functional.binary_cross_entropy_with_logits(
+        outputs,
+        labels,
+        pos_weight=torch.tensor([3.5]),
+        reduction="mean",
+    )
+    assert torch.isclose(total_loss, expected)
+
+
+def test_weighted_bce_supports_auto_pos_weight_from_batch_with_mask():
+    orchestrator = LossOrchestrator(
+        cfg=_cfg(
+            losses=[
+                {
+                    "pred_slice": [0, 1],
+                    "target_slice": [0, 1],
+                    "weight": 1.0,
+                    "pos_weight": "auto",
+                },
+            ]
+        ),
+        loss_functions=nn.ModuleList([WeightedBCEWithLogitsLoss(reduction="mean")]),
+        loss_weights=[1.0],
+        enable_nan_detection=False,
+        debug_on_nan=False,
+    )
+
+    outputs = torch.zeros(1, 1, 1, 1, 4)
+    labels = torch.tensor([[[[[0.0, 0.0, 0.0, 1.0]]]]])
+    mask = torch.tensor([[[[[1.0, 1.0, 0.0, 1.0]]]]])  # valid: neg=2, pos=1 => auto=2.0
+    total_loss, _ = orchestrator.compute_standard_loss(outputs, labels, stage="train", mask=mask)
+
+    expected = torch.nn.functional.binary_cross_entropy_with_logits(
+        outputs,
+        labels,
+        pos_weight=torch.tensor([2.0]),
+        reduction="none",
+    )
+    expected = expected[mask > 0].mean()
+    assert torch.isclose(total_loss, expected)
+
+
+def test_weighted_bce_auto_pos_weight_is_capped_at_ten():
+    orchestrator = LossOrchestrator(
+        cfg=_cfg(
+            losses=[
+                {
+                    "pred_slice": [0, 1],
+                    "target_slice": [0, 1],
+                    "weight": 1.0,
+                    "pos_weight": "auto",
+                },
+            ]
+        ),
+        loss_functions=nn.ModuleList([WeightedBCEWithLogitsLoss(reduction="mean")]),
+        loss_weights=[1.0],
+        enable_nan_detection=False,
+        debug_on_nan=False,
+    )
+
+    outputs = torch.zeros(1, 1, 1, 1, 32)
+    labels = torch.zeros(1, 1, 1, 1, 32)
+    labels[..., -1] = 1.0  # 31 negatives, 1 positive -> uncapped auto would be 31.0
+    total_loss, _ = orchestrator.compute_standard_loss(outputs, labels, stage="train")
+
+    expected = torch.nn.functional.binary_cross_entropy_with_logits(
+        outputs,
+        labels,
+        pos_weight=torch.tensor([10.0]),
+        reduction="mean",
+    )
+    assert torch.isclose(total_loss, expected)
+
+
+def test_standard_loss_supports_auto_pos_weight_and_respects_mask():
     weighted_loss = WeightAwareSpyLoss()
     orchestrator = LossOrchestrator(
         cfg=_cfg(
@@ -220,7 +458,7 @@ def test_standard_loss_supports_ratio_foreground_weight_and_respects_mask():
                     "pred_slice": [0, 1],
                     "target_slice": [0, 1],
                     "weight": 1.0,
-                    "foreground_weight": "ratio",
+                    "pos_weight": "auto",
                 },
             ]
         ),
@@ -236,7 +474,7 @@ def test_standard_loss_supports_ratio_foreground_weight_and_respects_mask():
     orchestrator.compute_standard_loss(outputs, labels, stage="train", mask=mask)
 
     # Valid voxels by mask: negatives=3 (<=0), positives=1.
-    # Ratio weights are normalized so mean(weight | valid)=1.
+    # Auto weights are normalized so mean(weight | valid)=1.
     received_weight = weighted_loss.calls[0]["weight"]
     expected = torch.tensor([[[[[2.0 / 3.0, 2.0 / 3.0, 0.0], [2.0 / 3.0, 2.0, 0.0]]]]])
     assert torch.allclose(received_weight, expected)
@@ -245,8 +483,39 @@ def test_standard_loss_supports_ratio_foreground_weight_and_respects_mask():
     assert torch.isclose(received_weight[valid].mean(), torch.tensor(1.0))
 
 
-def test_invalid_foreground_weight_raises_value_error():
-    with pytest.raises(ValueError, match="foreground_weight must be a positive number or 'ratio'"):
+def test_standard_loss_auto_pos_weight_caps_max_weight_at_ten():
+    weighted_loss = WeightAwareSpyLoss()
+    orchestrator = LossOrchestrator(
+        cfg=_cfg(
+            losses=[
+                {
+                    "pred_slice": [0, 1],
+                    "target_slice": [0, 1],
+                    "weight": 1.0,
+                    "pos_weight": "auto",
+                },
+            ]
+        ),
+        loss_functions=nn.ModuleList([weighted_loss]),
+        loss_weights=[1.0],
+        enable_nan_detection=False,
+        debug_on_nan=False,
+    )
+
+    outputs = torch.zeros(1, 1, 1, 1, 32)
+    labels = torch.zeros(1, 1, 1, 1, 32)
+    labels[..., -1] = 1.0  # 31 negatives, 1 positive -> uncapped fg_weight would be 16.0
+
+    orchestrator.compute_standard_loss(outputs, labels, stage="train")
+    received_weight = weighted_loss.calls[0]["weight"]
+
+    assert received_weight is not None
+    assert torch.isclose(received_weight.max(), torch.tensor(10.0))
+    assert torch.isclose(received_weight[..., -1], torch.tensor([[[[10.0]]]]))
+
+
+def test_invalid_pos_weight_raises_value_error():
+    with pytest.raises(ValueError, match="pos_weight must be a positive number or 'auto'"):
         LossOrchestrator(
             cfg=_cfg(
                 losses=[
@@ -254,7 +523,7 @@ def test_invalid_foreground_weight_raises_value_error():
                         "pred_slice": [0, 1],
                         "target_slice": [0, 1],
                         "weight": 1.0,
-                        "foreground_weight": "invalid",
+                        "pos_weight": "invalid",
                     },
                 ]
             ),
@@ -348,7 +617,7 @@ def test_multitask_single_scale_routes_class_index_and_dense_targets():
     assert reg_loss.calls[0]["weight"] is not None
 
 
-def test_deep_supervision_multitask_resizes_targets_per_task_and_applies_foreground_weight():
+def test_deep_supervision_multitask_resizes_targets_per_task_and_applies_pos_weight():
     ce_loss = CrossEntropyLossWrapperSpy()
     reg_loss = WeightAwareSpyLoss()
     cfg = _cfg(

@@ -3,3 +3,8 @@ dataloader_profiles:
     use_preloaded_cache_train: true
     use_preloaded_cache_val: true
     persistent_workers: true
+  lazy:
+    use_preloaded_cache_train: false
+    use_preloaded_cache_val: false
+    persistent_workers: true
+    use_lazy_zarr: true

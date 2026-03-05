@@ -7,12 +7,17 @@ Provides helpers for loading, saving, validating, and manipulating configs.
 from __future__ import annotations
 
 import dataclasses
+import hashlib
 from pathlib import Path
 import warnings
+import os
+import re
+from glob import glob
 from typing import Any, Dict, List, Optional, Tuple, Union
 
 from omegaconf import DictConfig, ListConfig, OmegaConf
 
+from ..models.arch.registry import get_architecture_info
 from .schema import Config
 from .schema.root import MergeContext
 from .profile_engine import _YAML_PROFILE_ENGINE
@@ -343,13 +348,22 @@ def validate_config(cfg: Config) -> None:
 
 
 def _extract_max_referenced_channel(value: Any) -> Optional[int]:
-    """Best-effort extraction of max non-negative channel index from a selector."""
+    """Best-effort extraction of required channel upper index from a selector.
+
+    Returns the largest required channel index (0-based) as a lower-bound
+    estimate for cross-section validation. Supports both explicit channel
+    indices and half-open slice-like selectors ``[start, end]`` with optional
+    negative bounds.
+    """
     if value is None:
         return None
 
     # Single channel index
     if isinstance(value, int):
-        return value if value >= 0 else None
+        if value >= 0:
+            return value
+        # Negative single-index references need at least abs(value) channels.
+        return (-value) - 1
 
     if not isinstance(value, (list, tuple)):
         return None
@@ -360,19 +374,45 @@ def _extract_max_referenced_channel(value: Any) -> Optional[int]:
         # Convention in this codebase: [start, end] is a half-open slice [start, end).
         if len(value) == 2:
             start, end = value
-            candidates: List[int] = []
-            if start >= 0:
-                candidates.append(start)
-            if end > 0:
-                candidates.append(end - 1)
-            if candidates:
-                return max(candidates)
+            # Fully non-negative bounds: direct upper-index inference.
+            if start >= 0 and end > 0:
+                return max(start, end - 1)
+            # Mixed bounds [non-neg, neg]: enforce enough channels so end resolves
+            # after start, i.e. C > start - end.
+            if start >= 0 and end < 0:
+                return start - end
+            # Mixed bounds [neg, non-neg]: only lower-bound inferable from endpoints.
+            if start < 0 and end > 0:
+                min_channels = max(-start, end)
+                return (min_channels - 1) if min_channels > 0 else None
+            # Fully negative bounds: require enough channels to resolve both.
+            if start < 0 and end < 0:
+                min_channels = max(-start, -end)
+                return (min_channels - 1) if min_channels > 0 else None
             return None
 
+        # Treat longer integer lists as explicit channel references.
         non_negative = [v for v in value if v >= 0]
-        return max(non_negative) if non_negative else None
+        negative = [(-v) - 1 for v in value if v < 0]
+        candidates = []
+        if non_negative:
+            candidates.append(max(non_negative))
+        if negative:
+            candidates.append(max(negative))
+        return max(candidates) if candidates else None
 
     return None
+
+
+def _architecture_supports_deep_supervision(arch_type: str) -> bool:
+    """Infer deep-supervision support from architecture registry metadata."""
+    arch_info = get_architecture_info().get(arch_type)
+    if arch_info is None:
+        return True
+
+    module_name = arch_info.get("module", "")
+    # Current MONAI wrappers are single-scale and do not expose deep supervision.
+    return not module_name.endswith("monai_models")
 
 
 def _validate_cross_section_coherence(cfg: Config) -> None:
@@ -457,9 +497,7 @@ def _validate_cross_section_coherence(cfg: Config) -> None:
     deep_supervision = getattr(model_loss_cfg, "deep_supervision", False) if model_loss_cfg else False
     if deep_supervision:
         arch_type = getattr(cfg.model.arch, "type", "")
-        # MONAI basic models don't support deep supervision
-        no_ds_archs = {"monai_basic_unet3d", "monai_unet", "monai_unetr", "monai_swin_unetr"}
-        if arch_type in no_ds_archs:
+        if not _architecture_supports_deep_supervision(arch_type):
             raise ValueError(
                 "Cross-section validation failed: model.loss.deep_supervision=True but "
                 f"architecture '{arch_type}' does not support deep supervision. "
@@ -484,8 +522,6 @@ def get_config_hash(cfg: Config) -> str:
     Returns:
         Hash string
     """
-    import hashlib
-
     omega_conf = OmegaConf.structured(cfg)
     yaml_str = OmegaConf.to_yaml(omega_conf, resolve=True)
     return hashlib.md5(yaml_str.encode()).hexdigest()[:8]
@@ -517,21 +553,17 @@ def create_experiment_name(cfg: Config) -> str:
 
 def resolve_data_paths(cfg: Config) -> Config:
     """
-    Resolve data paths by combining base paths (train_path, val_path)
-    with relative file paths (train_image, train_label, etc.).
+    Resolve data paths by combining split base paths with relative file paths.
 
     This function modifies the config in-place by:
     1. Prepending base paths to relative file paths
     2. Expanding glob patterns to actual file lists
     3. Flattening nested lists from glob expansion
 
-    Supported paths:
+    Supported split paths:
     - Training: cfg.data.train.path + cfg.data.train.image/label/mask
     - Validation: cfg.data.val.path + cfg.data.val.image/label/mask
-    - Testing: cfg.test.data.val.path + cfg.test.data.val.image/label/mask
-    - Tuning: cfg.tune.data.val.path + cfg.tune.data.val.image/label/mask
-
-    Note: Test data belongs in cfg.test.data, tuning data in cfg.tune.data
+    - Inference/Test: cfg.data.test.path + cfg.data.test.image/label/mask
 
     Args:
         cfg: Config object to resolve paths for
@@ -550,16 +582,12 @@ def resolve_data_paths(cfg: Config) -> Config:
             '/data/barcode/file.tif'
         ]
 
-        >>> cfg.test.data.val.path = "/data/test/"
-        >>> cfg.test.data.val.image = ["volume_*.tif"]
+        >>> cfg.data.test.path = "/data/test/"
+        >>> cfg.data.test.image = ["volume_*.tif"]
         >>> resolve_data_paths(cfg)
-        >>> print(cfg.test.data.val.image)
+        >>> print(cfg.data.test.image)
         ['/data/test/volume_1.tif', '/data/test/volume_2.tif']
     """
-    import os
-    from glob import glob
-    import re
-
     def _combine_path(
         base_path: str, file_path: Optional[Union[str, List[str]]]
     ) -> Optional[Union[str, List[str]]]:
@@ -603,13 +631,6 @@ def resolve_data_paths(cfg: Config) -> Config:
             try:
                 # Try numeric index
                 index = int(selector)
-                if index < -len(expanded) or index >= len(expanded):
-                    print(
-                        f"Warning: Index {index} out of range for {len(expanded)} files, "
-                        f"using first"
-                    )
-                    return expanded[0]
-                return expanded[index]
             except ValueError:
                 # Not a number, try filename match
                 matching = [
@@ -621,11 +642,16 @@ def resolve_data_paths(cfg: Config) -> Config:
                 if matching:
                     return matching[0]
                 else:
-                    print(
-                        f"Warning: No file matches selector '{selector}', "
-                        f"using first of {len(expanded)} files"
+                    raise ValueError(
+                        f"Glob selector '{selector}' did not match any file in pattern "
+                        f"'{glob_pattern}' ({len(expanded)} candidates)."
                     )
-                    return expanded[0]
+            if index < -len(expanded) or index >= len(expanded):
+                raise ValueError(
+                    f"Glob selector index out of range: '{file_path}' resolved to "
+                    f"{len(expanded)} files but requested index {index}."
+                )
+            return expanded[index]
 
         elif "*" in file_path or "?" in file_path:
             # Standard glob without selector
@@ -667,31 +693,8 @@ def resolve_data_paths(cfg: Config) -> Config:
         split_cfg.label = _combine_path(split_base, split_cfg.label)
         split_cfg.mask = _combine_path(split_base, split_cfg.mask)
 
-    # Resolve test data paths (cfg.test.data.{val,test}.*)
-    if cfg.test is not None:
-        test_data = cfg.test.data
-        # Legacy alias materialization: test_data.test_* -> test_data.test.*
-        if getattr(test_data.test, "image", None) is None and getattr(test_data, "test_image", None) is not None:
-            test_data.test.image = test_data.test_image
-            test_data.test.label = getattr(test_data, "test_label", None)
-            test_data.test.mask = getattr(test_data, "test_mask", None)
-            test_data.test.path = getattr(test_data, "test_path", "") or ""
-            test_data.test.resolution = getattr(test_data, "test_resolution", None)
-        _resolve_split_paths(test_data.val)
-        if hasattr(test_data, "test"):
-            _resolve_split_paths(test_data.test)
-
-    # Resolve tuning data paths (cfg.tune.data.{val,test}.*)
-    if cfg.tune is not None:
-        tune_data = cfg.tune.data
-        if getattr(tune_data.test, "image", None) is None and getattr(tune_data, "test_image", None) is not None:
-            tune_data.test.image = tune_data.test_image
-            tune_data.test.label = getattr(tune_data, "test_label", None)
-            tune_data.test.mask = getattr(tune_data, "test_mask", None)
-            tune_data.test.path = getattr(tune_data, "test_path", "") or ""
-            tune_data.test.resolution = getattr(tune_data, "test_resolution", None)
-        _resolve_split_paths(tune_data.val)
-        if hasattr(tune_data, "test"):
-            _resolve_split_paths(tune_data.test)
+    # Resolve inference/test paths from merged runtime cfg.data.
+    if getattr(cfg.data, "test", None) is not None:
+        _resolve_split_paths(cfg.data.test)
 
     return cfg

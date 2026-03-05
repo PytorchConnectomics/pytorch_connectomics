@@ -43,6 +43,7 @@ class TestTimeAugmentationConfig:
     enabled: bool = False
     # Optional channel-wise activation overrides applied before aggregation.
     # Each entry: [start, end, activation], activation in {"sigmoid", "softmax", "none"}.
+    # Uses half-open slices [start, end). Set end=-1 to include all remaining channels.
     channel_activations: List[List[Any]] = field(default_factory=list)
     # Optional channel selector applied after channel activations and before TTA transforms.
     # Options: None (no selection), int (single channel), [start, end] slice.
@@ -65,9 +66,10 @@ class TestTimeAugmentationConfig:
 class SavePredictionConfig:
     """Prediction saving configuration."""
 
-    enabled: bool = True
+    enabled: bool = False
     output_formats: List[str] = field(default_factory=lambda: ["h5"])  # Any of: h5, tiff, png
     output_path: Optional[str] = None
+    cache_suffix: str = "_prediction.h5"
 
     # Data scaling and output typing
     # -1 keeps native float probabilities/logits; >0 scales and casts to integer dtype if chosen.
@@ -151,6 +153,8 @@ class EvaluationConfig:
 
     enabled: bool = False  # Auto-enabled when evaluation keys are provided in YAML
     metrics: Optional[List[str]] = None  # e.g., ['dice', 'jaccard', 'accuracy']
+    prediction_threshold: float = 0.5  # Probability/logit threshold for binary metrics
+    instance_iou_threshold: float = 0.5  # IoU threshold for instance matching metrics
 
 
 @dataclass
@@ -158,7 +162,7 @@ class InferenceConfig:
     """Inference configuration.
 
     Shared inference settings for sliding window and test-time augmentation.
-    Data paths are specified in separate 'test' and 'tune' sections.
+    Data paths are resolved in merged runtime `cfg.data`.
 
     Key Features:
     - Sliding window inference for large volumes
@@ -168,7 +172,7 @@ class InferenceConfig:
     - Postprocessing and evaluation
     - Runtime resource overrides for inference
 
-    Note: Test data is in 'test.data', tuning data is in 'tune.data'
+    Note: stage-specific overrides are merged before runtime; consumers should read `cfg.inference`.
     """
 
     sliding_window: SlidingWindowConfig = field(default_factory=SlidingWindowConfig)

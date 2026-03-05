@@ -1,4 +1,3 @@
-from types import SimpleNamespace
 from typing import List, Optional
 
 import torch
@@ -6,6 +5,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 from connectomics.config import Config
+from connectomics.config.schema.stages import TestConfig as HydraTestConfig
 from connectomics.training.lightning import ConnectomicsModule
 
 
@@ -70,7 +70,6 @@ def test_training_step_uses_deep_supervision_branch():
     module = ConnectomicsModule(cfg, model=SimpleModel(deep_supervision=True))
     _stub_logging(module)
 
-    # Track that the deep supervision handler is invoked
     branch_called = {"used": False}
 
     def fake_deep_supervision(outputs, labels, stage="train", mask=None):
@@ -93,6 +92,7 @@ def test_training_step_uses_deep_supervision_branch():
 def test_validation_step_logs_metrics_when_enabled():
     """Validation step should compute metrics when enabled in the config."""
     cfg = _base_config()
+    cfg.inference.evaluation.enabled = True
     cfg.inference.evaluation.metrics = ["accuracy"]
 
     module = ConnectomicsModule(cfg, model=SimpleModel())
@@ -107,17 +107,41 @@ def test_validation_step_logs_metrics_when_enabled():
     loss = module.validation_step(batch, 0)
 
     assert torch.isfinite(loss)
-    # At least one of the requested metrics should be logged
     assert any(name.startswith("val_") for name in logged_names)
 
 
-def test_resolve_test_output_config_uses_root_test_output_path(monkeypatch):
-    """Test-mode output path should come from cfg.test.output_path/cache_suffix."""
-    cfg = SimpleNamespace(
-        tune=None,
-        test=SimpleNamespace(output_path="/tmp/test_results", cache_suffix="_prediction.h5"),
-    )
-    dummy = SimpleNamespace(cfg=cfg, global_step=0)
+def test_load_state_dict_ignores_stale_loss_function_keys():
+    """Strict loading should ignore obsolete loss-function-only checkpoint keys."""
+    cfg = _base_config()
+    module = ConnectomicsModule(cfg, model=SimpleModel())
+
+    state = dict(module.state_dict())
+    state["loss_functions.0.pos_weight"] = torch.tensor([10.0])
+
+    result = module.load_state_dict(state, strict=True)
+
+    assert "loss_functions.0.pos_weight" not in result.unexpected_keys
+
+
+def test_runtime_inference_config_uses_merged_root_config():
+    """Runtime inference config should come from cfg.inference only."""
+    cfg = _base_config()
+    cfg.test = HydraTestConfig()
+    cfg.inference.save_prediction.enabled = True
+    cfg.test.inference.save_prediction.enabled = False
+
+    module = ConnectomicsModule(cfg, model=SimpleModel())
+
+    runtime_cfg = module._get_runtime_inference_config()
+    assert runtime_cfg.save_prediction.enabled is True
+
+
+def test_resolve_test_output_config_uses_runtime_inference_output_path(monkeypatch):
+    """Output path should come from cfg.inference.save_prediction."""
+    cfg = _base_config()
+    cfg.inference.save_prediction.output_path = "/tmp/test_results"
+    cfg.inference.save_prediction.cache_suffix = "_prediction.h5"
+    module = ConnectomicsModule(cfg, model=SimpleModel())
 
     monkeypatch.setattr(
         "connectomics.training.lightning.model.resolve_output_filenames",
@@ -125,7 +149,7 @@ def test_resolve_test_output_config_uses_root_test_output_path(monkeypatch):
     )
 
     mode, output_dir, cache_suffix, filenames = ConnectomicsModule._resolve_test_output_config(
-        dummy, batch={}
+        module, batch={}
     )
 
     assert mode == "test"
@@ -134,21 +158,14 @@ def test_resolve_test_output_config_uses_root_test_output_path(monkeypatch):
     assert filenames == ["sample_a"]
 
 
-def test_save_metrics_to_file_uses_tune_output_path_when_available(tmp_path):
-    """Metrics should be written under the same output path used for tune predictions."""
-    cfg = SimpleNamespace(
-        tune=SimpleNamespace(
-            output=SimpleNamespace(
-                output_pred=str(tmp_path),
-                cache_suffix="_tta_prediction.h5",
-            )
-        ),
-        test=SimpleNamespace(output_path=str(tmp_path / "unused"), cache_suffix="_prediction.h5"),
-    )
-    dummy = SimpleNamespace(cfg=cfg)
+def test_save_metrics_to_file_uses_runtime_inference_output_path(tmp_path):
+    """Metrics should be written under cfg.inference.save_prediction.output_path."""
+    cfg = _base_config()
+    cfg.inference.save_prediction.output_path = str(tmp_path)
+    module = ConnectomicsModule(cfg, model=SimpleModel())
 
     ConnectomicsModule._save_metrics_to_file(
-        dummy,
+        module,
         {
             "volume_name": "vol0",
             "jaccard": 0.5,

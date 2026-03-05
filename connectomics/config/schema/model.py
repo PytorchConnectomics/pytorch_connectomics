@@ -25,11 +25,20 @@ class LossConfig:
 
     # Loss configuration -- unified list where each entry defines a loss function,
     # its weight, kwargs, and channel routing (pred/target slices).
+    # For pred_target losses, pred_slice/target_slice are optional:
+    # omitted slices mean "use all channels".
     # Optional per-entry fields include:
-    # - foreground_weight: positive number or "ratio" (for weight-aware losses).
-    #   "ratio" computes class-balanced fg/bg spatial weights on the valid mask
-    #   and normalizes them so mean(weight | valid)=1.
+    # - pos_weight: positive number or "auto" (for weight-aware losses).
+    #   For WeightedBCEWithLogitsLoss:
+    #   - number: feeds directly to BCE pos_weight.
+    #   - "auto": computes neg/pos from the current batch (capped at 10.0).
+    #   For other weight-aware losses:
+    #   - number/"auto": builds spatial positive-class weighting maps.
+    #   Defaults when omitted:
+    #   - WeightedBCEWithLogitsLoss: 1.0 (no class-ratio reweighting)
+    #   - other weight-aware losses: "auto"
     # - mask_slice: [start, end] to restrict loss to specific label channels
+    #   (supports negative bounds, e.g. [0, -1] or [-2, -1]).
     # - apply_deep_supervision: bool
     # When None, defaults to [DiceLoss + BCEWithLogitsLoss] applied to all channels.
     # Deep supervision (supported by MedNeXt, RSUNet, and some MONAI models)

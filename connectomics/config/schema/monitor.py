@@ -55,8 +55,9 @@ class ImageLoggingConfig:
     num_slices: int = 4
     slice_sampling: str = "uniform"  # "uniform" or "consecutive"
     log_every_n_epochs: int = 1
+    max_channels: int = 12
     channels: Optional[Tuple[int, ...]] = None
-    channel_mode: Optional[str] = None
+    channel_mode: str = "all"  # "argmax", "all", or "selected"
     selected_channels: Optional[List[int]] = None
 
 

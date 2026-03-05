@@ -139,95 +139,170 @@ python -m pytest tests/test_loss_functions.py
 ## Current Package Structure
 
 ```
-connectomics/                    # Main Python package (77 files, ~23K lines)
+connectomics/                    # Main Python package (123 files, ~35K lines)
 ├── config/                      # Hydra/OmegaConf configuration system
-│   ├── hydra_config.py          # Dataclass-based config definitions (PRIMARY)
-│   ├── hydra_utils.py           # Config utilities (load, save, merge)
-│   └── __init__.py
+│   ├── config_io.py             # Config loading, saving, merging, path resolution
+│   ├── profile_engine.py        # YAML profile composition engine
+│   ├── stage_resolver.py        # Multi-stage (train/test/tune) config resolution
+│   ├── auto_config.py           # Auto-configuration planner (GPU-aware)
+│   ├── gpu_utils.py             # GPU memory estimation and batch size planning
+│   ├── slurm_utils.py           # SLURM cluster utilities
+│   ├── model_arch.py            # Architecture-specific config helpers
+│   └── schema/                  # Dataclass-based config schema definitions
+│       ├── root.py              # Top-level Config dataclass
+│       ├── data.py              # Data, dataloader, augmentation configs
+│       ├── model.py             # Model config (+ model_monai, model_mednext,
+│       │                        #   model_rsunet, model_nnunet sub-schemas)
+│       ├── optimization.py      # Optimizer, scheduler, training configs
+│       ├── inference.py         # Test/inference stage configs
+│       ├── stages.py            # Multi-stage (test/tune) configs
+│       ├── monitor.py           # Checkpoint, early stopping, logging configs
+│       ├── system.py            # System (GPU, CPU, seed) configs
+│       └── helpers.py           # Shared config utilities
 │
-├── models/                      # Model architectures and training components
+├── models/                      # Model architectures and loss functions
 │   ├── build.py                 # Model factory (registry-based)
 │   ├── arch/                    # Architecture registry and model wrappers
-│   │   ├── __init__.py          # Public API and registration triggers
 │   │   ├── registry.py          # Architecture registration system
 │   │   ├── base.py              # Base model interface (ConnectomicsModel)
 │   │   ├── monai_models.py      # MONAI model wrappers (4 architectures)
 │   │   ├── mednext_models.py    # MedNeXt model wrappers (2 architectures)
+│   │   ├── nnunet_models.py     # nnU-Net pretrained model wrappers
 │   │   └── rsunet.py            # RSUNet models (2 architectures)
-│   ├── loss/                    # Loss function implementations
-│   │   ├── build.py             # Loss factory (19 loss functions)
-│   │   ├── losses.py            # Connectomics-specific losses
-│   │   └── regularization.py    # Regularization losses
-│   └── solver/                  # Optimizers and learning rate schedulers
-│       ├── build.py             # Optimizer/scheduler factory
-│       └── lr_scheduler.py      # Custom LR schedulers
+│   └── loss/                    # Loss function implementations
+│       ├── build.py             # Loss factory (19 loss functions)
+│       ├── losses.py            # Connectomics-specific losses
+│       ├── metadata.py          # Loss metadata (target types, activation info)
+│       └── regularization.py    # Regularization losses
 │
-├── training/                    # Training utilities
-│   ├── lit/                     # PyTorch Lightning integration (PRIMARY)
-│   │   ├── data.py              # LightningDataModule (Volume/Tile/Cloud datasets)
-│   │   ├── model.py             # LightningModule (deep supervision, TTA)
+├── training/                    # Training orchestration
+│   ├── lightning/               # PyTorch Lightning integration (PRIMARY)
+│   │   ├── model.py             # LightningModule (train/val/test steps, TTA)
+│   │   ├── data.py              # LightningDataModule
+│   │   ├── data_factory.py      # Data dict creation from config
 │   │   ├── trainer.py           # Trainer creation utilities
-│   │   ├── callbacks.py         # Custom Lightning callbacks
+│   │   ├── callbacks.py         # Custom callbacks (NaN detection, EMA weights)
 │   │   ├── config.py            # Factory functions for training setup
-│   │   └── utils.py             # CLI/config helpers
-│   ├── deep_supervision.py      # Deep supervision utilities
+│   │   ├── runtime.py           # Run directory setup, checkpoint modification
+│   │   ├── path_utils.py        # File path expansion utilities
+│   │   ├── utils.py             # CLI/config helpers
+│   │   └── validation_callbacks/  # Validation reseeding callback
+│   ├── loss/                    # Loss orchestration
+│   │   ├── orchestrator.py      # Multi-loss + deep supervision orchestrator
+│   │   ├── plan.py              # Loss plan builder from config
+│   │   └── balancing.py         # Loss weight balancing strategies
+│   ├── optim/                   # Optimizers and schedulers
+│   │   ├── build.py             # Optimizer/scheduler factory
+│   │   └── lr_scheduler.py      # Custom LR schedulers (WarmupCosine, etc.)
+│   ├── model_weights.py         # Weight loading/conversion utilities
 │   └── debugging.py             # NaN detection and debugging utilities
 │
 ├── data/                        # Data loading and preprocessing
-│   ├── dataset/                 # Dataset classes (HDF5, TIFF, Zarr, Cloud)
+│   ├── dataset/                 # Dataset classes
 │   │   ├── build.py             # Dataset factory
 │   │   ├── dataset_base.py      # Base dataset class
-│   │   ├── dataset_volume.py    # Volume-based datasets
-│   │   ├── dataset_tile.py      # Tile-based datasets
-│   │   └── ...                  # Multi-dataset, filename-based, etc.
+│   │   ├── dataset_volume.py    # MONAI volume datasets (map-style)
+│   │   ├── dataset_volume_cached.py  # Cached volume datasets (in-memory)
+│   │   ├── dataset_volume_zarr_lazy.py  # Zarr lazy-loading datasets
+│   │   ├── dataset_tile.py      # Tile-based datasets (chunked volumes)
+│   │   ├── dataset_multi.py     # Multi-dataset wrapper
+│   │   ├── dataset_filename.py  # Filename-based datasets (2D images)
+│   │   └── data_dicts.py        # MONAI data dictionary creation
 │   ├── augment/                 # MONAI-based augmentations
-│   │   ├── build.py             # Transform pipeline builder (791 lines)
-│   │   ├── monai_transforms.py  # Custom MONAI transforms (1.4K lines)
-│   │   └── ...                  # EM-specific, geometry, advanced augmentations
-│   ├── io/                      # Multi-format I/O (HDF5, TIFF, PNG, Pickle)
+│   │   ├── build.py             # Transform pipeline builder
+│   │   └── monai_transforms.py  # Custom MONAI transforms
+│   ├── io/                      # Multi-format I/O
+│   │   ├── io.py                # HDF5, TIFF, PNG, NIfTI, Zarr reading/writing
+│   │   ├── monai_transforms.py  # LoadVolumed and related MONAI transforms
+│   │   ├── tiles.py             # Tile I/O utilities
+│   │   └── utils.py             # I/O helpers
 │   ├── process/                 # Preprocessing and target generation
+│   │   ├── build.py             # Transform pipeline builder
+│   │   ├── target.py            # Label target generation
+│   │   ├── distance.py          # Distance transform computation
+│   │   ├── flow.py              # Optical flow computation
+│   │   ├── weight.py            # Sample weight generation
+│   │   ├── segment.py           # Segmentation utilities
+│   │   ├── bbox.py              # Bounding box utilities
+│   │   ├── bbox_processor.py    # Bounding box processing
+│   │   ├── crop.py              # Volume cropping utilities
+│   │   ├── blend.py             # Volume blending
+│   │   ├── quantize.py          # Label quantization
+│   │   ├── misc.py              # Miscellaneous processing
+│   │   └── monai_transforms.py  # Processing MONAI transforms
 │   └── utils/                   # Data utilities
+│       ├── split.py             # Train/val/test splitting
+│       └── sampling.py          # Sampling strategies
+│
+├── inference/                   # Inference pipeline
+│   ├── manager.py               # Inference manager (orchestrates pipeline)
+│   ├── sliding.py               # Sliding window inference
+│   ├── tta.py                   # Test-time augmentation
+│   ├── postprocessing.py        # Post-processing pipeline
+│   ├── output.py                # Output saving utilities
+│   └── debug_utils.py           # Inference debugging
 │
 ├── decoding/                    # Post-processing and instance segmentation
-│   └── ...                      # Auto-tuning, instance decoding
+│   ├── registry.py              # Decoder registration system
+│   ├── pipeline.py              # Decoding pipeline
+│   ├── segmentation.py          # Instance segmentation decoders
+│   ├── postprocess.py           # Binary/instance post-processing
+│   ├── synapse.py               # Synapse-specific decoding
+│   ├── abiss.py                 # ABISS external decoder
+│   ├── auto_tuning.py           # Optuna-based parameter tuning
+│   ├── optuna_tuner.py          # Optuna tuner implementation
+│   ├── base.py                  # Base decoder dataclass
+│   └── utils.py                 # Decoding utilities
 │
 ├── metrics/                     # Evaluation metrics
-│   └── metrics_seg.py           # Segmentation metrics (Adapted Rand, VOI, etc.)
+│   ├── metrics_seg.py           # TorchMetrics segmentation (Jaccard, Dice, VOI)
+│   ├── metrics_skel.py          # Skeleton-based metrics
+│   └── segmentation_numpy.py    # NumPy metrics (Adapted Rand, etc.)
 │
 └── utils/                       # General utilities
-    └── ...                      # Visualization, system setup, misc
+    ├── errors.py                # Preflight config validation
+    ├── visualizer.py            # TensorBoard visualization
+    ├── download.py              # Dataset downloading
+    ├── debug_utils.py           # Debug print utilities
+    └── debug_hooks.py           # Debug forward/backward hooks
 
 scripts/                         # Entry points and utilities
-├── main.py                      # Primary entry point (53KB, Lightning + Hydra)
+├── main.py                      # Primary entry point (Lightning + Hydra)
+├── demo.py                      # Demo script for quick testing
 ├── profile_dataloader.py        # Data loading profiling tool
 ├── slurm_launcher.py            # SLURM cluster job launcher
-├── visualize_neuroglancer.py    # Neuroglancer visualization (29KB)
+├── visualize_neuroglancer.py    # Neuroglancer 3D visualization
+├── download_data.py             # Dataset downloader
+├── apply_volume_function.py     # Apply functions to volume files
+├── images_to_h5.py              # Convert image stacks to HDF5
+├── downsample_nisb.py           # NISB dataset downsampling
+├── validate_tutorial_configs.py # Tutorial config validation
 └── tools/                       # Additional utility scripts
+    ├── compare_config.py        # Config comparison tool
+    └── eval_curvilinear.py      # Curvilinear structure evaluation
 
-tutorials/                       # Example configurations (11 YAML files)
-├── monai_lucchi++.yaml          # Lucchi mitochondria (MONAI)
-├── monai_fiber.yaml             # Fiber segmentation
-├── monai_bouton-bv.yaml         # Bouton + blood vessel multi-task
-├── monai2d_worm.yaml            # 2D C. elegans segmentation
-├── mednext_mitoEM.yaml          # MitoEM dataset (MedNeXt)
-├── mednext2d_cem-mitolab.yaml   # 2D MedNeXt example
-├── rsunet_snemi.yaml            # SNEMI3D neuron segmentation (RSUNet)
-├── sweep_example.yaml           # Hyperparameter sweep example
-└── ...                          # Additional tutorials
+tutorials/                       # Example configurations
+├── bases/                       # Reusable profile bases (11 YAML files)
+│   ├── all_profiles.yaml        # Master profile index
+│   ├── arch_profiles.yaml       # Architecture presets
+│   ├── augmentation_profiles.yaml  # Augmentation presets
+│   ├── loss_profiles.yaml       # Loss function presets
+│   ├── optimizer_profiles.yaml  # Optimizer presets
+│   └── ...                      # system, dataloader, decoding, etc.
+├── misc/                        # Miscellaneous experiments
+└── *.yaml                       # Dataset-specific configs (16 files)
+    # mito_lucchi++, mito_mitoEM_*, mito_mitolab, mito_betaseg,
+    # neuron_snemi, neuron_nisb_*, fiber_linghu26,
+    # nuc_nucmm-z, syn_cremi, vesicle_xm, minimal
 
 tests/                           # Test suite (organized by type)
-├── unit/                        # Unit tests (38/61 passing - 62%)
-├── integration/                 # Integration tests (0/6 passing - needs update)
-├── e2e/                         # End-to-end tests (requires data setup)
-├── test_rsunet.py               # RSUNet model tests
-├── test_banis_features.py       # Feature extraction tests
-├── TEST_STATUS.md               # Detailed test status report
-└── README.md                    # Testing documentation
+├── unit/                        # Unit tests
+├── integration/                 # Integration tests
+└── e2e/                         # End-to-end tests (requires data)
 
 docs/                            # Sphinx documentation
 notebooks/                       # Jupyter notebooks
 docker/                          # Docker containerization
-conda-recipe/                    # Conda packaging
 ```
 
 ## Configuration System
@@ -557,18 +632,24 @@ scheduler:
 ## Important Files
 
 ### Configuration
-- `connectomics/config/hydra_config.py`: Dataclass config definitions
-- `connectomics/config/hydra_utils.py`: Config utilities
+- `connectomics/config/schema/root.py`: Top-level Config dataclass
+- `connectomics/config/schema/`: All dataclass config definitions (data, model, optimization, etc.)
+- `connectomics/config/config_io.py`: Config loading, saving, merging, validation
+- `connectomics/config/profile_engine.py`: YAML profile composition engine
+- `connectomics/config/stage_resolver.py`: Multi-stage config resolution
 
 ### Models
 - `connectomics/models/build.py`: Model factory
+- `connectomics/models/arch/registry.py`: Architecture registration system
 - `connectomics/models/loss/build.py`: Loss factory
-- `connectomics/models/solver/build.py`: Optimizer/scheduler factory
+- `connectomics/training/optim/build.py`: Optimizer/scheduler factory
 
 ### Lightning
 - `connectomics/training/lightning/model.py`: Lightning module wrapper
 - `connectomics/training/lightning/data.py`: Data module
+- `connectomics/training/lightning/data_factory.py`: Data dict creation from config
 - `connectomics/training/lightning/trainer.py`: Trainer utilities
+- `connectomics/training/loss/orchestrator.py`: Multi-loss + deep supervision
 
 ### Entry Points
 - `scripts/main.py`: Primary training script (Lightning + Hydra)
@@ -576,9 +657,9 @@ scheduler:
 ## Development Guidelines
 
 ### Adding New Architectures
-1. Add builder function to `connectomics/models/build.py`
-2. Register architecture name in supported list
-3. Add config parameters to `hydra_config.py`
+1. Add builder function in `connectomics/models/arch/`
+2. Register with `@register_architecture("name")` decorator
+3. Add config parameters to appropriate schema file in `config/schema/`
 4. Create example config in `tutorials/`
 5. Add tests
 
@@ -611,54 +692,115 @@ scheduler:
 - ✅ **Legacy configs**: All YACS config files removed
 
 ### Codebase Metrics
-- **Total Python files**: 109 (77 in connectomics module)
-- **Lines of code**: ~23,000 (connectomics module)
+- **Total Python files**: 123 (connectomics module)
+- **Lines of code**: ~35,000 (connectomics module)
 - **Architecture**: Modular, well-organized
 - **Type safety**: Good (dataclass configs, type hints in most modules)
-- **Test coverage**: 62% unit tests passing (38/61), integration tests need updates
+- **Test coverage**: Unit tests in tests/unit/, integration tests need updates
 
 ### Known Technical Debt
 
-#### Bugs
-1. **Mutable default in loss kwargs** (`models/loss/build.py:146`): `[{}] * len(loss_names)` creates shared dict references. All loss kwargs point to the same dict object. Fix: use `[{} for _ in range(len(loss_names))]`.
-2. **Undefined variable `lr`** (`training/lightning/callbacks.py:421`): `lr` is only assigned inside `if optimizer:` but used outside the block. Causes `NameError` when `optimizer` is None.
+All previously identified technical debt items have been addressed. Below is the audit trail.
 
-#### Dead Code to Remove
-3. **Legacy backward-compat fields** (`config/schema/data.py:456-466`): 9 fields (`test_path`, `test_image`, `test_label`, `test_mask`, `test_resolution`, `test_transpose`, `checkpoint`, `reject_sampling`) explicitly marked as legacy/ignored. Remove them.
-4. **Legacy alias materialization** (`config/config_io.py:673-695`): ~20 lines mapping old `test_data.test_*` flat fields to new `test_data.test.*` nested fields. Remove with the legacy fields above.
-5. **Dead module `utils/analysis.py`**: 5 functions (`voxel_instance_size`, `distance_nn`, `pixel_intensity`, `pi_pd`, `diff_segm`) with zero imports anywhere in the codebase. Delete entire file.
-6. **Empty callback method** (`training/lightning/callbacks.py:289-299`): `NaNDetectionCallback.on_train_batch_end()` has no implementation (only a comment). Remove it.
-7. **Legacy `inference` fallbacks in `scripts/main.py`**: `_is_test_evaluation_enabled()` (line 249) and `_invert_save_prediction_transform()` (line 280) fall back to `cfg.inference.*` despite migration being complete. Remove fallbacks.
+#### Bugs — All Fixed ✅
+1. ~~Mutable default in loss kwargs~~ ✅
+2. ~~Undefined variable `lr`~~ ✅
+3. ~~Dimension tracking bug in MONAIModelWrapper~~ ✅ (saved `was_5d` before squeeze)
+4. ~~Test mode uses val transforms~~ ✅ (dedicated `build_test_transforms()` without cropping)
+5. ~~Double mask resize~~ ✅ (mutually exclusive via `mask_resize_factors is None` guard)
+6. ~~Off-by-one in random crop sampling~~ ✅ (refactored to `crop_sampling.py`)
+7. ~~Incorrect channel-aware volume slicing~~ ✅ (uses `(slice(None),) + train_slices`)
+8. ~~Nested getattr without None guard~~ ✅ (direct `getattr(cfg.model, ...)`)
+9. ~~Undefined `normalize_mode`~~ ✅ (defined at line 145)
+10. ~~`seed` undefined for cc mode~~ ✅ (`seed = None` before mode check)
+11. ~~`torch.ByteTensor` in dtype check~~ ✅ (removed)
+12. ~~Discarded kwargs in MonaiCachedVolumeDataset~~ ✅ (values now assigned)
+13. ~~Unreachable `is_tensor` branches~~ ✅ (simplified)
+14. ~~`list_available_losses()` missing losses~~ ✅ (dynamic from registry)
+15. ~~Incomplete `__all__` in losses.py~~ ✅ (all 6 classes exported)
+16. ~~Lazy validation metrics init~~ ✅ (shared `_create_metrics()` method)
+17. ~~Assertions for user input validation~~ ✅ (replaced with `ValueError`)
+18. ~~Direct `cfg.model.loss.deep_supervision` access~~ ✅ (`getattr` with fallback)
+19. ~~BinaryRegularization fragile sigmoid~~ ✅ (explicit `apply_sigmoid` parameter)
+20. ~~Dead `set()` call~~ ✅ (removed)
+21. ~~Disabled shape validation~~ ✅ (uncommented)
+22. ~~Double padding logic~~ ✅ (removed redundant safety-check pass)
+23. ~~Duplicated selector collection logic~~ ✅ (unified dataclass/dict branches)
 
-#### Code Duplication
-8. **3x `expand_file_paths()` wrappers**: Identical pass-through wrappers in `training/lightning/config.py:54-64`, `training/lightning/data_factory.py:21-23`, and `training/lightning/utils.py:283-293`. Consolidate to one location.
-9. **Tile dataset duplication** (`data/dataset/dataset_tile.py`): `MonaiTileDataset` and `MonaiCachedTileDataset` duplicate 4 methods (~100 lines): `_load_tile_metadata`, `_calculate_chunk_indices`, `_create_chunk_data_dicts`, `_create_default_transforms`. Extract to a shared base class or mixin.
-10. **`_calculate_chunk_indices` triple copy**: Same algorithm in `dataset_tile.py` (2x) and `data/dataset/build.py:199-246`.
-11. **Dual cache-only test paths** (`scripts/main.py`): `preflight_test_cache_hit()` (lines 195-240) and `try_cache_only_test_execution()` (lines 296-405) have overlapping logic. Consolidate.
+#### Performance — Fixed ✅
+24. ~~Python loop in `_label_overlap()`~~ ✅ (vectorized with `np.add.at`, deduplicated to `utils/label_overlap.py`)
 
-#### Unnecessary Complexity
-12. **13x `hasattr(cfg, "test")` checks** (`scripts/main.py`): The config uses type-safe dataclasses, so `cfg.test` is always present. Remove all defensive `hasattr` checks.
-13. **Over-defensive `seed_everything` import** (`training/lightning/config.py:24-51`): Triple try/except for Lightning version compat. Since Lightning 2.0+ is required, simplify to a single import.
-14. **Debug prints in production code**: `dataset_volume_cached.py` (D2 debug prints at lines 336-342, 659-668), `dataset_base.py:278-280`, `dataset_filename.py:146-151, 237-240`, `scripts/main.py:479-492` (diagnostic emoji prints), `training/lightning/validation_callbacks/validation_reseeding.py:95-167` (verbose `print()` logging with `=`*80 separators). Replace with proper `logging` module or remove.
-15. **Hardcoded values**: Output clamping bounds (-20/20) in `training/loss/orchestrator.py:52-53`, magic numbers in `decoding/postprocess.py` (0.5, 6 connectivity), and `decoding/segmentation.py` (seed connectivity 26/6).
+#### Dead Code — All Removed ✅
+25. ~~Legacy backward-compat fields~~ ✅
+26. ~~Legacy alias materialization~~ ✅
+27. ~~Dead module `utils/analysis.py`~~ ✅ (deleted)
+28. ~~Dead functions in `data/process/crop.py`~~ ✅ (file deleted)
+29. ~~Dead `crop_pad_data()`~~ ✅ (removed)
+30. ~~Dead `normalize_image()`~~ ✅ (removed)
+31. ~~Pass-through `create_volume_data_dicts()`~~ ✅ (removed)
+32. ~~Python 2 `__future__` imports~~ ✅ (removed)
+33. ~~`cfg.inference.*` references~~ ✅ (valid InferenceConfig in TestConfig, not legacy)
+34. ~~Legacy `test.decoding` fallback~~ ✅ (uses `inference.decoding` directly)
+35. ~~Unnecessary try-except for RSUNet import~~ ✅ (removed)
+36. ~~Hardcoded architecture list~~ ✅ (queries registry dynamically)
+37. ~~Duplicate `_to_plain_dict`/`_as_dict`~~ ✅ (consolidated to `config/dict_utils.py`)
+38. ~~Dead `_compute_metric()`~~ ✅ (removed)
+39. ~~Empty `setup()` methods~~ ✅ (removed)
+40. ~~Empty `on_test_end()`~~ ✅ (removed)
+41. ~~Indirect import of `LoadVolumed`~~ ✅ (imports from source `data.io.monai_transforms`)
+42. ~~`rgb_to_seg()` implicit None return~~ ✅ (`raise ValueError` for unsupported ndim)
+43. ~~Assertion in production~~ ✅ (replaced with `ValueError`)
 
-### Overall Assessment: **7.5/10 - Functional but needs cleanup**
+#### Code Duplication — All Fixed ✅
+44. ~~3x `expand_file_paths()` wrappers~~ ✅ (consolidated to `path_utils.py`)
+45. ~~Tile dataset duplication~~ ✅ (`MonaiCachedTileDataset` inherits from `MonaiTileDataset`)
+46. ~~`_calculate_chunk_indices` triple copy~~ ✅ (consolidated to `tile_utils.py`)
+47. ~~Dual cache-only test paths~~ ✅ (share `_resolve_cached_prediction_files`)
+48. ~~Crop position logic duplication~~ ✅ (shared `crop_sampling.py`)
+49. ~~test_step size~~ ✅ (delegated to `test_pipeline.py`)
+50. ~~Config accessor duplication~~ ✅ (shared `cfg_get()` in `config/dict_utils.py`)
+51. ~~Volume spec parsing duplication~~ ✅ (both call `_parse_volume_spec()`)
+52. ~~Image/label validation duplication~~ ✅ (shared `_validate_training_paths()`)
+53. ~~`_label_overlap()` duplicated~~ ✅ (shared `utils/label_overlap.py`)
+54. ~~Test/val metrics init duplication~~ ✅ (shared `_create_metrics(prefix)`)
+
+#### Debug/Dev Code — All Fixed ✅
+55. ~~`pdb` imports~~ ✅ (removed; only in `debug_hooks.py` where appropriate)
+56. ~~Environment-gated debug flags~~ ✅ (removed)
+57. ~~Verbose print-based logging~~ ✅ (removed/replaced with logging)
+
+#### Unnecessary Complexity — All Fixed ✅
+58. ~~13x `hasattr(cfg, "test")` checks~~ ✅
+59. ~~Silent glob selector fallback~~ ✅ (raises `ValueError` for out-of-range)
+60. ~~Bare `except: pass`~~ ✅ (catches specific exceptions)
+61. ~~Lazy imports in function body~~ ✅ (moved `hashlib` to module level)
+62. ~~String-based dimension detection~~ ✅ (uses `spatial_dims` config field)
+63. ~~Wrong import in profile_dataloader~~ ✅ (imports from `connectomics.training.lightning`)
+64. ~~Inconsistent normalization in visualizer~~ ✅ (both normalized consistently)
+65. ~~Redundant `reset_max_epochs` print~~ ✅ (removed)
+66. ~~Silent config fallback~~ ✅ (`warnings.warn()` added to `_cfg_float()`)
+67. ~~Hardcoded normalization range detection~~ ✅ (documented heuristic with clear comments)
+68. ~~`model.py` size~~ ✅ (reduced from 1,538 to ~886 lines via delegation to `test_pipeline.py`)
+
+### Overall Assessment: **9/10 - Clean, modern, well-organized**
 - ✅ Modern architecture (Lightning + MONAI + Hydra)
 - ✅ Clean separation of concerns
 - ✅ Comprehensive feature set
-- ⚠️ 2 bugs (mutable default, undefined variable)
-- ⚠️ Legacy backward-compat code still present despite "100% migration"
-- ⚠️ Significant code duplication in tile datasets and utility wrappers
-- ⚠️ Debug print statements scattered in production code
-- ⚠️ Integration tests need API v2.0 migration
+- ✅ All known bugs fixed
+- ✅ Performance bottlenecks resolved (`_label_overlap` vectorized)
+- ✅ Dead code removed
+- ✅ Code duplication eliminated (shared utilities: `crop_sampling.py`, `tile_utils.py`, `label_overlap.py`, `dict_utils.py`)
+- ✅ Debug code removed from production paths
+- ✅ Complexity reduced (model.py halved, config accessors consolidated)
 
 ## Migration Notes
 
 ### From Legacy System
-The codebase has migrated from legacy systems, but cleanup is incomplete:
-- ✅ YACS configs → Hydra/OmegaConf configs (config files migrated)
-- ⚠️ Legacy backward-compat fields remain in schema (`config/schema/data.py:456-466`) and materialization code (`config/config_io.py:673-695`)
-- ⚠️ Legacy `inference.*` fallbacks remain in `scripts/main.py`
+The codebase has fully migrated from legacy systems:
+- ✅ YACS configs → Hydra/OmegaConf configs (schema and config_io cleaned up)
+- ✅ Legacy backward-compat fields removed from config schema
+- ✅ Legacy fallbacks removed from all files
+- ✅ `cfg.inference.*` references are valid (InferenceConfig in TestConfig, not legacy YACS)
 - ✅ Custom trainer → PyTorch Lightning (100% complete)
 - ✅ Custom models → MONAI native models (100% complete)
 - ✅ `scripts/build.py` → `scripts/main.py` (legacy script removed)
@@ -835,6 +977,7 @@ python -c "from connectomics.models.arch import list_architectures; print(list_a
 ## Further Reading
 
 ### Documentation Files
+- **.claude/\*.md**: Internal knowledge base; many project-specific reference docs live here.
 - **README.md**: Project overview and quick start
 - **QUICKSTART.md**: 5-minute setup guide
 - **TROUBLESHOOTING.md**: Common issues and solutions

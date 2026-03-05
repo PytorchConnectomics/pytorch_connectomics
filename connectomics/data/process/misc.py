@@ -1,4 +1,3 @@
-from __future__ import print_function, division
 from typing import Tuple, List, Union
 import numpy as np
 
@@ -65,20 +64,6 @@ def array_unpad(data: np.ndarray, pad_size: Tuple[int]) -> np.ndarray:
     assert len(pad_size) == data.ndim
     index = tuple([slice(pad_size[i][0], data.shape[i] - pad_size[i][1]) for i in range(data.ndim)])
     return data[index]
-
-
-def normalize_image(
-    image: np.ndarray, mean: float = 0.5, std: float = 0.5, match_act: str = "none"
-) -> np.ndarray:
-    # the image should be float32 within [0.0, 1.0]
-    if match_act == "sigmoid":
-        return image
-    elif match_act == "tanh":  # (0,1)->(-1,1)
-        return image * 2.0 - 1.0
-
-    assert image.dtype == np.float32
-    image = (image - mean) / std
-    return image
 
 
 def show_image(

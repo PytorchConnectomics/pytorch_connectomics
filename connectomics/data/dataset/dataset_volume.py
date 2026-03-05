@@ -206,8 +206,8 @@ class MonaiCachedVolumeDataset(CacheDataset):
         sample_size = kwargs.get("sample_size", (32, 256, 256))
         mode = kwargs.get("mode", "train")
         do_2d = kwargs.get("do_2d", False)
-        kwargs.get("data_mean", 0.5)
-        kwargs.get("data_std", 0.5)
+        data_mean = kwargs.get("data_mean", 0.5)
+        data_std = kwargs.get("data_std", 0.5)
         transpose_axes = kwargs.get("transpose_axes", None)
 
         # Create data dictionaries
@@ -272,6 +272,8 @@ class MonaiCachedVolumeDataset(CacheDataset):
 
         self.sample_size = ensure_tuple_rep(sample_size, 3)
         self.mode = mode
+        self.data_mean = data_mean
+        self.data_std = data_std
         self.iter_num = kwargs.get("iter_num", -1)
 
         # Calculate dataset length

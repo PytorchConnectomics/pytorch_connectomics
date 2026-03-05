@@ -40,14 +40,15 @@ class MONAIModelWrapper(ConnectomicsModel):
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """Forward pass through MONAI model."""
         # For 2D models, squeeze the depth dimension if present
-        if x.dim() == 5 and x.size(2) == 1:  # [B, C, 1, H, W] -> [B, C, H, W]
+        was_5d = x.dim() == 5
+        if was_5d and x.size(2) == 1:  # [B, C, 1, H, W] -> [B, C, H, W]
             x = x.squeeze(2)
 
         # Forward through model
         output = self.model(x)
 
         # For 2D models, add back the depth dimension if needed for sliding window inference
-        if output.dim() == 4 and x.dim() == 5:  # [B, C, H, W] -> [B, C, 1, H, W]
+        if output.dim() == 4 and was_5d:  # [B, C, H, W] -> [B, C, 1, H, W]
             output = output.unsqueeze(2)
 
         return output

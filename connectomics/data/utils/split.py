@@ -151,16 +151,10 @@ def pad_volume_to_size(
     # Handle channel dimension
     has_channel = volume.ndim == 4
     if has_channel:
-        if is_tensor:
-            c, d, h, w = volume.shape
-        else:
-            c, d, h, w = volume.shape
+        c, d, h, w = volume.shape
         spatial_shape = (d, h, w)
     else:
-        if is_tensor:
-            d, h, w = volume.shape
-        else:
-            d, h, w = volume.shape
+        d, h, w = volume.shape
         spatial_shape = (d, h, w)
 
     # Calculate padding needed
@@ -293,8 +287,12 @@ def split_and_pad_volume(
     )
 
     # Split volume
-    train_volume = volume[train_slices] if not has_channel else volume[:][train_slices]
-    val_volume = volume[val_slices] if not has_channel else volume[:][val_slices]
+    if has_channel:
+        train_volume = volume[(slice(None),) + train_slices]
+        val_volume = volume[(slice(None),) + val_slices]
+    else:
+        train_volume = volume[train_slices]
+        val_volume = volume[val_slices]
 
     # Pad validation if target size specified
     if target_size is not None:

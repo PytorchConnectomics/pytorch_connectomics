@@ -7,6 +7,7 @@ Modern replacement for monai_compose.py that works with the new Hydra config sys
 from __future__ import annotations
 from typing import Dict, Optional
 from functools import partial
+import os
 import torch
 from monai.transforms import (
     Compose,
@@ -27,7 +28,7 @@ from monai.transforms import (
 )
 
 # Import custom loader for HDF5/TIFF volumes
-from connectomics.data.dataset.dataset_volume import LoadVolumed
+from connectomics.data.io.monai_transforms import LoadVolumed
 from connectomics.data.io import NNUNetPreprocessd
 
 from .monai_transforms import (
@@ -46,6 +47,18 @@ from .monai_transforms import (
     RandElasticd,
 )
 from ...config.schema import Config, AugmentationConfig
+from ...utils.debug_utils import print_tensor_stats
+
+
+_DEBUG_TEST_INPUT_STATS_ENV = "CONNECTOMICS_DEBUG_TEST_INPUT_STATS"
+
+
+def _env_flag_enabled(name: str) -> bool:
+    """Parse common truthy env var values (1/true/yes/on)."""
+    value = os.getenv(name)
+    if value is None:
+        return False
+    return value.strip().lower() in {"1", "true", "yes", "on"}
 
 
 def _strict_binarize_mask(mask, threshold: float = 0.0):
@@ -53,6 +66,18 @@ def _strict_binarize_mask(mask, threshold: float = 0.0):
     if torch.is_tensor(mask):
         return (mask > threshold).to(dtype=mask.dtype)
     return (mask > threshold).astype(mask.dtype, copy=False)
+
+
+def _debug_print_post_normalization_stats(image, normalize_mode: str = "none"):
+    """Print test input stats immediately after image normalization."""
+    print_tensor_stats(
+        tensor=image,
+        stage_name="TEST PIPELINE: AFTER image_normalization",
+        tensor_name="image",
+        print_once=True,
+        extra_info={"normalize_mode": normalize_mode},
+    )
+    return image
 
 
 def build_train_transforms(
@@ -264,20 +289,7 @@ def _build_eval_transforms_impl(cfg: Config, mode: str = "val", keys: list[str] 
     Returns:
         Composed MONAI transforms (no augmentation)
     """
-    def _eval_split(data_cfg):
-        """Prefer data.test when set; otherwise use data.val."""
-        test_split = getattr(data_cfg, "test", None)
-        if test_split is not None and getattr(test_split, "image", None) is None:
-            legacy_image = getattr(data_cfg, "test_image", None)
-            if legacy_image is not None:
-                test_split.image = legacy_image
-                test_split.label = getattr(data_cfg, "test_label", None)
-                test_split.mask = getattr(data_cfg, "test_mask", None)
-                test_split.path = getattr(data_cfg, "test_path", "") or ""
-                test_split.resolution = getattr(data_cfg, "test_resolution", None)
-        if test_split is not None and getattr(test_split, "image", None):
-            return test_split
-        return data_cfg.val
+    data_cfg = cfg.data
 
     if keys is None:
         # Auto-detect keys based on mode
@@ -285,34 +297,18 @@ def _build_eval_transforms_impl(cfg: Config, mode: str = "val", keys: list[str] 
             # Validation: default to image+label
             keys = ["image", "label"]
             # Add mask if val_mask or train_mask exists
-            if (hasattr(cfg.data, "val") and hasattr(cfg.data.val, "mask") and cfg.data.val.mask is not None) or (
-                hasattr(cfg.data, "train") and hasattr(cfg.data.train, "mask") and cfg.data.train.mask is not None
+            if (hasattr(data_cfg, "val") and hasattr(data_cfg.val, "mask") and data_cfg.val.mask is not None) or (
+                hasattr(data_cfg, "train") and hasattr(data_cfg.train, "mask") and data_cfg.train.mask is not None
             ):
                 keys.append("mask")
         else:  # mode == "test"
             # Test/inference: default to image only
             keys = ["image"]
-            # Only add label if test_label or tune_label is explicitly specified
-            test_split = _eval_split(cfg.test.data) if hasattr(cfg, "test") and hasattr(cfg.test, "data") else None
-            has_test_label = test_split is not None and test_split.label is not None
-            has_tune_label = (
-                hasattr(cfg, "tune")
-                and cfg.tune is not None
-                and hasattr(cfg.tune, "data")
-                and _eval_split(cfg.tune.data).label is not None
-            )
-            if has_test_label or has_tune_label:
+            test_split = data_cfg.test
+            if test_split.label is not None:
                 keys.append("label")
 
-            # Add mask if test_mask or tune_mask is explicitly specified
-            has_test_mask = test_split is not None and test_split.mask is not None
-            has_tune_mask = (
-                hasattr(cfg, "tune")
-                and cfg.tune is not None
-                and hasattr(cfg.tune, "data")
-                and _eval_split(cfg.tune.data).mask is not None
-            )
-            if has_test_mask or has_tune_mask:
+            if test_split.mask is not None:
                 keys.append("mask")
 
     transforms = []
@@ -321,8 +317,8 @@ def _build_eval_transforms_impl(cfg: Config, mode: str = "val", keys: list[str] 
     # Skip loading if using pre-cached datasets
     if not skip_loading:
         dataset_type = (
-            getattr(cfg.data.train, "dataset_type", None)
-            or getattr(cfg.data.val, "dataset_type", None)
+            getattr(data_cfg.train, "dataset_type", None)
+            or getattr(data_cfg.val, "dataset_type", None)
             or "volume"
         )
 
@@ -336,17 +332,12 @@ def _build_eval_transforms_impl(cfg: Config, mode: str = "val", keys: list[str] 
             # Get transpose axes based on mode
             if mode == "val":
                 transpose_axes = (
-                    cfg.data.data_transform.val_transpose if cfg.data.data_transform.val_transpose else []
+                    data_cfg.data_transform.val_transpose if data_cfg.data_transform.val_transpose else []
                 )
             else:  # mode == "test"
-                # Use test.data.data_transform.val_transpose
-                transpose_axes = []
-                if (
-                    hasattr(cfg, "test")
-                    and hasattr(cfg.test, "data")
-                    and cfg.test.data.data_transform.val_transpose
-                ):
-                    transpose_axes = cfg.test.data.data_transform.val_transpose
+                transpose_axes = (
+                    data_cfg.data_transform.val_transpose if data_cfg.data_transform.val_transpose else []
+                )
 
             transforms.append(
                 LoadVolumed(keys=keys, transpose_axes=transpose_axes if transpose_axes else None)
@@ -354,22 +345,17 @@ def _build_eval_transforms_impl(cfg: Config, mode: str = "val", keys: list[str] 
 
     nnunet_pre_cfg = None
     source_spacing = None
-    if mode == "test":
-        if hasattr(cfg, "test") and hasattr(cfg.test, "data"):
-            nnunet_pre_cfg = getattr(cfg.test.data, "nnunet_preprocessing", None)
-            source_spacing = getattr(_eval_split(cfg.test.data), "resolution", None)
-    elif mode == "tune":
-        if hasattr(cfg, "tune") and cfg.tune and hasattr(cfg.tune, "data"):
-            nnunet_pre_cfg = getattr(cfg.tune.data, "nnunet_preprocessing", None)
-            source_spacing = getattr(_eval_split(cfg.tune.data), "resolution", None)
+    if mode in {"test", "tune"}:
+        nnunet_pre_cfg = getattr(data_cfg, "nnunet_preprocessing", None)
+        source_spacing = data_cfg.test.resolution
     elif mode == "val":
-        nnunet_pre_cfg = getattr(cfg.data, "nnunet_preprocessing", None)
+        nnunet_pre_cfg = getattr(data_cfg, "nnunet_preprocessing", None)
         source_spacing = (
-            getattr(cfg.data.val, "resolution", None) or getattr(cfg.data.train, "resolution", None)
+            getattr(data_cfg.val, "resolution", None) or getattr(data_cfg.train, "resolution", None)
         )
     else:
-        nnunet_pre_cfg = getattr(cfg.data, "nnunet_preprocessing", None)
-        source_spacing = getattr(cfg.data.train, "resolution", None)
+        nnunet_pre_cfg = getattr(data_cfg, "nnunet_preprocessing", None)
+        source_spacing = getattr(data_cfg.train, "resolution", None)
 
     nnunet_pre_enabled = bool(getattr(nnunet_pre_cfg, "enabled", False))
     if not skip_loading and nnunet_pre_enabled:
@@ -397,64 +383,21 @@ def _build_eval_transforms_impl(cfg: Config, mode: str = "val", keys: list[str] 
         )
 
     # Apply volumetric split if enabled
-    if cfg.data.split_enabled:
+    if data_cfg.split_enabled:
         from connectomics.data.utils import ApplyVolumetricSplitd
 
         transforms.append(ApplyVolumetricSplitd(keys=keys))
 
     # Apply resize if configured (before cropping)
-    # For test/tune mode, only use test.data.image_transform or
-    # tune.data.image_transform (no fallback)
-    # For val mode, use data.image_transform
     image_resize_factors = None
-    if mode == "test":
-        if (
-            hasattr(cfg, "test")
-            and hasattr(cfg.test, "data")
-            and hasattr(cfg.test.data, "image_transform")
-        ):
-            if (
-                hasattr(cfg.test.data.image_transform, "resize")
-                and cfg.test.data.image_transform.resize is not None
-            ):
-                image_resize_factors = cfg.test.data.image_transform.resize
-    elif mode == "tune":
-        if (
-            hasattr(cfg, "tune")
-            and cfg.tune
-            and hasattr(cfg.tune, "data")
-            and hasattr(cfg.tune.data, "image_transform")
-        ):
-            if (
-                hasattr(cfg.tune.data.image_transform, "resize")
-                and cfg.tune.data.image_transform.resize is not None
-            ):
-                image_resize_factors = cfg.tune.data.image_transform.resize
+    if mode in {"test", "tune"}:
+        image_resize_factors = getattr(data_cfg.image_transform, "resize", None)
     else:  # mode == "val"
-        if (
-            hasattr(cfg.data.image_transform, "resize")
-            and cfg.data.image_transform.resize is not None
-        ):
-            image_resize_factors = cfg.data.image_transform.resize
+        image_resize_factors = getattr(data_cfg.image_transform, "resize", None)
 
     mask_resize_factors = None
-    if mode == "test":
-        if (
-            hasattr(cfg, "test")
-            and hasattr(cfg.test, "data")
-            and hasattr(cfg.test.data.data_transform, "resize")
-            and cfg.test.data.data_transform.resize is not None
-        ):
-            mask_resize_factors = cfg.test.data.data_transform.resize
-    elif mode == "tune":
-        if (
-            hasattr(cfg, "tune")
-            and cfg.tune
-            and hasattr(cfg.tune, "data")
-            and hasattr(cfg.tune.data.data_transform, "resize")
-            and cfg.tune.data.data_transform.resize is not None
-        ):
-            mask_resize_factors = cfg.tune.data.data_transform.resize
+    if mode in {"test", "tune"} and data_cfg.data_transform.resize is not None:
+        mask_resize_factors = data_cfg.data_transform.resize
 
     if image_resize_factors is not None and image_resize_factors:
         transforms.append(
@@ -495,24 +438,12 @@ def _build_eval_transforms_impl(cfg: Config, mode: str = "val", keys: list[str] 
             )
         )
 
-    # Optional mask binarization for test/tune masks (e.g., enforce mask > 0).
+    # Optional mask binarization for inference masks (e.g., enforce mask > 0).
     mask_binarize = False
     mask_threshold = 0.0
-    if mode == "test":
-        if (
-            hasattr(cfg, "test")
-            and hasattr(cfg.test, "data")
-        ):
-            mask_binarize = bool(getattr(cfg.test.data.data_transform, "binarize", False))
-            mask_threshold = float(getattr(cfg.test.data.data_transform, "threshold", 0.0))
-    elif mode == "tune":
-        if (
-            hasattr(cfg, "tune")
-            and cfg.tune
-            and hasattr(cfg.tune, "data")
-        ):
-            mask_binarize = bool(getattr(cfg.tune.data.data_transform, "binarize", False))
-            mask_threshold = float(getattr(cfg.tune.data.data_transform, "threshold", 0.0))
+    if mode in {"test", "tune"}:
+        mask_binarize = bool(getattr(data_cfg.data_transform, "binarize", False))
+        mask_threshold = float(getattr(data_cfg.data_transform, "threshold", 0.0))
 
     if "mask" in keys and mask_binarize:
         transforms.append(
@@ -523,8 +454,8 @@ def _build_eval_transforms_impl(cfg: Config, mode: str = "val", keys: list[str] 
         )
 
     patch_size = (
-        tuple(cfg.data.dataloader.patch_size)
-        if hasattr(cfg.data, "data_transform") and hasattr(cfg.data.data_transform, "patch_size")
+        tuple(data_cfg.dataloader.patch_size)
+        if hasattr(data_cfg, "data_transform") and hasattr(data_cfg.data_transform, "patch_size")
         else None
     )
     if patch_size and all(size > 0 for size in patch_size):
@@ -550,27 +481,11 @@ def _build_eval_transforms_impl(cfg: Config, mode: str = "val", keys: list[str] 
     # else: mode == "test" -> no cropping for sliding window inference
 
     # Normalization - use smart normalization
-    # For test/tune mode, only use test.data.image_transform or
-    # tune.data.image_transform (no fallback)
-    # For val mode, use data.image_transform
     image_transform = None
-    if (
-        mode == "test"
-        and hasattr(cfg, "test")
-        and hasattr(cfg.test, "data")
-        and hasattr(cfg.test.data, "image_transform")
-    ):
-        image_transform = cfg.test.data.image_transform
-    elif (
-        mode == "tune"
-        and hasattr(cfg, "tune")
-        and cfg.tune
-        and hasattr(cfg.tune, "data")
-        and hasattr(cfg.tune.data, "image_transform")
-    ):
-        image_transform = cfg.tune.data.image_transform
+    if mode in {"test", "tune"}:
+        image_transform = data_cfg.image_transform
     elif mode == "val":
-        image_transform = cfg.data.image_transform
+        image_transform = data_cfg.image_transform
 
     if (not nnunet_pre_enabled) and image_transform is not None and image_transform.normalize != "none":
         transforms.append(
@@ -582,10 +497,26 @@ def _build_eval_transforms_impl(cfg: Config, mode: str = "val", keys: list[str] 
             )
         )
 
+    if mode == "test" and _env_flag_enabled(_DEBUG_TEST_INPUT_STATS_ENV):
+        normalize_mode = (
+            getattr(image_transform, "normalize", "none")
+            if image_transform is not None
+            else "none"
+        )
+        transforms.append(
+            Lambdad(
+                keys=["image"],
+                func=partial(
+                    _debug_print_post_normalization_stats,
+                    normalize_mode=normalize_mode,
+                ),
+            )
+        )
+
     # Only process labels if 'label' is in keys
     if "label" in keys:
         # Normalize labels to 0-1 range if enabled
-        if getattr(cfg.data, "normalize_labels", False):
+        if getattr(data_cfg, "normalize_labels", False):
             transforms.append(NormalizeLabelsd(keys=["label"]))
 
         # Label transformations (affinity, distance transform, etc.)
@@ -595,8 +526,8 @@ def _build_eval_transforms_impl(cfg: Config, mode: str = "val", keys: list[str] 
         label_cfg = None
         if mode == "val":
             # Validation always uses training label_transform
-            if hasattr(cfg.data, "label_transform"):
-                label_cfg = cfg.data.label_transform
+            if hasattr(data_cfg, "label_transform"):
+                label_cfg = data_cfg.label_transform
 
         # Apply label transforms if configured
         if label_cfg is not None:
@@ -971,7 +902,7 @@ def build_transform_dict(cfg: Config) -> Dict[str, Compose]:
     return {
         "train": build_train_transforms(cfg),
         "val": build_val_transforms(cfg),
-        "test": build_val_transforms(cfg),
+        "test": build_test_transforms(cfg),
     }
 
 

@@ -9,7 +9,6 @@ Functions:
     - polarity2instance: Convert synaptic polarity predictions to instance masks
 """
 
-from __future__ import print_function, division
 from typing import Tuple
 import numpy as np
 

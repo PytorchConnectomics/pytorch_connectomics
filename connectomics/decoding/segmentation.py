@@ -192,6 +192,7 @@ def decode_instance_binary_contour_distance(
             else (distance > distance_threshold[1])
         )
 
+    seed = None
     if mode == "cc":
         segmentation = cc3d.connected_components(foreground)
     elif mode == "watershed":
@@ -352,25 +353,7 @@ def decode_distance_watershed(
           or enable use_fast_edt for acceleration
         - The fast edt library (pip install edt) provides significant speedup (10-50x)
     """
-    
-    # DEBUG: Print input to decoding
-    try:
-        from ..utils.debug_utils import print_tensor_stats
-        print_tensor_stats(
-            predictions,
-            stage_name="STAGE 9: INPUT TO DECODING (watershed)",
-            tensor_name="predictions",
-            print_once=True,
-            extra_info={
-                "decoding_method": "decode_distance_watershed",
-                "distance_channels": distance_channels,
-                "distance_threshold": distance_threshold,
-                "expected_range": "[-1, 1] for SDT after tanh"
-            }
-        )
-    except:
-        pass  # Silently skip if debug utils not available
-    
+
     # Stage 1: Extract SDT channel
     if distance_channels is None or len(distance_channels) == 0:
         raise ValueError("distance_channels must be specified and non-empty")

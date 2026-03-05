@@ -11,12 +11,10 @@ The callback handles:
 - DDP training (logs only on rank 0)
 - Sanity check validation (logs but doesn't interfere)
 - Datasets without set_epoch() method (gracefully skipped)
-
-IMPORTANT: Uses print() instead of logger.info() for guaranteed visibility
-in SLURM .out files. All logs are prefixed with [VAL RESEED] for easy grepping.
 """
 
 from __future__ import annotations
+import logging
 from typing import Any, List, Optional, Union
 
 import pytorch_lightning as pl
@@ -27,6 +25,8 @@ try:
     HAS_CHAIN_DATASET = True
 except ImportError:
     HAS_CHAIN_DATASET = False
+
+logger = logging.getLogger(__name__)
 
 
 class ValidationReseedingCallback(Callback):
@@ -94,17 +94,21 @@ class ValidationReseedingCallback(Callback):
         # Log validation epoch start
         epoch_type = "SANITY CHECK" if is_sanity_check else f"EPOCH {current_epoch}"
         if self.verbose:
-            print("")
-            print("=" * 80)
-            print(f"[VAL RESEED] {epoch_type} | Step {global_step} | Rank {trainer.global_rank}")
-            print("=" * 80)
+            logger.info(
+                "[VAL RESEED] %s | Step %s | Rank %s",
+                epoch_type,
+                global_step,
+                trainer.global_rank,
+            )
         
         # Get validation dataloaders
         val_dataloaders = self._get_validation_dataloaders(trainer)
         
         if not val_dataloaders:
-            print(f"[VAL RESEED SKIPPED] {epoch_type} | Reason: No validation dataloaders found")
-            print("=" * 80)
+            logger.warning(
+                "[VAL RESEED SKIPPED] %s | Reason: No validation dataloaders found",
+                epoch_type,
+            )
             return
         
         # Reseed each dataloader's dataset(s)
@@ -114,7 +118,7 @@ class ValidationReseedingCallback(Callback):
         
         for dl_idx, dataloader in enumerate(val_dataloaders):
             if self.verbose:
-                print(f"[VAL RESEED] Processing DataLoader {dl_idx}")
+                logger.info("[VAL RESEED] Processing DataLoader %s", dl_idx)
             
             # Find all datasets in this dataloader
             datasets = self._find_all_datasets(dataloader)
@@ -131,23 +135,40 @@ class ValidationReseedingCallback(Callback):
                         dataset.set_epoch(seed_epoch, self.base_seed)
                         
                         if self.verbose:
-                            print(f"[VAL RESEED]  Dataset {ds_idx}: {dataset_info}")
-                            print(f"[VAL RESEED]    set_epoch(epoch={seed_epoch}, base_seed={self.base_seed})")
-                            print(f"[VAL RESEED]    Effective seed: {self.base_seed + seed_epoch}")
+                            logger.info("[VAL RESEED]  Dataset %s: %s", ds_idx, dataset_info)
+                            logger.info(
+                                "[VAL RESEED]    set_epoch(epoch=%s, base_seed=%s)",
+                                seed_epoch,
+                                self.base_seed,
+                            )
+                            logger.info(
+                                "[VAL RESEED]    Effective seed: %s",
+                                self.base_seed + seed_epoch,
+                            )
                         
                         total_reseeded += 1
                         
                         # Log fingerprint if requested and dataset supports it
                         if self.log_fingerprint and hasattr(dataset, 'get_sampling_fingerprint'):
                             fingerprint = dataset.get_sampling_fingerprint()
-                            print(f"[VAL RESEED]    Fingerprint: {fingerprint}")
+                            logger.info("[VAL RESEED]    Fingerprint: %s", fingerprint)
                         
                     except Exception as e:
-                        print(f"[VAL RESEED SKIPPED] Dataset {ds_idx}: {dataset_info} | Reason: Exception during set_epoch: {e}")
+                        logger.warning(
+                            "[VAL RESEED SKIPPED] Dataset %s: %s | Reason: "
+                            "Exception during set_epoch: %s",
+                            ds_idx,
+                            dataset_info,
+                            e,
+                        )
                         total_skipped += 1
                         skipped_reasons.append(f"Exception: {e}")
                 else:
-                    print(f"[VAL RESEED SKIPPED] Dataset {ds_idx}: {dataset_info} | Reason: no set_epoch() method")
+                    logger.warning(
+                        "[VAL RESEED SKIPPED] Dataset %s: %s | Reason: no set_epoch() method",
+                        ds_idx,
+                        dataset_info,
+                    )
                     total_skipped += 1
                     skipped_reasons.append("no set_epoch() method")
         
@@ -156,15 +177,12 @@ class ValidationReseedingCallback(Callback):
         self._skipped_count += total_skipped
         
         # Summary
-        print("")
-        print(f"[VAL RESEED] Summary for {epoch_type}:")
-        print(f"[VAL RESEED]   Datasets reseeded: {total_reseeded}")
-        print(f"[VAL RESEED]   Datasets skipped:  {total_skipped}")
-        print(f"[VAL RESEED]   Total dataloaders: {len(val_dataloaders)}")
+        logger.info("[VAL RESEED] Summary for %s:", epoch_type)
+        logger.info("[VAL RESEED]   Datasets reseeded: %s", total_reseeded)
+        logger.info("[VAL RESEED]   Datasets skipped:  %s", total_skipped)
+        logger.info("[VAL RESEED]   Total dataloaders: %s", len(val_dataloaders))
         if skipped_reasons:
-            print(f"[VAL RESEED]   Skip reasons: {', '.join(set(skipped_reasons))}")
-        print("=" * 80)
-        print("")
+            logger.info("[VAL RESEED]   Skip reasons: %s", ", ".join(set(skipped_reasons)))
     
     def _get_validation_dataloaders(
         self,
@@ -264,15 +282,10 @@ class ValidationReseedingCallback(Callback):
         """Log final statistics at end of training."""
         if trainer.global_rank != 0:
             return
-        
-        print("")
-        print("=" * 80)
-        print("[VAL RESEED] Final Statistics")
-        print("=" * 80)
-        print(f"[VAL RESEED]   Total datasets reseeded: {self._reseeded_count}")
-        print(f"[VAL RESEED]   Total datasets skipped:  {self._skipped_count}")
-        print("=" * 80)
-        print("")
+
+        logger.info("[VAL RESEED] Final statistics")
+        logger.info("[VAL RESEED]   Total datasets reseeded: %s", self._reseeded_count)
+        logger.info("[VAL RESEED]   Total datasets skipped:  %s", self._skipped_count)
 
 
 __all__ = ["ValidationReseedingCallback"]

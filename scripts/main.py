@@ -35,7 +35,6 @@ Usage:
 import os
 import sys
 from pathlib import Path
-from typing import Any
 
 # Add parent directory to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent))
@@ -45,6 +44,7 @@ import torch
 # Import Hydra config system
 from connectomics.config import (
     Config,
+    resolve_data_paths,
     resolve_default_profiles,
     resolve_runtime_resource_sentinels,
     save_config,
@@ -78,7 +78,7 @@ from connectomics.training.lightning import (
 )
 
 
-# Setup seed_everything with version fallback
+# Setup seed_everything helper
 seed_everything = setup_seed_everything()
 
 _RANK_STDOUT_REDIRECT = None
@@ -188,39 +188,22 @@ def extract_step_from_checkpoint(checkpoint_path: str) -> str:
 
     if match:
         return f"step={match.group(1)}"
-    
+
     return ""
 
 
-def preflight_test_cache_hit(cfg: Config, datamodule) -> tuple[bool, str | None, int]:
-    """Check if all test outputs already exist so inference (and ckpt restore) can be skipped."""
-    if not hasattr(cfg, "test") or cfg.test is None or not hasattr(cfg.test, "data"):
-        return False, None, 0
-
-    output_dir_value = getattr(cfg.test, "output_path", None)
-    if not output_dir_value:
-        return False, None, 0
-
-    test_data_dicts = getattr(datamodule, "test_data_dicts", None)
-    if not test_data_dicts:
-        return False, None, 0
-
-    cache_suffix = getattr(cfg.test, "cache_suffix", "_prediction.h5")
-    output_dir = Path(output_dir_value)
-
-    filenames = []
-    for data_dict in test_data_dicts:
-        if not isinstance(data_dict, dict):
-            return False, None, 0
-        image_path = data_dict.get("image")
-        if not image_path:
-            return False, None, 0
-        filenames.append(Path(str(image_path)).stem)
-
+def _resolve_cached_prediction_files(
+    output_dir: Path,
+    filenames: list[str],
+    cache_suffix: str,
+) -> tuple[bool, str | None, list[Path]]:
+    """Resolve cached prediction files with optional TTA-suffix fallback."""
     if not filenames:
-        return False, None, 0
+        return False, None, []
 
+    resolved_files: list[Path] = []
     loaded_suffix = cache_suffix
+
     for filename in filenames:
         pred_file = output_dir / f"{filename}{cache_suffix}"
         current_suffix = cache_suffix
@@ -232,23 +215,51 @@ def preflight_test_cache_hit(cfg: Config, datamodule) -> tuple[bool, str | None,
                 current_suffix = "_tta_prediction.h5"
 
         if not pred_file.exists():
-            return False, None, len(filenames)
+            return False, None, []
 
         if current_suffix == "_tta_prediction.h5":
             loaded_suffix = "_tta_prediction.h5"
+        resolved_files.append(pred_file)
 
+    return True, loaded_suffix, resolved_files
+
+
+def preflight_test_cache_hit(cfg: Config, datamodule) -> tuple[bool, str | None, int]:
+    """Check if all test outputs already exist so inference (and ckpt restore) can be skipped."""
+    save_pred_cfg = getattr(cfg.inference, "save_prediction", None)
+    if save_pred_cfg is None:
+        return False, None, 0
+
+    output_dir_value = getattr(save_pred_cfg, "output_path", None)
+    if not output_dir_value:
+        return False, None, 0
+
+    test_data_dicts = getattr(datamodule, "test_data_dicts", None)
+    if not test_data_dicts:
+        return False, None, 0
+
+    filenames = []
+    for data_dict in test_data_dicts:
+        if not isinstance(data_dict, dict):
+            return False, None, 0
+        image_path = data_dict.get("image")
+        if not image_path:
+            return False, None, 0
+        filenames.append(Path(str(image_path)).stem)
+
+    cache_hit, loaded_suffix, _resolved_files = _resolve_cached_prediction_files(
+        Path(output_dir_value),
+        filenames,
+        getattr(save_pred_cfg, "cache_suffix", "_prediction.h5"),
+    )
+    if not cache_hit:
+        return False, None, len(filenames)
     return True, loaded_suffix, len(filenames)
 
 
 def _is_test_evaluation_enabled(cfg: Config) -> bool:
     """Return whether test-time evaluation is enabled."""
-    evaluation_cfg: Any = None
-    if hasattr(cfg, "test") and cfg.test is not None:
-        evaluation_cfg = getattr(cfg.test, "evaluation", None)
-
-    if evaluation_cfg is None and hasattr(cfg, "inference") and hasattr(cfg.inference, "evaluation"):
-        evaluation_cfg = cfg.inference.evaluation
-
+    evaluation_cfg = getattr(cfg.inference, "evaluation", None)
     if evaluation_cfg is None:
         return False
     if isinstance(evaluation_cfg, dict):
@@ -259,6 +270,7 @@ def _is_test_evaluation_enabled(cfg: Config) -> bool:
 def resolve_test_stage_runtime(cfg: Config) -> Config:
     """Switch runtime config to test stage and re-resolve resource sentinels."""
     cfg = resolve_default_profiles(cfg, mode="test")
+    cfg = resolve_data_paths(cfg)
     cfg = resolve_runtime_resource_sentinels(cfg, print_results=True)
 
     # Keep runtime behavior consistent with setup_config() for CPU-only environments.
@@ -277,10 +289,11 @@ def _invert_save_prediction_transform(cfg: Config, data):
     """Invert save_prediction intensity scaling (matches ConnectomicsModule behavior)."""
     import numpy as np
 
-    if not hasattr(cfg, "inference") or not hasattr(cfg.inference, "save_prediction"):
+    inference_cfg = getattr(cfg, "inference", None)
+    if inference_cfg is None or getattr(inference_cfg, "save_prediction", None) is None:
         return data.astype(np.float32)
 
-    save_pred_cfg = cfg.inference.save_prediction
+    save_pred_cfg = inference_cfg.save_prediction
     intensity_scale = getattr(save_pred_cfg, "intensity_scale", None)
 
     data = data.astype(np.float32)
@@ -300,11 +313,14 @@ def try_cache_only_test_execution(cfg: Config, mode: str) -> bool:
     """
     if mode != "test":
         return False
-    if not hasattr(cfg, "test") or cfg.test is None or not hasattr(cfg.test, "data"):
+    data_cfg = getattr(cfg, "data", None)
+    if data_cfg is None:
         return False
-
-    output_dir_value = getattr(cfg.test, "output_path", None)
-    test_image = getattr(cfg.test.data.val, "image", None)
+    save_pred_cfg = getattr(cfg.inference, "save_prediction", None)
+    if save_pred_cfg is None:
+        return False
+    output_dir_value = getattr(save_pred_cfg, "output_path", None)
+    test_image = getattr(getattr(data_cfg, "test", None), "image", None)
     if not output_dir_value or not test_image:
         return False
 
@@ -324,33 +340,24 @@ def try_cache_only_test_execution(cfg: Config, mode: str) -> bool:
         return False
 
     output_dir = Path(output_dir_value)
-    cache_suffix = getattr(cfg.test, "cache_suffix", "_prediction.h5")
+    cache_suffix = getattr(save_pred_cfg, "cache_suffix", "_prediction.h5")
     filenames = [Path(str(p)).stem for p in test_image_paths]
 
-    # Check whether all outputs are present and what type they are.
-    loaded_suffix = cache_suffix
+    cache_hit, loaded_suffix, resolved_files = _resolve_cached_prediction_files(
+        output_dir,
+        filenames,
+        cache_suffix,
+    )
+    if not cache_hit:
+        return False
+
     cached_arrays = []
-    for filename in filenames:
-        pred_file = output_dir / f"{filename}{cache_suffix}"
-        current_suffix = cache_suffix
-
-        if not pred_file.exists() and cache_suffix != "_tta_prediction.h5":
-            tta_pred_file = output_dir / f"{filename}_tta_prediction.h5"
-            if tta_pred_file.exists():
-                pred_file = tta_pred_file
-                current_suffix = "_tta_prediction.h5"
-
-        if not pred_file.exists():
-            return False
-
+    for pred_file in resolved_files:
         try:
             cached_arrays.append(read_hdf5(str(pred_file), dataset="main"))
         except Exception as exc:
             print(f"  ⚠️  Cache-only preflight skipped: failed to read {pred_file.name}: {exc}")
             return False
-
-        if current_suffix == "_tta_prediction.h5":
-            loaded_suffix = "_tta_prediction.h5"
 
     if loaded_suffix != "_tta_prediction.h5":
         if _is_test_evaluation_enabled(cfg):
@@ -441,6 +448,10 @@ def main():
     cfg = setup_config(args)
     configure_matmul_precision(cfg)
 
+    # Tuning expects cached intermediate predictions by default.
+    if args.mode in ["tune", "tune-test"]:
+        cfg.inference.save_prediction.cache_suffix = "_tta_prediction.h5"
+
     # Run preflight checks for training mode
     if args.mode == "train":
         from connectomics.utils.errors import preflight_check, print_preflight_issues
@@ -458,7 +469,7 @@ def main():
 
         # Extract step number from checkpoint filename (if available)
         step_suffix = extract_step_from_checkpoint(args.checkpoint)
-        
+
         # Create mode-specific subdirectories
         if args.mode in ["tune", "tune-test"]:
             # For tuning modes, append step suffix if available
@@ -468,28 +479,15 @@ def main():
             else:
                 results_folder_name = "results"
                 tuning_folder_name = "tuning"
-            
+
             dirpath = str(output_base / tuning_folder_name)
             results_path = str(output_base / results_folder_name)
-            # Override tune output directories in config
-            if cfg.tune is not None:
-                cfg.tune.output.output_dir = dirpath
-                cfg.tune.output.output_pred = results_path
-            # For tune-test, also set test output directory and cache suffix
+            save_pred_cfg = cfg.inference.save_prediction
+            save_pred_cfg.output_path = results_path
+            save_pred_cfg.cache_suffix = "_tta_prediction.h5"
             if args.mode == "tune-test":
-                print(f"🔍 Setting test config for tune-test mode")
-                print(f"🔍 cfg.test is None: {cfg.test is None}")
-                if cfg.test is not None:
-                    print(f"🔍 cfg.test.data is None: {cfg.test.data is None}")
-                    if cfg.test.data is not None:
-                        cfg.test.output_path = results_path
-                        cfg.test.cache_suffix = cfg.tune.output.cache_suffix
-                        print(f"📋 Test output: {cfg.test.output_path}")
-                        print(f"📋 Test cache suffix: {cfg.test.cache_suffix}")
-                    else:
-                        print(f"❌ cfg.test.data is None, cannot set cache_suffix!")
-                else:
-                    print(f"❌ cfg.test is None, cannot set cache_suffix!")
+                print(f"📋 Test output: {save_pred_cfg.output_path}")
+                print(f"📋 Test cache suffix: {save_pred_cfg.cache_suffix}")
         else:  # test mode
             # Create results/ folder with step suffix under checkpoint directory
             if step_suffix:
@@ -497,12 +495,10 @@ def main():
                 print(f"📋 Using checkpoint {step_suffix} - output will be saved to: {results_folder_name}")
             else:
                 results_folder_name = "results"
-            
+
             results_path = str(output_base / results_folder_name)
             dirpath = results_path
-            # Override test output directory in config
-            if hasattr(cfg, "test") and hasattr(cfg.test, "data"):
-                cfg.test.output_path = results_path
+            cfg.inference.save_prediction.output_path = results_path
 
         run_dir = setup_run_directory(args.mode, cfg, dirpath)
         print(f"📂 Output base: {output_base}")
@@ -528,10 +524,6 @@ def main():
     # Count parameters
     num_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
     print(f"  Model parameters: {num_params:,}")
-
-    # Handle checkpoint state resets if requested (function handles early return)
-    if args.reset_max_epochs is not None:
-        print(f"   - Overriding max_epochs to: {args.reset_max_epochs}")
 
     # Don't use checkpoint path if external weights were loaded (already in model state)
     # External weights are loaded during config setup via model.external_weights_path
@@ -579,10 +571,6 @@ def main():
 
         # Handle tune modes
         if args.mode in ["tune", "tune-test"]:
-            # Check if tune config exists and has parameter_space
-            if cfg.tune is None or not hasattr(cfg.tune, "parameter_space"):
-                raise ValueError("Missing tune or tune.parameter_space configuration")
-
             from connectomics.decoding import run_tuning
 
             # Run parameter tuning (automatically skips if best_params.yaml exists)

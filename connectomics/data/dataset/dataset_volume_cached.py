@@ -7,18 +7,19 @@ in memory, avoiding repeated disk I/O.
 
 from __future__ import annotations
 
-import os
+import logging
 import random  # Use random (not np.random) for thread safety
 from typing import Any, Dict, List, Optional, Tuple
-
-DEBUG_D2 = os.environ.get("PYTC_DEBUG_D2", "0").lower() in {"1", "true", "yes", "on"}
 
 import numpy as np
 from monai.data import Dataset
 from monai.transforms import Compose
 from monai.utils import ensure_tuple_rep
 
+from .crop_sampling import center_crop_position, random_crop_position
 from ..io import read_volume
+
+logger = logging.getLogger(__name__)
 
 
 def crop_volume(volume: np.ndarray, size: Tuple[int, ...], start: Tuple[int, ...]) -> np.ndarray:
@@ -77,60 +78,15 @@ def crop_volume(volume: np.ndarray, size: Tuple[int, ...], start: Tuple[int, ...
 
     # Pad if necessary to ensure exact size
     if any(pad > 0 for _, pad in pad_width):
-        # Build full pad_width including channel dimension if present
         if has_channel:
             full_pad_width = [(0, 0)] + pad_width  # No padding on channel
         else:
             full_pad_width = pad_width
 
-        # Check if cropped array is empty or has zero-sized dimensions
-        # Reflect padding cannot work on empty arrays, so fall back to constant padding
-        is_empty = cropped.size == 0 or any(s == 0 for s in cropped.shape)
-        if is_empty:
-            # Use constant padding for empty arrays (reflect padding requires at least one element)
+        if cropped.size == 0 or any(s == 0 for s in cropped.shape):
             cropped = np.pad(cropped, full_pad_width, mode="constant", constant_values=0)
         else:
-            # Use reflect padding to match the volume's edge values
             cropped = np.pad(cropped, full_pad_width, mode="reflect")
-
-    # Final safety check: ensure output has exactly the requested size
-    # This handles any edge cases where padding calculation might be off
-    expected_spatial_shape = size
-    actual_spatial_shape = cropped.shape[-ndim:] if has_channel else cropped.shape
-
-    if actual_spatial_shape != expected_spatial_shape:
-        # Calculate how much padding is still needed
-        pad_needed = []
-        for i in range(ndim):
-            pad = max(0, expected_spatial_shape[i] - actual_spatial_shape[i])
-            pad_needed.append((0, pad))
-
-        if any(p > 0 for _, p in pad_needed):
-            if has_channel:
-                full_pad_width = [(0, 0)] + pad_needed
-            else:
-                full_pad_width = pad_needed
-
-            # Check if cropped array is empty or has zero-sized dimensions
-            # Reflect padding cannot work on empty arrays, so fall back to constant padding
-            is_empty = cropped.size == 0 or any(s == 0 for s in cropped.shape)
-            if is_empty:
-                # Use constant padding for empty arrays (reflect padding requires at least one element)
-                cropped = np.pad(cropped, full_pad_width, mode="constant", constant_values=0)
-            else:
-                # Use reflect padding to match the volume's edge values
-                cropped = np.pad(cropped, full_pad_width, mode="reflect")
-
-        # If still wrong (shouldn't happen), trim excess
-        if has_channel:
-            current_spatial = cropped.shape[-ndim:]
-            if current_spatial != expected_spatial_shape:
-                slices = [slice(None)] + [slice(0, s) for s in expected_spatial_shape]
-                cropped = cropped[tuple(slices)]
-        else:
-            if cropped.shape != expected_spatial_shape:
-                slices = [slice(0, s) for s in expected_spatial_shape]
-                cropped = cropped[tuple(slices)]
 
     return cropped
 
@@ -196,20 +152,13 @@ class CachedVolumeDataset(Dataset):
         # This allows validation to sample different patches each epoch while remaining deterministic
         self.base_seed = 0  # Will be set by set_epoch() or defaults to 0
         self.current_epoch = 0
-
-        # [D2 DIAGNOSTIC] Initialize sampling statistics
-        self._d2_total_samples = 0
-        self._d2_total_attempts = 0
-        self._d2_rejected_patches = 0
-        self._d2_foreground_fracs = []
-        self._d2_last_report_step = 0
         self.max_attempts = max_attempts
         self.foreground_threshold = foreground_threshold
         self.crop_to_nonzero_mask = crop_to_nonzero_mask
         self.sample_nonzero_mask = sample_nonzero_mask
 
         # Load all volumes into memory
-        print(f"  Loading {len(image_paths)} volumes into memory...")
+        logger.info("Loading %d volumes into memory...", len(image_paths))
         self.cached_images = []
         self.cached_labels = []
         self.cached_masks = []
@@ -291,9 +240,9 @@ class CachedVolumeDataset(Dataset):
             else:
                 self.cached_masks.append(None)
 
-            print(f"    Volume {i + 1}/{len(image_paths)}: {img.shape}")
+            logger.info("Volume %d/%d: %s", i + 1, len(image_paths), img.shape)
 
-        print(f"  ✓ Loaded {len(self.cached_images)} volumes into memory")
+        logger.info("Loaded %d volumes into memory", len(self.cached_images))
 
         # Store volume sizes for random position generation
         # Support both 2D and 3D: get last N dimensions matching patch_size
@@ -305,9 +254,9 @@ class CachedVolumeDataset(Dataset):
         if self.crop_to_nonzero_mask:
             for mask in self.cached_masks:
                 self.mask_bboxes.append(self._compute_mask_bbox(mask))
-            print(
-                f"  [crop_to_nonzero_mask] Mask bboxes computed for "
-                f"{len(self.mask_bboxes)} volumes"
+            logger.info(
+                "[crop_to_nonzero_mask] Mask bboxes computed for %d volumes",
+                len(self.mask_bboxes),
             )
         else:
             self.mask_bboxes = [None] * len(self.cached_images)
@@ -326,20 +275,14 @@ class CachedVolumeDataset(Dataset):
                     self.mask_nonzero_coords.append(None)
             n_valid = sum(1 for c in self.mask_nonzero_coords if c is not None)
             total_voxels = sum(len(c) for c in self.mask_nonzero_coords if c is not None)
-            print(
-                f"  [sample_nonzero_mask] {n_valid}/{len(self.mask_nonzero_coords)} volumes "
-                f"have nonzero mask ({total_voxels} total voxels)"
+            logger.info(
+                "[sample_nonzero_mask] %d/%d volumes have nonzero mask (%d total voxels)",
+                n_valid,
+                len(self.mask_nonzero_coords),
+                total_voxels,
             )
         else:
             self.mask_nonzero_coords = [None] * len(self.cached_images)
-
-        if self.mode == "train" and DEBUG_D2:
-            if self.foreground_threshold > 0:
-                print("  [D2] Foreground sampling ENABLED:")
-                print(f"    - Threshold: {self.foreground_threshold * 100:.1f}%")
-                print(f"    - Max attempts: {self.max_attempts}")
-            else:
-                print("  [D2] Foreground sampling DISABLED")
 
     def _apply_padding(
         self, volume: np.ndarray, mode: Optional[str] = None, constant_values: float = 0
@@ -450,13 +393,18 @@ class CachedVolumeDataset(Dataset):
             effective_seed = self.base_seed + epoch
             random.seed(effective_seed)
 
-            # IMPORTANT: Print to verify reseeding is happening
-            # This should appear in logs at the start of EACH validation epoch
-            print(
-                f"[Validation] Set epoch={epoch}, base_seed={base_seed}, effective_seed={effective_seed}"
+            logger.debug(
+                "[Validation] Set epoch=%s, base_seed=%s, effective_seed=%s",
+                epoch,
+                base_seed,
+                effective_seed,
             )
-            print(
-                f"[Validation] Dataset: {type(self).__name__}@{id(self)}, mode={self.mode}, iter_num={self.iter_num}"
+            logger.debug(
+                "[Validation] Dataset: %s@%s, mode=%s, iter_num=%s",
+                type(self).__name__,
+                id(self),
+                self.mode,
+                self.iter_num,
             )
 
     def get_sampling_fingerprint(self, num_samples: int = 5) -> str:
@@ -534,40 +482,15 @@ class CachedVolumeDataset(Dataset):
             Random crop start position (z, y, x) for 3D or (y, x) for 2D
         """
         vol_size = self.volume_sizes[vol_idx]
-        patch_size = self.patch_size
-
-        # Strategy 1: direct voxel sampling (strongest guarantee)
         coords = self.mask_nonzero_coords[vol_idx] if self.sample_nonzero_mask else None
-        if coords is not None:
-            idx = random.randint(0, len(coords) - 1)
-            center = coords[idx]
-            positions = []
-            for i in range(len(patch_size)):
-                vol_max = max(0, vol_size[i] - patch_size[i])
-                pos = int(center[i]) - patch_size[i] // 2
-                pos = max(0, min(pos, vol_max))
-                positions.append(pos)
-            return tuple(positions)
-
-        # Strategy 2: bbox constraint (weaker, faster)
         mask_bbox = self.mask_bboxes[vol_idx] if self.crop_to_nonzero_mask else None
-        if mask_bbox is not None:
-            positions = []
-            for i in range(len(patch_size)):
-                vol_max = max(0, vol_size[i] - patch_size[i])
-                min_start = max(0, mask_bbox[i][0] - patch_size[i] + 1)
-                max_start = min(vol_max, mask_bbox[i][1] - 1)
-                if min_start > max_start:
-                    min_start, max_start = 0, vol_max
-                positions.append(random.randint(min_start, max_start))
-            return tuple(positions)
-
-        # Fallback: uniform random crop
-        positions = []
-        for i in range(len(patch_size)):
-            vol_max = max(0, vol_size[i] - patch_size[i])
-            positions.append(random.randint(0, vol_max))
-        return tuple(positions)
+        return random_crop_position(
+            vol_size,
+            self.patch_size,
+            rng=random,
+            mask_nonzero_coords=coords,
+            mask_bbox=mask_bbox,
+        )
 
     def _get_center_crop_position(self, vol_idx: int) -> Tuple[int, ...]:
         """
@@ -580,14 +503,7 @@ class CachedVolumeDataset(Dataset):
             Center crop start position (z, y, x) for 3D or (y, x) for 2D
         """
         vol_size = self.volume_sizes[vol_idx]
-        patch_size = self.patch_size
-
-        # Center position for each dimension
-        # Support both 2D and 3D
-        positions = tuple(
-            max(0, (vol_size[i] - patch_size[i]) // 2) for i in range(len(patch_size))
-        )
-        return positions
+        return center_crop_position(vol_size, self.patch_size)
 
     def __getitem__(self, index: int) -> Dict[str, Any]:
         """Get a random crop from cached volumes (fast numpy slicing!)."""
@@ -600,7 +516,7 @@ class CachedVolumeDataset(Dataset):
         label = self.cached_labels[vol_idx]
         mask = self.cached_masks[vol_idx]
 
-        # [D2] Foreground-aware patch sampling: optional retry loop for training.
+        # Foreground-aware patch sampling: optional retry loop for training.
         # Disabled by default when foreground_threshold <= 0.
         max_attempts = self.max_attempts
         foreground_threshold = self.foreground_threshold
@@ -608,13 +524,8 @@ class CachedVolumeDataset(Dataset):
             self.mode == "train" and label is not None and foreground_threshold > 0
         )
 
-        # [D2 DIAGNOSTIC] Track sampling attempts only when foreground sampling is active.
-        attempts_used = 1
-        final_foreground_frac = 0.0
-
         if use_foreground_sampling:
             for attempt in range(max_attempts):
-                attempts_used = attempt + 1
                 pos = self._get_random_crop_position(vol_idx)
 
                 # Crop using fast numpy slicing (like v1)
@@ -626,18 +537,13 @@ class CachedVolumeDataset(Dataset):
                     mask_crop = None
 
                 foreground_frac = (label_crop > 0).sum() / label_crop.size
-                final_foreground_frac = foreground_frac
 
                 # Reject if mask is present but entirely zero in this crop
                 if mask is not None and not (mask_crop > 0).any():
-                    self._d2_rejected_patches += 1
                     continue
 
                 if foreground_frac >= foreground_threshold:
                     break
-
-                # [D2 DIAGNOSTIC] Patch rejected, increment counter
-                self._d2_rejected_patches += 1
         else:
             # Standard single-crop behavior (no foreground-based retry)
             if self.mode == "train":
@@ -655,17 +561,6 @@ class CachedVolumeDataset(Dataset):
                 mask_crop = crop_volume(mask, self.patch_size, pos)
             else:
                 mask_crop = None
-
-        if use_foreground_sampling and DEBUG_D2:
-            self._d2_total_samples += 1
-            self._d2_total_attempts += attempts_used
-            self._d2_foreground_fracs.append(final_foreground_frac * 100)
-            mask_frac = (mask_crop > 0).sum() / mask_crop.size * 100 if mask_crop is not None else 0.0
-            print(
-                f"[D2 #{self._d2_total_samples}] attempts={attempts_used}/{max_attempts}, "
-                f"rejected={self._d2_rejected_patches}, "
-                f"fg={final_foreground_frac * 100:.1f}%, mask={mask_frac:.1f}%"
-            )
 
         # Create data dict
         data = {

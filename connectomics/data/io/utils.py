@@ -54,6 +54,7 @@ def rgb_to_seg(rgb: np.ndarray) -> np.ndarray:
             + rgb[:, :, :, 1].astype(np.uint32) * 256
             + rgb[:, :, :, 2].astype(np.uint32)
         )
+    raise ValueError(f"Unsupported ndim: {rgb.ndim}")
 
 
 def normalize_data_range(

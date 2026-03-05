@@ -390,11 +390,11 @@ def read_volume(
             f"Expected: h5, hdf5, tif, tiff, png, nii, or nii.gz"
         )
 
-    # if data.ndim not in [3, 4]:
-    #     raise ValueError(
-    #         f"Currently supported volume data should be 3D (D, H, W) or 4D (C, D, H, W), "
-    #         f"got {data.ndim}D"
-    #     )
+    if data.ndim not in [2, 3, 4]:
+        raise ValueError(
+            f"Supported data dimensions: 2D (H, W), 3D (D, H, W), or 4D (C, D, H, W), "
+            f"got {data.ndim}D"
+        )
 
     if drop_channel and data.ndim == 4:
         # Merge multiple channels to grayscale by average

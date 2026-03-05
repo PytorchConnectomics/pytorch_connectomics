@@ -49,24 +49,37 @@ from .regularization import (
 )
 
 
-def create_loss(loss_name: str, **kwargs) -> nn.Module:
-    """
-    Create a single loss function by name.
+class CombinedLoss(nn.Module):
+    """Weighted combination of multiple loss functions."""
 
-    Args:
-        loss_name: Name of the loss function
-        **kwargs: Loss-specific parameters
+    def __init__(
+        self,
+        loss_fns: List[nn.Module],
+        weights: List[float],
+        loss_names: List[str],
+    ):
+        super().__init__()
+        self.loss_fns = nn.ModuleList(loss_fns)
+        self.weights = weights
+        self.loss_names = loss_names
 
-    Returns:
-        Initialized loss function
+    def forward(self, pred: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
+        """Compute weighted sum of losses."""
+        total_loss = 0.0
+        for loss_fn, weight in zip(self.loss_fns, self.weights):
+            total_loss += weight * loss_fn(pred, target)
+        return total_loss
 
-    Examples:
-        >>> loss = create_loss('DiceLoss', include_background=False)
-        >>> loss = create_loss('DiceCELoss', to_onehot_y=True, softmax=True)
-        >>> loss = create_loss('FocalLoss', gamma=2.0)
-    """
-    # Map loss names to MONAI/custom loss classes
-    loss_registry = {
+    def __repr__(self):
+        loss_str = ", ".join(
+            [f"{name}(weight={w:.2f})" for name, w in zip(self.loss_names, self.weights)]
+        )
+        return f"CombinedLoss({loss_str})"
+
+
+def _get_loss_registry() -> Dict[str, type[nn.Module]]:
+    """Return the canonical mapping of loss names to constructors."""
+    return {
         # MONAI Dice variants
         "DiceLoss": DiceLoss,
         "DiceCELoss": DiceCELoss,
@@ -93,6 +106,25 @@ def create_loss(loss_name: str, **kwargs) -> nn.Module:
         "ForegroundContourConsistency": ForegroundContourConsistency,
         "NonOverlapRegularization": NonOverlapRegularization,
     }
+
+
+def create_loss(loss_name: str, **kwargs) -> nn.Module:
+    """
+    Create a single loss function by name.
+
+    Args:
+        loss_name: Name of the loss function
+        **kwargs: Loss-specific parameters
+
+    Returns:
+        Initialized loss function
+
+    Examples:
+        >>> loss = create_loss('DiceLoss', include_background=False)
+        >>> loss = create_loss('DiceCELoss', to_onehot_y=True, softmax=True)
+        >>> loss = create_loss('FocalLoss', gamma=2.0)
+    """
+    loss_registry = _get_loss_registry()
 
     if loss_name not in loss_registry:
         available = list(loss_registry.keys())
@@ -143,7 +175,7 @@ def create_combined_loss(
         )
 
     if loss_kwargs is None:
-        loss_kwargs = [{}] * len(loss_names)
+        loss_kwargs = [{} for _ in range(len(loss_names))]
 
     if len(loss_names) != len(loss_kwargs):
         raise ValueError(
@@ -155,38 +187,12 @@ def create_combined_loss(
     if len(loss_names) == 1:
         return create_loss(loss_names[0], **loss_kwargs[0])
 
-    # Multiple losses - create combined loss
-    class CombinedLoss(nn.Module):
-        """Weighted combination of multiple loss functions."""
-
-        def __init__(self, loss_fns: List[nn.Module], weights: List[float]):
-            super().__init__()
-            self.loss_fns = nn.ModuleList(loss_fns)
-            self.weights = weights
-            self.loss_names = loss_names
-
-        def forward(self, pred: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
-            """Compute weighted sum of losses."""
-            total_loss = 0.0
-
-            for loss_fn, weight, name in zip(self.loss_fns, self.weights, self.loss_names):
-                individual_loss = loss_fn(pred, target)
-                total_loss += weight * individual_loss
-
-            return total_loss
-
-        def __repr__(self):
-            loss_str = ", ".join(
-                [f"{name}(weight={w:.2f})" for name, w in zip(self.loss_names, self.weights)]
-            )
-            return f"CombinedLoss({loss_str})"
-
     # Create individual loss functions
     loss_fns = []
     for loss_name, kwargs in zip(loss_names, loss_kwargs):
         loss_fns.append(create_loss(loss_name, **kwargs))
 
-    return CombinedLoss(loss_fns, loss_weights)
+    return CombinedLoss(loss_fns, loss_weights, loss_names)
 
 
 def create_loss_from_config(cfg) -> nn.Module:
@@ -301,30 +307,7 @@ def create_focal_loss(
 
 def list_available_losses() -> List[str]:
     """List all available loss functions."""
-    return [
-        # MONAI losses
-        "DiceLoss",
-        "DiceCELoss",
-        "DiceFocalLoss",
-        "GeneralizedDiceLoss",
-        "FocalLoss",
-        "TverskyLoss",
-        # PyTorch losses
-        "BCEWithLogitsLoss",
-        "CrossEntropyLoss",
-        "MSELoss",
-        "L1Loss",
-        # Custom losses
-        "WeightedMSELoss",
-        "WeightedMAELoss",
-        "GANLoss",
-        # Regularization losses
-        "BinaryRegularization",
-        "ForegroundDistanceConsistency",
-        "ContourDistanceConsistency",
-        "ForegroundContourConsistency",
-        "NonOverlapRegularization",
-    ]
+    return list(_get_loss_registry().keys())
 
 
 __all__ = [

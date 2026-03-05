@@ -7,6 +7,7 @@ per sample, avoiding full-volume preload into RAM.
 
 from __future__ import annotations
 
+import logging
 import random
 from typing import Any, Dict, List, Optional, Sequence, Tuple
 
@@ -14,6 +15,10 @@ import numpy as np
 from monai.data import Dataset
 from monai.transforms import Compose
 from monai.utils import ensure_tuple_rep
+
+from .crop_sampling import center_crop_position, random_crop_position
+
+logger = logging.getLogger(__name__)
 
 
 def _require_zarr():
@@ -77,7 +82,7 @@ class LazyZarrVolumeDataset(Dataset):
         self.image_channel_last = []
         self.volume_sizes = []
 
-        print(f"  Opening {len(image_paths)} zarr volumes (lazy mode, no preload)...")
+        logger.info("Opening %d zarr volumes (lazy mode, no preload)...", len(image_paths))
         for i, (img_path, lbl_path, mask_path) in enumerate(
             zip(self.image_paths, self.label_paths, self.mask_paths)
         ):
@@ -117,10 +122,14 @@ class LazyZarrVolumeDataset(Dataset):
             self.image_channel_last.append(img_channel_last)
             self.volume_sizes.append(spatial_shape)
 
-            print(
-                f"    Volume {i + 1}/{len(image_paths)}: "
-                f"image={img_arr.shape}, label={None if lbl_arr is None else lbl_arr.shape}, "
-                f"spatial(raw->model)={spatial_shape_raw}->{spatial_shape}"
+            logger.info(
+                "    Volume %s/%s: image=%s, label=%s, spatial(raw->model)=%s->%s",
+                i + 1,
+                len(image_paths),
+                img_arr.shape,
+                None if lbl_arr is None else lbl_arr.shape,
+                spatial_shape_raw,
+                spatial_shape,
             )
 
     def _open_array(self, path: Optional[str]):
@@ -200,11 +209,18 @@ class LazyZarrVolumeDataset(Dataset):
             self.current_epoch = epoch
             effective_seed = self.base_seed + epoch
             random.seed(effective_seed)
-            print(
-                f"[Validation] Set epoch={epoch}, base_seed={base_seed}, effective_seed={effective_seed}"
+            logger.info(
+                "[Validation] Set epoch=%s, base_seed=%s, effective_seed=%s",
+                epoch,
+                base_seed,
+                effective_seed,
             )
-            print(
-                f"[Validation] Dataset: {type(self).__name__}@{id(self)}, mode={self.mode}, iter_num={self.iter_num}"
+            logger.info(
+                "[Validation] Dataset: %s@%s, mode=%s, iter_num=%s",
+                type(self).__name__,
+                id(self),
+                self.mode,
+                self.iter_num,
             )
 
     def get_sampling_fingerprint(self, num_samples: int = 5) -> str:
@@ -223,15 +239,11 @@ class LazyZarrVolumeDataset(Dataset):
 
     def _get_random_crop_position(self, vol_idx: int) -> Tuple[int, int, int]:
         vol_size = self.volume_sizes[vol_idx]
-        starts = []
-        for dim in range(3):
-            max_start = max(0, vol_size[dim] - self.patch_size[dim])
-            starts.append(random.randint(0, max_start))
-        return tuple(starts)
+        return random_crop_position(vol_size, self.patch_size, rng=random)
 
     def _get_center_crop_position(self, vol_idx: int) -> Tuple[int, int, int]:
         vol_size = self.volume_sizes[vol_idx]
-        return tuple(max(0, (vol_size[d] - self.patch_size[d]) // 2) for d in range(3))
+        return center_crop_position(vol_size, self.patch_size)
 
     def _crop_image(self, vol_idx: int, pos: Tuple[int, int, int]) -> np.ndarray:
         s0, s1, s2 = self._logical_to_raw_slices(pos)
