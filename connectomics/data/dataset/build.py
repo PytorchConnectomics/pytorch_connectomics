@@ -17,7 +17,6 @@ from monai.transforms import Compose
 
 from .data_dicts import (
     create_data_dicts_from_paths,
-    create_volume_data_dicts,
 )
 from .dataset_base import (
     MonaiCachedConnectomicsDataset,
@@ -28,6 +27,7 @@ from .dataset_tile import (
     MonaiCachedTileDataset,
     MonaiTileDataset,
 )
+from .tile_utils import calculate_chunk_indices, create_chunk_data_dicts
 
 if TYPE_CHECKING:
     from .dataset_volume import MonaiCachedVolumeDataset, MonaiVolumeDataset
@@ -36,7 +36,6 @@ if TYPE_CHECKING:
 __all__ = [
     # Data dict creation
     "create_data_dicts_from_paths",
-    "create_volume_data_dicts",
     "create_tile_data_dicts_from_json",
     # Dataset creation
     "create_connectomics_dataset",
@@ -161,89 +160,14 @@ def create_tile_data_dicts_from_json(
 
     # Calculate chunk indices if not provided
     if chunk_indices is None:
-        chunk_indices = _calculate_chunk_indices(volume_metadata, chunk_num)
+        chunk_indices = calculate_chunk_indices(volume_metadata, chunk_num)
 
-    # Create data dictionaries for each chunk
-    data_dicts = []
-    for chunk_info in chunk_indices:
-        chunk_id = chunk_info["chunk_id"]
-        coords = chunk_info["coords"]
-
-        data_dict = {
-            "image": {
-                "metadata": volume_metadata,
-                "chunk_coords": coords,
-                "chunk_id": chunk_id,
-            },
-        }
-
-        if label_metadata is not None:
-            data_dict["label"] = {
-                "metadata": label_metadata,
-                "chunk_coords": coords,
-                "chunk_id": chunk_id,
-            }
-
-        if mask_metadata is not None:
-            data_dict["mask"] = {
-                "metadata": mask_metadata,
-                "chunk_coords": coords,
-                "chunk_id": chunk_id,
-            }
-
-        data_dicts.append(data_dict)
-
-    return data_dicts
-
-
-def _calculate_chunk_indices(
-    volume_metadata: Dict[str, Any],
-    chunk_num: Tuple[int, int, int],
-) -> List[Dict[str, Any]]:
-    """
-    Calculate chunk indices based on chunk_num and volume dimensions.
-
-    This is a helper function used by create_tile_data_dicts_from_json.
-
-    Args:
-        volume_metadata: Dictionary containing 'depth', 'height', 'width' keys
-        chunk_num: Number of chunks in each dimension (z, y, x)
-
-    Returns:
-        List of chunk information dictionaries, each containing:
-            - 'chunk_id': Tuple of (z, y, x) chunk indices
-            - 'coords': Tuple of (z_start, z_end, y_start, y_end, x_start, x_end)
-    """
-    # Get volume dimensions
-    depth = volume_metadata["depth"]
-    height = volume_metadata["height"]
-    width = volume_metadata["width"]
-
-    # Calculate chunk sizes
-    chunk_z = depth // chunk_num[0]
-    chunk_y = height // chunk_num[1]
-    chunk_x = width // chunk_num[2]
-
-    chunk_indices = []
-    for z in range(chunk_num[0]):
-        for y in range(chunk_num[1]):
-            for x in range(chunk_num[2]):
-                # Calculate chunk boundaries
-                z_start = z * chunk_z
-                z_end = min((z + 1) * chunk_z, depth)
-                y_start = y * chunk_y
-                y_end = min((y + 1) * chunk_y, height)
-                x_start = x * chunk_x
-                x_end = min((x + 1) * chunk_x, width)
-
-                chunk_indices.append(
-                    {
-                        "chunk_id": (z, y, x),
-                        "coords": (z_start, z_end, y_start, y_end, x_start, x_end),
-                    }
-                )
-
-    return chunk_indices
+    return create_chunk_data_dicts(
+        chunk_indices,
+        volume_metadata=volume_metadata,
+        label_metadata=label_metadata,
+        mask_metadata=mask_metadata,
+    )
 
 
 # ============================================================================

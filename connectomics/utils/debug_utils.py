@@ -5,14 +5,10 @@ This module provides utilities to debug normalization behavior across
 the entire training pipeline without modifying training logic.
 """
 
-import os
-import torch
-import numpy as np
 from typing import Union, Optional
 
-# Global debug flag. Enabled only when explicitly requested.
-# Set `PYTC_DEBUG_NORM=1` to turn on normalization debug prints.
-DEBUG_NORM = os.environ.get("PYTC_DEBUG_NORM", "0").lower() in {"1", "true", "yes", "on"}
+import numpy as np
+import torch
 
 # Track which stages have been printed (to avoid spam)
 _printed_stages = set()
@@ -41,9 +37,6 @@ def print_tensor_stats(
         print_once: If True, only print once per stage_name
         extra_info: Optional dict with additional info to print
     """
-    if not DEBUG_NORM:
-        return
-    
     # Check if we've already printed this stage
     stage_key = f"{stage_name}_{tensor_name}"
     if print_once and stage_key in _printed_stages:
@@ -129,9 +122,6 @@ def print_normalization_check(
         stage_name: Name of the pipeline stage
         tensor_name: Name of the tensor
     """
-    if not DEBUG_NORM:
-        return
-    
     if isinstance(tensor, np.ndarray):
         tensor = torch.from_numpy(tensor)
     
@@ -160,7 +150,6 @@ def print_normalization_check(
 
 
 __all__ = [
-    "DEBUG_NORM",
     "print_tensor_stats",
     "print_normalization_check",
     "reset_debug_state",

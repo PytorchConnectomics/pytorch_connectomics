@@ -108,34 +108,22 @@ def apply_decode_pipeline(
 def resolve_decode_modes_from_cfg(cfg: Any) -> Sequence[Any] | None:
     """Resolve decode mode list from config.
 
-    Priority:
-    1. ``cfg.test.decoding``
-    2. ``cfg.inference.decoding``
+    Uses ``cfg.inference.decoding`` only.
     """
-    if hasattr(cfg, "test") and cfg.test and hasattr(cfg.test, "decoding") and cfg.test.decoding:
-        return cfg.test.decoding
     if hasattr(cfg, "inference") and hasattr(cfg.inference, "decoding") and cfg.inference.decoding:
         return cfg.inference.decoding
     return None
 
 
 def apply_decode_mode(cfg: Any, data: np.ndarray, *, verbose: bool = True) -> np.ndarray:
-    """Apply decode pipeline resolved from ``test.decoding`` or ``inference.decoding``."""
+    """Apply decode pipeline resolved from ``inference.decoding``."""
     decode_modes = resolve_decode_modes_from_cfg(cfg)
     if not decode_modes:
         if verbose:
-            print("  No decoding configuration found (test.decoding or inference.decoding)")
+            print("  No decoding configuration found (inference.decoding)")
         return data
 
     if verbose:
-        source = "test.decoding"
-        if not (
-            hasattr(cfg, "test")
-            and cfg.test
-            and hasattr(cfg.test, "decoding")
-            and cfg.test.decoding
-        ):
-            source = "inference.decoding"
-        print(f"  Using {source}: {decode_modes}")
+        print(f"  Using inference.decoding: {decode_modes}")
 
     return apply_decode_pipeline(data, decode_modes)

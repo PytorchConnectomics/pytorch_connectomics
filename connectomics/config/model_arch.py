@@ -14,18 +14,8 @@ from abc import ABC, abstractmethod
 from dataclasses import fields
 from typing import Any, Dict, Optional, Type
 
-from omegaconf import DictConfig, OmegaConf
-
+from .dict_utils import as_plain_dict
 from .schema import ModelConfig
-
-
-def _to_plain_dict(value: Any) -> Dict[str, Any]:
-    if isinstance(value, DictConfig):
-        container = OmegaConf.to_container(value, resolve=True)
-        return container if isinstance(container, dict) else {}
-    if isinstance(value, dict):
-        return dict(value)
-    return {}
 
 
 _MODEL_CONFIG_KEYS = {f.name for f in fields(ModelConfig)}
@@ -246,7 +236,7 @@ for _spec in (MedNeXtSpec, RSUNetSpec, MonaiUNetSpec, MonaiBasicUNet3DSpec):
 
 def resolve_arch_profile_model_patch(profile_name: str, profile_value: Any) -> Dict[str, Any]:
     """Resolve a single arch profile to a ModelConfig patch dict."""
-    profile = _to_plain_dict(profile_value)
+    profile = as_plain_dict(profile_value)
     if not profile:
         raise ValueError(f"Arch profile '{profile_name}' must be a mapping.")
 

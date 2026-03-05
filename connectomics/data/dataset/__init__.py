@@ -21,7 +21,6 @@ from .build import (
 # Shared data-dict helpers
 from .data_dicts import (
     create_data_dicts_from_paths,
-    create_volume_data_dicts,
 )
 
 # MONAI base datasets
@@ -67,7 +66,6 @@ __all__ = [
     "UniformConcatDataset",
     # Factory functions (from build.py)
     "create_data_dicts_from_paths",
-    "create_volume_data_dicts",
     "create_tile_data_dicts_from_json",
     "create_connectomics_dataset",
     "create_volume_dataset",

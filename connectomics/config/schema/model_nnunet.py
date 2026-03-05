@@ -12,3 +12,4 @@ class NNUNetConfig:
     plans: Optional[str] = None
     dataset: Optional[str] = None
     device: str = "cuda"
+    spatial_dims: Optional[int] = None  # Explicitly set 2 or 3 when auto-detection is ambiguous

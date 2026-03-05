@@ -238,7 +238,7 @@ def build_mednext_custom(cfg) -> ConnectomicsModel:
         "n_classes": cfg.model.out_channels,
         "exp_r": getattr(cfg.model.mednext, "exp_r", 4),
         "kernel_size": getattr(cfg.model.mednext, "kernel_size", 7),
-        "deep_supervision": getattr(getattr(cfg.model, "loss", None), "deep_supervision", False),
+        "deep_supervision": getattr(cfg.model.loss, "deep_supervision", False),
         "do_res": getattr(cfg.model.mednext, "do_res", True),
         "do_res_up_down": getattr(cfg.model.mednext, "do_res_up_down", True),
         "block_counts": getattr(cfg.model.mednext, "block_counts", [2, 2, 2, 2, 2, 2, 2, 2, 2]),

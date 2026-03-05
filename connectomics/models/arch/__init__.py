@@ -53,12 +53,9 @@ except ImportError:
     _MEDNEXT_AVAILABLE = False
 
 # Import RSUNet models (always available - pure PyTorch)
-try:
-    from . import rsunet  # noqa: F401
+from . import rsunet  # noqa: F401
 
-    _RSUNET_AVAILABLE = True
-except ImportError:
-    _RSUNET_AVAILABLE = False
+_RSUNET_AVAILABLE = True
 
 # Import nnUNet models to trigger registration
 try:

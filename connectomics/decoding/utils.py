@@ -8,7 +8,6 @@ This module provides common utilities used across different decoding functions:
     - merge_small_objects: Merge small objects with neighbors
 """
 
-from __future__ import print_function, division
 import numpy as np
 
 from skimage.morphology import dilation, remove_small_objects

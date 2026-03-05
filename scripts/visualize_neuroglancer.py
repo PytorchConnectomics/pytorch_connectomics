@@ -38,9 +38,10 @@ Examples:
 """
 
 import argparse
+import logging
 import sys
 from pathlib import Path
-from typing import Dict, Optional, Tuple, List, TYPE_CHECKING
+from typing import Dict, Optional, Tuple, List, TYPE_CHECKING, Sequence
 import numpy as np
 
 # Add parent directory to path for imports
@@ -48,13 +49,39 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 # Import connectomics modules (needed for helper functions)
 from connectomics.data.io import read_volume
-from connectomics.config import load_config, resolve_data_paths
+from connectomics.config import load_config, resolve_data_paths, resolve_default_profiles
 
 # Lazy import for neuroglancer (checked at runtime)
 if TYPE_CHECKING:
     import neuroglancer
 else:
     neuroglancer = None  # Will be imported in main() after arg parsing
+
+logger = logging.getLogger(__name__)
+
+
+def normalize_resolution_zyx(
+    resolution: Optional[Sequence[float]],
+    *,
+    context: str = "resolution",
+) -> Optional[Tuple[float, float, float]]:
+    """Normalize resolution to explicit zyx order.
+
+    Accepts:
+    - 3 values: interpreted as (z, y, x)
+    - 2 values: interpreted as (y, x) and padded to (1.0, y, x)
+    """
+    if resolution is None:
+        return None
+
+    values = tuple(float(v) for v in resolution)
+    if len(values) == 3:
+        return values  # already zyx
+    if len(values) == 2:
+        return (1.0, values[0], values[1])
+    raise ValueError(
+        f"{context} must have 2 or 3 values in zyx convention; got {len(values)}: {values}"
+    )
 
 
 def apply_default_scaling(data: np.ndarray, scale: float, is_image: bool = True) -> np.ndarray:
@@ -115,6 +142,7 @@ def apply_image_transform(data: np.ndarray, cfg) -> np.ndarray:
     transform_cfg = cfg.data.image_transform
     original_dtype = data.dtype
     data = data.astype(np.float32)  # Work in float32
+    normalize_mode = getattr(transform_cfg, "normalize", "none")
 
     print(f"  Applying image transformations from config:")
     print(f"    Original range: [{data.min():.2f}, {data.max():.2f}]")
@@ -132,8 +160,6 @@ def apply_image_transform(data: np.ndarray, cfg) -> np.ndarray:
 
     # Normalization
     if hasattr(transform_cfg, 'normalize'):
-        normalize_mode = transform_cfg.normalize
-
         if normalize_mode == "0-1":
             # Min-max normalization to [0, 1]
             data_min = data.min()
@@ -278,7 +304,8 @@ Interactive mode (with -i flag):
         "--resolution",
         type=str,
         default="30-6-6",
-        help='Voxel resolution in nm as "z-y-x" or "y-x" for 2D (default: 30-6-6 for EM data). '
+        help='Voxel resolution in nm in zyx order as "z-y-x" (or "y-x" for 2D). '
+        'Default: 30-6-6 for EM data. '
         '2D resolution will be padded to 3D with z=1.0',
     )
     parser.add_argument(
@@ -425,6 +452,11 @@ def load_volumes_from_config(
         where type is 'image' or 'segmentation', resolution is from config (or None), and offset is None
     """
     cfg = load_config(config_path)
+
+    # Resolve stage defaults so stage-local paths (e.g., train.data.train.*)
+    # are materialized into runtime sections (cfg.data.*) for visualization.
+    resolve_mode = "train" if mode in ["train", "both"] else "test"
+    cfg = resolve_default_profiles(cfg, mode=resolve_mode)
     cfg = resolve_data_paths(cfg)  # Resolve paths and expand globs
     volumes = {}
 
@@ -460,24 +492,31 @@ def load_volumes_from_config(
                 print(f"  Warning: No file matches selector '{selector}', using first of {len(files_list)} files")
                 return [files_list[0]]
 
-    # Get resolution from config
+    # Get resolution from config (explicit zyx convention).
     train_resolution = None
-    if hasattr(cfg.data, "train") and cfg.data.train.resolution:
-        train_resolution = tuple(cfg.data.train.resolution)
-        print(f"Using train resolution from config: {train_resolution} nm (z, y, x)")
+    if (
+        mode in ["train", "both"]
+        and hasattr(cfg.data, "train")
+        and cfg.data.train.resolution
+    ):
+        train_resolution = normalize_resolution_zyx(
+            cfg.data.train.resolution,
+            context="cfg.data.train.resolution",
+        )
+        print(f"Using train resolution from config (zyx): {train_resolution} nm")
 
     test_resolution = None
-    # Check test.data.val.resolution first, then fall back to data.val.resolution
     if (
-        hasattr(cfg, "test")
-        and hasattr(cfg.test, "data")
-        and cfg.test.data.val.resolution
+        mode in ["test", "both"]
+        and hasattr(cfg, "data")
+        and hasattr(cfg.data, "test")
+        and cfg.data.test.resolution
     ):
-        test_resolution = tuple(cfg.test.data.val.resolution)
-        print(f"Using test resolution from test config: {test_resolution} nm (z, y, x)")
-    elif hasattr(cfg.data, "val") and cfg.data.val.resolution:
-        test_resolution = tuple(cfg.data.val.resolution)
-        print(f"Using test resolution from data config: {test_resolution} nm (z, y, x)")
+        test_resolution = normalize_resolution_zyx(
+            cfg.data.test.resolution,
+            context="cfg.data.test.resolution",
+        )
+        print(f"Using test resolution from config (zyx): {test_resolution} nm")
 
     # Training data
     if mode in ["train", "both"]:
@@ -495,7 +534,7 @@ def load_volumes_from_config(
                         # Convert 2D to 3D if needed
                         if data.ndim == 2:
                             data = data[None, :, :]  # (H, W) -> (1, H, W)
-                            print(f"      Converted 2D to 3D: {data.shape}")
+                            logger.info("Converted 2D to 3D: %s", data.shape)
 
                         # Apply image transformations (normalization, clipping)
                         data = apply_image_transform(data, cfg)
@@ -513,11 +552,7 @@ def load_volumes_from_config(
                     # Convert 2D to 3D if needed
                     if data.ndim == 2:
                         data = data[None, :, :]  # (H, W) -> (1, H, W)
-                        print(f"  Converted 2D train image to 3D: {data.shape}")
-                        # Update resolution from 2D to 3D
-                        if train_resolution and len(train_resolution) == 2:
-                            train_resolution = (1.0,) + train_resolution  # Add z=1.0
-                            print(f"  Updated train resolution to 3D: {train_resolution}")
+                        logger.info("Converted 2D train image to 3D: %s", data.shape)
 
                     # Apply image transformations (normalization, clipping)
                     data = apply_image_transform(data, cfg)
@@ -537,7 +572,7 @@ def load_volumes_from_config(
                         # Convert 2D to 3D if needed
                         if data.ndim == 2:
                             data = data[None, :, :]  # (H, W) -> (1, H, W)
-                            print(f"      Converted 2D to 3D: {data.shape}")
+                            logger.info("Converted 2D to 3D: %s", data.shape)
 
                         # Create unique name for this volume
                         vol_name = f"train_label_{idx}" if len(files_to_load) > 1 else "train_label"
@@ -552,21 +587,17 @@ def load_volumes_from_config(
                     # Convert 2D to 3D if needed
                     if data.ndim == 2:
                         data = data[None, :, :]  # (H, W) -> (1, H, W)
-                        print(f"  Converted 2D train label to 3D: {data.shape}")
-                        # Update resolution from 2D to 3D
-                        if train_resolution and len(train_resolution) == 2:
-                            train_resolution = (1.0,) + train_resolution  # Add z=1.0
-                            print(f"  Updated train resolution to 3D: {train_resolution}")
+                        logger.info("Converted 2D train label to 3D: %s", data.shape)
                     volumes["train_label"] = (data, "segmentation", train_resolution, None)
 
     # Test data
     if mode in ["test", "both"]:
         if (
-            hasattr(cfg, "test")
-            and hasattr(cfg.test, "data")
-            and cfg.test.data.val.image
+            hasattr(cfg, "data")
+            and hasattr(cfg.data, "test")
+            and cfg.data.test.image
         ):
-            test_image_path = cfg.test.data.val.image
+            test_image_path = cfg.data.test.image
 
             # Apply selection if it's a list (from glob expansion)
             if isinstance(test_image_path, list):
@@ -612,19 +643,15 @@ def load_volumes_from_config(
             # Convert 2D to 3D if needed
             if data.ndim == 2:
                 data = data[None, :, :]  # (H, W) -> (1, H, W)
-                print(f"  Converted 2D test image to 3D: {data.shape}")
-                # Update resolution from 2D to 3D
-                if test_resolution and len(test_resolution) == 2:
-                    test_resolution = (1.0,) + test_resolution  # Add z=1.0
-                    print(f"  Updated test resolution to 3D: {test_resolution}")
+                logger.info("Converted 2D test image to 3D: %s", data.shape)
             volumes["test_image"] = (data, "image", test_resolution, None)
 
         if (
-            hasattr(cfg, "test")
-            and hasattr(cfg.test, "data")
-            and cfg.test.data.val.label
+            hasattr(cfg, "data")
+            and hasattr(cfg.data, "test")
+            and cfg.data.test.label
         ):
-            test_label_path = cfg.test.data.val.label
+            test_label_path = cfg.data.test.label
 
             # Apply selection if it's a list (from glob expansion)
             if isinstance(test_label_path, list):
@@ -637,11 +664,7 @@ def load_volumes_from_config(
             # Convert 2D to 3D if needed
             if data.ndim == 2:
                 data = data[None, :, :]  # (H, W) -> (1, H, W)
-                print(f"  Converted 2D test label to 3D: {data.shape}")
-                # Update resolution from 2D to 3D
-                if test_resolution and len(test_resolution) == 2:
-                    test_resolution = (1.0,) + test_resolution  # Add z=1.0
-                    print(f"  Updated test resolution to 3D: {test_resolution}")
+                logger.info("Converted 2D test label to 3D: %s", data.shape)
             volumes["test_label"] = (data, "segmentation", test_resolution, None)
 
     if not volumes:
@@ -722,6 +745,107 @@ def resolve_glob_with_selector(path: str, default_selector: str = "0") -> str:
     return selected
 
 
+def _parse_optional_channel(raw_channel: Optional[str]) -> Optional[int]:
+    if raw_channel is None:
+        return None
+    try:
+        return int(raw_channel)
+    except ValueError:
+        print(f"  Warning: Invalid channel '{raw_channel}', ignoring")
+        return None
+
+
+def _parse_optional_resolution(
+    raw_resolution: Optional[str],
+    *,
+    global_is_2d: bool,
+) -> Tuple[Optional[Tuple[float, float, float]], bool]:
+    if raw_resolution is None:
+        return None, global_is_2d
+
+    try:
+        resolution_values = tuple(float(x) for x in raw_resolution.split("-"))
+    except ValueError:
+        print(f"  Warning: Invalid resolution '{raw_resolution}', ignoring")
+        return None, global_is_2d
+
+    if len(resolution_values) == 2:
+        padded = (1.0,) + resolution_values
+        logger.info("2D resolution detected, padded to 3D: %s", padded)
+        return padded, True
+    if len(resolution_values) == 3:
+        return resolution_values, False
+
+    print(
+        f"  Warning: Invalid resolution '{raw_resolution}' (expected 2 or 3 values), ignoring"
+    )
+    return None, global_is_2d
+
+
+def _parse_optional_offset(raw_offset: Optional[str]) -> Optional[Tuple[int, int, int]]:
+    if raw_offset is None:
+        return None
+
+    try:
+        offset_values = tuple(int(x) for x in raw_offset.split("-"))
+    except ValueError:
+        print(f"  Warning: Invalid offset '{raw_offset}', ignoring")
+        return None
+
+    if len(offset_values) == 2:
+        padded = (0,) + offset_values
+        logger.info("2D offset detected, padded to 3D: %s", padded)
+        return padded
+    if len(offset_values) == 3:
+        return offset_values
+
+    print(f"  Warning: Invalid offset '{raw_offset}' (expected 2 or 3 values), ignoring")
+    return None
+
+
+def _parse_volume_spec(
+    spec: str,
+    *,
+    global_is_2d: bool,
+) -> Tuple[str, str, Optional[str], Optional[int], Optional[Tuple[float, float, float]], Optional[Tuple[int, int, int]], bool]:
+    """Parse one --volumes spec into normalized fields."""
+    parts = spec.split(":")
+    has_explicit_type = len(parts) >= 3 and parts[1] in ["image", "img", "seg", "segmentation"]
+
+    optional_parts: List[str] = []
+    if len(parts) == 1:
+        name = Path(parts[0]).stem
+        path = parts[0]
+        vol_type = None
+    elif len(parts) == 2 and not has_explicit_type:
+        name, path = parts
+        vol_type = None
+    elif has_explicit_type:
+        name = parts[0]
+        vol_type = "segmentation" if parts[1] in ["seg", "segmentation"] else "image"
+        path = parts[2]
+        optional_parts = parts[3:]
+    else:
+        # Legacy format: name:path[:channel[:resolution[:offset]]]
+        name = parts[0]
+        path = parts[1]
+        vol_type = None
+        optional_parts = parts[2:]
+
+    raw_channel = optional_parts[0] if len(optional_parts) >= 1 else None
+    raw_resolution = optional_parts[1] if len(optional_parts) >= 2 else None
+    raw_offset = optional_parts[2] if len(optional_parts) >= 3 else None
+
+    channel = _parse_optional_channel(raw_channel)
+    resolution, is_2d_resolution = _parse_optional_resolution(
+        raw_resolution,
+        global_is_2d=global_is_2d,
+    )
+    offset = _parse_optional_offset(raw_offset)
+
+    return name, path, vol_type, channel, resolution, offset, is_2d_resolution
+
+
 def load_volumes_from_paths(
     volume_specs: List[str],
     select: str = "0",
@@ -761,122 +885,15 @@ def load_volumes_from_paths(
         _, global_is_2d = global_resolution
 
     for spec in volume_specs:
-        parts = spec.split(":")
-
-        # Check if second part is a type specifier (image/seg/segmentation)
-        has_explicit_type = len(parts) >= 3 and parts[1] in ["image", "img", "seg", "segmentation"]
-
-        # Parse based on format
-        if len(parts) == 1:
-            # Just path: "path/to/file.h5"
-            name = Path(parts[0]).stem
-            path = parts[0]
-            vol_type = None  # Infer later
-            channel = None
-            resolution = None
-            offset = None
-            is_2d_resolution = global_is_2d  # Use global 2D flag
-        elif len(parts) == 2:
-            # name:path
-            name, path = parts
-            vol_type = None  # Infer later
-            channel = None
-            resolution = None
-            offset = None
-            is_2d_resolution = global_is_2d  # Use global 2D flag
-        elif has_explicit_type:
-            # Format: name:type:path[:channel[:resolution[:offset]]]
-            name = parts[0]
-            vol_type = "segmentation" if parts[1] in ["seg", "segmentation"] else "image"
-            path = parts[2]
-
-            # Parse optional channel
-            if len(parts) >= 4:
-                try:
-                    channel = int(parts[3])
-                except ValueError:
-                    print(f"  Warning: Invalid channel '{parts[3]}', ignoring")
-                    channel = None
-            else:
-                channel = None
-
-            # Parse optional resolution
-            is_2d_resolution = False
-            if len(parts) >= 5:
-                try:
-                    resolution = tuple(float(x) for x in parts[4].split("-"))
-                    # Detect 2D resolution (will pad to 3D later)
-                    if len(resolution) == 2:
-                        is_2d_resolution = True
-                        resolution = (1.0,) + resolution
-                        print(f"  2D resolution detected, padded to 3D: {resolution}")
-                except ValueError:
-                    print(f"  Warning: Invalid resolution '{parts[4]}', ignoring")
-                    resolution = None
-            else:
-                # No per-volume resolution, use global 2D flag
-                resolution = None
-                is_2d_resolution = global_is_2d
-
-            # Parse optional offset
-            if len(parts) >= 6:
-                try:
-                    offset = tuple(int(x) for x in parts[5].split("-"))
-                    # Handle 2D offset: pad with z=0
-                    if len(offset) == 2:
-                        offset = (0,) + offset
-                        print(f"  2D offset detected, padded to 3D: {offset}")
-                except ValueError:
-                    print(f"  Warning: Invalid offset '{parts[5]}', ignoring")
-                    offset = None
-            else:
-                offset = None
-        else:
-            # Legacy format: name:path[:channel[:resolution[:offset]]]
-            name = parts[0]
-            path = parts[1]
-            vol_type = None  # Infer later
-
-            if len(parts) >= 3:
-                try:
-                    channel = int(parts[2])
-                except ValueError:
-                    print(f"  Warning: Invalid channel '{parts[2]}', ignoring")
-                    channel = None
-            else:
-                channel = None
-
-            # Parse optional resolution
-            is_2d_resolution = False
-            if len(parts) >= 4:
-                try:
-                    resolution = tuple(float(x) for x in parts[3].split("-"))
-                    # Detect 2D resolution (will pad to 3D later)
-                    if len(resolution) == 2:
-                        is_2d_resolution = True
-                        resolution = (1.0,) + resolution
-                        print(f"  2D resolution detected, padded to 3D: {resolution}")
-                except ValueError:
-                    print(f"  Warning: Invalid resolution '{parts[3]}', ignoring")
-                    resolution = None
-            else:
-                # No per-volume resolution, use global 2D flag
-                resolution = None
-                is_2d_resolution = global_is_2d
-
-            # Parse optional offset
-            if len(parts) >= 5:
-                try:
-                    offset = tuple(int(x) for x in parts[4].split("-"))
-                    # Handle 2D offset: pad with z=0
-                    if len(offset) == 2:
-                        offset = (0,) + offset
-                        print(f"  2D offset detected, padded to 3D: {offset}")
-                except ValueError:
-                    print(f"  Warning: Invalid offset '{parts[4]}', ignoring")
-                    offset = None
-            else:
-                offset = None
+        (
+            name,
+            path,
+            vol_type,
+            channel,
+            resolution,
+            offset,
+            is_2d_resolution,
+        ) = _parse_volume_spec(spec, global_is_2d=global_is_2d)
 
         # Resolve glob patterns with selectors
         resolved_path = resolve_glob_with_selector(path, select)
@@ -925,16 +942,16 @@ def load_volumes_from_paths(
             if is_2d_resolution:
                 # For 2D data, add singleton z dimension: (H, W) -> (1, H, W)
                 data = data[None, :, :]
-                print(f"  Converted 2D to 3D (single-channel): {data.shape}")
+                logger.info("Converted 2D to 3D (single-channel): %s", data.shape)
             else:
                 # Shouldn't happen, but handle it
                 data = data[None, :, :]
-                print(f"  Converted 2D to 3D: {data.shape}")
+                logger.info("Converted 2D to 3D: %s", data.shape)
         elif data.ndim == 3 and is_2d_resolution and channel is None:
             # Multi-channel 2D data (C, H, W) that wasn't explicitly channel-selected
             # Insert singleton dimension in middle: (C, H, W) -> (C, 1, H, W)
             data = data[:, None, :, :]
-            print(f"  Converted 2D multi-channel to 3D: {data.shape}")
+            logger.info("Converted 2D multi-channel to 3D: %s", data.shape)
 
         # Infer type if not explicitly specified
         if vol_type is None:
@@ -1110,15 +1127,7 @@ def main():
     prediction_base_name = None
     if args.volumes:
         for spec in args.volumes:
-            parts = spec.split(":")
-            # Find the path (could be in different positions depending on format)
-            if len(parts) >= 3:
-                path = parts[2]  # Format: name:type:path
-            elif len(parts) == 2:
-                path = parts[1]  # Format: name:path
-            else:
-                path = parts[0]  # Format: path
-            
+            _, path, _, _, _, _, _ = _parse_volume_spec(spec, global_is_2d=False)
             # Check if this is a prediction file
             path_obj = Path(path)
             if "_prediction" in path_obj.stem:
@@ -1137,7 +1146,7 @@ def main():
         if len(resolution) == 2:
             is_global_2d = True
             resolution = (1.0,) + resolution  # [y, x] -> [1, y, x]
-            print(f"2D resolution detected, padded to 3D: {resolution}")
+            logger.info("2D resolution detected, padded to 3D: %s", resolution)
         elif len(resolution) != 3:
             raise ValueError(f"Resolution must have 2 or 3 components, got {len(resolution)}")
     except (ValueError, AttributeError) as e:
@@ -1156,7 +1165,7 @@ def main():
         # Convert 2D to 3D if needed
         if data.ndim == 2:
             data = data[None, :, :]  # (H, W) -> (1, H, W)
-            print(f"  Converted 2D image to 3D: {data.shape}")
+            logger.info("Converted 2D image to 3D: %s", data.shape)
         # Apply default intensity scaling
         data = apply_default_scaling(data, args.scale, is_image=True)
         volumes["image"] = (data, "image", None, None)
@@ -1166,7 +1175,7 @@ def main():
         # Convert 2D to 3D if needed
         if data.ndim == 2:
             data = data[None, :, :]  # (H, W) -> (1, H, W)
-            print(f"  Converted 2D label to 3D: {data.shape}")
+            logger.info("Converted 2D label to 3D: %s", data.shape)
         # No scaling for labels (they are segmentation)
         volumes["label"] = (data, "segmentation", None, None)
 
@@ -1183,7 +1192,7 @@ def main():
         # Handle 2D offset: pad with z=0 to make it 3D
         if len(offset) == 2:
             offset = (0,) + offset  # [y, x] -> [0, y, x]
-            print(f"2D offset detected, padded to 3D: {offset}")
+            logger.info("2D offset detected, padded to 3D: %s", offset)
         elif len(offset) != 3:
             raise ValueError(f"Offset must have 2 or 3 components, got {len(offset)}")
     except (ValueError, AttributeError) as e:
@@ -1276,7 +1285,7 @@ def main():
             # Convert 2D to 3D if needed
             if data.ndim == 2:
                 data = data[None, :, :]
-                print(f"  Converted 2D to 3D: {data.shape}")
+                logger.info("Converted 2D to 3D: %s", data.shape)
         elif data is None:
             raise ValueError("Either file_path or data must be provided")
 

@@ -31,9 +31,10 @@ class BinaryRegularization(nn.Module):
         >>> loss = reg(pred)
     """
 
-    def __init__(self, min_threshold: float = 1e-2):
+    def __init__(self, min_threshold: float = 1e-2, apply_sigmoid: bool = True):
         super().__init__()
         self.min_threshold = min_threshold
+        self.apply_sigmoid = apply_sigmoid
 
     def forward(
         self,
@@ -50,8 +51,7 @@ class BinaryRegularization(nn.Module):
         Returns:
             Regularization loss
         """
-        # Convert logits to probabilities if needed
-        if pred.min() < 0 or pred.max() > 1:
+        if self.apply_sigmoid:
             pred = torch.sigmoid(pred)
 
         # Distance from 0.5 (most uncertain)
@@ -151,9 +151,10 @@ class ContourDistanceConsistency(nn.Module):
         contour_prob = torch.sigmoid(contour_logits)
         distance_abs = torch.abs(torch.tanh(distance_transform))
 
-        assert (
-            contour_prob.shape == distance_abs.shape
-        ), f"Shape mismatch: {contour_prob.shape} vs {distance_abs.shape}"
+        if contour_prob.shape != distance_abs.shape:
+            raise ValueError(
+                f"Shape mismatch: contour_prob={contour_prob.shape} vs distance_abs={distance_abs.shape}"
+            )
 
         # Penalize: high contour prob should match low distance
         loss = contour_prob * distance_abs
@@ -224,9 +225,10 @@ class ForegroundContourConsistency(nn.Module):
         edge = F.pad(edge, (1, 1, 1, 1, 0, 0))
         edge = F.max_pool3d(edge, kernel_size=(1, self.kernel_size, self.kernel_size), stride=1)
 
-        assert (
-            edge.shape == contour_prob.shape
-        ), f"Shape mismatch: {edge.shape} vs {contour_prob.shape}"
+        if edge.shape != contour_prob.shape:
+            raise ValueError(
+                f"Shape mismatch: edge={edge.shape} vs contour_prob={contour_prob.shape}"
+            )
 
         # MSE between detected edges and predicted contours
         loss = F.mse_loss(edge, contour_prob, reduction="none")

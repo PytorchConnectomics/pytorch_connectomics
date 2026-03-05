@@ -7,13 +7,18 @@ infrastructure for large-scale connectomics data that cannot fit in memory.
 
 from __future__ import annotations
 from typing import Dict, List, Any, Optional, Tuple
-import json
 
 from monai.data import CacheDataset
-from monai.transforms import Compose, EnsureChannelFirstd
+from monai.transforms import Compose
 from monai.utils import ensure_tuple_rep
 
 from .dataset_base import MonaiConnectomicsDataset
+from .tile_utils import (
+    calculate_chunk_indices,
+    create_chunk_data_dicts,
+    create_default_tile_transforms,
+    load_tile_metadata,
+)
 from ..io import TileLoaderd
 
 
@@ -58,9 +63,9 @@ class MonaiTileDataset(MonaiConnectomicsDataset):
         **kwargs,
     ):
         # Load tile metadata
-        self.volume_metadata = self._load_tile_metadata(volume_json)
-        self.label_metadata = self._load_tile_metadata(label_json) if label_json else None
-        self.mask_metadata = self._load_tile_metadata(mask_json) if mask_json else None
+        self.volume_metadata = load_tile_metadata(volume_json)
+        self.label_metadata = load_tile_metadata(label_json)
+        self.mask_metadata = load_tile_metadata(mask_json)
 
         # Store tile-specific parameters
         self.chunk_num = ensure_tuple_rep(chunk_num, 3)
@@ -71,14 +76,22 @@ class MonaiTileDataset(MonaiConnectomicsDataset):
 
         # Calculate chunk coordinates if not provided
         if chunk_indices is None:
-            self.chunk_indices = self._calculate_chunk_indices()
+            self.chunk_indices = calculate_chunk_indices(self.volume_metadata, self.chunk_num)
 
         # Create data dictionaries for chunks
-        data_dicts = self._create_chunk_data_dicts()
+        data_dicts = create_chunk_data_dicts(
+            self.chunk_indices,
+            volume_metadata=self.volume_metadata,
+            label_metadata=self.label_metadata,
+            mask_metadata=self.mask_metadata,
+        )
 
         # Create transforms if not provided
         if transforms is None:
-            transforms = self._create_default_transforms(mode=mode)
+            transforms = create_default_tile_transforms(
+                label_metadata=self.label_metadata,
+                mask_metadata=self.mask_metadata,
+            )
 
         # Initialize base dataset
         super().__init__(
@@ -89,98 +102,6 @@ class MonaiTileDataset(MonaiConnectomicsDataset):
             iter_num=iter_num,
             **kwargs,
         )
-
-    def _load_tile_metadata(self, json_path: str) -> Dict[str, Any]:
-        """Load tile metadata from JSON file."""
-        if json_path is None:
-            return None
-
-        with open(json_path, "r") as f:
-            return json.load(f)
-
-    def _calculate_chunk_indices(self) -> List[Tuple[int, int, int]]:
-        """Calculate chunk indices based on chunk_num and volume dimensions."""
-        # Get volume dimensions from metadata
-        depth = self.volume_metadata["depth"]
-        height = self.volume_metadata["height"]
-        width = self.volume_metadata["width"]
-
-        # Calculate chunk sizes
-        chunk_z = depth // self.chunk_num[0]
-        chunk_y = height // self.chunk_num[1]
-        chunk_x = width // self.chunk_num[2]
-
-        chunk_indices = []
-        for z in range(self.chunk_num[0]):
-            for y in range(self.chunk_num[1]):
-                for x in range(self.chunk_num[2]):
-                    # Calculate chunk boundaries
-                    z_start = z * chunk_z
-                    z_end = min((z + 1) * chunk_z, depth)
-                    y_start = y * chunk_y
-                    y_end = min((y + 1) * chunk_y, height)
-                    x_start = x * chunk_x
-                    x_end = min((x + 1) * chunk_x, width)
-
-                    chunk_indices.append(
-                        {
-                            "chunk_id": (z, y, x),
-                            "coords": (z_start, z_end, y_start, y_end, x_start, x_end),
-                        }
-                    )
-
-        return chunk_indices
-
-    def _create_chunk_data_dicts(self) -> List[Dict[str, Any]]:
-        """Create MONAI data dictionaries for each chunk."""
-        data_dicts = []
-
-        for chunk_info in self.chunk_indices:
-            chunk_id = chunk_info["chunk_id"]
-            coords = chunk_info["coords"]
-
-            data_dict = {
-                "image": {
-                    "metadata": self.volume_metadata,
-                    "chunk_coords": coords,
-                    "chunk_id": chunk_id,
-                },
-            }
-
-            if self.label_metadata:
-                data_dict["label"] = {
-                    "metadata": self.label_metadata,
-                    "chunk_coords": coords,
-                    "chunk_id": chunk_id,
-                }
-
-            if self.mask_metadata:
-                data_dict["mask"] = {
-                    "metadata": self.mask_metadata,
-                    "chunk_coords": coords,
-                    "chunk_id": chunk_id,
-                }
-
-            data_dicts.append(data_dict)
-
-        return data_dicts
-
-    def _create_default_transforms(self, mode: str) -> Compose:
-        """Create default MONAI transforms for tile data."""
-        keys = ["image"]
-        if self.label_metadata:
-            keys.append("label")
-        if self.mask_metadata:
-            keys.append("mask")
-
-        transforms = [
-            # Custom tile loader
-            TileLoaderd(keys=keys),
-            # Ensure channel first format
-            EnsureChannelFirstd(keys=keys),
-        ]
-
-        return Compose(transforms)
 
 
 class MonaiCachedTileDataset(MonaiTileDataset):
@@ -209,9 +130,9 @@ class MonaiCachedTileDataset(MonaiTileDataset):
         transforms = kwargs.pop("transforms", None)
 
         # Load metadata
-        self.volume_metadata = self._load_tile_metadata(volume_json)
-        self.label_metadata = self._load_tile_metadata(label_json) if label_json else None
-        self.mask_metadata = self._load_tile_metadata(mask_json) if mask_json else None
+        self.volume_metadata = load_tile_metadata(volume_json)
+        self.label_metadata = load_tile_metadata(label_json)
+        self.mask_metadata = load_tile_metadata(mask_json)
 
         # Set tile-specific parameters
         chunk_num = kwargs.get("chunk_num", (2, 2, 2))
@@ -220,14 +141,22 @@ class MonaiCachedTileDataset(MonaiTileDataset):
 
         # Calculate chunk coordinates if not provided
         if self.chunk_indices is None:
-            self.chunk_indices = self._calculate_chunk_indices()
+            self.chunk_indices = calculate_chunk_indices(self.volume_metadata, self.chunk_num)
 
         # Create data dictionaries
-        data_dicts = self._create_chunk_data_dicts()
+        data_dicts = create_chunk_data_dicts(
+            self.chunk_indices,
+            volume_metadata=self.volume_metadata,
+            label_metadata=self.label_metadata,
+            mask_metadata=self.mask_metadata,
+        )
 
         # Create transforms if not provided
         if transforms is None:
-            transforms = self._create_default_transforms(kwargs.get("mode", "train"))
+            transforms = create_default_tile_transforms(
+                label_metadata=self.label_metadata,
+                mask_metadata=self.mask_metadata,
+            )
 
         # Initialize as MONAI CacheDataset
         CacheDataset.__init__(
@@ -252,96 +181,6 @@ class MonaiCachedTileDataset(MonaiTileDataset):
             self.dataset_length = self.iter_num
         else:
             self.dataset_length = len(data_dicts)
-
-    def _load_tile_metadata(self, json_path: str) -> Dict[str, Any]:
-        """Load tile metadata from JSON file."""
-        if json_path is None:
-            return None
-
-        with open(json_path, "r") as f:
-            return json.load(f)
-
-    def _calculate_chunk_indices(self) -> List[Tuple[int, int, int]]:
-        """Calculate chunk indices based on chunk_num and volume dimensions."""
-        # Get volume dimensions from metadata
-        depth = self.volume_metadata["depth"]
-        height = self.volume_metadata["height"]
-        width = self.volume_metadata["width"]
-
-        # Calculate chunk sizes
-        chunk_z = depth // self.chunk_num[0]
-        chunk_y = height // self.chunk_num[1]
-        chunk_x = width // self.chunk_num[2]
-
-        chunk_indices = []
-        for z in range(self.chunk_num[0]):
-            for y in range(self.chunk_num[1]):
-                for x in range(self.chunk_num[2]):
-                    # Calculate chunk boundaries
-                    z_start = z * chunk_z
-                    z_end = min((z + 1) * chunk_z, depth)
-                    y_start = y * chunk_y
-                    y_end = min((y + 1) * chunk_y, height)
-                    x_start = x * chunk_x
-                    x_end = min((x + 1) * chunk_x, width)
-
-                    chunk_indices.append(
-                        {
-                            "chunk_id": (z, y, x),
-                            "coords": (z_start, z_end, y_start, y_end, x_start, x_end),
-                        }
-                    )
-
-        return chunk_indices
-
-    def _create_chunk_data_dicts(self) -> List[Dict[str, Any]]:
-        """Create MONAI data dictionaries for each chunk."""
-        data_dicts = []
-
-        for chunk_info in self.chunk_indices:
-            chunk_id = chunk_info["chunk_id"]
-            coords = chunk_info["coords"]
-
-            data_dict = {
-                "image": {
-                    "metadata": self.volume_metadata,
-                    "chunk_coords": coords,
-                    "chunk_id": chunk_id,
-                },
-            }
-
-            if self.label_metadata:
-                data_dict["label"] = {
-                    "metadata": self.label_metadata,
-                    "chunk_coords": coords,
-                    "chunk_id": chunk_id,
-                }
-
-            if self.mask_metadata:
-                data_dict["mask"] = {
-                    "metadata": self.mask_metadata,
-                    "chunk_coords": coords,
-                    "chunk_id": chunk_id,
-                }
-
-            data_dicts.append(data_dict)
-
-        return data_dicts
-
-    def _create_default_transforms(self, mode: str) -> Compose:
-        """Create default MONAI transforms for tile data."""
-        keys = ["image"]
-        if self.label_metadata:
-            keys.append("label")
-        if self.mask_metadata:
-            keys.append("mask")
-
-        transforms = [
-            TileLoaderd(keys=keys),
-            EnsureChannelFirstd(keys=keys),
-        ]
-
-        return Compose(transforms)
 
     def __len__(self) -> int:
         return self.dataset_length

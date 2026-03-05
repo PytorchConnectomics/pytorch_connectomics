@@ -9,8 +9,8 @@ from .callbacks import (
     NaNDetectionCallback,
     VisualizationCallback,
 )
+from .path_utils import expand_file_paths
 from .config import (
-    expand_file_paths,
     setup_seed_everything,
 )
 from .data import ConnectomicsDataModule, TileDataModule, VolumeDataModule

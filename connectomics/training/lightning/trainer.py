@@ -40,19 +40,18 @@ from .validation_callbacks.validation_reseeding import ValidationReseedingCallba
 # Register safe globals for PyTorch 2.6+ checkpoint loading
 # This allows our Config class to be unpickled from Lightning checkpoints
 try:
-    torch.serialization.add_safe_globals(
-        [
-            Config,
-            SystemConfig,
-            ModelConfig,
-            DataConfig,
-            OptimizationConfig,
-            MonitorConfig,
-            InferenceConfig,
-            TestConfig,
-            TuneConfig,
-        ]
-    )
+    _safe_classes = [
+        Config,
+        SystemConfig,
+        ModelConfig,
+        DataConfig,
+        OptimizationConfig,
+        MonitorConfig,
+        InferenceConfig,
+        TestConfig,
+        TuneConfig,
+    ]
+    torch.serialization.add_safe_globals(_safe_classes)
 except AttributeError:
     # PyTorch < 2.6 doesn't have add_safe_globals
     pass

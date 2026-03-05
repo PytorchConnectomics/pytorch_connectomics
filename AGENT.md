@@ -7,6 +7,11 @@ This file provides instructions for Codex and similar coding agents working in t
 PyTorch Connectomics (PyTC) is a Hydra/OmegaConf + PyTorch Lightning + MONAI codebase for EM segmentation.
 Primary entry point: `scripts/main.py`.
 
+## Knowledge Base
+
+- Many project-specific Markdown knowledge-base files live under `.claude/` (for example, architecture notes, workflows, and integration guides).
+- Check `.claude/*.md` when you need deeper repository context before making non-trivial changes.
+
 ## Design Principles
 
 - **Ecosystem-first, no reinvention**: Leverage proven frameworks (PyTorch, Lightning, MONAI, nnU-Net) to keep the codebase modern, minimal, and scalable.

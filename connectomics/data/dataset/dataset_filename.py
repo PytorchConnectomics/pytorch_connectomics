@@ -7,6 +7,7 @@ MitoLab, CEM500K, etc.
 """
 
 from __future__ import annotations
+import logging
 from typing import Dict, Any, Optional, Tuple
 import json
 import random
@@ -16,6 +17,8 @@ import warnings
 import torch
 from monai.data import Dataset
 from monai.transforms import Compose
+
+logger = logging.getLogger(__name__)
 
 
 class MonaiFilenameDataset(Dataset):
@@ -143,12 +146,12 @@ class MonaiFilenameDataset(Dataset):
         # Initialize parent MONAI Dataset
         super().__init__(data=data_dicts, transform=transforms)
 
-        print("📋 MonaiFilenameDataset initialized:")
-        print(f"   Mode: {mode}")
-        print(f"   Samples: {len(data_dicts)}")
-        print(f"   Base path: {self.base_path}")
+        logger.info("MonaiFilenameDataset initialized")
+        logger.info("Mode: %s", mode)
+        logger.info("Samples: %d", len(data_dicts))
+        logger.info("Base path: %s", self.base_path)
         if train_val_split is not None:
-            print(f"   Train/val split: {train_val_split:.1%} (seed={random_seed})")
+            logger.info("Train/val split: %.1f%% (seed=%d)", train_val_split * 100, random_seed)
 
     def __len__(self) -> int:
         """Return the number of samples."""
@@ -234,10 +237,10 @@ class MonaiFilenameIterableDataset(torch.utils.data.IterableDataset):
                     f"number of labels ({len(self.label_files)})"
                 )
 
-        print("📋 MonaiFilenameIterableDataset initialized:")
-        print(f"   Samples: {len(self.image_files)}")
-        print(f"   Base path: {self.base_path}")
-        print("   Infinite sampling: True")
+        logger.info("MonaiFilenameIterableDataset initialized")
+        logger.info("Samples: %d", len(self.image_files))
+        logger.info("Base path: %s", self.base_path)
+        logger.info("Infinite sampling: True")
 
     def __iter__(self):
         """Infinite iterator over dataset."""

@@ -47,6 +47,12 @@ class Visualizer:
         """
         self.cfg = cfg
         self.max_images = max_images
+        self.max_channels = 12
+        if cfg is not None:
+            monitor_cfg = getattr(cfg, "monitor", None)
+            logging_cfg = getattr(monitor_cfg, "logging", None) if monitor_cfg is not None else None
+            image_cfg = getattr(logging_cfg, "images", None) if logging_cfg is not None else None
+            self.max_channels = int(getattr(image_cfg, "max_channels", self.max_channels))
 
     def visualize(
         self,
@@ -138,7 +144,7 @@ class Visualizer:
             output_viz = self._process_output_channels(output, channel_mode, selected_channels)
         else:
             output_viz = output  # Show all output channels as-is
-        # output_viz = self._normalize(output_viz)
+        output_viz = self._normalize(output_viz)
 
         # For labels, only apply channel selection if in 'selected' mode
         # Otherwise show all channels as-is for proper comparison
@@ -296,7 +302,7 @@ class Visualizer:
         )
 
         # Show each output channel
-        for i in range(min(output.shape[1], 12)):  # Increased limit to 12 channels
+        for i in range(min(output.shape[1], self.max_channels)):
             channel_img = output[:, i:i + 1].repeat(1, 3, 1, 1)  # Convert to RGB
             writer.add_image(
                 f"{prefix}/output_channel_{i}",
@@ -310,7 +316,7 @@ class Visualizer:
             )
 
         # Show each label channel
-        for i in range(min(label.shape[1], 12)):  # Increased limit to 12 channels
+        for i in range(min(label.shape[1], self.max_channels)):
             channel_img = label[:, i:i + 1].repeat(1, 3, 1, 1)  # Convert to RGB
             writer.add_image(
                 f"{prefix}/label_channel_{i}",
@@ -325,7 +331,7 @@ class Visualizer:
 
         # Show mask if present
         if mask is not None and mask.numel() > 0:
-            for i in range(min(mask.shape[1], 12)):  # Show up to 12 mask channels
+            for i in range(min(mask.shape[1], self.max_channels)):
                 # Show mask in cyan for better visibility
                 mask_channel = mask[:, i:i + 1]
                 mask_rgb = torch.cat(

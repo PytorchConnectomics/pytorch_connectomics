@@ -204,29 +204,46 @@ def _restore_prediction_to_input_space(sample: np.ndarray, meta: Dict[str, Any])
 
 
 def _should_restore_outputs(cfg: Config | DictConfig, mode: str) -> bool:
-    if mode == "tune":
-        if hasattr(cfg, "tune") and cfg.tune and hasattr(cfg.tune, "data"):
-            pre = getattr(cfg.tune.data, "nnunet_preprocessing", None)
-            return bool(
-                getattr(pre, "enabled", False) and getattr(pre, "restore_to_input_space", False)
-            )
-        return False
-
-    if hasattr(cfg, "test") and hasattr(cfg.test, "data"):
-        pre = getattr(cfg.test.data, "nnunet_preprocessing", None)
-        if pre is not None:
-            return bool(
-                getattr(pre, "enabled", False) and getattr(pre, "restore_to_input_space", False)
-            )
-
-    if hasattr(cfg, "data"):
-        pre = getattr(cfg.data, "nnunet_preprocessing", None)
+    _inference_cfg, data_cfg, _output_dir = _resolve_mode_configs(cfg, mode)
+    if data_cfg is not None:
+        pre = getattr(data_cfg, "nnunet_preprocessing", None)
         if pre is not None:
             return bool(
                 getattr(pre, "enabled", False) and getattr(pre, "restore_to_input_space", False)
             )
 
     return False
+
+
+def _resolve_mode_configs(
+    cfg: Config | DictConfig,
+    mode: str,
+) -> tuple[Any, Any, str | None]:
+    """Resolve merged runtime inference/data/output configuration."""
+    inference_cfg = getattr(cfg, "inference", None)
+    output_dir_value = None
+    if inference_cfg is not None:
+        save_pred_cfg = getattr(inference_cfg, "save_prediction", None)
+        if save_pred_cfg is not None:
+            output_dir_value = getattr(save_pred_cfg, "output_path", None)
+
+    # Resolve data config: prefer stage-specific data (cfg.test.data / cfg.tune.data),
+    # fall back to cfg.data (post-stage-resolution)
+    data_cfg = None
+    if mode == "test" and hasattr(cfg, "test") and hasattr(cfg.test, "data"):
+        data_cfg = cfg.test.data
+    elif mode == "tune" and hasattr(cfg, "tune") and hasattr(cfg.tune, "data"):
+        data_cfg = cfg.tune.data
+    if data_cfg is None:
+        data_cfg = getattr(cfg, "data", None)
+
+    # Also check stage-specific output_path if not found in inference config
+    if not output_dir_value:
+        stage_cfg = getattr(cfg, mode, None)
+        if stage_cfg is not None:
+            output_dir_value = getattr(stage_cfg, "output_path", None)
+
+    return inference_cfg, data_cfg, output_dir_value
 
 
 def write_outputs(
@@ -238,16 +255,9 @@ def write_outputs(
     batch_meta: Any = None,
 ) -> None:
     """Persist predictions to disk."""
-    if not hasattr(cfg, "inference"):
+    inference_cfg, _data_cfg, output_dir_value = _resolve_mode_configs(cfg, mode)
+    if inference_cfg is None:
         return
-
-    output_dir_value = None
-    if mode == "tune":
-        if hasattr(cfg, "tune") and cfg.tune and hasattr(cfg.tune, "output"):
-            output_dir_value = cfg.tune.output.output_pred
-    else:
-        if hasattr(cfg, "test") and hasattr(cfg.test, "output_path"):
-            output_dir_value = cfg.test.output_path
 
     if not output_dir_value:
         return
@@ -258,12 +268,12 @@ def write_outputs(
     from connectomics.data.io import save_volume, write_hdf5
 
     output_transpose = []
-    if hasattr(cfg.inference, "postprocessing"):
-        output_transpose = getattr(cfg.inference.postprocessing, "output_transpose", [])
+    if hasattr(inference_cfg, "postprocessing"):
+        output_transpose = getattr(inference_cfg.postprocessing, "output_transpose", [])
 
     save_channels = None
-    if hasattr(cfg.inference, "sliding_window"):
-        save_channels = getattr(cfg.inference.sliding_window, "save_channels", None)
+    if hasattr(inference_cfg, "sliding_window"):
+        save_channels = getattr(inference_cfg.sliding_window, "save_channels", None)
 
     if predictions.ndim >= 4:
         actual_batch_size = predictions.shape[0]
@@ -324,8 +334,8 @@ def write_outputs(
 
         output_formats = ["h5"]
         analyze_h5 = False
-        if hasattr(cfg, "inference") and hasattr(cfg.inference, "save_prediction"):
-            save_pred_cfg = cfg.inference.save_prediction
+        if hasattr(inference_cfg, "save_prediction"):
+            save_pred_cfg = inference_cfg.save_prediction
             if hasattr(save_pred_cfg, "output_formats") and save_pred_cfg.output_formats:
                 output_formats = save_pred_cfg.output_formats
             analyze_h5 = getattr(save_pred_cfg, "analyze_h5", False)

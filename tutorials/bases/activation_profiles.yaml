@@ -1,8 +1,12 @@
 activation_profiles:
   act_binary:
-    - [0, 1, sigmoid]
+    - [0, -1, sigmoid]
 
   act_bcd:
     - [0, 1, sigmoid]
     - [1, 2, sigmoid]
     - [2, 3, tanh]
+
+  act_bd:
+    - [0, -2, sigmoid]
+    - [-2, -1, tanh]

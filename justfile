@@ -112,10 +112,11 @@ tensorboard-run experiment timestamp port='6006':
 #   just slurm short 8 4 "python scripts/main.py --config tutorials/lucchi.yaml"
 #   just slurm short 8 4 "just train lucchi++" "" "64G"    # override memory
 #   just slurm medium 8 2 "just train vesicle_xm" vr144g 128G gb001  # pin node
+#   just slurm medium 12 3 "just train neuron_snemi" "" 100G g006 weidf_effort4
 # Time limits: short=12h, medium=2d, long=5d
 # CPU-only convenience wrapper for single-task jobs.
 #   just slurm short 8 0 "python scripts/downsample_nisb.py --splits train"
-slurm partition num_cpu num_gpu cmd constraint='' mem='32G' nodelist='':
+slurm partition num_cpu num_gpu cmd constraint='' mem='32G' nodelist='' reservation='':
     #!/usr/bin/env bash
     constraint_flag=""
     if [ -n "{{constraint}}" ]; then
@@ -125,6 +126,11 @@ slurm partition num_cpu num_gpu cmd constraint='' mem='32G' nodelist='':
     nodelist_flag=""
     if [ -n "{{nodelist}}" ]; then
         nodelist_flag="--nodelist={{nodelist}}"
+    fi
+
+    reservation_flag=""
+    if [ -n "{{reservation}}" ]; then
+        reservation_flag="--reservation={{reservation}}"
     fi
 
     # Resolve partition time limit (with fallback defaults)
@@ -143,6 +149,7 @@ slurm partition num_cpu num_gpu cmd constraint='' mem='32G' nodelist='':
            --time=$time_limit \
            $constraint_flag \
            $nodelist_flag \
+           $reservation_flag \
            --wrap="mkdir -p \$HOME/.just && export JUST_TEMPDIR=\$HOME/.just TMPDIR=\$HOME/.just NCCL_SOCKET_FAMILY=AF_INET && unset SLURM_CPU_BIND && source /projects/weilab/weidf/lib/miniconda3/bin/activate pytc && cd $PWD && srun --cpu-bind=none --ntasks=1 --gpus-per-task={{num_gpu}} --cpus-per-task={{num_cpu}} {{cmd}}"
 
 # Generic CPU-only multi-task launcher (single node, no GPU).

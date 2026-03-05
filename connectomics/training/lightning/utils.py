@@ -13,7 +13,7 @@ from __future__ import annotations
 import argparse
 import re
 from pathlib import Path
-from typing import List, Optional
+from typing import Optional
 
 import torch
 
@@ -27,7 +27,7 @@ from ...config import (
     update_from_cli,
     validate_config,
 )
-from .path_utils import expand_file_paths as _expand_file_paths
+from .path_utils import expand_file_paths
 
 
 def parse_args():
@@ -161,9 +161,6 @@ def setup_config(args) -> Config:
     print(f"📄 Loading config: {args.config}")
     cfg = load_config(args.config)
 
-    # Resolve data paths (combine train_path with train_image, etc.)
-    cfg = resolve_data_paths(cfg)
-
     # Extract config file name and set output folder
     # Use config name only (e.g., mito_lucchi++).
     config_path = Path(args.config)
@@ -176,13 +173,13 @@ def setup_config(args) -> Config:
     else:
         cfg.monitor.checkpoint.dirpath = str(Path(cfg.monitor.checkpoint.dirpath))
 
-    # Update test output path only if test section exists and output_path not provided
-    if hasattr(cfg, "test") and hasattr(cfg.test, "data"):
-        if not getattr(cfg.test, "output_path", None):
-            cfg.test.output_path = str(Path(output_folder) / "results")
-        else:
-            cfg.test.output_path = str(Path(cfg.test.output_path))
-        print(f"📂 Test output directory: {cfg.test.output_path}")
+    # Update prediction output path only if not provided.
+    save_pred_cfg = cfg.inference.save_prediction
+    if not getattr(save_pred_cfg, "output_path", None):
+        save_pred_cfg.output_path = str(Path(output_folder) / "results")
+    else:
+        save_pred_cfg.output_path = str(Path(save_pred_cfg.output_path))
+    print(f"📂 Prediction output directory: {save_pred_cfg.output_path}")
 
     # Note: We handle timestamping manually in main() to create run directories
     # Set this to False to prevent PyTorch Lightning from adding its own timestamp
@@ -197,6 +194,9 @@ def setup_config(args) -> Config:
 
     # Resolve default-stage profiles into runtime sections (system/data/inference)
     cfg = resolve_default_profiles(cfg, mode=args.mode)
+
+    # Resolve data paths on merged runtime data section.
+    cfg = resolve_data_paths(cfg)
 
     # Override max_epochs if --reset-max-epochs is specified
     if args.reset_max_epochs is not None:
@@ -225,14 +225,10 @@ def setup_config(args) -> Config:
         print("   - MedNeXt size: S for lightweight debug")
         cfg.system.num_gpus = fast_dev_num_gpus
         cfg.system.num_workers = 0
-        if hasattr(cfg.model, "input_size"):
-            cfg.model.input_size = [64, 64, 64]
-        if hasattr(cfg.model, "output_size"):
-            cfg.model.output_size = [64, 64, 64]
-        if hasattr(cfg.data, "dataloader") and hasattr(cfg.data.dataloader, "patch_size"):
-            cfg.data.dataloader.patch_size = [64, 64, 64]
-        if hasattr(cfg.model, "mednext"):
-            cfg.model.mednext.size = "S"
+        cfg.model.input_size = [64, 64, 64]
+        cfg.model.output_size = [64, 64, 64]
+        cfg.data.dataloader.patch_size = [64, 64, 64]
+        cfg.model.mednext.size = "S"
         # Keep CellMap shapes in sync with the smaller debug patch
         if getattr(cfg.data, "cellmap", None):
             cfg.data.cellmap["input_array_info"]["shape"] = [64, 64, 64]
@@ -255,14 +251,7 @@ def setup_config(args) -> Config:
     # Optional convenience toggle to enable nnU-Net preprocessing via CLI
     if getattr(args, "nnunet_preprocess", False):
         print("🔧 Enabling nnU-Net preprocessing from CLI flag")
-        if hasattr(cfg, "data") and hasattr(cfg.data, "nnunet_preprocessing"):
-            cfg.data.nnunet_preprocessing.enabled = True
-        if hasattr(cfg, "test") and cfg.test and hasattr(cfg.test, "data"):
-            if hasattr(cfg.test.data, "nnunet_preprocessing"):
-                cfg.test.data.nnunet_preprocessing.enabled = True
-        if hasattr(cfg, "tune") and cfg.tune and hasattr(cfg.tune, "data"):
-            if hasattr(cfg.tune.data, "nnunet_preprocessing"):
-                cfg.tune.data.nnunet_preprocessing.enabled = True
+        cfg.data.nnunet_preprocessing.enabled = True
 
     # Validate configuration
     print("✅ Validating configuration...")
@@ -278,19 +267,6 @@ def setup_config(args) -> Config:
     # (see lines around "Create run directory only for training mode")
 
     return cfg
-
-
-def expand_file_paths(path_or_pattern) -> List[str]:
-    """
-    Backward-compatible wrapper for shared path expansion helper.
-
-    Args:
-        path_or_pattern: Single file path, glob pattern, or list of paths/patterns
-
-    Returns:
-        List of expanded file paths, sorted alphabetically
-    """
-    return _expand_file_paths(path_or_pattern)
 
 
 def extract_best_score_from_checkpoint(ckpt_path: str, monitor_metric: str) -> Optional[float]:

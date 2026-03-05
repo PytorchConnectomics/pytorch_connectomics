@@ -8,7 +8,6 @@ including multi-task target routing and optional task weighting.
 from __future__ import annotations
 from typing import Dict, List, Tuple, Optional
 import warnings
-import pdb
 
 import torch
 import torch.nn as nn
@@ -49,8 +48,10 @@ class LossOrchestrator:
         )
         self.loss_cfg = getattr(cfg.model, "loss", None)
 
-        self.clamp_min = getattr(self.loss_cfg, "deep_supervision_clamp_min", -20.0)
-        self.clamp_max = getattr(self.loss_cfg, "deep_supervision_clamp_max", 20.0)
+        if self.loss_cfg is None:
+            raise ValueError("cfg.model.loss is required for loss orchestration")
+        self.clamp_min = float(self.loss_cfg.deep_supervision_clamp_min)
+        self.clamp_max = float(self.loss_cfg.deep_supervision_clamp_max)
         self.loss_term_specs = compile_loss_terms_from_config(
             cfg,
             self.loss_functions,
@@ -79,18 +80,21 @@ class LossOrchestrator:
         total_loss, weights, log_dict = self.loss_weighter.combine(task_losses, task_names, stage)
         return total_loss, weights, log_dict
 
-    def _build_foreground_weight_tensor(
+    def _build_pos_weight_tensor(
         self,
         target: torch.Tensor,
         *,
-        foreground_weight: Optional[float | str] = None,
+        pos_weight: Optional[float | str] = None,
         valid_mask: Optional[torch.Tensor] = None,
     ) -> torch.Tensor:
-        if isinstance(foreground_weight, str):
-            if foreground_weight != "ratio":
+        if pos_weight is None:
+            pos_weight = "auto"
+
+        if isinstance(pos_weight, str):
+            if pos_weight != "auto":
                 raise ValueError(
-                    f"Unsupported foreground_weight mode: {foreground_weight!r}. "
-                    "Expected a positive number or 'ratio'."
+                    f"Unsupported pos_weight mode: {pos_weight!r}. "
+                    "Expected a positive number or 'auto'."
                 )
             if valid_mask is None:
                 valid = torch.ones_like(target, dtype=torch.bool)
@@ -106,22 +110,45 @@ class LossOrchestrator:
             if pos_count == 0 or neg_count == 0:
                 return loss_weight_mask
 
-            # Class-balanced ratio weights normalized to keep mean(valid weight)=1:
+            # Class-balanced weights normalized to keep mean(valid weight)=1:
             # w_fg / w_bg = neg/pos and (pos*w_fg + neg*w_bg)/(pos+neg) = 1.
+            # Then cap extreme class-imbalance amplification.
             valid_count = float(pos_count + neg_count)
             bg_weight = valid_count / (2.0 * float(neg_count))
             fg_weight = valid_count / (2.0 * float(pos_count))
+            max_ratio_weight = 10.0
+            bg_weight = min(bg_weight, max_ratio_weight)
+            fg_weight = min(fg_weight, max_ratio_weight)
             loss_weight_mask.fill_(bg_weight)
             loss_weight_mask[target > 0] = fg_weight
             return loss_weight_mask
 
-        fg_weight = 2.0 if foreground_weight is None else float(foreground_weight)
+        fg_weight = float(pos_weight)
         if fg_weight <= 0:
-            raise ValueError(f"foreground_weight must be > 0, got {fg_weight}")
+            raise ValueError(f"pos_weight must be > 0, got {fg_weight}")
 
         loss_weight_mask = torch.ones_like(target)
         loss_weight_mask[target > 0] = fg_weight
         return loss_weight_mask
+
+    def _compute_auto_pos_weight_scalar(
+        self,
+        target: torch.Tensor,
+        *,
+        valid_mask: Optional[torch.Tensor] = None,
+    ) -> float:
+        if valid_mask is None:
+            valid = torch.ones_like(target, dtype=torch.bool)
+        else:
+            valid = valid_mask > 0
+
+        pos = (target > 0) & valid
+        neg = (target <= 0) & valid
+        pos_count = torch.count_nonzero(pos).item()
+        neg_count = torch.count_nonzero(neg).item()
+        if pos_count == 0 or neg_count == 0:
+            return 1.0
+        return min(float(neg_count) / float(pos_count), 10.0)
 
     def _call_with_optional_spatial_weight(
         self,
@@ -129,13 +156,15 @@ class LossOrchestrator:
         *args: torch.Tensor,
         spatial_weight_arg: Optional[str] = None,
         spatial_weight_tensor: Optional[torch.Tensor] = None,
+        extra_kwargs: Optional[Dict[str, torch.Tensor]] = None,
     ) -> torch.Tensor:
+        kwargs: Dict[str, torch.Tensor] = dict(extra_kwargs or {})
         if spatial_weight_arg is None or spatial_weight_tensor is None:
-            return loss_fn(*args)
+            return loss_fn(*args, **kwargs)
         if spatial_weight_arg == "weight":
-            return loss_fn(*args, weight=spatial_weight_tensor)
+            return loss_fn(*args, weight=spatial_weight_tensor, **kwargs)
         if spatial_weight_arg == "mask":
-            return loss_fn(*args, mask=spatial_weight_tensor)
+            return loss_fn(*args, mask=spatial_weight_tensor, **kwargs)
         raise ValueError(f"Unsupported spatial weight arg: {spatial_weight_arg}")
 
     def _check_loss_is_finite(
@@ -167,8 +196,12 @@ class LossOrchestrator:
             print(f"{name} shape: {tensor.shape}, range: {tensor_range}", flush=True)
             print(f"{name} contains NaN: {torch.isnan(tensor).any()}", flush=True)
         if self.debug_on_nan:
-            print("\nEntering debugger...", flush=True)
-            pdb.set_trace()
+            warnings.warn(
+                "debug_on_nan=True is set, but interactive breakpoints are disabled. "
+                "Raising ValueError with diagnostics instead.",
+                RuntimeWarning,
+                stacklevel=2,
+            )
         raise ValueError(error_message)
 
     def _resize_class_index_target_to_output(
@@ -187,14 +220,44 @@ class LossOrchestrator:
             return target_resized.to(dtype=target.dtype)
         return target_resized.long()
 
+    @staticmethod
+    def _resolve_channel_slice_bounds(
+        channel_slice: tuple[int, int],
+        *,
+        num_channels: int,
+    ) -> tuple[int, int]:
+        """Resolve possibly-negative channel bounds to absolute half-open indices."""
+        start_ch, end_ch = channel_slice
+        start_idx = start_ch if start_ch >= 0 else num_channels + start_ch
+        end_idx = end_ch if end_ch >= 0 else num_channels + end_ch
+
+        if start_idx < 0 or start_idx >= num_channels:
+            raise ValueError(
+                f"Invalid channel slice {channel_slice} for tensor with {num_channels} channels: "
+                f"start index resolves to {start_idx} (expected in [0, {num_channels - 1}])."
+            )
+        if end_idx < 0 or end_idx > num_channels:
+            raise ValueError(
+                f"Invalid channel slice {channel_slice} for tensor with {num_channels} channels: "
+                f"end index resolves to {end_idx} (expected in [0, {num_channels}])."
+            )
+        if end_idx <= start_idx:
+            raise ValueError(
+                f"Invalid channel slice {channel_slice} for tensor with {num_channels} channels: "
+                f"resolved range [{start_idx}, {end_idx}) is empty or inverted."
+            )
+        return start_idx, end_idx
 
     def _slice_channels(
         self,
         tensor: torch.Tensor,
         channel_slice: tuple[int, int],
     ) -> torch.Tensor:
-        start_ch, end_ch = channel_slice
-        return tensor[:, start_ch:end_ch, ...]
+        start_idx, end_idx = self._resolve_channel_slice_bounds(
+            channel_slice,
+            num_channels=int(tensor.shape[1]),
+        )
+        return tensor[:, start_idx:end_idx, ...]
 
     def _resize_tensor_for_output(
         self,
@@ -289,12 +352,15 @@ class LossOrchestrator:
                 if pred is None or target is None:
                     raise ValueError(f"Loss term '{term.name}' is missing pred/target tensors")
                 spatial_weight_tensor = term_mask_tensor
+                extra_loss_kwargs: Dict[str, torch.Tensor] = {}
+                is_weighted_bce = meta.name == "WeightedBCEWithLogitsLoss"
                 if spatial_weight_arg == "weight" and spatial_weight_tensor is None:
-                    spatial_weight_tensor = self._build_foreground_weight_tensor(
-                        target,
-                        foreground_weight=term.foreground_weight,
-                        valid_mask=batch_mask_tensor,
-                    )
+                    if not is_weighted_bce:
+                        spatial_weight_tensor = self._build_pos_weight_tensor(
+                            target,
+                            pos_weight=term.pos_weight,
+                            valid_mask=batch_mask_tensor,
+                        )
                 if batch_mask_tensor is not None:
                     if spatial_weight_tensor is None:
                         spatial_weight_tensor = batch_mask_tensor
@@ -311,16 +377,36 @@ class LossOrchestrator:
                     target_for_loss = target_for_loss * (combined_mask_tensor > 0).to(
                         dtype=target_for_loss.dtype
                     )
+                if is_weighted_bce and term.pos_weight is not None:
+                    if isinstance(term.pos_weight, str):
+                        auto_pos_weight = self._compute_auto_pos_weight_scalar(
+                            target_for_loss,
+                            valid_mask=combined_mask_tensor,
+                        )
+                        extra_loss_kwargs["pos_weight"] = torch.tensor(
+                            [auto_pos_weight],
+                            device=pred_for_loss.device,
+                            dtype=pred_for_loss.dtype,
+                        )
+                    elif float(term.pos_weight) != 1.0 and getattr(loss_fn, "pos_weight", None) is None:
+                        extra_loss_kwargs["pos_weight"] = torch.tensor(
+                            [float(term.pos_weight)],
+                            device=pred_for_loss.device,
+                            dtype=pred_for_loss.dtype,
+                        )
                 raw_loss = self._call_with_optional_spatial_weight(
                     loss_fn,
                     pred_for_loss,
                     target_for_loss,
                     spatial_weight_arg=spatial_weight_arg,
                     spatial_weight_tensor=spatial_weight_tensor,
+                    extra_kwargs=extra_loss_kwargs,
                 )
                 tensor_map = {"Pred": pred_for_loss, "Target": target_for_loss}
                 if spatial_weight_tensor is not None:
                     tensor_map["Mask"] = spatial_weight_tensor
+                if "pos_weight" in extra_loss_kwargs:
+                    tensor_map["PosWeight"] = extra_loss_kwargs["pos_weight"]
             elif call_kind == "pred_only":
                 if pred is None:
                     raise ValueError(f"Loss term '{term.name}' is missing pred tensor")
@@ -521,7 +607,6 @@ def match_target_to_output(target: torch.Tensor, output: torch.Tensor) -> torch.
         torch.int32,
         torch.int64,
         torch.uint8,
-        torch.ByteTensor,
     ]:
         # Integer labels (including Byte/uint8): use nearest-neighbor
         mode = "nearest"
@@ -540,16 +625,17 @@ def match_target_to_output(target: torch.Tensor, output: torch.Tensor) -> torch.
             align_corners=False,
         )
 
-        # CRITICAL FIX: Clamp resized targets to prevent interpolation overshooting
-        # For targets in range [-1, 1] (e.g., tanh-normalized SDT), trilinear interpolation
-        # can produce values outside this range (e.g., -1.2, 1.3) which causes loss explosion
-        # when used with tanh-activated predictions.
-        # Check if targets are in typical normalized ranges:
+        # Clamp resized targets to prevent interpolation overshooting.
+        # Trilinear interpolation can produce values outside the original range
+        # (e.g., -1.2 from a [-1, 1] SDT target), causing loss explosion with
+        # tanh-activated predictions.
+        #
+        # Heuristic: use 0.5 tolerance bands to detect the original range:
+        #   - [-1.5, 1.5] → target was in [-1, 1] (e.g., tanh-normalized SDT)
+        #   - [0.0, 1.5]  → target was in [0, 1]  (e.g., sigmoid targets / masks)
         if target.min() >= -1.5 and target.max() <= 1.5:
-            # Likely normalized to [-1, 1] (with some tolerance for existing overshoots)
             target_resized = torch.clamp(target_resized, -1.0, 1.0)
         elif target.min() >= 0.0 and target.max() <= 1.5:
-            # Likely normalized to [0, 1]
             target_resized = torch.clamp(target_resized, 0.0, 1.0)
 
     return target_resized

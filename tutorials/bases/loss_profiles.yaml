@@ -3,16 +3,11 @@ loss_profiles:
     - function: WeightedBCEWithLogitsLoss
       weight: 1.0
       kwargs: {reduction: mean}
-      pred_slice: [0, '${model.out_channels}']
-      target_slice: [0, '${model.out_channels}']
     - function: DiceLoss
       weight: 1.0
       kwargs: {sigmoid: true, smooth_nr: 1e-5, smooth_dr: 1e-5}
-      pred_slice: [0, '${model.out_channels}']
-      target_slice: [0, '${model.out_channels}']
   loss_bcd:
     - function: WeightedBCEWithLogitsLoss
-      foreground_weight: ratio
       weight: 1.0
       kwargs: {reduction: mean}
       pred_slice: [0, 1]
@@ -23,7 +18,7 @@ loss_profiles:
       pred_slice: [0, 1]
       target_slice: [0, 1]
     - function: WeightedBCEWithLogitsLoss
-      foreground_weight: ratio
+      pos_weight: auto
       weight: 1.0
       kwargs: {reduction: mean}
       pred_slice: [1, 2]
@@ -34,8 +29,22 @@ loss_profiles:
       pred_slice: [1, 2]
       target_slice: [1, 2]
     - function: WeightedMSELoss
-      foreground_weight: ratio
       weight: 2.0
       kwargs: {tanh: true}
       pred_slice: [2, 3]
       target_slice: [2, 3]
+  loss_bd:
+    - function: WeightedBCEWithLogitsLoss
+      weight: 1.0
+      pred_slice: [0, -2]
+      target_slice: [0, -2]
+    - function: DiceLoss
+      weight: 1.0
+      kwargs: {sigmoid: true, smooth_nr: 1e-5, smooth_dr: 1e-5}
+      pred_slice: [0, -2]
+      target_slice: [0, -2]
+    - function: WeightedMSELoss
+      weight: 2.0
+      kwargs: {tanh: true}
+      pred_slice: [-2, -1]
+      target_slice: [-2, -1]

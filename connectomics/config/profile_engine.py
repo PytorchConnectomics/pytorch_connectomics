@@ -11,6 +11,7 @@ import re
 from typing import Any, Dict, List, Optional, Tuple, Union
 
 from omegaconf import DictConfig, ListConfig, OmegaConf
+from omegaconf.errors import OmegaConfBaseException
 
 from .model_arch import resolve_arch_profile_model_patch
 
@@ -211,6 +212,44 @@ class ValueProfileApplier(YamlProfileApplier):
         self.merge_into_existing = merge_into_existing
         self.cleanup_keys = cleanup_keys if cleanup_keys is not None else (profiles_key,)
 
+    def _apply_list_overrides(self, yaml_conf: DictConfig, selector_path: str) -> None:
+        """Apply per-index overrides to a list-valued profile.
+
+        After a profile expands into a list (e.g. ``model.loss.losses``),
+        an ``overrides`` dict at the selector's parent path can patch
+        individual entries by position::
+
+            model:
+              loss:
+                profile: loss_binary
+                overrides:
+                  0: {pos_weight: auto}
+                  1: {weight: 0.5}
+        """
+        parent_path = selector_path.rsplit(".", 1)[0] if "." in selector_path else ""
+        overrides_path = f"{parent_path}.overrides" if parent_path else "overrides"
+
+        overrides = OmegaConf.select(yaml_conf, overrides_path)
+        if overrides is None or not isinstance(overrides, (DictConfig, dict)):
+            return
+
+        target_list = OmegaConf.select(yaml_conf, self.target_path)
+        if not isinstance(target_list, (ListConfig, list)):
+            return
+
+        for idx_key, patch in overrides.items():
+            idx = int(idx_key)
+            if idx < 0 or idx >= len(target_list):
+                raise ValueError(
+                    f"Override index {idx} at '{overrides_path}' is out of range "
+                    f"for profile list at '{self.target_path}' (length {len(target_list)})."
+                )
+            if isinstance(patch, (DictConfig, dict)):
+                merged = OmegaConf.merge(target_list[idx], patch)
+                target_list[idx] = merged
+
+        _delete_config_path(yaml_conf, overrides_path)
+
     def apply(self, yaml_conf: DictConfig) -> None:
         selected = None
         selected_path = None
@@ -240,6 +279,8 @@ class ValueProfileApplier(YamlProfileApplier):
             _merge_into_path(yaml_conf, self.target_path, profiles[selected])
         else:
             OmegaConf.update(yaml_conf, self.target_path, profiles[selected], force_add=True)
+
+        self._apply_list_overrides(yaml_conf, selected_path)
 
         # Pipeline profiles are selected via `default.pipeline_profile`, but some
         # profile payloads interpolate `${model.out_channels}` during early YAML
@@ -397,8 +438,8 @@ class ReferenceProfileApplier(YamlProfileApplier):
             try:
                 resolved_value = OmegaConf.to_container(value, resolve=True)
                 OmegaConf.update(yaml_conf, target_path, resolved_value, force_add=True)
-            except Exception:
-                pass
+            except (OmegaConfBaseException, TypeError, ValueError):
+                continue
 
             value = OmegaConf.select(yaml_conf, target_path)
             if not isinstance(value, str):

@@ -6,11 +6,12 @@
 # pick ONE profile, then override individual fields as needed.
 #
 # Choosing a profile:
-#   aug_light     — Fast training, clean data, fine-tuning
-#   aug_standard  — Default for most 3D EM tasks (RECOMMENDED)
-#   aug_strong    — Small datasets, overfitting prevention
-#   aug_instance  — Instance segmentation (adds copy-paste + mixup)
-#   aug_superres  — Super-resolution / multi-scale learning
+#   aug_light      — Fast training, clean data, fine-tuning
+#   aug_standard   — Default for most 3D EM tasks (RECOMMENDED)
+#   aug_strong     — Small datasets, overfitting prevention
+#   aug_em_neuron  — Aggressive EM augmentation for neuron segmentation
+#   aug_instance   — Instance segmentation (adds copy-paste + mixup)
+#   aug_superres   — Super-resolution / multi-scale learning
 
 augmentation_profiles:
 
@@ -127,6 +128,54 @@ augmentation_profiles:
       prob: 0.3
       length_ratio: [0.1, 0.25]
       noise_scale: [0.05, 0.15]
+
+  # ---------------------------------------------------------------------------
+  # aug_em_neuron: Aggressive EM augmentation for neuron segmentation
+  # ---------------------------------------------------------------------------
+  # Use for: neuron affinity learning on anisotropic EM data (e.g. SNEMI3D).
+  # Heavy elastic deformation, wide contrast range, aggressive EM artifacts.
+  # Tuned for small training volumes with long training schedules.
+  aug_em_neuron:
+    preset: some
+    flip:
+      enabled: true
+      prob: 0.5
+      spatial_axis: [0, 1, 2]
+    rotate:
+      enabled: true
+      prob: 0.5
+      max_angle: 90.0
+    elastic:
+      enabled: true
+      prob: 0.7
+      sigma_range: [4.0, 8.0]
+      magnitude_range: [8.0, 16.0]
+    intensity:
+      enabled: true
+      gaussian_noise_prob: 0.3
+      gaussian_noise_std: 0.05
+      shift_intensity_prob: 0.7
+      shift_intensity_offset: 0.2
+      contrast_prob: 0.7
+      contrast_range: [0.5, 1.5]
+    misalignment:
+      enabled: true
+      prob: 0.6
+      displacement: 25
+      rotate_ratio: 0.3
+    missing_section:
+      enabled: true
+      prob: 0.4
+      num_sections: 7
+    motion_blur:
+      enabled: true
+      prob: 0.4
+      sections: 3
+      kernel_size: 11
+    missing_parts:
+      enabled: true
+      prob: 0.2
+      hole_range: [0.1, 0.25]
 
   # ---------------------------------------------------------------------------
   # aug_instance: Standard + copy-paste + mixup

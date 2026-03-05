@@ -7,3 +7,7 @@ decoding_profiles:
         distance_threshold: [0.5, -0.5]
         min_instance_size: 30
         min_seed_size: 5
+  decoding_abiss:
+    - name: decode_abiss
+      kwargs:
+        command: "{python_exe} scripts/run_abiss_single.py --input {input_h5} --output {output_h5}"

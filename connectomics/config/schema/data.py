@@ -453,17 +453,6 @@ class DataConfig:
     # Optional explicit test split for inference-mode datasets.
     # If left empty, runtime falls back to `val`.
     test: DataInputConfig = field(default_factory=DataInputConfig)
-    # Legacy test-data aliases (kept for backward compatibility).
-    test_path: Optional[str] = None
-    test_image: Any = None
-    test_label: Any = None
-    test_mask: Any = None
-    test_resolution: Optional[List[float]] = None
-    test_transpose: Optional[List[int]] = None
-    output_path: Optional[str] = None
-    # Legacy nested data.checkpoint blocks are ignored by runtime.
-    checkpoint: Optional[Dict[str, Any]] = None
-    reject_sampling: Optional[Dict[str, Any]] = None
 
     # Data loading
     dataloader: DataloaderConfig = field(default_factory=DataloaderConfig)

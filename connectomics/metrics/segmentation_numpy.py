@@ -4,6 +4,7 @@ from scipy import ndimage
 from scipy.optimize import linear_sum_assignment
 from collections import namedtuple
 from skimage.segmentation import relabel_sequential
+from connectomics.utils.label_overlap import compute_label_overlap
 
 matching_criteria = dict()
 
@@ -40,34 +41,6 @@ def adapted_rand(seg, gt, all_stats=False):
     ----------
     [1]: http://brainiac2.mit.edu/SNEMI3D/evaluation
     """
-    # DEBUG: Print input to evaluation metrics
-    try:
-        from ..utils.debug_utils import print_tensor_stats
-        print_tensor_stats(
-            seg,
-            stage_name="STAGE 10: INPUT TO EVALUATION METRICS",
-            tensor_name="predicted_segmentation",
-            print_once=True,
-            extra_info={
-                "metric": "adapted_rand",
-                "unique_instances": len(np.unique(seg)),
-                "note": "Instance IDs after decoding"
-            }
-        )
-        print_tensor_stats(
-            gt,
-            stage_name="STAGE 10: INPUT TO EVALUATION METRICS",
-            tensor_name="ground_truth_segmentation",
-            print_once=True,
-            extra_info={
-                "metric": "adapted_rand",
-                "unique_instances": len(np.unique(gt)),
-                "note": "Ground truth instance IDs"
-            }
-        )
-    except:
-        pass  # Silently skip if debug utils not available
-    
     # Validate shapes match
     if seg.shape != gt.shape:
         raise ValueError(
@@ -560,12 +533,7 @@ def label_overlap(x, y, check=True):
 
 
 def _label_overlap(x, y):
-    x = x.ravel()
-    y = y.ravel()
-    overlap = np.zeros((1 + x.max(), 1 + y.max()), dtype=np.uint)
-    for i in range(len(x)):
-        overlap[x[i], y[i]] += 1
-    return overlap
+    return compute_label_overlap(x, y)
 
 
 def _safe_divide(x, y, eps=1e-10):
@@ -704,7 +672,8 @@ def instance_matching(y_true, y_pred, thresh=0.5, criterion="iou", report_matche
 
     overlap = label_overlap(y_true, y_pred, check=False)
     scores = matching_criteria[criterion](overlap)
-    assert 0 <= np.min(scores) <= np.max(scores) <= 1
+    if not (0 <= np.min(scores) <= np.max(scores) <= 1):
+        raise ValueError(f"Scores must be in [0, 1], got range [{np.min(scores)}, {np.max(scores)}]")
 
     # ignoring background
     scores = scores[1:, 1:]
@@ -837,7 +806,8 @@ def instance_matching_simple(y_true, y_pred, thresh=0.5, criterion="iou"):
     
     overlap = label_overlap(y_true, y_pred, check=False)
     scores = matching_criteria[criterion](overlap)
-    assert 0 <= np.min(scores) <= np.max(scores) <= 1
+    if not (0 <= np.min(scores) <= np.max(scores) <= 1):
+        raise ValueError(f"Scores must be in [0, 1], got range [{np.min(scores)}, {np.max(scores)}]")
     
     # ignoring background
     scores = scores[1:, 1:]
@@ -867,25 +837,6 @@ def instance_matching_simple(y_true, y_pred, thresh=0.5, criterion="iou"):
 
 
 def wrapper_matching_dataset_lazy(stats_all, thresh, criterion="iou", by_image=False):
-    set(
-        (
-            "fp",
-            "tp",
-            "fn",
-            "precision",
-            "recall",
-            "accuracy",
-            "f1",
-            "criterion",
-            "thresh",
-            "n_true",
-            "n_pred",
-            "mean_true_score",
-            "mean_matched_score",
-            "panoptic_quality",
-        )
-    )
-
     # accumulate results over all images for each threshold separately
     n_images, n_threshs = len(stats_all), len(thresh)
     single_thresh = True if n_threshs == 1 else False

@@ -16,6 +16,14 @@ def _forward_expand_width(x: torch.Tensor) -> torch.Tensor:
     return torch.nn.functional.pad(out, (1, 1, 0, 0, 0, 0))
 
 
+def _forward_three_channel_logits(x: torch.Tensor) -> torch.Tensor:
+    shape = (x.shape[0], 1, *x.shape[2:])
+    ch0 = torch.full(shape, -2.0, device=x.device, dtype=x.dtype)
+    ch1 = torch.zeros(shape, device=x.device, dtype=x.dtype)
+    ch2 = torch.full(shape, 2.0, device=x.device, dtype=x.dtype)
+    return torch.cat([ch0, ch1, ch2], dim=1)
+
+
 def test_tta_applies_mask_to_predictions_by_default():
     cfg = Config()
     cfg.inference.test_time_augmentation.enabled = False
@@ -84,3 +92,19 @@ def test_tta_allows_minor_mask_alignment_when_enabled():
     )
     assert pred.shape == (1, 2, 133, 516, 516)
     assert torch.all(pred == 0)
+
+
+def test_tta_channel_activations_end_minus_one_covers_last_channel():
+    cfg = Config()
+    cfg.model.out_channels = 3
+    cfg.inference.test_time_augmentation.enabled = False
+    cfg.inference.test_time_augmentation.channel_activations = [[0, -1, "sigmoid"]]
+
+    predictor = TTAPredictor(cfg=cfg, sliding_inferer=None, forward_fn=_forward_three_channel_logits)
+
+    images = torch.zeros((1, 1, 2, 2, 2), dtype=torch.float32)
+    pred = predictor.predict(images)
+
+    assert pred.shape == (1, 3, 2, 2, 2)
+    expected = torch.sigmoid(_forward_three_channel_logits(images))
+    assert torch.allclose(pred, expected)

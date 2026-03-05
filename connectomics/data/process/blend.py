@@ -1,4 +1,3 @@
-from __future__ import print_function, division
 from typing import Tuple, List, Union
 
 import numpy as np

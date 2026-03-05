@@ -6,7 +6,6 @@ Provides callbacks for visualization, checkpointing, and monitoring.
 
 from __future__ import annotations
 from typing import Dict, Any, Optional
-import pdb
 import torch
 from pytorch_lightning import Callback
 
@@ -48,6 +47,9 @@ class VisualizationCallback(Callback):
         self.slice_sampling = slice_sampling
         self.log_every_n_epochs = log_every_n_epochs
         self.cfg = cfg
+        images_cfg = cfg.monitor.logging.images
+        self.channel_mode = getattr(images_cfg, "channel_mode", "all") or "all"
+        self.selected_channels = getattr(images_cfg, "selected_channels", None)
 
         # Store batch for end-of-epoch visualization
         self._last_train_batch = None
@@ -184,6 +186,8 @@ class VisualizationCallback(Callback):
                 prefix=prefix,
                 num_slices=self.num_slices,
                 slice_sampling=self.slice_sampling,
+                channel_mode=self.channel_mode,
+                selected_channels=self.selected_channels,
             )
         else:
             self.visualizer.visualize(
@@ -194,6 +198,8 @@ class VisualizationCallback(Callback):
                 iteration=iteration,
                 writer=writer,
                 prefix=prefix,
+                channel_mode=self.channel_mode,
+                selected_channels=self.selected_channels,
             )
 
     @staticmethod
@@ -218,13 +224,13 @@ class NaNDetectionCallback(Callback):
     This callback monitors the loss value after each training step and:
     - Checks for NaN or Inf values
     - Prints diagnostic information (loss value, batch statistics, gradient norms)
-    - Optionally triggers pdb.set_trace() to pause training for debugging
+    - Optionally raises immediately when configured
     - Can terminate training or continue with a warning
 
     Args:
         check_grads: If True, also check for NaN/Inf in model gradients
         check_inputs: If True, also check for NaN/Inf in batch inputs
-        debug_on_nan: If True, trigger pdb.set_trace() when NaN is detected
+        debug_on_nan: If True, emit extra diagnostics when NaN is detected
         terminate_on_nan: If True, raise exception to stop training when NaN is detected
         print_diagnostics: If True, print detailed diagnostics when NaN is detected
     """
@@ -286,17 +292,6 @@ class NaNDetectionCallback(Callback):
                 trainer, pl_module, self._last_batch, is_nan, is_inf, loss_value, nan_metric_keys
             )
 
-    def on_train_batch_end(
-        self,
-        trainer,
-        pl_module,
-        outputs: Dict[str, Any],
-        batch: Dict[str, torch.Tensor],
-        batch_idx: int,
-    ):
-        """Check for NaN/Inf after each training step (backup check)."""
-        # This is a backup check - on_after_backward should catch it first
-
     def _handle_nan_detection(
         self,
         trainer,
@@ -321,22 +316,8 @@ class NaNDetectionCallback(Callback):
             self._print_diagnostics(trainer, pl_module, batch, None)
 
         if self.debug_on_nan:
-            print("\n🔍 Entering debugger (pdb)...")
-            print("Available variables:")
-            print("  - trainer: PyTorch Lightning trainer")
-            print("  - pl_module: LightningModule (model)")
-            print("  - batch: Current batch data")
-            print("  - loss_value: The NaN/Inf loss value")
-            print("  - nan_metric_keys: List of affected metrics")
-            print("\nUseful commands:")
-            print(
-                "  - Check gradients: [p for n, p in pl_module.named_parameters() "
-                "if p.grad is not None]"
-            )
-            print("  - Check inputs: batch['image'].min(), batch['image'].max()")
-            print("  - Continue: 'c' or quit: 'q'")
-            print()
-            pdb.set_trace()
+            print("\n🔍 Interactive debugger disabled in production path.")
+            print("   Set monitor.nan_detection.debug_on_nan=false to suppress this notice.")
 
         if self.terminate_on_nan:
             raise ValueError(
@@ -415,10 +396,14 @@ class NaNDetectionCallback(Callback):
 
         # Learning rate
         optimizer = trainer.optimizers[0] if trainer.optimizers else None
+        lr = None
         if optimizer:
             lr = optimizer.param_groups[0]["lr"]
             print("\n📚 Optimizer:")
-        print(f"   Learning rate: {lr:.2e}")
+        if lr is not None:
+            print(f"   Learning rate: {lr:.2e}")
+        else:
+            print("   Learning rate: N/A (optimizer not initialized)")
 
         print(f"{'─' * 80}\n")
 

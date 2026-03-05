@@ -20,3 +20,23 @@ pipeline_profiles:
       decoding_profile: decoding_bcd
       test_time_augmentation:
         activation_profile: act_bcd
+
+  affinity-12:
+    model:
+      out_channels: 12
+      loss:
+        profile: loss_binary
+        overrides:
+          0: {pos_weight: auto}
+          1: {weight: 0.5}
+    data:
+      label_transform:
+        profile: label_affinity_12
+      augmentation:
+        profile: aug_em_neuron
+    inference:
+      decoding_profile: decoding_abiss
+      test_time_augmentation:
+        ensemble_mode: min
+        select_channel: [0, 1, 2]
+        activation_profile: act_binary

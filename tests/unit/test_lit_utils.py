@@ -5,7 +5,6 @@ import numpy as np
 import pytest
 
 from connectomics.config import Config, save_config
-from connectomics.training.lightning.config import expand_file_paths as config_expand_file_paths
 from connectomics.training.lightning.data_factory import _calculate_validation_steps_per_epoch
 from connectomics.training.lightning.path_utils import expand_file_paths as canonical_expand_file_paths
 from connectomics.training.lightning.utils import (
@@ -91,8 +90,7 @@ def test_expand_file_paths_handles_globs_and_lists(tmp_path):
     # Passing a list should be returned unchanged
     assert expand_file_paths([str(data_dir / "a.txt")]) == [str(data_dir / "a.txt")]
 
-    # Compatibility wrappers in config and utils should match canonical helper behavior
-    assert config_expand_file_paths(str(data_dir / "*.txt")) == expanded
+    # Utility helper should match canonical helper behavior
     assert canonical_expand_file_paths(str(data_dir / "*.txt")) == expanded
 
     with pytest.raises(FileNotFoundError):

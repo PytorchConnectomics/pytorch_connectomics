@@ -4,10 +4,13 @@ Improved error messages for PyTorch Connectomics.
 Provides helpful, actionable error messages for common issues.
 """
 
-import os
-import torch
 from pathlib import Path
+from glob import glob
 from typing import Optional
+
+import numpy as np
+import torch
+import os
 
 
 class ConnectomicsError(Exception):
@@ -230,64 +233,26 @@ def preflight_check(cfg) -> list:
         """Return True for non-filesystem paths resolved later at runtime."""
         return isinstance(path_value, str) and path_value.startswith("random://")
 
-    # Check data files exist (supports glob patterns and lists)
-    if cfg.data.train.image:
-        from glob import glob
+    def _iter_data_paths(path_value):
+        if path_value is None:
+            return []
+        if isinstance(path_value, list):
+            return path_value
+        return [path_value]
 
-        # Handle list of files
-        if isinstance(cfg.data.train.image, list):
-            for img_path in cfg.data.train.image:
-                if _is_virtual_data_path(img_path):
-                    continue
-                if "*" in img_path or "?" in img_path:
-                    matched_files = glob(img_path)
-                    if not matched_files:
-                        issues.append(f"❌ Training image pattern matched no files: {img_path}")
-                elif not Path(img_path).exists():
-                    issues.append(f"❌ Training image not found: {img_path}")
-        # Handle single file/pattern
-        else:
-            if _is_virtual_data_path(cfg.data.train.image):
-                pass
-            # Check if pattern contains wildcards
-            elif "*" in cfg.data.train.image or "?" in cfg.data.train.image:
-                # Expand glob pattern
-                matched_files = glob(cfg.data.train.image)
-                if not matched_files:
-                    issues.append(
-                        f"❌ Training image pattern matched no files: {cfg.data.train.image}"
-                    )
-            elif not Path(cfg.data.train.image).exists():
-                issues.append(f"❌ Training image not found: {cfg.data.train.image}")
+    def _validate_training_paths(path_value, kind: str) -> None:
+        for raw_path in _iter_data_paths(path_value):
+            if _is_virtual_data_path(raw_path):
+                continue
+            if "*" in raw_path or "?" in raw_path:
+                if not glob(raw_path):
+                    issues.append(f"❌ Training {kind} pattern matched no files: {raw_path}")
+            elif not Path(raw_path).exists():
+                issues.append(f"❌ Training {kind} not found: {raw_path}")
 
-    if cfg.data.train.label:
-        from glob import glob
-
-        # Handle list of files
-        if isinstance(cfg.data.train.label, list):
-            for lbl_path in cfg.data.train.label:
-                if _is_virtual_data_path(lbl_path):
-                    continue
-                if "*" in lbl_path or "?" in lbl_path:
-                    matched_files = glob(lbl_path)
-                    if not matched_files:
-                        issues.append(f"❌ Training label pattern matched no files: {lbl_path}")
-                elif not Path(lbl_path).exists():
-                    issues.append(f"❌ Training label not found: {lbl_path}")
-        # Handle single file/pattern
-        else:
-            if _is_virtual_data_path(cfg.data.train.label):
-                pass
-            # Check if pattern contains wildcards
-            elif "*" in cfg.data.train.label or "?" in cfg.data.train.label:
-                # Expand glob pattern
-                matched_files = glob(cfg.data.train.label)
-                if not matched_files:
-                    issues.append(
-                        f"❌ Training label pattern matched no files: {cfg.data.train.label}"
-                    )
-            elif not Path(cfg.data.train.label).exists():
-                issues.append(f"❌ Training label not found: {cfg.data.train.label}")
+    # Check training image/label files exist (supports glob patterns and lists)
+    _validate_training_paths(cfg.data.train.image, "image")
+    _validate_training_paths(cfg.data.train.label, "label")
 
     # Check GPU availability
     if cfg.system.num_gpus > 0 and not torch.cuda.is_available():
@@ -304,8 +269,6 @@ def preflight_check(cfg) -> list:
     if torch.cuda.is_available() and cfg.system.num_gpus > 0:
         try:
             # Rough estimate: batch_size * patch_size * channels * 4 bytes * 10 (model overhead)
-            import numpy as np
-
             patch_volume = np.prod(cfg.data.dataloader.patch_size)
             estimated_gb = (
                 cfg.data.dataloader.batch_size * patch_volume * cfg.model.in_channels * 4 * 10 / 1e9

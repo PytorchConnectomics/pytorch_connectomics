@@ -3,7 +3,6 @@ Utility functions for PyTorch Connectomics.
 
 This package provides lightweight helpers:
 - visualizer.py: Visualization utilities for TensorBoard
-- analysis.py: Analysis tools for instance segmentation
 - debug_hooks.py: Debugging helpers for NaN detection
 - download.py: Dataset download utilities
 - errors.py: Error handling and preflight checks

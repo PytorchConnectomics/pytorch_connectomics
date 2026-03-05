@@ -34,6 +34,41 @@ class TTAPredictor:
         self.channel_activation_types = None
         self._parse_channel_activations()
 
+    @staticmethod
+    def _resolve_channel_range(
+        start_ch: int,
+        end_ch: int,
+        num_channels: int,
+    ) -> tuple[int, int]:
+        """Resolve channel range where end=-1 means up to the last channel (exclusive)."""
+        start = int(start_ch)
+        end = int(end_ch)
+
+        if start < 0:
+            raise ValueError(
+                f"Invalid channel_activations range start {start}. start must be >= 0."
+            )
+        if end == -1:
+            end = num_channels
+        elif end < 0:
+            raise ValueError(
+                f"Invalid channel_activations range end {end}. "
+                "Use -1 for all remaining channels or a non-negative end index."
+            )
+
+        if start > end:
+            raise ValueError(
+                f"Invalid channel_activations range [{start}, {end_ch}]. "
+                "start must be <= resolved end."
+            )
+        if end > num_channels:
+            raise ValueError(
+                f"Invalid channel_activations range [{start}, {end_ch}] for "
+                f"{num_channels} output channels."
+            )
+
+        return start, end
+
     def _parse_channel_activations(self):
         """Parse channel_activations config to determine activation type per channel."""
         if not hasattr(self.cfg, "inference") or not hasattr(
@@ -46,12 +81,20 @@ class TTAPredictor:
         )
 
         if channel_activations is not None:
+            channel_count_hint = int(getattr(getattr(self.cfg, "model", None), "out_channels", 0))
+            if channel_count_hint <= 0:
+                self.channel_activation_types = None
+                return
+
             # Build a list mapping each output channel to its activation type
             self.channel_activation_types = []
             for config_entry in channel_activations:
                 if len(config_entry) != 3:
                     continue
                 start_ch, end_ch, act = config_entry
+                start_ch, end_ch = self._resolve_channel_range(
+                    start_ch, end_ch, channel_count_hint
+                )
                 # Add activation type for each channel in this range
                 for _ in range(start_ch, end_ch):
                     self.channel_activation_types.append(act)
@@ -84,6 +127,7 @@ class TTAPredictor:
         )
 
         if channel_activations is not None:
+            activation_types = []
             # MEMORY OPTIMIZATION: Apply activations in-place instead of creating
             # intermediate tensors and concatenating them
             for config_entry in channel_activations:
@@ -94,6 +138,13 @@ class TTAPredictor:
                     )
 
                 start_ch, end_ch, act = config_entry
+                start_ch, end_ch = self._resolve_channel_range(
+                    start_ch,
+                    end_ch,
+                    tensor.shape[1],
+                )
+                for _ in range(start_ch, end_ch):
+                    activation_types.append(act)
 
                 if act == "sigmoid":
                     tensor[:, start_ch:end_ch, ...] = torch.sigmoid(
@@ -125,9 +176,11 @@ class TTAPredictor:
                         f"Unknown activation '{act}' for channels {start_ch}:{end_ch}. "
                         f"Supported: 'sigmoid', 'scale_sigmoid', 'softmax', 'tanh', None"
                     )
+            self.channel_activation_types = activation_types if activation_types else None
             
             # No need for torch.cat - tensor was modified in-place
         else:
+            self.channel_activation_types = None
             tta_act = getattr(self.cfg.inference.test_time_augmentation, "act", None)
             if tta_act is None:
                 tta_act = getattr(self.cfg.inference, "output_act", None)

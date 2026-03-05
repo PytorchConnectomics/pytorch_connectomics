@@ -25,23 +25,10 @@ class LossTermSpec:
     mask_slice: Optional[Tuple[int, int]] = None
     apply_deep_supervision: bool = True
     spatial_weight_arg: Optional[str] = None
-    foreground_weight: Optional[Union[float, str]] = None
+    pos_weight: Optional[Union[float, str]] = None
 
 
-def _cfg_get(obj: Any, key: str, default: Any = None) -> Any:
-    """Read a key/attribute from dict-like or attribute-like config objects."""
-    if obj is None:
-        return default
-    if isinstance(obj, dict):
-        return obj.get(key, default)
-    # OmegaConf DictConfig implements get(); SimpleNamespace does not.
-    get_fn = getattr(obj, "get", None)
-    if callable(get_fn):
-        try:
-            return get_fn(key, default)
-        except TypeError:
-            pass
-    return getattr(obj, key, default)
+from ...config.dict_utils import cfg_get as _cfg_get
 
 
 def _coerce_slice(value: Any, field_name: str) -> Optional[Tuple[int, int]]:
@@ -50,8 +37,16 @@ def _coerce_slice(value: Any, field_name: str) -> Optional[Tuple[int, int]]:
     if not isinstance(value, (list, tuple)) or len(value) != 2:
         raise ValueError(f"{field_name} must be [start, end], got: {value!r}")
     start, end = int(value[0]), int(value[1])
-    if end <= start:
+    # Support python-style negative channel bounds (e.g. [0, -1], [-2, -1]).
+    # For mixed-sign bounds, final validity depends on runtime channel count.
+    if start == end:
+        raise ValueError(f"{field_name} must not be empty, got: {value!r}")
+    if start >= 0 and end >= 0 and end <= start:
         raise ValueError(f"{field_name} must satisfy end > start, got: {value!r}")
+    if start < 0 and end < 0 and end <= start:
+        raise ValueError(
+            f"{field_name} must be increasing for negative bounds, got: {value!r}"
+        )
     return (start, end)
 
 
@@ -88,26 +83,60 @@ def compile_loss_terms_from_config(
             f"{len(loss_functions)} loss functions were built. These must match."
         )
 
-    def _parse_foreground_weight(term_cfg: Any, term_idx: int) -> Optional[Union[float, str]]:
-        raw = _cfg_get(term_cfg, "foreground_weight", None)
+    def _parse_pos_weight(
+        term_cfg: Any,
+        term_idx: int,
+        *,
+        loss_name: str,
+    ) -> Optional[Union[float, str]]:
+        raw = _cfg_get(term_cfg, "pos_weight", None)
         if raw is None:
+            # Keep WeightedBCEWithLogitsLoss unweighted by default unless explicitly set.
+            if loss_name == "WeightedBCEWithLogitsLoss":
+                return 1.0
             return None
         if isinstance(raw, str):
             mode = raw.strip().lower()
-            if mode != "ratio":
+            if mode != "auto":
                 raise ValueError(
-                    f"losses[{term_idx}] foreground_weight must be a positive number "
-                    f"or 'ratio', got {raw!r}"
+                    f"losses[{term_idx}] pos_weight must be a positive number "
+                    f"or 'auto', got {raw!r}"
                 )
-            return "ratio"
+            return "auto"
         value = float(raw)
         if value <= 0:
             raise ValueError(
-                f"losses[{term_idx}] foreground_weight must be > 0, got {value}"
+                f"losses[{term_idx}] pos_weight must be > 0, got {value}"
             )
         return value
 
     for term_idx, term_cfg in enumerate(losses_list):
+        term_keys = set(term_cfg.keys()) if hasattr(term_cfg, "keys") else set()
+        allowed_keys = {
+            "function",
+            "weight",
+            "coefficient",
+            "kwargs",
+            "pred_slice",
+            "pred",
+            "target_slice",
+            "target",
+            "pred2_slice",
+            "pred2",
+            "mask_slice",
+            "mask",
+            "call_kind",
+            "call",
+            "target_kind",
+            "spatial_weight_arg",
+            "apply_deep_supervision",
+            "pos_weight",
+        }
+        unknown_keys = sorted(k for k in term_keys if k not in allowed_keys)
+        if unknown_keys:
+            keys_str = ", ".join(unknown_keys)
+            raise ValueError(f"Unsupported key(s) in losses[{term_idx}]: {keys_str}")
+
         loss_index = term_idx  # 1:1 mapping
         base_meta = metas[loss_index]
 
@@ -143,10 +172,8 @@ def compile_loss_terms_from_config(
             raise ValueError(f"Unsupported call_kind {call_kind!r} in losses[{term_idx}]")
 
         if call_kind == "pred_target":
-            if pred_slice is None or target_slice is None:
-                raise ValueError(
-                    f"losses[{term_idx}] pred_target terms require pred_slice and target_slice"
-                )
+            # pred_slice/target_slice default to full-channel routing when omitted.
+            pass
         elif call_kind == "pred_only":
             if pred_slice is None:
                 raise ValueError(f"losses[{term_idx}] pred_only terms require pred_slice")
@@ -167,10 +194,14 @@ def compile_loss_terms_from_config(
             _cfg_get(term_cfg, "coefficient", _cfg_get(term_cfg, "weight", loss_weights[loss_index]))
         )
         apply_deep_supervision = bool(_cfg_get(term_cfg, "apply_deep_supervision", True))
-        foreground_weight = _parse_foreground_weight(term_cfg, term_idx)
-        if foreground_weight is not None and spatial_weight_arg != "weight":
+        pos_weight = _parse_pos_weight(
+            term_cfg,
+            term_idx,
+            loss_name=base_meta.name,
+        )
+        if pos_weight is not None and spatial_weight_arg != "weight":
             raise ValueError(
-                f"losses[{term_idx}] foreground_weight is only supported for losses "
+                f"losses[{term_idx}] pos_weight is only supported for losses "
                 f"with spatial_weight_arg='weight' (got {base_meta.name})"
             )
 
@@ -187,7 +218,7 @@ def compile_loss_terms_from_config(
                 mask_slice=mask_slice,
                 apply_deep_supervision=apply_deep_supervision,
                 spatial_weight_arg=None if spatial_weight_arg is None else str(spatial_weight_arg),
-                foreground_weight=foreground_weight,
+                pos_weight=pos_weight,
             )
         )
 
