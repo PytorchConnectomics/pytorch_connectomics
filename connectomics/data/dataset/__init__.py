@@ -1,33 +1,25 @@
 """
-MONAI-native dataset module for PyTorch Connectomics.
+Dataset module for PyTorch Connectomics.
 
-This module provides MONAI-based dataset classes and PyTorch Lightning DataModules
-for connectomics data loading.
-
-Inference Strategy:
-    For sliding-window inference, use MONAI's SlidingWindowInferer in the Lightning
-    module. Test datasets should return full volumes (no cropping). See
-    .claude/INFERENCE_DESIGN.md for details.
+Provides patch-sampling datasets for volumetric EM data:
+- CachedVolumeDataset: loads volumes into RAM, crops with numpy
+- LazyZarrVolumeDataset: lazy zarr reads (low memory)
+- MonaiFilenameDataset: loads pre-tiled images from JSON
+- Multi-dataset wrappers: Weighted, Stratified, Uniform concat
 """
 
-# Dataset factory functions (builder pattern)
-from .build import (
-    create_connectomics_dataset,
-    create_tile_data_dicts_from_json,
-    create_tile_dataset,
-    create_volume_dataset,
-)
+# Shared helpers
+from .data_dicts import create_data_dicts_from_paths
 
-# Shared data-dict helpers
-from .data_dicts import (
-    create_data_dicts_from_paths,
-)
+# Base class
+from .base import PatchDataset
 
-# MONAI base datasets
-from .dataset_base import (
-    MonaiCachedConnectomicsDataset,
-    MonaiConnectomicsDataset,
-    MonaiPersistentConnectomicsDataset,
+# Core datasets
+from .dataset_volume_cached import CachedVolumeDataset, crop_volume
+from .dataset_volume_zarr_lazy import LazyZarrVolumeDataset
+from .dataset_filename import (
+    MonaiFilenameDataset,
+    create_filename_datasets,
 )
 
 # Multi-dataset utilities
@@ -37,37 +29,22 @@ from .dataset_multi import (
     WeightedConcatDataset,
 )
 
-# Tile datasets
-from .dataset_tile import (
-    MonaiCachedTileDataset,
-    MonaiTileDataset,
-)
-
-# Volume datasets
-from .dataset_volume import (
-    MonaiCachedVolumeDataset,
-    MonaiVolumeDataset,
-)
+# Sampling and splitting utilities (moved from data/utils/)
+from .sampling import count_volume, compute_total_samples
+from .split import split_volume_train_val
 
 __all__ = [
-    # Base MONAI datasets
-    "MonaiConnectomicsDataset",
-    "MonaiCachedConnectomicsDataset",
-    "MonaiPersistentConnectomicsDataset",
-    # Volume datasets
-    "MonaiVolumeDataset",
-    "MonaiCachedVolumeDataset",
-    # Tile datasets
-    "MonaiTileDataset",
-    "MonaiCachedTileDataset",
-    # Multi-dataset utilities
+    "PatchDataset",
+    "CachedVolumeDataset",
+    "LazyZarrVolumeDataset",
+    "MonaiFilenameDataset",
     "WeightedConcatDataset",
     "StratifiedConcatDataset",
     "UniformConcatDataset",
-    # Factory functions (from build.py)
     "create_data_dicts_from_paths",
-    "create_tile_data_dicts_from_json",
-    "create_connectomics_dataset",
-    "create_volume_dataset",
-    "create_tile_dataset",
+    "create_filename_datasets",
+    "crop_volume",
+    "count_volume",
+    "compute_total_samples",
+    "split_volume_train_val",
 ]

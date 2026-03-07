@@ -5,9 +5,14 @@ Supports Hydra/OmegaConf configurations.
 Code adapted from Detectron2 (https://github.com/facebookresearch/detectron2)
 """
 
+
+from __future__ import annotations
+import logging
 from collections.abc import Mapping
 from typing import Any, Dict, List, Set
 import torch
+
+logger = logging.getLogger(__name__)
 from torch.optim.lr_scheduler import MultiStepLR, ReduceLROnPlateau, CosineAnnealingLR, CosineAnnealingWarmRestarts, StepLR
 
 from .lr_scheduler import WarmupCosineLR
@@ -132,10 +137,12 @@ def build_optimizer(cfg, model: torch.nn.Module) -> torch.optim.Optimizer:
             nesterov=nesterov,
         )
     else:
-        # Default to AdamW
-        optimizer = torch.optim.AdamW(params, lr=lr, weight_decay=weight_decay)
+        raise ValueError(
+            f"Unknown optimizer: '{optimizer_name}'. "
+            f"Supported optimizers: adamw, adam, sgd"
+        )
 
-    print(f"Optimizer: {optimizer.__class__.__name__} (lr={lr}, wd={weight_decay})")
+    logger.info(f"Optimizer: {optimizer.__class__.__name__} (lr={lr}, wd={weight_decay})")
     return optimizer
 
 
@@ -269,7 +276,7 @@ def _build_lr_scheduler_hydra(
             optimizer,
             lr_lambda=lambda epoch: 1.0
         )
-        print("  ℹ️  Using constant learning rate (no decay)")
+        logger.info("  Using constant learning rate (no decay)")
 
     else:
         # Default to CosineAnnealingLR
@@ -282,5 +289,5 @@ def _build_lr_scheduler_hydra(
         eta_min = _scheduler_param(sched_cfg, "min_lr", 1e-6)
         scheduler = CosineAnnealingLR(optimizer, T_max=t_max, eta_min=eta_min)
 
-    print(f"LR Scheduler: {scheduler.__class__.__name__}")
+    logger.info(f"LR Scheduler: {scheduler.__class__.__name__}")
     return scheduler

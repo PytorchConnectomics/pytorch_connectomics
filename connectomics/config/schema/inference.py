@@ -44,11 +44,13 @@ class TestTimeAugmentationConfig:
     distributed_sharding: bool = False  # Split TTA variants across DDP ranks for one-volume tests
     distributed_reduce_chunk_mb: int = 128  # Chunk size for rank reduction of large volumes
     # Optional channel-wise activation overrides applied before aggregation.
-    # Each entry: [start, end, activation], activation in {"sigmoid", "softmax", "none"}.
-    # Uses half-open slices [start, end). Set end=-1 to include all remaining channels.
-    channel_activations: List[List[Any]] = field(default_factory=list)
+    # Each entry is a mapping:
+    #   {channels: "start:end" | int | [int, ...], activation: "sigmoid"|"softmax"|"tanh"|"none"}
+    # Channel selectors follow Python/NumPy indexing rules:
+    #   -1 means the last channel, ":" means all channels, ":-1" excludes the last.
+    channel_activations: List[Dict[str, Any]] = field(default_factory=list)
     # Optional channel selector applied after channel activations and before TTA transforms.
-    # Options: None (no selection), int (single channel), [start, end] slice.
+    # Accepts: None (all channels), int, slice string like ":"/"0:3"/"-1:", or [int, ...].
     select_channel: Optional[Any] = None
 
     # Legacy/simple controls

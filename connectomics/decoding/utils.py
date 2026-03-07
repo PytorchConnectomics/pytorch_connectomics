@@ -8,6 +8,8 @@ This module provides common utilities used across different decoding functions:
     - merge_small_objects: Merge small objects with neighbors
 """
 
+
+from __future__ import annotations
 import numpy as np
 
 from skimage.morphology import dilation, remove_small_objects
@@ -32,8 +34,8 @@ def cast2dtype(segm: np.ndarray) -> np.ndarray:
     Returns:
         numpy.ndarray: Segmentation mask with optimal dtype.
     """
-    max_id = np.amax(np.unique(segm))
-    m_type = get_seg_type(int(max_id))
+    max_id = int(segm.max())
+    m_type = get_seg_type(max_id)
     return segm.astype(m_type)
 
 
@@ -57,18 +59,18 @@ def remove_small_instances(
         leads to potentially different behavior for bool and 0-and-1 arrays. Reference:
         https://scikit-image.org/docs/stable/api/skimage.morphology.html#remove-small-objects
     """
-    assert mode in ["none", "background", "background_2d", "neighbor", "neighbor_2d"]
+    valid_modes = ("none", "background", "background_2d", "neighbor", "neighbor_2d")
+    if mode not in valid_modes:
+        raise ValueError(f"Invalid mode '{mode}'. Expected one of {valid_modes}")
 
     if mode == "none":
         return segm
-
-    if mode == "background":
+    elif mode == "background":
         return remove_small_objects(segm, thres_small)
     elif mode == "background_2d":
         temp = [remove_small_objects(segm[i], thres_small) for i in range(segm.shape[0])]
         return np.stack(temp, axis=0)
-
-    if mode == "neighbor":
+    elif mode == "neighbor":
         return merge_small_objects(segm, thres_small, do_3d=True)
     elif mode == "neighbor_2d":
         temp = [merge_small_objects(segm[i], thres_small) for i in range(segm.shape[0])]

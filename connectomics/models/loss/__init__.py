@@ -12,9 +12,6 @@ from .build import (
     create_loss,
     create_combined_loss,
     create_loss_from_config,
-    create_binary_segmentation_loss,
-    create_multiclass_segmentation_loss,
-    create_focal_loss,
     list_available_losses,
 )
 from .metadata import LossMetadata, get_loss_metadata, get_loss_metadata_for_module
@@ -43,10 +40,6 @@ __all__ = [
     "create_loss",
     "create_combined_loss",
     "create_loss_from_config",
-    # Convenience factory functions
-    "create_binary_segmentation_loss",
-    "create_multiclass_segmentation_loss",
-    "create_focal_loss",
     # Utility
     "list_available_losses",
     "LossMetadata",

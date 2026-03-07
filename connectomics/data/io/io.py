@@ -4,23 +4,62 @@ Consolidated I/O operations for all formats.
 This module provides I/O functions for:
 - HDF5 files (.h5, .hdf5)
 - Image files (PNG, TIFF)
-- Pickle files (.pkl)
+- NIfTI files (.nii, .nii.gz)
 - High-level volume operations
 """
 
 from __future__ import annotations
 
 import glob
+import logging
 import os
-import pickle
 from typing import List, Optional, Union
 
 import h5py
 import imageio
-import nibabel as nib
 import numpy as np
 
 from .utils import rgb_to_seg
+
+logger = logging.getLogger(__name__)
+
+
+# =============================================================================
+# Format detection
+# =============================================================================
+
+
+def _detect_format(filename: str) -> str:
+    """Detect file format from filename.
+
+    Returns canonical format string:
+    'h5', 'tiff', 'png', 'nifti', 'zarr'.
+    """
+    if ".zarr" in filename:
+        return "zarr"
+    if filename.endswith(".nii.gz"):
+        return "nifti"
+    suffix = (
+        filename.rsplit(".", 1)[-1].lower()
+        if "." in filename
+        else ""
+    )
+    _SUFFIX_MAP = {
+        "h5": "h5",
+        "hdf5": "h5",
+        "tif": "tiff",
+        "tiff": "tiff",
+        "png": "png",
+        "nii": "nifti",
+    }
+    fmt = _SUFFIX_MAP.get(suffix)
+    if fmt is None:
+        raise ValueError(
+            f"Unrecognizable file format for {filename}. "
+            f"Expected: h5, hdf5, tif, tiff, png, nii, nii.gz"
+        )
+    return fmt
+
 
 # =============================================================================
 # HDF5 I/O
@@ -28,25 +67,23 @@ from .utils import rgb_to_seg
 
 
 def read_hdf5(
-    filename: str, dataset: Optional[str] = None, slice_obj: Optional[tuple] = None
+    filename: str,
+    dataset: Optional[str] = None,
+    slice_obj: Optional[tuple] = None,
 ) -> np.ndarray:
     """Read data from HDF5 file.
 
     Args:
-        filename: Path to the HDF5 file
-        dataset: Name of the dataset to read. If None, reads the first dataset
-        slice_obj: Optional slice for partial loading (e.g., np.s_[0:10,:,:])
-
-    Returns:
-        Data from the HDF5 file as numpy array
+        filename: Path to the HDF5 file.
+        dataset: Dataset name. If None, reads the first dataset.
+        slice_obj: Optional slice for partial loading.
     """
-    with h5py.File(filename, "r") as file_handle:
+    with h5py.File(filename, "r") as fh:
         if dataset is None:
-            dataset = list(file_handle)[0]
-
+            dataset = list(fh)[0]
         if slice_obj is not None:
-            return np.array(file_handle[dataset][slice_obj])
-        return np.array(file_handle[dataset])
+            return np.array(fh[dataset][slice_obj])
+        return np.array(fh[dataset])
 
 
 def write_hdf5(
@@ -56,235 +93,134 @@ def write_hdf5(
     compression: str = "gzip",
     compression_level: int = 4,
 ) -> None:
-    """Write data to HDF5 file.
-
-    Args:
-        filename: Path to the output HDF5 file
-        data_array: Data to write as numpy array or list of arrays
-        dataset: Name of the dataset(s) to create
-        compression: Compression algorithm ('gzip', 'lzf', or None)
-        compression_level: Compression level (0-9 for gzip)
-    """
-    with h5py.File(filename, "w") as file_handle:
+    """Write data to HDF5 file."""
+    with h5py.File(filename, "w") as fh:
         if isinstance(dataset, list):
-            for i, dataset_name in enumerate(dataset):
-                file_handle.create_dataset(
-                    dataset_name,
+            for i, name in enumerate(dataset):
+                _opts = (
+                    compression_level
+                    if compression == "gzip"
+                    else None
+                )
+                fh.create_dataset(
+                    name,
                     data=data_array[i],
                     compression=compression,
-                    compression_opts=compression_level if compression == "gzip" else None,
+                    compression_opts=_opts,
                     dtype=data_array[i].dtype,
                 )
         else:
-            file_handle.create_dataset(
+            _opts = (
+                compression_level
+                if compression == "gzip"
+                else None
+            )
+            fh.create_dataset(
                 dataset,
                 data=data_array,
                 compression=compression,
-                compression_opts=compression_level if compression == "gzip" else None,
+                compression_opts=_opts,
                 dtype=data_array.dtype,
             )
 
 
-def list_hdf5_datasets(filename: str) -> List[str]:
-    """List all datasets in an HDF5 file.
-
-    Args:
-        filename: Path to the HDF5 file
-
-    Returns:
-        List of dataset names
-    """
-    with h5py.File(filename, "r") as file_handle:
-        return list(file_handle.keys())
-
-
 # =============================================================================
-# Image I/O
+# Image I/O (internal helpers)
 # =============================================================================
 
-SUPPORTED_IMAGE_FORMATS = ["png", "tif", "tiff", "jpg", "jpeg"]
 
-
-def read_image(
-    filename: str, add_channel: bool = False, image_type: str = "image"
-) -> Optional[np.ndarray]:
+def _read_image(
+    filename: str,
+    image_type: str = "image",
+) -> np.ndarray:
     """Read a single image file.
 
-    Args:
-        filename: Path to the image file
-        add_channel: Whether to add a channel dimension for grayscale images
-
-    Returns:
-        Image data as numpy array with shape (H, W) or (H, W, C), or None if file doesn't exist
+    Raises FileNotFoundError if the file does not exist.
     """
     if not os.path.exists(filename):
-        return None
-
+        raise FileNotFoundError(
+            f"Image file not found: {filename}"
+        )
     image = imageio.imread(filename)
     if image_type == "seg" and image.ndim == 3:
         image = rgb_to_seg(image)
-    if add_channel and image.ndim == 2:
+    return image
+
+
+def _read_image_with_channel(
+    filename: str,
+    image_type: str = "image",
+) -> Optional[np.ndarray]:
+    """Read image and add trailing channel dim. Returns None
+    if file does not exist (used by tile reconstruction)."""
+    if not os.path.exists(filename):
+        return None
+    image = imageio.imread(filename)
+    if image_type == "seg" and image.ndim == 3:
+        image = rgb_to_seg(image)
+    if image.ndim == 2:
         image = image[:, :, None]
     return image
 
 
-def read_images(filename_pattern: str, image_type: str = "image") -> np.ndarray:
-    """Read multiple images from a filename pattern.
+def read_images(
+    filename_pattern: str,
+    image_type: str = "image",
+) -> np.ndarray:
+    """Read multiple images from a glob pattern.
 
-    Args:
-        filename_pattern: Glob pattern for matching image files
-
-    Returns:
-        Stack of images as numpy array with shape (N, H, W) or (N, H, W, C)
-
-    Raises:
-        ValueError: If no files found or unsupported dimensions
+    Returns stacked array with shape (N, H, W) or (N, H, W, C).
     """
     file_list = sorted(glob.glob(filename_pattern))
     if len(file_list) == 0:
-        raise ValueError(f"No files found matching pattern: {filename_pattern}")
-
-    # Determine array shape from first image
-    first_image = read_image(file_list[0], image_type=image_type)
-    data = np.zeros((len(file_list), *first_image.shape), dtype=first_image.dtype)
-    # Load all images
-    for i, filepath in enumerate(file_list):
-        data[i] = read_image(filepath, image_type=image_type)
-
-    return data
-
-
-def read_image_as_volume(filename: str, drop_channel: bool = False) -> np.ndarray:
-    """Read a single image file as a volume with channel-first format.
-
-    Args:
-        filename: Path to the image file
-        drop_channel: Whether to convert multichannel images to grayscale
-
-    Returns:
-        Image data as numpy array with shape (C, H, W)
-
-    Raises:
-        ValueError: If file format is not supported
-    """
-    image_suffix = filename[filename.rfind(".") + 1 :].lower()
-    if image_suffix not in SUPPORTED_IMAGE_FORMATS:
         raise ValueError(
-            f"Unsupported format: {image_suffix}. Supported formats: {SUPPORTED_IMAGE_FORMATS}"
+            f"No files found matching: {filename_pattern}"
         )
-
-    data = imageio.imread(filename)
-
-    if data.ndim == 3 and not drop_channel:
-        # Convert (H, W, C) to (C, H, W) shape
-        data = data.transpose(2, 0, 1)
-        return data
-
-    if drop_channel and data.ndim == 3:
-        # Convert RGB image to grayscale by average
-        data = np.mean(data, axis=-1).astype(np.uint8)
-
-    return data[np.newaxis, :, :]  # Return data as (1, H, W) shape
-
-
-def save_image(filename: str, data: np.ndarray) -> None:
-    """Save a single image to file.
-
-    Args:
-        filename: Output filename
-        data: Image data with shape (H, W) or (H, W, C)
-    """
-    imageio.imsave(filename, data)
-
-
-def save_images(directory: str, data: np.ndarray, prefix: str = "", format: str = "png") -> None:
-    """Save a stack of images to a directory.
-
-    Args:
-        directory: Output directory path
-        data: Image stack with shape (N, H, W) or (N, H, W, C)
-        prefix: Filename prefix (default: '')
-        format: Image format (default: 'png')
-    """
-    os.makedirs(directory, exist_ok=True)
-
-    for i in range(data.shape[0]):
-        filename = os.path.join(directory, f"{prefix}{i:04d}.{format}")
-        imageio.imsave(filename, data[i])
-
-
-# =============================================================================
-# Pickle I/O
-# =============================================================================
-
-
-def read_pickle_file(filename: str) -> Union[object, List[object]]:
-    """Read data from a pickle file.
-
-    Args:
-        filename: Path to the pickle file to read
-
-    Returns:
-        The data stored in the pickle file. If multiple objects are stored,
-        returns a list. If only one object, returns the object directly.
-    """
-    data = []
-    with open(filename, "rb") as file_handle:
-        while True:
-            try:
-                data.append(pickle.load(file_handle))
-            except EOFError:
-                break
-
-    if len(data) == 1:
-        return data[0]
+    first = _read_image(file_list[0], image_type=image_type)
+    data = np.zeros(
+        (len(file_list), *first.shape), dtype=first.dtype
+    )
+    data[0] = first
+    for i, fp in enumerate(file_list[1:], start=1):
+        data[i] = _read_image(fp, image_type=image_type)
     return data
 
 
-def write_pickle_file(filename: str, data: object) -> None:
-    """Write data to a pickle file.
-
-    Args:
-        filename: Path to the output pickle file
-        data: Data to pickle
-    """
-    with open(filename, "wb") as file_handle:
-        pickle.dump(data, file_handle)
-
-
 # =============================================================================
-# High-level Volume I/O
+# TIFF helpers
 # =============================================================================
 
 
 def _tiff_series_are_stackable(tif) -> bool:
-    """Return True when multiple TIFF series can be stacked as a depth axis."""
+    """True when multiple TIFF series can be depth-stacked."""
     if len(tif.series) <= 1:
         return False
-
-    first_shape = tuple(tif.series[0].shape)
-    first_axes = tif.series[0].axes
-    for series in tif.series[1:]:
-        if tuple(series.shape) != first_shape or series.axes != first_axes:
+    ref = tif.series[0]
+    ref_shape = tuple(ref.shape)
+    ref_axes = ref.axes
+    ref_dtype = ref.dtype
+    for s in tif.series[1:]:
+        if (
+            tuple(s.shape) != ref_shape
+            or s.axes != ref_axes
+            or s.dtype != ref_dtype
+        ):
             return False
     return True
 
 
 def _read_tiff_volume(filename: str) -> np.ndarray:
-    """Read TIFF volume data with robust multi-page handling."""
+    """Read TIFF volume with robust multi-page handling."""
     try:
         import tifffile
     except ModuleNotFoundError:
-        # Fallback for environments without tifffile.
         return imageio.volread(filename).squeeze()
 
     with tifffile.TiffFile(filename) as tif:
         if len(tif.pages) == 0:
-            raise ValueError(f"TIFF file has no pages: {filename}")
-
-        # Some multi-page TIFFs are stored as many 2D series. In this case,
-        # tifffile's default imread/asarray returns only the first series/page.
-        # Explicit key=slice(None) stacks all pages into a depth dimension.
+            raise ValueError(
+                f"TIFF file has no pages: {filename}"
+            )
         if len(tif.series) == 0:
             data = tif.pages[0].asarray()
         elif _tiff_series_are_stackable(tif):
@@ -296,7 +232,7 @@ def _read_tiff_volume(filename: str) -> np.ndarray:
 
 
 def _get_tiff_volume_shape(filename: str) -> tuple:
-    """Get TIFF volume shape from metadata, supporting multi-page stacks."""
+    """Get TIFF volume shape from metadata."""
     try:
         import tifffile
     except ModuleNotFoundError:
@@ -305,99 +241,148 @@ def _get_tiff_volume_shape(filename: str) -> tuple:
 
     with tifffile.TiffFile(filename) as tif:
         if len(tif.pages) == 0:
-            raise ValueError(f"TIFF file has no pages: {filename}")
-
+            raise ValueError(
+                f"TIFF file has no pages: {filename}"
+            )
         if len(tif.series) == 0:
             return tuple(tif.pages[0].shape)
         if _tiff_series_are_stackable(tif):
-            return (len(tif.series), *tuple(tif.series[0].shape))
+            return (
+                len(tif.series),
+                *tuple(tif.series[0].shape),
+            )
         return tuple(tif.series[0].shape)
 
 
-def read_volume(
-    filename: str, dataset: Optional[str] = None, drop_channel: bool = False
-) -> np.ndarray:
-    """Load volumetric data in HDF5, TIFF, PNG, or NIfTI formats.
+def _normalize_4d_volume(data: np.ndarray) -> np.ndarray:
+    """Normalize a 4D volume to channel-first (C, D, H, W).
 
-    Args:
-        filename: Path to the volume file
-        dataset: HDF5 dataset name (only used for HDF5 files)
-        drop_channel: Whether to convert multichannel volumes to single channel
-
-    Returns:
-        Volume data as numpy array with shape (D, H, W) or (C, D, H, W)
-
-    Raises:
-        ValueError: If file format is not recognized
+    Heuristic: the smallest dimension is the channel dim.
+    - If axis 0 is smallest -> already (C, D, H, W)
+    - If axis 3 is smallest -> (D, H, W, C) -> transpose
+    - If axis 1 is smallest -> (D, C, H, W) -> transpose
     """
-    # Handle .nii.gz files specially
-    if filename.endswith(".nii.gz"):
-        image_suffix = "nii.gz"
+    if data.ndim != 4:
+        return data
+    min_axis = int(np.argmin(data.shape))
+    if min_axis == 0:
+        return data  # Already (C, D, H, W)
+    if min_axis == 3:
+        # (D, H, W, C) -> (C, D, H, W)
+        return data.transpose(3, 0, 1, 2)
+    if min_axis == 1:
+        # (D, C, H, W) -> (C, D, H, W)
+        return data.transpose(1, 0, 2, 3)
+    return data
+
+
+# =============================================================================
+# NIfTI helpers (lazy import)
+# =============================================================================
+
+
+def _read_nifti(filename: str) -> np.ndarray:
+    """Read NIfTI volume, converting to (D, H, W) or
+    (C, D, H, W)."""
+    import nibabel as nib
+
+    nii_img = nib.load(filename)
+    data = np.asarray(nii_img.dataobj)
+    # NIfTI is (X, Y, Z) -> (Z, Y, X) = (D, H, W)
+    if data.ndim == 3:
+        data = data.transpose(2, 1, 0)
+    elif data.ndim == 4:
+        # (X, Y, Z, C) -> (C, Z, Y, X) = (C, D, H, W)
+        data = data.transpose(3, 2, 1, 0)
+    return data
+
+
+def _write_nifti(
+    filename: str, volume: np.ndarray
+) -> None:
+    """Write NIfTI volume."""
+    import nibabel as nib
+
+    if volume.ndim == 3:
+        nii_data = volume.transpose(2, 1, 0)
+    elif volume.ndim == 4:
+        nii_data = volume.transpose(3, 2, 1, 0)
     else:
-        image_suffix = filename[filename.rfind(".") + 1 :].lower()
+        nii_data = volume
+    nii_img = nib.Nifti1Image(nii_data, affine=np.eye(4))
+    nib.save(nii_img, filename)
 
-    if image_suffix in ["h5", "hdf5"]:
+
+def _get_nifti_shape(filename: str) -> tuple:
+    """Get NIfTI shape, converted to our convention."""
+    import nibabel as nib
+
+    nii_img = nib.load(filename)
+    s = nii_img.header.get_data_shape()
+    if len(s) == 3:
+        return (s[2], s[1], s[0])
+    if len(s) == 4:
+        return (s[3], s[2], s[1], s[0])
+    return s
+
+
+# =============================================================================
+# High-level Volume I/O
+# =============================================================================
+
+
+def read_volume(
+    filename: str,
+    dataset: Optional[str] = None,
+    drop_channel: bool = False,
+) -> np.ndarray:
+    """Load volumetric data (HDF5, TIFF, PNG, NIfTI).
+
+    Returns array with shape (D, H, W) or (C, D, H, W).
+    """
+    fmt = _detect_format(filename)
+
+    if fmt == "h5":
         data = read_hdf5(filename, dataset)
-    elif "tif" in image_suffix:
-        # Check if filename contains glob patterns
+
+    elif fmt == "tiff":
         if "*" in filename or "?" in filename:
-            # Expand glob pattern to get matching files
             file_list = sorted(glob.glob(filename))
-            if len(file_list) == 0:
-                raise FileNotFoundError(f"No TIFF files found matching pattern: {filename}")
-
-            # Read each file and stack along depth dimension
+            if not file_list:
+                raise FileNotFoundError(
+                    "No TIFF files found matching: "
+                    f"{filename}"
+                )
             volumes = []
-            for filepath in file_list:
-                vol = _read_tiff_volume(filepath)
-                # Ensure all volumes have at least 3D (D, H, W)
+            for fp in file_list:
+                vol = _read_tiff_volume(fp)
                 if vol.ndim == 2:
-                    vol = vol[np.newaxis, ...]  # Add depth dimension: (H, W) -> (1, H, W)
-                # vol.ndim == 3 means (D, H, W), which is what we want
+                    vol = vol[np.newaxis, ...]
                 volumes.append(vol)
-
-            # Stack all volumes along depth dimension
-            # Each volume is (D_i, H, W), result will be (sum(D_i), H, W)
-            data = np.concatenate(volumes, axis=0)  # Stack along depth (first dimension)
+            data = np.concatenate(volumes, axis=0)
         else:
-            # Single file or multi-page TIFF
             data = _read_tiff_volume(filename)
-
         if data.ndim == 4:
-            # Convert (D, C, H, W) to (C, D, H, W) order
-            data = data.transpose(1, 0, 2, 3)
-    elif "png" in image_suffix:
+            data = _normalize_4d_volume(data)
+
+    elif fmt == "png":
         data = read_images(filename)
         if data.ndim == 4:
-            # Convert (D, H, W, C) to (C, D, H, W) order
+            # (D, H, W, C) -> (C, D, H, W)
             data = data.transpose(3, 0, 1, 2)
-    elif image_suffix in ["nii", "nii.gz"]:
-        # NIfTI format (.nii or .nii.gz)
-        nii_img = nib.load(filename)
-        data = np.asarray(nii_img.dataobj)
-        # NIfTI is typically (X, Y, Z) or (X, Y, Z, C)
-        # Convert to our (D, H, W) or (C, D, H, W) format
-        # X=W (width), Y=H (height), Z=D (depth)
-        if data.ndim == 3:
-            # (X, Y, Z) -> (Z, Y, X) = (D, H, W)
-            data = data.transpose(2, 1, 0)
-        elif data.ndim == 4:
-            # (X, Y, Z, C) -> (C, Z, Y, X) = (C, D, H, W)
-            data = data.transpose(3, 2, 1, 0)
-    else:
-        raise ValueError(
-            f"Unrecognizable file format for {filename}. "
-            f"Expected: h5, hdf5, tif, tiff, png, nii, or nii.gz"
-        )
 
-    if data.ndim not in [2, 3, 4]:
+    elif fmt == "nifti":
+        data = _read_nifti(filename)
+
+    else:
+        raise ValueError(f"Unsupported format: {fmt}")
+
+    if data.ndim not in (2, 3, 4):
         raise ValueError(
-            f"Supported data dimensions: 2D (H, W), 3D (D, H, W), or 4D (C, D, H, W), "
-            f"got {data.ndim}D"
+            f"Expected 2D/3D/4D data, got {data.ndim}D"
         )
 
     if drop_channel and data.ndim == 4:
-        # Merge multiple channels to grayscale by average
         original_dtype = data.dtype
         data = np.mean(data, axis=0).astype(original_dtype)
 
@@ -405,105 +390,86 @@ def read_volume(
 
 
 def save_volume(
-    filename: str, volume: np.ndarray, dataset: str = "main", file_format: str = "h5"
+    filename: str,
+    volume: np.ndarray,
+    dataset: str = "main",
+    file_format: str = "h5",
 ) -> None:
     """Save volumetric data in specified format.
 
     Args:
-        filename: Output filename or directory path
-        volume: Volume data to save
-        dataset: Dataset name for HDF5 format
-        file_format: Output format ('h5', 'tiff', 'png', 'nii', or 'nii.gz')
-
-    Raises:
-        ValueError: If file format is not supported
+        filename: Output filename or directory path.
+        volume: Volume data to save.
+        dataset: Dataset name for HDF5 format.
+        file_format: 'h5', 'tiff', 'png', 'nii', 'nii.gz'.
     """
     if file_format == "h5":
         write_hdf5(filename, volume, dataset=dataset)
-    elif file_format in ["tif", "tiff"]:
-        # TIFF format - supports both 2D and 3D multi-page TIFF
+
+    elif file_format in ("tif", "tiff"):
         import tifffile
-        
-        # Convert from our internal format to TIFF-compatible format
-        # Internal: (D, H, W) or (C, D, H, W)
-        # TIFF: (D, H, W) for single-channel or (D, H, W, C) for multi-channel
-        if volume.ndim == 3:
-            # Single-channel 3D: (D, H, W) - can save directly
-            tiff_data = volume
-        elif volume.ndim == 4:
-            # Multi-channel 3D: (C, D, H, W) -> (D, H, W, C)
+
+        if volume.ndim == 4:
+            # (C, D, H, W) -> (D, H, W, C)
             tiff_data = volume.transpose(1, 2, 3, 0)
-        elif volume.ndim == 2:
-            # Single 2D image: (H, W) - can save directly
-            tiff_data = volume
         else:
             tiff_data = volume
-        
-        # Save with compression for efficiency
         tifffile.imwrite(
-            filename, 
+            filename,
             tiff_data,
-            compression='zlib',  # Good balance of speed and compression
-            photometric='minisblack'  # Grayscale interpretation
+            compression="zlib",
+            photometric="minisblack",
         )
+
     elif file_format == "png":
-        save_images(filename, volume)
-    elif file_format in ["nii", "nii.gz"]:
-        # NIfTI format
-        # Convert from our (D, H, W) or (C, D, H, W) to NIfTI (X, Y, Z) or (X, Y, Z, C)
-        if volume.ndim == 3:
-            # (D, H, W) -> (W, H, D) = (X, Y, Z)
-            nii_data = volume.transpose(2, 1, 0)
-        elif volume.ndim == 4:
-            # (C, D, H, W) -> (W, H, D, C) = (X, Y, Z, C)
-            nii_data = volume.transpose(3, 2, 1, 0)
-        else:
-            nii_data = volume
-        nii_img = nib.Nifti1Image(nii_data, affine=np.eye(4))
-        nib.save(nii_img, filename)
+        _save_images(filename, volume)
+
+    elif file_format in ("nii", "nii.gz"):
+        _write_nifti(filename, volume)
+
     else:
         raise ValueError(
-            f"Unsupported format: {file_format}. Supported formats: h5, tiff, png, nii, nii.gz"
+            f"Unsupported format: {file_format}. "
+            f"Expected: h5, tiff, png, nii, nii.gz"
         )
 
 
-def get_vol_shape(filename: str, dataset: Optional[str] = None) -> tuple:
-    """Get volume shape without loading the entire volume into memory.
+def _save_images(
+    directory: str,
+    data: np.ndarray,
+    prefix: str = "",
+    fmt: str = "png",
+) -> None:
+    """Save a stack of images to a directory."""
+    os.makedirs(directory, exist_ok=True)
+    for i in range(data.shape[0]):
+        path = os.path.join(
+            directory, f"{prefix}{i:04d}.{fmt}"
+        )
+        imageio.imsave(path, data[i])
 
-    This function efficiently retrieves the shape of volumetric data
-    by reading only metadata from the file, not the actual data.
 
-    Args:
-        filename: Path to the volume file
-        dataset: HDF5 dataset name (only used for HDF5 files, None = first dataset)
+def get_vol_shape(
+    filename: str,
+    dataset: Optional[str] = None,
+) -> tuple:
+    """Get volume shape without loading data.
 
-    Returns:
-        Shape tuple of the volume (e.g., (D, H, W) or (C, D, H, W))
-
-    Raises:
-        ValueError: If file format is not recognized
-        FileNotFoundError: If file does not exist
-
-    Example:
-        >>> shape = get_vol_shape('datasets/train_image.h5')
-        >>> print(shape)  # (165, 768, 1024)
-        >>>
-        >>> shape = get_vol_shape('datasets/train_im.tif')
-        >>> print(shape)  # (165, 768, 1024)
+    Returns shape consistent with what read_volume would
+    produce: (D, H, W) or (C, D, H, W).
     """
     if not os.path.exists(filename):
         raise FileNotFoundError(f"File not found: {filename}")
 
-    # Zarr array/group paths (e.g., ".../data.zarr/img").
-    # Check before suffix parsing because zarr array paths often have no suffix.
-    if ".zarr" in filename:
+    fmt = _detect_format(filename)
+
+    if fmt == "zarr":
         try:
-            import zarr  # type: ignore
+            import zarr
         except ModuleNotFoundError as exc:
             raise ModuleNotFoundError(
-                "Reading zarr shapes requires `zarr`. Install with: pip install zarr"
+                "zarr required. pip install zarr"
             ) from exc
-
         obj = zarr.open(filename, mode="r")
         if hasattr(obj, "shape"):
             return tuple(obj.shape)
@@ -511,82 +477,39 @@ def get_vol_shape(filename: str, dataset: Optional[str] = None) -> tuple:
             return tuple(obj[dataset].shape)
         keys = list(obj.keys())
         if not keys:
-            raise ValueError(f"No arrays found in zarr group: {filename}")
+            raise ValueError(
+                f"No arrays in zarr group: {filename}"
+            )
         return tuple(obj[keys[0]].shape)
 
-    # Handle .nii.gz files specially
-    if filename.endswith(".nii.gz"):
-        image_suffix = "nii.gz"
-    else:
-        image_suffix = filename[filename.rfind(".") + 1 :].lower()
-
-    if image_suffix in ["h5", "hdf5"]:
-        # HDF5: Read shape from metadata (no data loading)
+    if fmt == "h5":
         with h5py.File(filename, "r") as f:
             if dataset is None:
                 dataset = list(f.keys())[0]
             return f[dataset].shape
 
-    elif "tif" in image_suffix:
+    if fmt == "tiff":
         return _get_tiff_volume_shape(filename)
 
-    elif "png" in image_suffix:
-        # PNG stack: Count files and read one image for dimensions
+    if fmt == "png":
         file_list = sorted(glob.glob(filename))
-        if len(file_list) == 0:
-            raise ValueError(f"No PNG files found matching pattern: {filename}")
-
-        # Read first image to get spatial dimensions
-        first_image = imageio.imread(file_list[0])
-        num_slices = len(file_list)
-
-        if first_image.ndim == 2:
-            # Grayscale: (D, H, W)
-            return (num_slices, *first_image.shape)
-        elif first_image.ndim == 3:
-            # Color: (D, H, W, C)
-            return (num_slices, *first_image.shape)
-        else:
-            raise ValueError(f"Unsupported PNG dimensions: {first_image.ndim}D")
-
-    elif image_suffix in ["nii", "nii.gz"]:
-        # NIfTI: Read shape from header (no data loading)
-        nii_img = nib.load(filename)
-        nii_shape = nii_img.header.get_data_shape()
-        # Convert from NIfTI (X, Y, Z) or (X, Y, Z, C) to our (D, H, W) or (C, D, H, W)
-        if len(nii_shape) == 3:
-            # (X, Y, Z) -> (Z, Y, X) = (D, H, W)
-            return (nii_shape[2], nii_shape[1], nii_shape[0])
-        elif len(nii_shape) == 4:
-            # (X, Y, Z, C) -> (C, D, H, W)
-            return (nii_shape[3], nii_shape[2], nii_shape[1], nii_shape[0])
-        else:
-            return nii_shape
-
-    else:
+        if not file_list:
+            raise ValueError(
+                f"No PNG files found: {filename}"
+            )
+        first = imageio.imread(file_list[0])
+        n = len(file_list)
+        if first.ndim == 2:
+            return (n, *first.shape)
+        if first.ndim == 3:
+            # Match read_volume: (C, D, H, W)
+            c = first.shape[-1]
+            return (c, n, first.shape[0], first.shape[1])
         raise ValueError(
-            f"Unrecognizable file format for {filename}. "
-            f"Expected: h5, hdf5, tif, tiff, png, nii, or nii.gz"
+            f"Unsupported PNG dims: {first.ndim}D"
         )
 
+    if fmt == "nifti":
+        return _get_nifti_shape(filename)
 
-__all__ = [
-    # HDF5 I/O
-    "read_hdf5",
-    "write_hdf5",
-    "list_hdf5_datasets",
-    # Image I/O
-    "read_image",
-    "read_images",
-    "read_image_as_volume",
-    "save_image",
-    "save_images",
-    "SUPPORTED_IMAGE_FORMATS",
-    # Pickle I/O
-    "read_pickle_file",
-    "write_pickle_file",
-    # High-level volume I/O
-    "read_volume",
-    "save_volume",
-    "get_vol_shape",
-]
+    raise ValueError(f"Unsupported format: {fmt}")

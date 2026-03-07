@@ -4,7 +4,7 @@ Modern Hydra-based configuration system for PyTorch Connectomics.
 
 # New Hydra config system (primary)
 from .schema import Config
-from .config_io import (
+from .pipeline.config_io import (
     load_config,
     save_config,
     merge_configs,
@@ -17,10 +17,11 @@ from .config_io import (
     create_experiment_name,
     resolve_data_paths,
 )
-from .stage_resolver import resolve_default_profiles
+from .pipeline.stage_resolver import resolve_default_profiles
+from .pipeline.dict_utils import to_plain, as_plain_dict, cfg_get
 
 # Auto-configuration system
-from .auto_config import (
+from .hardware.auto_config import (
     auto_plan_config,
     AutoConfigPlanner,
     AutoPlanResult,
@@ -28,7 +29,7 @@ from .auto_config import (
 )
 
 # GPU utilities
-from .gpu_utils import (
+from .hardware.gpu_utils import (
     get_gpu_info,
     print_gpu_info,
     suggest_batch_size,
@@ -52,6 +53,10 @@ __all__ = [
     "create_experiment_name",
     "resolve_data_paths",
     "resolve_default_profiles",
+    # Config utilities
+    "to_plain",
+    "as_plain_dict",
+    "cfg_get",
     # Auto-configuration
     "auto_plan_config",
     "AutoConfigPlanner",

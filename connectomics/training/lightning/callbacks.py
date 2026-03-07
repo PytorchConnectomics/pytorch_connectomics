@@ -5,17 +5,69 @@ Provides callbacks for visualization, checkpointing, and monitoring.
 """
 
 from __future__ import annotations
-from typing import Dict, Any, Optional
+import logging
+from typing import Any, Dict, List, Optional, Union
+
+import pytorch_lightning as pl
 import torch
 from pytorch_lightning import Callback
+from torch.utils.data import ConcatDataset, DataLoader, Dataset, Subset
 
-from ...utils.visualizer import Visualizer, get_visualization_mask
+try:
+    from torch.utils.data import ChainDataset
+    _HAS_CHAIN_DATASET = True
+except ImportError:
+    _HAS_CHAIN_DATASET = False
+
+from ...data.process.affinity import (
+    affinity_deepem_crop_enabled,
+    crop_spatial_by_offsets,
+    resolve_affinity_offsets_for_channel_slice,
+)
+from .visualizer import Visualizer, get_visualization_mask
+
+logger = logging.getLogger(__name__)
 
 __all__ = [
     "VisualizationCallback",
     "NaNDetectionCallback",
     "EMAWeightsCallback",
+    "ValidationReseedingCallback",
 ]
+
+
+def _apply_affinity_visualization_crop_if_needed(
+    cfg,
+    *,
+    image: torch.Tensor,
+    label: torch.Tensor,
+    pred: torch.Tensor,
+    mask: Optional[torch.Tensor],
+) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, Optional[torch.Tensor]]:
+    """Mirror the full-affinity DeepEM crop in visualization for pure-affinity outputs."""
+    if cfg is None or not affinity_deepem_crop_enabled(cfg):
+        return image, label, pred, mask
+    if image.ndim < 5 or label.ndim < 5 or pred.ndim < 5:
+        return image, label, pred, mask
+
+    num_channels = int(label.shape[1])
+    if num_channels != int(pred.shape[1]):
+        return image, label, pred, mask
+
+    offsets = resolve_affinity_offsets_for_channel_slice(
+        cfg,
+        num_channels=num_channels,
+        channel_slice=None,
+    )
+    if not offsets:
+        return image, label, pred, mask
+
+    image = crop_spatial_by_offsets(image, offsets, item_name="visualization image")
+    label = crop_spatial_by_offsets(label, offsets, item_name="visualization label")
+    pred = crop_spatial_by_offsets(pred, offsets, item_name="visualization prediction")
+    if mask is not None:
+        mask = crop_spatial_by_offsets(mask, offsets, item_name="visualization mask")
+    return image, label, pred, mask
 
 
 class VisualizationCallback(Callback):
@@ -143,6 +195,13 @@ class VisualizationCallback(Callback):
                 mask_cpu = cached_batch.get("mask", None)
                 if mask_cpu is not None:
                     mask_cpu = mask_cpu.cpu()
+                image_cpu, label_cpu, pred_cpu, mask_cpu = _apply_affinity_visualization_crop_if_needed(
+                    self.cfg,
+                    image=image_cpu,
+                    label=label_cpu,
+                    pred=pred_cpu,
+                    mask=mask_cpu,
+                )
 
             self._log_visualization(
                 image=image_cpu,
@@ -154,15 +213,14 @@ class VisualizationCallback(Callback):
                 prefix=prefix,
             )
             if prefix == "train":
-                print(f"✓ Saved visualization for epoch {trainer.current_epoch}")
+                logger.info("Saved visualization for epoch %s", trainer.current_epoch)
         except Exception as e:
             import traceback
 
-            print(f"{prefix} epoch-end visualization failed: {e}")
-            print(f"Error type: {type(e).__name__}")
+            logger.error("%s epoch-end visualization failed: %s", prefix, e)
+            logger.error("Error type: %s", type(e).__name__)
             if hasattr(e, "__traceback__"):
-                print("Traceback:")
-                traceback.print_exception(type(e), e, e.__traceback__)
+                logger.error("Traceback:\n%s", "".join(traceback.format_exception(type(e), e, e.__traceback__)))
 
     def _log_visualization(
         self,
@@ -250,7 +308,6 @@ class NaNDetectionCallback(Callback):
         self.terminate_on_nan = terminate_on_nan
         self.print_diagnostics = print_diagnostics
         self._last_batch = None  # Store last batch for debugging
-        self._last_outputs = None  # Store last outputs for debugging
 
     def on_train_batch_start(
         self, trainer, pl_module, batch: Dict[str, torch.Tensor], batch_idx: int
@@ -304,20 +361,20 @@ class NaNDetectionCallback(Callback):
     ):
         """Handle NaN/Inf detection with diagnostics and debugging."""
         issue_type = "NaN" if is_nan else "Inf"
-        print(f"\n{'=' * 80}")
-        print(f"⚠️  {issue_type} DETECTED IN TRAINING LOSS!")
-        print(f"{'=' * 80}")
-        print(f"Epoch: {trainer.current_epoch}, Global Step: {trainer.global_step}")
-        print(f"Loss value: {loss_value}")
+        logger.warning("\n%s", "=" * 80)
+        logger.warning("%s DETECTED IN TRAINING LOSS!", issue_type)
+        logger.warning("=" * 80)
+        logger.warning("Epoch: %s, Global Step: %s", trainer.current_epoch, trainer.global_step)
+        logger.warning("Loss value: %s", loss_value)
         if nan_metric_keys:
-            print(f"Affected metrics: {', '.join(nan_metric_keys)}")
+            logger.warning("Affected metrics: %s", ", ".join(nan_metric_keys))
 
         if self.print_diagnostics:
             self._print_diagnostics(trainer, pl_module, batch, None)
 
         if self.debug_on_nan:
-            print("\n🔍 Interactive debugger disabled in production path.")
-            print("   Set monitor.nan_detection.debug_on_nan=false to suppress this notice.")
+            logger.warning("Interactive debugger disabled in production path.")
+            logger.warning("   Set monitor.nan_detection.debug_on_nan=false to suppress this notice.")
 
         if self.terminate_on_nan:
             raise ValueError(
@@ -326,32 +383,32 @@ class NaNDetectionCallback(Callback):
 
     def _print_diagnostics(self, trainer, pl_module, batch, outputs):
         """Print detailed diagnostic information."""
-        print(f"\n{'─' * 80}")
-        print("📊 DIAGNOSTIC INFORMATION:")
-        print(f"{'─' * 80}")
+        logger.warning("\n%s", "─" * 80)
+        logger.warning("DIAGNOSTIC INFORMATION:")
+        logger.warning("─" * 80)
 
         # Batch statistics
         if "image" in batch:
             images = batch["image"]
-            print("\n🖼️  Input Image Stats:")
-            print(f"   Shape: {images.shape}")
-            print(f"   Min: {images.min().item():.6f}, Max: {images.max().item():.6f}")
-            print(f"   Mean: {images.mean().item():.6f}, Std: {images.std().item():.6f}")
-            print(f"   Contains NaN: {torch.isnan(images).any().item()}")
-            print(f"   Contains Inf: {torch.isinf(images).any().item()}")
+            logger.warning("\nInput Image Stats:")
+            logger.warning("   Shape: %s", images.shape)
+            logger.warning("   Min: %.6f, Max: %.6f", images.min().item(), images.max().item())
+            logger.warning("   Mean: %.6f, Std: %.6f", images.mean().item(), images.std().item())
+            logger.warning("   Contains NaN: %s", torch.isnan(images).any().item())
+            logger.warning("   Contains Inf: %s", torch.isinf(images).any().item())
 
         if "label" in batch:
             labels = batch["label"]
-            print("\n🎯 Label Stats:")
-            print(f"   Shape: {labels.shape}")
-            print(f"   Min: {labels.min().item():.6f}, Max: {labels.max().item():.6f}")
-            print(f"   Unique values: {torch.unique(labels).tolist()}")
-            print(f"   Contains NaN: {torch.isnan(labels).any().item()}")
-            print(f"   Contains Inf: {torch.isinf(labels).any().item()}")
+            logger.warning("\nLabel Stats:")
+            logger.warning("   Shape: %s", labels.shape)
+            logger.warning("   Min: %.6f, Max: %.6f", labels.min().item(), labels.max().item())
+            logger.warning("   Unique values: %s", torch.unique(labels).tolist())
+            logger.warning("   Contains NaN: %s", torch.isnan(labels).any().item())
+            logger.warning("   Contains Inf: %s", torch.isinf(labels).any().item())
 
         # Check gradients
         if self.check_grads:
-            print("\n📉 Gradient Stats:")
+            logger.warning("\nGradient Stats:")
             nan_grads = []
             inf_grads = []
             grad_norms = []
@@ -367,18 +424,18 @@ class NaNDetectionCallback(Callback):
                         inf_grads.append(name)
 
             if nan_grads:
-                print(f"   ⚠️  Parameters with NaN gradients: {nan_grads[:5]}")
+                logger.warning("   Parameters with NaN gradients: %s", nan_grads[:5])
             if inf_grads:
-                print(f"   ⚠️  Parameters with Inf gradients: {inf_grads[:5]}")
+                logger.warning("   Parameters with Inf gradients: %s", inf_grads[:5])
 
             # Show largest gradient norms
             grad_norms.sort(key=lambda x: x[1], reverse=True)
-            print("   Top 5 gradient norms:")
+            logger.warning("   Top 5 gradient norms:")
             for name, norm in grad_norms[:5]:
-                print(f"      {name}: {norm:.6f}")
+                logger.warning("      %s: %.6f", name, norm)
 
         # Check model parameters
-        print("\n⚙️  Model Parameter Stats:")
+        logger.warning("\nModel Parameter Stats:")
         nan_params = []
         inf_params = []
         for name, param in pl_module.named_parameters():
@@ -388,24 +445,24 @@ class NaNDetectionCallback(Callback):
                 inf_params.append(name)
 
         if nan_params:
-            print(f"   ⚠️  Parameters with NaN: {nan_params}")
+            logger.warning("   Parameters with NaN: %s", nan_params)
         if inf_params:
-            print(f"   ⚠️  Parameters with Inf: {inf_params}")
+            logger.warning("   Parameters with Inf: %s", inf_params)
         if not nan_params and not inf_params:
-            print("   ✓ No NaN/Inf in parameters")
+            logger.warning("   No NaN/Inf in parameters")
 
         # Learning rate
         optimizer = trainer.optimizers[0] if trainer.optimizers else None
         lr = None
         if optimizer:
             lr = optimizer.param_groups[0]["lr"]
-            print("\n📚 Optimizer:")
+            logger.warning("\nOptimizer:")
         if lr is not None:
-            print(f"   Learning rate: {lr:.2e}")
+            logger.warning("   Learning rate: %.2e", lr)
         else:
-            print("   Learning rate: N/A (optimizer not initialized)")
+            logger.warning("   Learning rate: N/A (optimizer not initialized)")
 
-        print(f"{'─' * 80}\n")
+        logger.warning("─" * 80)
 
 
 class EMAWeightsCallback(Callback):
@@ -553,3 +610,169 @@ class EMAWeightsCallback(Callback):
 
         self._backup_state = None
         self._using_ema = False
+
+
+class ValidationReseedingCallback(Callback):
+    """
+    Callback to reseed validation datasets at the start of each validation epoch.
+
+    Ensures validation samples different patches each epoch while maintaining
+    determinism, preventing the model from memorizing fixed validation patches.
+
+    Args:
+        base_seed: Base random seed (typically from cfg.system.seed)
+        log_fingerprint: If True, log a sampling fingerprint for verification
+        log_all_ranks: If True, log from all DDP ranks (otherwise rank 0 only)
+        verbose: If True, log detailed information about dataset reseeding
+    """
+
+    def __init__(
+        self,
+        base_seed: int = 0,
+        log_fingerprint: bool = True,
+        log_all_ranks: bool = False,
+        verbose: bool = True,
+    ):
+        super().__init__()
+        self.base_seed = base_seed
+        self.log_fingerprint = log_fingerprint
+        self.log_all_ranks = log_all_ranks
+        self.verbose = verbose
+
+        self._reseeded_count = 0
+        self._skipped_count = 0
+        self._last_epoch = -1
+
+    def on_validation_epoch_start(
+        self,
+        trainer: pl.Trainer,
+        pl_module: pl.LightningModule,
+    ) -> None:
+        """Reseed validation datasets before each validation epoch."""
+        if not self.log_all_ranks and trainer.global_rank != 0:
+            return
+
+        current_epoch = trainer.current_epoch
+        is_sanity_check = trainer.sanity_checking
+
+        if current_epoch == self._last_epoch and not is_sanity_check:
+            return
+
+        self._last_epoch = current_epoch
+
+        epoch_type = "SANITY CHECK" if is_sanity_check else f"EPOCH {current_epoch}"
+        if self.verbose:
+            logger.info(
+                "[VAL RESEED] %s | Step %s | Rank %s",
+                epoch_type, trainer.global_step, trainer.global_rank,
+            )
+
+        val_dataloaders = self._get_validation_dataloaders(trainer)
+        if not val_dataloaders:
+            logger.warning("[VAL RESEED SKIPPED] %s | No validation dataloaders", epoch_type)
+            return
+
+        total_reseeded = 0
+        total_skipped = 0
+        skipped_reasons: list[str] = []
+
+        for dl_idx, dataloader in enumerate(val_dataloaders):
+            if self.verbose:
+                logger.info("[VAL RESEED] Processing DataLoader %s", dl_idx)
+
+            datasets = self._find_all_datasets(dataloader)
+            for ds_idx, dataset in enumerate(datasets):
+                dataset_info = f"{type(dataset).__name__}@{id(dataset)}"
+
+                if hasattr(dataset, "set_epoch"):
+                    try:
+                        seed_epoch = -1 if is_sanity_check else current_epoch
+                        dataset.set_epoch(seed_epoch, self.base_seed)
+
+                        if self.verbose:
+                            logger.info("[VAL RESEED]  Dataset %s: %s", ds_idx, dataset_info)
+                            logger.info(
+                                "[VAL RESEED]    set_epoch(epoch=%s, base_seed=%s)",
+                                seed_epoch, self.base_seed,
+                            )
+
+                        total_reseeded += 1
+
+                        if self.log_fingerprint and hasattr(dataset, "get_sampling_fingerprint"):
+                            logger.info(
+                                "[VAL RESEED]    Fingerprint: %s",
+                                dataset.get_sampling_fingerprint(),
+                            )
+
+                    except Exception as e:
+                        logger.warning(
+                            "[VAL RESEED SKIPPED] Dataset %s: %s | Exception: %s",
+                            ds_idx, dataset_info, e,
+                        )
+                        total_skipped += 1
+                        skipped_reasons.append(f"Exception: {e}")
+                else:
+                    logger.warning(
+                        "[VAL RESEED SKIPPED] Dataset %s: %s | no set_epoch() method",
+                        ds_idx, dataset_info,
+                    )
+                    total_skipped += 1
+                    skipped_reasons.append("no set_epoch() method")
+
+        self._reseeded_count += total_reseeded
+        self._skipped_count += total_skipped
+
+        logger.info("[VAL RESEED] Summary for %s:", epoch_type)
+        logger.info("[VAL RESEED]   Datasets reseeded: %s", total_reseeded)
+        logger.info("[VAL RESEED]   Datasets skipped:  %s", total_skipped)
+        if skipped_reasons:
+            logger.info("[VAL RESEED]   Skip reasons: %s", ", ".join(set(skipped_reasons)))
+
+    @staticmethod
+    def _get_validation_dataloaders(trainer: pl.Trainer) -> List[DataLoader]:
+        """Get all validation dataloaders from the trainer."""
+        val_dataloaders = trainer.val_dataloaders
+        if val_dataloaders is None:
+            return []
+        if isinstance(val_dataloaders, DataLoader):
+            return [val_dataloaders]
+        if isinstance(val_dataloaders, list):
+            return val_dataloaders
+        if hasattr(val_dataloaders, "loaders"):
+            loaders = val_dataloaders.loaders
+            if isinstance(loaders, dict):
+                return list(loaders.values())
+            if isinstance(loaders, list):
+                return loaders
+        return [val_dataloaders]
+
+    def _find_all_datasets(self, dataloader: DataLoader) -> List[Dataset]:
+        """Recursively find all leaf datasets in a dataloader."""
+        datasets: list[Dataset] = []
+        if not hasattr(dataloader, "dataset"):
+            return datasets
+        self._extract_datasets_recursive(dataloader.dataset, datasets)
+        return datasets
+
+    def _extract_datasets_recursive(self, dataset: Any, result: List[Dataset]) -> None:
+        """Recursively extract all leaf datasets."""
+        if isinstance(dataset, Subset):
+            self._extract_datasets_recursive(dataset.dataset, result)
+            return
+        if isinstance(dataset, ConcatDataset):
+            for sub_dataset in dataset.datasets:
+                self._extract_datasets_recursive(sub_dataset, result)
+            return
+        if _HAS_CHAIN_DATASET and isinstance(dataset, ChainDataset):
+            for sub_dataset in dataset.datasets:
+                self._extract_datasets_recursive(sub_dataset, result)
+            return
+        result.append(dataset)
+
+    def on_fit_end(self, trainer: pl.Trainer, pl_module: pl.LightningModule) -> None:
+        """Log final statistics at end of training."""
+        if trainer.global_rank != 0:
+            return
+        logger.info("[VAL RESEED] Final statistics")
+        logger.info("[VAL RESEED]   Total datasets reseeded: %s", self._reseeded_count)
+        logger.info("[VAL RESEED]   Total datasets skipped:  %s", self._skipped_count)

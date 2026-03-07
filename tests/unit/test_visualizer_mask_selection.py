@@ -1,6 +1,6 @@
 import torch
 
-from connectomics.utils.visualizer import get_visualization_mask
+from connectomics.training.lightning.visualizer import get_visualization_mask
 
 
 def test_get_visualization_mask_prefers_valid_mask():

@@ -1,22 +1,19 @@
 """
 Lazy zarr-backed volume dataset for random patch sampling.
 
-This dataset keeps zarr array handles open and reads only requested crops
-per sample, avoiding full-volume preload into RAM.
+Keeps zarr array handles open and reads only requested crops per sample,
+avoiding full-volume preload into RAM.
 """
 
 from __future__ import annotations
 
 import logging
-import random
 from typing import Any, Dict, List, Optional, Sequence, Tuple
 
 import numpy as np
-from monai.data import Dataset
 from monai.transforms import Compose
-from monai.utils import ensure_tuple_rep
 
-from .crop_sampling import center_crop_position, random_crop_position
+from .base import PatchDataset
 
 logger = logging.getLogger(__name__)
 
@@ -36,7 +33,7 @@ def _is_channel_last_4d(shape: Tuple[int, ...]) -> bool:
     return shape[-1] <= 8 and shape[0] > 8 and shape[1] > 8 and shape[2] > 8
 
 
-class LazyZarrVolumeDataset(Dataset):
+class LazyZarrVolumeDataset(PatchDataset):
     """
     Lazy zarr dataset that samples random crops directly from zarr stores.
 
@@ -61,28 +58,27 @@ class LazyZarrVolumeDataset(Dataset):
     ):
         self.zarr = _require_zarr()
 
+        super().__init__(
+            patch_size=patch_size,
+            iter_num=iter_num if iter_num > 0 else len(image_paths),
+            transforms=transforms,
+            mode=mode,
+            max_attempts=max_attempts,
+            foreground_threshold=foreground_threshold,
+        )
+
         self.image_paths = image_paths
         self.label_paths = label_paths if label_paths else [None] * len(image_paths)
         self.mask_paths = mask_paths if mask_paths else [None] * len(image_paths)
-        self.patch_size = ensure_tuple_rep(patch_size, 3)
-        self.iter_num = iter_num if iter_num > 0 else len(image_paths)
-        self.transforms = transforms
-        self.mode = mode
-        self.max_attempts = max_attempts
-        self.foreground_threshold = foreground_threshold
         self.transpose_axes = self._normalize_transpose_axes(transpose_axes)
         self.inverse_transpose_axes = self._invert_transpose_axes(self.transpose_axes)
-
-        self.base_seed = 0
-        self.current_epoch = 0
 
         self.images = []
         self.labels = []
         self.masks = []
         self.image_channel_last = []
-        self.volume_sizes = []
 
-        logger.info("Opening %d zarr volumes (lazy mode, no preload)...", len(image_paths))
+        logger.info("Opening %d zarr volumes (lazy, no preload)...", len(image_paths))
         for i, (img_path, lbl_path, mask_path) in enumerate(
             zip(self.image_paths, self.label_paths, self.mask_paths)
         ):
@@ -93,52 +89,67 @@ class LazyZarrVolumeDataset(Dataset):
             img_channel_last = False
             if img_arr.ndim == 4:
                 img_channel_last = _is_channel_last_4d(tuple(img_arr.shape))
-                spatial_shape_raw = tuple(img_arr.shape[:3] if img_channel_last else img_arr.shape[1:])
+                spatial_raw = tuple(
+                    img_arr.shape[:3] if img_channel_last else img_arr.shape[1:]
+                )
             elif img_arr.ndim == 3:
-                spatial_shape_raw = tuple(img_arr.shape)
+                spatial_raw = tuple(img_arr.shape)
             else:
                 raise ValueError(f"Unsupported image ndim={img_arr.ndim} for {img_path}")
-            spatial_shape = self._transpose_shape(spatial_shape_raw)
+
+            spatial = self._transpose_shape(spatial_raw)
 
             if lbl_arr is not None:
-                lbl_shape_raw = self._get_label_spatial_shape(lbl_arr)
-                if lbl_shape_raw != spatial_shape_raw:
+                lbl_raw = self._get_label_spatial_shape(lbl_arr)
+                if lbl_raw != spatial_raw:
                     raise ValueError(
-                        f"Image/label spatial mismatch for {img_path} vs {lbl_path}: "
-                        f"{spatial_shape_raw} vs {lbl_shape_raw}"
+                        f"Image/label spatial mismatch: {spatial_raw} vs {lbl_raw}"
                     )
-
             if mask_arr is not None:
-                mask_shape_raw = self._get_label_spatial_shape(mask_arr)
-                if mask_shape_raw != spatial_shape_raw:
+                mask_raw = self._get_label_spatial_shape(mask_arr)
+                if mask_raw != spatial_raw:
                     raise ValueError(
-                        f"Image/mask spatial mismatch for {img_path} vs {mask_path}: "
-                        f"{spatial_shape_raw} vs {mask_shape_raw}"
+                        f"Image/mask spatial mismatch: {spatial_raw} vs {mask_raw}"
                     )
 
             self.images.append(img_arr)
             self.labels.append(lbl_arr)
             self.masks.append(mask_arr)
             self.image_channel_last.append(img_channel_last)
-            self.volume_sizes.append(spatial_shape)
+            self.volume_sizes.append(spatial)
 
             logger.info(
-                "    Volume %s/%s: image=%s, label=%s, spatial(raw->model)=%s->%s",
-                i + 1,
-                len(image_paths),
-                img_arr.shape,
-                None if lbl_arr is None else lbl_arr.shape,
-                spatial_shape_raw,
-                spatial_shape,
+                "    Volume %s/%s: image=%s, spatial=%s->%s",
+                i + 1, len(image_paths), img_arr.shape, spatial_raw, spatial,
             )
+
+    # -- PatchDataset abstract methods --
+
+    def _crop_volumes(self, vol_idx: int, pos: Tuple[int, ...]) -> Dict[str, Any]:
+        image_crop = self._crop_image(vol_idx, pos)
+        label_crop = (
+            self._crop_label_like(self.labels[vol_idx], pos)
+            if self.labels[vol_idx] is not None
+            else None
+        )
+        mask_crop = (
+            self._crop_label_like(self.masks[vol_idx], pos)
+            if self.masks[vol_idx] is not None
+            else None
+        )
+        return {"image": image_crop, "label": label_crop, "mask": mask_crop}
+
+    def _has_labels(self, vol_idx: int) -> bool:
+        return self.labels[vol_idx] is not None
+
+    # -- Zarr I/O helpers --
 
     def _open_array(self, path: Optional[str]):
         if path is None:
             return None
         if ".zarr" not in str(path):
             raise ValueError(
-                f"LazyZarrVolumeDataset expects zarr paths (got: {path}). "
-                "Use standard dataset path for non-zarr inputs."
+                f"LazyZarrVolumeDataset expects zarr paths (got: {path})."
             )
         return self.zarr.open(str(path), mode="r")
 
@@ -152,10 +163,10 @@ class LazyZarrVolumeDataset(Dataset):
             return tuple(arr.shape[1:])
         raise ValueError(f"Unsupported label/mask shape: {arr.shape}")
 
+    # -- Transpose helpers --
+
     @staticmethod
-    def _normalize_transpose_axes(
-        transpose_axes: Optional[Sequence[int]],
-    ) -> List[int]:
+    def _normalize_transpose_axes(transpose_axes: Optional[Sequence[int]]) -> List[int]:
         if transpose_axes is None:
             return []
         axes = [int(a) for a in transpose_axes]
@@ -163,8 +174,7 @@ class LazyZarrVolumeDataset(Dataset):
             return []
         if len(axes) != 3 or sorted(axes) != [0, 1, 2]:
             raise ValueError(
-                "transpose_axes must be a permutation of [0, 1, 2], "
-                f"got {transpose_axes}"
+                f"transpose_axes must be a permutation of [0,1,2], got {transpose_axes}"
             )
         return axes
 
@@ -187,7 +197,9 @@ class LazyZarrVolumeDataset(Dataset):
             return arr
         return np.transpose(arr, self.transpose_axes)
 
-    def _logical_to_raw_slices(self, pos: Tuple[int, int, int]) -> Tuple[slice, slice, slice]:
+    def _logical_to_raw_slices(
+        self, pos: Tuple[int, int, int]
+    ) -> Tuple[slice, slice, slice]:
         if not self.transpose_axes:
             return tuple(
                 slice(pos[i], pos[i] + self.patch_size[i]) for i in range(3)
@@ -200,50 +212,7 @@ class LazyZarrVolumeDataset(Dataset):
             raw_slices.append(slice(start, start + size))
         return tuple(raw_slices)
 
-    def __len__(self) -> int:
-        return self.iter_num
-
-    def set_epoch(self, epoch: int, base_seed: int = 0):
-        if self.mode == "val":
-            self.base_seed = base_seed
-            self.current_epoch = epoch
-            effective_seed = self.base_seed + epoch
-            random.seed(effective_seed)
-            logger.info(
-                "[Validation] Set epoch=%s, base_seed=%s, effective_seed=%s",
-                epoch,
-                base_seed,
-                effective_seed,
-            )
-            logger.info(
-                "[Validation] Dataset: %s@%s, mode=%s, iter_num=%s",
-                type(self).__name__,
-                id(self),
-                self.mode,
-                self.iter_num,
-            )
-
-    def get_sampling_fingerprint(self, num_samples: int = 5) -> str:
-        if self.mode != "val":
-            return "N/A (training mode)"
-        state = random.getstate()
-        try:
-            samples = []
-            for _ in range(num_samples):
-                vol_idx = random.randint(0, len(self.images) - 1)
-                pos = self._get_random_crop_position(vol_idx)
-                samples.append((vol_idx, pos))
-            return ", ".join([f"v{v}@{p}" for v, p in samples])
-        finally:
-            random.setstate(state)
-
-    def _get_random_crop_position(self, vol_idx: int) -> Tuple[int, int, int]:
-        vol_size = self.volume_sizes[vol_idx]
-        return random_crop_position(vol_size, self.patch_size, rng=random)
-
-    def _get_center_crop_position(self, vol_idx: int) -> Tuple[int, int, int]:
-        vol_size = self.volume_sizes[vol_idx]
-        return center_crop_position(vol_size, self.patch_size)
+    # -- Crop methods --
 
     def _crop_image(self, vol_idx: int, pos: Tuple[int, int, int]) -> np.ndarray:
         s0, s1, s2 = self._logical_to_raw_slices(pos)
@@ -287,58 +256,6 @@ class LazyZarrVolumeDataset(Dataset):
             return crop
 
         raise ValueError(f"Unsupported label/mask shape: {arr.shape}")
-
-    def __getitem__(self, index: int) -> Dict[str, Any]:
-        vol_idx = random.randint(0, len(self.images) - 1)
-        use_fg_sampling = (
-            self.mode == "train"
-            and self.labels[vol_idx] is not None
-            and self.foreground_threshold > 0
-        )
-
-        attempts = self.max_attempts if use_fg_sampling else 1
-        chosen_pos = None
-        label_crop = None
-        for _ in range(attempts):
-            pos = (
-                self._get_random_crop_position(vol_idx)
-                if self.mode == "train"
-                else self._get_center_crop_position(vol_idx)
-            )
-            if not use_fg_sampling:
-                chosen_pos = pos
-                break
-
-            candidate = self._crop_label_like(self.labels[vol_idx], pos)
-            fg_ratio = float((candidate > 0).sum()) / float(candidate.size)
-            if fg_ratio >= self.foreground_threshold:
-                chosen_pos = pos
-                label_crop = candidate
-                break
-
-        if chosen_pos is None:
-            chosen_pos = (
-                self._get_random_crop_position(vol_idx)
-                if self.mode == "train"
-                else self._get_center_crop_position(vol_idx)
-            )
-
-        image_crop = self._crop_image(vol_idx, chosen_pos)
-        if label_crop is None:
-            if self.labels[vol_idx] is not None:
-                label_crop = self._crop_label_like(self.labels[vol_idx], chosen_pos)
-            else:
-                label_crop = np.zeros((1, *self.patch_size), dtype=np.uint8)
-
-        if self.masks[vol_idx] is not None:
-            mask_crop = self._crop_label_like(self.masks[vol_idx], chosen_pos)
-        else:
-            mask_crop = np.zeros((1, *self.patch_size), dtype=np.uint8)
-
-        data = {"image": image_crop, "label": label_crop, "mask": mask_crop}
-        if self.transforms:
-            data = self.transforms(data)
-        return data
 
 
 __all__ = ["LazyZarrVolumeDataset"]

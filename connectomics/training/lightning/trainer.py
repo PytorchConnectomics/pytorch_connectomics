@@ -9,11 +9,14 @@ This module provides Lightning trainer factory functions with:
 """
 
 from __future__ import annotations
+import logging
 import os
 from pathlib import Path
 from typing import Optional
 
 import torch
+
+_log = logging.getLogger(__name__)
 import pytorch_lightning as pl
 from pytorch_lightning.callbacks import (
     ModelCheckpoint,
@@ -34,8 +37,7 @@ from ...config.schema import (
     TestConfig,
     TuneConfig,
 )
-from .callbacks import VisualizationCallback, EMAWeightsCallback
-from .validation_callbacks.validation_reseeding import ValidationReseedingCallback
+from .callbacks import EMAWeightsCallback, ValidationReseedingCallback, VisualizationCallback
 
 # Register safe globals for PyTorch 2.6+ checkpoint loading
 # This allows our Config class to be unpickled from Lightning checkpoints
@@ -77,7 +79,7 @@ def create_trainer(
     Returns:
         Configured Trainer instance
     """
-    print(f"Creating Lightning trainer (mode={mode})...")
+    _log.info(f"Creating Lightning trainer (mode={mode})...")
 
     # Setup callbacks (only for training mode)
     callbacks = []
@@ -116,7 +118,7 @@ def create_trainer(
                     ckpt_path, cfg.monitor.early_stopping.monitor
                 )
                 if best_score is not None:
-                    print(
+                    _log.info(
                         f"  Early stopping: Extracted best_score={best_score:.6f} from checkpoint"
                     )
 
@@ -150,9 +152,9 @@ def create_trainer(
             )
             callbacks.append(vis_callback)
             log_freq = cfg.monitor.logging.images.log_every_n_epochs
-            print(f"  Visualization: Enabled (every {log_freq} epoch(s))")
+            _log.info(f"  Visualization: Enabled (every {log_freq} epoch(s))")
         else:
-            print("  Visualization: Disabled")
+            _log.info("  Visualization: Disabled")
 
         # EMA weights for stabler validation
         ema_cfg = getattr(cfg.optimization, "ema", None)
@@ -165,7 +167,7 @@ def create_trainer(
                 copy_buffers=getattr(ema_cfg, "copy_buffers", True),
             )
             callbacks.append(ema_callback)
-            print(
+            _log.info(
                 f"  EMA: Enabled (decay={ema_cfg.decay}, warmup_steps={ema_cfg.warmup_steps}, "
                 f"validate_with_ema={ema_cfg.validate_with_ema})"
             )
@@ -180,7 +182,7 @@ def create_trainer(
             verbose=False,
         )
         callbacks.append(validation_reseeding_callback)
-        print(f"  Validation Reseeding: Enabled (base_seed={cfg.system.seed})")
+        _log.info(f"  Validation Reseeding: Enabled (base_seed={cfg.system.seed})")
 
     # Setup logger.
     # Train: keep TensorBoard logs in run_dir/logs.
@@ -195,7 +197,7 @@ def create_trainer(
             name="",  # No name subdirectory
             version="logs",  # Logs go directly to run_dir/logs/
         )
-        print(f"  Logger: TensorBoard (logs saved to {run_dir}/logs/)")
+        _log.info(f"  Logger: TensorBoard (logs saved to {run_dir}/logs/)")
 
     # Create trainer
     system_cfg = cfg.system
@@ -206,8 +208,8 @@ def create_trainer(
     # Check if anomaly detection is enabled (useful for debugging NaN)
     detect_anomaly = getattr(cfg.monitor, "detect_anomaly", False)
     if detect_anomaly:
-        print("  ⚠️  PyTorch anomaly detection ENABLED (training will be slower)")
-        print("      This helps pinpoint the exact operation causing NaN in backward pass")
+        _log.warning("PyTorch anomaly detection ENABLED (training will be slower)")
+        _log.warning("      This helps pinpoint the exact operation causing NaN in backward pass")
 
     # Configure DDP strategy for multi-GPU training with deep supervision
     strategy = "auto"  # Default strategy
@@ -231,10 +233,10 @@ def create_trainer(
                 reason = "deep supervision enabled"
             else:
                 reason = "explicit config"
-            print(f"  Strategy: DDP with find_unused_parameters=True ({reason})")
+            _log.info(f"  Strategy: DDP with find_unused_parameters=True ({reason})")
         else:
             strategy = DDPStrategy(find_unused_parameters=False)
-            print("  Strategy: DDP (standard)")
+            _log.info("  Strategy: DDP (standard)")
 
     # [FIX 2] Implement TRUE step-based training
     # PyTorch Lightning stops when EITHER max_epochs OR max_steps is reached
@@ -270,7 +272,7 @@ def create_trainer(
             f"(got {check_val_every_n_epoch})."
         )
 
-    print(f"  Validation: every {check_val_every_n_epoch} epoch(s)")
+    _log.info(f"  Validation: every {check_val_every_n_epoch} epoch(s)")
 
     # In Slurm jobs launched with ntasks=1, force local process spawning for multi-GPU
     # so Lightning uses world_size=devices instead of treating Slurm as externally launched DDP.
@@ -278,7 +280,7 @@ def create_trainer(
     slurm_ntasks = os.environ.get("SLURM_NTASKS")
     if use_gpu and system_cfg.num_gpus > 1 and slurm_ntasks == "1":
         plugins = [LightningEnvironment()]
-        print("  Launch mode: local multi-GPU spawn (SLURM_NTASKS=1)")
+        _log.info("  Launch mode: local multi-GPU spawn (SLURM_NTASKS=1)")
 
     trainer = pl.Trainer(
         max_epochs=max_epochs,
@@ -300,9 +302,9 @@ def create_trainer(
         plugins=plugins,
     )
 
-    print(f"  Training mode: {training_mode}")
-    print(f"  Devices: {system_cfg.num_gpus if system_cfg.num_gpus > 0 else 1} ({mode} mode)")
-    print(f"  Precision: {cfg.optimization.precision}")
+    _log.info(f"  Training mode: {training_mode}")
+    _log.info(f"  Devices: {system_cfg.num_gpus if system_cfg.num_gpus > 0 else 1} ({mode} mode)")
+    _log.info(f"  Precision: {cfg.optimization.precision}")
 
     return trainer
 

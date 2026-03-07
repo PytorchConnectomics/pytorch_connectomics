@@ -10,7 +10,7 @@ import torch
 
 from connectomics.config.schema.data import AugmentationConfig
 from connectomics.data.augment.build import _build_augmentations
-from connectomics.data.augment.monai_transforms import (
+from connectomics.data.augment.transforms import (
     RandCopyPasted,
     RandCutBlurd,
     RandCutNoised,

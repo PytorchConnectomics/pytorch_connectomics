@@ -23,6 +23,8 @@ Usage:
         return MyModel(cfg)
 """
 
+import logging
+
 # Import registry functions
 from .registry import (
     register_architecture,
@@ -55,8 +57,6 @@ except ImportError:
 # Import RSUNet models (always available - pure PyTorch)
 from . import rsunet  # noqa: F401
 
-_RSUNET_AVAILABLE = True
-
 # Import nnUNet models to trigger registration
 try:
     from . import nnunet_models  # noqa: F401
@@ -83,7 +83,7 @@ def get_available_architectures() -> dict:
         "all": all_archs,
         "monai": [a for a in all_archs if a.startswith("monai_")] if _MONAI_AVAILABLE else [],
         "mednext": [a for a in all_archs if a.startswith("mednext")] if _MEDNEXT_AVAILABLE else [],
-        "rsunet": [a for a in all_archs if a.startswith("rsunet")] if _RSUNET_AVAILABLE else [],
+        "rsunet": [a for a in all_archs if a.startswith("rsunet")],
         "nnunet": [a for a in all_archs if a.startswith("nnunet")] if _NNUNET_AVAILABLE else [],
     }
 
@@ -91,41 +91,42 @@ def get_available_architectures() -> dict:
 
 
 def print_available_architectures():
-    """Print a formatted list of available architectures."""
+    """Log a formatted list of available architectures."""
+    _logger = logging.getLogger(__name__)
     info = get_available_architectures()
 
-    print("\n" + "=" * 60)
-    print("Available Architectures")
-    print("=" * 60)
+    lines = ["\n" + "=" * 60, "Available Architectures", "=" * 60]
 
     if info["monai"]:
-        print(f"\nMONAI Models ({len(info['monai'])}):")
+        lines.append(f"\nMONAI Models ({len(info['monai'])}):")
         for arch in info["monai"]:
-            print(f"  - {arch}")
+            lines.append(f"  - {arch}")
     else:
-        print("\nMONAI Models: Not available (install with: pip install monai)")
+        lines.append("\nMONAI Models: Not available (install with: pip install monai)")
 
     if info["mednext"]:
-        print(f"\nMedNeXt Models ({len(info['mednext'])}):")
+        lines.append(f"\nMedNeXt Models ({len(info['mednext'])}):")
         for arch in info["mednext"]:
-            print(f"  - {arch}")
+            lines.append(f"  - {arch}")
     else:
-        print("\nMedNeXt Models: Not available (see MEDNEXT.md for setup)")
+        lines.append("\nMedNeXt Models: Not available (see MEDNEXT.md for setup)")
 
     if info["rsunet"]:
-        print(f"\nRSUNet Models ({len(info['rsunet'])}):")
+        lines.append(f"\nRSUNet Models ({len(info['rsunet'])}):")
         for arch in info["rsunet"]:
-            print(f"  - {arch}")
+            lines.append(f"  - {arch}")
 
     if info["nnunet"]:
-        print(f"\nnnUNet Models ({len(info['nnunet'])}):")
+        lines.append(f"\nnnUNet Models ({len(info['nnunet'])}):")
         for arch in info["nnunet"]:
-            print(f"  - {arch}")
+            lines.append(f"  - {arch}")
     else:
-        print("\nnnUNet Models: Not available (install with: pip install nnunetv2)")
+        lines.append("\nnnUNet Models: Not available (install with: pip install nnunetv2)")
 
-    print(f"\nTotal: {len(info['all'])} architectures")
-    print("=" * 60 + "\n")
+    lines.append(f"\nTotal: {len(info['all'])} architectures")
+    lines.append("=" * 60)
+
+    _logger.info("\n".join(lines))
 
 
 __all__ = [

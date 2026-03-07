@@ -14,21 +14,16 @@ import numpy as np
 
 from .segmentation_numpy import (
     adapted_rand,
-    cremi_distance,
     instance_matching,
     instance_matching_simple,
-    jaccard,
     matching_criteria,
     voi,
 )
 
 __all__ = [
-    "jaccard",
-    "get_binary_jaccard",
     "adapted_rand",
     "instance_matching",
     "instance_matching_simple",
-    "cremi_distance",
     "matching_criteria",
     "AdaptedRandError",
     "VariationOfInformation",
@@ -37,23 +32,12 @@ __all__ = [
 ]
 
 
-def get_binary_jaccard(pred: np.ndarray, target: np.ndarray, threshold: float = 0.5) -> float:
-    """
-    Convenience wrapper to compute Jaccard on binary masks with optional thresholding.
-    """
-    if pred.dtype != np.bool_ and pred.dtype != np.int64 and pred.dtype != np.uint8:
-        pred = (pred > threshold).astype(np.uint8)
-    if target.dtype != np.bool_ and target.dtype != np.int64 and target.dtype != np.uint8:
-        target = (target > threshold).astype(np.uint8)
-    return jaccard(pred, target)
-
-
 class AdaptedRandError(torchmetrics.Metric):
     """
     Torchmetrics-style wrapper around the numpy-based adapted Rand implementation.
 
     This wrapper lets us accumulate scores during Lightning `test_step` without
-    manual numpy↔torch conversions in the training loop.
+    manual numpy<->torch conversions in the training loop.
 
     Args:
         return_all_stats: If True, also compute and return precision and recall
@@ -79,13 +63,13 @@ class AdaptedRandError(torchmetrics.Metric):
         target_np = target.detach().cpu().numpy()
 
         if self.return_all_stats:
-            are, precision, recall = adapted_rand(preds_np, target_np, all_stats=True)
-            self.total += torch.tensor(are, device=self.total.device)
-            self.total_precision += torch.tensor(precision, device=self.total_precision.device)
-            self.total_recall += torch.tensor(recall, device=self.total_recall.device)
+            are, prec, rec = adapted_rand(preds_np, target_np, all_stats=True)
+            self.total += float(are)
+            self.total_precision += float(prec)
+            self.total_recall += float(rec)
         else:
             score = float(adapted_rand(preds_np, target_np, all_stats=False))
-            self.total += torch.tensor(score, device=self.total.device)
+            self.total += score
 
         self.count += 1
 
@@ -120,7 +104,7 @@ class VariationOfInformation(torchmetrics.Metric):
     Lower values are better (0 = perfect match).
 
     This wrapper lets us accumulate scores during Lightning `test_step` without
-    manual numpy↔torch conversions in the training loop.
+    manual numpy<->torch conversions in the training loop.
     """
 
     full_state_update: bool = False
@@ -136,8 +120,8 @@ class VariationOfInformation(torchmetrics.Metric):
         preds_np = preds.detach().cpu().numpy()
         target_np = target.detach().cpu().numpy()
         split, merge = voi(preds_np, target_np)
-        self.split_total += torch.tensor(split, device=self.split_total.device)
-        self.merge_total += torch.tensor(merge, device=self.merge_total.device)
+        self.split_total += float(split)
+        self.merge_total += float(merge)
         self.count += 1
 
     def compute(self) -> torch.Tensor:
@@ -178,12 +162,12 @@ class InstanceAccuracy(torchmetrics.Metric):
     Higher values are better (1.0 = perfect detection).
 
     This wrapper lets us accumulate scores during Lightning `test_step` without
-    manual numpy↔torch conversions in the training loop.
+    manual numpy<->torch conversions in the training loop.
     """
 
     full_state_update: bool = False
 
-    def __init__(self, thresh: float = 0.5, criterion: str = 'iou', 
+    def __init__(self, thresh: float = 0.5, criterion: str = 'iou',
                  dist_sync_on_step: bool = False) -> None:
         super().__init__(dist_sync_on_step=dist_sync_on_step)
         self.thresh = thresh
@@ -197,9 +181,9 @@ class InstanceAccuracy(torchmetrics.Metric):
         preds_np = preds.detach().cpu().numpy()
         target_np = target.detach().cpu().numpy()
         stats = instance_matching(target_np, preds_np, thresh=self.thresh, criterion=self.criterion)
-        self.tp_total += torch.tensor(stats['tp'], device=self.tp_total.device)
-        self.fp_total += torch.tensor(stats['fp'], device=self.fp_total.device)
-        self.fn_total += torch.tensor(stats['fn'], device=self.fn_total.device)
+        self.tp_total += int(stats['tp'])
+        self.fp_total += int(stats['fp'])
+        self.fn_total += int(stats['fn'])
 
     def compute(self) -> torch.Tensor:
         """Return instance-level accuracy: TP / (TP + FP + FN)."""
@@ -215,7 +199,7 @@ class InstanceAccuracySimple(torchmetrics.Metric):
 
     WARNING: This is a RELAXED metric for debugging/analysis only, NOT for benchmark ranking.
     Unlike InstanceAccuracy, this does NOT use optimal bipartite matching.
-    
+
     Simple counting approach:
         - Count all (GT, Pred) pairs with IoU >= threshold as TP
         - fp = n_pred - tp
@@ -230,12 +214,12 @@ class InstanceAccuracySimple(torchmetrics.Metric):
     Higher values are better (1.0 = perfect detection).
 
     This wrapper lets us accumulate scores during Lightning `test_step` without
-    manual numpy↔torch conversions in the training loop.
+    manual numpy<->torch conversions in the training loop.
     """
 
     full_state_update: bool = False
 
-    def __init__(self, thresh: float = 0.5, criterion: str = 'iou', 
+    def __init__(self, thresh: float = 0.5, criterion: str = 'iou',
                  dist_sync_on_step: bool = False) -> None:
         super().__init__(dist_sync_on_step=dist_sync_on_step)
         self.thresh = thresh
@@ -249,9 +233,9 @@ class InstanceAccuracySimple(torchmetrics.Metric):
         preds_np = preds.detach().cpu().numpy()
         target_np = target.detach().cpu().numpy()
         stats = instance_matching_simple(target_np, preds_np, thresh=self.thresh, criterion=self.criterion)
-        self.tp_total += torch.tensor(stats['tp'], device=self.tp_total.device)
-        self.fp_total += torch.tensor(stats['fp'], device=self.fp_total.device)
-        self.fn_total += torch.tensor(stats['fn'], device=self.fn_total.device)
+        self.tp_total += int(stats['tp'])
+        self.fp_total += int(stats['fp'])
+        self.fn_total += int(stats['fn'])
 
     def compute(self) -> torch.Tensor:
         """Return relaxed instance-level accuracy: TP / (TP + FP + FN)."""
@@ -259,21 +243,21 @@ class InstanceAccuracySimple(torchmetrics.Metric):
         if denom == 0:
             return torch.tensor(0.0, device=self.tp_total.device)
         return self.tp_total.float() / denom.float()
-    
+
     def compute_precision(self) -> torch.Tensor:
         """Return instance-level precision: TP / (TP + FP)."""
         denom = self.tp_total + self.fp_total
         if denom == 0:
             return torch.tensor(0.0, device=self.tp_total.device)
         return self.tp_total.float() / denom.float()
-    
+
     def compute_recall(self) -> torch.Tensor:
         """Return instance-level recall: TP / (TP + FN)."""
         denom = self.tp_total + self.fn_total
         if denom == 0:
             return torch.tensor(0.0, device=self.tp_total.device)
         return self.tp_total.float() / denom.float()
-    
+
     def compute_f1(self) -> torch.Tensor:
         """Return instance-level F1: 2*TP / (2*TP + FP + FN)."""
         denom = 2 * self.tp_total + self.fp_total + self.fn_total

@@ -1,14 +1,14 @@
+from __future__ import annotations
+
 import numpy as np
 import scipy.sparse as sparse
-from scipy import ndimage
 from scipy.optimize import linear_sum_assignment
-from collections import namedtuple
 from skimage.segmentation import relabel_sequential
 from connectomics.utils.label_overlap import compute_label_overlap
 
 matching_criteria = dict()
 
-__all__ = ["jaccard", "adapted_rand", "instance_matching", "instance_matching_simple", "cremi_distance"]
+__all__ = ["adapted_rand", "voi", "instance_matching", "instance_matching_simple", "matching_criteria"]
 
 
 def adapted_rand(seg, gt, all_stats=False):
@@ -88,7 +88,7 @@ def adapted_rand(seg, gt, all_stats=False):
 # https://github.com/janelia-flyem/gala/blob/master/gala/evaluate.py
 
 
-def voi(reconstruction, groundtruth, ignore_reconstruction=[], ignore_groundtruth=[0]):
+def voi(reconstruction, groundtruth, ignore_reconstruction=None, ignore_groundtruth=None):
     """Return the conditional entropies of the variation of information metric. [1]
 
     Let X be a reconstruction, and Y a ground truth labelling. The variation of
@@ -120,11 +120,15 @@ def voi(reconstruction, groundtruth, ignore_reconstruction=[], ignore_groundtrut
     [1] Meila, M. (2007). Comparing clusterings - an information based
     distance. Journal of Multivariate Analysis 98, 873-895.
     """
+    if ignore_reconstruction is None:
+        ignore_reconstruction = []
+    if ignore_groundtruth is None:
+        ignore_groundtruth = [0]
     (hyxg, hxgy) = split_vi(reconstruction, groundtruth, ignore_reconstruction, ignore_groundtruth)
     return (hxgy, hyxg)
 
 
-def split_vi(x, y=None, ignore_x=[0], ignore_y=[0]):
+def split_vi(x, y=None, ignore_x=None, ignore_y=None):
     """Return the symmetric conditional entropies associated with the VI.
 
     The variation of information is defined as VI(X,Y) = H(X|Y) + H(Y|X).
@@ -156,12 +160,16 @@ def split_vi(x, y=None, ignore_x=[0], ignore_y=[0]):
     --------
     vi
     """
+    if ignore_x is None:
+        ignore_x = [0]
+    if ignore_y is None:
+        ignore_y = [0]
     _, _, _, hxgy, hygx, _, _ = vi_tables(x, y, ignore_x, ignore_y)
     # false merges, false splits
     return np.array([hygx.sum(), hxgy.sum()])
 
 
-def vi_tables(x, y=None, ignore_x=[0], ignore_y=[0]):
+def vi_tables(x, y=None, ignore_x=None, ignore_y=None):
     """Return probability tables used for calculating VI.
 
     If y is None, x is assumed to be a contingency table.
@@ -185,6 +193,10 @@ def vi_tables(x, y=None, ignore_x=[0], ignore_y=[0]):
         per-segment conditional entropies of `x` given `y` and vice-versa, the
         per-segment conditional probability p log p.
     """
+    if ignore_x is None:
+        ignore_x = [0]
+    if ignore_y is None:
+        ignore_y = [0]
     if y is not None:
         pxy = contingency_table(x, y, ignore_x, ignore_y)
     else:
@@ -216,7 +228,7 @@ def vi_tables(x, y=None, ignore_x=[0], ignore_y=[0]):
     return [pxy] + list(map(np.asarray, [px, py, hxgy, hygx, lpygx, lpxgy]))
 
 
-def contingency_table(seg, gt, ignore_seg=[0], ignore_gt=[0], norm=True):
+def contingency_table(seg, gt, ignore_seg=None, ignore_gt=None, norm=True):
     """Return the contingency table for all regions in matched segmentations.
 
     Parameters
@@ -241,14 +253,14 @@ def contingency_table(seg, gt, ignore_seg=[0], ignore_gt=[0], norm=True):
         labeled `i` in `seg` and `j` in `gt`. (Or the proportion of such voxels
         if `norm=True`.)
     """
+    if ignore_seg is None:
+        ignore_seg = [0]
+    if ignore_gt is None:
+        ignore_gt = [0]
     segr = seg.ravel()
     gtr = gt.ravel()
-    ignored = np.zeros(segr.shape, bool)
     data = np.ones(len(gtr))
-    for i in ignore_seg:
-        ignored[segr == i] = True
-    for j in ignore_gt:
-        ignored[gtr == j] = True
+    ignored = np.isin(segr, ignore_seg) | np.isin(gtr, ignore_gt)
     data[ignored] = 0
     cont = sparse.coo_matrix((data, (segr, gtr))).tocsc()
     if norm:
@@ -319,7 +331,7 @@ def divide_rows(matrix, column, in_place=False):
     else:
         out = matrix.copy()
     if isinstance(out, (sparse.csc_matrix, sparse.csr_matrix)):
-        if type(out) == sparse.csr_matrix:  # noqa: E721
+        if isinstance(out, sparse.csr_matrix):
             convert_to_csr = True
             out = out.tocsc()
         else:
@@ -368,124 +380,6 @@ def xlogx(x, out=None, in_place=False):
     return y
 
 
-# Functions for evaluating binary segmentation
-
-
-def confusion_matrix(pred, gt, thres=0.5):
-    """Calculate the confusion matrix given a probablility threshold in (0,1)."""
-    TP = np.sum((gt == 1) & (pred > thres))
-    FP = np.sum((gt == 0) & (pred > thres))
-    TN = np.sum((gt == 0) & (pred <= thres))
-    FN = np.sum((gt == 1) & (pred <= thres))
-    return (TP, FP, TN, FN)
-
-
-def jaccard(pred, gt, thres=[0.5]):
-    """Evaluate the binary prediction at multiple thresholds using the Jaccard
-    Index, which is also known as Intersection over Union (IoU). If the prediction
-    is already binarized, different thresholds will result the same result.
-
-    Args:
-        pred (numpy.ndarray): foreground probability of shape :math:`(Z, Y, X)`.
-        gt (numpy.ndarray): binary foreground label of shape identical to the prediction.
-        thres (list): a list of probablility threshold in (0,1). Default: [0.5]
-
-    Return:
-        score (numpy.ndarray): a numpy array of shape :math:`(N, 4)`, where :math:`N` is the
-        number of element(s) in the probability threshold list. The four scores in each line
-        are foreground IoU, IoU, precision and recall, respectively.
-    """
-    score = np.zeros((len(thres), 4))
-    for tid, t in enumerate(thres):
-        assert 0.0 < t < 1.0, "The range of the threshold should be (0,1)."
-        TP, FP, TN, FN = confusion_matrix(pred, gt, t)
-
-        precision = float(TP) / (TP + FP)
-        recall = float(TP) / (TP + FN)
-        iou_fg = float(TP) / (TP + FP + FN)
-        iou_bg = float(TN) / (TN + FP + FN)
-        iou = (iou_fg + iou_bg) / 2.0
-        score[tid] = np.array([iou_fg, iou, precision, recall])
-    return score
-
-
-def cremi_distance(pred, gt, resolution=(40.0, 4.0, 4.0)):
-    """Compute the FP/FN statistics between predictions and ground truth as
-    in the CREMI challenge (https://cremi.org/). Both inputs (pred, gt) need
-    to be of the same size.
-    """
-
-    def count_false_positives(test_clefts_mask, truth_clefts_edt, threshold=200):
-        mask1 = np.invert(test_clefts_mask)
-        mask2 = truth_clefts_edt > threshold
-        false_positives = truth_clefts_edt[np.logical_and(mask1, mask2)]
-        return false_positives.size
-
-    def count_false_negatives(truth_clefts_mask, test_clefts_edt, threshold=200):
-        mask1 = np.invert(truth_clefts_mask)
-        mask2 = test_clefts_edt > threshold
-        false_negatives = test_clefts_edt[np.logical_and(mask1, mask2)]
-        return false_negatives.size
-
-    def acc_false_positives(test_clefts_mask, truth_clefts_edt):
-        mask = np.invert(test_clefts_mask)
-        false_positives = truth_clefts_edt[mask]
-        stats = {
-            "mean": np.mean(false_positives),
-            "std": np.std(false_positives),
-            "max": np.amax(false_positives),
-            "count": false_positives.size,
-            "median": np.median(false_positives),
-        }
-        return stats
-
-    def acc_false_negatives(truth_clefts_mask, test_clefts_edt):
-        mask = np.invert(truth_clefts_mask)
-        false_negatives = test_clefts_edt[mask]
-        stats = {
-            "mean": np.mean(false_negatives),
-            "std": np.std(false_negatives),
-            "max": np.amax(false_negatives),
-            "count": false_negatives.size,
-            "median": np.median(false_negatives),
-        }
-        return stats
-
-    def convert_dtype(data):
-        data = data.astype(np.uint64)
-        data[data == 0] = 0xFFFFFFFFFFFFFFFF
-        return data
-
-    test_clefts = convert_dtype(pred)
-    truth_clefts = convert_dtype(gt)
-
-    truth_clefts_invalid = truth_clefts == 0xFFFFFFFFFFFFFFFE
-
-    test_clefts_mask = np.logical_or(test_clefts == 0xFFFFFFFFFFFFFFFF, truth_clefts_invalid)
-    truth_clefts_mask = np.logical_or(truth_clefts == 0xFFFFFFFFFFFFFFFF, truth_clefts_invalid)
-
-    print("EDT calculation in progress")
-    test_clefts_edt = ndimage.distance_transform_edt(test_clefts_mask, sampling=resolution)
-    truth_clefts_edt = ndimage.distance_transform_edt(truth_clefts_mask, sampling=resolution)
-
-    false_positive_count = count_false_positives(test_clefts_mask, truth_clefts_edt)
-    false_negative_count = count_false_negatives(truth_clefts_mask, test_clefts_edt)
-
-    false_positive_stats = acc_false_positives(test_clefts_mask, truth_clefts_edt)
-    false_negative_stats = acc_false_negatives(truth_clefts_mask, test_clefts_edt)
-
-    print("Clefts Statistics")
-    print("======")
-
-    print("\tfalse positives: " + str(false_positive_count))
-    print("\tfalse negatives: " + str(false_negative_count))
-
-    print("\tdistance to ground truth: " + str(false_positive_stats))
-    print("\tdistance to proposal    : " + str(false_negative_stats))
-
-    return false_positive_stats["mean"], false_negative_stats["mean"]
-
-
 # Code modified from https://github.com/stardist/stardist
 
 
@@ -529,10 +423,6 @@ def label_overlap(x, y, check=True):
         _check_label_array(x, "x", True)
         _check_label_array(y, "y", True)
         x.shape == y.shape or _raise(ValueError("x and y must have the same shape"))
-    return _label_overlap(x, y)
-
-
-def _label_overlap(x, y):
     return compute_label_overlap(x, y)
 
 
@@ -693,8 +583,6 @@ def instance_matching(y_true, y_pred, thresh=0.5, criterion="iou", report_matche
             tp = 0
         fp = n_pred - tp
         fn = n_true - tp
-        # assert tp+fp == n_pred
-        # assert tp+fn == n_true
 
         # the score sum over all matched objects (tp)
         sum_matched_score = np.sum(scores[true_ind, pred_ind][match_ok]) if not_trivial else 0.0
@@ -749,20 +637,20 @@ def instance_matching(y_true, y_pred, thresh=0.5, criterion="iou", report_matche
 
 def instance_matching_simple(y_true, y_pred, thresh=0.5, criterion="iou"):
     """Calculate relaxed instance segmentation metrics without Hungarian matching.
-    
+
     WARNING: This is a RELAXED metric for debugging/analysis only, NOT for benchmark ranking.
     Unlike instance_matching(), this does NOT use optimal bipartite matching (Hungarian algorithm).
     Instead, it simply counts all (GT, Pred) pairs with IoU >= threshold as true positives.
-    
+
     This metric is useful for:
     - Quick debugging and sanity checks
     - Understanding raw overlap statistics
     - Comparing with strict Hungarian-based metrics
-    
+
     Metrics computed:
         'tp', 'fp', 'fn', 'precision', 'recall', 'accuracy', 'f1',
         'criterion', 'thresh', 'n_true', 'n_pred'
-    
+
     Parameters
     ----------
     y_true: ndarray
@@ -773,11 +661,11 @@ def instance_matching_simple(y_true, y_pred, thresh=0.5, criterion="iou"):
         threshold for matching criterion (default 0.5)
     criterion: string
         matching criterion (default 'iou')
-    
+
     Returns
     -------
     Dictionary with metrics (tp, fp, fn, precision, recall, accuracy, f1, etc.)
-    
+
     Examples
     --------
     >>> y_true = np.zeros((100,100), np.uint16)
@@ -798,27 +686,27 @@ def instance_matching_simple(y_true, y_pred, thresh=0.5, criterion="iou"):
     criterion in matching_criteria or _raise(
         ValueError("Matching criterion '%s' not supported." % criterion)
     )
-    
+
     thresh = float(thresh)
-    
+
     y_true, _, map_rev_true = relabel_sequential(y_true)
     y_pred, _, map_rev_pred = relabel_sequential(y_pred)
-    
+
     overlap = label_overlap(y_true, y_pred, check=False)
     scores = matching_criteria[criterion](overlap)
     if not (0 <= np.min(scores) <= np.max(scores) <= 1):
         raise ValueError(f"Scores must be in [0, 1], got range [{np.min(scores)}, {np.max(scores)}]")
-    
+
     # ignoring background
     scores = scores[1:, 1:]
     n_true, n_pred = scores.shape
-    
+
     # Simple counting: any pair with IoU >= thresh counts as TP
     # No Hungarian matching - just count all pairs above threshold
     tp = np.sum(scores >= thresh)
     fp = n_pred - tp
     fn = n_true - tp
-    
+
     stats_dict = dict(
         criterion=criterion,
         thresh=thresh,
@@ -832,64 +720,5 @@ def instance_matching_simple(y_true, y_pred, thresh=0.5, criterion="iou"):
         n_true=n_true,
         n_pred=n_pred,
     )
-    
+
     return stats_dict
-
-
-def wrapper_matching_dataset_lazy(stats_all, thresh, criterion="iou", by_image=False):
-    # accumulate results over all images for each threshold separately
-    n_images, n_threshs = len(stats_all), len(thresh)
-    single_thresh = True if n_threshs == 1 else False
-    accumulate = [{} for _ in range(n_threshs)]
-    for stats in stats_all:
-        for i, s in enumerate(stats):
-            acc = accumulate[i]
-            for item in s.items():
-                k, v = item
-                if k == "mean_true_score" and not bool(by_image):
-                    # convert mean_true_score to "sum_matched_score"
-                    acc[k] = acc.setdefault(k, 0) + v * s["n_true"]
-                else:
-                    try:
-                        acc[k] = acc.setdefault(k, 0) + v
-                    except TypeError:
-                        pass
-
-    # normalize/compute 'precision', 'recall', 'accuracy', 'f1'
-    for thr, acc in zip(thresh, accumulate):
-        acc["criterion"] = criterion
-        acc["thresh"] = thr
-        acc["by_image"] = bool(by_image)
-        if bool(by_image):
-            for k in (
-                "precision",
-                "recall",
-                "accuracy",
-                "f1",
-                "mean_true_score",
-                "mean_matched_score",
-                "panoptic_quality",
-            ):
-                acc[k] /= n_images
-        else:
-            tp, fp, fn, n_true = acc["tp"], acc["fp"], acc["fn"], acc["n_true"]
-            sum_matched_score = acc["mean_true_score"]
-
-            mean_matched_score = _safe_divide(sum_matched_score, tp)
-            mean_true_score = _safe_divide(sum_matched_score, n_true)
-            panoptic_quality = _safe_divide(sum_matched_score, tp + fp / 2 + fn / 2)
-
-            acc.update(
-                precision=precision(tp, fp, fn),
-                recall=recall(tp, fp, fn),
-                accuracy=accuracy(tp, fp, fn),
-                f1=f1(tp, fp, fn),
-                mean_true_score=mean_true_score,
-                mean_matched_score=mean_matched_score,
-                panoptic_quality=panoptic_quality,
-            )
-
-    accumulate = tuple(
-        namedtuple("DatasetMatching", acc.keys())(*acc.values()) for acc in accumulate
-    )
-    return accumulate[0] if single_thresh else accumulate

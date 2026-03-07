@@ -1,0 +1,72 @@
+import torch
+
+from connectomics.config import Config
+from connectomics.training.lightning.callbacks import (
+    _apply_affinity_visualization_crop_if_needed,
+)
+
+
+def test_affinity_visualization_crop_matches_full_affinity_training_crop():
+    cfg = Config()
+    cfg.data.label_transform.targets = [
+        {
+            "name": "affinity",
+            "kwargs": {
+                "offsets": ["0-0-1", "0-1-0", "1-0-0", "2-0-0", "3-0-0", "4-0-0"],
+                "deepem_crop": True,
+            },
+        }
+    ]
+
+    image = torch.zeros((1, 1, 16, 32, 32), dtype=torch.float32)
+    label = torch.zeros((1, 6, 16, 32, 32), dtype=torch.float32)
+    pred = torch.zeros((1, 6, 16, 32, 32), dtype=torch.float32)
+    mask = torch.ones((1, 1, 16, 32, 32), dtype=torch.float32)
+
+    image_c, label_c, pred_c, mask_c = _apply_affinity_visualization_crop_if_needed(
+        cfg,
+        image=image,
+        label=label,
+        pred=pred,
+        mask=mask,
+    )
+
+    assert tuple(image_c.shape) == (1, 1, 12, 31, 31)
+    assert tuple(label_c.shape) == (1, 6, 12, 31, 31)
+    assert tuple(pred_c.shape) == (1, 6, 12, 31, 31)
+    assert mask_c is not None
+    assert tuple(mask_c.shape) == (1, 1, 12, 31, 31)
+
+
+def test_affinity_visualization_crop_skips_mixed_task_tensors():
+    cfg = Config()
+    cfg.data.label_transform.targets = [
+        {
+            "name": "binary",
+            "kwargs": {},
+        },
+        {
+            "name": "affinity",
+            "kwargs": {
+                "offsets": ["1-0-0", "0-1-0", "0-0-1"],
+                "deepem_crop": True,
+            },
+        },
+    ]
+
+    image = torch.zeros((1, 1, 16, 32, 32), dtype=torch.float32)
+    label = torch.zeros((1, 4, 16, 32, 32), dtype=torch.float32)
+    pred = torch.zeros((1, 4, 16, 32, 32), dtype=torch.float32)
+
+    image_c, label_c, pred_c, mask_c = _apply_affinity_visualization_crop_if_needed(
+        cfg,
+        image=image,
+        label=label,
+        pred=pred,
+        mask=None,
+    )
+
+    assert image_c is image
+    assert label_c is label
+    assert pred_c is pred
+    assert mask_c is None

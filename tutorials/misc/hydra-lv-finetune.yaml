@@ -26,28 +26,28 @@ model:
     - function: DiceLoss
       weight: 2.0
       kwargs: {sigmoid: true, smooth_nr: 1e-5, smooth_dr: 1e-5}
-      pred_slice: [0, 1]
-      target_slice: [0, 1]
+      pred_slice: "0:1"
+      target_slice: "0:1"
     - function: WeightedBCEWithLogitsLoss
       weight: 2.0
       kwargs: {reduction: mean}
-      pred_slice: [0, 1]
-      target_slice: [0, 1]
+      pred_slice: "0:1"
+      target_slice: "0:1"
     - function: DiceLoss
       weight: 1.0
       kwargs: {sigmoid: true, smooth_nr: 1e-5, smooth_dr: 1e-5}
-      pred_slice: [1, 2]
-      target_slice: [1, 2]
+      pred_slice: "1:2"
+      target_slice: "1:2"
     - function: TverskyLoss
       weight: 1.0
       kwargs: {sigmoid: true, alpha: 0.6, beta: 0.4, smooth_nr: 1e-5, smooth_dr: 1e-5}
-      pred_slice: [1, 2]
-      target_slice: [1, 2]
+      pred_slice: "1:2"
+      target_slice: "1:2"
     - function: SmoothL1Loss
       weight: 0.5
       kwargs: {beta: 0.1, reduction: mean, tanh: true}
-      pred_slice: [2, 3]
-      target_slice: [2, 3]
+      pred_slice: "2:3"
+      target_slice: "2:3"
 
     loss_balancing:
       strategy: uncertainty # Keep uncertainty weighting
@@ -229,11 +229,10 @@ inference:
   test_time_augmentation:
     flip_axes: [[0], [1], [2], [0, 1], [0, 2], [1, 2]]  # CHANGED FROM: null
     rotation90_axes: [[1, 2]]  # CHANGED FROM: null
-    select_channel: all
+    select_channel: ":"
     channel_activations:
-    - [0, 1, sigmoid]
-    - [1, 2, sigmoid]
-    - [2, 3, tanh]
+      - {channels: "0:2", activation: sigmoid}
+      - {channels: "2:3", activation: tanh}
     ensemble_mode: mean
     apply_mask: true
 

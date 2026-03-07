@@ -229,82 +229,6 @@ def create_loss_from_config(cfg) -> nn.Module:
     )
 
 
-# Convenience factory functions for common loss configurations
-def create_binary_segmentation_loss(
-    dice_weight: float = 0.5,
-    bce_weight: float = 0.5,
-    include_background: bool = True,
-) -> nn.Module:
-    """
-    Create standard loss for binary segmentation.
-
-    Args:
-        dice_weight: Weight for Dice loss
-        bce_weight: Weight for BCE loss
-        include_background: Whether to include background in Dice
-
-    Returns:
-        Combined DiceLoss + BCEWithLogitsLoss
-    """
-    return create_combined_loss(
-        loss_names=["DiceLoss", "BCEWithLogitsLoss"],
-        loss_weights=[dice_weight, bce_weight],
-        loss_kwargs=[
-            {"include_background": include_background, "sigmoid": True},
-            {},
-        ],
-    )
-
-
-def create_multiclass_segmentation_loss(
-    num_classes: int,
-    dice_weight: float = 0.5,
-    ce_weight: float = 0.5,
-    include_background: bool = False,
-) -> nn.Module:
-    """
-    Create standard loss for multi-class segmentation.
-
-    Args:
-        num_classes: Number of classes
-        dice_weight: Weight for Dice loss
-        ce_weight: Weight for CE loss
-        include_background: Whether to include background in Dice
-
-    Returns:
-        Combined DiceLoss + CrossEntropyLoss
-    """
-    return create_combined_loss(
-        loss_names=["DiceLoss", "CrossEntropyLoss"],
-        loss_weights=[dice_weight, ce_weight],
-        loss_kwargs=[
-            {
-                "include_background": include_background,
-                "to_onehot_y": True,
-                "softmax": True,
-            },
-            {},
-        ],
-    )
-
-
-def create_focal_loss(
-    gamma: float = 2.0,
-    alpha: float = 0.25,
-) -> nn.Module:
-    """
-    Create Focal loss for handling class imbalance.
-
-    Args:
-        gamma: Focusing parameter
-        alpha: Weighting factor
-
-    Returns:
-        FocalLoss
-    """
-    return create_loss("FocalLoss", gamma=gamma, alpha=alpha)
-
-
 def list_available_losses() -> List[str]:
     """List all available loss functions."""
     return list(_get_loss_registry().keys())
@@ -314,9 +238,6 @@ __all__ = [
     "create_loss",
     "create_combined_loss",
     "create_loss_from_config",
-    "create_binary_segmentation_loss",
-    "create_multiclass_segmentation_loss",
-    "create_focal_loss",
     "list_available_losses",
     "LossMetadata",
     "get_loss_metadata",

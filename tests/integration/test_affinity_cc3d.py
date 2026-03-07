@@ -10,7 +10,7 @@ Tests cover:
 import numpy as np
 import pytest
 
-from connectomics.decoding.segmentation import decode_affinity_cc
+from connectomics.decoding.decoders.segmentation import decode_affinity_cc
 
 try:
     import numba  # noqa: F401
