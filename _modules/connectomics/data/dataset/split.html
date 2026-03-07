@@ -13,7 +13,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>connectomics.data.utils.split &mdash; connectomics latest documentation</title>
+  <title>connectomics.data.dataset.split &mdash; connectomics latest documentation</title>
   
 
   
@@ -245,7 +245,7 @@
         
           <li><a href="../../../index.html">Module code</a> &gt;</li>
         
-      <li>connectomics.data.utils.split</li>
+      <li>connectomics.data.dataset.split</li>
     
     
       <li class="pytorch-breadcrumbs-aside">
@@ -273,7 +273,7 @@
             <div role="main" class="main-content" itemscope="itemscope" itemtype="http://schema.org/Article">
               <article itemprop="articleBody" id="pytorch-article" class="pytorch-article">
                 
-  <h1>Source code for connectomics.data.utils.split</h1><div class="highlight"><pre>
+  <h1>Source code for connectomics.data.dataset.split</h1><div class="highlight"><pre>
 <span></span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">Volume splitting utilities for train/val splits.</span>
 
@@ -281,14 +281,19 @@
 <span class="sd">for training and validation, with automatic padding to model input size.</span>
 <span class="sd">&quot;&quot;&quot;</span>
 
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">__future__</span><span class="w"> </span><span class="kn">import</span> <span class="n">annotations</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">logging</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Tuple</span><span class="p">,</span> <span class="n">Optional</span><span class="p">,</span> <span class="n">Union</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">torch</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">pathlib</span><span class="w"> </span><span class="kn">import</span> <span class="n">Path</span>
 
+<span class="n">logger</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="vm">__name__</span><span class="p">)</span>
+
 
 <div class="viewcode-block" id="split_volume_train_val">
-<a class="viewcode-back" href="../../../../modules/data.html#connectomics.data.utils.split_volume_train_val">[docs]</a>
+<a class="viewcode-back" href="../../../../modules/data.html#connectomics.data.dataset.split_volume_train_val">[docs]</a>
 <span class="k">def</span><span class="w"> </span><span class="nf">split_volume_train_val</span><span class="p">(</span>
     <span class="n">volume_shape</span><span class="p">:</span> <span class="n">Tuple</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="nb">int</span><span class="p">,</span> <span class="nb">int</span><span class="p">],</span>
     <span class="n">train_ratio</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.8</span><span class="p">,</span>
@@ -336,9 +341,9 @@
         <span class="n">train_size</span> <span class="o">=</span> <span class="n">split_dim</span> <span class="o">-</span> <span class="n">min_val_size</span>
         <span class="n">val_size</span> <span class="o">=</span> <span class="n">min_val_size</span>
         <span class="n">actual_ratio</span> <span class="o">=</span> <span class="n">train_size</span> <span class="o">/</span> <span class="n">split_dim</span>
-        <span class="nb">print</span><span class="p">(</span>
-            <span class="sa">f</span><span class="s2">&quot;Warning: Adjusted train_ratio from </span><span class="si">{</span><span class="n">train_ratio</span><span class="si">:</span><span class="s2">.2f</span><span class="si">}</span><span class="s2"> to </span><span class="si">{</span><span class="n">actual_ratio</span><span class="si">:</span><span class="s2">.2f</span><span class="si">}</span><span class="s2"> &quot;</span>
-            <span class="sa">f</span><span class="s2">&quot;to satisfy min_val_size=</span><span class="si">{</span><span class="n">min_val_size</span><span class="si">}</span><span class="s2">&quot;</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span>
+            <span class="s2">&quot;Adjusted train_ratio from </span><span class="si">%.2f</span><span class="s2"> to </span><span class="si">%.2f</span><span class="s2"> to satisfy min_val_size=</span><span class="si">%d</span><span class="s2">&quot;</span><span class="p">,</span>
+            <span class="n">train_ratio</span><span class="p">,</span> <span class="n">actual_ratio</span><span class="p">,</span> <span class="n">min_val_size</span><span class="p">,</span>
         <span class="p">)</span>
 
     <span class="c1"># Create slices</span>
@@ -352,8 +357,6 @@
 
 
 
-<div class="viewcode-block" id="create_split_masks">
-<a class="viewcode-back" href="../../../../modules/data.html#connectomics.data.utils.create_split_masks">[docs]</a>
 <span class="k">def</span><span class="w"> </span><span class="nf">create_split_masks</span><span class="p">(</span>
     <span class="n">volume_shape</span><span class="p">:</span> <span class="n">Tuple</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="nb">int</span><span class="p">,</span> <span class="nb">int</span><span class="p">],</span>
     <span class="n">train_ratio</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.8</span><span class="p">,</span>
@@ -393,12 +396,9 @@
     <span class="n">train_mask</span><span class="p">[</span><span class="n">train_slices</span><span class="p">]</span> <span class="o">=</span> <span class="mi">1</span>
     <span class="n">val_mask</span><span class="p">[</span><span class="n">val_slices</span><span class="p">]</span> <span class="o">=</span> <span class="mi">1</span>
 
-    <span class="k">return</span> <span class="n">train_mask</span><span class="p">,</span> <span class="n">val_mask</span></div>
+    <span class="k">return</span> <span class="n">train_mask</span><span class="p">,</span> <span class="n">val_mask</span>
 
 
-
-<div class="viewcode-block" id="pad_volume_to_size">
-<a class="viewcode-back" href="../../../../modules/data.html#connectomics.data.utils.pad_volume_to_size">[docs]</a>
 <span class="k">def</span><span class="w"> </span><span class="nf">pad_volume_to_size</span><span class="p">(</span>
     <span class="n">volume</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">],</span>
     <span class="n">target_size</span><span class="p">:</span> <span class="n">Tuple</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="nb">int</span><span class="p">,</span> <span class="nb">int</span><span class="p">],</span>
@@ -513,12 +513,9 @@
 
         <span class="n">padded</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">pad</span><span class="p">(</span><span class="n">volume</span><span class="p">,</span> <span class="n">pad_width</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="n">np_mode</span><span class="p">)</span>
 
-    <span class="k">return</span> <span class="n">padded</span></div>
+    <span class="k">return</span> <span class="n">padded</span>
 
 
-
-<div class="viewcode-block" id="split_and_pad_volume">
-<a class="viewcode-back" href="../../../../modules/data.html#connectomics.data.utils.split_and_pad_volume">[docs]</a>
 <span class="k">def</span><span class="w"> </span><span class="nf">split_and_pad_volume</span><span class="p">(</span>
     <span class="n">volume</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">],</span>
     <span class="n">train_ratio</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.8</span><span class="p">,</span>
@@ -585,13 +582,10 @@
     <span class="k">if</span> <span class="n">target_size</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
         <span class="n">val_volume</span> <span class="o">=</span> <span class="n">pad_volume_to_size</span><span class="p">(</span><span class="n">val_volume</span><span class="p">,</span> <span class="n">target_size</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="n">pad_mode</span><span class="p">)</span>
 
-    <span class="k">return</span> <span class="n">train_volume</span><span class="p">,</span> <span class="n">val_volume</span></div>
-
+    <span class="k">return</span> <span class="n">train_volume</span><span class="p">,</span> <span class="n">val_volume</span>
 
 
 <span class="c1"># Convenience function for saving masks to HDF5 (DeepEM style)</span>
-<div class="viewcode-block" id="save_split_masks_h5">
-<a class="viewcode-back" href="../../../../modules/data.html#connectomics.data.utils.save_split_masks_h5">[docs]</a>
 <span class="k">def</span><span class="w"> </span><span class="nf">save_split_masks_h5</span><span class="p">(</span>
     <span class="n">output_dir</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Path</span><span class="p">],</span>
     <span class="n">volume_shape</span><span class="p">:</span> <span class="n">Tuple</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="nb">int</span><span class="p">,</span> <span class="nb">int</span><span class="p">],</span>
@@ -629,11 +623,10 @@
     <span class="k">with</span> <span class="n">h5py</span><span class="o">.</span><span class="n">File</span><span class="p">(</span><span class="n">val_path</span><span class="p">,</span> <span class="s2">&quot;w&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
         <span class="n">f</span><span class="o">.</span><span class="n">create_dataset</span><span class="p">(</span><span class="s2">&quot;main&quot;</span><span class="p">,</span> <span class="n">data</span><span class="o">=</span><span class="n">val_mask</span><span class="p">,</span> <span class="n">compression</span><span class="o">=</span><span class="s2">&quot;gzip&quot;</span><span class="p">)</span>
 
-    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Saved training mask to: </span><span class="si">{</span><span class="n">train_path</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
-    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Saved validation mask to: </span><span class="si">{</span><span class="n">val_path</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
-    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Training region: </span><span class="si">{</span><span class="n">train_mask</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span><span class="si">}</span><span class="s2"> voxels&quot;</span><span class="p">)</span>
-    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Validation region: </span><span class="si">{</span><span class="n">val_mask</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span><span class="si">}</span><span class="s2"> voxels&quot;</span><span class="p">)</span></div>
-
+    <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Saved training mask to: </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">train_path</span><span class="p">)</span>
+    <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Saved validation mask to: </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">val_path</span><span class="p">)</span>
+    <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Training region: </span><span class="si">%d</span><span class="s2"> voxels&quot;</span><span class="p">,</span> <span class="n">train_mask</span><span class="o">.</span><span class="n">sum</span><span class="p">())</span>
+    <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Validation region: </span><span class="si">%d</span><span class="s2"> voxels&quot;</span><span class="p">,</span> <span class="n">val_mask</span><span class="o">.</span><span class="n">sum</span><span class="p">())</span>
 
 
 <span class="c1"># ============================================================================</span>
@@ -651,8 +644,6 @@
 
 <span class="k">if</span> <span class="n">HAS_MONAI</span><span class="p">:</span>
 
-<div class="viewcode-block" id="ApplyVolumetricSplitd">
-<a class="viewcode-back" href="../../../../modules/data.html#connectomics.data.utils.ApplyVolumetricSplitd">[docs]</a>
     <span class="k">class</span><span class="w"> </span><span class="nc">ApplyVolumetricSplitd</span><span class="p">(</span><span class="n">MapTransform</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        MONAI transform to apply volumetric split during data loading.</span>
@@ -729,11 +720,8 @@
                                 <span class="n">mode</span><span class="o">=</span><span class="n">pad_mode</span><span class="p">,</span>
                             <span class="p">)</span>
 
-            <span class="k">return</span> <span class="n">d</span></div>
+            <span class="k">return</span> <span class="n">d</span>
 
-
-<div class="viewcode-block" id="apply_volumetric_split">
-<a class="viewcode-back" href="../../../../modules/data.html#connectomics.data.utils.apply_volumetric_split">[docs]</a>
     <span class="k">def</span><span class="w"> </span><span class="nf">apply_volumetric_split</span><span class="p">(</span>
         <span class="n">volume</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">],</span>
         <span class="n">split_slices</span><span class="p">:</span> <span class="n">Tuple</span><span class="p">[</span><span class="nb">slice</span><span class="p">,</span> <span class="o">...</span><span class="p">],</span>
@@ -766,8 +754,7 @@
         <span class="k">if</span> <span class="n">pad</span> <span class="ow">and</span> <span class="n">pad_size</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
             <span class="n">result</span> <span class="o">=</span> <span class="n">pad_volume_to_size</span><span class="p">(</span><span class="n">result</span><span class="p">,</span> <span class="n">target_size</span><span class="o">=</span><span class="n">pad_size</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="n">pad_mode</span><span class="p">)</span>
 
-        <span class="k">return</span> <span class="n">result</span></div>
-
+        <span class="k">return</span> <span class="n">result</span>
 
 
 <span class="n">__all__</span> <span class="o">=</span> <span class="p">[</span>

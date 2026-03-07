@@ -296,6 +296,7 @@
 <span class="sd">&quot;&quot;&quot;</span>
 
 <span class="kn">from</span><span class="w"> </span><span class="nn">__future__</span><span class="w"> </span><span class="kn">import</span> <span class="n">annotations</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">functools</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">os</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Tuple</span><span class="p">,</span> <span class="n">List</span><span class="p">,</span> <span class="n">Optional</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span>
@@ -310,8 +311,6 @@
 <span class="kn">from</span><span class="w"> </span><span class="nn">skimage.morphology</span><span class="w"> </span><span class="kn">import</span> <span class="n">skeletonize</span><span class="p">,</span> <span class="n">dilation</span><span class="p">,</span> <span class="n">square</span>
 
 
-<div class="viewcode-block" id="compute_skeleton_metrics">
-<a class="viewcode-back" href="../../../modules/metrics.html#connectomics.metrics.compute_skeleton_metrics">[docs]</a>
 <span class="k">def</span><span class="w"> </span><span class="nf">compute_skeleton_metrics</span><span class="p">(</span>
     <span class="n">skeleton_output</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">],</span>
     <span class="n">skeleton_gt</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">],</span>
@@ -367,12 +366,9 @@
     <span class="n">denominator</span> <span class="o">=</span> <span class="n">completeness</span> <span class="o">+</span> <span class="n">correctness</span> <span class="o">-</span> <span class="n">completeness</span> <span class="o">*</span> <span class="n">correctness</span>
     <span class="n">quality</span> <span class="o">=</span> <span class="p">(</span><span class="n">completeness</span> <span class="o">*</span> <span class="n">correctness</span> <span class="o">/</span> <span class="n">denominator</span><span class="p">)</span> <span class="k">if</span> <span class="n">denominator</span> <span class="o">&gt;</span> <span class="mi">0</span> <span class="k">else</span> <span class="mf">0.0</span>
 
-    <span class="k">return</span> <span class="n">correctness</span><span class="p">,</span> <span class="n">completeness</span><span class="p">,</span> <span class="n">quality</span></div>
+    <span class="k">return</span> <span class="n">correctness</span><span class="p">,</span> <span class="n">completeness</span><span class="p">,</span> <span class="n">quality</span>
 
 
-
-<div class="viewcode-block" id="compute_precision_recall">
-<a class="viewcode-back" href="../../../modules/metrics.html#connectomics.metrics.compute_precision_recall">[docs]</a>
 <span class="k">def</span><span class="w"> </span><span class="nf">compute_precision_recall</span><span class="p">(</span>
     <span class="n">pred</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span>
     <span class="n">gt</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span>
@@ -401,12 +397,9 @@
     <span class="n">pred_dil</span> <span class="o">=</span> <span class="n">dilation</span><span class="p">(</span><span class="n">pred_skel</span><span class="p">,</span> <span class="n">square</span><span class="p">(</span><span class="n">dilation_size</span><span class="p">))</span>
     <span class="n">gt_dil</span> <span class="o">=</span> <span class="n">dilation</span><span class="p">(</span><span class="n">gt_skel</span><span class="p">,</span> <span class="n">square</span><span class="p">(</span><span class="n">dilation_size</span><span class="p">))</span>
 
-    <span class="k">return</span> <span class="n">compute_skeleton_metrics</span><span class="p">([</span><span class="n">pred_skel</span><span class="p">],</span> <span class="p">[</span><span class="n">gt_skel</span><span class="p">],</span> <span class="p">[</span><span class="n">pred_dil</span><span class="p">],</span> <span class="p">[</span><span class="n">gt_dil</span><span class="p">])</span></div>
+    <span class="k">return</span> <span class="n">compute_skeleton_metrics</span><span class="p">([</span><span class="n">pred_skel</span><span class="p">],</span> <span class="p">[</span><span class="n">gt_skel</span><span class="p">],</span> <span class="p">[</span><span class="n">pred_dil</span><span class="p">],</span> <span class="p">[</span><span class="n">gt_dil</span><span class="p">])</span>
 
 
-
-<div class="viewcode-block" id="compute_iou">
-<a class="viewcode-back" href="../../../modules/metrics.html#connectomics.metrics.compute_iou">[docs]</a>
 <span class="k">def</span><span class="w"> </span><span class="nf">compute_iou</span><span class="p">(</span><span class="n">pred</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">gt</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">float</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Calculate foreground Intersection over Union (IoU).</span>
 
@@ -429,12 +422,9 @@
     <span class="k">if</span> <span class="n">union</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
         <span class="k">return</span> <span class="mf">0.0</span>
 
-    <span class="k">return</span> <span class="n">inter</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span> <span class="o">/</span> <span class="n">union</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span></div>
+    <span class="k">return</span> <span class="n">inter</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span> <span class="o">/</span> <span class="n">union</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span>
 
 
-
-<div class="viewcode-block" id="binarize_masks">
-<a class="viewcode-back" href="../../../modules/metrics.html#connectomics.metrics.binarize_masks">[docs]</a>
 <span class="k">def</span><span class="w"> </span><span class="nf">binarize_masks</span><span class="p">(</span>
     <span class="n">pred</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span>
     <span class="n">gt</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span>
@@ -456,8 +446,7 @@
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="n">pred_bin</span> <span class="o">=</span> <span class="p">(</span><span class="n">pred</span> <span class="o">&gt;</span> <span class="n">threshold</span><span class="p">)</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">uint8</span><span class="p">)</span>
     <span class="n">gt_bin</span> <span class="o">=</span> <span class="p">((</span><span class="n">gt</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">)</span> <span class="o">&amp;</span> <span class="p">(</span><span class="n">gt</span> <span class="o">!=</span> <span class="mi">255</span><span class="p">))</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">uint8</span><span class="p">)</span>
-    <span class="k">return</span> <span class="n">pred_bin</span><span class="p">,</span> <span class="n">gt_bin</span></div>
-
+    <span class="k">return</span> <span class="n">pred_bin</span><span class="p">,</span> <span class="n">gt_bin</span>
 
 
 <div class="viewcode-block" id="evaluate_image_pair">
@@ -510,7 +499,7 @@
     <span class="n">threshold</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">128</span><span class="p">,</span>
     <span class="n">dilation_size</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">5</span><span class="p">,</span>
     <span class="n">verbose</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
-<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Tuple</span><span class="p">[</span><span class="nb">float</span><span class="p">,</span> <span class="nb">float</span><span class="p">,</span> <span class="nb">float</span><span class="p">,</span> <span class="nb">float</span><span class="p">]:</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Tuple</span><span class="p">[</span><span class="nb">float</span><span class="p">,</span> <span class="nb">float</span><span class="p">,</span> <span class="nb">float</span><span class="p">,</span> <span class="nb">float</span><span class="p">]]:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Evaluate single file pair (for parallel processing).</span>
 
 <span class="sd">    Args:</span>
@@ -521,7 +510,7 @@
 <span class="sd">        verbose: Print results for each image. Default: False</span>
 
 <span class="sd">    Returns:</span>
-<span class="sd">        Tuple of (iou, correctness, completeness, quality) or empty list if file missing</span>
+<span class="sd">        Tuple of (iou, correctness, completeness, quality) or None if file missing</span>
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="k">if</span> <span class="n">imageio</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
         <span class="k">raise</span> <span class="ne">ImportError</span><span class="p">(</span>
@@ -529,7 +518,7 @@
         <span class="p">)</span>
 
     <span class="k">if</span> <span class="ow">not</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="n">pred_path</span><span class="p">):</span>
-        <span class="k">return</span> <span class="p">[]</span>
+        <span class="k">return</span> <span class="kc">None</span>
 
     <span class="c1"># Load images</span>
     <span class="n">pred</span> <span class="o">=</span> <span class="n">imageio</span><span class="o">.</span><span class="n">imread</span><span class="p">(</span><span class="n">pred_path</span><span class="p">)</span>
@@ -608,13 +597,14 @@
     <span class="p">]</span>
 
     <span class="c1"># Parallel evaluation</span>
+    <span class="n">eval_fn</span> <span class="o">=</span> <span class="n">functools</span><span class="o">.</span><span class="n">partial</span><span class="p">(</span>
+        <span class="n">evaluate_file_pair</span><span class="p">,</span> <span class="n">threshold</span><span class="o">=</span><span class="n">threshold</span><span class="p">,</span> <span class="n">dilation_size</span><span class="o">=</span><span class="n">dilation_size</span><span class="p">,</span> <span class="n">verbose</span><span class="o">=</span><span class="n">verbose</span>
+    <span class="p">)</span>
     <span class="k">with</span> <span class="n">multiprocessing</span><span class="o">.</span><span class="n">Pool</span><span class="p">(</span><span class="n">num_workers</span><span class="p">)</span> <span class="k">as</span> <span class="n">pool</span><span class="p">:</span>
-        <span class="n">results</span> <span class="o">=</span> <span class="n">pool</span><span class="o">.</span><span class="n">starmap</span><span class="p">(</span>
-            <span class="k">lambda</span> <span class="n">p</span><span class="p">,</span> <span class="n">g</span><span class="p">:</span> <span class="n">evaluate_file_pair</span><span class="p">(</span><span class="n">p</span><span class="p">,</span> <span class="n">g</span><span class="p">,</span> <span class="n">threshold</span><span class="p">,</span> <span class="n">dilation_size</span><span class="p">,</span> <span class="n">verbose</span><span class="p">),</span> <span class="n">file_pairs</span>
-        <span class="p">)</span>
+        <span class="n">results</span> <span class="o">=</span> <span class="n">pool</span><span class="o">.</span><span class="n">starmap</span><span class="p">(</span><span class="n">eval_fn</span><span class="p">,</span> <span class="n">file_pairs</span><span class="p">)</span>
 
     <span class="c1"># Filter out missing files and compute statistics</span>
-    <span class="n">results</span> <span class="o">=</span> <span class="p">[</span><span class="n">r</span> <span class="k">for</span> <span class="n">r</span> <span class="ow">in</span> <span class="n">results</span> <span class="k">if</span> <span class="n">r</span> <span class="o">!=</span> <span class="p">[]]</span>
+    <span class="n">results</span> <span class="o">=</span> <span class="p">[</span><span class="n">r</span> <span class="k">for</span> <span class="n">r</span> <span class="ow">in</span> <span class="n">results</span> <span class="k">if</span> <span class="n">r</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">]</span>
     <span class="n">results_array</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">results</span><span class="p">)</span>
 
     <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">results</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>

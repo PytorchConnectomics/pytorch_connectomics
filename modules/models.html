@@ -367,23 +367,6 @@ or at least implement the same interface.</p>
 </dl>
 </dd></dl>
 
-<dl class="py method">
-<dt class="sig sig-object py" id="connectomics.models.arch.ConnectomicsModel.summary">
-<span class="sig-name descname"><span class="pre">summary</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">input_shape</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/connectomics/models/arch/base.html#ConnectomicsModel.summary"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#connectomics.models.arch.ConnectomicsModel.summary" title="Link to this definition">¶</a></dt>
-<dd><p>Get a summary string of the model.</p>
-<dl class="field-list simple">
-<dt class="field-odd">Parameters<span class="colon">:</span></dt>
-<dd class="field-odd"><p><strong>input_shape</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#tuple" title="(in Python v3.14)"><em>tuple</em></a><em> | </em><em>None</em>) – Expected input shape (optional)</p>
-</dd>
-<dt class="field-even">Returns<span class="colon">:</span></dt>
-<dd class="field-even"><p>Formatted string with model information</p>
-</dd>
-<dt class="field-odd">Return type<span class="colon">:</span></dt>
-<dd class="field-odd"><p><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)">str</a></p>
-</dd>
-</dl>
-</dd></dl>
-
 </dd></dl>
 
 <dl class="py function">
@@ -473,7 +456,7 @@ or at least implement the same interface.</p>
 <dl class="py function">
 <dt class="sig sig-object py" id="connectomics.models.arch.print_available_architectures">
 <span class="sig-prename descclassname"><span class="pre">connectomics.models.arch.</span></span><span class="sig-name descname"><span class="pre">print_available_architectures</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/connectomics/models/arch.html#print_available_architectures"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#connectomics.models.arch.print_available_architectures" title="Link to this definition">¶</a></dt>
-<dd><p>Print a formatted list of available architectures.</p>
+<dd><p>Log a formatted list of available architectures.</p>
 </dd></dl>
 
 <dl class="py function">
@@ -766,8 +749,8 @@ LSGAN needs no sigmoid. Vanilla GANs will handle it with BCEWithLogitsLoss.</p>
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
 <li><p><strong>name</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>)</p></li>
-<li><p><strong>call_kind</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>)</p></li>
-<li><p><strong>target_kind</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>)</p></li>
+<li><p><strong>call_kind</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Literal" title="(in Python v3.14)"><em>Literal</em></a><em>[</em><em>'pred_target'</em><em>, </em><em>'pred_only'</em><em>, </em><em>'pred_pred'</em><em>, </em><em>'unsupported'</em><em>]</em>)</p></li>
+<li><p><strong>target_kind</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Literal" title="(in Python v3.14)"><em>Literal</em></a><em>[</em><em>'dense'</em><em>, </em><em>'class_index'</em><em>, </em><em>'none'</em><em>]</em>)</p></li>
 <li><p><strong>spatial_weight_arg</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a><em> | </em><em>None</em>)</p></li>
 </ul>
 </dd>
@@ -895,27 +878,6 @@ With both pred and target in [-1, 1], MSE should be &lt; 4.</p></li>
 </dd></dl>
 
 <dl class="py function">
-<dt class="sig sig-object py" id="connectomics.models.loss.create_binary_segmentation_loss">
-<span class="sig-prename descclassname"><span class="pre">connectomics.models.loss.</span></span><span class="sig-name descname"><span class="pre">create_binary_segmentation_loss</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">dice_weight</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.5</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">bce_weight</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.5</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">include_background</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/connectomics/models/loss/build.html#create_binary_segmentation_loss"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#connectomics.models.loss.create_binary_segmentation_loss" title="Link to this definition">¶</a></dt>
-<dd><p>Create standard loss for binary segmentation.</p>
-<dl class="field-list simple">
-<dt class="field-odd">Parameters<span class="colon">:</span></dt>
-<dd class="field-odd"><ul class="simple">
-<li><p><strong>dice_weight</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><em>float</em></a>) – Weight for Dice loss</p></li>
-<li><p><strong>bce_weight</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><em>float</em></a>) – Weight for BCE loss</p></li>
-<li><p><strong>include_background</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)"><em>bool</em></a>) – Whether to include background in Dice</p></li>
-</ul>
-</dd>
-<dt class="field-even">Returns<span class="colon">:</span></dt>
-<dd class="field-even"><p>Combined DiceLoss + BCEWithLogitsLoss</p>
-</dd>
-<dt class="field-odd">Return type<span class="colon">:</span></dt>
-<dd class="field-odd"><p><a class="reference external" href="https://docs.pytorch.org/docs/stable/generated/torch.nn.Module.html#torch.nn.Module" title="(in PyTorch v2.10)"><em>Module</em></a></p>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="py function">
 <dt class="sig sig-object py" id="connectomics.models.loss.create_combined_loss">
 <span class="sig-prename descclassname"><span class="pre">connectomics.models.loss.</span></span><span class="sig-name descname"><span class="pre">create_combined_loss</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">loss_names</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">loss_weights</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">loss_kwargs</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/connectomics/models/loss/build.html#create_combined_loss"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#connectomics.models.loss.create_combined_loss" title="Link to this definition">¶</a></dt>
 <dd><p>Create a weighted combination of multiple loss functions.</p>
@@ -949,26 +911,6 @@ With both pred and target in [-1, 1], MSE should be &lt; 4.</p></li>
 <span class="gp">... </span><span class="p">)</span>
 </pre></div>
 </div>
-</dd></dl>
-
-<dl class="py function">
-<dt class="sig sig-object py" id="connectomics.models.loss.create_focal_loss">
-<span class="sig-prename descclassname"><span class="pre">connectomics.models.loss.</span></span><span class="sig-name descname"><span class="pre">create_focal_loss</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">gamma</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">2.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">alpha</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.25</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/connectomics/models/loss/build.html#create_focal_loss"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#connectomics.models.loss.create_focal_loss" title="Link to this definition">¶</a></dt>
-<dd><p>Create Focal loss for handling class imbalance.</p>
-<dl class="field-list simple">
-<dt class="field-odd">Parameters<span class="colon">:</span></dt>
-<dd class="field-odd"><ul class="simple">
-<li><p><strong>gamma</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><em>float</em></a>) – Focusing parameter</p></li>
-<li><p><strong>alpha</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><em>float</em></a>) – Weighting factor</p></li>
-</ul>
-</dd>
-<dt class="field-even">Returns<span class="colon">:</span></dt>
-<dd class="field-even"><p>FocalLoss</p>
-</dd>
-<dt class="field-odd">Return type<span class="colon">:</span></dt>
-<dd class="field-odd"><p><a class="reference external" href="https://docs.pytorch.org/docs/stable/generated/torch.nn.Module.html#torch.nn.Module" title="(in PyTorch v2.10)"><em>Module</em></a></p>
-</dd>
-</dl>
 </dd></dl>
 
 <dl class="py function">
@@ -1018,28 +960,6 @@ With both pred and target in [-1, 1], MSE should be &lt; 4.</p></li>
 <span class="gp">&gt;&gt;&gt; </span><span class="n">loss</span> <span class="o">=</span> <span class="n">create_loss_from_config</span><span class="p">(</span><span class="n">cfg</span><span class="p">)</span>
 </pre></div>
 </div>
-</dd></dl>
-
-<dl class="py function">
-<dt class="sig sig-object py" id="connectomics.models.loss.create_multiclass_segmentation_loss">
-<span class="sig-prename descclassname"><span class="pre">connectomics.models.loss.</span></span><span class="sig-name descname"><span class="pre">create_multiclass_segmentation_loss</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">num_classes</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dice_weight</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.5</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ce_weight</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.5</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">include_background</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/connectomics/models/loss/build.html#create_multiclass_segmentation_loss"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#connectomics.models.loss.create_multiclass_segmentation_loss" title="Link to this definition">¶</a></dt>
-<dd><p>Create standard loss for multi-class segmentation.</p>
-<dl class="field-list simple">
-<dt class="field-odd">Parameters<span class="colon">:</span></dt>
-<dd class="field-odd"><ul class="simple">
-<li><p><strong>num_classes</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a>) – Number of classes</p></li>
-<li><p><strong>dice_weight</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><em>float</em></a>) – Weight for Dice loss</p></li>
-<li><p><strong>ce_weight</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><em>float</em></a>) – Weight for CE loss</p></li>
-<li><p><strong>include_background</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)"><em>bool</em></a>) – Whether to include background in Dice</p></li>
-</ul>
-</dd>
-<dt class="field-even">Returns<span class="colon">:</span></dt>
-<dd class="field-even"><p>Combined DiceLoss + CrossEntropyLoss</p>
-</dd>
-<dt class="field-odd">Return type<span class="colon">:</span></dt>
-<dd class="field-odd"><p><a class="reference external" href="https://docs.pytorch.org/docs/stable/generated/torch.nn.Module.html#torch.nn.Module" title="(in PyTorch v2.10)"><em>Module</em></a></p>
-</dd>
-</dl>
 </dd></dl>
 
 <dl class="py function">
@@ -1127,7 +1047,6 @@ With both pred and target in [-1, 1], MSE should be &lt; 4.</p></li>
 <li><a class="reference internal" href="#connectomics.models.arch.ConnectomicsModel"><code class="docutils literal notranslate"><span class="pre">ConnectomicsModel</span></code></a><ul>
 <li><a class="reference internal" href="#connectomics.models.arch.ConnectomicsModel.forward"><code class="docutils literal notranslate"><span class="pre">ConnectomicsModel.forward()</span></code></a></li>
 <li><a class="reference internal" href="#connectomics.models.arch.ConnectomicsModel.get_model_info"><code class="docutils literal notranslate"><span class="pre">ConnectomicsModel.get_model_info()</span></code></a></li>
-<li><a class="reference internal" href="#connectomics.models.arch.ConnectomicsModel.summary"><code class="docutils literal notranslate"><span class="pre">ConnectomicsModel.summary()</span></code></a></li>
 </ul>
 </li>
 <li><a class="reference internal" href="#connectomics.models.arch.get_architecture_builder"><code class="docutils literal notranslate"><span class="pre">get_architecture_builder()</span></code></a></li>
@@ -1175,12 +1094,9 @@ With both pred and target in [-1, 1], MSE should be &lt; 4.</p></li>
 <li><a class="reference internal" href="#connectomics.models.loss.WeightedMSELoss.forward"><code class="docutils literal notranslate"><span class="pre">WeightedMSELoss.forward()</span></code></a></li>
 </ul>
 </li>
-<li><a class="reference internal" href="#connectomics.models.loss.create_binary_segmentation_loss"><code class="docutils literal notranslate"><span class="pre">create_binary_segmentation_loss()</span></code></a></li>
 <li><a class="reference internal" href="#connectomics.models.loss.create_combined_loss"><code class="docutils literal notranslate"><span class="pre">create_combined_loss()</span></code></a></li>
-<li><a class="reference internal" href="#connectomics.models.loss.create_focal_loss"><code class="docutils literal notranslate"><span class="pre">create_focal_loss()</span></code></a></li>
 <li><a class="reference internal" href="#connectomics.models.loss.create_loss"><code class="docutils literal notranslate"><span class="pre">create_loss()</span></code></a></li>
 <li><a class="reference internal" href="#connectomics.models.loss.create_loss_from_config"><code class="docutils literal notranslate"><span class="pre">create_loss_from_config()</span></code></a></li>
-<li><a class="reference internal" href="#connectomics.models.loss.create_multiclass_segmentation_loss"><code class="docutils literal notranslate"><span class="pre">create_multiclass_segmentation_loss()</span></code></a></li>
 <li><a class="reference internal" href="#connectomics.models.loss.get_loss_metadata"><code class="docutils literal notranslate"><span class="pre">get_loss_metadata()</span></code></a></li>
 <li><a class="reference internal" href="#connectomics.models.loss.get_loss_metadata_for_module"><code class="docutils literal notranslate"><span class="pre">get_loss_metadata_for_module()</span></code></a></li>
 <li><a class="reference internal" href="#connectomics.models.loss.list_available_losses"><code class="docutils literal notranslate"><span class="pre">list_available_losses()</span></code></a></li>

@@ -280,16 +280,281 @@
 <span id="connectomics-metrics"></span><h1>connectomics.metrics<a class="headerlink" href="#module-connectomics.metrics" title="Link to this heading">¶</a></h1>
 <p>Evaluation metrics for PyTorch Connectomics.</p>
 <p>This package provides comprehensive evaluation metrics:
-- metrics_seg.py: Segmentation metrics (Adapted Rand, Dice, Jaccard, etc.)
+- metrics_seg.py: Segmentation metrics (Adapted Rand, VOI, instance matching)
 - metrics_skel.py: Skeleton-based metrics for curvilinear structures</p>
 <p>Note: PyTorch Lightning handles training monitoring and logging.</p>
 <dl class="simple">
-<dt>Import patterns:</dt><dd><p>from connectomics.metrics import adapted_rand, get_binary_jaccard
-from connectomics.metrics import compute_skeleton_metrics, evaluate_image_pair
-from connectomics.metrics.metrics_seg import instance_matching
-from connectomics.metrics.metrics_skel import evaluate_directory</p>
+<dt>Import patterns:</dt><dd><p>from connectomics.metrics import AdaptedRandError, VariationOfInformation
+from connectomics.metrics import evaluate_image_pair, evaluate_directory
+from connectomics.metrics.segmentation_numpy import adapted_rand, instance_matching</p>
 </dd>
 </dl>
+<dl class="py class">
+<dt class="sig sig-object py" id="connectomics.metrics.AdaptedRandError">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">connectomics.metrics.</span></span><span class="sig-name descname"><span class="pre">AdaptedRandError</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">return_all_stats</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dist_sync_on_step</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/connectomics/metrics/metrics_seg.html#AdaptedRandError"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#connectomics.metrics.AdaptedRandError" title="Link to this definition">¶</a></dt>
+<dd><p>Torchmetrics-style wrapper around the numpy-based adapted Rand implementation.</p>
+<p>This wrapper lets us accumulate scores during Lightning <cite>test_step</cite> without
+manual numpy&lt;-&gt;torch conversions in the training loop.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>return_all_stats</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)"><em>bool</em></a>) – If True, also compute and return precision and recall</p></li>
+<li><p><strong>dist_sync_on_step</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)"><em>bool</em></a>) – Whether to sync across distributed processes on each step</p></li>
+</ul>
+</dd>
+</dl>
+<p>Initialize internal Module state, shared by both nn.Module and ScriptModule.</p>
+<dl class="py method">
+<dt class="sig sig-object py" id="connectomics.metrics.AdaptedRandError.compute">
+<span class="sig-name descname"><span class="pre">compute</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/connectomics/metrics/metrics_seg.html#AdaptedRandError.compute"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#connectomics.metrics.AdaptedRandError.compute" title="Link to this definition">¶</a></dt>
+<dd><p>Override this method to compute the final metric value.</p>
+<p>This method will automatically synchronize state variables when running in distributed backend.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.10)"><em>Tensor</em></a></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="connectomics.metrics.AdaptedRandError.update">
+<span class="sig-name descname"><span class="pre">update</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">preds</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">target</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/connectomics/metrics/metrics_seg.html#AdaptedRandError.update"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#connectomics.metrics.AdaptedRandError.update" title="Link to this definition">¶</a></dt>
+<dd><p>Override this method to update the state variables of your metric class.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>preds</strong> (<a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.10)"><em>Tensor</em></a>)</p></li>
+<li><p><strong>target</strong> (<a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.10)"><em>Tensor</em></a>)</p></li>
+</ul>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p>None</p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="connectomics.metrics.InstanceAccuracy">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">connectomics.metrics.</span></span><span class="sig-name descname"><span class="pre">InstanceAccuracy</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">thresh</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.5</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">criterion</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'iou'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dist_sync_on_step</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/connectomics/metrics/metrics_seg.html#InstanceAccuracy"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#connectomics.metrics.InstanceAccuracy" title="Link to this definition">¶</a></dt>
+<dd><p>Torchmetrics-style wrapper around instance_matching for instance-level accuracy.</p>
+<dl class="simple">
+<dt>Instance accuracy measures the fraction of correctly detected instances:</dt><dd><p>accuracy = TP / (TP + FP + FN)</p>
+</dd>
+</dl>
+<p>Where:
+- TP (True Positives): Number of GT instances correctly matched to predictions
+- FP (False Positives): Number of predicted instances not matched to GT
+- FN (False Negatives): Number of GT instances not matched to predictions</p>
+<p>Matching is based on IoU threshold (default 0.5).</p>
+<p>Higher values are better (1.0 = perfect detection).</p>
+<p>This wrapper lets us accumulate scores during Lightning <cite>test_step</cite> without
+manual numpy&lt;-&gt;torch conversions in the training loop.</p>
+<p>Initialize internal Module state, shared by both nn.Module and ScriptModule.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>thresh</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><em>float</em></a>)</p></li>
+<li><p><strong>criterion</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>)</p></li>
+<li><p><strong>dist_sync_on_step</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)"><em>bool</em></a>)</p></li>
+</ul>
+</dd>
+</dl>
+<dl class="py method">
+<dt class="sig sig-object py" id="connectomics.metrics.InstanceAccuracy.compute">
+<span class="sig-name descname"><span class="pre">compute</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/connectomics/metrics/metrics_seg.html#InstanceAccuracy.compute"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#connectomics.metrics.InstanceAccuracy.compute" title="Link to this definition">¶</a></dt>
+<dd><p>Return instance-level accuracy: TP / (TP + FP + FN).</p>
+<dl class="field-list simple">
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.10)"><em>Tensor</em></a></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="connectomics.metrics.InstanceAccuracy.update">
+<span class="sig-name descname"><span class="pre">update</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">preds</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">target</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/connectomics/metrics/metrics_seg.html#InstanceAccuracy.update"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#connectomics.metrics.InstanceAccuracy.update" title="Link to this definition">¶</a></dt>
+<dd><p>Override this method to update the state variables of your metric class.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>preds</strong> (<a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.10)"><em>Tensor</em></a>)</p></li>
+<li><p><strong>target</strong> (<a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.10)"><em>Tensor</em></a>)</p></li>
+</ul>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p>None</p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="connectomics.metrics.InstanceAccuracySimple">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">connectomics.metrics.</span></span><span class="sig-name descname"><span class="pre">InstanceAccuracySimple</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">thresh</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.5</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">criterion</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'iou'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dist_sync_on_step</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/connectomics/metrics/metrics_seg.html#InstanceAccuracySimple"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#connectomics.metrics.InstanceAccuracySimple" title="Link to this definition">¶</a></dt>
+<dd><p>Torchmetrics-style wrapper for relaxed instance-level accuracy (NO Hungarian matching).</p>
+<p>WARNING: This is a RELAXED metric for debugging/analysis only, NOT for benchmark ranking.
+Unlike InstanceAccuracy, this does NOT use optimal bipartite matching.</p>
+<dl class="simple">
+<dt>Simple counting approach:</dt><dd><ul class="simple">
+<li><p>Count all (GT, Pred) pairs with IoU &gt;= threshold as TP</p></li>
+<li><p>fp = n_pred - tp</p></li>
+<li><p>fn = n_true - tp</p></li>
+<li><p>accuracy = tp / (tp + fp + fn)</p></li>
+</ul>
+</dd>
+</dl>
+<p>This metric is useful for:
+- Quick debugging and sanity checks
+- Understanding raw overlap statistics
+- Comparing with strict Hungarian-based metrics</p>
+<p>Higher values are better (1.0 = perfect detection).</p>
+<p>This wrapper lets us accumulate scores during Lightning <cite>test_step</cite> without
+manual numpy&lt;-&gt;torch conversions in the training loop.</p>
+<p>Initialize internal Module state, shared by both nn.Module and ScriptModule.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>thresh</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><em>float</em></a>)</p></li>
+<li><p><strong>criterion</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>)</p></li>
+<li><p><strong>dist_sync_on_step</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)"><em>bool</em></a>)</p></li>
+</ul>
+</dd>
+</dl>
+<dl class="py method">
+<dt class="sig sig-object py" id="connectomics.metrics.InstanceAccuracySimple.compute">
+<span class="sig-name descname"><span class="pre">compute</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/connectomics/metrics/metrics_seg.html#InstanceAccuracySimple.compute"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#connectomics.metrics.InstanceAccuracySimple.compute" title="Link to this definition">¶</a></dt>
+<dd><p>Return relaxed instance-level accuracy: TP / (TP + FP + FN).</p>
+<dl class="field-list simple">
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.10)"><em>Tensor</em></a></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="connectomics.metrics.InstanceAccuracySimple.compute_f1">
+<span class="sig-name descname"><span class="pre">compute_f1</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/connectomics/metrics/metrics_seg.html#InstanceAccuracySimple.compute_f1"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#connectomics.metrics.InstanceAccuracySimple.compute_f1" title="Link to this definition">¶</a></dt>
+<dd><p>Return instance-level F1: 2*TP / (2*TP + FP + FN).</p>
+<dl class="field-list simple">
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.10)"><em>Tensor</em></a></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="connectomics.metrics.InstanceAccuracySimple.compute_precision">
+<span class="sig-name descname"><span class="pre">compute_precision</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/connectomics/metrics/metrics_seg.html#InstanceAccuracySimple.compute_precision"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#connectomics.metrics.InstanceAccuracySimple.compute_precision" title="Link to this definition">¶</a></dt>
+<dd><p>Return instance-level precision: TP / (TP + FP).</p>
+<dl class="field-list simple">
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.10)"><em>Tensor</em></a></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="connectomics.metrics.InstanceAccuracySimple.compute_recall">
+<span class="sig-name descname"><span class="pre">compute_recall</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/connectomics/metrics/metrics_seg.html#InstanceAccuracySimple.compute_recall"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#connectomics.metrics.InstanceAccuracySimple.compute_recall" title="Link to this definition">¶</a></dt>
+<dd><p>Return instance-level recall: TP / (TP + FN).</p>
+<dl class="field-list simple">
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.10)"><em>Tensor</em></a></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="connectomics.metrics.InstanceAccuracySimple.update">
+<span class="sig-name descname"><span class="pre">update</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">preds</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">target</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/connectomics/metrics/metrics_seg.html#InstanceAccuracySimple.update"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#connectomics.metrics.InstanceAccuracySimple.update" title="Link to this definition">¶</a></dt>
+<dd><p>Override this method to update the state variables of your metric class.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>preds</strong> (<a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.10)"><em>Tensor</em></a>)</p></li>
+<li><p><strong>target</strong> (<a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.10)"><em>Tensor</em></a>)</p></li>
+</ul>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p>None</p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="connectomics.metrics.VariationOfInformation">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">connectomics.metrics.</span></span><span class="sig-name descname"><span class="pre">VariationOfInformation</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">dist_sync_on_step</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/connectomics/metrics/metrics_seg.html#VariationOfInformation"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#connectomics.metrics.VariationOfInformation" title="Link to this definition">¶</a></dt>
+<dd><p>Torchmetrics-style wrapper around the numpy-based VOI implementation.</p>
+<p>VOI (Variation of Information) measures the information-theoretic distance
+between two clusterings. It decomposes into:
+- VOI Split (H(X|Y)): Over-segmentation error (false splits)
+- VOI Merge (H(Y|X)): Under-segmentation error (false merges)</p>
+<p>Lower values are better (0 = perfect match).</p>
+<p>This wrapper lets us accumulate scores during Lightning <cite>test_step</cite> without
+manual numpy&lt;-&gt;torch conversions in the training loop.</p>
+<p>Initialize internal Module state, shared by both nn.Module and ScriptModule.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>dist_sync_on_step</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)"><em>bool</em></a>)</p>
+</dd>
+</dl>
+<dl class="py method">
+<dt class="sig sig-object py" id="connectomics.metrics.VariationOfInformation.compute">
+<span class="sig-name descname"><span class="pre">compute</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/connectomics/metrics/metrics_seg.html#VariationOfInformation.compute"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#connectomics.metrics.VariationOfInformation.compute" title="Link to this definition">¶</a></dt>
+<dd><p>Return total VOI (split + merge).</p>
+<dl class="field-list simple">
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.10)"><em>Tensor</em></a></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="connectomics.metrics.VariationOfInformation.compute_merge">
+<span class="sig-name descname"><span class="pre">compute_merge</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/connectomics/metrics/metrics_seg.html#VariationOfInformation.compute_merge"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#connectomics.metrics.VariationOfInformation.compute_merge" title="Link to this definition">¶</a></dt>
+<dd><p>Return VOI merge (under-segmentation error).</p>
+<dl class="field-list simple">
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.10)"><em>Tensor</em></a></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="connectomics.metrics.VariationOfInformation.compute_split">
+<span class="sig-name descname"><span class="pre">compute_split</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/connectomics/metrics/metrics_seg.html#VariationOfInformation.compute_split"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#connectomics.metrics.VariationOfInformation.compute_split" title="Link to this definition">¶</a></dt>
+<dd><p>Return VOI split (over-segmentation error).</p>
+<dl class="field-list simple">
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.10)"><em>Tensor</em></a></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="connectomics.metrics.VariationOfInformation.update">
+<span class="sig-name descname"><span class="pre">update</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">preds</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">target</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/connectomics/metrics/metrics_seg.html#VariationOfInformation.update"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#connectomics.metrics.VariationOfInformation.update" title="Link to this definition">¶</a></dt>
+<dd><p>Override this method to update the state variables of your metric class.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>preds</strong> (<a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.10)"><em>Tensor</em></a>)</p></li>
+<li><p><strong>target</strong> (<a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.10)"><em>Tensor</em></a>)</p></li>
+</ul>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p>None</p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
 <dl class="py function">
 <dt class="sig sig-object py" id="connectomics.metrics.adapted_rand">
 <span class="sig-prename descclassname"><span class="pre">connectomics.metrics.</span></span><span class="sig-name descname"><span class="pre">adapted_rand</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">seg</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">gt</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">all_stats</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/connectomics/metrics/segmentation_numpy.html#adapted_rand"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#connectomics.metrics.adapted_rand" title="Link to this definition">¶</a></dt>
@@ -324,135 +589,6 @@ from the SNEMI3D MATLAB script, hence the strange style.</p>
 <p>[1]: <a class="reference external" href="http://brainiac2.mit.edu/SNEMI3D/evaluation">http://brainiac2.mit.edu/SNEMI3D/evaluation</a></p>
 </dd>
 </dl>
-</dd></dl>
-
-<dl class="py function">
-<dt class="sig sig-object py" id="connectomics.metrics.binarize_masks">
-<span class="sig-prename descclassname"><span class="pre">connectomics.metrics.</span></span><span class="sig-name descname"><span class="pre">binarize_masks</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">pred</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">gt</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">threshold</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">128</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/connectomics/metrics/metrics_skel.html#binarize_masks"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#connectomics.metrics.binarize_masks" title="Link to this definition">¶</a></dt>
-<dd><p>Binarize prediction and ground truth masks.</p>
-<dl class="field-list simple">
-<dt class="field-odd">Parameters<span class="colon">:</span></dt>
-<dd class="field-odd"><ul class="simple">
-<li><p><strong>pred</strong> (<em>ndarray</em>) – Prediction mask (0-255 range)</p></li>
-<li><p><strong>gt</strong> (<em>ndarray</em>) – Ground truth mask (0-255 range)</p></li>
-<li><p><strong>threshold</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a>) – Threshold for binarizing prediction. Default: 128</p></li>
-</ul>
-</dd>
-<dt class="field-even">Returns<span class="colon">:</span></dt>
-<dd class="field-even"><p>Tuple of (binarized_pred, binarized_gt) as uint8 arrays</p>
-</dd>
-<dt class="field-odd">Return type<span class="colon">:</span></dt>
-<dd class="field-odd"><p><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Tuple" title="(in Python v3.14)"><em>Tuple</em></a>[<em>ndarray</em>, <em>ndarray</em>]</p>
-</dd>
-</dl>
-<p class="rubric">Notes</p>
-<ul class="simple">
-<li><p>Prediction: threshold at specified value (default 128)</p></li>
-<li><p>Ground truth: exclude 0 (background) and 255 (ignore) pixels</p></li>
-</ul>
-</dd></dl>
-
-<dl class="py function">
-<dt class="sig sig-object py" id="connectomics.metrics.compute_iou">
-<span class="sig-prename descclassname"><span class="pre">connectomics.metrics.</span></span><span class="sig-name descname"><span class="pre">compute_iou</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">pred</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">gt</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/connectomics/metrics/metrics_skel.html#compute_iou"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#connectomics.metrics.compute_iou" title="Link to this definition">¶</a></dt>
-<dd><p>Calculate foreground Intersection over Union (IoU).</p>
-<dl class="field-list simple">
-<dt class="field-odd">Parameters<span class="colon">:</span></dt>
-<dd class="field-odd"><ul class="simple">
-<li><p><strong>pred</strong> (<em>ndarray</em>) – Predicted binary mask</p></li>
-<li><p><strong>gt</strong> (<em>ndarray</em>) – Ground truth binary mask</p></li>
-</ul>
-</dd>
-<dt class="field-even">Returns<span class="colon">:</span></dt>
-<dd class="field-even"><p><dl class="simple">
-<dt>Foreground IoU score in range [0.0, 1.0]</dt><dd><ul class="simple">
-<li><p>1.0: Perfect overlap</p></li>
-<li><p>0.0: No overlap or empty union</p></li>
-</ul>
-</dd>
-</dl>
-</p>
-</dd>
-<dt class="field-odd">Return type<span class="colon">:</span></dt>
-<dd class="field-odd"><p><a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)">float</a></p>
-</dd>
-</dl>
-<p class="rubric">Notes</p>
-<ul class="simple">
-<li><p>Both inputs should be binary (0 or 1)</p></li>
-<li><p>Returns 0.0 if union is empty (both masks are empty)</p></li>
-</ul>
-</dd></dl>
-
-<dl class="py function">
-<dt class="sig sig-object py" id="connectomics.metrics.compute_precision_recall">
-<span class="sig-prename descclassname"><span class="pre">connectomics.metrics.</span></span><span class="sig-name descname"><span class="pre">compute_precision_recall</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">pred</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">gt</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dilation_size</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">5</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/connectomics/metrics/metrics_skel.html#compute_precision_recall"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#connectomics.metrics.compute_precision_recall" title="Link to this definition">¶</a></dt>
-<dd><p>Compute precision and recall metrics for single prediction-GT pair.</p>
-<dl class="field-list simple">
-<dt class="field-odd">Parameters<span class="colon">:</span></dt>
-<dd class="field-odd"><ul class="simple">
-<li><p><strong>pred</strong> (<em>ndarray</em>) – Predicted binary segmentation mask</p></li>
-<li><p><strong>gt</strong> (<em>ndarray</em>) – Ground truth binary segmentation mask</p></li>
-<li><p><strong>dilation_size</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a>) – Size of square structuring element for dilation. Default: 5</p></li>
-</ul>
-</dd>
-<dt class="field-even">Returns<span class="colon">:</span></dt>
-<dd class="field-even"><p>Tuple of (correctness, completeness, quality) metrics</p>
-</dd>
-<dt class="field-odd">Return type<span class="colon">:</span></dt>
-<dd class="field-odd"><p><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Tuple" title="(in Python v3.14)"><em>Tuple</em></a>[<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)">float</a>, <a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)">float</a>, <a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)">float</a>]</p>
-</dd>
-</dl>
-<p class="rubric">Notes</p>
-<ul class="simple">
-<li><p>Automatically skeletonizes input masks</p></li>
-<li><p>Applies dilation with specified size (default 5x5 square)</p></li>
-<li><p>Returns 0.0 for all metrics if inputs are empty</p></li>
-</ul>
-</dd></dl>
-
-<dl class="py function">
-<dt class="sig sig-object py" id="connectomics.metrics.compute_skeleton_metrics">
-<span class="sig-prename descclassname"><span class="pre">connectomics.metrics.</span></span><span class="sig-name descname"><span class="pre">compute_skeleton_metrics</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">skeleton_output</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">skeleton_gt</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">skeleton_output_dil</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">skeleton_gt_dil</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/connectomics/metrics/metrics_skel.html#compute_skeleton_metrics"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#connectomics.metrics.compute_skeleton_metrics" title="Link to this definition">¶</a></dt>
-<dd><p>Compute skeleton-based metrics for curvilinear structure evaluation.</p>
-<dl class="field-list simple">
-<dt class="field-odd">Parameters<span class="colon">:</span></dt>
-<dd class="field-odd"><ul class="simple">
-<li><p><strong>skeleton_output</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.List" title="(in Python v3.14)"><em>List</em></a><em>[</em><em>ndarray</em><em>]</em>) – List of skeletonized predictions (binarized)</p></li>
-<li><p><strong>skeleton_gt</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.List" title="(in Python v3.14)"><em>List</em></a><em>[</em><em>ndarray</em><em>]</em>) – List of skeletonized ground truth</p></li>
-<li><p><strong>skeleton_output_dil</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.List" title="(in Python v3.14)"><em>List</em></a><em>[</em><em>ndarray</em><em>]</em>) – List of dilated skeletonized predictions</p></li>
-<li><p><strong>skeleton_gt_dil</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.List" title="(in Python v3.14)"><em>List</em></a><em>[</em><em>ndarray</em><em>]</em>) – List of dilated skeletonized ground truth</p></li>
-</ul>
-</dd>
-<dt class="field-even">Returns<span class="colon">:</span></dt>
-<dd class="field-even"><p><dl class="simple">
-<dt>Tuple of (correctness, completeness, quality) metrics</dt><dd><ul class="simple">
-<li><p>Correctness: True positives / (True positives + False positives)</p></li>
-<li><p>Completeness: True positives / (True positives + False negatives)</p></li>
-<li><p>Quality: F-measure combining correctness and completeness</p></li>
-</ul>
-</dd>
-</dl>
-</p>
-</dd>
-<dt class="field-odd">Return type<span class="colon">:</span></dt>
-<dd class="field-odd"><p><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Tuple" title="(in Python v3.14)"><em>Tuple</em></a>[<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)">float</a>, <a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)">float</a>, <a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)">float</a>]</p>
-</dd>
-</dl>
-<p class="rubric">Notes</p>
-<ul class="simple">
-<li><p>All inputs should be binary arrays (0 or 1)</p></li>
-<li><p>Dilation factor should be consistent (typically 5x5 square)</p></li>
-<li><p>Quality is 0 if denominator is 0 (no predictions or ground truth)</p></li>
-</ul>
-</dd></dl>
-
-<dl class="py function">
-<dt class="sig sig-object py" id="connectomics.metrics.cremi_distance">
-<span class="sig-prename descclassname"><span class="pre">connectomics.metrics.</span></span><span class="sig-name descname"><span class="pre">cremi_distance</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">pred</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">gt</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">resolution</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">(40.0,</span> <span class="pre">4.0,</span> <span class="pre">4.0)</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/connectomics/metrics/segmentation_numpy.html#cremi_distance"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#connectomics.metrics.cremi_distance" title="Link to this definition">¶</a></dt>
-<dd><p>Compute the FP/FN statistics between predictions and ground truth as
-in the CREMI challenge (<a class="reference external" href="https://cremi.org/">https://cremi.org/</a>). Both inputs (pred, gt) need
-to be of the same size.</p>
 </dd></dl>
 
 <dl class="py function">
@@ -514,10 +650,10 @@ to be of the same size.</p>
 </ul>
 </dd>
 <dt class="field-even">Returns<span class="colon">:</span></dt>
-<dd class="field-even"><p>Tuple of (iou, correctness, completeness, quality) or empty list if file missing</p>
+<dd class="field-even"><p>Tuple of (iou, correctness, completeness, quality) or None if file missing</p>
 </dd>
 <dt class="field-odd">Return type<span class="colon">:</span></dt>
-<dd class="field-odd"><p><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Tuple" title="(in Python v3.14)"><em>Tuple</em></a>[<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)">float</a>, <a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)">float</a>, <a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)">float</a>, <a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)">float</a>]</p>
+<dd class="field-odd"><p><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Tuple" title="(in Python v3.14)"><em>Tuple</em></a>[<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)">float</a>, <a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)">float</a>, <a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)">float</a>, <a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)">float</a>] | None</p>
 </dd>
 </dl>
 </dd></dl>
@@ -547,24 +683,6 @@ to be of the same size.</p>
 </dd>
 <dt class="field-odd">Return type<span class="colon">:</span></dt>
 <dd class="field-odd"><p><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Tuple" title="(in Python v3.14)"><em>Tuple</em></a>[<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)">float</a>, <a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)">float</a>, <a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)">float</a>, <a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)">float</a>]</p>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="py function">
-<dt class="sig sig-object py" id="connectomics.metrics.get_binary_jaccard">
-<span class="sig-prename descclassname"><span class="pre">connectomics.metrics.</span></span><span class="sig-name descname"><span class="pre">get_binary_jaccard</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">pred</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">target</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">threshold</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.5</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/connectomics/metrics/metrics_seg.html#get_binary_jaccard"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#connectomics.metrics.get_binary_jaccard" title="Link to this definition">¶</a></dt>
-<dd><p>Convenience wrapper to compute Jaccard on binary masks with optional thresholding.</p>
-<dl class="field-list simple">
-<dt class="field-odd">Parameters<span class="colon">:</span></dt>
-<dd class="field-odd"><ul class="simple">
-<li><p><strong>pred</strong> (<em>ndarray</em>)</p></li>
-<li><p><strong>target</strong> (<em>ndarray</em>)</p></li>
-<li><p><strong>threshold</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><em>float</em></a>)</p></li>
-</ul>
-</dd>
-<dt class="field-even">Return type<span class="colon">:</span></dt>
-<dd class="field-even"><p><a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)">float</a></p>
 </dd>
 </dl>
 </dd></dl>
@@ -620,28 +738,42 @@ CVPR 2019</p></li>
 </dd></dl>
 
 <dl class="py function">
-<dt class="sig sig-object py" id="connectomics.metrics.jaccard">
-<span class="sig-prename descclassname"><span class="pre">connectomics.metrics.</span></span><span class="sig-name descname"><span class="pre">jaccard</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">pred</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">gt</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">thres</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">[0.5]</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/connectomics/metrics/segmentation_numpy.html#jaccard"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#connectomics.metrics.jaccard" title="Link to this definition">¶</a></dt>
-<dd><p>Evaluate the binary prediction at multiple thresholds using the Jaccard
-Index, which is also known as Intersection over Union (IoU). If the prediction
-is already binarized, different thresholds will result the same result.</p>
+<dt class="sig sig-object py" id="connectomics.metrics.instance_matching_simple">
+<span class="sig-prename descclassname"><span class="pre">connectomics.metrics.</span></span><span class="sig-name descname"><span class="pre">instance_matching_simple</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">y_true</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">y_pred</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">thresh</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.5</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">criterion</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'iou'</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/connectomics/metrics/segmentation_numpy.html#instance_matching_simple"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#connectomics.metrics.instance_matching_simple" title="Link to this definition">¶</a></dt>
+<dd><p>Calculate relaxed instance segmentation metrics without Hungarian matching.</p>
+<p>WARNING: This is a RELAXED metric for debugging/analysis only, NOT for benchmark ranking.
+Unlike instance_matching(), this does NOT use optimal bipartite matching (Hungarian algorithm).
+Instead, it simply counts all (GT, Pred) pairs with IoU &gt;= threshold as true positives.</p>
+<p>This metric is useful for:
+- Quick debugging and sanity checks
+- Understanding raw overlap statistics
+- Comparing with strict Hungarian-based metrics</p>
+<dl class="simple">
+<dt>Metrics computed:</dt><dd><p>‘tp’, ‘fp’, ‘fn’, ‘precision’, ‘recall’, ‘accuracy’, ‘f1’,
+‘criterion’, ‘thresh’, ‘n_true’, ‘n_pred’</p>
+</dd>
+</dl>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
-<li><p><strong>pred</strong> (<em>numpy.ndarray</em>) – foreground probability of shape <span class="math notranslate nohighlight">\((Z, Y, X)\)</span>.</p></li>
-<li><p><strong>gt</strong> (<em>numpy.ndarray</em>) – binary foreground label of shape identical to the prediction.</p></li>
-<li><p><strong>thres</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.14)"><em>list</em></a>) – a list of probablility threshold in (0,1). Default: [0.5]</p></li>
+<li><p><strong>y_true</strong> (<em>ndarray</em>) – ground truth label image (integer valued)</p></li>
+<li><p><strong>y_pred</strong> (<em>ndarray</em>) – predicted label image (integer valued)</p></li>
+<li><p><strong>thresh</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><em>float</em></a>) – threshold for matching criterion (default 0.5)</p></li>
+<li><p><strong>criterion</strong> (<em>string</em>) – matching criterion (default ‘iou’)</p></li>
 </ul>
 </dd>
-<dt class="field-even">Returns<span class="colon">:</span></dt>
-<dd class="field-even"><p>a numpy array of shape <span class="math notranslate nohighlight">\((N, 4)\)</span>, where <span class="math notranslate nohighlight">\(N\)</span> is the
-number of element(s) in the probability threshold list. The four scores in each line
-are foreground IoU, IoU, precision and recall, respectively.</p>
-</dd>
-<dt class="field-odd">Return type<span class="colon">:</span></dt>
-<dd class="field-odd"><p>score (numpy.ndarray)</p>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p>Dictionary with metrics (tp, fp, fn, precision, recall, accuracy, f1, etc.)</p>
 </dd>
 </dl>
+<p class="rubric">Examples</p>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">y_true</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="mi">100</span><span class="p">,</span><span class="mi">100</span><span class="p">),</span> <span class="n">np</span><span class="o">.</span><span class="n">uint16</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">y_true</span><span class="p">[</span><span class="mi">10</span><span class="p">:</span><span class="mi">20</span><span class="p">,</span><span class="mi">10</span><span class="p">:</span><span class="mi">20</span><span class="p">]</span> <span class="o">=</span> <span class="mi">1</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">y_pred</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">roll</span><span class="p">(</span><span class="n">y_true</span><span class="p">,</span> <span class="mi">5</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">stats</span> <span class="o">=</span> <span class="n">instance_matching_simple</span><span class="p">(</span><span class="n">y_true</span><span class="p">,</span> <span class="n">y_pred</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Accuracy: </span><span class="si">{</span><span class="n">stats</span><span class="p">[</span><span class="s1">&#39;accuracy&#39;</span><span class="p">]</span><span class="si">:</span><span class="s2">.3f</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
 </dd></dl>
 
 </section>
@@ -682,18 +814,37 @@ are foreground IoU, IoU, precision and recall, respectively.</p>
             <div class="pytorch-side-scroll" id="pytorch-side-scroll-right">
               <ul>
 <li><a class="reference internal" href="#">connectomics.metrics</a><ul>
+<li><a class="reference internal" href="#connectomics.metrics.AdaptedRandError"><code class="docutils literal notranslate"><span class="pre">AdaptedRandError</span></code></a><ul>
+<li><a class="reference internal" href="#connectomics.metrics.AdaptedRandError.compute"><code class="docutils literal notranslate"><span class="pre">AdaptedRandError.compute()</span></code></a></li>
+<li><a class="reference internal" href="#connectomics.metrics.AdaptedRandError.update"><code class="docutils literal notranslate"><span class="pre">AdaptedRandError.update()</span></code></a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#connectomics.metrics.InstanceAccuracy"><code class="docutils literal notranslate"><span class="pre">InstanceAccuracy</span></code></a><ul>
+<li><a class="reference internal" href="#connectomics.metrics.InstanceAccuracy.compute"><code class="docutils literal notranslate"><span class="pre">InstanceAccuracy.compute()</span></code></a></li>
+<li><a class="reference internal" href="#connectomics.metrics.InstanceAccuracy.update"><code class="docutils literal notranslate"><span class="pre">InstanceAccuracy.update()</span></code></a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#connectomics.metrics.InstanceAccuracySimple"><code class="docutils literal notranslate"><span class="pre">InstanceAccuracySimple</span></code></a><ul>
+<li><a class="reference internal" href="#connectomics.metrics.InstanceAccuracySimple.compute"><code class="docutils literal notranslate"><span class="pre">InstanceAccuracySimple.compute()</span></code></a></li>
+<li><a class="reference internal" href="#connectomics.metrics.InstanceAccuracySimple.compute_f1"><code class="docutils literal notranslate"><span class="pre">InstanceAccuracySimple.compute_f1()</span></code></a></li>
+<li><a class="reference internal" href="#connectomics.metrics.InstanceAccuracySimple.compute_precision"><code class="docutils literal notranslate"><span class="pre">InstanceAccuracySimple.compute_precision()</span></code></a></li>
+<li><a class="reference internal" href="#connectomics.metrics.InstanceAccuracySimple.compute_recall"><code class="docutils literal notranslate"><span class="pre">InstanceAccuracySimple.compute_recall()</span></code></a></li>
+<li><a class="reference internal" href="#connectomics.metrics.InstanceAccuracySimple.update"><code class="docutils literal notranslate"><span class="pre">InstanceAccuracySimple.update()</span></code></a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#connectomics.metrics.VariationOfInformation"><code class="docutils literal notranslate"><span class="pre">VariationOfInformation</span></code></a><ul>
+<li><a class="reference internal" href="#connectomics.metrics.VariationOfInformation.compute"><code class="docutils literal notranslate"><span class="pre">VariationOfInformation.compute()</span></code></a></li>
+<li><a class="reference internal" href="#connectomics.metrics.VariationOfInformation.compute_merge"><code class="docutils literal notranslate"><span class="pre">VariationOfInformation.compute_merge()</span></code></a></li>
+<li><a class="reference internal" href="#connectomics.metrics.VariationOfInformation.compute_split"><code class="docutils literal notranslate"><span class="pre">VariationOfInformation.compute_split()</span></code></a></li>
+<li><a class="reference internal" href="#connectomics.metrics.VariationOfInformation.update"><code class="docutils literal notranslate"><span class="pre">VariationOfInformation.update()</span></code></a></li>
+</ul>
+</li>
 <li><a class="reference internal" href="#connectomics.metrics.adapted_rand"><code class="docutils literal notranslate"><span class="pre">adapted_rand()</span></code></a></li>
-<li><a class="reference internal" href="#connectomics.metrics.binarize_masks"><code class="docutils literal notranslate"><span class="pre">binarize_masks()</span></code></a></li>
-<li><a class="reference internal" href="#connectomics.metrics.compute_iou"><code class="docutils literal notranslate"><span class="pre">compute_iou()</span></code></a></li>
-<li><a class="reference internal" href="#connectomics.metrics.compute_precision_recall"><code class="docutils literal notranslate"><span class="pre">compute_precision_recall()</span></code></a></li>
-<li><a class="reference internal" href="#connectomics.metrics.compute_skeleton_metrics"><code class="docutils literal notranslate"><span class="pre">compute_skeleton_metrics()</span></code></a></li>
-<li><a class="reference internal" href="#connectomics.metrics.cremi_distance"><code class="docutils literal notranslate"><span class="pre">cremi_distance()</span></code></a></li>
 <li><a class="reference internal" href="#connectomics.metrics.evaluate_directory"><code class="docutils literal notranslate"><span class="pre">evaluate_directory()</span></code></a></li>
 <li><a class="reference internal" href="#connectomics.metrics.evaluate_file_pair"><code class="docutils literal notranslate"><span class="pre">evaluate_file_pair()</span></code></a></li>
 <li><a class="reference internal" href="#connectomics.metrics.evaluate_image_pair"><code class="docutils literal notranslate"><span class="pre">evaluate_image_pair()</span></code></a></li>
-<li><a class="reference internal" href="#connectomics.metrics.get_binary_jaccard"><code class="docutils literal notranslate"><span class="pre">get_binary_jaccard()</span></code></a></li>
 <li><a class="reference internal" href="#connectomics.metrics.instance_matching"><code class="docutils literal notranslate"><span class="pre">instance_matching()</span></code></a></li>
-<li><a class="reference internal" href="#connectomics.metrics.jaccard"><code class="docutils literal notranslate"><span class="pre">jaccard()</span></code></a></li>
+<li><a class="reference internal" href="#connectomics.metrics.instance_matching_simple"><code class="docutils literal notranslate"><span class="pre">instance_matching_simple()</span></code></a></li>
 </ul>
 </li>
 </ul>
@@ -712,7 +863,6 @@ are foreground IoU, IoU, precision and recall, respectively.</p>
   <script src="../_static/documentation_options.js?v=f4332903"></script>
   <script src="../_static/doctools.js?v=9bcbadda"></script>
   <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
-  <script async="async" src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
   
 
   
