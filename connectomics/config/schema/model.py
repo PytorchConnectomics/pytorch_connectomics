@@ -37,8 +37,9 @@ class LossConfig:
     #   Defaults when omitted:
     #   - WeightedBCEWithLogitsLoss: 1.0 (no class-ratio reweighting)
     #   - other weight-aware losses: "auto"
-    # - mask_slice: [start, end] to restrict loss to specific label channels
-    #   (supports negative bounds, e.g. [0, -1] or [-2, -1]).
+    # - pred_slice / target_slice / pred2_slice / mask_slice:
+    #   contiguous Python-style channel selectors using int or slice strings
+    #   such as 0, -1, ":", "0:3", or ":-1".
     # - apply_deep_supervision: bool
     # When None, defaults to [DiceLoss + BCEWithLogitsLoss] applied to all channels.
     # Deep supervision (supported by MedNeXt, RSUNet, and some MONAI models)

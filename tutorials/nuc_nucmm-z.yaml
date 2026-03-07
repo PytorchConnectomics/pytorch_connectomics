@@ -22,26 +22,26 @@ model:
     - function: DiceLoss
       weight: 1.0
       kwargs: {sigmoid: true, smooth_nr: 1e-5, smooth_dr: 1e-5}
-      pred_slice: [0, 1]
-      target_slice: [0, 1]
+      pred_slice: "0:1"
+      target_slice: "0:1"
     - function: BCEWithLogitsLoss
       weight: 0.5
-      pred_slice: [0, 1]
-      target_slice: [0, 1]
+      pred_slice: "0:1"
+      target_slice: "0:1"
     - function: DiceLoss
       weight: 1.0
       kwargs: {sigmoid: true, smooth_nr: 1e-5, smooth_dr: 1e-5}
-      pred_slice: [1, 2]
-      target_slice: [1, 2]
+      pred_slice: "1:2"
+      target_slice: "1:2"
     - function: BCEWithLogitsLoss
       weight: 0.5
-      pred_slice: [1, 2]
-      target_slice: [1, 2]
+      pred_slice: "1:2"
+      target_slice: "1:2"
     - function: WeightedMSELoss
       weight: 2.0
       kwargs: {tanh: true}
-      pred_slice: [2, 3]
-      target_slice: [2, 3]
+      pred_slice: "2:3"
+      target_slice: "2:3"
   monai:
     strides: [2, 2, 2]
     num_res_units: 2
@@ -128,12 +128,8 @@ inference:
   test_time_augmentation:
     flip_axes:
     channel_activations:
-    - - 0
-      - 2
-      - sigmoid
-    - - 2
-      - 3
-      - tanh
+      - {channels: "0:2", activation: sigmoid}
+      - {channels: "2:3", activation: tanh}
   evaluation:
     enabled: true
     metrics:

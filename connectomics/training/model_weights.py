@@ -2,10 +2,13 @@
 
 from __future__ import annotations
 
+import logging
 from pathlib import Path
 
 import torch
 import torch.nn as nn
+
+logger = logging.getLogger(__name__)
 
 
 def load_external_weights(model: nn.Module, cfg) -> nn.Module:
@@ -31,7 +34,7 @@ def load_external_weights(model: nn.Module, cfg) -> nn.Module:
     if isinstance(checkpoint, dict):
         if "state_dict" in checkpoint:
             state_dict = checkpoint["state_dict"]
-            print(f"    Loaded Lightning checkpoint (epoch={checkpoint.get('epoch', '?')})")
+            logger.info("Loaded Lightning checkpoint (epoch=%s)", checkpoint.get('epoch', '?'))
         elif "model_state_dict" in checkpoint:
             state_dict = checkpoint["model_state_dict"]
         else:
@@ -50,7 +53,7 @@ def load_external_weights(model: nn.Module, cfg) -> nn.Module:
                 stripped_state_dict[key] = value
         state_dict = stripped_state_dict
         if stripped_count > 0:
-            print(f'    Stripped "{key_prefix}" prefix from {stripped_count} keys')
+            logger.info('Stripped "%s" prefix from %d keys', key_prefix, stripped_count)
 
     if any(k.startswith("_orig_mod.") for k in state_dict.keys()):
         compile_stripped_state_dict = {}
@@ -63,33 +66,33 @@ def load_external_weights(model: nn.Module, cfg) -> nn.Module:
                 compile_stripped_state_dict[key] = value
         state_dict = compile_stripped_state_dict
         if compile_stripped > 0:
-            print(
-                '    Stripped "_orig_mod." prefix from '
-                f"{compile_stripped} keys (torch.compile model)"
+            logger.info(
+                'Stripped "_orig_mod." prefix from %d keys (torch.compile model)',
+                compile_stripped,
             )
 
     target_module = model.model if hasattr(model, "model") else model
     if target_module is not model:
-        print(f"    Loading into wrapped model: {target_module.__class__.__name__}")
+        logger.info("Loading into wrapped model: %s", target_module.__class__.__name__)
 
     missing_keys, unexpected_keys = target_module.load_state_dict(state_dict, strict=False)
 
     if missing_keys:
-        print(f"    Warning: {len(missing_keys)} missing keys")
+        logger.warning("%d missing keys", len(missing_keys))
         for key in missing_keys[:5]:
-            print(f"      - {key}")
+            logger.warning("  - %s", key)
         if len(missing_keys) > 5:
-            print(f"      ... ({len(missing_keys) - 5} more)")
+            logger.warning("  ... (%d more)", len(missing_keys) - 5)
 
     if unexpected_keys:
-        print(f"    Warning: {len(unexpected_keys)} unexpected keys")
+        logger.warning("%d unexpected keys", len(unexpected_keys))
         for key in unexpected_keys[:5]:
-            print(f"      - {key}")
+            logger.warning("  - %s", key)
         if len(unexpected_keys) > 5:
-            print(f"      ... ({len(unexpected_keys) - 5} more)")
+            logger.warning("  ... (%d more)", len(unexpected_keys) - 5)
 
     if not missing_keys and not unexpected_keys:
-        print("    Successfully loaded all weights")
+        logger.info("Successfully loaded all weights")
 
     return model
 

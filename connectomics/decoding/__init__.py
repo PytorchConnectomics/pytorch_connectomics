@@ -1,7 +1,13 @@
-"""Decoding package for PyTorch Connectomics."""
+"""Decoding package for PyTorch Connectomics.
 
+Subpackages:
+    decoders/    - Segmentation decoder implementations
+    postprocess/ - Post-processing utilities for segmentation refinement
+    tuning/      - Hyperparameter tuning for decoding parameters
+"""
+
+# --- Framework / Infrastructure ---
 from .base import DecodeStep
-from .abiss import decode_abiss
 from .pipeline import (
     apply_decode_mode,
     apply_decode_pipeline,
@@ -16,19 +22,19 @@ from .registry import (
     register_decoder,
 )
 
-from .auto_tuning import (
-    SkeletonMetrics,
-    grid_search_threshold,
-    optimize_parameters,
-    optimize_threshold,
+# --- Segmentation Decoders ---
+from .decoders import (
+    decode_abiss,
+    decode_affinity_cc,
+    decode_distance_watershed,
+    decode_instance_binary_contour_distance,
+    polarity2instance,
 )
-from .optuna_tuner import (
-    OptunaDecodingTuner,
-    load_and_apply_best_params,
-    run_tuning,
-)
+
+# --- Post-processing & Utilities ---
 from .postprocess import (
     add_masks,
+    apply_binary_postprocessing,
     binarize_and_median,
     intersection_over_union,
     merge_masks,
@@ -36,19 +42,22 @@ from .postprocess import (
     stitch_3d,
     watershed_split,
 )
-from .segmentation import (
-    decode_affinity_cc,
-    decode_instance_binary_contour_distance,
-    decode_distance_watershed,
-)
-from .synapse import (
-    polarity2instance,
-)
 from .utils import (
     cast2dtype,
     merge_small_objects,
     remove_large_instances,
     remove_small_instances,
+)
+
+# --- Hyperparameter Tuning ---
+from .tuning import (
+    OptunaDecodingTuner,
+    SkeletonMetrics,
+    grid_search_threshold,
+    load_and_apply_best_params,
+    optimize_parameters,
+    optimize_threshold,
+    run_tuning,
 )
 
 register_builtin_decoders()
@@ -69,6 +78,8 @@ __all__ = [
     "decode_affinity_cc",
     "decode_distance_watershed",
     "decode_abiss",
+    # Synapse decoding
+    "polarity2instance",
     # Auto-tuning
     "optimize_threshold",
     "optimize_parameters",
@@ -77,8 +88,6 @@ __all__ = [
     "OptunaDecodingTuner",
     "run_tuning",
     "load_and_apply_best_params",
-    # Synapse decoding
-    "polarity2instance",
     # Post-processing
     "binarize_and_median",
     "remove_masks",
@@ -87,6 +96,7 @@ __all__ = [
     "watershed_split",
     "stitch_3d",
     "intersection_over_union",
+    "apply_binary_postprocessing",
     # Utilities
     "cast2dtype",
     "remove_small_instances",

@@ -57,7 +57,7 @@ def test_lightning_module_creation():
                 "monai": {"filters": [8, 16]},
                 "loss": {
                     "losses": [
-                        {"function": "DiceLoss", "weight": 1.0, "pred_slice": [0, 2], "target_slice": [0, 2]}
+                        {"function": "DiceLoss", "weight": 1.0, "pred_slice": "0:2", "target_slice": "0:2"}
                     ],
                 },
             },

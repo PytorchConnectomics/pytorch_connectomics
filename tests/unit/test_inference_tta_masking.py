@@ -94,11 +94,13 @@ def test_tta_allows_minor_mask_alignment_when_enabled():
     assert torch.all(pred == 0)
 
 
-def test_tta_channel_activations_end_minus_one_covers_last_channel():
+def test_tta_channel_activations_colon_applies_to_all_channels():
     cfg = Config()
     cfg.model.out_channels = 3
     cfg.inference.test_time_augmentation.enabled = False
-    cfg.inference.test_time_augmentation.channel_activations = [[0, -1, "sigmoid"]]
+    cfg.inference.test_time_augmentation.channel_activations = [
+        {"channels": ":", "activation": "sigmoid"}
+    ]
 
     predictor = TTAPredictor(cfg=cfg, sliding_inferer=None, forward_fn=_forward_three_channel_logits)
 
@@ -110,13 +112,13 @@ def test_tta_channel_activations_end_minus_one_covers_last_channel():
     assert torch.allclose(pred, expected)
 
 
-def test_tta_channel_activations_legacy_negative_bounds_work():
+def test_tta_channel_activations_follow_python_slice_semantics():
     cfg = Config()
     cfg.model.out_channels = 3
     cfg.inference.test_time_augmentation.enabled = False
     cfg.inference.test_time_augmentation.channel_activations = [
-        [0, -2, "sigmoid"],
-        [-2, -1, "tanh"],
+        {"channels": "0:-1", "activation": "sigmoid"},
+        {"channels": "-1:", "activation": "tanh"},
     ]
 
     predictor = TTAPredictor(cfg=cfg, sliding_inferer=None, forward_fn=_forward_three_channel_logits)

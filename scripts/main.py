@@ -463,8 +463,7 @@ def try_cache_only_test_execution(cfg: Config, mode: str) -> bool:
     from connectomics.training.lightning.path_utils import expand_file_paths
     from connectomics.data.io import read_hdf5
     from connectomics.decoding import apply_decode_mode, resolve_decode_modes_from_cfg
-    from connectomics.inference.postprocessing import apply_postprocessing
-    from connectomics.inference.output import write_outputs
+    from connectomics.inference.output import apply_postprocessing, write_outputs
 
     try:
         test_image_paths = expand_file_paths(test_image)

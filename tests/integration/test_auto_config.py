@@ -1,5 +1,5 @@
 """
-Tests for automatic configuration system (config/auto_config.py and config/gpu_utils.py).
+Tests for automatic configuration system (config/hardware/auto_config.py and config/hardware/gpu_utils.py).
 
 Tests cover:
 - GPU info detection
@@ -17,7 +17,7 @@ from unittest.mock import patch
 # Test imports
 def test_imports():
     """Test that config modules can be imported."""
-    from connectomics.config import auto_config, gpu_utils
+    from connectomics.config.hardware import auto_config, gpu_utils
     assert hasattr(auto_config, 'AutoConfigPlanner')
     assert hasattr(auto_config, 'auto_plan_config')
     assert hasattr(gpu_utils, 'get_gpu_info')
@@ -32,7 +32,7 @@ class TestGPUInfo:
     def test_get_gpu_info_no_cuda(self):
         """Test GPU info when CUDA is not available."""
         with patch('torch.cuda.is_available', return_value=False):
-            from connectomics.config.gpu_utils import get_gpu_info
+            from connectomics.config.hardware.gpu_utils import get_gpu_info
 
             info = get_gpu_info()
 
@@ -56,7 +56,7 @@ class TestGPUInfo:
 
             mock_props.return_value = Props()
 
-            from connectomics.config.gpu_utils import get_gpu_info
+            from connectomics.config.hardware.gpu_utils import get_gpu_info
 
             info = get_gpu_info()
 
@@ -68,7 +68,7 @@ class TestGPUInfo:
 
     def test_get_system_memory(self):
         """Test system memory detection."""
-        from connectomics.config.gpu_utils import get_system_memory_gb
+        from connectomics.config.hardware.gpu_utils import get_system_memory_gb
 
         mem = get_system_memory_gb()
         assert mem > 0
@@ -76,7 +76,7 @@ class TestGPUInfo:
 
     def test_get_available_system_memory(self):
         """Test available system memory detection."""
-        from connectomics.config.gpu_utils import (
+        from connectomics.config.hardware.gpu_utils import (
             get_system_memory_gb,
             get_available_system_memory_gb
         )
@@ -93,7 +93,7 @@ class TestMemoryEstimation:
 
     def test_estimate_memory_basic(self):
         """Test basic memory estimation."""
-        from connectomics.config.gpu_utils import estimate_gpu_memory_required
+        from connectomics.config.hardware.gpu_utils import estimate_gpu_memory_required
 
         memory_gb = estimate_gpu_memory_required(
             patch_size=(128, 128, 128),
@@ -111,7 +111,7 @@ class TestMemoryEstimation:
 
     def test_estimate_memory_increases_with_batch_size(self):
         """Test that memory estimate increases with batch size."""
-        from connectomics.config.gpu_utils import estimate_gpu_memory_required
+        from connectomics.config.hardware.gpu_utils import estimate_gpu_memory_required
 
         mem_bs1 = estimate_gpu_memory_required(
             patch_size=(128, 128, 128),
@@ -132,7 +132,7 @@ class TestMemoryEstimation:
 
     def test_estimate_memory_mixed_precision(self):
         """Test that mixed precision uses less memory."""
-        from connectomics.config.gpu_utils import estimate_gpu_memory_required
+        from connectomics.config.hardware.gpu_utils import estimate_gpu_memory_required
 
         mem_fp32 = estimate_gpu_memory_required(
             patch_size=(128, 128, 128),
@@ -156,7 +156,7 @@ class TestMemoryEstimation:
 
     def test_estimate_memory_deep_supervision(self):
         """Test that deep supervision increases memory."""
-        from connectomics.config.gpu_utils import estimate_gpu_memory_required
+        from connectomics.config.hardware.gpu_utils import estimate_gpu_memory_required
 
         mem_no_ds = estimate_gpu_memory_required(
             patch_size=(128, 128, 128),
@@ -182,7 +182,7 @@ class TestBatchSizeSuggestion:
 
     def test_suggest_batch_size_basic(self):
         """Test basic batch size suggestion."""
-        from connectomics.config.gpu_utils import suggest_batch_size
+        from connectomics.config.hardware.gpu_utils import suggest_batch_size
 
         bs = suggest_batch_size(
             patch_size=(128, 128, 128),
@@ -197,7 +197,7 @@ class TestBatchSizeSuggestion:
 
     def test_suggest_batch_size_scales_with_memory(self):
         """Test that larger GPU memory suggests larger batch size."""
-        from connectomics.config.gpu_utils import suggest_batch_size
+        from connectomics.config.hardware.gpu_utils import suggest_batch_size
 
         bs_small = suggest_batch_size(
             patch_size=(128, 128, 128),
@@ -217,7 +217,7 @@ class TestBatchSizeSuggestion:
 
     def test_suggest_batch_size_smaller_patches(self):
         """Test that smaller patches allow larger batch sizes."""
-        from connectomics.config.gpu_utils import suggest_batch_size
+        from connectomics.config.hardware.gpu_utils import suggest_batch_size
 
         bs_small_patch = suggest_batch_size(
             patch_size=(64, 64, 64),
@@ -241,7 +241,7 @@ class TestOptimalNumWorkers:
 
     def test_get_optimal_num_workers_single_gpu(self):
         """Test worker suggestion for single GPU."""
-        from connectomics.config.gpu_utils import get_optimal_num_workers
+        from connectomics.config.hardware.gpu_utils import get_optimal_num_workers
 
         workers = get_optimal_num_workers(num_gpus=1)
 
@@ -250,7 +250,7 @@ class TestOptimalNumWorkers:
 
     def test_get_optimal_num_workers_multi_gpu(self):
         """Test worker suggestion for multiple GPUs."""
-        from connectomics.config.gpu_utils import get_optimal_num_workers
+        from connectomics.config.hardware.gpu_utils import get_optimal_num_workers
 
         workers_1gpu = get_optimal_num_workers(num_gpus=1)
         workers_4gpu = get_optimal_num_workers(num_gpus=4)
@@ -266,7 +266,7 @@ class TestAutoConfigPlanner:
 
     def test_planner_init(self):
         """Test planner initialization."""
-        from connectomics.config.auto_config import AutoConfigPlanner
+        from connectomics.config.hardware.auto_config import AutoConfigPlanner
 
         planner = AutoConfigPlanner(
             architecture='mednext',
@@ -281,7 +281,7 @@ class TestAutoConfigPlanner:
 
     def test_architecture_defaults_mednext(self):
         """Test MedNeXt architecture defaults."""
-        from connectomics.config.auto_config import AutoConfigPlanner
+        from connectomics.config.hardware.auto_config import AutoConfigPlanner
 
         planner = AutoConfigPlanner(architecture='mednext')
         defaults = planner._get_architecture_defaults()
@@ -292,7 +292,7 @@ class TestAutoConfigPlanner:
 
     def test_architecture_defaults_unet(self):
         """Test U-Net architecture defaults."""
-        from connectomics.config.auto_config import AutoConfigPlanner
+        from connectomics.config.hardware.auto_config import AutoConfigPlanner
 
         planner = AutoConfigPlanner(architecture='monai_basic_unet3d')
         defaults = planner._get_architecture_defaults()
@@ -303,7 +303,7 @@ class TestAutoConfigPlanner:
 
     def test_plan_basic(self):
         """Test basic planning."""
-        from connectomics.config.auto_config import AutoConfigPlanner
+        from connectomics.config.hardware.auto_config import AutoConfigPlanner
 
         planner = AutoConfigPlanner(
             architecture='mednext',
@@ -328,7 +328,7 @@ class TestAutoConfigPlanner:
 
     def test_plan_anisotropic_spacing(self):
         """Test planning with anisotropic spacing."""
-        from connectomics.config.auto_config import AutoConfigPlanner
+        from connectomics.config.hardware.auto_config import AutoConfigPlanner
 
         # Anisotropic spacing (e.g., CT data)
         planner = AutoConfigPlanner(
@@ -345,7 +345,7 @@ class TestAutoConfigPlanner:
 
     def test_plan_with_manual_overrides(self):
         """Test planning with manual overrides."""
-        from connectomics.config.auto_config import AutoConfigPlanner
+        from connectomics.config.hardware.auto_config import AutoConfigPlanner
 
         manual_overrides = {
             'batch_size': 8,
@@ -366,7 +366,7 @@ class TestAutoConfigPlanner:
     @patch('torch.cuda.is_available', return_value=False)
     def test_plan_cpu_only(self, mock_cuda):
         """Test planning for CPU-only training."""
-        from connectomics.config.auto_config import AutoConfigPlanner
+        from connectomics.config.hardware.auto_config import AutoConfigPlanner
 
         planner = AutoConfigPlanner(architecture='mednext')
         result = planner.plan()
@@ -433,7 +433,7 @@ class TestAutoPlanResult:
 
     def test_auto_plan_result_creation(self):
         """Test creation of AutoPlanResult."""
-        from connectomics.config.auto_config import AutoPlanResult
+        from connectomics.config.hardware.auto_config import AutoPlanResult
 
         result = AutoPlanResult()
 
@@ -447,7 +447,7 @@ class TestAutoPlanResult:
 
     def test_auto_plan_result_with_values(self):
         """Test AutoPlanResult with custom values."""
-        from connectomics.config.auto_config import AutoPlanResult
+        from connectomics.config.hardware.auto_config import AutoPlanResult
 
         result = AutoPlanResult(
             patch_size=[128, 128, 128],
@@ -522,7 +522,7 @@ class TestIntegration:
             "available_memory_gb": [7.5],
         }
 
-        with patch("connectomics.config.auto_config.get_gpu_info", return_value=fake_gpu_info):
+        with patch("connectomics.config.hardware.auto_config.get_gpu_info", return_value=fake_gpu_info):
             cfg = auto_plan_config(cfg, print_results=False)
 
         # With GPU, planner should consider mixed precision or keep safe default

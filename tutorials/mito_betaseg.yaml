@@ -22,13 +22,13 @@ model:
     losses:
     - function: WeightedBCEWithLogitsLoss  # for affinity channels
       weight: 1.0
-      pred_slice: [0, 6]
-      target_slice: [0, 6]
+      pred_slice: "0:6"
+      target_slice: "0:6"
     - function: WeightedMSELoss            # for SDT channel
       weight: 1.0
       kwargs: {tanh: true}                 # tanh activation for [-1, 1] range
-      pred_slice: [6, 7]
-      target_slice: [6, 7]
+      pred_slice: "6:7"
+      target_slice: "6:7"
   mednext:
     size: S                     #  S (~20-30M params) - small model for efficient training
     kernel_size: 3              # Using kernel size 3 (from nnUNet/BANIS baseline). Larger kernels (5 or 7) may improve context but increase memory usage.
@@ -249,9 +249,9 @@ inference:
     flip_axes:                          # Use all 8 flip augmentations (2^3 for xyz)
     rotation90_axes:                    # No 90-degree rotations
     channel_activations:
-    - [0, 6, sigmoid]                 # Affinity channels: sigmoid activation
-    - [6, 7, tanh]
-    select_channel: all
+      - {channels: "0:-1", activation: sigmoid}  # Affinity channels: sigmoid activation
+      - {channels: "-1:", activation: tanh}
+    select_channel: ":"
     ensemble_mode: mean                 # Average predictions across augmentations
     apply_mask: false                   # No mask for BetaSeg
 

@@ -7,6 +7,8 @@ that conform to the ConnectomicsModel interface.
 Uses Hydra/OmegaConf configuration.
 """
 
+
+from __future__ import annotations
 import torch
 import torch.nn as nn
 
@@ -61,6 +63,22 @@ def _check_monai_available():
             "MONAI is not installed. Install with: pip install monai\n"
             "Or: pip install 'monai[all]' for full functionality"
         )
+
+
+def _infer_spatial_dims(cfg) -> int:
+    """Infer spatial dimensions from config (input_size length or explicit setting)."""
+    if hasattr(cfg.model, "input_size") and cfg.model.input_size:
+        return len(cfg.model.input_size)
+    return getattr(cfg.model.monai, "spatial_dims", 3)
+
+
+def _resolve_norm(cfg):
+    """Resolve normalization config, handling GroupNorm specially."""
+    norm_type = getattr(cfg.model.monai, "norm", "batch")
+    if norm_type == "group":
+        num_groups = getattr(cfg.model.monai, "num_groups", 8)
+        return ("group", {"num_groups": num_groups})
+    return norm_type
 
 
 class UpsampleModeUNet(UNet):
@@ -153,12 +171,7 @@ def build_basic_unet(cfg) -> ConnectomicsModel:
 
     in_channels = cfg.model.in_channels
     out_channels = cfg.model.out_channels
-
-    # Auto-infer spatial_dims from input_size length; default to 3D if unspecified
-    if hasattr(cfg.model, "input_size") and cfg.model.input_size:
-        spatial_dims = len(cfg.model.input_size)
-    else:
-        spatial_dims = getattr(cfg.model.monai, "spatial_dims", 3)
+    spatial_dims = _infer_spatial_dims(cfg)
 
     # BasicUNet requires exactly 6 feature levels
     # Pad with last value repeated (not doubled) to keep memory usage low
@@ -169,13 +182,6 @@ def build_basic_unet(cfg) -> ConnectomicsModel:
         base_features.append(base_features[-1])  # Repeat last value instead of doubling
     features = tuple(base_features[:6])
 
-    norm_type = getattr(cfg.model.monai, "norm", "batch")
-    if norm_type == "group":
-        num_groups = getattr(cfg.model.monai, "num_groups", 8)
-        norm = ("group", {"num_groups": num_groups})
-    else:
-        norm = norm_type
-
     model = BasicUNet(
         spatial_dims=spatial_dims,
         in_channels=in_channels,
@@ -183,7 +189,7 @@ def build_basic_unet(cfg) -> ConnectomicsModel:
         features=features,
         dropout=getattr(cfg.model.monai, "dropout", 0.0),
         act=getattr(cfg.model.monai, "activation", "relu"),
-        norm=norm,
+        norm=_resolve_norm(cfg),
         upsample=getattr(cfg.model.monai, "upsample_mode", "deconv"),
     )
 
@@ -220,22 +226,9 @@ def build_monai_unet(cfg) -> ConnectomicsModel:
     """
     _check_monai_available()
 
-    # Auto-infer spatial_dims from input_size length; default to 3D if unspecified
-    if hasattr(cfg.model, "input_size") and cfg.model.input_size:
-        spatial_dims = len(cfg.model.input_size)
-    else:
-        spatial_dims = getattr(cfg.model.monai, "spatial_dims", 3)
+    spatial_dims = _infer_spatial_dims(cfg)
     channels = list(getattr(cfg.model.monai, "filters", [32, 64, 128, 256, 512]))
     strides = [2] * (len(channels) - 1)  # 2x downsampling at each level
-
-    # Handle normalization type and parameters
-    norm_type = getattr(cfg.model.monai, "norm", "batch")
-    if norm_type == "group":
-        # For GroupNorm, we need to specify num_groups
-        num_groups = getattr(cfg.model.monai, "num_groups", 8)
-        norm = ("group", {"num_groups": num_groups})
-    else:
-        norm = norm_type
 
     upsample_mode = getattr(cfg.model.monai, "upsample_mode", "deconv")
     upsample_interp_mode = getattr(cfg.model.monai, "upsample_interp_mode", "linear")
@@ -249,7 +242,7 @@ def build_monai_unet(cfg) -> ConnectomicsModel:
         strides=strides,
         num_res_units=getattr(cfg.model.monai, "num_res_units", 2),
         kernel_size=getattr(cfg.model.monai, "kernel_size", 3),
-        norm=norm,
+        norm=_resolve_norm(cfg),
         dropout=getattr(cfg.model.monai, "dropout", 0.0),
         upsample_mode=upsample_mode,
         upsample_interp_mode=upsample_interp_mode,

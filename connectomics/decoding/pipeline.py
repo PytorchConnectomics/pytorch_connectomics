@@ -2,12 +2,16 @@
 
 from __future__ import annotations
 
+import logging
 from typing import Any, Iterable, List, Sequence, Tuple
 
 import numpy as np
 
 from .base import DecodeStep
-from .registry import DecoderRegistry, DEFAULT_DECODER_REGISTRY, register_builtin_decoders
+from .registry import DecoderRegistry, DEFAULT_DECODER_REGISTRY
+from ..utils.channel_slices import resolve_channel_indices
+
+logger = logging.getLogger(__name__)
 
 
 def _coerce_kwargs(kwargs: Any) -> dict:
@@ -73,7 +77,6 @@ def apply_decode_pipeline(
     if not decode_modes:
         return data
 
-    register_builtin_decoders()
     registry = registry or DEFAULT_DECODER_REGISTRY
     steps = normalize_decode_modes(decode_modes)
     batched, batch_size = _prepare_batched_input(data)
@@ -92,7 +95,15 @@ def apply_decode_pipeline(
                 ) from exc
 
             try:
-                sample = decoder(sample, **step.kwargs)
+                decoder_kwargs = dict(step.kwargs)
+                for key, value in list(decoder_kwargs.items()):
+                    if key.endswith("_channels"):
+                        decoder_kwargs[key] = resolve_channel_indices(
+                            value,
+                            num_channels=int(sample.shape[0]),
+                            context=f"decode kwargs {step.name}.{key}",
+                        )
+                sample = decoder(sample, **decoder_kwargs)
             except Exception as exc:
                 raise RuntimeError(
                     f"Error applying decode function '{step.name}': {exc}"
@@ -120,10 +131,10 @@ def apply_decode_mode(cfg: Any, data: np.ndarray, *, verbose: bool = True) -> np
     decode_modes = resolve_decode_modes_from_cfg(cfg)
     if not decode_modes:
         if verbose:
-            print("  No decoding configuration found (inference.decoding)")
+            logger.info("No decoding configuration found (inference.decoding)")
         return data
 
     if verbose:
-        print(f"  Using inference.decoding: {decode_modes}")
+        logger.info("Using inference.decoding: %s", decode_modes)
 
     return apply_decode_pipeline(data, decode_modes)

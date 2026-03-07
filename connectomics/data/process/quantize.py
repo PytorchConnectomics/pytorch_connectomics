@@ -2,6 +2,8 @@
 Quantization functions for PyTorch Connectomics processing.
 """
 
+
+from __future__ import annotations
 import numpy as np
 import torch
 import scipy

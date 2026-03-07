@@ -6,20 +6,24 @@ This package provides:
 - Data augmentation (augment/)
 - Data processing transforms (process/)
 - I/O utilities (io/)
-- DataModules for PyTorch Lightning (datamodules.py)
+- DataModules for PyTorch Lightning (see training/lightning/data.py)
 
 Recommended imports:
-    from connectomics.data.dataset import MonaiVolumeDataset
+    from connectomics.data.dataset import CachedVolumeDataset
     from connectomics.data.augment import RandMisAlignmentd, build_train_transforms
     from connectomics.data.process import MultiTaskLabelTransformd, create_label_transform_pipeline
 """
 
 # Make submodules available
 from . import augment
+from . import dataset
+from . import io
 from . import process
 
 __all__ = [
     # Submodules
     "augment",
+    "dataset",
+    "io",
     "process",
 ]

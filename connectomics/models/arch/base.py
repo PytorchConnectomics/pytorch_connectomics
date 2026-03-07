@@ -5,9 +5,11 @@ Provides a standard interface that all models should implement,
 with explicit support for deep supervision.
 """
 
+
+from __future__ import annotations
 import torch
 import torch.nn as nn
-from typing import Dict, Any, Union, Optional
+from typing import Dict, Any, Union
 from abc import ABC, abstractmethod
 
 
@@ -73,33 +75,6 @@ class ConnectomicsModel(nn.Module, ABC):
             "parameters": total_params,
             "trainable_parameters": trainable_params,
         }
-
-    def summary(self, input_shape: Optional[tuple] = None) -> str:
-        """
-        Get a summary string of the model.
-
-        Args:
-            input_shape: Expected input shape (optional)
-
-        Returns:
-            Formatted string with model information
-        """
-        info = self.get_model_info()
-
-        summary_str = f"\n{'=' * 60}\n"
-        summary_str += f"Model: {info['name']}\n"
-        summary_str += f"{'=' * 60}\n"
-        summary_str += f"Parameters: {info['parameters']:,}\n"
-        summary_str += f"Trainable Parameters: {info['trainable_parameters']:,}\n"
-        summary_str += f"Deep Supervision: {info['deep_supervision']}\n"
-        summary_str += f"Output Scales: {info['output_scales']}\n"
-
-        if input_shape:
-            summary_str += f"Expected Input Shape: {input_shape}\n"
-
-        summary_str += f"{'=' * 60}\n"
-
-        return summary_str
 
     def __repr__(self) -> str:
         """String representation of the model."""
