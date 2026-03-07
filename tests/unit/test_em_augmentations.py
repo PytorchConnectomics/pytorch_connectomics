@@ -8,6 +8,8 @@ to ensure they work correctly with Lightning and MONAI.
 import pytest
 import torch
 
+from connectomics.config.schema.data import AugmentationConfig
+from connectomics.data.augment.build import _build_augmentations
 from connectomics.data.augment.monai_transforms import (
     RandCopyPasted,
     RandCutBlurd,
@@ -194,6 +196,61 @@ class TestRandMissingPartsd:
         # Hole should be approximately 20% of one section
         # (exact size depends on section size)
         assert num_zeros > 0
+
+    def test_probability_control(self, sample_data_dict):
+        """Test probability control."""
+        transform = RandMissingPartsd(
+            keys=["image"],
+            prob=0.0,
+            hole_range=(0.2, 0.2),
+        )
+
+        result = transform(sample_data_dict)
+
+        assert torch.equal(result["image"], sample_data_dict["image"])
+
+    def test_channel_first_image_only_modifies_single_depth_slice(self):
+        """Test channel-first 3D images use depth axis, not channel axis."""
+        data = {"image": torch.ones(1, 8, 16, 16)}
+        transform = RandMissingPartsd(
+            keys=["image"],
+            prob=1.0,
+            hole_range=(0.25, 0.25),
+        )
+
+        result = transform(data)
+
+        zero_mask = result["image"][0] == 0
+        slices_with_holes = zero_mask.any(dim=(1, 2)).sum().item()
+        assert slices_with_holes == 1
+
+
+def test_missing_parts_builder_targets_image_only():
+    """Missing-parts artifact augmentation should not modify labels."""
+    cfg = AugmentationConfig()
+    cfg.missing_parts.enabled = True
+    cfg.missing_parts.prob = 1.0
+    cfg.missing_parts.hole_range = (0.2, 0.2)
+
+    transforms = _build_augmentations(cfg, keys=["image", "label"])
+    missing_parts = [t for t in transforms if isinstance(t, RandMissingPartsd)]
+
+    assert len(missing_parts) == 1
+    assert missing_parts[0].keys == ("image",)
+
+
+def test_missing_section_builder_targets_image_only():
+    """Missing-section artifact augmentation should not modify labels."""
+    cfg = AugmentationConfig()
+    cfg.missing_section.enabled = True
+    cfg.missing_section.prob = 1.0
+    cfg.missing_section.num_sections = 2
+
+    transforms = _build_augmentations(cfg, keys=["image", "label"])
+    missing_section = [t for t in transforms if isinstance(t, RandMissingSectiond)]
+
+    assert len(missing_section) == 1
+    assert missing_section[0].keys == ("image",)
 
 
 class TestRandMotionBlurd:

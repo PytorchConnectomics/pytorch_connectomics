@@ -17,7 +17,13 @@ def _cfg(losses=None):
         losses=losses,
     )
     model = SimpleNamespace(loss=loss)
-    return SimpleNamespace(model=model)
+    data = SimpleNamespace(
+        label_transform=SimpleNamespace(
+            targets=[],
+            stack_outputs=True,
+        )
+    )
+    return SimpleNamespace(model=model, data=data)
 
 
 class WeightAwareSpyLoss(nn.Module):
@@ -269,6 +275,43 @@ def test_standard_loss_supports_negative_channel_slice_bounds():
     assert head_loss.calls[0]["target_shape"] == (1, 4, 2, 2, 2)
     assert aux_loss.calls[0]["pred_shape"] == (1, 1, 2, 2, 2)
     assert aux_loss.calls[0]["target_shape"] == (1, 1, 2, 2, 2)
+
+
+def test_standard_loss_supports_affinity_deepem_crop():
+    weighted_loss = WeightAwareSpyLoss()
+    cfg = _cfg(
+        losses=[
+            {
+                "weight": 1.0,
+            },
+        ]
+    )
+    cfg.data.label_transform.targets = [
+        {
+            "name": "affinity",
+            "kwargs": {
+                "offsets": ["1-0-0", "0-1-0", "0-0-1"],
+                "deepem_crop": True,
+            },
+        }
+    ]
+    orchestrator = LossOrchestrator(
+        cfg=cfg,
+        loss_functions=nn.ModuleList([weighted_loss]),
+        loss_weights=[1.0],
+        enable_nan_detection=False,
+        debug_on_nan=False,
+    )
+
+    outputs = torch.zeros(1, 3, 5, 5, 5)
+    labels = torch.randn(1, 3, 5, 5, 5)
+
+    total_loss, loss_dict = orchestrator.compute_standard_loss(outputs, labels, stage="train")
+
+    assert torch.isfinite(total_loss)
+    assert "train_loss_total" in loss_dict
+    assert weighted_loss.calls[0]["pred_shape"] == (1, 3, 4, 4, 4)
+    assert weighted_loss.calls[0]["target_shape"] == (1, 3, 4, 4, 4)
 
 
 def test_standard_loss_rejects_invalid_runtime_negative_channel_slice():

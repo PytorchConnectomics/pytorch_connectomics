@@ -217,6 +217,9 @@ def _resolve_cached_prediction_files(
         if not pred_file.exists():
             return False, None, []
 
+        if not _is_valid_hdf5_prediction_file(pred_file):
+            return False, None, []
+
         if current_suffix == "_tta_prediction.h5":
             loaded_suffix = "_tta_prediction.h5"
         resolved_files.append(pred_file)
@@ -224,11 +227,53 @@ def _resolve_cached_prediction_files(
     return True, loaded_suffix, resolved_files
 
 
+def _is_valid_hdf5_prediction_file(path: Path, dataset: str = "main") -> bool:
+    """Return True when a cached prediction file is readable and contains the dataset."""
+    import h5py
+
+    try:
+        with h5py.File(path, "r") as handle:
+            if dataset not in handle:
+                print(
+                    f"  ⚠️  Cached prediction file missing dataset '{dataset}': {path}. "
+                    "Ignoring cache entry."
+                )
+                return False
+            _ = handle[dataset].shape
+        return True
+    except Exception as exc:
+        print(f"  ⚠️  Cached prediction file is unreadable: {path} ({exc}). Ignoring cache entry.")
+        return False
+
+
+def _resolve_tta_result_path_override(cfg: Config) -> str:
+    """Return explicit intermediate prediction file from inference.tta_result_path."""
+    value = getattr(cfg.inference, "tta_result_path", "")
+    if isinstance(value, str) and value.strip():
+        return value.strip()
+    return ""
+
+
 def preflight_test_cache_hit(cfg: Config, datamodule) -> tuple[bool, str | None, int]:
-    """Check if all test outputs already exist so inference (and ckpt restore) can be skipped."""
+    """Check if test outputs already exist so inference (and ckpt restore) can be skipped."""
     save_pred_cfg = getattr(cfg.inference, "save_prediction", None)
     if save_pred_cfg is None:
         return False, None, 0
+
+    explicit_prediction = _resolve_tta_result_path_override(cfg)
+    if isinstance(explicit_prediction, str) and explicit_prediction.strip():
+        pred_file = Path(explicit_prediction).expanduser()
+        if not pred_file.is_absolute():
+            pred_file = Path.cwd() / pred_file
+
+        # If explicit intermediate prediction exists, skip TTA inference and ckpt restore.
+        if pred_file.exists() and _is_valid_hdf5_prediction_file(pred_file):
+            return True, "_tta_prediction.h5", 1
+
+        print(
+            f"  ⚠️  inference.tta_result_path file missing or unreadable during preflight: {pred_file}. "
+            "Falling back to normal cache/inference flow."
+        )
 
     output_dir_value = getattr(save_pred_cfg, "output_path", None)
     if not output_dir_value:
@@ -283,6 +328,97 @@ def resolve_test_stage_runtime(cfg: Config) -> Config:
             cfg.system.num_workers = 0
 
     return cfg
+
+
+def _estimate_tta_total_passes(cfg: Config) -> int:
+    """Estimate total TTA passes from config for device-cap decisions."""
+    tta_cfg = getattr(getattr(cfg, "inference", None), "test_time_augmentation", None)
+    if tta_cfg is None or not bool(getattr(tta_cfg, "enabled", False)):
+        return 1
+
+    do_2d = bool(
+        getattr(getattr(cfg.data, "train", None), "do_2d", False)
+        or getattr(getattr(cfg.data, "val", None), "do_2d", False)
+    )
+    spatial_dims = 2 if do_2d else 3
+
+    def _cfg_len(value) -> int:
+        if value is None or isinstance(value, str):
+            return 0
+        try:
+            return len(value)
+        except TypeError:
+            return 0
+
+    flip_axes_cfg = getattr(tta_cfg, "flip_axes", None)
+    if flip_axes_cfg == "all" or flip_axes_cfg == []:
+        flip_variants = 2 ** spatial_dims
+    elif flip_axes_cfg is None:
+        flip_variants = 1
+    else:
+        flip_variants = 1 + _cfg_len(flip_axes_cfg)
+
+    rotation90_axes_cfg = getattr(tta_cfg, "rotation90_axes", None)
+    if rotation90_axes_cfg == "all":
+        rotation_planes = 3 if spatial_dims == 3 else 1
+    elif rotation90_axes_cfg is None:
+        rotation_planes = 0
+    else:
+        rotation_planes = _cfg_len(rotation90_axes_cfg)
+
+    passes_per_flip = 1 if rotation_planes == 0 else rotation_planes * 4
+    return max(1, flip_variants * passes_per_flip)
+
+
+def maybe_limit_test_devices(cfg: Config, datamodule) -> bool:
+    """Reduce multi-GPU test runs when the dataset has fewer volumes than devices.
+
+    Lightning's default DistributedSampler can replicate test samples across ranks
+    to keep per-rank batch sizes balanced. For whole-volume inference with output
+    saving, that causes duplicate work and multiple ranks writing the same file.
+
+    Returns:
+        True if cfg.system.num_gpus was changed and the test trainer should be rebuilt.
+    """
+    requested_devices = int(getattr(cfg.system, "num_gpus", 0) or 0)
+    if requested_devices <= 1:
+        return False
+
+    test_data_dicts = getattr(datamodule, "test_data_dicts", None)
+    if not test_data_dicts:
+        return False
+
+    test_volume_count = len(test_data_dicts)
+
+    tta_cfg = getattr(getattr(cfg, "inference", None), "test_time_augmentation", None)
+    distributed_tta_sharding = bool(getattr(tta_cfg, "distributed_sharding", False))
+    if distributed_tta_sharding and test_volume_count == 1:
+        safe_devices = max(1, min(requested_devices, _estimate_tta_total_passes(cfg)))
+        if safe_devices < requested_devices:
+            print(
+                "  ⚠️  Reducing devices to match available TTA passes: "
+                f"{requested_devices} → {safe_devices}."
+            )
+            cfg.system.num_gpus = safe_devices
+            return True
+
+        print(
+            "  ℹ️  Keeping multi-GPU test enabled for single-volume TTA sharding "
+            f"({safe_devices} device(s), {_estimate_tta_total_passes(cfg)} total TTA pass(es))."
+        )
+        return False
+
+    safe_devices = max(1, min(requested_devices, test_volume_count))
+    if safe_devices >= requested_devices:
+        return False
+
+    print(
+        "  ⚠️  Test dataset has fewer volumes than requested GPUs; "
+        f"reducing devices from {requested_devices} to {safe_devices} "
+        "to avoid duplicated DDP test work and output-file write collisions."
+    )
+    cfg.system.num_gpus = safe_devices
+    return True
 
 
 def _invert_save_prediction_transform(cfg: Config, data):
@@ -587,6 +723,14 @@ def main():
 
             # Create datamodule
             datamodule = create_datamodule(cfg, mode="test")
+            if maybe_limit_test_devices(cfg, datamodule):
+                trainer = create_trainer(
+                    cfg,
+                    run_dir=run_dir,
+                    fast_dev_run=args.fast_dev_run,
+                    ckpt_path=ckpt_path,
+                    mode="test",
+                )
 
             if args.mode == "tune-test":
                 from connectomics.decoding import load_and_apply_best_params

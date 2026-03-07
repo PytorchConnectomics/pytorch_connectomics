@@ -6,13 +6,6 @@ from typing import Any, Dict, List, Optional, Tuple
 
 # Label transformation configurations
 @dataclass
-class AffinityConfig:
-    """Affinity map generation configuration. Enabled when offsets is non-empty."""
-
-    offsets: List[str] = field(default_factory=list)  # Offsets in "z-y-x" format (empty = disabled)
-
-
-@dataclass
 class SkeletonDistanceConfig:
     """Skeleton-aware distance transform configuration."""
 
@@ -73,7 +66,6 @@ class LabelTransformConfig:
 
     normalize: bool = True  # Convert labels to 0-1 range
     erosion: int = 0  # Border erosion kernel half-size (0 = disabled, uses seg_widen_border)
-    affinity: AffinityConfig = field(default_factory=AffinityConfig)
     skeleton_distance: SkeletonDistanceConfig = field(default_factory=SkeletonDistanceConfig)
     edge_mode: EdgeModeConfig = field(
         default_factory=EdgeModeConfig

@@ -1,16 +1,6 @@
 from typing import Tuple, List, Union
 import numpy as np
 
-# Optional matplotlib imports
-try:
-    from matplotlib import pyplot as plt
-    from mpl_toolkits.axes_grid1 import ImageGrid
-    from skimage.color import label2rgb
-
-    HAS_MATPLOTLIB = True
-except ImportError:
-    HAS_MATPLOTLIB = False
-
 
 def get_seg_type(max_id: int) -> type:
     """Get optimal numpy dtype for segmentation with given max ID."""
@@ -66,25 +56,3 @@ def array_unpad(data: np.ndarray, pad_size: Tuple[int]) -> np.ndarray:
     return data[index]
 
 
-def show_image(
-    image, image_type="im", num_row=1, cmap="gray", title="Test Title", interpolation=None
-):
-    num_imgs = image.shape[0]
-    num_col = (num_imgs + num_row - 1) // num_row
-    fig = plt.figure(figsize=(20.0, 3.0))
-    fig.suptitle(title, fontsize=15)
-    grid = ImageGrid(
-        fig,
-        111,  # similar to subplot(111)
-        nrows_ncols=(num_row, num_col),  # creates 2x2 grid of axes
-        axes_pad=0.1,  # pad between axes in inch.
-    )
-    image_list = np.split(image, num_imgs, 0)
-    for ax, im in zip(grid, [np.squeeze(x) for x in image_list]):
-        # Iterating over the grid returns the Axes.
-        if image_type == "seg":
-            im = label2rgb(im)
-        ax.imshow(im, cmap=cmap, interpolation=interpolation)
-        ax.axis("off")
-
-    plt.show()

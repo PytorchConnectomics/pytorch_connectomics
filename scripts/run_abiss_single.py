@@ -24,6 +24,59 @@ from connectomics.data.io import read_hdf5, write_hdf5
 _ABISS_TAG = "0_0_0_0"
 
 
+def _parse_threshold(value: str | float) -> tuple[float, bool]:
+    """Parse a threshold value that may be absolute or percentile.
+
+    Accepted formats:
+      - ``0.8`` or ``"0.8"``  → absolute value 0.8
+      - ``"80%"``              → 80th percentile
+
+    Returns:
+        (numeric_value, is_percentile) tuple.
+    """
+    if isinstance(value, (int, float)):
+        return float(value), False
+
+    s = str(value).strip()
+
+    # "80%" style → 80th percentile
+    if s.endswith("%"):
+        try:
+            return float(s[:-1]), True
+        except ValueError:
+            raise ValueError(f"Invalid percentile threshold: '{value}'. Use e.g. '80%' or '95.5%'.")
+
+    # Plain numeric string
+    return float(s), False
+
+
+def _resolve_threshold(
+    value: str | float,
+    affinities: np.ndarray,
+    name: str,
+) -> float:
+    """Resolve a threshold to an absolute value, computing percentile if needed.
+
+    Args:
+        value: Threshold — absolute float or percentile string (e.g. ``"p80"``).
+        affinities: Affinity array to compute percentiles from (any shape).
+        name: Parameter name for error messages.
+
+    Returns:
+        Absolute threshold value.
+    """
+    numeric, is_pct = _parse_threshold(value)
+    if not is_pct:
+        return numeric
+
+    if not (0 <= numeric <= 100):
+        raise ValueError(f"`{name}` percentile must be in [0, 100], got {numeric}.")
+
+    absolute = float(np.percentile(affinities, numeric))
+    print(f"  {name}: percentile {numeric}% → absolute {absolute:.6f}")
+    return absolute
+
+
 def _read_array(path: Path, dataset: str) -> np.ndarray:
     suffix = path.suffix.lower()
     if suffix in {".h5", ".hdf5"}:
@@ -201,6 +254,7 @@ def _run_abiss_ws(
     channels: Optional[list[int]] = None,
     workdir: Optional[Path] = None,
     keep_workdir: bool = False,
+    ws_merge_threshold: Optional[float] = None,
 ) -> np.ndarray:
     if ws_low_threshold > ws_high_threshold:
         raise ValueError(
@@ -236,6 +290,10 @@ def _run_abiss_ws(
             str(int(ws_dust_threshold)),
             _ABISS_TAG,
         ]
+        # Optional merge threshold (argv[8] in the C++ binary).
+        # Defaults to ws_low_threshold when not specified.
+        if ws_merge_threshold is not None:
+            cmd.append(str(ws_merge_threshold))
         subprocess.run(cmd, cwd=str(ws_dir), check=True)
 
         if not seg_raw.exists():
@@ -273,15 +331,15 @@ def _parse_args() -> argparse.Namespace:
     )
     parser.add_argument(
         "--ws-high-threshold",
-        type=float,
-        default=0.5,
-        help="ABISS watershed high threshold.",
+        type=str,
+        default="0.5",
+        help="ABISS watershed high threshold. Absolute (e.g. 0.8) or percentile (e.g. p80 or 80%%).",
     )
     parser.add_argument(
         "--ws-low-threshold",
-        type=float,
-        default=0.5,
-        help="ABISS watershed low threshold.",
+        type=str,
+        default="0.5",
+        help="ABISS watershed low threshold. Absolute (e.g. 0.01) or percentile (e.g. p1 or 1%%).",
     )
     parser.add_argument(
         "--ws-size-threshold",
@@ -294,6 +352,12 @@ def _parse_args() -> argparse.Namespace:
         type=int,
         default=None,
         help="ABISS watershed dust threshold. Default: --ws-size-threshold.",
+    )
+    parser.add_argument(
+        "--ws-merge-threshold",
+        type=str,
+        default=None,
+        help="Affinity threshold for size-based merging. Absolute or percentile. Default: --ws-low-threshold.",
     )
     parser.add_argument(
         "--abiss-boundary-flags",
@@ -332,8 +396,6 @@ def main() -> int:
             f"Expected predictions with shape (C, Z, Y, X); got shape {predictions.shape}."
         )
 
-    ws_high = args.ws_high_threshold
-    ws_low = args.ws_low_threshold
     ws_dust = args.ws_size_threshold if args.ws_dust_threshold is None else args.ws_dust_threshold
     channels = _parse_int_list(args.channels, name="channels") if args.channels else None
     boundary_flags = _parse_int_list(
@@ -349,11 +411,30 @@ def main() -> int:
             "Set --ws-binary or --abiss-home to a valid ABISS checkout."
         )
 
+    # Resolve percentile thresholds against the affinity data.
+    all_thresh_strs = [args.ws_high_threshold, args.ws_low_threshold]
+    if args.ws_merge_threshold is not None:
+        all_thresh_strs.append(args.ws_merge_threshold)
+
+    needs_percentile = any(_parse_threshold(v)[1] for v in all_thresh_strs)
+    if needs_percentile:
+        aff_for_pct = _to_abiss_affinity(predictions, channels=channels)
+        print(f"Resolving percentile thresholds (affinity range: "
+              f"[{aff_for_pct.min():.6f}, {aff_for_pct.max():.6f}]):")
+    else:
+        aff_for_pct = np.empty(0)  # unused, _resolve_threshold won't compute percentiles
+
+    ws_high = _resolve_threshold(args.ws_high_threshold, aff_for_pct, "ws_high_threshold")
+    ws_low = _resolve_threshold(args.ws_low_threshold, aff_for_pct, "ws_low_threshold")
+    ws_merge: Optional[float] = None
+    if args.ws_merge_threshold is not None:
+        ws_merge = _resolve_threshold(args.ws_merge_threshold, aff_for_pct, "ws_merge_threshold")
+
     segmentation = _run_abiss_ws(
         predictions_czyx=predictions,
         ws_binary=ws_binary,
-        ws_high_threshold=float(ws_high),
-        ws_low_threshold=float(ws_low),
+        ws_high_threshold=ws_high,
+        ws_low_threshold=ws_low,
         ws_size_threshold=int(args.ws_size_threshold),
         ws_dust_threshold=int(ws_dust),
         boundary_flags=boundary_flags,
@@ -361,6 +442,7 @@ def main() -> int:
         channels=channels,
         workdir=Path(args.abiss_workdir).resolve() if args.abiss_workdir else None,
         keep_workdir=bool(args.keep_abiss_workdir),
+        ws_merge_threshold=ws_merge,
     )
 
     output_path.parent.mkdir(parents=True, exist_ok=True)

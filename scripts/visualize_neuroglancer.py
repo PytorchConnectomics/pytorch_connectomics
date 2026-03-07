@@ -86,42 +86,16 @@ def normalize_resolution_zyx(
 
 def apply_default_scaling(data: np.ndarray, scale: float, is_image: bool = True) -> np.ndarray:
     """
-    Apply default intensity scaling for visualization.
+    Keep loaded volume intensities unchanged.
 
     Args:
         data: Input array
-        scale: Scaling factor. If < 0, no scaling. If > 0, normalize to [0, 1] then scale
-        is_image: If True, apply scaling. If False (label/seg), return as-is
+        scale: Retained for CLI backward compatibility (ignored).
+        is_image: Retained for backward compatibility (ignored).
 
     Returns:
-        Scaled array (float32)
+        Unchanged input array
     """
-    if not is_image or scale < 0:
-        # No scaling for segmentation or when scale < 0
-        return data
-
-    original_dtype = data.dtype
-    data = data.astype(np.float32)
-
-    print(f"  Applying default intensity scaling (scale={scale}):")
-    print(f"    Original range: [{data.min():.2f}, {data.max():.2f}]")
-
-    # Min-max normalization to [0, 1]
-    data_min = data.min()
-    data_max = data.max()
-    if data_max > data_min:
-        data = (data - data_min) / (data_max - data_min)
-        print(f"    Normalized to [0, 1] (min-max)")
-    else:
-        print(f"    Warning: data_min == data_max, skipping normalization")
-        return data
-
-    # Apply scaling
-    if scale != 1.0:
-        data = data * scale
-        print(f"    Scaled by {scale}")
-
-    print(f"    Final range: [{data.min():.2f}, {data.max():.2f}]")
     return data
 
 
@@ -319,9 +293,7 @@ Interactive mode (with -i flag):
         "--scale",
         type=float,
         default=1.0,
-        help='Intensity scaling factor for image normalization (default: 1.0). '
-        'If scale < 0, no intensity scaling is applied. '
-        'If scale > 0, image is normalized to [0, 1] then scaled by this factor',
+        help="Deprecated (no-op). Loaded volume intensities are kept unchanged.",
     )
 
     # Display options

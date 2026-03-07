@@ -429,11 +429,13 @@ def create_datamodule(
         test_label_paths = expand_file_paths(split.label) if split.label else None
         test_mask_paths = expand_file_paths(split.mask) if split.mask else None
     elif mode == "tune":
-        split = cfg.data.test
+        # Tune mode: prefer data.val, fall back to data.test
+        split = cfg.data.val if getattr(cfg.data.val, "image", None) else cfg.data.test
         if not split.image:
             raise ValueError(
-                "Tune mode requires data.test.image to be set.\n"
-                f"Current resolved image = {split.image}"
+                "Tune mode requires data.val.image or data.test.image to be set.\n"
+                f"Current resolved val.image = {getattr(cfg.data.val, 'image', None)}, "
+                f"test.image = {getattr(cfg.data.test, 'image', None)}"
             )
 
         print(f"  🎯 Creating tune dataset from: {split.image}")

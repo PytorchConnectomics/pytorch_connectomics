@@ -41,6 +41,8 @@ class TestTimeAugmentationConfig:
     """Test-time augmentation (TTA) configuration."""
 
     enabled: bool = False
+    distributed_sharding: bool = False  # Split TTA variants across DDP ranks for one-volume tests
+    distributed_reduce_chunk_mb: int = 128  # Chunk size for rank reduction of large volumes
     # Optional channel-wise activation overrides applied before aggregation.
     # Each entry: [start, end, activation], activation in {"sigmoid", "softmax", "none"}.
     # Uses half-open slices [start, end). Set end=-1 to include all remaining channels.
@@ -60,6 +62,8 @@ class TestTimeAugmentationConfig:
 
     # Aggregation
     ensemble_mode: str = "mean"  # "mean", "max", "gmean"
+    # CUDA cache cleanup cadence during TTA loop (0 disables cleanup).
+    empty_cache_interval: int = 4
 
 
 @dataclass
@@ -145,6 +149,7 @@ class PostprocessingConfig:
     output_transpose: List[int] = field(
         default_factory=list
     )  # Axis permutation for output (e.g., [2,1,0] for zyx->xyz)
+    crop_pad: Optional[List[int]] = None  # Symmetric crop [D,H,W] or [H,W] applied to predictions
 
 
 @dataclass
@@ -179,10 +184,16 @@ class InferenceConfig:
     test_time_augmentation: TestTimeAugmentationConfig = field(
         default_factory=TestTimeAugmentationConfig
     )
+    # Optional explicit intermediate TTA prediction file (.h5). If set in test
+    # mode, pipeline loads this file directly and proceeds to decoding.
+    tta_result_path: str = ""
     save_prediction: SavePredictionConfig = field(default_factory=SavePredictionConfig)
     decoding: Optional[List[DecodeModeConfig]] = None  # List of decode modes to apply sequentially
     postprocessing: PostprocessingConfig = field(default_factory=PostprocessingConfig)
     evaluation: EvaluationConfig = field(default_factory=EvaluationConfig)
+    # If True, switch model to eval() during test/predict. Set False to keep
+    # train() mode (useful for BatchNorm recalibration or MC-Dropout workflows).
+    do_eval: bool = True
 
     # Inference-specific runtime overrides (applied in test/tune modes)
     # `system` overrides selected keys on top-level cfg.system during stage resolution.

@@ -23,7 +23,7 @@ from scipy import ndimage
 from skimage.morphology import remove_small_objects
 from skimage.segmentation import watershed
 
-from connectomics.data.process.target import seg_to_semantic_edt
+from connectomics.data.process.distance import edt_semantic as seg_to_semantic_edt
 
 from .utils import cast2dtype
 

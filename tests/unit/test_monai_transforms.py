@@ -180,6 +180,30 @@ def test_compose_pipelines():
     print("✅ All label transform pipelines passed!")
 
 
+def test_affinity_pipeline_ignores_deepem_crop_control_kwarg():
+    from types import SimpleNamespace
+
+    data = create_test_data()
+    affinity_cfg = SimpleNamespace(
+        keys=["label"],
+        targets=[
+            {
+                "name": "affinity",
+                "kwargs": {
+                    "offsets": ["1-0-0", "0-1-0", "0-0-1"],
+                    "deepem_crop": True,
+                },
+            }
+        ],
+    )
+
+    affinity_pipeline = create_label_transform_pipeline(affinity_cfg)
+    result = affinity_pipeline(data)
+
+    assert "label" in result
+    assert tuple(result["label"].shape) == (3, 32, 64, 64)
+
+
 def test_weight_computation():
     """Test weight computation transforms."""
     print("\n=== Testing Weight Computation ===")

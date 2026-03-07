@@ -11,3 +11,11 @@ decoding_profiles:
     - name: decode_abiss
       kwargs:
         command: "{python_exe} scripts/run_abiss_single.py --input {input_h5} --output {output_h5}"
+        # Affinity thresholds accept absolute values (e.g. 0.80) or
+        # percentiles (e.g. "80%") resolved from the data.
+        cli_args:
+          ws_high_threshold: 80%
+          ws_low_threshold: 1%
+          ws_size_threshold: 800
+          ws_dust_threshold: 600
+          ws_merge_threshold: 20%

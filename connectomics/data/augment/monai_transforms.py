@@ -282,7 +282,12 @@ class RandMissingPartsd(RandomizableTransform, MapTransform):
         self.hole_range = hole_range
 
     def __call__(self, data: Dict[str, Any]) -> Dict[str, Any]:
+        if self.prob <= 0:
+            self._do_transform = False
+            return data
+
         d = dict(data)
+        self.randomize(None)
         if not self._do_transform:
             return d
 
@@ -291,11 +296,15 @@ class RandMissingPartsd(RandomizableTransform, MapTransform):
                 d[key] = self._apply_missing_parts(d[key])
         return d
 
+    def randomize(self, _: Any = None) -> None:
+        """Randomly decide whether to apply the transform."""
+        self._do_transform = self.R.rand() < self.prob
+
     def _apply_missing_parts(
         self, img: Union[np.ndarray, torch.Tensor]
     ) -> Union[np.ndarray, torch.Tensor]:
         """Create missing rectangular regions."""
-        if img.ndim < 3:
+        if img.ndim < 2:
             return img
 
         # Handle both numpy and torch tensors
@@ -305,20 +314,35 @@ class RandMissingPartsd(RandomizableTransform, MapTransform):
         else:
             img = img.copy()
 
-        # Select random section
-        section_idx = self.R.randint(0, img.shape[0])
+        section_axis: Optional[int]
+        if img.ndim == 2:
+            section_axis = None
+        elif img.ndim == 3 and img.shape[0] <= 4:
+            # 2D channel-first image, e.g. (C, H, W)
+            section_axis = None
+        elif img.ndim >= 4 and img.shape[0] <= 4:
+            # 3D channel-first image, e.g. (C, D, H, W)
+            section_axis = 1
+        else:
+            # Depth-first volume, e.g. (D, H, W)
+            section_axis = 0
 
         # Generate hole size
         hole_ratio = self.R.uniform(*self.hole_range)
-        hole_h = int(img.shape[1] * hole_ratio)
-        hole_w = int(img.shape[2] * hole_ratio)
+        hole_h = max(1, int(img.shape[-2] * hole_ratio))
+        hole_w = max(1, int(img.shape[-1] * hole_ratio))
 
         # Generate hole position
-        y_start = self.R.randint(0, img.shape[1] - hole_h + 1)
-        x_start = self.R.randint(0, img.shape[2] - hole_w + 1)
+        y_start = self.R.randint(0, max(1, img.shape[-2] - hole_h + 1))
+        x_start = self.R.randint(0, max(1, img.shape[-1] - hole_w + 1))
 
-        # Create hole (set to 0 or mean value)
-        img[section_idx, y_start : y_start + hole_h, x_start : x_start + hole_w] = 0
+        # Apply a 2D hole on a single section for volumes, or directly on 2D inputs.
+        index = [slice(None)] * img.ndim
+        if section_axis is not None:
+            index[section_axis] = self.R.randint(0, img.shape[section_axis])
+        index[-2] = slice(y_start, y_start + hole_h)
+        index[-1] = slice(x_start, x_start + hole_w)
+        img[tuple(index)] = 0
 
         return img
 

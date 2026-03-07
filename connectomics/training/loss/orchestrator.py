@@ -19,6 +19,12 @@ from ...models.loss import (
     LossMetadata,
     get_loss_metadata_for_module,
 )
+from ...data.process.affinity import (
+    affinity_deepem_crop_enabled,
+    crop_spatial_by_offsets,
+    resolve_affinity_offsets_for_channel_slice,
+)
+from ...utils.channel_slices import resolve_channel_slice_bounds
 from .plan import LossTermSpec, compile_loss_terms_from_config
 
 
@@ -52,6 +58,7 @@ class LossOrchestrator:
             raise ValueError("cfg.model.loss is required for loss orchestration")
         self.clamp_min = float(self.loss_cfg.deep_supervision_clamp_min)
         self.clamp_max = float(self.loss_cfg.deep_supervision_clamp_max)
+        self.affinity_deepem_crop = affinity_deepem_crop_enabled(cfg)
         self.loss_term_specs = compile_loss_terms_from_config(
             cfg,
             self.loss_functions,
@@ -227,26 +234,13 @@ class LossOrchestrator:
         num_channels: int,
     ) -> tuple[int, int]:
         """Resolve possibly-negative channel bounds to absolute half-open indices."""
-        start_ch, end_ch = channel_slice
-        start_idx = start_ch if start_ch >= 0 else num_channels + start_ch
-        end_idx = end_ch if end_ch >= 0 else num_channels + end_ch
-
-        if start_idx < 0 or start_idx >= num_channels:
-            raise ValueError(
-                f"Invalid channel slice {channel_slice} for tensor with {num_channels} channels: "
-                f"start index resolves to {start_idx} (expected in [0, {num_channels - 1}])."
-            )
-        if end_idx < 0 or end_idx > num_channels:
-            raise ValueError(
-                f"Invalid channel slice {channel_slice} for tensor with {num_channels} channels: "
-                f"end index resolves to {end_idx} (expected in [0, {num_channels}])."
-            )
-        if end_idx <= start_idx:
-            raise ValueError(
-                f"Invalid channel slice {channel_slice} for tensor with {num_channels} channels: "
-                f"resolved range [{start_idx}, {end_idx}) is empty or inverted."
-            )
-        return start_idx, end_idx
+        return resolve_channel_slice_bounds(
+            channel_slice,
+            num_channels=num_channels,
+            context="channel slice",
+            negative_index_offset=0,
+            end_minus_one_full_span=False,
+        )
 
     def _slice_channels(
         self,
@@ -271,6 +265,21 @@ class LossOrchestrator:
         if target_kind == "class_index":
             return self._resize_class_index_target_to_output(tensor, output_like)
         return match_target_to_output(tensor, output_like)
+
+    def _resolve_affinity_offsets_for_term(
+        self,
+        term: LossTermSpec,
+        *,
+        labels_num_channels: int,
+        is_main_scale: bool,
+    ) -> Optional[list[tuple[int, int, int]]]:
+        if not self.affinity_deepem_crop or not is_main_scale:
+            return None
+        return resolve_affinity_offsets_for_channel_slice(
+            self.cfg,
+            num_channels=labels_num_channels,
+            channel_slice=term.target_slice,
+        )
 
     def _compute_explicit_terms_for_output(
         self,
@@ -298,6 +307,11 @@ class LossOrchestrator:
             meta = self.loss_metadata[term.loss_index]
             call_kind = term.call_kind
             spatial_weight_arg = term.spatial_weight_arg
+            affinity_offsets = self._resolve_affinity_offsets_for_term(
+                term,
+                labels_num_channels=int(labels.shape[1]),
+                is_main_scale=is_main_scale,
+            )
 
             pred = output if term.pred_slice is None else self._slice_channels(output, term.pred_slice)
             pred2 = (
@@ -339,6 +353,26 @@ class LossOrchestrator:
                         pred,
                         target_kind="class_index",
                     )
+                if affinity_offsets:
+                    pred = crop_spatial_by_offsets(pred, affinity_offsets, item_name="affinity prediction")
+                    if target is not None:
+                        target = crop_spatial_by_offsets(
+                            target,
+                            affinity_offsets,
+                            item_name="affinity target",
+                        )
+                    if term_mask_tensor is not None:
+                        term_mask_tensor = crop_spatial_by_offsets(
+                            term_mask_tensor,
+                            affinity_offsets,
+                            item_name="affinity term mask",
+                        )
+                    if batch_mask_tensor is not None:
+                        batch_mask_tensor = crop_spatial_by_offsets(
+                            batch_mask_tensor,
+                            affinity_offsets,
+                            item_name="affinity batch mask",
+                        )
 
             combined_mask_tensor: Optional[torch.Tensor] = None
             if term_mask_tensor is not None and batch_mask_tensor is not None:

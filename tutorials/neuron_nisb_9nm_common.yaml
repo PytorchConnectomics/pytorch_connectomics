@@ -1,59 +1,56 @@
+experiment_name: neuron_nisb_9nm_common_mednext_b_sdt
+description: NISB neuron instance segmentation (BANIS-style) with MedNeXt-B, affinity + SDT (9nm)
+
+_base_:
+  - neuron_nisb_common.yaml
+
 default:
   model:
     arch:
       profile: mednext_b
+    input_size: [32, 256, 256]
+    output_size: [32, 256, 256]
+  data:
+    label_transform:
+      targets:
+      - name: affinity
+        kwargs:
+          long_range: 3
+      - name: skeleton_aware_edt
+        kwargs:
+          resolution: [20, 9, 9]
+          alpha: 0.8
+          bg_value: -1.0
+          relabel: true
+    data_transform:
+      train_transpose: [2, 1, 0]
+      val_transpose: [2, 1, 0]
+    dataloader:
+      use_lazy_zarr: true
+      use_preloaded_cache_train: false
+      use_preloaded_cache_val: false
+      patch_size: [32, 256, 256]
+  inference:
+    sliding_window:
+      window_size: [32, 256, 256]
 
-_base_: neuron_nisb_common.yaml
-
-experiment_name: neuron_nisb_9nm_common_mednext_b_sdt
-description: NISB neuron instance segmentation (BANIS-style) with MedNeXt-B, affinity + SDT (9nm)
-
-
-model:
-  input_size: [32, 256, 256]
-  output_size: [32, 256, 256]
-
-
-data:
-  label_transform:
-    targets:
-    - name: affinity
-      kwargs:
-        long_range: 3
-    - name: skeleton_aware_edt
-      kwargs:
-        resolution: [20, 9, 9]
-        alpha: 0.8
-        bg_value: -1.0
-        relabel: true
-
-  train:
-    image: seed*/data.zarr/img
-    label: seed*/data.zarr/seg
-    resolution: [20, 9, 9]
-
-  val:
-    image: seed*/data.zarr/img
-    label: seed*/data.zarr/seg
-    resolution: [20, 9, 9]
-  data_transform:
-    train_transpose: [2, 1, 0]
-    val_transpose: [2, 1, 0]
-  dataloader:
-    use_lazy_zarr: true
-    use_preloaded_cache_train: false
-    use_preloaded_cache_val: false
-    patch_size: [32, 256, 256]
-monitor:
-  checkpoint:
-    dirpath: outputs/neuron_nisb_9nm_mednext_b_sdt/checkpoints/
+train:
+  data:
+    train:
+      image: seed*/data.zarr/img
+      label: seed*/data.zarr/seg
+      resolution: [20, 9, 9]
+    val:
+      image: seed*/data.zarr/img
+      label: seed*/data.zarr/seg
+      resolution: [20, 9, 9]
+  monitor:
+    checkpoint:
+      dirpath: outputs/neuron_nisb_9nm_mednext_b_sdt/checkpoints/
 
 test:
   data:
-    test_image: seed101/data.zarr/img
-    test_label: seed101/data.zarr/seg
-    test_resolution: [20, 9, 9]
-
-inference:
-  sliding_window:
-    window_size: [32, 256, 256]
+    test:
+      image: seed101/data.zarr/img
+      label: seed101/data.zarr/seg
+      resolution: [20, 9, 9]

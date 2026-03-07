@@ -49,7 +49,7 @@ class ScalarLoggingConfig:
 class ImageLoggingConfig:
     """Image logging configuration."""
 
-    enabled: bool = False
+    enabled: bool = True
     interval: str = "epoch"  # "step" or "epoch"
     max_images: int = 4
     num_slices: int = 4

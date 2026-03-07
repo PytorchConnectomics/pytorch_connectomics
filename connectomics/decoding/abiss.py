@@ -32,10 +32,53 @@ def _format_command(
 ) -> tuple[str | List[str], bool]:
     """Format command placeholders for shell/list execution."""
     if isinstance(command, str):
-        return command.format(**mapping), True
+        return command.format_map(_SafeFormatMapping(mapping)), True
     if isinstance(command, Sequence):
-        return [str(part).format(**mapping) for part in command], False
+        safe = _SafeFormatMapping(mapping)
+        return [str(part).format_map(safe) for part in command], False
     raise TypeError(f"`command` must be str or sequence[str], got {type(command).__name__}.")
+
+
+class _SafeFormatMapping(dict):
+    """Mapping that leaves unknown placeholders untouched during str.format_map."""
+
+    def __init__(self, mapping: Mapping[str, str]):
+        super().__init__(mapping)
+
+    def __missing__(self, key: str) -> str:
+        return "{" + key + "}"
+
+
+def _build_cli_suffix(cli_args: Dict[str, Any]) -> List[str]:
+    """Convert a dict of parameters into CLI ``--key value`` tokens.
+
+    Underscores in keys are converted to hyphens (``ws_high_threshold`` →
+    ``--ws-high-threshold``).
+    """
+    tokens: List[str] = []
+    for key, value in cli_args.items():
+        flag = "--" + key.replace("_", "-")
+        if isinstance(value, bool):
+            if value:
+                tokens.append(flag)
+        elif value is not None:
+            tokens.append(flag)
+            tokens.append(str(value))
+    return tokens
+
+
+def _append_cli_args(
+    cmd: str | List[str],
+    cli_tokens: List[str],
+    use_shell: bool,
+) -> str | List[str]:
+    """Append CLI argument tokens to an already-formatted command."""
+    if not cli_tokens:
+        return cmd
+    if use_shell:
+        suffix = " " + " ".join(shlex.quote(t) for t in cli_tokens)
+        return cmd + suffix
+    return list(cmd) + cli_tokens
 
 
 def _resolve_python_script_path(
@@ -145,6 +188,7 @@ def decode_abiss(
     timeout_sec: Optional[int] = None,
     env: Optional[Dict[str, Any]] = None,
     check: bool = True,
+    cli_args: Optional[Dict[str, Any]] = None,
 ) -> np.ndarray:
     """Decode instance segmentation with an external ABISS command.
 
@@ -156,6 +200,7 @@ def decode_abiss(
             - ``{output_h5}``, ``{output_npy}``: expected output file paths
             - ``{input_dataset}``, ``{output_dataset}``: HDF5 dataset names
             - ``{python_exe}``: current Python interpreter path
+            - Any key from *cli_args* (e.g. ``{ws_high_threshold}``)
         input_dataset: Dataset name when writing input HDF5.
         output_dataset: Dataset name when reading output HDF5.
         channels: Optional channel indices to select before saving input.
@@ -164,6 +209,10 @@ def decode_abiss(
         timeout_sec: Optional subprocess timeout in seconds.
         env: Optional extra environment variables for subprocess.
         check: Raise on non-zero return code if True.
+        cli_args: Optional dict of extra parameters appended to the command
+            as ``--key value`` CLI flags.  Underscores in keys are converted
+            to hyphens (e.g. ``ws_high_threshold`` → ``--ws-high-threshold``).
+            Values are also available as placeholders in the command template.
 
     Returns:
         3D instance label volume ``(Z, Y, X)``.
@@ -213,7 +262,7 @@ def decode_abiss(
         write_hdf5(str(input_h5), pred, dataset=input_dataset)
         np.save(input_npy, pred)
 
-        mapping = {
+        mapping: Dict[str, str] = {
             "workspace": str(workspace_path),
             "input_h5": str(input_h5),
             "input_npy": str(input_npy),
@@ -223,8 +272,17 @@ def decode_abiss(
             "output_dataset": output_dataset,
             "python_exe": sys.executable,
         }
+        # Merge cli_args into placeholders so templates can reference them.
+        if cli_args:
+            mapping.update({k: str(v) for k, v in cli_args.items()})
+
         cmd, use_shell = _format_command(command, mapping)
         cmd = _resolve_python_script_path(cmd, launch_cwd, search_roots)
+
+        # Auto-append cli_args as --key value flags to the command.
+        if cli_args:
+            cli_tokens = _build_cli_suffix(cli_args)
+            cmd = _append_cli_args(cmd, cli_tokens, use_shell)
 
         proc_env = os.environ.copy()
         if env:

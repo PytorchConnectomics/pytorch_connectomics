@@ -29,20 +29,25 @@ def edt_semantic(
     mode: str = "2d",
     alpha_fore: float = 8.0,
     alpha_back: float = 50.0,
+    resolution: Tuple[float, ...] = None,
 ):
     """Euclidean distance transform (DT or EDT) for binary semantic mask.
 
-    Optimizations:
-    - Preallocate arrays for 2D mode
-    - Avoid list append + stack pattern
-    - Compute masks once
+    Args:
+        label: Binary or instance segmentation array
+        mode: '2d' for slice-by-slice or '3d' for full volume
+        alpha_fore: Foreground distance normalization factor
+        alpha_back: Background distance normalization factor
+        resolution: Voxel resolution. Default: (1.0, 1.0) for 2D, (1.0, 1.0, 1.0) for 3D
     """
-    assert mode in ["2d", "3d"]
+    if mode not in ("2d", "3d"):
+        raise ValueError(f"mode must be '2d' or '3d', got {mode!r}")
     do_2d = label.ndim == 2
 
-    resolution = (6.0, 1.0, 1.0)  # anisotropic data
-    if mode == "2d" or do_2d:
-        resolution = (1.0, 1.0)
+    if resolution is None:
+        resolution = (1.0, 1.0) if (mode == "2d" or do_2d) else (1.0, 1.0, 1.0)
+    elif mode == "2d" and not do_2d and len(resolution) == 3:
+        resolution = resolution[-2:]
 
     # Compute masks once (avoid redundant comparisons)
     fore = (label != 0).astype(np.uint8)
@@ -81,7 +86,8 @@ def edt_instance(
     erosion: int = 0,
     bg_value: float = -1.0,
 ):
-    assert mode in ["2d", "3d"]
+    if mode not in ("2d", "3d"):
+        raise ValueError(f"mode must be '2d' or '3d', got {mode!r}")
     if mode == "3d":
         # calculate 3d distance transform for instances
         vol_distance = distance_transform(

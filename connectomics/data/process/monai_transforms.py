@@ -14,14 +14,17 @@ from monai.config import KeysCollection
 from monai.transforms import MapTransform
 from monai.utils import ensure_tuple_rep
 
-# Import processing functions with correct names
-from .target import seg_to_binary, seg_to_affinity, seg_to_instance_bd
-from .target import seg_to_instance_edt, seg_to_semantic_edt, seg_to_signed_distance_transform
-from .target import seg_to_polarity, seg_to_small_seg
+from .target import (
+    seg_to_binary, seg_to_affinity, seg_to_instance_bd,
+    seg_to_polarity, seg_to_small_seg, seg_to_flows, seg_erosion_dilation,
+)
+from .distance import (
+    edt_instance, edt_semantic, signed_distance_transform,
+    skeleton_aware_distance_transform,
+)
 from .segment import seg_selection
 from .quantize import energy_quantize, decode_quantize
 from .weight import seg_to_weights
-from .distance import skeleton_aware_distance_transform
 
 
 class SegToBinaryMaskd(MapTransform):
@@ -142,7 +145,7 @@ class SegToInstanceEDTd(MapTransform):
         d = dict(data)
         for key in self.key_iterator(d):
             if key in d:
-                d[key] = seg_to_instance_edt(d[key], mode=self.mode, quantize=self.quantize)
+                d[key] = edt_instance(d[key], mode=self.mode, quantize=self.quantize)
         return d
 
 
@@ -261,30 +264,34 @@ class SegToSemanticEDTd(MapTransform):
         d = dict(data)
         for key in self.key_iterator(d):
             if key in d:
-                d[key] = seg_to_semantic_edt(
+                d[key] = edt_semantic(
                     d[key], mode=self.mode, alpha_fore=self.alpha_fore, alpha_back=self.alpha_back
                 )
         return d
 
 
 class SegToFlowFieldd(MapTransform):
-    """Convert segmentation to flow field using MONAI MapTransform."""
+    """Convert segmentation to flow field using MONAI MapTransform.
+
+    Computes gradient flow fields from instance segmentation labels using
+    diffusion from instance centers (adapted from Cellpose).
+    """
 
     def __init__(
         self,
         keys: KeysCollection,
-        target_opt: List[str] = ["1"],
         allow_missing_keys: bool = False,
     ) -> None:
         super().__init__(keys, allow_missing_keys)
-        self.target_opt = target_opt
 
     def __call__(self, data: Dict[str, Any]) -> Dict[str, Any]:
         d = dict(data)
         for key in self.key_iterator(d):
             if key in d:
-                # Flow field not implemented - return identity
-                d[key] = d[key]
+                label = d[key]
+                if isinstance(label, torch.Tensor):
+                    label = label.detach().cpu().numpy()
+                d[key] = seg_to_flows(label)
         return d
 
 
@@ -394,22 +401,10 @@ class SegErosiond(MapTransform):
         self.kernel_size = kernel_size
 
     def __call__(self, data: Dict[str, Any]) -> Dict[str, Any]:
-        from skimage.morphology import erosion, disk
-        import numpy as np
-
         d = dict(data)
         for key in self.key_iterator(d):
             if key in d:
-                seg = d[key]
-                # Create structuring element
-                struct_elem = disk(self.kernel_size, dtype=bool)
-                if seg.ndim == 3:
-                    struct_elem = struct_elem[np.newaxis, :, :]
-
-                result = seg.copy()
-                for z in range(seg.shape[0]):
-                    result[z] = erosion(seg[z], struct_elem[0] if seg.ndim == 3 else struct_elem)
-                d[key] = result
+                d[key] = seg_erosion_dilation(d[key], "erosion", self.kernel_size)
         return d
 
 
@@ -426,22 +421,10 @@ class SegDilationd(MapTransform):
         self.kernel_size = kernel_size
 
     def __call__(self, data: Dict[str, Any]) -> Dict[str, Any]:
-        from skimage.morphology import dilation, disk
-        import numpy as np
-
         d = dict(data)
         for key in self.key_iterator(d):
             if key in d:
-                seg = d[key]
-                # Create structuring element
-                struct_elem = disk(self.kernel_size, dtype=bool)
-                if seg.ndim == 3:
-                    struct_elem = struct_elem[np.newaxis, :, :]
-
-                result = seg.copy()
-                for z in range(seg.shape[0]):
-                    result[z] = dilation(seg[z], struct_elem[0] if seg.ndim == 3 else struct_elem)
-                d[key] = result
+                d[key] = seg_erosion_dilation(d[key], "dilation", self.kernel_size)
         return d
 
 
@@ -596,11 +579,12 @@ class MultiTaskLabelTransformd(MapTransform):
         "binary": seg_to_binary,
         "affinity": seg_to_affinity,
         "instance_boundary": seg_to_instance_bd,
-        "instance_edt": seg_to_instance_edt,
+        "instance_edt": edt_instance,
         "skeleton_aware_edt": skeleton_aware_distance_transform,
-        "semantic_edt": seg_to_semantic_edt,
-        "signed_distance": seg_to_signed_distance_transform,
-        "sdt": seg_to_signed_distance_transform,
+        "semantic_edt": edt_semantic,
+        "signed_distance": signed_distance_transform,
+        "sdt": signed_distance_transform,
+        "flow": seg_to_flows,
         "polarity": seg_to_polarity,
         "small_object": seg_to_small_seg,
         "energy_quantize": energy_quantize,
@@ -622,13 +606,17 @@ class MultiTaskLabelTransformd(MapTransform):
             "smooth": True,
             "smooth_skeleton_only": True,
         },
-        "semantic_edt": {"mode": "2d", "alpha_fore": 8.0, "alpha_back": 50.0},
-        "signed_distance": {"mode": "3d", "alpha": 8.0},
-        "sdt": {"mode": "3d", "alpha": 8.0},
+        "semantic_edt": {"mode": "2d", "alpha_fore": 8.0, "alpha_back": 50.0, "resolution": None},
+        "signed_distance": {"alpha": 8.0},
+        "sdt": {"alpha": 8.0},
+        "flow": {},
         "polarity": {"exclusive": False},
         "small_object": {"threshold": 100},
         "energy_quantize": {"levels": 10},
         "decode_quantize": {"mode": "max"},
+    }
+    _TASK_CONFIG_ONLY_KWARGS: Dict[str, set[str]] = {
+        "affinity": {"deepem_crop"},
     }
 
     def __init__(
@@ -692,12 +680,18 @@ class MultiTaskLabelTransformd(MapTransform):
 
             fn = self._TASK_REGISTRY[name]
             defaults = deepcopy(self._TASK_DEFAULTS.get(name, {}))
-            kwargs = {**defaults, **kwargs}
+            config_kwargs = {**defaults, **kwargs}
+            call_kwargs = {
+                key: value
+                for key, value in config_kwargs.items()
+                if key not in self._TASK_CONFIG_ONLY_KWARGS.get(name, set())
+            }
             specs.append(
                 {
                     "name": name,
                     "fn": fn,
-                    "kwargs": kwargs,
+                    "kwargs": call_kwargs,
+                    "config_kwargs": config_kwargs,
                     "output_key": output_key,
                 }
             )
