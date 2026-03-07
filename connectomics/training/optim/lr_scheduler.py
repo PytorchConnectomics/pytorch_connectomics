@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 # Code adapted from Detectron2(https://github.com/facebookresearch/detectron2)
 import math
 from bisect import bisect_right
@@ -23,7 +25,7 @@ class WarmupMultiStepLR(torch.optim.lr_scheduler._LRScheduler):
     ):
         if not list(milestones) == sorted(milestones):
             raise ValueError(
-                "Milestones should be a list of increasing integers. Got {}", milestones
+                f"Milestones should be a list of increasing integers. Got {milestones}"
             )
         self.milestones = milestones
         self.gamma = gamma

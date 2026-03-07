@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from typing import Tuple, List, Union
 import numpy as np
 
@@ -25,7 +27,8 @@ def get_padsize(pad_size: Union[int, List[int]], ndim: int = 3) -> Tuple[int]:
         pad_size = [tuple([pad_size, pad_size]) for _ in range(ndim)]
         return tuple(pad_size)
 
-    assert len(pad_size) in [1, ndim, 2 * ndim]
+    if len(pad_size) not in (1, ndim, 2 * ndim):
+        raise ValueError(f"pad_size length must be 1, {ndim}, or {2 * ndim}, got {len(pad_size)}")
     if len(pad_size) == 1:
         pad_size = pad_size[0]
         pad_size = [tuple([pad_size, pad_size]) for _ in range(ndim)]
@@ -51,7 +54,8 @@ def array_unpad(data: np.ndarray, pad_size: Tuple[int]) -> np.ndarray:
         extra = [(0, 0) for _ in range(diff)]
         pad_size = tuple(extra + list(pad_size))
 
-    assert len(pad_size) == data.ndim
+    if len(pad_size) != data.ndim:
+        raise ValueError(f"pad_size length ({len(pad_size)}) must match data.ndim ({data.ndim})")
     index = tuple([slice(pad_size[i][0], data.shape[i] - pad_size[i][1]) for i in range(data.ndim)])
     return data[index]
 

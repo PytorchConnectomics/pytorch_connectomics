@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from collections import OrderedDict
 from typing import Optional, Union, Tuple
 
@@ -42,7 +44,8 @@ def bbox_ND(img: np.ndarray, relax: int = 0) -> tuple:
 
 
 def bbox_relax(coord: Union[tuple, list], shape: tuple, relax: int = 0) -> tuple:
-    assert len(coord) == len(shape) * 2
+    if len(coord) != len(shape) * 2:
+        raise ValueError(f"Expected {len(shape) * 2} coordinates for {len(shape)}D shape, got {len(coord)}")
     coord = list(coord)
     for i in range(len(shape)):
         coord[2 * i] = max(0, coord[2 * i] - relax)
@@ -52,7 +55,8 @@ def bbox_relax(coord: Union[tuple, list], shape: tuple, relax: int = 0) -> tuple
 
 
 def adjust_bbox(low, high, sz):
-    assert high >= low
+    if high < low:
+        raise ValueError(f"high ({high}) must be >= low ({low})")
     bbox_sz = high - low
     diff = abs(sz - bbox_sz) // 2
     if bbox_sz >= sz:
@@ -101,7 +105,8 @@ def index2bbox(seg: np.ndarray, indices: list, relax: int = 0, iterative: bool =
 
 
 def _coord2slice(coord: Tuple[int], ndim: int, end_included: bool = False):
-    assert len(coord) == ndim * 2
+    if len(coord) != ndim * 2:
+        raise ValueError(f"Expected {ndim * 2} coordinates for {ndim}D array, got {len(coord)}")
     slicing = []
     for i in range(ndim):
         start = coord[2 * i]
@@ -142,7 +147,8 @@ def replace_ND(
 
 
 def rand_window(w0, w1, sz, rand_shift: int = 0):
-    assert w1 >= w0
+    if w1 < w0:
+        raise ValueError(f"w1 ({w1}) must be >= w0 ({w0})")
     diff = np.abs((w1 - w0) - sz)
     if (w1 - w0) <= sz:
         if rand_shift > 0:  # random shift augmentation

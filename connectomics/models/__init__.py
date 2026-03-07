@@ -11,8 +11,6 @@ from .loss import (
     create_loss,
     create_combined_loss,
     create_loss_from_config,
-    create_binary_segmentation_loss,
-    create_multiclass_segmentation_loss,
 )
 
 __all__ = [
@@ -22,6 +20,4 @@ __all__ = [
     "create_loss",
     "create_combined_loss",
     "create_loss_from_config",
-    "create_binary_segmentation_loss",
-    "create_multiclass_segmentation_loss",
 ]

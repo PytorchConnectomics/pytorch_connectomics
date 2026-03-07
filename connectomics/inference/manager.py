@@ -7,16 +7,18 @@ Most heavy logic now lives in dedicated helper modules for clarity and reuse.
 
 from __future__ import annotations
 
+import logging
 from typing import Optional
-import warnings
 
 import torch
 import torch.nn as nn
 from omegaconf import DictConfig
 
 from ..config import Config
-from .sliding import build_sliding_inferer
+from .sliding import build_sliding_inferer, is_2d_inference_mode
 from .tta import TTAPredictor
+
+logger = logging.getLogger(__name__)
 
 
 class InferenceManager:
@@ -32,16 +34,11 @@ class InferenceManager:
         self.model = model
         self.forward_fn = forward_fn
 
-        do_2d = bool(
-            getattr(getattr(cfg.data, "train", None), "do_2d", False)
-            or getattr(getattr(cfg.data, "val", None), "do_2d", False)
-        )
-        if do_2d:
+        if is_2d_inference_mode(cfg):
             self.sliding_inferer = None
-            warnings.warn(
+            logger.warning(
                 "Sliding-window inference disabled for 2D models with do_2d=True. "
-                "Using direct inference instead.",
-                UserWarning,
+                "Using direct inference instead."
             )
         else:
             self.sliding_inferer = build_sliding_inferer(cfg)

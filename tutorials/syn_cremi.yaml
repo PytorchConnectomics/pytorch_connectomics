@@ -15,13 +15,13 @@ model:
     - function: WeightedBCEWithLogitsLoss
       weight: 1.0
       kwargs: {reduction: mean}
-      pred_slice: [0, '${model.out_channels}']
-      target_slice: [0, '${model.out_channels}']
+      pred_slice: "0:${model.out_channels}"
+      target_slice: "0:${model.out_channels}"
     - function: DiceLoss
       weight: 1.0
       kwargs: {sigmoid: true, smooth_nr: 1e-05, smooth_dr: 1e-05}
-      pred_slice: [0, '${model.out_channels}']
-      target_slice: [0, '${model.out_channels}']
+      pred_slice: "0:${model.out_channels}"
+      target_slice: "0:${model.out_channels}"
   monai:
     filters: [32, 64, 96, 128, 160]
   rsunet:
@@ -209,9 +209,7 @@ inference:
     flip_axes: all
     ensemble_mode: mean
     channel_activations:
-    - - 0
-      - 1
-      - sigmoid
+      - {channels: "0:1", activation: sigmoid}
     select_channel:
   save_prediction:
     enabled: true

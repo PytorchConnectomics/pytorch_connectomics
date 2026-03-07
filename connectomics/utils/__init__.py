@@ -1,25 +1,28 @@
 """
-Utility functions for PyTorch Connectomics.
+Shared cross-cutting utilities for PyTorch Connectomics.
 
-This package provides lightweight helpers:
-- visualizer.py: Visualization utilities for TensorBoard
-- debug_hooks.py: Debugging helpers for NaN detection
-- download.py: Dataset download utilities
-- errors.py: Error handling and preflight checks
-
-Import patterns:
-    from connectomics.utils.visualizer import Visualizer
-    from connectomics.utils.errors import preflight_check
-    from connectomics.utils.download import download_dataset
-
-Note: Legacy system.py utilities (get_args, init_devices) have been moved to legacy/
-      and replaced by Hydra config system. See connectomics.training.lightning for modern alternatives.
+This package contains only genuinely cross-cutting helpers used by 2+ packages:
+- channel_slices.py: Channel selector parsing and resolution (inference, data, training)
+- label_overlap.py: Label overlap computation (metrics, decoding)
+- errors.py: Pre-flight validation checks (scripts)
 """
 
-from .visualizer import *  # noqa: F403
+from .channel_slices import (
+    infer_min_required_channels,
+    normalize_channel_range_selector,
+    normalize_channel_selector,
+    resolve_channel_index,
+    resolve_channel_indices,
+    resolve_channel_range,
+)
+from .label_overlap import compute_label_overlap
 
-__all__ = [  # noqa: F405
-    # Visualizer
-    "Visualizer",
-    "get_visualization_mask",
+__all__ = [
+    "infer_min_required_channels",
+    "normalize_channel_range_selector",
+    "normalize_channel_selector",
+    "resolve_channel_index",
+    "resolve_channel_indices",
+    "resolve_channel_range",
+    "compute_label_overlap",
 ]

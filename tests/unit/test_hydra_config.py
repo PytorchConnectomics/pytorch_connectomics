@@ -79,8 +79,8 @@ def test_cross_section_validation_rejects_out_channel_mismatch():
         {
             "function": "DiceLoss",
             "weight": 1.0,
-            "pred_slice": [0, 3],
-            "target_slice": [0, 3],
+            "pred_slice": "0:3",
+            "target_slice": "0:3",
         }
     ]
 
@@ -96,8 +96,8 @@ def test_cross_section_validation_rejects_out_channel_mismatch_with_negative_sli
         {
             "function": "DiceLoss",
             "weight": 1.0,
-            "pred_slice": [0, -2],
-            "target_slice": [0, -2],
+            "pred_slice": "0:-2",
+            "target_slice": "0:-2",
         }
     ]
 
@@ -132,6 +132,32 @@ def test_cross_section_validation_rejects_decoding_channel_mismatch():
     )
 
     with pytest.raises(ValueError, match="inference.decoding\\[0\\].kwargs.distance_channels"):
+        validate_config(cfg)
+
+
+def test_cross_section_validation_accepts_tta_full_span_selector_for_single_channel():
+    """TTA should accept Python-style full-span selectors for binary outputs."""
+    cfg = Config()
+    cfg.model.out_channels = 1
+    cfg.inference.test_time_augmentation.channel_activations = [
+        {"channels": ":", "activation": "sigmoid"}
+    ]
+
+    validate_config(cfg)
+
+
+def test_cross_section_validation_rejects_invalid_tta_channel_range():
+    """TTA channel selectors must still fit model.out_channels."""
+    cfg = Config()
+    cfg.model.out_channels = 1
+    cfg.inference.test_time_augmentation.channel_activations = [
+        {"channels": "1:", "activation": "sigmoid"}
+    ]
+
+    with pytest.raises(
+        ValueError,
+        match="inference.test_time_augmentation.channel_activations\\[0\\]\\.channels",
+    ):
         validate_config(cfg)
 
 
@@ -373,14 +399,16 @@ def test_yaml_shared_profile_selectors(tmp_path):
         """
 arch_profiles:
   mednext:
-    type: mednext
-    variant: S
+    arch:
+      type: mednext
+    mednext:
+      size: S
 loss_profiles:
   loss_unit:
     - function: DiceLoss
       weight: 1.5
-      pred_slice: [0, 1]
-      target_slice: [0, 1]
+      pred_slice: "0:1"
+      target_slice: "0:1"
 label_profiles:
   label_unit:
     targets:
@@ -435,13 +463,14 @@ _base_: {base_yaml.name}
 
 
 def test_arch_profile_rejects_non_model_sections(tmp_path):
-    """Arch profiles should reject invalid non-ModelConfig keys."""
+    """Arch profiles with invalid keys are rejected by OmegaConf schema merge."""
     base_yaml = tmp_path / "base.yaml"
     base_yaml.write_text(
         """
 arch_profiles:
   bad_arch:
-    type: mednext
+    arch:
+      type: mednext
     optimization:
       max_epochs: 999
 """.strip()
@@ -458,7 +487,7 @@ _base_: {base_yaml.name}
 """.strip()
     )
 
-    with pytest.raises(ValueError, match="invalid model keys"):
+    with pytest.raises(Exception):
         load_config(config_yaml)
     print("✅ Arch profile key boundary enforcement works")
 
@@ -470,8 +499,10 @@ def test_arch_profile_precedence_explicit_model_fields_win(tmp_path):
         """
 arch_profiles:
   mednext:
-    type: mednext
-    variant: S
+    arch:
+      type: mednext
+    mednext:
+      size: S
     monai:
       dropout: 0.4
 """.strip()
@@ -851,41 +882,6 @@ def test_mask_binarize_uses_strict_greater_than_threshold():
     assert mask[0, 0, 1, 1] == 0.0
     assert mask[0, 0, 0, 1] == 1.0
     print("✅ Mask binarization uses strict > threshold semantics")
-
-
-def test_debug_env_prints_stats_only_for_test_transforms(monkeypatch, capsys):
-    """Debug env should add post-normalization stats hook to test transforms only."""
-    cfg = Config()
-    cfg.data.dataloader.patch_size = [0, 0, 0]  # Disable padding for deterministic transform order.
-    cfg.data.image_transform.normalize = "0-1"
-    cfg.test = HydraTestConfig()
-    cfg.test.data.test.image = "dummy_image.h5"
-    cfg.test.data.image_transform.normalize = "0-1"
-
-    monkeypatch.setenv("CONNECTOMICS_DEBUG_TEST_INPUT_STATS", "1")
-
-    test_transforms = build_test_transforms(cfg)
-    val_transforms = build_val_transforms(cfg)
-
-    test_names = [type(t).__name__ for t in test_transforms.transforms]
-    val_names = [type(t).__name__ for t in val_transforms.transforms]
-
-    norm_idx = test_names.index("SmartNormalizeIntensityd")
-    lambda_after_norm = any(
-        idx > norm_idx and name == "Lambdad" for idx, name in enumerate(test_names)
-    )
-
-    assert lambda_after_norm
-    assert "Lambdad" not in val_names
-
-    from connectomics.utils.debug_utils import reset_debug_state
-
-    reset_debug_state()
-    _ = test_transforms({"image": np.arange(8, dtype=np.float32).reshape(1, 2, 2, 2)})
-    captured = capsys.readouterr()
-    assert "TEST PIPELINE: AFTER image_normalization" in captured.out
-    assert "IMAGE Statistics:" in captured.out
-    print("✅ Debug env injects post-normalization stats hook only for test transforms")
 
 
 def main():

@@ -8,6 +8,7 @@ from typing import Any, List, Optional, Sequence, Tuple, Union
 import torch.nn as nn
 
 from ...models.loss.metadata import LossCallKind, LossMetadata, TargetKind, get_loss_metadata_for_module
+from ...utils.channel_slices import ChannelRangeSelector, normalize_channel_range_selector
 
 
 @dataclass(frozen=True)
@@ -19,35 +20,23 @@ class LossTermSpec:
     coefficient: float
     call_kind: LossCallKind
     target_kind: TargetKind
-    pred_slice: Optional[Tuple[int, int]] = None
-    target_slice: Optional[Tuple[int, int]] = None
-    pred2_slice: Optional[Tuple[int, int]] = None
-    mask_slice: Optional[Tuple[int, int]] = None
+    pred_slice: Optional[ChannelRangeSelector] = None
+    target_slice: Optional[ChannelRangeSelector] = None
+    pred2_slice: Optional[ChannelRangeSelector] = None
+    mask_slice: Optional[ChannelRangeSelector] = None
     apply_deep_supervision: bool = True
     spatial_weight_arg: Optional[str] = None
     pos_weight: Optional[Union[float, str]] = None
 
 
-from ...config.dict_utils import cfg_get as _cfg_get
+from ...config.pipeline.dict_utils import cfg_get as _cfg_get
 
 
-def _coerce_slice(value: Any, field_name: str) -> Optional[Tuple[int, int]]:
-    if value is None:
-        return None
-    if not isinstance(value, (list, tuple)) or len(value) != 2:
-        raise ValueError(f"{field_name} must be [start, end], got: {value!r}")
-    start, end = int(value[0]), int(value[1])
-    # Support python-style negative channel bounds (e.g. [0, -1], [-2, -1]).
-    # For mixed-sign bounds, final validity depends on runtime channel count.
-    if start == end:
-        raise ValueError(f"{field_name} must not be empty, got: {value!r}")
-    if start >= 0 and end >= 0 and end <= start:
-        raise ValueError(f"{field_name} must satisfy end > start, got: {value!r}")
-    if start < 0 and end < 0 and end <= start:
-        raise ValueError(
-            f"{field_name} must be increasing for negative bounds, got: {value!r}"
-        )
-    return (start, end)
+def _coerce_channel_range_selector(
+    value: Any,
+    field_name: str,
+) -> Optional[ChannelRangeSelector]:
+    return normalize_channel_range_selector(value, context=field_name)
 
 
 def compile_loss_terms_from_config(
@@ -146,19 +135,19 @@ def compile_loss_terms_from_config(
         target_kind = str(_cfg_get(term_cfg, "target_kind", base_meta.target_kind))
         spatial_weight_arg = _cfg_get(term_cfg, "spatial_weight_arg", base_meta.spatial_weight_arg)
 
-        pred_slice = _coerce_slice(
+        pred_slice = _coerce_channel_range_selector(
             _cfg_get(term_cfg, "pred_slice", _cfg_get(term_cfg, "pred", None)),
             "pred_slice",
         )
-        target_slice = _coerce_slice(
+        target_slice = _coerce_channel_range_selector(
             _cfg_get(term_cfg, "target_slice", _cfg_get(term_cfg, "target", None)),
             "target_slice",
         )
-        pred2_slice = _coerce_slice(
+        pred2_slice = _coerce_channel_range_selector(
             _cfg_get(term_cfg, "pred2_slice", _cfg_get(term_cfg, "pred2", None)),
             "pred2_slice",
         )
-        mask_slice = _coerce_slice(
+        mask_slice = _coerce_channel_range_selector(
             _cfg_get(term_cfg, "mask_slice", _cfg_get(term_cfg, "mask", None)),
             "mask_slice",
         )

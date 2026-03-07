@@ -5,9 +5,8 @@ Modern replacement for monai_compose.py that works with the new Hydra config sys
 """
 
 from __future__ import annotations
-from typing import Dict, Optional
+from typing import Optional
 from functools import partial
-import os
 import torch
 from monai.transforms import (
     BorderPadd,
@@ -29,10 +28,10 @@ from monai.transforms import (
 )
 
 # Import custom loader for HDF5/TIFF volumes
-from connectomics.data.io.monai_transforms import LoadVolumed
-from connectomics.data.io import NNUNetPreprocessd
+from connectomics.data.io.transforms import LoadVolumed
+from connectomics.data.process.nnunet_preprocess import NNUNetPreprocessd
 
-from .monai_transforms import (
+from .transforms import (
     RandMisAlignmentd,
     RandMissingSectiond,
     RandMissingPartsd,
@@ -42,24 +41,11 @@ from .monai_transforms import (
     RandMixupd,
     RandCopyPasted,
     RandStriped,
-    NormalizeLabelsd,
     SmartNormalizeIntensityd,
     ResizeByFactord,
     RandElasticd,
 )
 from ...config.schema import Config, AugmentationConfig
-from ...utils.debug_utils import print_tensor_stats
-
-
-_DEBUG_TEST_INPUT_STATS_ENV = "CONNECTOMICS_DEBUG_TEST_INPUT_STATS"
-
-
-def _env_flag_enabled(name: str) -> bool:
-    """Parse common truthy env var values (1/true/yes/on)."""
-    value = os.getenv(name)
-    if value is None:
-        return False
-    return value.strip().lower() in {"1", "true", "yes", "on"}
 
 
 def _strict_binarize_mask(mask, threshold: float = 0.0):
@@ -69,16 +55,28 @@ def _strict_binarize_mask(mask, threshold: float = 0.0):
     return (mask > threshold).astype(mask.dtype, copy=False)
 
 
-def _debug_print_post_normalization_stats(image, normalize_mode: str = "none"):
-    """Print test input stats immediately after image normalization."""
-    print_tensor_stats(
-        tensor=image,
-        stage_name="TEST PIPELINE: AFTER image_normalization",
-        tensor_name="image",
-        print_once=True,
-        extra_info={"normalize_mode": normalize_mode},
+def _build_nnunet_preprocess_transform(keys, nnunet_pre_cfg, source_spacing):
+    """Build NNUNetPreprocessd transform from config."""
+    source_spacing = getattr(nnunet_pre_cfg, "source_spacing", None) or source_spacing
+    return NNUNetPreprocessd(
+        keys=keys,
+        image_key="image",
+        enabled=True,
+        crop_to_nonzero=getattr(nnunet_pre_cfg, "crop_to_nonzero", True),
+        source_spacing=source_spacing,
+        target_spacing=getattr(nnunet_pre_cfg, "target_spacing", None),
+        normalization=getattr(nnunet_pre_cfg, "normalization", "zscore"),
+        normalization_use_nonzero_mask=getattr(
+            nnunet_pre_cfg, "normalization_use_nonzero_mask", True
+        ),
+        clip_percentile_low=getattr(nnunet_pre_cfg, "clip_percentile_low", 0.0),
+        clip_percentile_high=getattr(nnunet_pre_cfg, "clip_percentile_high", 1.0),
+        force_separate_z=getattr(nnunet_pre_cfg, "force_separate_z", None),
+        anisotropy_threshold=getattr(nnunet_pre_cfg, "anisotropy_threshold", 3.0),
+        image_order=getattr(nnunet_pre_cfg, "image_order", 3),
+        label_order=getattr(nnunet_pre_cfg, "label_order", 0),
+        order_z=getattr(nnunet_pre_cfg, "order_z", 0),
     )
-    return image
 
 
 def build_train_transforms(
@@ -97,10 +95,8 @@ def build_train_transforms(
         Composed MONAI transforms
     """
     if keys is None:
-        # Auto-detect keys based on config
         keys = ["image", "label"]
-        # Add mask to keys if it's specified in the config
-        if hasattr(cfg.data, "train") and hasattr(cfg.data.train, "mask") and cfg.data.train.mask is not None:
+        if cfg.data.train.mask is not None:
             keys.append("mask")
 
     transforms = []
@@ -131,45 +127,17 @@ def build_train_transforms(
     nnunet_pre_cfg = getattr(cfg.data, "nnunet_preprocessing", None)
     nnunet_pre_enabled = bool(getattr(nnunet_pre_cfg, "enabled", False))
     if not skip_loading and nnunet_pre_enabled:
-        source_spacing = (
-            getattr(nnunet_pre_cfg, "source_spacing", None) or getattr(cfg.data.train, "resolution", None)
-        )
-        transforms.append(
-            NNUNetPreprocessd(
-                keys=keys,
-                image_key="image",
-                enabled=True,
-                crop_to_nonzero=getattr(nnunet_pre_cfg, "crop_to_nonzero", True),
-                source_spacing=source_spacing,
-                target_spacing=getattr(nnunet_pre_cfg, "target_spacing", None),
-                normalization=getattr(nnunet_pre_cfg, "normalization", "zscore"),
-                normalization_use_nonzero_mask=getattr(
-                    nnunet_pre_cfg, "normalization_use_nonzero_mask", True
-                ),
-                clip_percentile_low=getattr(nnunet_pre_cfg, "clip_percentile_low", 0.0),
-                clip_percentile_high=getattr(nnunet_pre_cfg, "clip_percentile_high", 1.0),
-                force_separate_z=getattr(nnunet_pre_cfg, "force_separate_z", None),
-                anisotropy_threshold=getattr(nnunet_pre_cfg, "anisotropy_threshold", 3.0),
-                image_order=getattr(nnunet_pre_cfg, "image_order", 3),
-                label_order=getattr(nnunet_pre_cfg, "label_order", 0),
-                order_z=getattr(nnunet_pre_cfg, "order_z", 0),
-            )
-        )
+        source_spacing = getattr(cfg.data.train, "resolution", None)
+        transforms.append(_build_nnunet_preprocess_transform(keys, nnunet_pre_cfg, source_spacing))
 
     # Apply volumetric split if enabled
     if cfg.data.split_enabled:
-        from connectomics.data.utils import ApplyVolumetricSplitd
+        from connectomics.data.dataset.split import ApplyVolumetricSplitd
 
         transforms.append(ApplyVolumetricSplitd(keys=keys))
 
     # Apply resize if configured (before cropping)
-    resize_size = None
-    if (
-        hasattr(cfg.data, "data_transform")
-        and hasattr(cfg.data.data_transform, "resize")
-        and cfg.data.data_transform.resize is not None
-    ):
-        resize_size = cfg.data.data_transform.resize
+    resize_size = cfg.data.data_transform.resize
 
     if resize_size:
         # Use bilinear for images, nearest for labels/masks
@@ -195,11 +163,7 @@ def build_train_transforms(
 
     # Ensure target patch size is respected (unless using pre-cached dataset)
     if not skip_loading:
-        patch_size = (
-            tuple(cfg.data.dataloader.patch_size)
-            if hasattr(cfg.data, "data_transform") and hasattr(cfg.data.data_transform, "patch_size")
-            else None
-        )
+        patch_size = tuple(cfg.data.dataloader.patch_size) if cfg.data.dataloader.patch_size else None
         if patch_size and all(size > 0 for size in patch_size):
             # Pad smaller volumes so random crops always succeed
             transforms.append(
@@ -230,13 +194,7 @@ def build_train_transforms(
         )
 
     # Add augmentations if enabled
-    # Check if augmentation is configured and preset is not "none"
-    augmentation_enabled = False
-    if hasattr(cfg.data, "augmentation") and cfg.data.augmentation is not None:
-        preset = getattr(cfg.data.augmentation, "preset", "some")
-        augmentation_enabled = preset != "none"
-
-    if augmentation_enabled:
+    if cfg.data.augmentation is not None and cfg.data.augmentation.preset != "none":
         # Pass do_2d flag to augmentation builder
         do_2d = bool(
             getattr(getattr(cfg.data, "train", None), "do_2d", False)
@@ -244,14 +202,10 @@ def build_train_transforms(
         )
         transforms.extend(_build_augmentations(cfg.data.augmentation, keys, do_2d=do_2d))
 
-    # Normalize labels to 0-1 range if enabled
-    if getattr(cfg.data, "normalize_labels", False):
-        transforms.append(NormalizeLabelsd(keys=["label"]))
-
     # Label transformations (affinity, distance transform, etc.)
     if hasattr(cfg.data, "label_transform"):
         from ..process.build import create_label_transform_pipeline
-        from ..process.monai_transforms import SegErosionInstanced
+        from ..process.transforms import SegErosionInstanced
 
         label_cfg = cfg.data.label_transform
 
@@ -260,8 +214,11 @@ def build_train_transforms(
             transforms.append(SegErosionInstanced(keys=["label"], tsz_h=label_cfg.erosion))
 
         # Build label transform pipeline directly from label_transform config
-        label_pipeline = create_label_transform_pipeline(label_cfg)
-        transforms.extend(label_pipeline.transforms)
+        label_transform = create_label_transform_pipeline(label_cfg)
+        if isinstance(label_transform, Compose):
+            transforms.extend(label_transform.transforms)
+        else:
+            transforms.append(label_transform)
 
     # NOTE: Do NOT squeeze labels here!
     # - DiceLoss needs (B, 1, H, W) with to_onehot_y=True
@@ -330,71 +287,36 @@ def _build_eval_transforms_impl(cfg: Config, mode: str = "val", keys: list[str] 
             transforms.append(EnsureChannelFirstd(keys=keys))
         else:
             # For volume-based datasets (HDF5, TIFF volumes), use custom LoadVolumed
-            # Get transpose axes based on mode
-            if mode == "val":
-                transpose_axes = (
-                    data_cfg.data_transform.val_transpose if data_cfg.data_transform.val_transpose else []
-                )
-            else:  # mode == "test"
-                transpose_axes = (
-                    data_cfg.data_transform.val_transpose if data_cfg.data_transform.val_transpose else []
-                )
+            transpose_axes = (
+                data_cfg.data_transform.val_transpose if data_cfg.data_transform.val_transpose else []
+            )
 
             transforms.append(
                 LoadVolumed(keys=keys, transpose_axes=transpose_axes if transpose_axes else None)
             )
 
-    nnunet_pre_cfg = None
-    source_spacing = None
+    nnunet_pre_cfg = getattr(data_cfg, "nnunet_preprocessing", None)
     if mode in {"test", "tune"}:
-        nnunet_pre_cfg = getattr(data_cfg, "nnunet_preprocessing", None)
         source_spacing = data_cfg.test.resolution
     elif mode == "val":
-        nnunet_pre_cfg = getattr(data_cfg, "nnunet_preprocessing", None)
         source_spacing = (
             getattr(data_cfg.val, "resolution", None) or getattr(data_cfg.train, "resolution", None)
         )
     else:
-        nnunet_pre_cfg = getattr(data_cfg, "nnunet_preprocessing", None)
         source_spacing = getattr(data_cfg.train, "resolution", None)
 
     nnunet_pre_enabled = bool(getattr(nnunet_pre_cfg, "enabled", False))
     if not skip_loading and nnunet_pre_enabled:
-        source_spacing = getattr(nnunet_pre_cfg, "source_spacing", None) or source_spacing
-        transforms.append(
-            NNUNetPreprocessd(
-                keys=keys,
-                image_key="image",
-                enabled=True,
-                crop_to_nonzero=getattr(nnunet_pre_cfg, "crop_to_nonzero", True),
-                source_spacing=source_spacing,
-                target_spacing=getattr(nnunet_pre_cfg, "target_spacing", None),
-                normalization=getattr(nnunet_pre_cfg, "normalization", "zscore"),
-                normalization_use_nonzero_mask=getattr(
-                    nnunet_pre_cfg, "normalization_use_nonzero_mask", True
-                ),
-                clip_percentile_low=getattr(nnunet_pre_cfg, "clip_percentile_low", 0.0),
-                clip_percentile_high=getattr(nnunet_pre_cfg, "clip_percentile_high", 1.0),
-                force_separate_z=getattr(nnunet_pre_cfg, "force_separate_z", None),
-                anisotropy_threshold=getattr(nnunet_pre_cfg, "anisotropy_threshold", 3.0),
-                image_order=getattr(nnunet_pre_cfg, "image_order", 3),
-                label_order=getattr(nnunet_pre_cfg, "label_order", 0),
-                order_z=getattr(nnunet_pre_cfg, "order_z", 0),
-            )
-        )
+        transforms.append(_build_nnunet_preprocess_transform(keys, nnunet_pre_cfg, source_spacing))
 
     # Apply volumetric split if enabled
     if data_cfg.split_enabled:
-        from connectomics.data.utils import ApplyVolumetricSplitd
+        from connectomics.data.dataset.split import ApplyVolumetricSplitd
 
         transforms.append(ApplyVolumetricSplitd(keys=keys))
 
     # Apply resize if configured (before cropping)
-    image_resize_factors = None
-    if mode in {"test", "tune"}:
-        image_resize_factors = getattr(data_cfg.image_transform, "resize", None)
-    else:  # mode == "val"
-        image_resize_factors = getattr(data_cfg.image_transform, "resize", None)
+    image_resize_factors = getattr(data_cfg.image_transform, "resize", None)
 
     mask_resize_factors = None
     if mode in {"test", "tune"} and data_cfg.data_transform.resize is not None:
@@ -454,11 +376,7 @@ def _build_eval_transforms_impl(cfg: Config, mode: str = "val", keys: list[str] 
             )
         )
 
-    patch_size = (
-        tuple(data_cfg.dataloader.patch_size)
-        if hasattr(data_cfg, "data_transform") and hasattr(data_cfg.data_transform, "patch_size")
-        else None
-    )
+    patch_size = tuple(data_cfg.dataloader.patch_size) if data_cfg.dataloader.patch_size else None
     if patch_size and all(size > 0 for size in patch_size):
         transforms.append(
             SpatialPadd(
@@ -505,13 +423,8 @@ def _build_eval_transforms_impl(cfg: Config, mode: str = "val", keys: list[str] 
     # else: mode == "test" -> no cropping for sliding window inference
 
     # Normalization - use smart normalization
-    image_transform = None
-    if mode in {"test", "tune"}:
-        image_transform = data_cfg.image_transform
-    elif mode == "val":
-        image_transform = data_cfg.image_transform
-
-    if (not nnunet_pre_enabled) and image_transform is not None and image_transform.normalize != "none":
+    image_transform = data_cfg.image_transform
+    if (not nnunet_pre_enabled) and image_transform.normalize != "none":
         transforms.append(
             SmartNormalizeIntensityd(
                 keys=["image"],
@@ -521,28 +434,8 @@ def _build_eval_transforms_impl(cfg: Config, mode: str = "val", keys: list[str] 
             )
         )
 
-    if mode == "test" and _env_flag_enabled(_DEBUG_TEST_INPUT_STATS_ENV):
-        normalize_mode = (
-            getattr(image_transform, "normalize", "none")
-            if image_transform is not None
-            else "none"
-        )
-        transforms.append(
-            Lambdad(
-                keys=["image"],
-                func=partial(
-                    _debug_print_post_normalization_stats,
-                    normalize_mode=normalize_mode,
-                ),
-            )
-        )
-
     # Only process labels if 'label' is in keys
     if "label" in keys:
-        # Normalize labels to 0-1 range if enabled
-        if getattr(data_cfg, "normalize_labels", False):
-            transforms.append(NormalizeLabelsd(keys=["label"]))
-
         # Label transformations (affinity, distance transform, etc.)
         # For test/tune modes: NEVER apply label transforms
         # (keep raw instance labels for evaluation)
@@ -556,15 +449,18 @@ def _build_eval_transforms_impl(cfg: Config, mode: str = "val", keys: list[str] 
         # Apply label transforms if configured
         if label_cfg is not None:
             from ..process.build import create_label_transform_pipeline
-            from ..process.monai_transforms import SegErosionInstanced
+            from ..process.transforms import SegErosionInstanced
 
             # Apply instance erosion first if specified
             if hasattr(label_cfg, "erosion") and label_cfg.erosion > 0:
                 transforms.append(SegErosionInstanced(keys=["label"], tsz_h=label_cfg.erosion))
 
             # Build label transform pipeline directly from label_transform config
-            label_pipeline = create_label_transform_pipeline(label_cfg)
-            transforms.extend(label_pipeline.transforms)
+            label_transform = create_label_transform_pipeline(label_cfg)
+            if isinstance(label_transform, Compose):
+                transforms.extend(label_transform.transforms)
+            else:
+                transforms.append(label_transform)
 
     # NOTE: Do NOT squeeze labels here!
     # - DiceLoss needs (B, 1, H, W) with to_onehot_y=True
@@ -609,36 +505,6 @@ def build_test_transforms(cfg: Config, keys: list[str] = None) -> Compose:
     return _build_eval_transforms_impl(cfg, mode="test", keys=keys)
 
 
-def build_inference_transforms(cfg: Config) -> Compose:
-    """
-    Build inference transforms from Hydra config.
-
-    Args:
-        cfg: Hydra Config object
-
-    Returns:
-        Composed MONAI transforms for inference
-    """
-    keys = ["image"]
-    transforms = []
-
-    # Normalization - use smart normalization
-    if cfg.data.normalize:
-        transforms.append(
-            SmartNormalizeIntensityd(
-                keys=keys,
-                mean=cfg.data.mean,
-                std=cfg.data.std,
-                clip_percentile_low=getattr(cfg.data, "clip_percentile_low", 0.0),
-                clip_percentile_high=getattr(cfg.data, "clip_percentile_high", 1.0),
-            )
-        )
-
-    # Convert to tensor with float32 dtype
-    transforms.append(ToTensord(keys=keys, dtype=torch.float32))
-
-    return Compose(transforms)
-
 
 def _build_augmentations(aug_cfg: AugmentationConfig, keys: list[str], do_2d: bool = False) -> list:
     """
@@ -666,61 +532,14 @@ def _build_augmentations(aug_cfg: AugmentationConfig, keys: list[str], do_2d: bo
             f"Got: '{preset}'. Please use one of the valid options."
         )
 
-    # Helper function to check if augmentation should be applied
     def should_augment(aug_name: str, aug_enabled: Optional[bool]) -> bool:
-        """
-        Determine if augmentation should be applied based on preset mode and enabled flag.
-
-        All augmentations default to enabled=None (use preset default). The preset mode controls
-        the behavior:
-
-        - "none": Disable all augmentations
-        - "some": Disable all by default (only True enables)
-        - "all": Enable all by default (only False disables)
-
-        The enabled field can be:
-        - None: Use preset default (not specified in YAML)
-        - True: Explicitly enable (overrides preset)
-        - False: Explicitly disable (overrides preset)
-
-        Examples:
-            preset="some" with enabled=None:
-                → Disabled (default off, must opt-in)
-                → User enables in YAML: flip.enabled: true
-
-            preset="some" with enabled=true:
-                → Enabled
-
-            preset="all" with enabled=None:
-                → Enabled (default on)
-                → User can disable: flip.enabled: false
-
-            preset="all" with enabled=false:
-                → Disabled (explicit override)
-
-            preset="none":
-                → Always disabled
-        """
+        """Check if aug should apply: 'none'=off, 'some'=opt-in, 'all'=opt-out."""
         if preset == "none":
             return False
-        elif preset == "all":
-            # Enable all by default, unless explicitly disabled (False)
-            # None (default) → True
-            # True (explicit) → True
-            # False (explicit disable) → False
-            if aug_enabled is False:
-                return False
-            else:  # None or True
-                return True
-        else:  # preset == "some"
-            # Disable all by default, unless explicitly enabled (True)
-            # None (default) → False
-            # True (explicit enable) → True
-            # False (explicit) → False
-            if aug_enabled is True:
-                return True
-            else:  # None or False
-                return False
+        if preset == "all":
+            return aug_enabled is not False
+        # preset == "some"
+        return aug_enabled is True
 
     # Standard geometric augmentations
     if should_augment("flip", aug_cfg.flip.enabled):
@@ -913,27 +732,8 @@ def _build_augmentations(aug_cfg: AugmentationConfig, keys: list[str], do_2d: bo
     return transforms
 
 
-def build_transform_dict(cfg: Config) -> Dict[str, Compose]:
-    """
-    Build dictionary of transforms for train/val/test splits.
-
-    Args:
-        cfg: Hydra Config object
-
-    Returns:
-        Dictionary with 'train', 'val', 'test' keys
-    """
-    return {
-        "train": build_train_transforms(cfg),
-        "val": build_val_transforms(cfg),
-        "test": build_test_transforms(cfg),
-    }
-
-
 __all__ = [
     "build_train_transforms",
     "build_val_transforms",
     "build_test_transforms",
-    "build_inference_transforms",
-    "build_transform_dict",
 ]

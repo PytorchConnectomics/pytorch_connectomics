@@ -1,7 +1,25 @@
+from __future__ import annotations
+
 import numpy as np
 from scipy.ndimage import distance_transform_edt
 from skimage.morphology import binary_dilation
-from ...data.io.utils import split_multichannel_mask as split_masks
+
+
+def split_multichannel_mask(label_data: np.ndarray) -> np.ndarray:
+    """Split label data into per-class binary masks.
+
+    Returns array with shape (num_classes, ...).
+    """
+    unique_indices = np.unique(label_data)
+    if len(unique_indices) > 1:
+        if unique_indices[0] == 0:
+            unique_indices = unique_indices[1:]
+        masks = [
+            (label_data == idx).astype(np.uint8)
+            for idx in unique_indices
+        ]
+        return np.stack(masks, 0)
+    return np.ones_like(label_data).astype(np.uint8)[np.newaxis]
 
 
 def seg_to_weights(targets, wopts, mask=None, seg=None):
@@ -52,7 +70,8 @@ def weight_binary_ratio(label, mask=None, dilate=False):
 
     if dilate:  # Use higher weights for regions close to foreground.
         N = label.ndim
-        assert N in [3, 4]
+        if N not in (3, 4):
+            raise ValueError(f"Expected 3D or 4D label for dilation, got {N}D")
         struct = np.ones([1] * (N - 2) + [3, 3])
 
         label = label != 0
@@ -89,7 +108,7 @@ def weight_unet2d(seg, w0=10.0, w1=5.0, sigma=5):
     min_val = 1.0
     max_val = max(w0, w1)
 
-    masks = split_masks(seg)
+    masks = split_multichannel_mask(seg)
     N, H, W = masks.shape
     if N < 2:  # Number of foreground segments is smaller than 2.
         weight_map = (seg != 0).astype(np.float32) * w1

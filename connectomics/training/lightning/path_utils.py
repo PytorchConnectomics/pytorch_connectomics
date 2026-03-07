@@ -26,3 +26,6 @@ def expand_file_paths(path_or_pattern) -> List[str]:
         return paths
 
     return [path_or_pattern]
+
+
+__all__ = ["expand_file_paths"]

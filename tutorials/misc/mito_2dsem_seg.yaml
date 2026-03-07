@@ -22,13 +22,13 @@ model:
     - function: DiceLoss
       weight: 1.0
       kwargs: {sigmoid: true, smooth_nr: 1e-5, smooth_dr: 1e-5}
-      pred_slice: [0, '${model.out_channels}']
-      target_slice: [0, '${model.out_channels}']
+      pred_slice: "0:${model.out_channels}"
+      target_slice: "0:${model.out_channels}"
     - function: BCEWithLogitsLoss
       weight: 1.0
       kwargs: {reduction: mean}
-      pred_slice: [0, '${model.out_channels}']
-      target_slice: [0, '${model.out_channels}']
+      pred_slice: "0:${model.out_channels}"
+      target_slice: "0:${model.out_channels}"
   nnunet:
     checkpoint: /projects/weilab/liupeng/mito_2d_semantic_model/checkpoints/mito_semantic_2d.pth
     plans: /projects/weilab/liupeng/mito_2d_semantic_model/checkpoints/plans.json
@@ -167,7 +167,8 @@ inference:
   test_time_augmentation:
     enabled: true
     flip_axes: [[1], [2], [1, 2]]  # H, W, and H+W flips (no Z flip)
-    channel_activations: [[0, 1, 'sigmoid']]
+    channel_activations:
+      - {channels: "0:1", activation: sigmoid}
     select_channel:
     ensemble_mode: mean
 

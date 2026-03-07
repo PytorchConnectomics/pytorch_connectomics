@@ -5,6 +5,8 @@ Provides centralized registration and discovery of model architectures.
 Makes it easy to add new models and validate architecture names.
 """
 
+
+from __future__ import annotations
 from typing import Dict, Callable, List
 import warnings
 

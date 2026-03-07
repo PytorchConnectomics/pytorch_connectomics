@@ -59,9 +59,7 @@ class Config:
     description: str = ""
 
     # Core components
-    system: SystemConfig = field(
-        default_factory=lambda: SystemConfig(num_gpus=1, num_workers=8, seed=42)
-    )
+    system: SystemConfig = field(default_factory=SystemConfig)
     model: ModelConfig = field(default_factory=ModelConfig)
     default: DefaultConfig = field(default_factory=DefaultConfig)
     train: TrainConfig = field(default_factory=TrainConfig)

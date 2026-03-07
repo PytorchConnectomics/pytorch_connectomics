@@ -4,7 +4,7 @@ from pathlib import Path
 import torch
 
 from connectomics.config import Config
-from connectomics.training.lightning.config import (
+from connectomics.training.lightning.runtime import (
     cleanup_run_directory,
     modify_checkpoint_state,
     setup_run_directory,

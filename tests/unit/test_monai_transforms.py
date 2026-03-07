@@ -24,6 +24,7 @@ from connectomics.data.process import (
     SegToFlowFieldd,
     create_label_transform_pipeline,
 )
+from connectomics.config.schema import LabelTargetConfig, LabelTransformConfig
 
 
 def create_test_data():
@@ -135,12 +136,11 @@ def test_compose_pipelines():
 
     # Test label transform pipeline with binary target
     print("\n2. Testing label transform pipeline (binary)...")
-    from types import SimpleNamespace
 
-    binary_cfg = SimpleNamespace(
-        keys=["label"],
-        targets=[{"name": "binary"}],
-    )
+    binary_cfg = {
+        "keys": ["label"],
+        "targets": [{"name": "binary"}],
+    }
     binary_pipeline = create_label_transform_pipeline(binary_cfg)
     result = binary_pipeline(data)
     assert "label" in result, "Binary mask not generated"
@@ -148,15 +148,15 @@ def test_compose_pipelines():
 
     # Test label transform pipeline with affinity target
     print("\n3. Testing label transform pipeline (affinity)...")
-    affinity_cfg = SimpleNamespace(
-        keys=["label"],
-        targets=[
+    affinity_cfg = {
+        "keys": ["label"],
+        "targets": [
             {
                 "name": "affinity",
                 "kwargs": {"offsets": ["1-0-0", "0-1-0", "0-0-1"]},
             }
         ],
-    )
+    }
     affinity_pipeline = create_label_transform_pipeline(affinity_cfg)
     result = affinity_pipeline(data)
     assert "label" in result, "Affinity map not generated"
@@ -164,14 +164,14 @@ def test_compose_pipelines():
 
     # Test label transform pipeline with multi-task instance segmentation
     print("\n4. Testing label transform pipeline (instance multi-task)...")
-    instance_cfg = SimpleNamespace(
-        keys=["label"],
-        targets=[
+    instance_cfg = {
+        "keys": ["label"],
+        "targets": [
             {"name": "binary"},
             {"name": "instance_boundary", "kwargs": {"thickness": 1, "edge_mode": "seg-all"}},
             {"name": "instance_edt", "kwargs": {"mode": "2d", "quantize": False}},
         ],
-    )
+    }
     instance_pipeline = create_label_transform_pipeline(instance_cfg)
     result = instance_pipeline(data)
     assert "label" in result, "Multi-task output not generated"
@@ -181,12 +181,10 @@ def test_compose_pipelines():
 
 
 def test_affinity_pipeline_ignores_deepem_crop_control_kwarg():
-    from types import SimpleNamespace
-
     data = create_test_data()
-    affinity_cfg = SimpleNamespace(
-        keys=["label"],
-        targets=[
+    affinity_cfg = {
+        "keys": ["label"],
+        "targets": [
             {
                 "name": "affinity",
                 "kwargs": {
@@ -195,10 +193,29 @@ def test_affinity_pipeline_ignores_deepem_crop_control_kwarg():
                 },
             }
         ],
-    )
+    }
 
     affinity_pipeline = create_label_transform_pipeline(affinity_cfg)
     result = affinity_pipeline(data)
+
+    assert "label" in result
+    assert tuple(result["label"].shape) == (3, 32, 64, 64)
+
+
+def test_label_transform_pipeline_accepts_structured_config_dataclass():
+    data = create_test_data()
+    cfg = LabelTransformConfig(
+        keys=["label"],
+        targets=[
+            LabelTargetConfig(
+                name="affinity",
+                kwargs={"offsets": ["1-0-0", "0-1-0", "0-0-1"]},
+            )
+        ],
+    )
+
+    pipeline = create_label_transform_pipeline(cfg)
+    result = pipeline(data)
 
     assert "label" in result
     assert tuple(result["label"].shape) == (3, 32, 64, 64)
@@ -241,12 +258,10 @@ def test_compatibility():
     data = {"label": label}
 
     # Use pipeline API instead of individual transforms
-    from types import SimpleNamespace
-
-    binary_cfg = SimpleNamespace(
-        keys=["label"],
-        targets=[{"name": "binary"}],
-    )
+    binary_cfg = {
+        "keys": ["label"],
+        "targets": [{"name": "binary"}],
+    }
     binary_pipeline = create_label_transform_pipeline(binary_cfg)
     result = binary_pipeline(data)
 

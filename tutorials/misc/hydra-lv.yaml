@@ -39,28 +39,28 @@ model:
     - function: DiceLoss
       weight: 1.0
       kwargs: {sigmoid: true, smooth_nr: 1e-5, smooth_dr: 1e-5}
-      pred_slice: [0, 1]
-      target_slice: [0, 1]
+      pred_slice: "0:1"
+      target_slice: "0:1"
     - function: WeightedBCEWithLogitsLoss
       weight: 1.0
       kwargs: {reduction: mean}
-      pred_slice: [0, 1]
-      target_slice: [0, 1]
+      pred_slice: "0:1"
+      target_slice: "0:1"
     - function: DiceLoss
       weight: 1.0
       kwargs: {sigmoid: true, smooth_nr: 1e-5, smooth_dr: 1e-5}
-      pred_slice: [1, 2]
-      target_slice: [1, 2]
+      pred_slice: "1:2"
+      target_slice: "1:2"
     - function: TverskyLoss
       weight: 1.0
       kwargs: {sigmoid: true, alpha: 0.7, beta: 0.3, smooth_nr: 1e-5, smooth_dr: 1e-5}
-      pred_slice: [1, 2]
-      target_slice: [1, 2]
+      pred_slice: "1:2"
+      target_slice: "1:2"
     - function: SmoothL1Loss
       weight: 1.0
       kwargs: {beta: 0.1, reduction: mean, tanh: true}
-      pred_slice: [2, 3]
-      target_slice: [2, 3]
+      pred_slice: "2:3"
+      target_slice: "2:3"
 
   # Adaptive loss balancing between heads
     loss_balancing:
@@ -293,12 +293,11 @@ inference:
     #             e.g., [[1, 2]] for H-W plane only
     rotation90_axes:       # No rotation by default (set to "all" or [[1, 2]] to enable)
     # Per-channel activations (aligned with loss_terms)
-    # Format: [[start_ch, end_ch, activation], ...]
-    select_channel: all               # Use all channels
+    # Format: [{channels: "start:end", activation: sigmoid}, ...]
+    select_channel: ":"               # Use all channels
     channel_activations:
-    - [0, 1, sigmoid]                  # Channel 0: binary segmentation (sigmoid)
-    - [1, 2, sigmoid]                  # Channel 1: boundary (sigmoid)
-    - [2, 3, tanh]                     # Channel 2: EDT distance (tanh)
+      - {channels: "0:2", activation: sigmoid}  # Channels 0-1: binary + boundary
+      - {channels: "2:3", activation: tanh}     # Channel 2: EDT distance
     ensemble_mode: mean              # Mean ensemble (smooth predictions)
     apply_mask: true                   # Multiply predictions by test_mask after ensemble
 
