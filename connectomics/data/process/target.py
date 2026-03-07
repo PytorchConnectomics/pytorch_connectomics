@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import cc3d
 import fastremap
 import numpy as np
@@ -24,13 +26,6 @@ __all__ = [
     "seg_to_binary",
     "seg_to_instance_bd",
     "seg_erosion_dilation",
-    "affinity_deepem_crop_enabled",
-    "compute_affinity_crop_pad",
-    "crop_spatial_by_offsets",
-    "crop_spatial_by_pad",
-    "parse_affinity_offsets",
-    "resolve_affinity_channel_groups_from_cfg",
-    "resolve_affinity_offsets_for_channel_slice",
 ]
 
 

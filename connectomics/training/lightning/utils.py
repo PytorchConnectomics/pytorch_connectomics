@@ -11,11 +11,14 @@ This module provides helper functions for:
 from __future__ import annotations
 
 import argparse
+import logging
 import re
 from pathlib import Path
 from typing import Optional
 
 import torch
+
+logger = logging.getLogger(__name__)
 
 from ...config import (
     Config,
@@ -158,7 +161,7 @@ def setup_config(args) -> Config:
         Validated Config object
     """
     # Load base config from YAML
-    print(f"📄 Loading config: {args.config}")
+    logger.info(f"Loading config: {args.config}")
     cfg = load_config(args.config)
 
     # Extract config file name and set output folder
@@ -179,17 +182,17 @@ def setup_config(args) -> Config:
         save_pred_cfg.output_path = str(Path(output_folder) / "results")
     else:
         save_pred_cfg.output_path = str(Path(save_pred_cfg.output_path))
-    print(f"📂 Prediction output directory: {save_pred_cfg.output_path}")
+    logger.info(f"Prediction output directory: {save_pred_cfg.output_path}")
 
     # Note: We handle timestamping manually in main() to create run directories
     # Set this to False to prevent PyTorch Lightning from adding its own timestamp
     cfg.monitor.checkpoint.use_timestamp = False
 
-    print(f"📁 Checkpoints base directory: {cfg.monitor.checkpoint.dirpath}")
+    logger.info(f"Checkpoints base directory: {cfg.monitor.checkpoint.dirpath}")
 
     # Apply CLI overrides
     if args.overrides:
-        print(f"⚙️  Applying {len(args.overrides)} CLI overrides")
+        logger.info(f"Applying {len(args.overrides)} CLI overrides")
         cfg = update_from_cli(cfg, args.overrides)
 
     # Resolve default-stage profiles into runtime sections (system/data/inference)
@@ -200,29 +203,29 @@ def setup_config(args) -> Config:
 
     # Override max_epochs if --reset-max-epochs is specified
     if args.reset_max_epochs is not None:
-        print(f"⚙️  Overriding max_epochs: {cfg.optimization.max_epochs} → {args.reset_max_epochs}")
+        logger.info(f"Overriding max_epochs: {cfg.optimization.max_epochs} -> {args.reset_max_epochs}")
         cfg.optimization.max_epochs = args.reset_max_epochs
 
     # Handle external weights loading (when --external-prefix is specified with --checkpoint)
     if args.external_prefix is not None and args.checkpoint:
-        print(f"🔧 Loading external weights from checkpoint with prefix '{args.external_prefix}'")
+        logger.info(f"Loading external weights from checkpoint with prefix '{args.external_prefix}'")
         cfg.model.external_weights_path = args.checkpoint
         cfg.model.external_weights_key_prefix = args.external_prefix
 
     # Override config for fast-dev-run mode
     if args.fast_dev_run:
         fast_dev_num_gpus = 1 if torch.cuda.is_available() else 0
-        print("🔧 Fast-dev-run mode: Overriding config for debugging")
-        print(f"   - num_gpus: {cfg.system.num_gpus} → {fast_dev_num_gpus}")
-        print(
-            f"   - num_workers: {cfg.system.num_workers} → 0 "
+        logger.info("Fast-dev-run mode: Overriding config for debugging")
+        logger.info(f"   - num_gpus: {cfg.system.num_gpus} -> {fast_dev_num_gpus}")
+        logger.info(
+            f"   - num_workers: {cfg.system.num_workers} -> 0 "
             "(avoid multiprocessing in debug mode)"
         )
-        print(
+        logger.info(
             f"   - batch_size: Controlled by PyTorch Lightning (--fast-dev-run={args.fast_dev_run})"
         )
-        print("   - input patch: 64^3 for lightweight debug")
-        print("   - MedNeXt size: S for lightweight debug")
+        logger.info("   - input patch: 64^3 for lightweight debug")
+        logger.info("   - MedNeXt size: S for lightweight debug")
         cfg.system.num_gpus = fast_dev_num_gpus
         cfg.system.num_workers = 0
         cfg.model.input_size = [64, 64, 64]
@@ -240,27 +243,27 @@ def setup_config(args) -> Config:
     # CPU-only fallback after all overrides: ensure no CUDA-only settings remain.
     if not torch.cuda.is_available():
         if cfg.system.num_gpus > 0:
-            print("🔧 CUDA not available, setting num_gpus=0")
+            logger.info("CUDA not available, setting num_gpus=0")
             cfg.system.num_gpus = 0
         if cfg.system.num_workers > 0:
-            print(
-                "🔧 CUDA not available, setting num_workers=0 to avoid dataloader crashes"
+            logger.info(
+                "CUDA not available, setting num_workers=0 to avoid dataloader crashes"
             )
             cfg.system.num_workers = 0
 
     # Optional convenience toggle to enable nnU-Net preprocessing via CLI
     if getattr(args, "nnunet_preprocess", False):
-        print("🔧 Enabling nnU-Net preprocessing from CLI flag")
+        logger.info("Enabling nnU-Net preprocessing from CLI flag")
         cfg.data.nnunet_preprocessing.enabled = True
 
     # Validate configuration
-    print("✅ Validating configuration...")
+    logger.info("Validating configuration...")
     validate_config(cfg)
 
     if getattr(args, "debug_config", False):
-        print("\n========================")
-        print("RESOLVED CONFIG (DEBUG)")
-        print("========================")
+        logger.info("\n========================")
+        logger.info("RESOLVED CONFIG (DEBUG)")
+        logger.info("========================")
         print_config(cfg, resolve=True)
 
     # Note: Output directory will be created later in main() with timestamp
@@ -313,9 +316,21 @@ def extract_best_score_from_checkpoint(ckpt_path: str, monitor_metric: str) -> O
     return None
 
 
+def setup_seed_everything():
+    """
+    Return Lightning's canonical seed helper.
+
+    Returns:
+        seed_everything function
+    """
+    from pytorch_lightning import seed_everything
+    return seed_everything
+
+
 __all__ = [
     "parse_args",
     "setup_config",
     "expand_file_paths",
     "extract_best_score_from_checkpoint",
+    "setup_seed_everything",
 ]

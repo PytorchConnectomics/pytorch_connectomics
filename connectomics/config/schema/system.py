@@ -9,6 +9,6 @@ class SystemConfig:
     """System configuration for hardware, workers, and reproducibility."""
 
     profile: Optional[str] = None
-    num_gpus: Optional[int] = None
-    num_workers: Optional[int] = None
-    seed: Optional[int] = None
+    num_gpus: int = 1
+    num_workers: int = 8
+    seed: int = 42

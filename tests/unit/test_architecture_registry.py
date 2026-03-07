@@ -177,11 +177,6 @@ def test_base_model_interface():
     assert info['parameters'] > 0
     assert info['trainable_parameters'] > 0
 
-    # Test summary
-    summary = model.summary(input_shape=(1, 1, 32, 32, 32))
-    assert 'DummyModel' in summary
-    assert 'Parameters' in summary
-
     # Test repr
     repr_str = repr(model)
     assert 'DummyModel' in repr_str

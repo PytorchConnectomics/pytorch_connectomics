@@ -8,7 +8,11 @@ with automatic configuration from plans.json and dataset.json.
 Uses Hydra/OmegaConf configuration.
 """
 
+
+from __future__ import annotations
+import logging
 import os
+import warnings
 import torch
 import torch.nn as nn
 from pathlib import Path
@@ -27,6 +31,8 @@ except ImportError:
 
 from .base import ConnectomicsModel
 from .registry import register_architecture
+
+logger = logging.getLogger(__name__)
 
 
 def _check_nnunet_available():
@@ -201,11 +207,11 @@ def build_nnunet_pretrained(cfg) -> ConnectomicsModel:
     device_str = getattr(cfg.model.nnunet, "device", "cuda")
     device = torch.device(device_str if torch.cuda.is_available() else "cpu")
 
-    print("Loading nnUNet pretrained model...")
-    print(f"  Checkpoint: {checkpoint_path}")
-    print(f"  Plans: {plans_path}")
-    print(f"  Dataset: {dataset_path}")
-    print(f"  Device: {device}")
+    logger.info("Loading nnUNet pretrained model...")
+    logger.info("  Checkpoint: %s", checkpoint_path)
+    logger.info("  Plans: %s", plans_path)
+    logger.info("  Dataset: %s", dataset_path)
+    logger.info("  Device: %s", device)
 
     # Load configuration files
     plans = load_json(str(plans_path))
@@ -215,7 +221,7 @@ def build_nnunet_pretrained(cfg) -> ConnectomicsModel:
     plans_manager = PlansManager(plans)
 
     # Load checkpoint
-    print("Loading checkpoint weights...")
+    logger.info("Loading checkpoint weights...")
     checkpoint = torch.load(
         str(checkpoint_path), map_location=torch.device("cpu"), weights_only=False
     )
@@ -237,7 +243,7 @@ def build_nnunet_pretrained(cfg) -> ConnectomicsModel:
         num_input_channels = cfg.model.in_channels
 
     # Find trainer class
-    print("Building network architecture...")
+    logger.info("Building network architecture...")
     trainer_class = recursive_find_python_class(
         os.path.join(nnunetv2.__path__[0], "training", "nnUNetTrainer"),
         trainer_name,
@@ -261,7 +267,7 @@ def build_nnunet_pretrained(cfg) -> ConnectomicsModel:
     )
 
     # Load weights
-    print("Loading model weights...")
+    logger.info("Loading model weights...")
     network.load_state_dict(checkpoint["network_weights"])
 
     # Move to device
@@ -282,13 +288,14 @@ def build_nnunet_pretrained(cfg) -> ConnectomicsModel:
     # (we disable it for inference, but track for metadata)
     trained_with_deep_supervision = checkpoint.get("deep_supervision", False)
 
-    print("Model loaded successfully!")
-    print(f"  Trainer: {trainer_name}")
-    print(f"  Configuration: {configuration_name}")
-    print(f"  Spatial dimensions: {spatial_dims}D")
-    print(f"  Input channels: {num_input_channels}")
-    print(f"  Output heads: {plans_manager.get_label_manager(dataset_json).num_segmentation_heads}")
-    print(f"  Trained with deep supervision: {trained_with_deep_supervision}")
+    num_heads = plans_manager.get_label_manager(dataset_json).num_segmentation_heads
+    logger.info("Model loaded successfully!")
+    logger.info("  Trainer: %s", trainer_name)
+    logger.info("  Configuration: %s", configuration_name)
+    logger.info("  Spatial dimensions: %sD", spatial_dims)
+    logger.info("  Input channels: %s", num_input_channels)
+    logger.info("  Output heads: %s", num_heads)
+    logger.info("  Trained with deep supervision: %s", trained_with_deep_supervision)
 
     # Create wrapper
     wrapper = nnUNetWrapper(
@@ -321,13 +328,11 @@ def build_nnunet_2d_pretrained(cfg) -> ConnectomicsModel:
     Returns:
         nnUNetWrapper containing the pretrained 2D model
     """
-    # Use the same builder, it will auto-detect 2D from configuration
     wrapper = build_nnunet_pretrained(cfg)
 
-    # Verify it's actually 2D
     if wrapper.spatial_dims != 2:
-        print(
-            f"Warning: nnunet_2d_pretrained used for {wrapper.spatial_dims}D model. "
+        warnings.warn(
+            f"nnunet_2d_pretrained used for {wrapper.spatial_dims}D model. "
             f"Consider using 'nnunet_pretrained' or 'nnunet_3d_pretrained' instead."
         )
 
@@ -350,13 +355,11 @@ def build_nnunet_3d_pretrained(cfg) -> ConnectomicsModel:
     Returns:
         nnUNetWrapper containing the pretrained 3D model
     """
-    # Use the same builder, it will auto-detect 3D from configuration
     wrapper = build_nnunet_pretrained(cfg)
 
-    # Verify it's actually 3D
     if wrapper.spatial_dims != 3:
-        print(
-            f"Warning: nnunet_3d_pretrained used for {wrapper.spatial_dims}D model. "
+        warnings.warn(
+            f"nnunet_3d_pretrained used for {wrapper.spatial_dims}D model. "
             f"Consider using 'nnunet_pretrained' or 'nnunet_2d_pretrained' instead."
         )
 

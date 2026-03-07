@@ -2,8 +2,11 @@
 
 from __future__ import annotations
 
+import logging
 from pathlib import Path
 from typing import Optional
+
+logger = logging.getLogger(__name__)
 
 
 def setup_run_directory(mode: str, cfg, checkpoint_dirpath: str):
@@ -42,12 +45,12 @@ def setup_run_directory(mode: str, cfg, checkpoint_dirpath: str):
             cfg.monitor.checkpoint.dirpath = str(checkpoint_path)
 
             checkpoint_path.mkdir(parents=True, exist_ok=True)
-            print(f"📁 Run directory: {run_dir}")
+            logger.info(f"Run directory: {run_dir}")
 
             # Save config to run directory
             config_save_path = run_dir / "config.yaml"
             save_config(cfg, config_save_path)
-            print(f"💾 Config saved to: {config_save_path}")
+            logger.info(f"Config saved to: {config_save_path}")
 
             # Save timestamp for DDP subprocesses to read
             output_base.mkdir(parents=True, exist_ok=True)
@@ -67,7 +70,7 @@ def setup_run_directory(mode: str, cfg, checkpoint_dirpath: str):
                 run_dir = output_base / timestamp
                 checkpoint_path = run_dir / checkpoint_subdir
                 cfg.monitor.checkpoint.dirpath = str(checkpoint_path)
-                print(f"📁 [DDP Rank {local_rank}] Using run directory: {run_dir}")
+                logger.info(f"[DDP Rank {local_rank}] Using run directory: {run_dir}")
             else:
                 raise RuntimeError(
                     f"DDP subprocess (LOCAL_RANK={local_rank}) timed out waiting for timestamp file"
@@ -76,16 +79,16 @@ def setup_run_directory(mode: str, cfg, checkpoint_dirpath: str):
         # For tune modes, create the directory for Optuna outputs
         run_dir = Path(checkpoint_dirpath)
         run_dir.mkdir(parents=True, exist_ok=True)
-        print(f"📁 Tuning output directory: {run_dir}")
+        logger.info(f"Tuning output directory: {run_dir}")
     elif mode == "test":
         # For test mode, create the results directory
         run_dir = Path(checkpoint_dirpath)
         run_dir.mkdir(parents=True, exist_ok=True)
-        print(f"📁 Test output directory: {run_dir}")
+        logger.info(f"Test output directory: {run_dir}")
     else:
         # Fallback for unknown modes
         run_dir = output_base / f"{mode}_run"
-        print(f"📝 Running in {mode} mode")
+        logger.info(f"Running in {mode} mode")
 
     return run_dir
 
@@ -141,15 +144,15 @@ def modify_checkpoint_state(
     if not (reset_optimizer or reset_scheduler or reset_epoch or reset_early_stopping):
         return checkpoint_path
 
-    print("\n🔄 Modifying checkpoint state:")
+    logger.info("Modifying checkpoint state:")
     if reset_optimizer:
-        print("   - Resetting optimizer state")
+        logger.info("   - Resetting optimizer state")
     if reset_scheduler:
-        print("   - Resetting scheduler state")
+        logger.info("   - Resetting scheduler state")
     if reset_epoch:
-        print("   - Resetting epoch counter")
+        logger.info("   - Resetting epoch counter")
     if reset_early_stopping:
-        print("   - Resetting early stopping patience counter")
+        logger.info("   - Resetting early stopping patience counter")
 
     # Load checkpoint (weights_only=False needed for PyTorch 2.6+ to load Lightning
     # checkpoints with custom configs)
@@ -181,7 +184,7 @@ def modify_checkpoint_state(
     # Save modified checkpoint to temporary file
     temp_ckpt_path = run_dir / "temp_modified_checkpoint.ckpt"
     torch.save(checkpoint, temp_ckpt_path)
-    print(f"   ✅ Modified checkpoint saved to: {temp_ckpt_path}")
+    logger.info(f"   Modified checkpoint saved to: {temp_ckpt_path}")
 
     return str(temp_ckpt_path)
 

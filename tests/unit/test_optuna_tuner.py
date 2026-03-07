@@ -5,7 +5,7 @@ import glob
 import numpy as np
 
 from connectomics.config import Config
-from connectomics.decoding.optuna_tuner import run_tuning
+from connectomics.decoding.tuning.optuna_tuner import run_tuning
 
 
 class _DummyModel:
@@ -74,14 +74,14 @@ def test_run_tuning_uses_intermediate_only_inference_overrides(monkeypatch, tmp_
         def optimize(self):
             return _FakeStudy()
 
-    monkeypatch.setattr("connectomics.decoding.optuna_tuner.OPTUNA_AVAILABLE", True)
+    monkeypatch.setattr("connectomics.decoding.tuning.optuna_tuner.OPTUNA_AVAILABLE", True)
     monkeypatch.setattr(
         "connectomics.training.lightning.create_datamodule",
         lambda cfg, mode="tune": {"cfg": cfg, "mode": mode},
     )
     monkeypatch.setattr("connectomics.data.io.read_volume", lambda path: loaded_arrays[path])
     monkeypatch.setattr(glob, "glob", _fake_glob)
-    monkeypatch.setattr("connectomics.decoding.optuna_tuner.OptunaDecodingTuner", _FakeTuner)
+    monkeypatch.setattr("connectomics.decoding.tuning.optuna_tuner.OptunaDecodingTuner", _FakeTuner)
 
     run_tuning(model, trainer, cfg, checkpoint_path="checkpoint.ckpt")
 

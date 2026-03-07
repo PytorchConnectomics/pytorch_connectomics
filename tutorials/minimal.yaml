@@ -17,8 +17,8 @@ model:
     losses:
       - function: DiceLoss
         weight: 1.0
-        pred_slice: [0, 1]
-        target_slice: [0, 1]
+        pred_slice: "0:1"
+        target_slice: "0:1"
 
 data:
   train:

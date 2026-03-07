@@ -3,13 +3,13 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Optional
+from typing import Literal, Optional
 
 import torch.nn as nn
 
 
-LossCallKind = str
-TargetKind = str
+LossCallKind = Literal["pred_target", "pred_only", "pred_pred", "unsupported"]
+TargetKind = Literal["dense", "class_index", "none"]
 
 
 @dataclass(frozen=True)
@@ -68,32 +68,8 @@ _LOSS_METADATA_BY_NAME = {
     "NonOverlapRegularization": LossMetadata(
         "NonOverlapRegularization", call_kind="pred_only", target_kind="none"
     ),
-}
-
-
-_CLASSNAME_TO_METADATA_NAME = {
-    # Torch / MONAI / custom classes
-    "DiceLoss": "DiceLoss",
-    "DiceCELoss": "DiceCELoss",
-    "DiceFocalLoss": "DiceFocalLoss",
-    "GeneralizedDiceLoss": "GeneralizedDiceLoss",
-    "FocalLoss": "FocalLoss",
-    "TverskyLoss": "TverskyLoss",
-    "BCEWithLogitsLoss": "BCEWithLogitsLoss",
-    "CrossEntropyLoss": "CrossEntropyLoss",
-    "CrossEntropyLossWrapper": "CrossEntropyLoss",
-    "MSELoss": "MSELoss",
-    "L1Loss": "L1Loss",
-    "SmoothL1Loss": "SmoothL1Loss",
-    "WeightedBCEWithLogitsLoss": "WeightedBCEWithLogitsLoss",
-    "WeightedMSELoss": "WeightedMSELoss",
-    "WeightedMAELoss": "WeightedMAELoss",
-    "GANLoss": "GANLoss",
-    "BinaryRegularization": "BinaryRegularization",
-    "ForegroundDistanceConsistency": "ForegroundDistanceConsistency",
-    "ContourDistanceConsistency": "ContourDistanceConsistency",
-    "ForegroundContourConsistency": "ForegroundContourConsistency",
-    "NonOverlapRegularization": "NonOverlapRegularization",
+    # Class name alias (CrossEntropyLossWrapper -> same metadata as CrossEntropyLoss)
+    "CrossEntropyLossWrapper": LossMetadata("CrossEntropyLoss", target_kind="class_index"),
 }
 
 
@@ -117,9 +93,8 @@ def get_loss_metadata_for_module(loss_fn: nn.Module) -> LossMetadata:
         return meta
 
     class_name = loss_fn.__class__.__name__
-    mapped_name = _CLASSNAME_TO_METADATA_NAME.get(class_name)
-    if mapped_name is not None:
-        return _LOSS_METADATA_BY_NAME[mapped_name]
+    if class_name in _LOSS_METADATA_BY_NAME:
+        return _LOSS_METADATA_BY_NAME[class_name]
 
     # Conservative fallback: supervised dense target without optional spatial weighting.
     return LossMetadata(name=class_name)

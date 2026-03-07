@@ -9,9 +9,28 @@ from connectomics.config import Config
 from connectomics.training.lightning.test_pipeline import run_test_step
 
 
+class _DummyInferenceManager:
+    def predict_with_tta(self, images, mask=None, mask_align_to_image=False):
+        return torch.ones_like(images)
+
+    def is_distributed_tta_sharding_enabled(self):
+        return False
+
+    def should_skip_postprocess_on_rank(self):
+        return False
+
+
 class _DummyModule:
     def __init__(self):
         self.device = torch.device("cpu")
+        self.cfg = Config()
+        self.inference_manager = _DummyInferenceManager()
+
+    def _get_runtime_inference_config(self):
+        return self.cfg.inference
+
+    def _get_test_evaluation_config(self):
+        return None
 
     def _resolve_test_output_config(self, _batch):
         return "test", "/tmp/results", "_prediction.h5", ["train-input", "test-input_z29"]
@@ -46,17 +65,6 @@ def test_run_test_step_evaluates_each_volume_in_multi_volume_batch(monkeypatch):
     assert called_names == ["train-input", "test-input_z29"]
 
 
-class _DummyInferenceManager:
-    def predict_with_tta(self, images, mask=None, mask_align_to_image=False):
-        return torch.ones_like(images)
-
-    def is_distributed_tta_sharding_enabled(self):
-        return False
-
-    def should_skip_postprocess_on_rank(self):
-        return False
-
-
 class _CroppingModule:
     def __init__(self):
         self.device = torch.device("cpu")
@@ -66,6 +74,9 @@ class _CroppingModule:
 
     def _get_runtime_inference_config(self):
         return self.cfg.inference
+
+    def _get_test_evaluation_config(self):
+        return None
 
     def _resolve_test_output_config(self, _batch):
         return "test", "/tmp/results", "_prediction.h5", ["sample"]
@@ -146,6 +157,9 @@ class _AffinityCroppingModule:
 
     def _get_runtime_inference_config(self):
         return self.cfg.inference
+
+    def _get_test_evaluation_config(self):
+        return None
 
     def _resolve_test_output_config(self, _batch):
         return "test", "/tmp/results", "_prediction.h5", ["sample"]

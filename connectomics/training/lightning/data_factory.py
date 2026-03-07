@@ -2,9 +2,12 @@
 
 from __future__ import annotations
 
+import logging
 from glob import glob
 from pathlib import Path
 from typing import List, Optional
+
+logger = logging.getLogger(__name__)
 
 from ...config import Config
 from ...data.augment.build import (
@@ -14,7 +17,7 @@ from ...data.augment.build import (
 )
 from ...data.dataset import create_data_dicts_from_paths
 from ...data.io import get_vol_shape
-from .data import ConnectomicsDataModule
+from .data import ConnectomicsDataModule, SimpleDataModule
 from .path_utils import expand_file_paths
 
 
@@ -59,12 +62,12 @@ def _maybe_prepare_random_data(cfg: Config, mode: str) -> None:
             with h5py.File(label_path, "w") as f:
                 f.create_dataset("main", data=label, compression="gzip")
 
-        print("🎲 Generating random demo data...")
+        logger.info("Generating random demo data...")
         _write_pair(train_image_path, train_label_path)
         _write_pair(val_image_path, val_label_path)
-        print(f"  Random demo data saved to: {data_root}")
+        logger.info(f"Random demo data saved to: {data_root}")
     else:
-        print(f"  Using existing random demo data: {data_root}")
+        logger.info(f"Using existing random demo data: {data_root}")
 
     cfg.data.train.image = str(train_image_path)
     cfg.data.train.label = str(train_label_path)
@@ -100,19 +103,16 @@ def _calculate_validation_steps_per_epoch(
         # Get first validation volume size
         img_path = Path(val_data_dicts[0]["image"])
 
-        # Load volume to get shape
-        if img_path.suffix in [".nii", ".gz"]:
-            vol_shape = get_vol_shape(str(img_path))
-        elif img_path.suffix in [".h5", ".hdf5"]:
-            vol_shape = get_vol_shape(str(img_path))
-        elif img_path.suffix in [".tif", ".tiff"]:
+        # Load volume to get shape (get_vol_shape handles all supported formats)
+        supported_suffixes = {".nii", ".gz", ".h5", ".hdf5", ".tif", ".tiff"}
+        if img_path.suffix in supported_suffixes:
             vol_shape = get_vol_shape(str(img_path))
         elif fallback_volume_shape is not None:
             vol_shape = fallback_volume_shape
         else:
             # Unknown format, use default
-            print(
-                f"  ⚠️  Unknown file format {img_path.suffix}, "
+            logger.warning(
+                f"Unknown file format {img_path.suffix}, "
                 f"using default validation steps={default_steps}"
             )
             return default_steps
@@ -136,20 +136,20 @@ def _calculate_validation_steps_per_epoch(
         if max_steps is not None:
             val_steps = min(max_steps, val_steps)
 
-        print(f"    Validation volume shape: {vol_shape}")
-        print(f"    Patch size: {patch_size}")
-        print(f"    Stride (50% overlap): {stride}")
-        print(f"    Possible patches per dim: {num_patches_per_dim}")
-        print(f"    Total possible patches: {total_possible_patches}")
-        print(f"    Using 7.5% of patches: {val_steps}")
+        logger.info(f"Validation volume shape: {vol_shape}")
+        logger.info(f"Patch size: {patch_size}")
+        logger.info(f"Stride (50% overlap): {stride}")
+        logger.info(f"Possible patches per dim: {num_patches_per_dim}")
+        logger.info(f"Total possible patches: {total_possible_patches}")
+        logger.info(f"Using 7.5% of patches: {val_steps}")
 
         return val_steps
 
     except Exception as e:
         if not return_default_on_error:
             raise
-        print(f"  ⚠️  Error calculating validation steps: {e}")
-        print(f"  ℹ️  Using default validation steps={default_steps}")
+        logger.warning(f"Error calculating validation steps: {e}")
+        logger.info(f"Using default validation steps={default_steps}")
         return default_steps
 
 
@@ -167,7 +167,7 @@ def create_datamodule(
     Returns:
         ConnectomicsDataModule instance
     """
-    print("Creating datasets...")
+    logger.info("Creating datasets...")
     _maybe_prepare_random_data(cfg, mode)
 
     # Auto-download tutorial data if missing
@@ -191,10 +191,10 @@ def create_datamodule(
             data_exists = PathLib(cfg.data.train.image).exists()
 
         if not data_exists:
-            print(f"\n⚠️  Training data not found: {cfg.data.train.image}")
+            logger.warning(f"Training data not found: {cfg.data.train.image}")
 
             # Try to infer dataset name from path
-            from ...utils.download import DATASETS, download_dataset
+            from ...data.download import DATASETS, download_dataset
 
             path_str = str(cfg.data.train.image).lower()
             dataset_name = None
@@ -204,8 +204,8 @@ def create_datamodule(
                     break
 
             if dataset_name:
-                print(f"💡 Attempting to auto-download '{dataset_name}' dataset...")
-                print("   (You can disable auto-download by manually downloading data)")
+                logger.info(f"Attempting to auto-download '{dataset_name}' dataset...")
+                logger.info("You can disable auto-download by manually downloading data")
 
                 # Prompt user
                 try:
@@ -214,22 +214,22 @@ def create_datamodule(
                     response = input(prompt).strip().lower()
                     if response in ["", "y", "yes"]:
                         if download_dataset(dataset_name, base_dir=PathLib.cwd()):
-                            print("✅ Data downloaded successfully!")
+                            logger.info("Data downloaded successfully!")
                         else:
-                            print("❌ Download failed. Please download manually:")
-                            print(f"   wget {DATASETS[dataset_name]['url']}")
+                            logger.warning("Download failed. Please download manually:")
+                            logger.warning(f"wget {DATASETS[dataset_name]['url']}")
                             raise FileNotFoundError(
                                 f"Training data not found: {cfg.data.train.image}"
                             )
                     else:
-                        print("❌ Download cancelled. Please download manually.")
+                        logger.warning("Download cancelled. Please download manually.")
                         raise FileNotFoundError(f"Training data not found: {cfg.data.train.image}")
                 except KeyboardInterrupt:
-                    print("\n❌ Download cancelled by user")
+                    logger.warning("Download cancelled by user")
                     raise FileNotFoundError(f"Training data not found: {cfg.data.train.image}")
             else:
-                print("💡 Available datasets:")
-                from ...utils.download import list_datasets
+                logger.info("Available datasets:")
+                from ...data.download import list_datasets
 
                 list_datasets()
                 raise FileNotFoundError(f"Training data not found: {cfg.data.train.image}")
@@ -244,11 +244,11 @@ def create_datamodule(
     val_transforms = build_val_transforms(cfg)
     test_transforms = build_test_transforms(cfg) if mode in ["test", "tune"] else val_transforms
 
-    print(f"  Train transforms: {len(train_transforms.transforms)} steps")
-    print(f"  Val transforms: {len(val_transforms.transforms)} steps")
+    logger.info(f"Train transforms: {len(train_transforms.transforms)} steps")
+    logger.info(f"Val transforms: {len(val_transforms.transforms)} steps")
     if mode in ["test", "tune"]:
-        print(
-            f"  Test transforms: {len(test_transforms.transforms)} steps (no sliding-window crop)"
+        logger.info(
+            f"Test transforms: {len(test_transforms.transforms)} steps (no sliding-window crop)"
         )
 
     # For test/tune modes, skip training data setup entirely
@@ -257,19 +257,14 @@ def create_datamodule(
         val_data_dicts = None
     # Check if automatic train/val split is enabled
     elif cfg.data.split_enabled and not cfg.data.val.image:
-        print("🔀 Using automatic train/val split (DeepEM-style)")
+        logger.info("Using automatic train/val split (DeepEM-style)")
 
-        from ...data.utils.split import split_volume_train_val
+        from ...data.dataset.split import split_volume_train_val
 
         train_path = Path(cfg.data.train.image)
-        if train_path.suffix in [".h5", ".hdf5"]:
-            volume_shape = get_vol_shape(str(train_path))
-        elif train_path.suffix in [".tif", ".tiff"]:
-            volume_shape = get_vol_shape(str(train_path))
-        else:
-            raise ValueError(f"Unsupported file format: {train_path.suffix}")
+        volume_shape = get_vol_shape(str(train_path))
 
-        print(f"  Volume shape: {volume_shape}")
+        logger.info(f"Volume shape: {volume_shape}")
 
         # Calculate split ranges
         train_ratio = cfg.data.split_train_range[1] - cfg.data.split_train_range[0]
@@ -287,13 +282,13 @@ def create_datamodule(
         val_start = int(volume_shape[axis] * cfg.data.split_val_range[0])
         val_end = int(volume_shape[axis] * cfg.data.split_val_range[1])
 
-        print(f"  Split axis: {axis} ({'Z' if axis == 0 else 'Y' if axis == 1 else 'X'})")
-        print(f"  Train region: [{train_start}:{train_end}] ({train_end - train_start} slices)")
-        print(f"  Val region: [{val_start}:{val_end}] ({val_end - val_start} slices)")
+        logger.info(f"Split axis: {axis} ({'Z' if axis == 0 else 'Y' if axis == 1 else 'X'})")
+        logger.info(f"Train region: [{train_start}:{train_end}] ({train_end - train_start} slices)")
+        logger.info(f"Val region: [{val_start}:{val_end}] ({val_end - val_start} slices)")
 
         if cfg.data.split_pad_val:
             target_size = tuple(cfg.data.dataloader.patch_size)
-            print(f"  Val padding enabled: target size = {target_size}")
+            logger.info(f"Val padding enabled: target size = {target_size}")
 
         # Create data dictionaries with split info
         train_data_dicts = create_data_dicts_from_paths(
@@ -345,15 +340,15 @@ def create_datamodule(
 
             if train_json_empty:
                 # Fallback to volume-based dataset when train_json is empty
-                print("  ⚠️  Train JSON is empty or invalid, falling back to volume-based dataset")
-                print(f"  Train JSON: {cfg.data.train.json}")
+                logger.warning("Train JSON is empty or invalid, falling back to volume-based dataset")
+                logger.warning(f"Train JSON: {cfg.data.train.json}")
                 dataset_type = None  # Switch to volume-based
             else:
                 # Filename-based dataset: uses JSON file lists
-                print("  Using filename-based dataset")
-                print(f"  Train JSON: {cfg.data.train.json}")
-                print(f"  Image key: {cfg.data.train.image_key}")
-                print(f"  Label key: {cfg.data.train.label_key}")
+                logger.info("Using filename-based dataset")
+                logger.info(f"Train JSON: {cfg.data.train.json}")
+                logger.info(f"Image key: {cfg.data.train.image_key}")
+                logger.info(f"Label key: {cfg.data.train.label_key}")
 
                 # For filename dataset, we'll create data dicts later in the DataModule
                 # Here we just need placeholder dicts
@@ -377,17 +372,17 @@ def create_datamodule(
                 expand_file_paths(cfg.data.train.mask) if cfg.data.train.mask else None
             )
 
-            print(f"  Training volumes: {len(train_image_paths)} files")
+            logger.info(f"Training volumes: {len(train_image_paths)} files")
             if len(train_image_paths) <= 5:
                 for path in train_image_paths:
-                    print(f"    - {path}")
+                    logger.info(f"  - {path}")
             else:
-                print(f"    - {train_image_paths[0]}")
-                print(f"    - ... ({len(train_image_paths) - 2} more files)")
-                print(f"    - {train_image_paths[-1]}")
+                logger.info(f"  - {train_image_paths[0]}")
+                logger.info(f"  - ... ({len(train_image_paths) - 2} more files)")
+                logger.info(f"  - {train_image_paths[-1]}")
 
             if train_mask_paths:
-                print(f"  Training masks: {len(train_mask_paths)} files")
+                logger.info(f"Training masks: {len(train_mask_paths)} files")
 
             train_data_dicts = create_data_dicts_from_paths(
                 image_paths=train_image_paths,
@@ -403,9 +398,9 @@ def create_datamodule(
                 )
                 val_mask_paths = expand_file_paths(cfg.data.val.mask) if cfg.data.val.mask else None
 
-                print(f"  Validation volumes: {len(val_image_paths)} files")
+                logger.info(f"Validation volumes: {len(val_image_paths)} files")
                 if val_mask_paths:
-                    print(f"  Validation masks: {len(val_mask_paths)} files")
+                    logger.info(f"Validation masks: {len(val_mask_paths)} files")
 
                 val_data_dicts = create_data_dicts_from_paths(
                     image_paths=val_image_paths,
@@ -422,7 +417,7 @@ def create_datamodule(
                 "Test mode requires data.test.image to be set.\n"
                 f"Current resolved image = {split.image}"
             )
-        print(f"  🧪 Creating test dataset from: {split.image}")
+        logger.info(f"Creating test dataset from: {split.image}")
 
         # Expand glob patterns for test data (same as train data)
         test_image_paths = expand_file_paths(split.image)
@@ -438,7 +433,7 @@ def create_datamodule(
                 f"test.image = {getattr(cfg.data.test, 'image', None)}"
             )
 
-        print(f"  🎯 Creating tune dataset from: {split.image}")
+        logger.info(f"Creating tune dataset from: {split.image}")
 
         # Expand glob patterns for tune data
         test_image_paths = expand_file_paths(split.image)
@@ -448,29 +443,29 @@ def create_datamodule(
     # Common printing and data dict creation for test and tune modes
     if mode in ["test", "tune"]:
         mode_label = "Test" if mode == "test" else "Tune"
-        print(f"  {mode_label} volumes: {len(test_image_paths)} files")
+        logger.info(f"{mode_label} volumes: {len(test_image_paths)} files")
         if len(test_image_paths) <= 5:
             for path in test_image_paths:
-                print(f"    - {path}")
+                logger.info(f"  - {path}")
         else:
-            print(f"    - {test_image_paths[0]}")
-            print(f"    - ... ({len(test_image_paths) - 2} more files)")
-            print(f"    - {test_image_paths[-1]}")
+            logger.info(f"  - {test_image_paths[0]}")
+            logger.info(f"  - ... ({len(test_image_paths) - 2} more files)")
+            logger.info(f"  - {test_image_paths[-1]}")
 
         if test_mask_paths:
-            print(f"  {mode_label} masks: {len(test_mask_paths)} files")
+            logger.info(f"{mode_label} masks: {len(test_mask_paths)} files")
 
         test_data_dicts = create_data_dicts_from_paths(
             image_paths=test_image_paths,
             label_paths=test_label_paths,
             mask_paths=test_mask_paths,
         )
-        print(f"  {mode_label} dataset size: {len(test_data_dicts)}")
+        logger.info(f"{mode_label} dataset size: {len(test_data_dicts)}")
 
     if mode == "train":
-        print(f"  Train dataset size: {len(train_data_dicts)}")
+        logger.info(f"Train dataset size: {len(train_data_dicts)}")
         if val_data_dicts:
-            print(f"  Val dataset size: {len(val_data_dicts)}")
+            logger.info(f"Val dataset size: {len(val_data_dicts)}")
 
     # Auto-compute iter_num from volume size if not specified (only for training).
     # IMPORTANT: cfg.optimization.n_steps_per_epoch is interpreted as optimizer steps/epoch.
@@ -483,16 +478,16 @@ def create_datamodule(
             # Account for per-device batch size and number of training devices.
             num_devices = cfg.system.num_gpus if cfg.system.num_gpus > 0 else 1
             iter_num = int(iter_num_cfg * cfg.data.dataloader.batch_size * num_devices)
-            print(
-                f"  Requested n_steps_per_epoch={iter_num_cfg} steps -> "
+            logger.info(
+                f"Requested n_steps_per_epoch={iter_num_cfg} steps -> "
                 f"dataset samples={iter_num} "
                 f"(batch_size={cfg.data.dataloader.batch_size}, devices={num_devices})"
             )
         elif iter_num_cfg == -1 and dataset_type != "filename":
             # For filename datasets, iter_num is determined by the number of files
-            print("📊 Auto-computing iter_num from volume size...")
+            logger.info("Auto-computing iter_num from volume size...")
 
-            from ...data.utils import compute_total_samples
+            from ...data.dataset.sampling import compute_total_samples
             from ...data.io import get_vol_shape
 
             # Get volume sizes
@@ -513,21 +508,21 @@ def create_datamodule(
             )
 
             iter_num = total_samples
-            print(f"  Volume sizes: {volume_sizes}")
-            print(f"  Patch size: {cfg.data.dataloader.patch_size}")
-            print(f"  Stride: {cfg.data.data_transform.stride}")
-            print(f"  Samples per volume: {samples_per_vol}")
-            print(f"  ✅ Total possible samples (iter_num): {iter_num:,}")
+            logger.info(f"Volume sizes: {volume_sizes}")
+            logger.info(f"Patch size: {cfg.data.dataloader.patch_size}")
+            logger.info(f"Stride: {cfg.data.data_transform.stride}")
+            logger.info(f"Samples per volume: {samples_per_vol}")
+            logger.info(f"Total possible samples (iter_num): {iter_num:,}")
             # Approximate steps/epoch for informational logging.
             num_devices = cfg.system.num_gpus if cfg.system.num_gpus > 0 else 1
             denom = max(1, cfg.data.dataloader.batch_size * num_devices)
-            print(f"  ✅ Approx steps per epoch: {iter_num // denom:,}")
+            logger.info(f"Approx steps per epoch: {iter_num // denom:,}")
         elif iter_num_cfg == -1 and dataset_type == "filename":
             # For filename datasets, iter_num will be determined by dataset length
-            print("  Filename dataset: iter_num will be determined by number of files in JSON")
+            logger.info("Filename dataset: iter_num will be determined by number of files in JSON")
 
     # Create DataModule
-    print("Creating data loaders...")
+    logger.info("Creating data loaders...")
 
     # For test/tune modes, disable iter_num (process full volumes once)
     if mode in ["test", "tune"]:
@@ -539,7 +534,7 @@ def create_datamodule(
     batch_size = cfg.data.dataloader.batch_size
     num_workers = cfg.system.num_workers
     persistent_workers_cfg = bool(cfg.data.dataloader.persistent_workers)
-    print(f"  Using runtime settings: batch_size={batch_size}, num_workers={num_workers}")
+    logger.info(f"Using runtime settings: batch_size={batch_size}, num_workers={num_workers}")
 
     # Explicit preload settings (no legacy fallback).
     train_preload_cfg = cfg.data.dataloader.use_preloaded_cache_train
@@ -562,12 +557,11 @@ def create_datamodule(
     )
 
     if use_preloaded:
-        print("  ⚡ Using pre-loaded volume cache (loads once, crops in memory)")
-        import pytorch_lightning as pl
+        logger.info("Using pre-loaded volume cache (loads once, crops in memory)")
         from torch.utils.data import DataLoader
 
+        from ...data.process.nnunet_preprocess import NNUNetPreprocessd
         from ...data.dataset.dataset_volume_cached import CachedVolumeDataset
-        from ...data.io import NNUNetPreprocessd
 
         def _build_preloaded_nnunet_preprocess(split: str):
             nnunet_pre_cfg = getattr(cfg.data, "nnunet_preprocessing", None)
@@ -582,7 +576,7 @@ def create_datamodule(
                 source_spacing = getattr(cfg.data.train, "resolution", None)
             source_spacing = getattr(nnunet_pre_cfg, "source_spacing", None) or source_spacing
 
-            print(f"  🧪 Applying nnU-Net preprocessing before caching ({split})")
+            logger.info(f"Applying nnU-Net preprocessing before caching ({split})")
             return NNUNetPreprocessd(
                 keys=["image", "label", "mask"],
                 image_key="image",
@@ -608,13 +602,9 @@ def create_datamodule(
         augment_only_transforms = build_train_transforms(cfg, skip_loading=True)
         train_pre_cache_transforms = _build_preloaded_nnunet_preprocess("train")
 
-        # Get padding parameters from config (image_transform overrides top-level data.pad_size)
-        pad_size = getattr(cfg.data.image_transform, "pad_size", None) or getattr(
-            cfg.data.data_transform, "pad_size", None
-        )
-        pad_mode = getattr(cfg.data.image_transform, "pad_mode", None) or getattr(
-            cfg.data.data_transform, "pad_mode", "reflect"
-        )
+        # Get padding parameters from data_transform config
+        pad_size = cfg.data.data_transform.pad_size
+        pad_mode = cfg.data.data_transform.pad_mode
 
         # Create optimized cached datasets
         train_dataset = CachedVolumeDataset(
@@ -635,7 +625,7 @@ def create_datamodule(
         )
 
         preloaded_num_workers = num_workers
-        print(f"  Using {preloaded_num_workers} workers")
+        logger.info(f"Using {preloaded_num_workers} workers")
 
         # Create simple dataloader
         train_loader = DataLoader(
@@ -647,15 +637,15 @@ def create_datamodule(
             persistent_workers=preloaded_num_workers > 0,
         )
 
-        print(f"  Preload policy: train={train_preload_cfg}, val={val_preload_cfg}")
+        logger.info(f"Preload policy: train={train_preload_cfg}, val={val_preload_cfg}")
 
         # Create validation dataset and loader if validation data exists
         val_loader = None
         if val_data_dicts and len(val_data_dicts) > 0:
             if val_preload_cfg:
-                print("  Creating validation dataset with pre-loaded cache...")
+                logger.info("Creating validation dataset with pre-loaded cache...")
             else:
-                print("  Creating validation dataset without pre-loaded cache...")
+                logger.info("Creating validation dataset without pre-loaded cache...")
 
             # Build validation transforms (no augmentation, only normalization)
             val_only_transforms = build_val_transforms(cfg, skip_loading=True)
@@ -666,7 +656,7 @@ def create_datamodule(
 
             if val_steps_per_epoch is None:
                 # Auto-calculate validation steps from volume size
-                print("  📊 Auto-calculating validation steps from volume size...")
+                logger.info("Auto-calculating validation steps from volume size...")
                 val_steps_per_epoch = _calculate_validation_steps_per_epoch(
                     val_data_dicts=val_data_dicts,
                     patch_size=tuple(cfg.data.dataloader.patch_size),
@@ -676,7 +666,7 @@ def create_datamodule(
                     fallback_volume_shape=(100, 4096, 4096),
                     return_default_on_error=False,
                 )
-                print(f"  ✅ Validation steps: {val_steps_per_epoch} (auto-calculated)")
+                logger.info(f"Validation steps: {val_steps_per_epoch} (auto-calculated)")
 
             # Create validation dataset
             if val_preload_cfg:
@@ -697,26 +687,25 @@ def create_datamodule(
                     sample_nonzero_mask=cfg.data.dataloader.cached_sampling_sample_nonzero_mask,
                 )
             else:
-                from ...data.dataset import create_volume_dataset
+                from monai.data import CacheDataset, Dataset
 
-                val_label_paths = [d.get("label") for d in val_data_dicts]
-                if all(p is None for p in val_label_paths):
-                    val_label_paths = None
-                val_mask_paths = [d.get("mask") for d in val_data_dicts]
-                if all(p is None for p in val_mask_paths):
-                    val_mask_paths = None
+                from .data import _IterNumDataset
 
-                val_dataset = create_volume_dataset(
-                    image_paths=[d["image"] for d in val_data_dicts],
-                    label_paths=val_label_paths,
-                    mask_paths=val_mask_paths,
-                    transforms=val_transforms,
-                    dataset_type="cached" if cfg.data.dataloader.use_cache else "standard",
-                    cache_rate=cfg.data.dataloader.cache_rate,
-                    sample_size=tuple(cfg.data.dataloader.patch_size),
-                    mode="val",
-                    iter_num=val_steps_per_epoch,
-                )
+                use_cache = cfg.data.dataloader.use_cache
+                if use_cache:
+                    val_dataset = CacheDataset(
+                        data=val_data_dicts,
+                        transform=val_transforms,
+                        cache_rate=cfg.data.dataloader.cache_rate,
+                    )
+                else:
+                    val_dataset = Dataset(
+                        data=val_data_dicts,
+                        transform=val_transforms,
+                    )
+
+                if val_steps_per_epoch and val_steps_per_epoch > 0:
+                    val_dataset = _IterNumDataset(val_dataset, val_steps_per_epoch)
 
             # Create validation dataloader
             val_loader = DataLoader(
@@ -727,26 +716,7 @@ def create_datamodule(
                 pin_memory=cfg.data.dataloader.pin_memory,
                 persistent_workers=preloaded_num_workers > 0,
             )
-            print(f"  ✅ Validation dataloader created with {val_steps_per_epoch} steps")
-
-        # Create data module wrapper that inherits from LightningDataModule
-        class SimpleDataModule(pl.LightningDataModule):
-            def __init__(self, train_loader, val_loader=None):
-                super().__init__()
-                self.train_loader = train_loader
-                self._val_loader = val_loader
-
-            def train_dataloader(self):
-                return self.train_loader
-
-            def val_dataloader(self):
-                if self._val_loader is not None:
-                    return self._val_loader
-                return []
-
-            def test_dataloader(self):
-                # For test mode, return empty list (user should use standard datamodule)
-                return []
+            logger.info(f"Validation dataloader created with {val_steps_per_epoch} steps")
 
         datamodule = SimpleDataModule(train_loader, val_loader)
     elif use_lazy_zarr:
@@ -761,8 +731,7 @@ def create_datamodule(
                 f"Got: {train_images[:3]}"
             )
 
-        print("  ⚡ Using lazy zarr volume loading (crop-on-read, no full preload)")
-        import pytorch_lightning as pl
+        logger.info("Using lazy zarr volume loading (crop-on-read, no full preload)")
         from torch.utils.data import DataLoader
 
         from ...data.dataset.dataset_volume_zarr_lazy import LazyZarrVolumeDataset
@@ -785,7 +754,7 @@ def create_datamodule(
         )
 
         lazy_num_workers = num_workers
-        print(f"  Using {lazy_num_workers} workers")
+        logger.info(f"Using {lazy_num_workers} workers")
         train_loader = DataLoader(
             train_dataset,
             batch_size=batch_size,
@@ -809,14 +778,14 @@ def create_datamodule(
             val_transforms_lazy = build_val_transforms(cfg, skip_loading=True)
             val_steps_per_epoch = cfg.optimization.val_steps_per_epoch
             if val_steps_per_epoch is None:
-                print("  📊 Auto-calculating validation steps from volume size...")
+                logger.info("Auto-calculating validation steps from volume size...")
                 val_steps_per_epoch = _calculate_validation_steps_per_epoch(
                     val_data_dicts=val_data_dicts,
                     patch_size=tuple(cfg.data.dataloader.patch_size),
                     min_steps=50,
                     max_steps=200,
                 )
-                print(f"  ✅ Validation steps: {val_steps_per_epoch} (auto-calculated)")
+                logger.info(f"Validation steps: {val_steps_per_epoch} (auto-calculated)")
 
             val_dataset = LazyZarrVolumeDataset(
                 image_paths=val_images,
@@ -841,30 +810,12 @@ def create_datamodule(
                 pin_memory=cfg.data.dataloader.pin_memory,
                 persistent_workers=lazy_num_workers > 0,
             )
-            print(f"  ✅ Validation dataloader created with {val_steps_per_epoch} steps")
-
-        class SimpleDataModule(pl.LightningDataModule):
-            def __init__(self, train_loader, val_loader=None):
-                super().__init__()
-                self.train_loader = train_loader
-                self._val_loader = val_loader
-
-            def train_dataloader(self):
-                return self.train_loader
-
-            def val_dataloader(self):
-                if self._val_loader is not None:
-                    return self._val_loader
-                return []
-
-            def test_dataloader(self):
-                return []
+            logger.info(f"Validation dataloader created with {val_steps_per_epoch} steps")
 
         datamodule = SimpleDataModule(train_loader, val_loader)
     elif dataset_type == "filename":
         # Filename-based dataset using JSON file lists
-        print("  Creating filename-based datamodule...")
-        import pytorch_lightning as pl
+        logger.info("Creating filename-based datamodule...")
         from torch.utils.data import DataLoader
 
         from ...data.dataset.dataset_filename import create_filename_datasets
@@ -881,62 +832,38 @@ def create_datamodule(
             use_labels=True,
         )
 
-        print(f"  Train dataset size: {len(train_dataset)}")
-        print(f"  Val dataset size: {len(val_dataset)}")
+        logger.info(f"Train dataset size: {len(train_dataset)}")
+        logger.info(f"Val dataset size: {len(val_dataset)}")
 
-        # Create simple datamodule wrapper
-        class FilenameDataModule(pl.LightningDataModule):
-            def __init__(
-                self, train_ds, val_ds, batch_size, num_workers, pin_memory, persistent_workers
-            ):
-                super().__init__()
-                self.train_ds = train_ds
-                self.val_ds = val_ds
-                self.batch_size = batch_size
-                self.num_workers = num_workers
-                self.pin_memory = pin_memory
-                self.persistent_workers = persistent_workers
-
-            def train_dataloader(self):
-                return DataLoader(
-                    self.train_ds,
-                    batch_size=self.batch_size,
-                    shuffle=True,
-                    num_workers=self.num_workers,
-                    pin_memory=self.pin_memory,
-                    persistent_workers=self.persistent_workers and self.num_workers > 0,
-                )
-
-            def val_dataloader(self):
-                if self.val_ds is None or len(self.val_ds) == 0:
-                    return []
-                return DataLoader(
-                    self.val_ds,
-                    batch_size=self.batch_size,
-                    shuffle=False,
-                    num_workers=self.num_workers,
-                    pin_memory=self.pin_memory,
-                    persistent_workers=self.persistent_workers and self.num_workers > 0,
-                )
-
-            def test_dataloader(self):
-                return []
-
-        datamodule = FilenameDataModule(
-            train_ds=train_dataset,
-            val_ds=val_dataset,
+        # Build DataLoaders and wrap with SimpleDataModule
+        train_loader = DataLoader(
+            train_dataset,
             batch_size=batch_size,
+            shuffle=True,
             num_workers=num_workers,
             pin_memory=cfg.data.dataloader.pin_memory,
-            persistent_workers=persistent_workers_cfg,
+            persistent_workers=persistent_workers_cfg and num_workers > 0,
         )
+
+        val_loader = None
+        if val_dataset is not None and len(val_dataset) > 0:
+            val_loader = DataLoader(
+                val_dataset,
+                batch_size=batch_size,
+                shuffle=False,
+                num_workers=num_workers,
+                pin_memory=cfg.data.dataloader.pin_memory,
+                persistent_workers=persistent_workers_cfg and num_workers > 0,
+            )
+
+        datamodule = SimpleDataModule(train_loader, val_loader)
     else:
         # Standard data module
         # Disable caching for test/tune modes to avoid issues with partial cache returning 0 length
         use_cache = cfg.data.dataloader.use_cache and mode == "train"
 
         if mode in ["test", "tune"] and cfg.data.dataloader.use_cache:
-            print("  ⚠️  Caching disabled for test/tune mode (incompatible with partial cache)")
+            logger.warning("Caching disabled for test/tune mode (incompatible with partial cache)")
 
         # Note: transpose_axes handled in transform builders (build_train/val/test_transforms)
         # They embed the transpose in LoadVolumed, so no need to pass it here
@@ -945,14 +872,14 @@ def create_datamodule(
         val_steps_per_epoch = cfg.optimization.val_steps_per_epoch
         if val_steps_per_epoch is None and val_data_dicts:
             # Auto-calculate validation steps based on volume size and patch size
-            print("  📊 Auto-calculating validation steps from volume size...")
+            logger.info("Auto-calculating validation steps from volume size...")
             val_steps_per_epoch = _calculate_validation_steps_per_epoch(
                 val_data_dicts=val_data_dicts,
                 patch_size=tuple(cfg.data.dataloader.patch_size),
                 min_steps=50,
                 max_steps=200,
             )
-            print(f"  ✅ Validation steps: {val_steps_per_epoch} (auto-calculated)")
+            logger.info(f"Validation steps: {val_steps_per_epoch} (auto-calculated)")
 
         datamodule = ConnectomicsDataModule(
             train_data_dicts=train_data_dicts,
@@ -985,11 +912,11 @@ def create_datamodule(
 
     # Print dataset info based on mode
     if mode == "train":
-        print(f"  Train batches: {len(datamodule.train_dataloader())}")
+        logger.info(f"Train batches: {len(datamodule.train_dataloader())}")
         if val_data_dicts:
-            print(f"  Val batches: {len(datamodule.val_dataloader())}")
+            logger.info(f"Val batches: {len(datamodule.val_dataloader())}")
     elif mode in ["test", "tune"]:
-        print(f"  Test batches: {len(datamodule.test_dataloader())}")
+        logger.info(f"Test batches: {len(datamodule.test_dataloader())}")
 
     return datamodule
 

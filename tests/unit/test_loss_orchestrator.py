@@ -187,8 +187,8 @@ def test_standard_loss_uses_pos_weight_only_for_weight_aware_losses():
     orchestrator = LossOrchestrator(
         cfg=_cfg(
             losses=[
-                {"pred_slice": [0, 1], "target_slice": [0, 1], "weight": 1.0},
-                {"pred_slice": [0, 1], "target_slice": [0, 1], "weight": 1.0},
+                {"pred_slice": "0:1", "target_slice": "0:1", "weight": 1.0},
+                {"pred_slice": "0:1", "target_slice": "0:1", "weight": 1.0},
             ]
         ),
         loss_functions=nn.ModuleList([weighted_loss, no_weight_loss]),
@@ -248,13 +248,13 @@ def test_standard_loss_supports_negative_channel_slice_bounds():
         cfg=_cfg(
             losses=[
                 {
-                    "pred_slice": [0, -2],
-                    "target_slice": [0, -2],
+                    "pred_slice": "0:-1",
+                    "target_slice": "0:-1",
                     "weight": 1.0,
                 },
                 {
-                    "pred_slice": [-2, -1],
-                    "target_slice": [-2, -1],
+                    "pred_slice": "-1:",
+                    "target_slice": "-1:",
                     "weight": 1.0,
                 },
             ]
@@ -271,8 +271,8 @@ def test_standard_loss_supports_negative_channel_slice_bounds():
 
     assert torch.isfinite(total_loss)
     assert "train_loss_total" in loss_dict
-    assert head_loss.calls[0]["pred_shape"] == (1, 4, 2, 2, 2)
-    assert head_loss.calls[0]["target_shape"] == (1, 4, 2, 2, 2)
+    assert head_loss.calls[0]["pred_shape"] == (1, 5, 2, 2, 2)
+    assert head_loss.calls[0]["target_shape"] == (1, 5, 2, 2, 2)
     assert aux_loss.calls[0]["pred_shape"] == (1, 1, 2, 2, 2)
     assert aux_loss.calls[0]["target_shape"] == (1, 1, 2, 2, 2)
 
@@ -320,8 +320,8 @@ def test_standard_loss_rejects_invalid_runtime_negative_channel_slice():
         cfg=_cfg(
             losses=[
                 {
-                    "pred_slice": [0, -2],
-                    "target_slice": [0, -2],
+                    "pred_slice": "0:-2",
+                    "target_slice": "0:-2",
                     "weight": 1.0,
                 },
             ]
@@ -345,8 +345,8 @@ def test_standard_loss_supports_constant_pos_weight_from_config():
         cfg=_cfg(
             losses=[
                 {
-                    "pred_slice": [0, 1],
-                    "target_slice": [0, 1],
+                    "pred_slice": "0:1",
+                    "target_slice": "0:1",
                     "weight": 1.0,
                     "pos_weight": 3.5,
                 },
@@ -373,8 +373,8 @@ def test_weighted_bce_defaults_to_unweighted_pos_weight_when_omitted():
         cfg=_cfg(
             losses=[
                 {
-                    "pred_slice": [0, 1],
-                    "target_slice": [0, 1],
+                    "pred_slice": "0:1",
+                    "target_slice": "0:1",
                     "weight": 1.0,
                 },
             ]
@@ -401,8 +401,8 @@ def test_weighted_bce_supports_constant_pos_weight_from_config():
         cfg=_cfg(
             losses=[
                 {
-                    "pred_slice": [0, 1],
-                    "target_slice": [0, 1],
+                    "pred_slice": "0:1",
+                    "target_slice": "0:1",
                     "weight": 1.0,
                     "pos_weight": 3.5,
                 },
@@ -432,8 +432,8 @@ def test_weighted_bce_supports_auto_pos_weight_from_batch_with_mask():
         cfg=_cfg(
             losses=[
                 {
-                    "pred_slice": [0, 1],
-                    "target_slice": [0, 1],
+                    "pred_slice": "0:1",
+                    "target_slice": "0:1",
                     "weight": 1.0,
                     "pos_weight": "auto",
                 },
@@ -465,8 +465,8 @@ def test_weighted_bce_auto_pos_weight_is_capped_at_ten():
         cfg=_cfg(
             losses=[
                 {
-                    "pred_slice": [0, 1],
-                    "target_slice": [0, 1],
+                    "pred_slice": "0:1",
+                    "target_slice": "0:1",
                     "weight": 1.0,
                     "pos_weight": "auto",
                 },
@@ -498,8 +498,8 @@ def test_standard_loss_supports_auto_pos_weight_and_respects_mask():
         cfg=_cfg(
             losses=[
                 {
-                    "pred_slice": [0, 1],
-                    "target_slice": [0, 1],
+                    "pred_slice": "0:1",
+                    "target_slice": "0:1",
                     "weight": 1.0,
                     "pos_weight": "auto",
                 },
@@ -532,8 +532,8 @@ def test_standard_loss_auto_pos_weight_caps_max_weight_at_ten():
         cfg=_cfg(
             losses=[
                 {
-                    "pred_slice": [0, 1],
-                    "target_slice": [0, 1],
+                    "pred_slice": "0:1",
+                    "target_slice": "0:1",
                     "weight": 1.0,
                     "pos_weight": "auto",
                 },
@@ -563,8 +563,8 @@ def test_invalid_pos_weight_raises_value_error():
             cfg=_cfg(
                 losses=[
                     {
-                        "pred_slice": [0, 1],
-                        "target_slice": [0, 1],
+                        "pred_slice": "0:1",
+                        "target_slice": "0:1",
                         "weight": 1.0,
                         "pos_weight": "invalid",
                     },
@@ -625,14 +625,14 @@ def test_multitask_single_scale_routes_class_index_and_dense_targets():
     cfg = _cfg(
         losses=[
             {
-                "pred_slice": [0, 3],
-                "target_slice": [0, 1],
+                "pred_slice": "0:3",
+                "target_slice": "0:1",
                 "target_kind": "class_index",
                 "weight": 1.0,
             },
             {
-                "pred_slice": [3, 4],
-                "target_slice": [1, 2],
+                "pred_slice": "3:4",
+                "target_slice": "1:2",
                 "weight": 1.0,
             },
         ]
@@ -666,14 +666,14 @@ def test_deep_supervision_multitask_resizes_targets_per_task_and_applies_pos_wei
     cfg = _cfg(
         losses=[
             {
-                "pred_slice": [0, 3],
-                "target_slice": [0, 1],
+                "pred_slice": "0:3",
+                "target_slice": "0:1",
                 "target_kind": "class_index",
                 "weight": 1.0,
             },
             {
-                "pred_slice": [3, 4],
-                "target_slice": [1, 2],
+                "pred_slice": "3:4",
+                "target_slice": "1:2",
                 "weight": 1.0,
             },
         ]
@@ -735,14 +735,14 @@ def test_explicit_loss_terms_support_pred_only_pred_pred_and_mask_dispatch():
     cfg = _cfg(
         losses=[
             {
-                "pred_slice": [0, 1],
-                "mask_slice": [0, 1],
+                "pred_slice": "0:1",
+                "mask_slice": "0:1",
                 "weight": 0.25,
             },
             {
-                "pred_slice": [1, 2],
-                "pred2_slice": [2, 3],
-                "mask_slice": [1, 2],
+                "pred_slice": "1:2",
+                "pred2_slice": "2:3",
+                "mask_slice": "1:2",
                 "weight": 0.5,
             },
         ]
@@ -790,15 +790,15 @@ def test_explicit_loss_terms_deep_supervision_resizes_masks_and_respects_main_on
     cfg = _cfg(
         losses=[
             {
-                "pred_slice": [0, 1],
-                "mask_slice": [0, 1],
+                "pred_slice": "0:1",
+                "mask_slice": "0:1",
                 "apply_deep_supervision": False,
                 "weight": 1.0,
             },
             {
-                "pred_slice": [1, 2],
-                "pred2_slice": [2, 3],
-                "mask_slice": [1, 2],
+                "pred_slice": "1:2",
+                "pred2_slice": "2:3",
+                "mask_slice": "1:2",
                 "weight": 1.0,
             },
         ]

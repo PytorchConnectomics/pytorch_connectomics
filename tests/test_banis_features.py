@@ -11,7 +11,7 @@ import torch
 
 def test_connected_components():
     """Test affinity connected components using the current decoding API."""
-    from connectomics.decoding.segmentation import decode_affinity_cc
+    from connectomics.decoding.decoders.segmentation import decode_affinity_cc
 
     # Construct two disjoint 2x2x2 cubes
     affinities = np.zeros((3, 8, 8, 8), dtype=np.float32)
@@ -65,7 +65,7 @@ def test_weighted_concat_dataset():
 
 def test_slurm_utils_import():
     """Test that SLURM utils can be imported."""
-    from connectomics.config import slurm_utils
+    from connectomics.config.hardware import slurm_utils
 
     # Test basic import
     assert hasattr(slurm_utils, "detect_slurm_resources")
@@ -76,7 +76,7 @@ def test_slurm_utils_import():
 
 def test_slurm_detection_no_slurm():
     """Test SLURM detection when SLURM not available."""
-    from connectomics.config.slurm_utils import detect_slurm_resources
+    from connectomics.config.hardware.slurm_utils import detect_slurm_resources
 
     # Should return empty dict if SLURM not available
     partitions = detect_slurm_resources()

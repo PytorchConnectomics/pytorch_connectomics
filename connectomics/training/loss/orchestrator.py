@@ -6,8 +6,10 @@ including multi-task target routing and optional task weighting.
 """
 
 from __future__ import annotations
-from typing import Dict, List, Tuple, Optional
-import warnings
+import logging
+from typing import Callable, Dict, List, Tuple, Optional
+
+logger = logging.getLogger(__name__)
 
 import torch
 import torch.nn as nn
@@ -19,13 +21,30 @@ from ...models.loss import (
     LossMetadata,
     get_loss_metadata_for_module,
 )
-from ...data.process.affinity import (
-    affinity_deepem_crop_enabled,
-    crop_spatial_by_offsets,
-    resolve_affinity_offsets_for_channel_slice,
-)
-from ...utils.channel_slices import resolve_channel_slice_bounds
+from ...utils.channel_slices import resolve_channel_range
 from .plan import LossTermSpec, compile_loss_terms_from_config
+
+
+def _default_affinity_deepem_crop_enabled(cfg) -> bool:
+    """Lazy-import bridge to data.process.affinity."""
+    from ...data.process.affinity import affinity_deepem_crop_enabled
+    return affinity_deepem_crop_enabled(cfg)
+
+
+def _default_crop_spatial_fn(
+    tensor: torch.Tensor, offsets: list, *, item_name: str = ""
+) -> torch.Tensor:
+    """Lazy-import bridge to data.process.affinity."""
+    from ...data.process.affinity import crop_spatial_by_offsets
+    return crop_spatial_by_offsets(tensor, offsets, item_name=item_name)
+
+
+def _default_resolve_affinity_offsets(cfg, *, num_channels: int, channel_slice):
+    """Lazy-import bridge to data.process.affinity."""
+    from ...data.process.affinity import resolve_affinity_offsets_for_channel_slice
+    return resolve_affinity_offsets_for_channel_slice(
+        cfg, num_channels=num_channels, channel_slice=channel_slice,
+    )
 
 
 class LossOrchestrator:
@@ -40,6 +59,10 @@ class LossOrchestrator:
         debug_on_nan: bool = True,
         loss_weighter: Optional[nn.Module] = None,
         loss_metadata: Optional[List[LossMetadata]] = None,
+        *,
+        affinity_crop_enabled_fn: Optional[Callable] = None,
+        crop_spatial_fn: Optional[Callable] = None,
+        resolve_affinity_offsets_fn: Optional[Callable] = None,
     ):
         self.cfg = cfg
         self.loss_functions = loss_functions
@@ -54,11 +77,16 @@ class LossOrchestrator:
         )
         self.loss_cfg = getattr(cfg.model, "loss", None)
 
+        # Injected affinity functions (decoupled from data.process.affinity)
+        self._affinity_crop_enabled_fn = affinity_crop_enabled_fn or _default_affinity_deepem_crop_enabled
+        self._crop_spatial_fn = crop_spatial_fn or _default_crop_spatial_fn
+        self._resolve_affinity_offsets_fn = resolve_affinity_offsets_fn or _default_resolve_affinity_offsets
+
         if self.loss_cfg is None:
             raise ValueError("cfg.model.loss is required for loss orchestration")
         self.clamp_min = float(self.loss_cfg.deep_supervision_clamp_min)
         self.clamp_max = float(self.loss_cfg.deep_supervision_clamp_max)
-        self.affinity_deepem_crop = affinity_deepem_crop_enabled(cfg)
+        self.affinity_deepem_crop = self._affinity_crop_enabled_fn(cfg)
         self.loss_term_specs = compile_loss_terms_from_config(
             cfg,
             self.loss_functions,
@@ -192,22 +220,20 @@ class LossOrchestrator:
         if not (torch.isnan(loss) or torch.isinf(loss)):
             return
 
-        print(f"\n{'=' * 80}", flush=True)
-        print(title, flush=True)
-        print(f"{'=' * 80}", flush=True)
-        print(f"Loss value: {loss.item()}", flush=True)
+        logger.warning(f"\n{'=' * 80}")
+        logger.warning(title)
+        logger.warning(f"{'=' * 80}")
+        logger.warning(f"Loss value: {loss.item()}")
         for line in info_lines:
-            print(line, flush=True)
+            logger.warning(line)
         for name, tensor in tensor_map.items():
             tensor_range = f"[{tensor.min():.4f}, {tensor.max():.4f}]"
-            print(f"{name} shape: {tensor.shape}, range: {tensor_range}", flush=True)
-            print(f"{name} contains NaN: {torch.isnan(tensor).any()}", flush=True)
+            logger.warning(f"{name} shape: {tensor.shape}, range: {tensor_range}")
+            logger.warning(f"{name} contains NaN: {torch.isnan(tensor).any()}")
         if self.debug_on_nan:
-            warnings.warn(
+            logger.warning(
                 "debug_on_nan=True is set, but interactive breakpoints are disabled. "
-                "Raising ValueError with diagnostics instead.",
-                RuntimeWarning,
-                stacklevel=2,
+                "Raising ValueError with diagnostics instead."
             )
         raise ValueError(error_message)
 
@@ -228,26 +254,24 @@ class LossOrchestrator:
         return target_resized.long()
 
     @staticmethod
-    def _resolve_channel_slice_bounds(
-        channel_slice: tuple[int, int],
+    def _resolve_channel_selector_range(
+        channel_slice,
         *,
         num_channels: int,
     ) -> tuple[int, int]:
-        """Resolve possibly-negative channel bounds to absolute half-open indices."""
-        return resolve_channel_slice_bounds(
+        """Resolve a channel selector to absolute half-open indices."""
+        return resolve_channel_range(
             channel_slice,
             num_channels=num_channels,
             context="channel slice",
-            negative_index_offset=0,
-            end_minus_one_full_span=False,
         )
 
     def _slice_channels(
         self,
         tensor: torch.Tensor,
-        channel_slice: tuple[int, int],
+        channel_slice,
     ) -> torch.Tensor:
-        start_idx, end_idx = self._resolve_channel_slice_bounds(
+        start_idx, end_idx = self._resolve_channel_selector_range(
             channel_slice,
             num_channels=int(tensor.shape[1]),
         )
@@ -275,7 +299,7 @@ class LossOrchestrator:
     ) -> Optional[list[tuple[int, int, int]]]:
         if not self.affinity_deepem_crop or not is_main_scale:
             return None
-        return resolve_affinity_offsets_for_channel_slice(
+        return self._resolve_affinity_offsets_fn(
             self.cfg,
             num_channels=labels_num_channels,
             channel_slice=term.target_slice,
@@ -354,21 +378,21 @@ class LossOrchestrator:
                         target_kind="class_index",
                     )
                 if affinity_offsets:
-                    pred = crop_spatial_by_offsets(pred, affinity_offsets, item_name="affinity prediction")
+                    pred = self._crop_spatial_fn(pred, affinity_offsets, item_name="affinity prediction")
                     if target is not None:
-                        target = crop_spatial_by_offsets(
+                        target = self._crop_spatial_fn(
                             target,
                             affinity_offsets,
                             item_name="affinity target",
                         )
                     if term_mask_tensor is not None:
-                        term_mask_tensor = crop_spatial_by_offsets(
+                        term_mask_tensor = self._crop_spatial_fn(
                             term_mask_tensor,
                             affinity_offsets,
                             item_name="affinity term mask",
                         )
                     if batch_mask_tensor is not None:
-                        batch_mask_tensor = crop_spatial_by_offsets(
+                        batch_mask_tensor = self._crop_spatial_fn(
                             batch_mask_tensor,
                             affinity_offsets,
                             item_name="affinity batch mask",
@@ -475,7 +499,7 @@ class LossOrchestrator:
                 )
 
             if scale_idx is None:
-                title = "⚠️  NaN/Inf detected in explicit loss term!"
+                title = "WARNING: NaN/Inf detected in explicit loss term!"
                 error_message = f"NaN/Inf in explicit loss term '{term.name}'"
                 info_lines = [
                     f"Term: {term.name}",
@@ -484,7 +508,7 @@ class LossOrchestrator:
                 ]
                 train_only = False
             else:
-                title = "⚠️  NaN/Inf detected in explicit deep supervision loss term!"
+                title = "WARNING: NaN/Inf detected in explicit deep supervision loss term!"
                 error_message = f"NaN/Inf in explicit loss term '{term.name}' at scale {scale_idx}"
                 info_lines = [
                     f"Scale: {scale_idx}, Term: {term.name}",
@@ -571,7 +595,7 @@ class LossOrchestrator:
         ):
             ds_weights = self.loss_cfg.deep_supervision_weights
             if len(ds_weights) < len(ds_outputs) + 1:
-                warnings.warn(
+                logger.warning(
                     f"deep_supervision_weights has {len(ds_weights)} weights but "
                     f"{len(ds_outputs) + 1} outputs. Using exponential decay for missing weights."
                 )

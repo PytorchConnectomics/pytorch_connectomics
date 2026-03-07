@@ -18,33 +18,33 @@ model:
     - function: WeightedBCEWithLogitsLoss
       weight: 0.5
       kwargs: {reduction: mean}
-      pred_slice: [0, 1]
-      target_slice: [0, 1]
+      pred_slice: "0:1"
+      target_slice: "0:1"
     - function: DiceLoss
       weight: 1.5
       kwargs: {include_background: true, sigmoid: true, smooth_nr: 1e-5, smooth_dr: 1e-5}
-      pred_slice: [0, 1]
-      target_slice: [0, 1]
+      pred_slice: "0:1"
+      target_slice: "0:1"
     - function: WeightedBCEWithLogitsLoss
       weight: 0.5
       kwargs: {reduction: mean}
-      pred_slice: [1, 2]
-      target_slice: [1, 2]
+      pred_slice: "1:2"
+      target_slice: "1:2"
     - function: DiceLoss
       weight: 1.5
       kwargs: {include_background: true, sigmoid: true, smooth_nr: 1e-5, smooth_dr: 1e-5}
-      pred_slice: [1, 2]
-      target_slice: [1, 2]
+      pred_slice: "1:2"
+      target_slice: "1:2"
     - function: WeightedMSELoss
       weight: 1.0
       kwargs: {reduction: mean, tanh: true}
-      pred_slice: [2, 3]
-      target_slice: [2, 3]
+      pred_slice: "2:3"
+      target_slice: "2:3"
     - function: WeightedMAELoss
       weight: 0.5
       kwargs: {reduction: mean, tanh: true}
-      pred_slice: [2, 3]
-      target_slice: [2, 3]
+      pred_slice: "2:3"
+      target_slice: "2:3"
   monai:
     filters: [24, 48, 96, 192]
     num_res_units: 2

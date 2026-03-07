@@ -42,7 +42,7 @@ class SimpleModel(nn.Module):
 def _base_config() -> Config:
     cfg = Config()
     cfg.model.loss.losses = [
-        {"function": "DiceLoss", "weight": 1.0, "pred_slice": [0, 1], "target_slice": [0, 1]}
+        {"function": "DiceLoss", "weight": 1.0, "pred_slice": "0:1", "target_slice": "0:1"}
     ]
     cfg.model.out_channels = 1
     return cfg

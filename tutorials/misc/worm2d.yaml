@@ -19,14 +19,14 @@ model:
     - function: DiceLoss
       weight: 1.0
       kwargs: {include_background: false, softmax: true, to_onehot_y: true, smooth_nr: 1e-5, smooth_dr: 1e-5}
-      pred_slice: [0, '${model.out_channels}']
-      target_slice: [0, 1]
+      pred_slice: "0:${model.out_channels}"
+      target_slice: "0:1"
     - function: CrossEntropyLoss
       weight: 0.5
       kwargs: {label_smoothing: 0.1}
       target_kind: class_index
-      pred_slice: [0, '${model.out_channels}']
-      target_slice: [0, 1]
+      pred_slice: "0:${model.out_channels}"
+      target_slice: "0:1"
   monai:
     filters: [28, 36, 48, 64, 80]      # Standard UNet channel progression
     num_res_units: 2                     # Residual units per block
@@ -173,7 +173,8 @@ inference:
     #tta_flip_axes: [[1]]                   # Flip Z-axis only (MUST use [1] for depth in BCDHW, NOT [0]!)
     # Example custom TTA: [[1], [2], [3]] for single-axis flips only (Z, Y, X) - 4x inference
     # Example custom TTA: [[1, 2], [1, 3], [2, 3]] for two-axis flips only - 4x inference
-    channel_activations: [[0, 2, 'softmax']]  # Per-channel activations: apply softmax to all channels (0-1)
+    channel_activations:
+      - {channels: "0:2", activation: softmax}  # Per-channel activations: apply softmax to all channels (0-1)
     select_channel: [1]                    # Channel selection: null (use all channels for single-channel output)
     ensemble_mode: mean              # Ensemble strategy: 'mean' (average), 'min' (conservative), 'max' (aggressive)
     # NOTE: tta_act and tta_channel are applied even with null flip_axes (no ensemble, just activation + channel selection)

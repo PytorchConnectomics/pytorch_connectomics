@@ -2,22 +2,89 @@
 
 from __future__ import annotations
 
+import logging
 import time
-from typing import Any, Dict, Optional
+from dataclasses import dataclass, field
+from typing import Any, Dict, List, Optional
 
 import numpy as np
 import torch
 import torchmetrics
 from pytorch_lightning.utilities.types import STEP_OUTPUT
 
-from ...decoding import apply_decode_mode, resolve_decode_modes_from_cfg
 from ...inference import apply_postprocessing, apply_save_prediction_transform, write_outputs
+from ...metrics.metrics_seg import AdaptedRandError
+from ...metrics.segmentation_numpy import instance_matching, instance_matching_simple, voi
 from ...data.process.affinity import (
     affinity_deepem_crop_enabled,
     compute_affinity_crop_pad,
     crop_spatial_by_pad,
     resolve_affinity_channel_groups_from_cfg,
 )
+
+logger = logging.getLogger(__name__)
+
+
+@dataclass
+class TestContext:
+    """Explicit contract between ConnectomicsModule and test_pipeline functions.
+
+    Bundles the resolved config values, inference manager, and device reference
+    so test_pipeline functions don't need to call private methods on the module.
+    The ``module`` reference is retained only for Lightning-specific operations
+    (metric logging via ``module.log()``, metric attribute access).
+    """
+
+    cfg: Any
+    inference_cfg: Any
+    evaluation_cfg: Any
+    device: torch.device
+    inference_manager: Any
+    evaluation_enabled: bool = False
+    prediction_threshold: float = 0.5
+    instance_iou_threshold: float = 0.5
+    save_prediction_cfg: Any = None
+    filenames: List[str] = field(default_factory=list)
+    output_dir_value: Optional[str] = None
+    cache_suffix: str = "_prediction.h5"
+
+    @staticmethod
+    def from_module(module, batch: Dict[str, Any]) -> "TestContext":
+        """Build a TestContext from a ConnectomicsModule for a given batch."""
+        inference_cfg = module._get_runtime_inference_config()
+        evaluation_cfg = module._get_test_evaluation_config()
+        evaluation_enabled = module._is_test_evaluation_enabled()
+
+        prediction_threshold = 0.5
+        instance_iou_threshold = 0.5
+        if evaluation_enabled and evaluation_cfg is not None:
+            inference_eval_defaults = inference_cfg.evaluation
+            prediction_threshold = module._cfg_float(
+                evaluation_cfg, "prediction_threshold",
+                float(inference_eval_defaults.prediction_threshold),
+            )
+            instance_iou_threshold = module._cfg_float(
+                evaluation_cfg, "instance_iou_threshold",
+                float(inference_eval_defaults.instance_iou_threshold),
+            )
+
+        mode, output_dir_value, cache_suffix, filenames = module._resolve_test_output_config(batch)
+        save_prediction_cfg = inference_cfg.save_prediction
+
+        return TestContext(
+            cfg=module.cfg,
+            inference_cfg=inference_cfg,
+            evaluation_cfg=evaluation_cfg,
+            device=module.device,
+            inference_manager=module.inference_manager,
+            evaluation_enabled=evaluation_enabled,
+            prediction_threshold=prediction_threshold,
+            instance_iou_threshold=instance_iou_threshold,
+            save_prediction_cfg=save_prediction_cfg,
+            filenames=filenames,
+            output_dir_value=output_dir_value,
+            cache_suffix=cache_suffix,
+        )
 
 
 def _resolve_postprocessing_crop_pad(module) -> Optional[tuple[int, ...]]:
@@ -133,7 +200,7 @@ def _apply_prediction_crop_pad_if_needed(
         )
 
     cropped = _crop_spatial_border(data, crop_pad, item_name=item_name)
-    print(f"  ✂️  Cropped {item_name}: {tuple(data.shape)} -> {tuple(cropped.shape)}")
+    logger.info(f"Cropped {item_name}: {tuple(data.shape)} -> {tuple(cropped.shape)}")
     return cropped
 
 
@@ -207,7 +274,7 @@ def _apply_affinity_inference_crop_if_needed(
         return data
 
     cropped = crop_spatial_by_pad(data, crop_pad, item_name=item_name)
-    print(f"  ✂️  Affinity-cropped {item_name}: {tuple(data.shape)} -> {tuple(cropped.shape)}")
+    logger.info(f"Affinity-cropped {item_name}: {tuple(data.shape)} -> {tuple(cropped.shape)}")
     return cropped
 
 
@@ -221,15 +288,14 @@ def _align_metric_tensors(
     if pred_tensor.shape == labels_tensor.shape:
         return pred_tensor, labels_tensor
 
-    print(f"  ⚠️  Shape mismatch: pred={pred_tensor.shape}, labels={labels_tensor.shape}")
+    logger.warning(f"Shape mismatch: pred={pred_tensor.shape}, labels={labels_tensor.shape}")
     if pred_tensor.ndim == labels_tensor.ndim - 1:
         pred_tensor = pred_tensor.unsqueeze(0)
     elif labels_tensor.ndim == pred_tensor.ndim - 1:
         labels_tensor = labels_tensor.unsqueeze(0)
 
     if pred_tensor.shape != labels_tensor.shape:
-        print("  ❌ Cannot compute metrics: incompatible shapes after alignment")
-        print(f"     pred={pred_tensor.shape}, labels={labels_tensor.shape}")
+        logger.warning(f"Cannot compute metrics: incompatible shapes after alignment, pred={pred_tensor.shape}, labels={labels_tensor.shape}")
         return None, None
 
     return pred_tensor, labels_tensor
@@ -256,8 +322,6 @@ def _compute_instance_metrics(
     labels_instances = labels_tensor.long()
 
     if hasattr(module, "test_adapted_rand") and isinstance(module.test_adapted_rand, torchmetrics.Metric):
-        from ...metrics.metrics_seg import AdaptedRandError
-
         per_volume_metric = AdaptedRandError(return_all_stats=True).to(module.device)
         per_volume_metric.update(pred_instances.cpu(), labels_instances.cpu())
         adapted_rand_value = per_volume_metric.compute()
@@ -269,11 +333,11 @@ def _compute_instance_metrics(
             are_score = are_score.item() if hasattr(are_score, "item") else float(are_score)
         else:
             are_score = adapted_rand_value.item()
-        print(f"  {volume_prefix}Adapted Rand Error: {are_score:.6f}")
+        logger.info(f"{volume_prefix}Adapted Rand Error: {are_score:.6f}")
         if isinstance(adapted_rand_value, dict):
             for k, v in adapted_rand_value.items():
                 val = v.item() if hasattr(v, "item") else float(v)
-                print(f"  {volume_prefix}  {k}: {val:.6f}")
+                logger.info(f"{volume_prefix}  {k}: {val:.6f}")
 
         metrics_dict["adapted_rand_error"] = are_score
         module.test_adapted_rand.update(pred_instances.cpu(), labels_instances.cpu())
@@ -315,12 +379,10 @@ def _compute_instance_metrics(
             )
 
     if hasattr(module, "test_voi") and isinstance(module.test_voi, torchmetrics.Metric):
-        from ...metrics.segmentation_numpy import voi
-
         split, merge = voi(pred_instances.cpu().numpy(), labels_instances.cpu().numpy())
-        print(f"  {volume_prefix}VOI Split: {split:.6f}")
-        print(f"  {volume_prefix}VOI Merge: {merge:.6f}")
-        print(f"  {volume_prefix}VOI Total: {split + merge:.6f}")
+        logger.info(f"{volume_prefix}VOI Split: {split:.6f}")
+        logger.info(f"{volume_prefix}VOI Merge: {merge:.6f}")
+        logger.info(f"{volume_prefix}VOI Total: {split + merge:.6f}")
 
         metrics_dict["voi_split"] = split
         metrics_dict["voi_merge"] = merge
@@ -348,15 +410,13 @@ def _compute_instance_metrics(
     if hasattr(module, "test_instance_accuracy") and isinstance(
         module.test_instance_accuracy, torchmetrics.Metric
     ):
-        from ...metrics.segmentation_numpy import instance_matching
-
         stats = instance_matching(
             labels_instances.cpu().numpy(),
             pred_instances.cpu().numpy(),
             thresh=instance_iou_threshold,
             criterion="iou",
         )
-        print(f"  {volume_prefix}Instance Accuracy: {stats['accuracy']:.6f}")
+        logger.info(f"{volume_prefix}Instance Accuracy: {stats['accuracy']:.6f}")
         metrics_dict["instance_accuracy"] = stats["accuracy"]
 
         module.test_instance_accuracy.update(pred_instances.cpu(), labels_instances.cpu())
@@ -372,20 +432,18 @@ def _compute_instance_metrics(
     if hasattr(module, "test_instance_accuracy_detail") and isinstance(
         module.test_instance_accuracy_detail, torchmetrics.Metric
     ):
-        from ...metrics.segmentation_numpy import instance_matching_simple
-
         stats_simple = instance_matching_simple(
             labels_instances.cpu().numpy(),
             pred_instances.cpu().numpy(),
             thresh=instance_iou_threshold,
             criterion="iou",
         )
-        print(
-            f"  {volume_prefix}Instance Accuracy (Detail): {stats_simple['accuracy']:.6f} [relaxed, non-Hungarian]"
+        logger.info(
+            f"{volume_prefix}Instance Accuracy (Detail): {stats_simple['accuracy']:.6f} [relaxed, non-Hungarian]"
         )
-        print(f"  {volume_prefix}  ├─ Precision: {stats_simple['precision']:.6f}")
-        print(f"  {volume_prefix}  ├─ Recall: {stats_simple['recall']:.6f}")
-        print(f"  {volume_prefix}  └─ F1: {stats_simple['f1']:.6f}")
+        logger.info(f"{volume_prefix}  Precision: {stats_simple['precision']:.6f}")
+        logger.info(f"{volume_prefix}  Recall: {stats_simple['recall']:.6f}")
+        logger.info(f"{volume_prefix}  F1: {stats_simple['f1']:.6f}")
 
         metrics_dict["instance_accuracy_detail"] = stats_simple["accuracy"]
         metrics_dict["instance_precision_detail"] = stats_simple["precision"]
@@ -452,7 +510,7 @@ def _compute_binary_metrics(
             labels_binary,
             task="binary",
         )
-        print(f"  {volume_prefix}Jaccard: {jaccard_value.item():.6f}")
+        logger.info(f"{volume_prefix}Jaccard: {jaccard_value.item():.6f}")
         metrics_dict["jaccard"] = jaccard_value.item()
         module.test_jaccard.update(pred_binary, labels_binary)
         module.log(
@@ -466,7 +524,7 @@ def _compute_binary_metrics(
 
     if hasattr(module, "test_dice") and module.test_dice is not None:
         dice_value = torchmetrics.functional.dice(pred_binary, labels_binary)
-        print(f"  {volume_prefix}Dice: {dice_value.item():.6f}")
+        logger.info(f"{volume_prefix}Dice: {dice_value.item():.6f}")
         metrics_dict["dice"] = dice_value.item()
         module.test_dice.update(pred_binary, labels_binary)
         module.log(
@@ -484,7 +542,7 @@ def _compute_binary_metrics(
             labels_binary,
             task="binary",
         )
-        print(f"  {volume_prefix}Accuracy: {accuracy_value.item():.6f}")
+        logger.info(f"{volume_prefix}Accuracy: {accuracy_value.item():.6f}")
         metrics_dict["accuracy"] = accuracy_value.item()
         module.test_accuracy.update(pred_binary, labels_binary)
         module.log(
@@ -552,9 +610,9 @@ def compute_test_metrics(
 
 
 def _log_volume_header(volume_name: str, title: str) -> None:
-    print(f"\n{'=' * 70}")
-    print(f"{title}: {volume_name}")
-    print(f"{'=' * 70}")
+    logger.info(f"{'=' * 70}")
+    logger.info(f"{title}: {volume_name}")
+    logger.info(f"{'=' * 70}")
 
 
 def _process_decoding_postprocessing(
@@ -566,30 +624,32 @@ def _process_decoding_postprocessing(
     batch_meta: Any,
     save_final_predictions: bool,
 ) -> np.ndarray:
-    print("\n  🔄 [STAGE: Decoding Instances]")
+    logger.info("[STAGE: Decoding Instances]")
     decode_start = time.time()
+    # Lazy import to avoid circular dependency (decoding -> training via optuna_tuner)
+    from ...decoding import apply_decode_mode, resolve_decode_modes_from_cfg
+
     has_decoding_cfg = bool(resolve_decode_modes_from_cfg(module.cfg))
     decoded_predictions = apply_decode_mode(module.cfg, predictions_np)
-    print(f"  ✅ Decoding completed ({time.time() - decode_start:.1f}s)")
+    logger.info(f"Decoding completed ({time.time() - decode_start:.1f}s)")
 
     if not has_decoding_cfg:
-        print("  ⏭️  Skipping postprocessing (no decoding configuration)")
-        print("  ⏭️  Skipping decoded segmentation summary (no decoding configuration)")
-        print("  ⏭️  Skipping final prediction save (no decoding configuration)")
+        logger.info("Skipping postprocessing (no decoding configuration)")
+        logger.info("Skipping decoded segmentation summary (no decoding configuration)")
+        logger.info("Skipping final prediction save (no decoding configuration)")
         return decoded_predictions
 
     postprocessed_predictions = apply_postprocessing(module.cfg, decoded_predictions)
-    print("\n  📊 Decoded Segmentation Summary:")
-    print(f"      Shape:      {decoded_predictions.shape}")
-    print(f"      Dtype:      {decoded_predictions.dtype}")
-    print(f"      Min:        {decoded_predictions.min()}")
-    print(f"      Max:        {decoded_predictions.max()}")
-    print(f"      Instances:  {decoded_predictions.max()} (max label)")
-    print(f"      Unique IDs: {len(np.unique(decoded_predictions))}")
-    print("")
+    logger.info("Decoded Segmentation Summary:")
+    logger.info(f"    Shape:      {decoded_predictions.shape}")
+    logger.info(f"    Dtype:      {decoded_predictions.dtype}")
+    logger.info(f"    Min:        {decoded_predictions.min()}")
+    logger.info(f"    Max:        {decoded_predictions.max()}")
+    logger.info(f"    Instances:  {decoded_predictions.max()} (max label)")
+    logger.info(f"    Unique IDs: {len(np.unique(decoded_predictions))}")
 
     if save_final_predictions:
-        print("  💾 [STAGE: Saving Final Predictions]")
+        logger.info("[STAGE: Saving Final Predictions]")
         save_start = time.time()
         write_outputs(
             module.cfg,
@@ -599,7 +659,7 @@ def _process_decoding_postprocessing(
             mode=mode,
             batch_meta=batch_meta,
         )
-        print(f"  ✅ Final predictions saved ({time.time() - save_start:.1f}s)")
+        logger.info(f"Final predictions saved ({time.time() - save_start:.1f}s)")
 
     return decoded_predictions
 
@@ -613,7 +673,7 @@ def _evaluate_decoded_predictions(
     batch_idx: int,
 ) -> None:
     if labels is not None and module._is_test_evaluation_enabled():
-        print("\n  📈 [STAGE: Computing Evaluation Metrics]")
+        logger.info("[STAGE: Computing Evaluation Metrics]")
         eval_start = time.time()
         volume_names = filenames if filenames else [f"volume_{batch_idx}"]
 
@@ -627,32 +687,38 @@ def _evaluate_decoded_predictions(
                 for i, name in enumerate(volume_names):
                     compute_test_metrics(module, pred_arr[i], labels[i], volume_name=name)
             else:
-                print(
-                    "  ⚠️  Could not split batched predictions/labels by volume; "
+                logger.warning(
+                    "Could not split batched predictions/labels by volume; "
                     "computing a single aggregate metric."
                 )
                 compute_test_metrics(module, pred_arr, labels, volume_name=volume_names[0])
         else:
             compute_test_metrics(module, decoded_predictions, labels, volume_name=volume_names[0])
 
-        print(f"  ✅ Evaluation completed ({time.time() - eval_start:.1f}s)")
+        logger.info(f"Evaluation completed ({time.time() - eval_start:.1f}s)")
         return
 
     if labels is None:
-        print("\n  ⏭️  [STAGE: Evaluation] Skipped (no ground truth labels)")
+        logger.info("[STAGE: Evaluation] Skipped (no ground truth labels)")
     else:
-        print("\n  ⏭️  [STAGE: Evaluation] Skipped (evaluation disabled)")
+        logger.info("[STAGE: Evaluation] Skipped (evaluation disabled)")
 
 
 def run_test_step(module, batch: Dict[str, torch.Tensor], batch_idx: int) -> STEP_OUTPUT:
     """End-to-end test-step workflow with cache reuse and staged processing."""
+    # Build explicit context from module (single point of private method access)
+    ctx = TestContext.from_module(module, batch)
+
     images = batch["image"]
     labels = batch.get("label")
     mask = batch.get("mask")
     crop_pad = _resolve_postprocessing_crop_pad(module)
     reference_image_shape = tuple(int(v) for v in images.shape)
 
-    mode, output_dir_value, cache_suffix, filenames = module._resolve_test_output_config(batch)
+    filenames = ctx.filenames
+    output_dir_value = ctx.output_dir_value
+    cache_suffix = ctx.cache_suffix
+    mode = "test"
     predictions_np, loaded_from_file, loaded_suffix = module._load_cached_predictions(
         output_dir_value,
         filenames,
@@ -668,10 +734,10 @@ def run_test_step(module, batch: Dict[str, torch.Tensor], batch_idx: int) -> STE
 
     if loaded_final_predictions:
         if distributed_tta_sharding and not is_global_zero:
-            print("  ⏭️  Nonzero rank skipping cached final prediction postprocessing.")
+            logger.info("Nonzero rank skipping cached final prediction postprocessing.")
             _distributed_tta_barrier(module)
             return torch.tensor(0.0, device=module.device)
-        print("  ✅ Loaded final predictions from disk, skipping inference/decoding/postprocessing")
+        logger.info("Loaded final predictions from disk, skipping inference/decoding/postprocessing")
         predictions_np = _apply_prediction_crop_pad_if_needed(
             module,
             predictions_np,
@@ -708,13 +774,13 @@ def run_test_step(module, batch: Dict[str, torch.Tensor], batch_idx: int) -> STE
 
     if loaded_intermediate_predictions:
         if distributed_tta_sharding and not is_global_zero:
-            print("  ⏭️  Nonzero rank skipping cached intermediate postprocessing.")
+            logger.info("Nonzero rank skipping cached intermediate postprocessing.")
             _distributed_tta_barrier(module)
             return torch.tensor(0.0, device=module.device)
-        print("  ✅ Loaded intermediate predictions from disk, skipping inference")
+        logger.info("Loaded intermediate predictions from disk, skipping inference")
         # In tune mode, the Optuna tuner handles decoding — skip it here.
         if mode == "tune":
-            print("  ⏭️  Tune mode: skipping decoding (Optuna tuner will handle it)")
+            logger.info("Tune mode: skipping decoding (Optuna tuner will handle it)")
             _distributed_tta_barrier(module)
             return torch.tensor(0.0, device=module.device)
         _log_volume_header(volume_name, "PROCESSING VOLUME")
@@ -759,16 +825,15 @@ def run_test_step(module, batch: Dict[str, torch.Tensor], batch_idx: int) -> STE
             batch_idx=batch_idx,
         )
         _log_volume_header(volume_name, "VOLUME COMPLETE")
-        print("")
         _distributed_tta_barrier(module)
         return torch.tensor(0.0, device=module.device)
 
-    print("  🔄 No cached predictions found, running inference")
+    logger.info("No cached predictions found, running inference")
     _log_volume_header(volume_name, "INFERENCE PLAN")
-    print(f"Input shape:       {tuple(images.shape)}")
-    print(f"Input device:      {images.device}")
+    logger.info(f"Input shape:       {tuple(images.shape)}")
+    logger.info(f"Input device:      {images.device}")
     if crop_pad is not None:
-        print(f"Postprocess crop:  {list(crop_pad)}")
+        logger.info(f"Postprocess crop:  {list(crop_pad)}")
 
     inference_cfg = module._get_runtime_inference_config()
     sw_cfg = getattr(inference_cfg, "sliding_window", None)
@@ -777,17 +842,17 @@ def run_test_step(module, batch: Dict[str, torch.Tensor], batch_idx: int) -> STE
         overlap = getattr(sw_cfg, "overlap", "N/A")
         sw_batch = getattr(sw_cfg, "sw_batch_size", "N/A")
         blending = getattr(sw_cfg, "blending", "gaussian")
-        print(f"Sliding window ROI: {roi_size}")
-        print(f"Overlap:            {overlap}")
-        print(f"SW batch size:      {sw_batch}")
-        print(f"Blending mode:      {blending}")
+        logger.info(f"Sliding window ROI: {roi_size}")
+        logger.info(f"Overlap:            {overlap}")
+        logger.info(f"SW batch size:      {sw_batch}")
+        logger.info(f"Blending mode:      {blending}")
     else:
-        print("Sliding window:     [Direct inference, no sliding window]")
-    print(f"TTA:                {module._summarize_tta_plan(images.ndim)}")
-    print(f"{'=' * 70}\n")
+        logger.info("Sliding window:     [Direct inference, no sliding window]")
+    logger.info(f"TTA:                {module._summarize_tta_plan(images.ndim)}")
+    logger.info(f"{'=' * 70}")
 
     inference_start = time.time()
-    print("  ⏱️  Starting sliding-window inference...")
+    logger.info("Starting sliding-window inference...")
 
     mask_align_to_image = False
     mask_transform_cfg = getattr(module.cfg.data, "data_transform", None)
@@ -800,7 +865,7 @@ def run_test_step(module, batch: Dict[str, torch.Tensor], batch_idx: int) -> STE
         mask_align_to_image=mask_align_to_image,
     )
     if distributed_tta_sharding and _should_skip_postprocess_on_rank(module):
-        print("  ✅ Completed local distributed TTA shard; waiting for rank 0 postprocessing.")
+        logger.info("Completed local distributed TTA shard; waiting for rank 0 postprocessing.")
         _distributed_tta_barrier(module)
         return torch.tensor(0.0, device=module.device)
     predictions_np = predictions.detach().cpu().float().numpy()
@@ -818,19 +883,18 @@ def run_test_step(module, batch: Dict[str, torch.Tensor], batch_idx: int) -> STE
         item_name="predictions",
     )
     inference_duration = time.time() - inference_start
-    print(f"  ✅ Inference completed in {inference_duration / 60:.2f} minutes ({inference_duration:.1f}s)")
+    logger.info(f"Inference completed in {inference_duration / 60:.2f} minutes ({inference_duration:.1f}s)")
 
-    print("\n  📊 Prediction Summary:")
-    print(f"      Shape:  {predictions_np.shape}")
-    print(f"      Dtype:  {predictions_np.dtype}")
-    print(f"      Min:    {predictions_np.min():.6f}")
-    print(f"      Max:    {predictions_np.max():.6f}")
-    print(f"      Mean:   {predictions_np.mean():.6f}")
-    print("")
+    logger.info("Prediction Summary:")
+    logger.info(f"    Shape:  {predictions_np.shape}")
+    logger.info(f"    Dtype:  {predictions_np.dtype}")
+    logger.info(f"    Min:    {predictions_np.min():.6f}")
+    logger.info(f"    Max:    {predictions_np.max():.6f}")
+    logger.info(f"    Mean:   {predictions_np.mean():.6f}")
 
     save_intermediate = bool(getattr(inference_cfg.save_prediction, "enabled", False))
     if save_intermediate:
-        print("\n  💾 [STAGE: Saving Intermediate Predictions]")
+        logger.info("[STAGE: Saving Intermediate Predictions]")
         save_start = time.time()
         predictions_to_save = apply_save_prediction_transform(module.cfg, predictions_np)
         write_outputs(
@@ -841,11 +905,11 @@ def run_test_step(module, batch: Dict[str, torch.Tensor], batch_idx: int) -> STE
             mode=mode,
             batch_meta=batch.get("image_meta_dict"),
         )
-        print(f"  ✅ Intermediate predictions saved ({time.time() - save_start:.1f}s)")
+        logger.info(f"Intermediate predictions saved ({time.time() - save_start:.1f}s)")
 
     # In tune mode, skip decoding — the Optuna tuner will handle it.
     if mode == "tune":
-        print("  ⏭️  Tune mode: skipping decoding (Optuna tuner will handle it)")
+        logger.info("Tune mode: skipping decoding (Optuna tuner will handle it)")
         _distributed_tta_barrier(module)
         return torch.tensor(0.0, device=module.device)
 
@@ -872,6 +936,5 @@ def run_test_step(module, batch: Dict[str, torch.Tensor], batch_idx: int) -> STE
         batch_idx=batch_idx,
     )
     _log_volume_header(volume_name, "VOLUME COMPLETE")
-    print("")
     _distributed_tta_barrier(module)
     return torch.tensor(0.0, device=module.device)

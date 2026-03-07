@@ -7,7 +7,7 @@ from typing import Any, List, Optional, Sequence
 import numpy as np
 import torch
 
-from ...utils.channel_slices import resolve_channel_slice_bounds
+from ...utils.channel_slices import resolve_channel_range
 
 __all__ = [
     "affinity_deepem_crop_enabled",
@@ -154,7 +154,7 @@ def resolve_affinity_offsets_for_channel_slice(
     cfg: Any,
     *,
     num_channels: int,
-    channel_slice: Optional[tuple[int, int]],
+    channel_slice: Optional[int | str],
 ) -> Optional[list[tuple[int, int, int]]]:
     """Return affinity offsets for a selected stacked-label channel slice, if applicable."""
     groups = resolve_affinity_channel_groups_from_cfg(cfg)
@@ -168,12 +168,10 @@ def resolve_affinity_offsets_for_channel_slice(
                 return list(offsets)
         return None
 
-    start_idx, end_idx = resolve_channel_slice_bounds(
+    start_idx, end_idx = resolve_channel_range(
         channel_slice,
         num_channels=num_channels,
         context="affinity channel slice",
-        negative_index_offset=0,
-        end_minus_one_full_span=False,
     )
     for (group_start, group_end), offsets in groups:
         if start_idx < group_start or end_idx > group_end:

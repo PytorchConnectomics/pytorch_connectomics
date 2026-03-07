@@ -15,6 +15,7 @@ The implementation delegates to specialized modules:
 
 from __future__ import annotations
 
+import logging
 import warnings
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Union
@@ -36,12 +37,20 @@ from ...inference import (
 from ...models import build_model
 from ...models.loss import create_loss, get_loss_metadata_for_module
 from ..debugging import DebugManager
+from ...metrics.metrics_seg import (
+    AdaptedRandError,
+    InstanceAccuracy,
+    InstanceAccuracySimple,
+    VariationOfInformation,
+)
 
 # Import training/inference components
 from ..loss import LossOrchestrator, build_loss_weighter, infer_num_loss_tasks_from_config
 from ..model_weights import load_external_weights
 from ..optim import build_lr_scheduler, build_optimizer
 from .test_pipeline import compute_test_metrics, run_test_step
+
+logger = logging.getLogger(__name__)
 
 
 class ConnectomicsModule(pl.LightningModule):
@@ -126,9 +135,8 @@ class ConnectomicsModule(pl.LightningModule):
         model = build_model(cfg)
         external_weights_path = getattr(cfg.model, "external_weights_path", None)
         if external_weights_path:
-            print(f"\n  Loading external weights from: {external_weights_path}")
+            logger.info(f"Loading external weights from: {external_weights_path}")
             model = load_external_weights(model, cfg)
-            print("")
         return model
 
     @staticmethod
@@ -194,9 +202,8 @@ class ConnectomicsModule(pl.LightningModule):
                 preview = ", ".join(dropped_keys[:3])
                 if len(dropped_keys) > 3:
                     preview += f", ... (+{len(dropped_keys) - 3} more)"
-                print(
-                    "  ℹ️  Ignoring stale loss-function checkpoint key(s): "
-                    f"{preview}"
+                logger.info(
+                    f"Ignoring stale loss-function checkpoint key(s): {preview}"
                 )
 
         return super().load_state_dict(state_dict, strict=strict)
@@ -217,7 +224,7 @@ class ConnectomicsModule(pl.LightningModule):
     @staticmethod
     def _cfg_value(cfg_obj: Any, key: str, default: Any = None) -> Any:
         """Unified dict/attribute config accessor (delegates to shared utility)."""
-        from ...config.dict_utils import cfg_get
+        from ...config.pipeline.dict_utils import cfg_get
         return cfg_get(cfg_obj, key, default)
 
     @classmethod
@@ -265,18 +272,14 @@ class ConnectomicsModule(pl.LightningModule):
         # Instance-level metrics only for test
         if prefix == "test_":
             if "adapted_rand" in metrics:
-                from ...metrics.metrics_seg import AdaptedRandError
                 setattr(self, f"{prefix}adapted_rand", AdaptedRandError().to(self.device))
             if "voi" in metrics:
-                from ...metrics.metrics_seg import VariationOfInformation
                 setattr(self, f"{prefix}voi", VariationOfInformation().to(self.device))
             if "instance_accuracy" in metrics:
-                from ...metrics.metrics_seg import InstanceAccuracy
                 setattr(self, f"{prefix}instance_accuracy", InstanceAccuracy(
                     thresh=instance_iou_threshold, criterion="iou",
                 ).to(self.device))
             if "instance_accuracy_detail" in metrics:
-                from ...metrics.metrics_seg import InstanceAccuracySimple
                 setattr(self, f"{prefix}instance_accuracy_detail", InstanceAccuracySimple(
                     thresh=instance_iou_threshold, criterion="iou",
                 ).to(self.device))
@@ -357,10 +360,10 @@ class ConnectomicsModule(pl.LightningModule):
         # Note: intensity_scale < 0 means scaling was disabled, so no inversion needed
         if intensity_scale is not None and intensity_scale > 0 and intensity_scale != 1.0:
             data = data / float(intensity_scale)
-            print(f"  🔄 Inverted intensity scaling by {intensity_scale}")
+            logger.info(f"Inverted intensity scaling by {intensity_scale}")
         elif intensity_scale is not None and intensity_scale < 0:
-            print(
-                f"  ℹ️  Intensity scaling was disabled (scale={intensity_scale}), no inversion needed"
+            logger.info(
+                f"Intensity scaling was disabled (scale={intensity_scale}), no inversion needed"
             )
 
         return data
@@ -399,26 +402,26 @@ class ConnectomicsModule(pl.LightningModule):
 
             if pred_file.exists():
                 try:
-                    print(f"  📥 Using explicit inference.tta_result_path file: {pred_file}")
+                    logger.info(f"Using explicit inference.tta_result_path file: {pred_file}")
                     pred = read_hdf5(str(pred_file), dataset="main")
                     if pred.ndim < 4:
                         pred = pred[np.newaxis, ...]
                     if len(filenames) > 1:
-                        print(
-                            "  ⚠️  inference.tta_result_path is a single file while batch has "
+                        logger.warning(
+                            f"inference.tta_result_path is a single file while batch has "
                             f"{len(filenames)} filenames; decoding will use the explicit file only."
                         )
                     # Treat explicit file as intermediate prediction so decoding still runs.
                     return pred, True, "_tta_prediction.h5"
                 except Exception as e:
-                    print(
-                        f"  ⚠️  Failed to load explicit inference.tta_result_path file {pred_file}: {e}. "
-                        "Falling back to computed cache paths."
+                    logger.warning(
+                        f"Failed to load explicit inference.tta_result_path file {pred_file}: {e}. "
+                        f"Falling back to computed cache paths."
                     )
             else:
-                print(
-                    f"  ⚠️  inference.tta_result_path file not found: {pred_file}. "
-                    "Falling back to computed cache paths."
+                logger.warning(
+                    f"inference.tta_result_path file not found: {pred_file}. "
+                    f"Falling back to computed cache paths."
                 )
 
         if not output_dir_value:
@@ -444,7 +447,7 @@ class ConnectomicsModule(pl.LightningModule):
                     pred = read_hdf5(str(pred_file), dataset="main")
                     existing_predictions.append(pred)
                 except Exception as e:
-                    print(f"  ⚠️  Failed to load {pred_file}: {e}, will re-run inference")
+                    logger.warning(f"Failed to load {pred_file}: {e}, will re-run inference")
                     all_exist = False
                     break
             else:
@@ -452,8 +455,8 @@ class ConnectomicsModule(pl.LightningModule):
                 break
 
         if all_exist and len(existing_predictions) == len(filenames):
-            print(
-                f"  ✅ All prediction files exist! Loading {len(existing_predictions)} predictions and skipping inference."
+            logger.info(
+                f"All prediction files exist. Loading {len(existing_predictions)} predictions and skipping inference."
             )
             if len(existing_predictions) == 1:
                 predictions_np = existing_predictions[0]
@@ -482,7 +485,7 @@ class ConnectomicsModule(pl.LightningModule):
         output_path = getattr(self._get_runtime_inference_config().save_prediction, "output_path", None)
 
         if output_path is None:
-            print(f"  ⚠️  Cannot save metrics: output_path not found for mode={mode}")
+            logger.warning(f"Cannot save metrics: output_path not found for mode={mode}")
             return
 
         from datetime import datetime
@@ -559,15 +562,34 @@ class ConnectomicsModule(pl.LightningModule):
 
                 f.write("=" * 80 + "\n")
 
-            print(f"  💾 Metrics saved to: {metrics_file}")
+            logger.info(f"Metrics saved to: {metrics_file}")
         except Exception as e:
-            print(f"  ⚠️  Failed to save metrics to file: {e}")
+            logger.warning(f"Failed to save metrics to file: {e}")
 
     def _compute_test_metrics(
         self, decoded_predictions: np.ndarray, labels: torch.Tensor, volume_name: str = None
     ):
         """Update configured test metrics."""
         compute_test_metrics(self, decoded_predictions, labels, volume_name=volume_name)
+
+    def _compute_loss(
+        self,
+        outputs,
+        labels: torch.Tensor,
+        stage: str,
+        mask: Optional[torch.Tensor] = None,
+    ):
+        """Compute loss handling both standard and deep supervision outputs."""
+        is_deep_supervision = isinstance(outputs, dict) and any(
+            k.startswith("ds_") for k in outputs.keys()
+        )
+        if is_deep_supervision:
+            return self.loss_orchestrator.compute_deep_supervision_loss(
+                outputs, labels, stage=stage, mask=mask
+            )
+        return self.loss_orchestrator.compute_standard_loss(
+            outputs, labels, stage=stage, mask=mask
+        )
 
     def training_step(self, batch: Dict[str, torch.Tensor], batch_idx: int) -> STEP_OUTPUT:
         """Training step with deep supervision support."""
@@ -581,20 +603,8 @@ class ConnectomicsModule(pl.LightningModule):
         # Forward pass
         outputs = self(images)
 
-        # Check if model outputs deep supervision
-        is_deep_supervision = isinstance(outputs, dict) and any(
-            k.startswith("ds_") for k in outputs.keys()
-        )
-
         # Compute loss using the loss orchestrator
-        if is_deep_supervision:
-            total_loss, loss_dict = self.loss_orchestrator.compute_deep_supervision_loss(
-                outputs, labels, stage="train", mask=mask
-            )
-        else:
-            total_loss, loss_dict = self.loss_orchestrator.compute_standard_loss(
-                outputs, labels, stage="train", mask=mask
-            )
+        total_loss, loss_dict = self._compute_loss(outputs, labels, stage="train", mask=mask)
 
         # Keep full training curves in TensorBoard while avoiding console spam.
         self.log_dict(
@@ -618,20 +628,8 @@ class ConnectomicsModule(pl.LightningModule):
         # Forward pass
         outputs = self(images)
 
-        # Check if model outputs deep supervision
-        is_deep_supervision = isinstance(outputs, dict) and any(
-            k.startswith("ds_") for k in outputs.keys()
-        )
-
         # Compute loss using the loss orchestrator
-        if is_deep_supervision:
-            total_loss, loss_dict = self.loss_orchestrator.compute_deep_supervision_loss(
-                outputs, labels, stage="val", mask=mask
-            )
-        else:
-            total_loss, loss_dict = self.loss_orchestrator.compute_standard_loss(
-                outputs, labels, stage="val", mask=mask
-            )
+        total_loss, loss_dict = self._compute_loss(outputs, labels, stage="val", mask=mask)
 
         # Compute evaluation metrics if enabled
         evaluation_cfg = self._get_test_evaluation_config()
@@ -639,7 +637,7 @@ class ConnectomicsModule(pl.LightningModule):
         metrics = self._cfg_value(evaluation_cfg, "metrics", None)
 
         if evaluation_enabled and metrics is not None:
-            if is_deep_supervision:
+            if isinstance(outputs, dict) and "output" in outputs:
                 main_output = outputs["output"]
             else:
                 main_output = outputs
@@ -726,8 +724,8 @@ class ConnectomicsModule(pl.LightningModule):
 
         sliding_cfg = getattr(inference_cfg, "sliding_window", None)
         if bool(getattr(sliding_cfg, "keep_input_on_cpu", False)):
-            print(
-                "  Sliding-window CPU input mode enabled: keeping test image tensors on CPU "
+            logger.info(
+                "Sliding-window CPU input mode enabled: keeping test image tensors on CPU "
                 "and letting MONAI move window batches to the configured sw_device."
             )
 
@@ -862,13 +860,13 @@ class ConnectomicsModule(pl.LightningModule):
             }
 
             # Print scheduler configuration for verification
-            print(
-                f"  📅 Scheduler interval: '{scheduler_interval}' (frequency: {scheduler_frequency})"
+            logger.info(
+                f"Scheduler interval: '{scheduler_interval}' (frequency: {scheduler_frequency})"
             )
             if scheduler_interval == "step":
-                print(f"  ℹ️  Scheduler will step every {scheduler_frequency} training step(s)")
+                logger.info(f"Scheduler will step every {scheduler_frequency} training step(s)")
             else:
-                print(f"  ℹ️  Scheduler will step every {scheduler_frequency} epoch(s)")
+                logger.info(f"Scheduler will step every {scheduler_frequency} epoch(s)")
 
             # ReduceLROnPlateau requires the 'monitor' key to pass the metric value
             if isinstance(scheduler, torch.optim.lr_scheduler.ReduceLROnPlateau):
@@ -883,12 +881,12 @@ class ConnectomicsModule(pl.LightningModule):
 
                 if monitor_metric:
                     scheduler_config["monitor"] = monitor_metric
-                    print(f"  ✅ ReduceLROnPlateau will monitor: {monitor_metric}")
+                    logger.info(f"ReduceLROnPlateau will monitor: {monitor_metric}")
                 else:
                     # Default to validation loss
                     scheduler_config["monitor"] = "val_loss_total"
-                    print(
-                        "  ⚠️  ReduceLROnPlateau will monitor: val_loss_total (default, no monitor specified in config)"
+                    logger.warning(
+                        "ReduceLROnPlateau will monitor: val_loss_total (default, no monitor specified in config)"
                     )
 
             return {

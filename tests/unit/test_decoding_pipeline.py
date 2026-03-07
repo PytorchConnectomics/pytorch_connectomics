@@ -6,6 +6,7 @@ import numpy as np
 import pytest
 
 from connectomics.decoding import (
+    DecoderRegistry,
     apply_decode_pipeline,
     decode_affinity_cc,
     list_decoders,
@@ -63,3 +64,23 @@ def test_decode_pipeline_unknown_decoder_raises(affinity_with_redundant_channels
     decode_modes = [{"name": "decode_not_exists", "kwargs": {}}]
     with pytest.raises(ValueError, match="Unknown decode function"):
         apply_decode_pipeline(affinity_with_redundant_channels, decode_modes)
+
+
+def test_decode_pipeline_resolves_python_style_channel_selectors():
+    registry = DecoderRegistry()
+
+    def capture_channels(data: np.ndarray, distance_channels=None):
+        return np.asarray(distance_channels, dtype=np.int64)
+
+    registry.register("capture_channels", capture_channels)
+    data = np.zeros((4, 2, 2, 2), dtype=np.float32)
+    decode_modes = [
+        {
+            "name": "capture_channels",
+            "kwargs": {"distance_channels": "1:-1"},
+        }
+    ]
+
+    resolved = apply_decode_pipeline(data, decode_modes, registry=registry)
+
+    np.testing.assert_array_equal(resolved, np.array([1, 2], dtype=np.int64))

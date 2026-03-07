@@ -20,6 +20,7 @@ Supports multi-CPU parallelism with Python multiprocessing for batch evaluation.
 """
 
 from __future__ import annotations
+import functools
 import os
 from typing import Tuple, List, Optional
 import numpy as np
@@ -217,7 +218,7 @@ def evaluate_file_pair(
     threshold: int = 128,
     dilation_size: int = 5,
     verbose: bool = False,
-) -> Tuple[float, float, float, float]:
+) -> Optional[Tuple[float, float, float, float]]:
     """Evaluate single file pair (for parallel processing).
 
     Args:
@@ -228,7 +229,7 @@ def evaluate_file_pair(
         verbose: Print results for each image. Default: False
 
     Returns:
-        Tuple of (iou, correctness, completeness, quality) or empty list if file missing
+        Tuple of (iou, correctness, completeness, quality) or None if file missing
     """
     if imageio is None:
         raise ImportError(
@@ -236,7 +237,7 @@ def evaluate_file_pair(
         )
 
     if not os.path.exists(pred_path):
-        return []
+        return None
 
     # Load images
     pred = imageio.imread(pred_path)
@@ -312,13 +313,14 @@ def evaluate_directory(
     ]
 
     # Parallel evaluation
+    eval_fn = functools.partial(
+        evaluate_file_pair, threshold=threshold, dilation_size=dilation_size, verbose=verbose
+    )
     with multiprocessing.Pool(num_workers) as pool:
-        results = pool.starmap(
-            lambda p, g: evaluate_file_pair(p, g, threshold, dilation_size, verbose), file_pairs
-        )
+        results = pool.starmap(eval_fn, file_pairs)
 
     # Filter out missing files and compute statistics
-    results = [r for r in results if r != []]
+    results = [r for r in results if r is not None]
     results_array = np.array(results)
 
     if len(results) == 0:

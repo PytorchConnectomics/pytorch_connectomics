@@ -62,13 +62,13 @@ def list_decoders() -> List[str]:
 
 def register_builtin_decoders() -> None:
     """Populate registry with built-in decoders."""
-    from .abiss import decode_abiss
-    from .segmentation import (
+    from .decoders.abiss import decode_abiss
+    from .decoders.segmentation import (
         decode_affinity_cc,
         decode_distance_watershed,
         decode_instance_binary_contour_distance,
     )
-    from .synapse import polarity2instance
+    from .decoders.synapse import polarity2instance
 
     register_decoder(
         "decode_instance_binary_contour_distance",

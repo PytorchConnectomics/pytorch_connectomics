@@ -60,7 +60,7 @@ def minimal_config():
                 },
                 'loss': {
                     'losses': [
-                        {'function': 'DiceLoss', 'weight': 1.0, 'pred_slice': [0, 1], 'target_slice': [0, 1]}
+                        {'function': 'DiceLoss', 'weight': 1.0, 'pred_slice': "0:1", 'target_slice': "0:1"}
                     ],
                 },
             },
@@ -303,10 +303,10 @@ class TestMultiTask:
                 'monai': {'filters': [8, 16], 'norm': 'group', 'num_groups': 1},
                 'loss': {
                     'losses': [
-                        {'function': 'DiceLoss', 'weight': 1.0, 'pred_slice': [0, 1], 'target_slice': [0, 1]},
-                        {'function': 'BCEWithLogitsLoss', 'weight': 0.5, 'coefficient': 0.5, 'pred_slice': [0, 1], 'target_slice': [0, 1]},
-                        {'function': 'BCEWithLogitsLoss', 'weight': 0.5, 'pred_slice': [1, 2], 'target_slice': [1, 2]},
-                        {'function': 'MSELoss', 'weight': 1.0, 'pred_slice': [2, 3], 'target_slice': [2, 3]},
+                        {'function': 'DiceLoss', 'weight': 1.0, 'pred_slice': "0:1", 'target_slice': "0:1"},
+                        {'function': 'BCEWithLogitsLoss', 'weight': 0.5, 'coefficient': 0.5, 'pred_slice': "0:1", 'target_slice': "0:1"},
+                        {'function': 'BCEWithLogitsLoss', 'weight': 0.5, 'pred_slice': "1:2", 'target_slice': "1:2"},
+                        {'function': 'MSELoss', 'weight': 1.0, 'pred_slice': "2:3", 'target_slice': "2:3"},
                     ],
                 },
             },
@@ -335,10 +335,10 @@ class TestMultiTask:
                 'monai': {'filters': [8, 16], 'norm': 'group', 'num_groups': 1},
                 'loss': {
                     'losses': [
-                        {'function': 'DiceLoss', 'weight': 1.0, 'pred_slice': [0, 1], 'target_slice': [0, 1]},
-                        {'function': 'BCEWithLogitsLoss', 'weight': 0.5, 'pred_slice': [0, 1], 'target_slice': [0, 1]},
-                        {'function': 'BCEWithLogitsLoss', 'weight': 0.5, 'pred_slice': [1, 2], 'target_slice': [1, 2]},
-                        {'function': 'MSELoss', 'weight': 1.0, 'pred_slice': [2, 3], 'target_slice': [2, 3]},
+                        {'function': 'DiceLoss', 'weight': 1.0, 'pred_slice': "0:1", 'target_slice': "0:1"},
+                        {'function': 'BCEWithLogitsLoss', 'weight': 0.5, 'pred_slice': "0:1", 'target_slice': "0:1"},
+                        {'function': 'BCEWithLogitsLoss', 'weight': 0.5, 'pred_slice': "1:2", 'target_slice': "1:2"},
+                        {'function': 'MSELoss', 'weight': 1.0, 'pred_slice': "2:3", 'target_slice': "2:3"},
                     ],
                 },
             },

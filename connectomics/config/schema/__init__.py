@@ -39,7 +39,6 @@ from .inference import (
     SlidingWindowConfig,
     TestTimeAugmentationConfig,
 )
-from .helpers import configure_edge_mode, configure_instance_segmentation
 from .model import LossConfig, ModelArchConfig, ModelConfig
 from .model_mednext import MedNeXtConfig
 from .model_monai import MonaiConfig, TransformerConfig
@@ -150,7 +149,4 @@ __all__ = [
     "StripeConfig",
     "MixupConfig",
     "CopyPasteConfig",
-    # Utility functions
-    "configure_edge_mode",
-    "configure_instance_segmentation",
 ]

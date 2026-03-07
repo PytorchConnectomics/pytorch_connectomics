@@ -17,6 +17,8 @@ Key design principles from EMVision:
 - Anisotropic convolutions for EM data (1,2,2) by default
 """
 
+
+from __future__ import annotations
 import math
 from typing import List, Tuple, Union, Dict, Optional
 import torch
@@ -301,7 +303,7 @@ class RSUNet(ConnectomicsModel):
         self,
         in_channels: int,
         out_channels: int,
-        width: List[int] = [16, 32, 64, 128, 256],
+        width: Optional[List[int]] = None,
         kernel_sizes: Union[int, List[Union[int, Tuple[int, int, int]]]] = 3,
         down_factors: Optional[List[Tuple[int, int, int]]] = None,
         norm: str = "batch",
@@ -314,6 +316,8 @@ class RSUNet(ConnectomicsModel):
     ):
         super().__init__()
 
+        if width is None:
+            width = [16, 32, 64, 128, 256]
         if len(width) <= 1:
             raise ValueError("Need at least 2 levels")
         self.depth = len(width) - 1
@@ -386,12 +390,9 @@ class RSUNet(ConnectomicsModel):
         self.output_head = nn.Conv3d(width[0], out_channels, kernel_size=1)
 
         # Deep supervision heads (from deeper to shallower)
+        # Keys follow the base class contract: ds_1 (deepest) through ds_4 (shallowest)
         if deep_supervision:
             self.ds_heads = nn.ModuleList()
-            # Create heads for deeper levels (before upsampling to final resolution)
-            # ds_0 = bottleneck level (width[-1])
-            # ds_1 = one level up (width[-2])
-            # etc.
             for d in range(min(4, self.depth)):
                 level_idx = self.depth - d  # Go from deepest to shallower
                 self.ds_heads.append(nn.Conv3d(width[level_idx], out_channels, kernel_size=1))
@@ -437,10 +438,11 @@ class RSUNet(ConnectomicsModel):
         if not self.supports_deep_supervision:
             return output
 
-        # Deep supervision outputs (deeper to shallower)
+        # Deep supervision outputs: ds_1 (deepest) through ds_N (shallowest)
+        # Matches base class contract and LossOrchestrator expectations
         result = {"output": output}
         for i, (feat, head) in enumerate(zip(ds_features, self.ds_heads)):
-            result[f"ds_{i}"] = head(feat)
+            result[f"ds_{i + 1}"] = head(feat)
 
         return result
 

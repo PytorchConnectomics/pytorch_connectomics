@@ -1,10 +1,13 @@
+from __future__ import annotations
+
 from typing import Tuple, List, Union
 
 import numpy as np
 
 
 def build_blending_matrix(sz, mode="gaussian"):
-    assert mode in ["gaussian", "bump"]
+    if mode not in ("gaussian", "bump"):
+        raise ValueError(f"Unknown blending mode '{mode}'. Expected 'gaussian' or 'bump'.")
     if mode == "gaussian":
         return blend_gaussian(sz)
     else:

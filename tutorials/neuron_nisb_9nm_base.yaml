@@ -19,13 +19,13 @@ model:
     losses:
     - function: WeightedBCEWithLogitsLoss
       weight: 1.0
-      pred_slice: [0, 6]
-      target_slice: [0, 6]
+      pred_slice: "0:6"
+      target_slice: "0:6"
     - function: WeightedMSELoss
       weight: 1.0
       kwargs: {tanh: true}
-      pred_slice: [6, 7]
-      target_slice: [6, 7]
+      pred_slice: "6:7"
+      target_slice: "6:7"
   mednext:
     size: B
     kernel_size: 3
@@ -185,9 +185,9 @@ inference:
     flip_axes:
     rotation90_axes:
     channel_activations:
-    - [0, 6, sigmoid]
-    - [6, 7, tanh]
-    select_channel: all
+      - {channels: "0:-1", activation: sigmoid}
+      - {channels: "-1:", activation: tanh}
+    select_channel: ":"
     ensemble_mode: mean
     apply_mask: false
 

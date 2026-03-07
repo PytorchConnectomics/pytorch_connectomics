@@ -7,15 +7,19 @@ All models are registered in the architecture registry.
 This module is intentionally model-only:
 - selects an architecture builder
 - instantiates the model
-- prints model structure info
+- logs model structure info
 
 It does not load checkpoints or move the model to a device.
 """
 
-from .arch import (
-    get_architecture_builder,
-    print_available_architectures,
-)
+
+from __future__ import annotations
+import logging
+
+from .arch import get_architecture_builder
+
+logger = logging.getLogger(__name__)
+
 
 def build_model(cfg):
     """
@@ -49,29 +53,21 @@ def build_model(cfg):
     # Get architecture name
     model_arch = cfg.model.arch.type
 
-    # Get builder from registry
-    try:
-        builder = get_architecture_builder(model_arch)
-    except ValueError as e:
-        print(f"\nError: {e}")
-        print("\nAvailable architectures:")
-        print_available_architectures()
-        raise
+    # Get builder from registry (raises ValueError with available archs on failure)
+    builder = get_architecture_builder(model_arch)
 
     # Build model
     model = builder(cfg)
 
-    # Print model info
-    print(f"\nModel: {model.__class__.__name__} (architecture: {model_arch})")
+    # Log model info
+    logger.info("Model: %s (architecture: %s)", model.__class__.__name__, model_arch)
     if hasattr(model, "get_model_info"):
         info = model.get_model_info()
-        print(f"  Parameters: {info['parameters']:,}")
-        print(f"  Trainable: {info['trainable_parameters']:,}")
-        print(f"  Deep Supervision: {info['deep_supervision']}")
+        logger.info("  Parameters: %s", f"{info['parameters']:,}")
+        logger.info("  Trainable: %s", f"{info['trainable_parameters']:,}")
+        logger.info("  Deep Supervision: %s", info['deep_supervision'])
         if info["deep_supervision"]:
-            print(f"  Output Scales: {info['output_scales']}")
-
-    print("")
+            logger.info("  Output Scales: %s", info['output_scales'])
 
     return model
 

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 from pathlib import Path
 from typing import Any, Dict, List, Sequence
 
@@ -9,7 +10,8 @@ import numpy as np
 from omegaconf import DictConfig
 
 from ..config import Config
-from .postprocessing import analyze_h5_array
+
+logger = logging.getLogger(__name__)
 
 
 def resolve_output_filenames(
@@ -49,8 +51,8 @@ def resolve_output_filenames(
             resolved_names.append(f"volume_{global_step}_{idx}")
 
     if len(resolved_names) < batch_size:
-        print(
-            f"  WARNING: resolve_output_filenames - Only {len(resolved_names)} "
+        logger.warning(
+            f"resolve_output_filenames - Only {len(resolved_names)} "
             f"filenames but batch_size is {batch_size}, padding with fallback names"
         )
         while len(resolved_names) < batch_size:
@@ -123,7 +125,9 @@ def _resample_array_to_shape(
     return array
 
 
-def _fit_array_to_shape(array: np.ndarray, target_shape: Sequence[int], spatial_dims: int) -> np.ndarray:
+def _fit_array_to_shape(
+    array: np.ndarray, target_shape: Sequence[int], spatial_dims: int
+) -> np.ndarray:
     target = tuple(int(v) for v in target_shape)
     if _spatial_shape(array, spatial_dims) == target:
         return array
@@ -149,13 +153,17 @@ def _fit_array_to_shape(array: np.ndarray, target_shape: Sequence[int], spatial_
     return array
 
 
-def _restore_prediction_to_input_space(sample: np.ndarray, meta: Dict[str, Any]) -> np.ndarray:
+def _restore_prediction_to_input_space(
+    sample: np.ndarray, meta: Dict[str, Any]
+) -> np.ndarray:
     preprocess_meta = meta.get("nnunet_preprocess")
     if not isinstance(preprocess_meta, dict) or not preprocess_meta.get("enabled", False):
         return sample
 
     array = sample
-    spatial_dims = int(preprocess_meta.get("spatial_dims", _infer_spatial_dims_from_array(array)))
+    spatial_dims = int(
+        preprocess_meta.get("spatial_dims", _infer_spatial_dims_from_array(array))
+    )
     is_integer = np.issubdtype(array.dtype, np.integer)
     interp_order = 0 if is_integer else 1
 
@@ -186,7 +194,9 @@ def _restore_prediction_to_input_space(sample: np.ndarray, meta: Dict[str, Any])
                 slices = tuple(slice(int(b[0]), int(b[1])) for b in bbox)
                 restored[(slice(None), *slices)] = array
             else:
-                restored = np.zeros(tuple(int(v) for v in original_shape), dtype=array.dtype)
+                restored = np.zeros(
+                    tuple(int(v) for v in original_shape), dtype=array.dtype
+                )
                 slices = tuple(slice(int(b[0]), int(b[1])) for b in bbox)
                 restored[slices] = array
             array = restored
@@ -209,7 +219,8 @@ def _should_restore_outputs(cfg: Config | DictConfig, mode: str) -> bool:
         pre = getattr(data_cfg, "nnunet_preprocessing", None)
         if pre is not None:
             return bool(
-                getattr(pre, "enabled", False) and getattr(pre, "restore_to_input_space", False)
+                getattr(pre, "enabled", False)
+                and getattr(pre, "restore_to_input_space", False)
             )
 
     return False
@@ -246,6 +257,132 @@ def _resolve_mode_configs(
     return inference_cfg, data_cfg, output_dir_value
 
 
+def apply_save_prediction_transform(cfg: Config | DictConfig, data: np.ndarray) -> np.ndarray:
+    """Apply intensity scaling and dtype conversion from save_prediction config."""
+    intensity_scale = -1.0
+    if hasattr(cfg, "inference") and hasattr(cfg.inference, "save_prediction"):
+        save_pred_cfg = cfg.inference.save_prediction
+        intensity_scale = getattr(save_pred_cfg, "intensity_scale", -1.0)
+
+    if intensity_scale >= 0:
+        data = data.astype(np.float32)
+        data_min = data.min()
+        data_max = data.max()
+
+        if data_max > data_min:
+            data = (data - data_min) / (data_max - data_min)
+            logger.info(f"Normalized predictions to [0, 1] (min={data_min:.4f}, max={data_max:.4f})")
+        else:
+            logger.warning(f"data_min == data_max ({data_min:.4f}), skipping normalization")
+
+        if intensity_scale != 1.0:
+            data = data * float(intensity_scale)
+            logger.info(
+                f"Scaled predictions by {intensity_scale} -> "
+                f"range [{data.min():.4f}, {data.max():.4f}]"
+            )
+    else:
+        logger.info(
+            f"Intensity scaling disabled (scale={intensity_scale} < 0), keeping raw predictions"
+        )
+        return data
+
+    target_dtype_str = None
+    if hasattr(cfg, "inference") and hasattr(cfg.inference, "save_prediction"):
+        save_pred_cfg = cfg.inference.save_prediction
+        target_dtype_str = getattr(save_pred_cfg, "intensity_dtype", None)
+
+    if target_dtype_str is not None:
+        dtype_map = {
+            "uint8": np.uint8,
+            "int8": np.int8,
+            "uint16": np.uint16,
+            "int16": np.int16,
+            "uint32": np.uint32,
+            "int32": np.int32,
+            "float16": np.float16,
+            "float32": np.float32,
+            "float64": np.float64,
+        }
+
+        if target_dtype_str not in dtype_map:
+            logger.warning(
+                f"Unknown dtype '{target_dtype_str}' in save_prediction config. "
+                f"Supported: {list(dtype_map.keys())}. Keeping current dtype."
+            )
+            return data
+
+        target_dtype = dtype_map[target_dtype_str]
+        if np.issubdtype(target_dtype, np.integer):
+            info = np.iinfo(target_dtype)
+            data = np.clip(data, info.min, info.max)
+            logger.info(f"Converting to {target_dtype_str} (clipped to [{info.min}, {info.max}])")
+
+        data = data.astype(target_dtype)
+
+    return data
+
+
+def apply_postprocessing(cfg: Config | DictConfig, data: np.ndarray) -> np.ndarray:
+    """Apply inference postprocessing transforms."""
+    if not hasattr(cfg, "inference") or not hasattr(cfg.inference, "postprocessing"):
+        return data
+
+    postprocessing = cfg.inference.postprocessing
+    if not getattr(postprocessing, "enabled", False):
+        return data
+
+    binary_config = getattr(postprocessing, "binary", None)
+    if binary_config is not None and getattr(binary_config, "enabled", False):
+        from connectomics.decoding.postprocess.postprocess import apply_binary_postprocessing
+
+        if data.ndim in (4, 5):
+            batch_size = data.shape[0]
+        elif data.ndim == 3:
+            batch_size = 1
+            data = data[np.newaxis, ...]
+        elif data.ndim == 2:
+            batch_size = 1
+            data = data[np.newaxis, np.newaxis, ...]
+        else:
+            batch_size = 1
+
+        results = []
+        for batch_idx in range(batch_size):
+            sample = data[batch_idx]
+
+            if sample.ndim == 4:
+                foreground_prob = sample[0]
+            elif sample.ndim == 3:
+                foreground_prob = sample
+            elif sample.ndim == 2:
+                foreground_prob = sample[np.newaxis, ...]
+            else:
+                foreground_prob = sample
+
+            processed = apply_binary_postprocessing(foreground_prob, binary_config)
+
+            if sample.ndim == 4:
+                processed = processed[np.newaxis, ...]
+            elif sample.ndim == 2:
+                processed = processed[np.newaxis, np.newaxis, ...]
+
+            results.append(processed)
+
+        data = np.stack(results, axis=0)
+
+    output_transpose = getattr(postprocessing, "output_transpose", [])
+    if output_transpose and len(output_transpose) > 0:
+        try:
+            data = np.transpose(data, axes=output_transpose)
+        except Exception as exc:
+            logger.warning(
+                f"Transpose failed with axes {output_transpose}: {exc}. Keeping original shape."
+            )
+
+    return data
+
+
 def write_outputs(
     cfg: Config | DictConfig,
     predictions: np.ndarray,
@@ -254,7 +391,12 @@ def write_outputs(
     mode: str = "test",
     batch_meta: Any = None,
 ) -> None:
-    """Persist predictions to disk."""
+    """Persist predictions to disk.
+
+    Note: output_transpose is NOT applied here. It is applied once in
+    apply_postprocessing() to avoid double-transpose when both functions
+    are called on the same data.
+    """
     inference_cfg, _data_cfg, output_dir_value = _resolve_mode_configs(cfg, mode)
     if inference_cfg is None:
         return
@@ -266,14 +408,6 @@ def write_outputs(
     output_dir.mkdir(parents=True, exist_ok=True)
 
     from connectomics.data.io import save_volume, write_hdf5
-
-    output_transpose = []
-    if hasattr(inference_cfg, "postprocessing"):
-        output_transpose = getattr(inference_cfg.postprocessing, "output_transpose", [])
-
-    save_channels = None
-    if hasattr(inference_cfg, "sliding_window"):
-        save_channels = getattr(inference_cfg.sliding_window, "save_channels", None)
 
     if predictions.ndim >= 4:
         actual_batch_size = predictions.shape[0]
@@ -288,8 +422,8 @@ def write_outputs(
         predictions = predictions[np.newaxis, ...]
 
     if len(filenames) != actual_batch_size:
-        print(
-            f"  WARNING: write_outputs - filename count ({len(filenames)}) "
+        logger.warning(
+            f"write_outputs - filename count ({len(filenames)}) "
             f"does not match batch size ({actual_batch_size}). Using first "
             f"{min(len(filenames), actual_batch_size)} filenames."
         )
@@ -298,7 +432,9 @@ def write_outputs(
 
     for idx in range(actual_batch_size):
         if idx >= len(filenames):
-            print(f"  WARNING: write_outputs - no filename for batch index {idx}, skipping")
+            logger.warning(
+                f"write_outputs - no filename for batch index {idx}, skipping"
+            )
             continue
 
         sample = predictions[idx]
@@ -307,38 +443,13 @@ def write_outputs(
             sample = _restore_prediction_to_input_space(sample, sample_meta)
 
         filename = filenames[idx]
-
-        if save_channels is not None and sample.ndim >= 4:
-            channel_indices = list(save_channels)
-            num_channels = sample.shape[0]
-            if num_channels > len(channel_indices):
-                try:
-                    sample = sample[channel_indices]
-                    print(
-                        f"  Selected channels {channel_indices} from "
-                        f"{predictions[idx].shape[0]} channels"
-                    )
-                except Exception as exc:
-                    print(
-                        f"  WARNING: write_outputs - channel selection failed: "
-                        f"{exc}, keeping all channels"
-                    )
-
-        if output_transpose and len(output_transpose) > 0:
-            try:
-                sample = np.transpose(sample, axes=output_transpose)
-            except Exception as exc:
-                print(f"  WARNING: write_outputs - transpose failed: {exc}, keeping original shape")
-
         sample = np.squeeze(sample)
 
         output_formats = ["h5"]
-        analyze_h5 = False
         if hasattr(inference_cfg, "save_prediction"):
             save_pred_cfg = inference_cfg.save_prediction
             if hasattr(save_pred_cfg, "output_formats") and save_pred_cfg.output_formats:
                 output_formats = save_pred_cfg.output_formats
-            analyze_h5 = getattr(save_pred_cfg, "analyze_h5", False)
 
         for fmt in output_formats:
             fmt_lower = fmt.lower()
@@ -347,43 +458,46 @@ def write_outputs(
                 out_path = output_dir / f"{filename}_{suffix}.h5"
                 write_hdf5(
                     out_path,
-                    sample.astype(np.float32) if not np.issubdtype(sample.dtype, np.integer) else sample,
+                    sample.astype(np.float32)
+                    if not np.issubdtype(sample.dtype, np.integer)
+                    else sample,
                     dataset="main",
                 )
-                print(f"  Saved HDF5: {out_path.name}")
-
-                if analyze_h5:
-                    try:
-                        analyze_h5_array(sample, f"{filename}_{suffix}")
-                    except Exception as exc:
-                        print(f"  WARNING: HDF5 analysis failed: {exc}")
+                logger.info(f"Saved HDF5: {out_path.name}")
 
             elif fmt_lower in ["tif", "tiff"]:
                 out_path = output_dir / f"{filename}_{suffix}.tiff"
                 try:
                     save_volume(str(out_path), sample, file_format="tiff")
-                    print(f"  Saved TIFF: {out_path.name} (shape: {sample.shape})")
+                    logger.info(f"Saved TIFF: {out_path.name} (shape: {sample.shape})")
                 except Exception as exc:
-                    print(f"  WARNING: TIFF export failed: {exc}")
+                    logger.warning(f"TIFF export failed: {exc}")
 
             elif fmt_lower in ["nii", "nii.gz"]:
                 out_path = output_dir / f"{filename}_{suffix}.nii.gz"
                 try:
                     save_volume(str(out_path), sample, file_format="nii.gz")
-                    print(f"  Saved NIfTI: {out_path.name}")
+                    logger.info(f"Saved NIfTI: {out_path.name}")
                 except Exception as exc:
-                    print(f"  WARNING: NIfTI export failed: {exc}")
+                    logger.warning(f"NIfTI export failed: {exc}")
 
             elif fmt_lower == "png":
                 out_dir = output_dir / f"{filename}_{suffix}_png"
                 try:
                     save_volume(str(out_dir), sample, file_format="png")
-                    print(f"  Saved PNG stack: {out_dir.name}/")
+                    logger.info(f"Saved PNG stack: {out_dir.name}/")
                 except Exception as exc:
-                    print(f"  WARNING: PNG export failed: {exc}")
+                    logger.warning(f"PNG export failed: {exc}")
 
             else:
-                print(f"  WARNING: Unknown format '{fmt}' - skipping. Supported: h5, tiff, nii.gz, png")
+                logger.warning(
+                    f"Unknown format '{fmt}' - skipping. Supported: h5, tiff, nii.gz, png"
+                )
 
 
-__all__ = ["resolve_output_filenames", "write_outputs"]
+__all__ = [
+    "apply_save_prediction_transform",
+    "apply_postprocessing",
+    "resolve_output_filenames",
+    "write_outputs",
+]
