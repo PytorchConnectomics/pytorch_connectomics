@@ -14,7 +14,6 @@ def seg_to_weights(targets, wopts, mask=None, seg=None):
 
 def seg_to_weight(target, wopts, mask=None, seg=None):
     out = [None] * len(wopts)
-    foo = np.zeros((1), int)
     for wid, wopt in enumerate(wopts):
         if wopt[0] == "1":  # 1: by gt-target ratio
             dilate = wopt == "1-1"
@@ -22,13 +21,14 @@ def seg_to_weight(target, wopts, mask=None, seg=None):
                 target.copy(), None if mask is None else mask.copy(), dilate
             )
         elif wopt[0] == "2":  # 2: unet weight
-            assert seg is not None
+            if seg is None:
+                raise ValueError("seg_to_weight: 'seg' is required for UNet weight mode '2'")
             _, w0, w1 = wopt.split("-")
             out[wid] = weight_unet3d(seg, float(w0), float(w1))
         elif mask is not None:  # valid region only
             out[wid] = (mask != 0).astype(np.float32)[np.newaxis, :]
-        else:  # no weight map
-            out[wid] = foo
+        else:
+            raise ValueError(f"Unknown weight option '{wopt}' and no mask provided")
     return out
 
 

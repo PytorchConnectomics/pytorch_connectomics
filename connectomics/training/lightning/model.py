@@ -377,10 +377,50 @@ class ConnectomicsModule(pl.LightningModule):
         filenames = resolve_output_filenames(self.cfg, batch, global_step=self.global_step)
         return mode, output_dir_value, cache_suffix, filenames
 
+    def _resolve_tta_result_path_override(self) -> str:
+        """Return explicit intermediate prediction file from inference.tta_result_path."""
+        inference_cfg = self._get_runtime_inference_config()
+        value = getattr(inference_cfg, "tta_result_path", "")
+        if isinstance(value, str) and value.strip():
+            return value.strip()
+        return ""
+
     def _load_cached_predictions(
         self, output_dir_value: Optional[str], filenames: List[str], cache_suffix: str, mode: str
     ):
         """Attempt to load cached predictions from disk."""
+        explicit_prediction = self._resolve_tta_result_path_override()
+        if isinstance(explicit_prediction, str) and explicit_prediction.strip():
+            from connectomics.data.io import read_hdf5
+
+            pred_file = Path(explicit_prediction).expanduser()
+            if not pred_file.is_absolute():
+                pred_file = Path.cwd() / pred_file
+
+            if pred_file.exists():
+                try:
+                    print(f"  📥 Using explicit inference.tta_result_path file: {pred_file}")
+                    pred = read_hdf5(str(pred_file), dataset="main")
+                    if pred.ndim < 4:
+                        pred = pred[np.newaxis, ...]
+                    if len(filenames) > 1:
+                        print(
+                            "  ⚠️  inference.tta_result_path is a single file while batch has "
+                            f"{len(filenames)} filenames; decoding will use the explicit file only."
+                        )
+                    # Treat explicit file as intermediate prediction so decoding still runs.
+                    return pred, True, "_tta_prediction.h5"
+                except Exception as e:
+                    print(
+                        f"  ⚠️  Failed to load explicit inference.tta_result_path file {pred_file}: {e}. "
+                        "Falling back to computed cache paths."
+                    )
+            else:
+                print(
+                    f"  ⚠️  inference.tta_result_path file not found: {pred_file}. "
+                    "Falling back to computed cache paths."
+                )
+
         if not output_dir_value:
             return None, False, cache_suffix
 

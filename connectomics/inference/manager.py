@@ -63,5 +63,13 @@ class InferenceManager:
             mask_align_to_image=mask_align_to_image,
         )
 
+    def is_distributed_tta_sharding_enabled(self) -> bool:
+        """Return whether distributed TTA sharding is active for this process."""
+        return self.tta.is_distributed_sharding_enabled()
+
+    def should_skip_postprocess_on_rank(self) -> bool:
+        """Return True on nonzero ranks after distributed TTA aggregation."""
+        return self.tta.should_skip_postprocess_on_rank()
+
 
 __all__ = ["InferenceManager"]

@@ -217,25 +217,23 @@ class CachedVolumeDataset(Dataset):
             self.cached_images.append(img)
 
             if lbl is not None:
-                # Apply padding if specified (same padding as image)
+                # Apply the configured padding mode consistently across image/label/mask.
                 if self.pad_size is not None:
-                    lbl = self._apply_padding(
-                        lbl, mode="constant", constant_values=0
-                    )  # Use constant 0 for labels
+                    lbl = self._apply_padding(lbl)
 
                 # Ensure label is at least as large as patch_size
-                lbl = self._ensure_minimum_size(lbl, mode="constant", constant_values=0)
+                lbl = self._ensure_minimum_size(lbl)
                 self.cached_labels.append(lbl)
             else:
                 self.cached_labels.append(None)
 
             if mask is not None:
-                # Apply padding if specified (same padding as label)
+                # Apply the configured padding mode consistently across image/label/mask.
                 if self.pad_size is not None:
-                    mask = self._apply_padding(mask, mode="constant", constant_values=0)
+                    mask = self._apply_padding(mask)
 
                 # Ensure mask is at least as large as patch_size
-                mask = self._ensure_minimum_size(mask, mode="constant", constant_values=0)
+                mask = self._ensure_minimum_size(mask)
                 self.cached_masks.append(mask)
             else:
                 self.cached_masks.append(None)

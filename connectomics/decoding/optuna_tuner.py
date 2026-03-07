@@ -15,6 +15,8 @@ Usage:
 
 from __future__ import annotations
 
+from contextlib import contextmanager
+from copy import deepcopy
 import warnings
 from collections import defaultdict
 from pathlib import Path
@@ -39,12 +41,101 @@ except ImportError:
 
 # Import metrics
 from connectomics.metrics.metrics_seg import adapted_rand
+from connectomics.data.process.affinity import (
+    affinity_deepem_crop_enabled,
+    compute_affinity_crop_pad,
+    crop_spatial_by_pad,
+    resolve_affinity_channel_groups_from_cfg,
+)
 
 # Import decoding functions
+from .registry import register_builtin_decoders, get_decoder
 from .segmentation import decode_instance_binary_contour_distance
 from .utils import remove_small_instances
 
 __all__ = ["OptunaDecodingTuner", "run_tuning", "load_and_apply_best_params"]
+
+
+def _maybe_crop_affinity_array(
+    data: np.ndarray,
+    *,
+    reference_spatial_shape: tuple[int, ...],
+    crop_pad: tuple[tuple[int, int], ...],
+) -> np.ndarray:
+    if not crop_pad:
+        return data
+    expected_cropped_shape = tuple(
+        int(reference_spatial_shape[axis]) - crop_pad[axis][0] - crop_pad[axis][1]
+        for axis in range(len(crop_pad))
+    )
+    data_spatial_shape = tuple(int(v) for v in data.shape[-len(crop_pad):])
+    if data_spatial_shape == expected_cropped_shape:
+        return data
+    if data_spatial_shape != reference_spatial_shape:
+        return data
+    return crop_spatial_by_pad(data, crop_pad, item_name="tuning array")
+
+
+@contextmanager
+def _temporary_tuning_inference_overrides(*cfg_objects: Any):
+    """Force the pre-Optuna inference pass to cache raw predictions only."""
+    inference_cfgs = []
+    seen_inference_cfgs: set[int] = set()
+    for cfg_obj in cfg_objects:
+        if cfg_obj is None:
+            continue
+        inference_cfg = getattr(cfg_obj, "inference", None)
+        if inference_cfg is None or id(inference_cfg) in seen_inference_cfgs:
+            continue
+        inference_cfgs.append(inference_cfg)
+        seen_inference_cfgs.add(id(inference_cfg))
+
+    if not inference_cfgs:
+        raise ValueError("Missing runtime cfg.inference configuration required for tuning")
+
+    backups = []
+    for inference_cfg in inference_cfgs:
+        save_prediction_cfg = getattr(inference_cfg, "save_prediction", None)
+        if save_prediction_cfg is None:
+            raise ValueError("Missing inference.save_prediction configuration required for tuning")
+
+        evaluation_cfg = getattr(inference_cfg, "evaluation", None)
+        backups.append(
+            {
+                "inference_cfg": inference_cfg,
+                "save_prediction_enabled": bool(getattr(save_prediction_cfg, "enabled", False)),
+                "save_prediction_cache_suffix": getattr(
+                    save_prediction_cfg, "cache_suffix", "_prediction.h5"
+                ),
+                "decoding": deepcopy(getattr(inference_cfg, "decoding", None)),
+                "evaluation_cfg": evaluation_cfg,
+                "evaluation_enabled": (
+                    bool(getattr(evaluation_cfg, "enabled", False))
+                    if evaluation_cfg is not None
+                    else None
+                ),
+            }
+        )
+
+        save_prediction_cfg.enabled = True
+        save_prediction_cfg.cache_suffix = "_tta_prediction.h5"
+        inference_cfg.decoding = None
+        if evaluation_cfg is not None:
+            evaluation_cfg.enabled = False
+
+    try:
+        yield "_tta_prediction.h5"
+    finally:
+        for backup in backups:
+            inference_cfg = backup["inference_cfg"]
+            save_prediction_cfg = inference_cfg.save_prediction
+            save_prediction_cfg.enabled = backup["save_prediction_enabled"]
+            save_prediction_cfg.cache_suffix = backup["save_prediction_cache_suffix"]
+            inference_cfg.decoding = backup["decoding"]
+
+            evaluation_cfg = backup["evaluation_cfg"]
+            if evaluation_cfg is not None and backup["evaluation_enabled"] is not None:
+                evaluation_cfg.enabled = backup["evaluation_enabled"]
 
 
 class OptunaDecodingTuner:
@@ -118,6 +209,14 @@ class OptunaDecodingTuner:
         self.param_space_cfg = getattr(self.tune_cfg, "parameter_space", None)
         if self.param_space_cfg is None:
             raise ValueError("Missing tune.parameter_space configuration for Optuna tuning")
+
+        # Resolve decoder function from registry
+        register_builtin_decoders()
+        self.decoder_fn_name = getattr(
+            self.param_space_cfg.decoding, "function_name",
+            "decode_instance_binary_contour_distance",
+        )
+        self.decoder_fn = get_decoder(self.decoder_fn_name)
 
         # Initialize trial counter
         self.trial_count = 0
@@ -361,7 +460,7 @@ class OptunaDecodingTuner:
 
             # Decode predictions for this volume
             try:
-                segmentation = decode_instance_binary_contour_distance(
+                segmentation = self.decoder_fn(
                     pred_vol, **decoding_params
                 )
             except Exception as e:
@@ -551,7 +650,10 @@ class OptunaDecodingTuner:
         """
         Reconstruct decoding function parameters from sampled values.
 
-        Handles tuple parameters by grouping _seed and _foreground suffixes.
+        Handles:
+        - Tuple parameters via ``param_group`` / ``tuple_index`` fields.
+        - Nested dict parameters via ``nest_under`` field (e.g. ``cli_args``
+          for ``decode_abiss``).
 
         Args:
             sampled_params: Dictionary of sampled parameter values
@@ -560,11 +662,15 @@ class OptunaDecodingTuner:
             Dictionary of parameters ready for decoding function
         """
         decoding_defaults = self.param_space_cfg.decoding.defaults
-        decoding_params = dict(decoding_defaults)  # Start with defaults
+        # Deep-copy defaults so nested dicts (like cli_args) are independent.
+        decoding_params: Dict[str, Any] = {}
+        for k, v in decoding_defaults.items():
+            decoding_params[k] = dict(v) if isinstance(v, dict) else v
 
         # Group tuple parameters
         tuple_params: Dict[str, Dict[int, Any]] = defaultdict(dict)
         scalar_params: Dict[str, Any] = {}
+        nested_params: Dict[str, Dict[str, Any]] = defaultdict(dict)
 
         # Collect postprocessing parameter names to skip them
         postproc_param_names = set()
@@ -579,26 +685,37 @@ class OptunaDecodingTuner:
             if param_name in postproc_param_names:
                 continue
 
-            # Check if this is part of a tuple parameter
+            # Check parameter config for grouping hints
             param_cfg = self.param_space_cfg.decoding.parameters.get(param_name, {})
+
             if "param_group" in param_cfg:
-                # This is part of a tuple
+                # Part of a tuple parameter
                 group_name = param_cfg["param_group"]
                 tuple_index = param_cfg["tuple_index"]
                 tuple_params[group_name][tuple_index] = value
+            elif "nest_under" in param_cfg:
+                # Nested under a dict key (e.g. cli_args for decode_abiss)
+                nest_key = param_cfg["nest_under"]
+                nested_params[nest_key][param_name] = value
             else:
                 # Scalar parameter
                 scalar_params[param_name] = value
 
         # Reconstruct tuples
         for group_name, indexed_values in tuple_params.items():
-            # Sort by index and extract values
             sorted_items = sorted(indexed_values.items())
             tuple_values = tuple(val for idx, val in sorted_items)
             decoding_params[group_name] = tuple_values
 
         # Add scalar parameters
         decoding_params.update(scalar_params)
+
+        # Merge nested parameters into their target dicts
+        for nest_key, nested_vals in nested_params.items():
+            if nest_key in decoding_params and isinstance(decoding_params[nest_key], dict):
+                decoding_params[nest_key].update(nested_vals)
+            else:
+                decoding_params[nest_key] = nested_vals
 
         return decoding_params
 
@@ -693,6 +810,7 @@ class OptunaDecodingTuner:
             "best_precision": float(best_trial.user_attrs.get("precision", 0.0)),
             "best_recall": float(best_trial.user_attrs.get("recall", 0.0)),
             "metric": self.tune_cfg.optimization["single_objective"]["metric"],
+            "decoding_function": self.decoder_fn_name,
             "decoding_params": best_decoding_params,
         }
 
@@ -800,15 +918,19 @@ def run_tuning(model, trainer, cfg, checkpoint_path=None):
     # Create datamodule with tune mode using merged runtime cfg.data/cfg.inference.
     datamodule = create_datamodule(cfg, mode="tune")
 
-    # Run test (will check for cached files and skip inference if they exist)
-    results = trainer.test(model, datamodule=datamodule, ckpt_path=checkpoint_path)
+    print("  Using intermediate-only cache generation (decoding/evaluation disabled)")
+
+    # Run test to populate/load raw prediction caches only. Optuna applies its own
+    # decoding sweep afterward, so the tune inference pass must not decode with the
+    # default config first.
+    with _temporary_tuning_inference_overrides(cfg, getattr(model, "cfg", None)) as cache_suffix:
+        results = trainer.test(model, datamodule=datamodule, ckpt_path=checkpoint_path)
 
     print(f"✓ Test completed. Results: {results}")
 
     # Step 2: Load predictions from saved files
     print("\n[2/4] Loading predictions from saved files...")
     output_pred_dir = cfg.inference.save_prediction.output_path
-    cache_suffix = getattr(cfg.inference.save_prediction, "cache_suffix", "_tta_prediction.h5")
     predictions_dir = Path(output_pred_dir)
 
     # Find all prediction files using cache_suffix from config
@@ -835,10 +957,13 @@ def run_tuning(model, trainer, cfg, checkpoint_path=None):
 
     # Step 3: Load ground truth
     print("\n[3/4] Loading ground truth labels...")
-    tune_label_pattern = getattr(getattr(tune_data, "test", None), "label", None)
+    # Prefer data.val.label, fall back to data.test.label
+    tune_label_pattern = getattr(getattr(tune_data, "val", None), "label", None)
+    if tune_label_pattern is None:
+        tune_label_pattern = getattr(getattr(tune_data, "test", None), "label", None)
 
     if tune_label_pattern is None:
-        raise ValueError("Missing data.test.label in configuration")
+        raise ValueError("Missing data.val.label or data.test.label in configuration")
 
     # Handle both string patterns and pre-resolved lists
     if isinstance(tune_label_pattern, list):
@@ -867,7 +992,10 @@ def run_tuning(model, trainer, cfg, checkpoint_path=None):
 
     # Load mask if available
     all_masks = None
-    tune_mask_pattern = getattr(getattr(tune_data, "test", None), "mask", None)
+    # Prefer data.val.mask, fall back to data.test.mask
+    tune_mask_pattern = getattr(getattr(tune_data, "val", None), "mask", None)
+    if tune_mask_pattern is None:
+        tune_mask_pattern = getattr(getattr(tune_data, "test", None), "mask", None)
     if tune_mask_pattern:
         # Handle both string patterns and pre-resolved lists
         if isinstance(tune_mask_pattern, list):
@@ -900,6 +1028,44 @@ def run_tuning(model, trainer, cfg, checkpoint_path=None):
             f"Mismatch: {len(all_predictions)} prediction files vs "
             f"{len(all_masks)} mask files"
         )
+
+    if affinity_deepem_crop_enabled(cfg):
+        groups = resolve_affinity_channel_groups_from_cfg(cfg)
+        all_offsets = []
+        for _, offsets in groups:
+            all_offsets.extend(offsets)
+        crop_pad = compute_affinity_crop_pad(all_offsets)
+        if crop_pad and any(before or after for before, after in crop_pad):
+            cropped_predictions = []
+            cropped_labels = []
+            cropped_masks = [] if all_masks is not None else None
+            for idx, pred in enumerate(all_predictions):
+                reference_spatial_shape = tuple(int(v) for v in all_labels[idx].shape[-len(crop_pad):])
+                cropped_predictions.append(
+                    _maybe_crop_affinity_array(
+                        np.asarray(pred),
+                        reference_spatial_shape=reference_spatial_shape,
+                        crop_pad=crop_pad,
+                    )
+                )
+                cropped_labels.append(
+                    _maybe_crop_affinity_array(
+                        np.asarray(all_labels[idx]),
+                        reference_spatial_shape=reference_spatial_shape,
+                        crop_pad=crop_pad,
+                    )
+                )
+                if cropped_masks is not None:
+                    cropped_masks.append(
+                        _maybe_crop_affinity_array(
+                            np.asarray(all_masks[idx]),
+                            reference_spatial_shape=reference_spatial_shape,
+                            crop_pad=crop_pad,
+                        )
+                    )
+            all_predictions = cropped_predictions
+            all_labels = cropped_labels
+            all_masks = cropped_masks
 
     # Step 4: Create tuner and run optimization (per-volume evaluation)
     print("\n[4/5] Creating Optuna tuner...")

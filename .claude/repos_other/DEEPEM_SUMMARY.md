@@ -1,6 +1,6 @@
 # DeepEM Codebase Summary
 
-**Location:** `/projects/weilab/weidf/lib/seg/DeepEM`
+**Location:** `/projects/weilab/weidf/lib/pytorch_connectomics/lib/DeepEM`
 
 **Purpose:** Deep Learning framework for EM (Electron Microscopy) Connectomics, focused on reconstructing neural connections from EM images.
 

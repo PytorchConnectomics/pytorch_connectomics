@@ -14,6 +14,8 @@ import torch
 import torch.nn.functional as F
 from monai.transforms import Flip
 
+from ..utils.channel_slices import resolve_channel_slice_bounds
+
 try:
     from omegaconf import ListConfig
 
@@ -32,6 +34,8 @@ class TTAPredictor:
         self.forward_fn = forward_fn
         # Track activation types per channel for proper masking
         self.channel_activation_types = None
+        self._last_distributed_sharding_active = False
+        self._last_skip_postprocess_on_rank = False
         self._parse_channel_activations()
 
     @staticmethod
@@ -40,34 +44,19 @@ class TTAPredictor:
         end_ch: int,
         num_channels: int,
     ) -> tuple[int, int]:
-        """Resolve channel range where end=-1 means up to the last channel (exclusive)."""
-        start = int(start_ch)
-        end = int(end_ch)
+        """Resolve TTA channel activation ranges using shared slice resolver.
 
-        if start < 0:
-            raise ValueError(
-                f"Invalid channel_activations range start {start}. start must be >= 0."
-            )
-        if end == -1:
-            end = num_channels
-        elif end < 0:
-            raise ValueError(
-                f"Invalid channel_activations range end {end}. "
-                "Use -1 for all remaining channels or a non-negative end index."
-            )
-
-        if start > end:
-            raise ValueError(
-                f"Invalid channel_activations range [{start}, {end_ch}]. "
-                "start must be <= resolved end."
-            )
-        if end > num_channels:
-            raise ValueError(
-                f"Invalid channel_activations range [{start}, {end_ch}] for "
-                f"{num_channels} output channels."
-            )
-
-        return start, end
+        TTA keeps legacy boundary-offset behavior:
+        - negative bounds resolve with ``+1`` offset
+        - ``end=-1`` means "all remaining channels"
+        """
+        return resolve_channel_slice_bounds(
+            (int(start_ch), int(end_ch)),
+            num_channels=num_channels,
+            context="channel_activations range",
+            negative_index_offset=1,
+            end_minus_one_full_span=True,
+        )
 
     def _parse_channel_activations(self):
         """Parse channel_activations config to determine activation type per channel."""
@@ -98,6 +87,83 @@ class TTAPredictor:
                 # Add activation type for each channel in this range
                 for _ in range(start_ch, end_ch):
                     self.channel_activation_types.append(act)
+
+    def _get_tta_cfg(self):
+        if not hasattr(self.cfg, "inference") or not hasattr(
+            self.cfg.inference, "test_time_augmentation"
+        ):
+            return None
+        return self.cfg.inference.test_time_augmentation
+
+    @staticmethod
+    def _distributed_context() -> tuple[bool, int, int]:
+        if not torch.distributed.is_available() or not torch.distributed.is_initialized():
+            return False, 0, 1
+        return True, torch.distributed.get_rank(), torch.distributed.get_world_size()
+
+    def is_distributed_sharding_enabled(self) -> bool:
+        """Return whether distributed TTA sharding is active for the current process."""
+        tta_cfg = self._get_tta_cfg()
+        is_dist, _rank, world_size = self._distributed_context()
+        return bool(
+            tta_cfg is not None
+            and getattr(tta_cfg, "enabled", False)
+            and getattr(tta_cfg, "distributed_sharding", False)
+            and is_dist
+            and world_size > 1
+        )
+
+    def should_skip_postprocess_on_rank(self) -> bool:
+        """Return True on nonzero DDP ranks after distributed TTA reduction."""
+        return self._last_distributed_sharding_active and self._last_skip_postprocess_on_rank
+
+    def _reduce_cpu_tensor_to_rank_zero(
+        self,
+        tensor: torch.Tensor,
+        *,
+        op,
+        reduction_device: torch.device,
+    ) -> Optional[torch.Tensor]:
+        """Reduce a large CPU tensor to rank 0 in manageable GPU chunks."""
+        is_dist, rank, _world_size = self._distributed_context()
+        if not is_dist:
+            return tensor
+
+        tta_cfg = self._get_tta_cfg()
+        chunk_mb = int(getattr(tta_cfg, "distributed_reduce_chunk_mb", 128) or 128)
+        chunk_bytes = max(1, chunk_mb) * 1024 * 1024
+
+        flat_tensor = tensor.contiguous().view(-1)
+        elems_per_chunk = max(1, chunk_bytes // max(1, flat_tensor.element_size()))
+        reduced_flat = torch.empty_like(flat_tensor) if rank == 0 else None
+
+        for start in range(0, flat_tensor.numel(), elems_per_chunk):
+            end = min(start + elems_per_chunk, flat_tensor.numel())
+            reduced_chunk = flat_tensor[start:end].to(device=reduction_device, non_blocking=False)
+            torch.distributed.reduce(reduced_chunk, dst=0, op=op)
+            if rank == 0:
+                reduced_flat[start:end].copy_(reduced_chunk.cpu())
+
+        if rank == 0:
+            return reduced_flat.view_as(tensor)
+        return None
+
+    def _reduce_prediction_count_to_rank_zero(
+        self,
+        count: int,
+        *,
+        reduction_device: torch.device,
+    ) -> int:
+        """Reduce local TTA prediction counts to rank 0."""
+        is_dist, rank, _world_size = self._distributed_context()
+        if not is_dist:
+            return int(count)
+
+        count_tensor = torch.tensor([int(count)], device=reduction_device, dtype=torch.int64)
+        torch.distributed.reduce(count_tensor, dst=0, op=torch.distributed.ReduceOp.SUM)
+        if rank == 0:
+            return int(count_tensor.item())
+        return 0
 
     def apply_preprocessing(self, tensor: torch.Tensor) -> torch.Tensor:
         """
@@ -371,9 +437,12 @@ class TTAPredictor:
         if do_2d and images.size(2) == 1:
             images = images.squeeze(2)
 
+        self._last_distributed_sharding_active = False
+        self._last_skip_postprocess_on_rank = False
+
         # Get TTA configuration (respect enabled flag for augmentations)
-        if hasattr(self.cfg, "inference") and hasattr(self.cfg.inference, "test_time_augmentation"):
-            tta_cfg = self.cfg.inference.test_time_augmentation
+        tta_cfg = self._get_tta_cfg()
+        if tta_cfg is not None:
             tta_enabled = getattr(tta_cfg, "enabled", True)
             if tta_enabled:
                 tta_flip_axes_config = getattr(tta_cfg, "flip_axes", None)
@@ -487,6 +556,19 @@ class TTAPredictor:
             ensemble_mode = getattr(
                 self.cfg.inference.test_time_augmentation, "ensemble_mode", "mean"
             )
+            empty_cache_interval = int(
+                getattr(self.cfg.inference.test_time_augmentation, "empty_cache_interval", 4)
+            )
+            distributed_sharding = self.is_distributed_sharding_enabled()
+            self._last_distributed_sharding_active = distributed_sharding
+            is_dist, rank, world_size = self._distributed_context()
+            reduction_device = (
+                images.device
+                if images.is_cuda
+                else torch.device(f"cuda:{torch.cuda.current_device()}")
+                if torch.cuda.is_available()
+                else torch.device("cpu")
+            )
 
             ensemble_result = None
             num_predictions = 0
@@ -505,8 +587,23 @@ class TTAPredictor:
                         for k in range(4):  # 0, 1, 2, 3 rotations (0°, 90°, 180°, 270°)
                             augmentation_combinations.append((flip_axes, rotation_plane, k))
 
+            local_augmentation_combinations = augmentation_combinations
+            if distributed_sharding:
+                local_augmentation_combinations = augmentation_combinations[rank::world_size]
+                if not local_augmentation_combinations:
+                    raise RuntimeError(
+                        "Distributed TTA sharding produced an empty augmentation shard for "
+                        f"rank {rank}. Reduce the GPU count or increase TTA variants."
+                    )
+                if rank == 0:
+                    print(
+                        "  Distributed TTA sharding active: "
+                        f"{len(augmentation_combinations)} total pass(es), world_size={world_size}, "
+                        f"passes/rank≈{len(local_augmentation_combinations)}"
+                    )
+
             # Apply each augmentation combination
-            for flip_axes, rotation_plane, k_rotations in augmentation_combinations:
+            for flip_axes, rotation_plane, k_rotations in local_augmentation_combinations:
                 x_aug = images
 
                 # Apply flip augmentation
@@ -532,16 +629,23 @@ class TTAPredictor:
 
                 # Ensemble predictions
                 if ensemble_result is None:
-                    ensemble_result = pred_processed.clone()
+                    ensemble_result = pred_processed.clone().to(dtype=torch.float32)
                 else:
                     if ensemble_mode == "mean":
-                        ensemble_result = ensemble_result + (pred_processed - ensemble_result) / (
-                            num_predictions + 1
-                        )
+                        if distributed_sharding:
+                            ensemble_result += pred_processed.to(dtype=torch.float32)
+                        else:
+                            ensemble_result = ensemble_result + (
+                                pred_processed.to(dtype=torch.float32) - ensemble_result
+                            ) / (num_predictions + 1)
                     elif ensemble_mode == "min":
-                        ensemble_result = torch.minimum(ensemble_result, pred_processed)
+                        ensemble_result = torch.minimum(
+                            ensemble_result, pred_processed.to(dtype=torch.float32)
+                        )
                     elif ensemble_mode == "max":
-                        ensemble_result = torch.maximum(ensemble_result, pred_processed)
+                        ensemble_result = torch.maximum(
+                            ensemble_result, pred_processed.to(dtype=torch.float32)
+                        )
                     else:
                         raise ValueError(
                             f"Unknown TTA ensemble mode: {ensemble_mode}. "
@@ -550,8 +654,46 @@ class TTAPredictor:
 
                 num_predictions += 1
 
-                if torch.cuda.is_available() and num_predictions % 4 == 0:
+                if (
+                    torch.cuda.is_available()
+                    and empty_cache_interval > 0
+                    and num_predictions % empty_cache_interval == 0
+                ):
                     torch.cuda.empty_cache()
+
+            if distributed_sharding:
+                if ensemble_mode == "mean":
+                    reduced_sum = self._reduce_cpu_tensor_to_rank_zero(
+                        ensemble_result,
+                        op=torch.distributed.ReduceOp.SUM,
+                        reduction_device=reduction_device,
+                    )
+                    total_predictions = self._reduce_prediction_count_to_rank_zero(
+                        num_predictions,
+                        reduction_device=reduction_device,
+                    )
+                    if rank == 0:
+                        if total_predictions <= 0:
+                            raise RuntimeError(
+                                "Distributed TTA sharding reduced zero predictions on rank 0."
+                            )
+                        ensemble_result = reduced_sum / float(total_predictions)
+                elif ensemble_mode == "min":
+                    ensemble_result = self._reduce_cpu_tensor_to_rank_zero(
+                        ensemble_result,
+                        op=torch.distributed.ReduceOp.MIN,
+                        reduction_device=reduction_device,
+                    )
+                elif ensemble_mode == "max":
+                    ensemble_result = self._reduce_cpu_tensor_to_rank_zero(
+                        ensemble_result,
+                        op=torch.distributed.ReduceOp.MAX,
+                        reduction_device=reduction_device,
+                    )
+
+                if rank != 0:
+                    self._last_skip_postprocess_on_rank = True
+                    return torch.empty(0, device=images.device if images.is_cuda else "cpu")
 
         apply_mask = (
             getattr(self.cfg.inference.test_time_augmentation, "apply_mask", True)

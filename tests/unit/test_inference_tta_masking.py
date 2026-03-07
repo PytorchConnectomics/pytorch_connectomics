@@ -108,3 +108,24 @@ def test_tta_channel_activations_end_minus_one_covers_last_channel():
     assert pred.shape == (1, 3, 2, 2, 2)
     expected = torch.sigmoid(_forward_three_channel_logits(images))
     assert torch.allclose(pred, expected)
+
+
+def test_tta_channel_activations_legacy_negative_bounds_work():
+    cfg = Config()
+    cfg.model.out_channels = 3
+    cfg.inference.test_time_augmentation.enabled = False
+    cfg.inference.test_time_augmentation.channel_activations = [
+        [0, -2, "sigmoid"],
+        [-2, -1, "tanh"],
+    ]
+
+    predictor = TTAPredictor(cfg=cfg, sliding_inferer=None, forward_fn=_forward_three_channel_logits)
+
+    images = torch.zeros((1, 1, 2, 2, 2), dtype=torch.float32)
+    pred = predictor.predict(images)
+
+    assert pred.shape == (1, 3, 2, 2, 2)
+    expected = _forward_three_channel_logits(images)
+    expected[:, 0:2, ...] = torch.sigmoid(expected[:, 0:2, ...])
+    expected[:, 2:3, ...] = torch.tanh(expected[:, 2:3, ...])
+    assert torch.allclose(pred, expected)

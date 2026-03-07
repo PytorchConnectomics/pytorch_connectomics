@@ -1,27 +1,18 @@
-default:
-  model:
-    arch:
-      profile: mednext_b
-
 _base_: neuron_nisb_40nm_common.yaml
 
 experiment_name: neuron_nisb_base_40nm_mednext_b_sdt
 description: NISB base neuron instance segmentation (BANIS-style) with MedNeXt-B, affinity + SDT (40nm)
 
-data:
-  # BANIS command mapping:
-  # --base_data_path /projects/weilab/dataset/nisb
-  # --data_setting base
-  checkpoint:
-    dirpath: outputs/neuron_nisb_base_40nm_mednext_b_sdt/checkpoints/
-
-
-  train:
-    path: /projects/weilab/dataset/nisb/base/train
-
-  val:
-    path: /projects/weilab/dataset/nisb/base/val
+train:
+  data:
+    train:
+      path: /projects/weilab/dataset/nisb/base/train
+    val:
+      path: /projects/weilab/dataset/nisb/base/val
 test:
   data:
-    test_path: /projects/weilab/dataset/nisb/base/test/
-    output_path: outputs/neuron_nisb_base_40nm_mednext_b_sdt/results_seed101/
+    test:
+      path: /projects/weilab/dataset/nisb/base/test/
+  # inference:
+  #   tta_result_path: outputs/neuron_nisb_40nm_base_mednext_b_sdt/20260220_010640/results/img_40-36-36nm_tta_prediction_pass1.h5
+    

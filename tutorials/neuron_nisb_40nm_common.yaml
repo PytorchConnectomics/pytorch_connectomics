@@ -1,57 +1,51 @@
+experiment_name: neuron_nisb_40nm_common_mednext_b_sdt
+description: NISB neuron instance segmentation (BANIS-style) with MedNeXt-B, affinity + SDT (40nm)
+
+_base_:
+  - neuron_nisb_common.yaml
+
 default:
   model:
     arch:
       profile: mednext_b
-
-_base_: neuron_nisb_common.yaml
-
-experiment_name: neuron_nisb_40nm_common_mednext_b_sdt
-description: NISB neuron instance segmentation (BANIS-style) with MedNeXt-B, affinity + SDT (40nm)
-
-
-model:
-  input_size: [128, 128, 128]
-  output_size: [128, 128, 128]
-
-
-data:
-
-
-
-  label_transform:
-    targets:
-    - name: affinity
-      kwargs:
-        long_range: 3
-    - name: skeleton_aware_edt
-      kwargs:
-        resolution: [36, 36, 40]
-        alpha: 0.8
-        bg_value: -1.0
-        relabel: true
-
-
-  train:
-    image: seed*/data.zarr/img_40-36-36nm.h5
-    label: seed*/data.zarr/seg_40-36-36nm.h5
-    resolution: [36, 36, 40]
-
-  val:
-    image: seed*/data.zarr/img_40-36-36nm.h5
-    label: seed*/data.zarr/seg_40-36-36nm.h5
-    resolution: [36, 36, 40]
-  dataloader:
-    patch_size: [128, 128, 128]
-monitor:
-  checkpoint:
-    dirpath: outputs/neuron_nisb_base_40nm_mednext_b_sdt/checkpoints/
+    input_size: [128, 128, 128]
+    output_size: [128, 128, 128]
+    loss:
+      deep_supervision: false
+  data:
+    dataloader:
+      patch_size: [128, 128, 128]
+    label_transform:
+      targets:
+      - name: affinity
+        kwargs:
+          long_range: 3
+      - name: skeleton_aware_edt
+        kwargs:
+          resolution: [36, 36, 40]
+          alpha: 0.8
+          bg_value: -1.0
+          relabel: true
+  inference:
+    sliding_window:
+      window_size: [128, 128, 128]    
+train:
+  data:
+    train:
+      image: seed*/data.zarr/img_40-36-36nm.h5
+      label: seed*/data.zarr/seg_40-36-36nm.h5
+      resolution: [36, 36, 40]
+    val:
+      image: seed*/data.zarr/img_40-36-36nm.h5
+      label: seed*/data.zarr/seg_40-36-36nm.h5
+      resolution: [36, 36, 40]
+  monitor:
+    checkpoint:
+      dirpath: outputs/neuron_nisb_base_40nm_mednext_b_sdt/checkpoints/
 
 test:
   data:
-    test_image: seed101/data.zarr/img_40-36-36nm.h5
-    test_label: seed101/data.zarr/seg_40-36-36nm.h5
-    test_resolution: [36, 36, 40]
-
-inference:
-  sliding_window:
-    window_size: [128, 128, 128]
+    test:
+      image: seed101/data.zarr/img_40-36-36nm.h5
+      label: seed101/data.zarr/seg_40-36-36nm.h5
+      resolution: [36, 36, 40]

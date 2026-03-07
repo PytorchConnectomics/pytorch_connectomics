@@ -657,7 +657,7 @@ def test_inference_system_overrides_runtime_system_in_test_mode():
 
 
 def test_enabled_flags_require_explicit_opt_in(tmp_path):
-    """Sections no longer auto-enable; `enabled` must be set explicitly."""
+    """Most sections require explicit opt-in; image logging defaults to enabled."""
     config_yaml = tmp_path / "auto_enable.yaml"
     config_yaml.write_text(
         """
@@ -687,7 +687,7 @@ optimization:
     assert cfg.inference.test_time_augmentation.enabled is False
     assert cfg.inference.save_prediction.enabled is False
     assert cfg.inference.evaluation.enabled is False
-    assert cfg.monitor.logging.images.enabled is False
+    assert cfg.monitor.logging.images.enabled is True
     assert cfg.optimization.ema.enabled is False
     # Explicit value in YAML should always win.
     assert cfg.monitor.early_stopping.enabled is False
@@ -790,6 +790,36 @@ def test_build_test_transforms_with_mask_transform_resize_binarize():
     assert "ResizeByFactord" in transform_names
     assert "Lambdad" in transform_names
     print("✅ Test transforms include mask resize+binarize")
+
+
+def test_build_test_transforms_applies_context_pad_to_image_and_mask_only():
+    """Test test-mode context padding applies to image/mask but not label."""
+    cfg = Config()
+    cfg.data.dataloader.patch_size = [0, 0, 0]  # Isolate explicit context padding.
+    cfg.data.test.image = "dummy_image.h5"
+    cfg.data.test.label = "dummy_label.h5"
+    cfg.data.test.mask = "dummy_mask.h5"
+    cfg.data.image_transform.normalize = "none"
+    cfg.data.data_transform.pad_size = [1, 2, 3]
+    cfg.data.data_transform.pad_mode = "reflect"
+
+    transforms = build_test_transforms(cfg)
+
+    sample = {
+        "image": np.ones((1, 2, 3, 4), dtype=np.float32),
+        "label": np.ones((1, 2, 3, 4), dtype=np.float32),
+        "mask": np.ones((1, 2, 3, 4), dtype=np.float32),
+    }
+    out = transforms(sample)
+    image = out["image"].numpy() if hasattr(out["image"], "numpy") else np.asarray(out["image"])
+    label = out["label"].numpy() if hasattr(out["label"], "numpy") else np.asarray(out["label"])
+    mask = out["mask"].numpy() if hasattr(out["mask"], "numpy") else np.asarray(out["mask"])
+
+    assert image.shape == (1, 4, 7, 10)
+    assert label.shape == (1, 2, 3, 4)
+    assert mask.shape == (1, 4, 7, 10)
+    assert mask[0, 0, 0, 0] == 0.0
+    print("✅ Test transforms apply explicit context padding for image/mask")
 
 
 def test_mask_binarize_uses_strict_greater_than_threshold():

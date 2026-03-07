@@ -10,6 +10,7 @@ from functools import partial
 import os
 import torch
 from monai.transforms import (
+    BorderPadd,
     Compose,
     RandRotate90d,
     RandFlipd,
@@ -467,6 +468,29 @@ def _build_eval_transforms_impl(cfg: Config, mode: str = "val", keys: list[str] 
             )
         )
 
+    if mode in {"test", "tune"}:
+        context_pad = getattr(data_cfg.data_transform, "pad_size", None)
+        if context_pad and any(int(v) > 0 for v in context_pad):
+            # Explicit test-time context padding is only for inference inputs.
+            # Labels stay in the original FOV; masks get zero-padded to match the image.
+            transforms.append(
+                BorderPadd(
+                    keys=["image"],
+                    spatial_border=tuple(int(v) for v in context_pad),
+                    mode=getattr(data_cfg.data_transform, "pad_mode", "reflect"),
+                )
+            )
+            if "mask" in keys:
+                # Keep mask context empty outside the source FOV.
+                transforms.append(
+                    BorderPadd(
+                        keys=["mask"],
+                        spatial_border=tuple(int(v) for v in context_pad),
+                        mode="constant",
+                        constant_values=0.0,
+                    )
+                )
+
     # Add spatial cropping - MODE-SPECIFIC
     # Validation: Apply center crop for patch-based validation
     # Test: Skip cropping to enable sliding window inference on full volumes
@@ -806,7 +830,7 @@ def _build_augmentations(aug_cfg: AugmentationConfig, keys: list[str], do_2d: bo
     if should_augment("missing_section", aug_cfg.missing_section.enabled):
         transforms.append(
             RandMissingSectiond(
-                keys=keys,
+                keys=["image"],
                 prob=aug_cfg.missing_section.prob,
                 num_sections=aug_cfg.missing_section.num_sections,
             )
@@ -846,7 +870,7 @@ def _build_augmentations(aug_cfg: AugmentationConfig, keys: list[str], do_2d: bo
     if should_augment("missing_parts", aug_cfg.missing_parts.enabled):
         transforms.append(
             RandMissingPartsd(
-                keys=keys,
+                keys=["image"],
                 prob=aug_cfg.missing_parts.prob,
                 hole_range=aug_cfg.missing_parts.hole_range,
             )

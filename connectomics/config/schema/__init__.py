@@ -1,5 +1,4 @@
 from .data import (
-    AffinityConfig,
     AffineConfig,
     AugmentationConfig,
     CopyPasteConfig,
@@ -97,7 +96,6 @@ __all__ = [
     "ImageTransformConfig",
     "NNUNetPreprocessingConfig",
     "LabelTransformConfig",
-    "AffinityConfig",
     "SkeletonDistanceConfig",
     "LabelTargetConfig",
     "EdgeModeConfig",

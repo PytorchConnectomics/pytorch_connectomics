@@ -5,6 +5,8 @@ _base_:
   - bases/all_profiles.yaml
 
 default:
+  system:
+    profile: all-gpu-cpu
   model:
     arch:
       profile: mednext_b
@@ -21,25 +23,28 @@ default:
     # --base_data_path /projects/weilab/dataset/nisb
     # --data_setting base
     dataloader:
-      profile: cached
-      use_cache: false
+      profile: lazy
     augmentation:
       profile: aug_light
 
   inference:
-    system:
-      num_gpus: 1
-      num_workers: 4
-    batch_size: 4
     sliding_window:
       keep_input_on_cpu: true
       sw_device: cuda
       output_device: cpu
     test_time_augmentation:
-      enabled: false
+      enabled: true
       activation_profile: act_bd
       select_channel: [0, 1, 2, 6]
       ensemble_mode: mean
+    save_prediction:
+      enabled: true
+    decoding_profile: decoding_abiss
+    evaluation:
+      enabled: true
+      metrics:
+      - adapted_rand      
+    
 train:
   optimization:
     profile: warmup_cosine_lr
@@ -49,23 +54,85 @@ train:
     logging:
       scalar:
         loss: [train_loss_total_epoch, val_loss_total, train_loss_affinity_total, train_loss_sdt_total]
-        loss_every_n_steps: 100
-        val_check_interval: 10.0
+        loss_every_n_steps: 50
       images:
-        enabled: true
         max_images: 8
-        num_slices: 8
-        log_every_n_epochs: 1
+        num_slices: 2
+        log_every_n_epochs: 10
         channel_mode: all
     checkpoint:
       monitor: val_loss_total
       mode: min
       save_top_k: 3
-test:
-  inference:
+
+# ============================================================================
+# Parameter tuning for ABISS watershed thresholds (--mode tune)
+# ============================================================================
+tune:
+  enabled: true
+  n_trials: 50
+  study_name: nisb_abiss_tuning
+  load_if_exists: true
+
+  sampler:
+    name: TPE
+    kwargs:
+      n_startup_trials: 10
+
+  optimization:
+    mode: single
+    single_objective:
+      metric: adapted_rand
+      direction: minimize
+
+  output:
+    save_study: true
+
+  logging:
+    verbose: true
+    show_progress_bar: true
+
+  parameter_space:
     decoding:
-      - name: decode_affinity_cc
-        kwargs:
-          threshold: 0.95
-    evaluation:
-      enabled: false
+      function_name: decode_abiss
+      # Fixed defaults (command template and channels are not tuned)
+      defaults:
+        command: "{python_exe} scripts/run_abiss_single.py --input {input_h5} --output {output_h5}"
+        cli_args:
+          ws_high_threshold: 0.80
+          ws_low_threshold: 0.01
+          ws_size_threshold: 800
+          ws_dust_threshold: 600
+          ws_merge_threshold: 0.20
+      # Parameters to optimize (nested under cli_args via nest_under)
+      parameters:
+        ws_high_threshold:
+          type: float
+          range: [0.5, 0.99]
+          step: 0.01
+          nest_under: cli_args
+          description: "ABISS Tmax: high watershed threshold"
+        ws_low_threshold:
+          type: float
+          range: [0.001, 0.2]
+          step: 0.001
+          nest_under: cli_args
+          description: "ABISS Tmin: low watershed threshold"
+        ws_merge_threshold:
+          type: float
+          range: [0.01, 0.5]
+          step: 0.01
+          nest_under: cli_args
+          description: "ABISS Tmerge: affinity threshold for size-based merging"
+        ws_size_threshold:
+          type: int
+          range: [100, 2000]
+          step: 100
+          nest_under: cli_args
+          description: "ABISS Tsize: minimum segment size"
+        ws_dust_threshold:
+          type: int
+          range: [100, 1500]
+          step: 100
+          nest_under: cli_args
+          description: "ABISS Tdust: dust removal threshold"
