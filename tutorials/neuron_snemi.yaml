@@ -27,10 +27,8 @@ default:
     sliding_window:
       window_size: [16, 224, 224]
       sw_batch_size: 4
-      keep_input_on_cpu: true
     test_time_augmentation:
       enabled: true
-      distributed_sharding: true
       flip_axes: all
     postprocessing:
       enabled: true
