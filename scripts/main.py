@@ -640,7 +640,16 @@ def main():
     else:
         # Train mode or no checkpoint - use default config paths
         dirpath = cfg.monitor.checkpoint.dirpath
-        run_dir = setup_run_directory(args.mode, cfg, dirpath)
+        resume_checkpoint_path = None
+        if args.mode == "train" and args.checkpoint and args.external_prefix is None:
+            resume_checkpoint_path = args.checkpoint
+
+        run_dir = setup_run_directory(
+            args.mode,
+            cfg,
+            dirpath,
+            resume_checkpoint_path=resume_checkpoint_path,
+        )
         output_base = run_dir.parent
 
     # Set random seed
