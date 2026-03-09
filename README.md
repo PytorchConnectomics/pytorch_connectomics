@@ -56,7 +56,7 @@ Done! ✅
 <summary><b>🐍 Python Script Install</b></summary>
 
 ```bash
-git clone https://github.com/zudi-lin/pytorch_connectomics.git
+git clone https://github.com/PytorchConnectomics/pytorch_connectomics.git
 cd pytorch_connectomics
 python install.py
 conda activate pytc
@@ -71,7 +71,7 @@ conda create -n pytc python=3.10 -y
 conda activate pytc
 conda install -c conda-forge numpy h5py cython connected-components-3d -y
 pip install torch torchvision --index-url https://download.pytorch.org/whl/cu121
-git clone https://github.com/zudi-lin/pytorch_connectomics.git
+git clone https://github.com/PytorchConnectomics/pytorch_connectomics.git
 cd pytorch_connectomics
 pip install -e . --no-build-isolation
 ```
