@@ -21,6 +21,7 @@ from ...data.process.affinity import (
     crop_spatial_by_pad,
     resolve_affinity_channel_groups_from_cfg,
 )
+from ...data.process.misc import get_padsize
 
 logger = logging.getLogger(__name__)
 
@@ -87,8 +88,8 @@ class TestContext:
         )
 
 
-def _resolve_postprocessing_crop_pad(module) -> Optional[tuple[int, ...]]:
-    """Return configured symmetric prediction crop, if any."""
+def _resolve_postprocessing_crop_pad(module) -> Optional[tuple[tuple[int, int], ...]]:
+    """Return configured symmetric or asymmetric prediction crop, if any."""
     inference_cfg = None
     if hasattr(module, "_get_runtime_inference_config"):
         inference_cfg = module._get_runtime_inference_config()
@@ -105,12 +106,25 @@ def _resolve_postprocessing_crop_pad(module) -> Optional[tuple[int, ...]]:
     if crop_pad is None:
         return None
 
-    crop_pad = tuple(int(v) for v in crop_pad)
-    if not crop_pad or not any(crop_pad):
+    crop_pad_values = tuple(int(v) for v in crop_pad)
+    if not crop_pad_values or not any(crop_pad_values):
         return None
-    if any(v < 0 for v in crop_pad):
-        raise ValueError(f"inference.postprocessing.crop_pad must be non-negative, got {crop_pad}")
-    return crop_pad
+    if any(v < 0 for v in crop_pad_values):
+        raise ValueError(
+            f"inference.postprocessing.crop_pad must be non-negative, got {crop_pad_values}"
+        )
+
+    if len(crop_pad_values) in (2, 4):
+        spatial_rank = 2
+    elif len(crop_pad_values) in (3, 6):
+        spatial_rank = 3
+    else:
+        raise ValueError(
+            "inference.postprocessing.crop_pad must have length 2/3 for symmetric cropping "
+            f"or 4/6 for asymmetric cropping, got {crop_pad_values}."
+        )
+
+    return tuple(get_padsize(list(crop_pad_values), ndim=spatial_rank))
 
 
 def _is_distributed_tta_sharding_active(module) -> bool:
@@ -136,30 +150,12 @@ def _distributed_tta_barrier(module) -> None:
 
 def _crop_spatial_border(
     data: np.ndarray | torch.Tensor,
-    crop_pad: tuple[int, ...],
+    crop_pad: tuple[tuple[int, int], ...],
     *,
     item_name: str,
 ) -> np.ndarray | torch.Tensor:
-    """Crop symmetric border padding from the last spatial dimensions."""
-    if data.ndim < len(crop_pad):
-        raise ValueError(
-            f"Cannot crop {item_name}: rank {data.ndim} is smaller than crop_pad rank {len(crop_pad)}"
-        )
-
-    spatial_shape = tuple(int(v) for v in data.shape[-len(crop_pad):])
-    slices = [slice(None)] * data.ndim
-    for spatial_idx, pad in enumerate(crop_pad):
-        if pad == 0:
-            continue
-        dim_size = spatial_shape[spatial_idx]
-        if pad * 2 >= dim_size:
-            raise ValueError(
-                f"Cannot crop {item_name}: crop_pad {crop_pad} is too large for shape {tuple(data.shape)}"
-            )
-        axis = data.ndim - len(crop_pad) + spatial_idx
-        slices[axis] = slice(pad, dim_size - pad)
-
-    return data[tuple(slices)]
+    """Crop border padding from the last spatial dimensions."""
+    return crop_spatial_by_pad(data, crop_pad, item_name=item_name)
 
 
 def _apply_prediction_crop_pad_if_needed(
@@ -182,7 +178,8 @@ def _apply_prediction_crop_pad_if_needed(
 
     padded_spatial_shape = tuple(int(v) for v in reference_image_shape[-len(crop_pad):])
     expected_cropped_shape = tuple(
-        padded_spatial_shape[i] - (2 * crop_pad[i]) for i in range(len(crop_pad))
+        padded_spatial_shape[i] - crop_pad[i][0] - crop_pad[i][1]
+        for i in range(len(crop_pad))
     )
     if any(size <= 0 for size in expected_cropped_shape):
         raise ValueError(
@@ -217,7 +214,7 @@ def _resolve_reference_spatial_shape_after_crop_pad(
     crop_rank = len(crop_pad)
     unchanged_prefix = reference_spatial_shape[:-crop_rank]
     cropped_suffix = tuple(
-        reference_spatial_shape[len(unchanged_prefix) + axis] - (2 * crop_pad[axis])
+        reference_spatial_shape[len(unchanged_prefix) + axis] - crop_pad[axis][0] - crop_pad[axis][1]
         for axis in range(crop_rank)
     )
     return unchanged_prefix + cropped_suffix
