@@ -221,3 +221,87 @@ def test_run_test_step_crops_affinity_predictions_and_labels(monkeypatch):
     assert captured["predictions_shape"] == (1, 3, 4, 4, 4)
     assert captured["decoded_shape"] == (1, 3, 4, 4, 4)
     assert captured["label_shape"] == (1, 3, 4, 4, 4)
+
+
+class _AsymmetricPostprocessAffinityModule:
+    def __init__(self):
+        self.device = torch.device("cpu")
+        self.cfg = Config()
+        self.cfg.inference.postprocessing.crop_pad = [0, 1, 1, 2, 1, 2]
+        self.cfg.data.label_transform.targets = [
+            {
+                "name": "affinity",
+                "kwargs": {
+                    "offsets": ["1-0-0", "0-1-0", "0-0-1"],
+                    "deepem_crop": True,
+                },
+            }
+        ]
+        self.inference_manager = _DummyInferenceManager()
+
+    def _get_runtime_inference_config(self):
+        return self.cfg.inference
+
+    def _get_test_evaluation_config(self):
+        return None
+
+    def _resolve_test_output_config(self, _batch):
+        return "test", "/tmp/results", "_prediction.h5", ["sample"]
+
+    def _load_cached_predictions(self, _output_dir, _filenames, _cache_suffix, _mode):
+        return None, False, ""
+
+    def _summarize_tta_plan(self, _image_ndim):
+        return "disabled"
+
+    def _is_test_evaluation_enabled(self):
+        return True
+
+
+def test_run_test_step_combines_asymmetric_crop_pad_with_affinity_crop(monkeypatch):
+    module = _AsymmetricPostprocessAffinityModule()
+    batch = {
+        "image": torch.zeros((1, 3, 6, 8, 8), dtype=torch.float32),
+        "label": torch.zeros((1, 3, 4, 4, 4), dtype=torch.float32),
+    }
+
+    captured = {}
+
+    def _fake_process_decoding_postprocessing(
+        _module,
+        predictions_np,
+        *,
+        filenames,
+        mode,
+        batch_meta,
+        save_final_predictions,
+    ):
+        captured["predictions_shape"] = tuple(predictions_np.shape)
+        return predictions_np
+
+    def _fake_evaluate_decoded_predictions(
+        _module,
+        decoded_predictions,
+        labels,
+        *,
+        filenames,
+        batch_idx,
+    ):
+        captured["decoded_shape"] = tuple(decoded_predictions.shape)
+        captured["label_shape"] = tuple(labels.shape)
+
+    monkeypatch.setattr(
+        "connectomics.training.lightning.test_pipeline._process_decoding_postprocessing",
+        _fake_process_decoding_postprocessing,
+    )
+    monkeypatch.setattr(
+        "connectomics.training.lightning.test_pipeline._evaluate_decoded_predictions",
+        _fake_evaluate_decoded_predictions,
+    )
+
+    out = run_test_step(module, batch, batch_idx=0)
+
+    assert isinstance(out, torch.Tensor)
+    assert captured["predictions_shape"] == (1, 3, 4, 4, 4)
+    assert captured["decoded_shape"] == (1, 3, 4, 4, 4)
+    assert captured["label_shape"] == (1, 3, 4, 4, 4)

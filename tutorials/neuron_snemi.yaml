@@ -18,6 +18,7 @@ default:
       profile: cached
       patch_size: [16, 224, 224]
     data_transform:
+      # Keep symmetric full-volume context padding on the inference input.
       pad_size: [8, 128, 128]
 
   inference:
@@ -33,7 +34,9 @@ default:
       flip_axes: all
     postprocessing:
       enabled: true
-      crop_pad: [8, 128, 128]
+      # Crop the padded prediction so the later DeepEM affinity crop lands back
+      # on the original image support instead of shrinking the saved volume.
+      crop_pad: [4, 8, 101, 128, 101, 128]
     save_prediction:
       enabled: true
     evaluation:
