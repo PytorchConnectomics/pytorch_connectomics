@@ -41,7 +41,7 @@ class TestTimeAugmentationConfig:
     """Test-time augmentation (TTA) configuration."""
 
     enabled: bool = False
-    distributed_sharding: bool = False  # Split TTA variants across DDP ranks for one-volume tests
+    distributed_sharding: bool = True  # Split TTA variants across DDP ranks for one-volume tests
     distributed_reduce_chunk_mb: int = 128  # Chunk size for rank reduction of large volumes
     # Optional channel-wise activation overrides applied before aggregation.
     # Each entry is a mapping:
@@ -151,7 +151,7 @@ class PostprocessingConfig:
     output_transpose: List[int] = field(
         default_factory=list
     )  # Axis permutation for output (e.g., [2,1,0] for zyx->xyz)
-    crop_pad: Optional[List[int]] = None  # Symmetric crop [D,H,W] or [H,W] applied to predictions
+    crop_pad: Optional[List[int]] = None  # Crop [D,H,W]/[H,W] sym or [Db,Da,Hb,Ha,Wb,Wa] asym.
 
 
 @dataclass

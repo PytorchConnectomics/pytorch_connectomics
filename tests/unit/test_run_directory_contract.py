@@ -46,6 +46,31 @@ def test_setup_run_directory_train_ddp_reuses_timestamp_file(tmp_path, monkeypat
     assert Path(cfg.monitor.checkpoint.dirpath) == run_dir / "checkpoints"
 
 
+def test_setup_run_directory_train_resume_reuses_existing_run_directory(tmp_path):
+    cfg = Config()
+    configured_checkpoint_dir = tmp_path / "outputs" / "exp" / "checkpoints"
+    existing_run_dir = tmp_path / "outputs" / "exp" / "20250306_164756"
+    existing_checkpoint_dir = existing_run_dir / "checkpoints"
+    existing_checkpoint_dir.mkdir(parents=True, exist_ok=True)
+    resume_checkpoint = existing_checkpoint_dir / "last.ckpt"
+    resume_checkpoint.write_text("checkpoint placeholder")
+
+    run_dir = setup_run_directory(
+        "train",
+        cfg,
+        str(configured_checkpoint_dir),
+        resume_checkpoint_path=str(resume_checkpoint),
+    )
+
+    assert run_dir == existing_run_dir
+    assert Path(cfg.monitor.checkpoint.dirpath) == existing_checkpoint_dir
+    assert (existing_run_dir / "config.yaml").exists()
+
+    timestamp_file = existing_run_dir.parent / ".latest_timestamp"
+    assert timestamp_file.exists()
+    assert timestamp_file.read_text().strip() == existing_run_dir.name
+
+
 def test_setup_run_directory_non_train_modes_create_requested_directory(tmp_path):
     for mode in ["test", "tune", "tune-test"]:
         cfg = Config()

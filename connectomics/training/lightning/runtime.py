@@ -9,7 +9,27 @@ from typing import Optional
 logger = logging.getLogger(__name__)
 
 
-def setup_run_directory(mode: str, cfg, checkpoint_dirpath: str):
+def _resolve_resume_run_directory(resume_checkpoint_path: str, checkpoint_subdir: str) -> Path:
+    """
+    Infer the run directory for a resumed training job from the checkpoint path.
+
+    If the checkpoint already lives under a folder named like the configured
+    checkpoint subdirectory (usually ``checkpoints``), reuse that run
+    directory. Otherwise, treat the checkpoint's parent as the run directory
+    and continue saving checkpoints into ``<parent>/<checkpoint_subdir>``.
+    """
+    checkpoint_path = Path(resume_checkpoint_path).expanduser()
+    if checkpoint_path.parent.name == checkpoint_subdir:
+        return checkpoint_path.parent.parent
+    return checkpoint_path.parent
+
+
+def setup_run_directory(
+    mode: str,
+    cfg,
+    checkpoint_dirpath: str,
+    resume_checkpoint_path: Optional[str] = None,
+):
     """
     Setup run directory with timestamp for training mode.
     Handles DDP subprocess coordination via timestamp files.
@@ -18,6 +38,7 @@ def setup_run_directory(mode: str, cfg, checkpoint_dirpath: str):
         mode: 'train', 'test', 'tune', or 'tune-test'
         cfg: Config object (will be modified in-place for training mode)
         checkpoint_dirpath: Path to checkpoint/output directory from config
+        resume_checkpoint_path: Checkpoint path for in-place training resume
 
     Returns:
         Path: Run directory (timestamped for train, created for tune modes, dummy for test)
@@ -32,20 +53,32 @@ def setup_run_directory(mode: str, cfg, checkpoint_dirpath: str):
     output_base = checkpoint_dir.parent
 
     if mode == "train":
+        resume_run_dir = None
+        if resume_checkpoint_path:
+            resume_run_dir = _resolve_resume_run_directory(
+                resume_checkpoint_path, checkpoint_subdir
+            )
+            output_base = resume_run_dir.parent
+
         # Check if this is a DDP re-launch (LOCAL_RANK is set by PyTorch Lightning)
         is_ddp_subprocess = "LOCAL_RANK" in os.environ
         local_rank = int(os.environ.get("LOCAL_RANK", 0))
         timestamp_file = output_base / ".latest_timestamp"
 
         if not is_ddp_subprocess:
-            # First invocation (main process) - create new timestamp
-            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-            run_dir = output_base / timestamp
+            # First invocation (main process) - create new timestamp unless resuming in place.
+            if resume_run_dir is not None:
+                run_dir = resume_run_dir
+                logger.info(f"Resuming into existing run directory: {run_dir}")
+            else:
+                timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+                run_dir = output_base / timestamp
+                logger.info(f"Run directory: {run_dir}")
+
             checkpoint_path = run_dir / checkpoint_subdir
             cfg.monitor.checkpoint.dirpath = str(checkpoint_path)
 
             checkpoint_path.mkdir(parents=True, exist_ok=True)
-            logger.info(f"Run directory: {run_dir}")
 
             # Save config to run directory
             config_save_path = run_dir / "config.yaml"
@@ -54,7 +87,7 @@ def setup_run_directory(mode: str, cfg, checkpoint_dirpath: str):
 
             # Save timestamp for DDP subprocesses to read
             output_base.mkdir(parents=True, exist_ok=True)
-            timestamp_file.write_text(timestamp)
+            timestamp_file.write_text(run_dir.name)
         else:
             # DDP subprocess - read existing timestamp
             import time
