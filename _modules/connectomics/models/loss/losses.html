@@ -501,6 +501,88 @@
         <span class="k">return</span> <span class="n">_reduce_weighted_tensor</span><span class="p">(</span><span class="n">bce</span><span class="p">,</span> <span class="n">weight</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">reduction</span><span class="p">)</span>
 
 
+<span class="k">class</span><span class="w"> </span><span class="nc">PerChannelBCEWithLogitsLoss</span><span class="p">(</span><span class="n">nn</span><span class="o">.</span><span class="n">Module</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;BCE loss computed independently per channel with per-channel class balancing.</span>
+
+<span class="sd">    Equivalent to summing C separate WeightedBCEWithLogitsLoss instances (one</span>
+<span class="sd">    per output channel) but expressed as a single loss entry for config brevity.</span>
+<span class="sd">    Matches the DeepEM per-edge loss structure where each affinity channel has</span>
+<span class="sd">    its own class-balanced BCE.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        auto_pos_weight: If True, compute per-channel pos_weight as</span>
+<span class="sd">            min(n_neg / n_pos, max_pos_weight) from the current batch.</span>
+<span class="sd">        max_pos_weight: Cap for auto pos_weight to avoid extreme values.</span>
+<span class="sd">        reduction: Per-channel reduction before summing (&#39;mean&#39; or &#39;sum&#39;).</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">auto_pos_weight</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+        <span class="n">max_pos_weight</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">10.0</span><span class="p">,</span>
+        <span class="n">reduction</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;mean&quot;</span><span class="p">,</span>
+    <span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">auto_pos_weight</span> <span class="o">=</span> <span class="n">auto_pos_weight</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">max_pos_weight</span> <span class="o">=</span> <span class="n">max_pos_weight</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">reduction</span> <span class="o">=</span> <span class="n">reduction</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">forward</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="nb">input</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span>
+        <span class="n">target</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span>
+        <span class="n">weight</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Compute per-channel BCE loss.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            input: Logits [B, C, ...].</span>
+<span class="sd">            target: Ground truth [B, C, ...].</span>
+<span class="sd">            weight: Optional spatial mask [B, C, ...] (e.g. affinity valid mask).</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            Sum of per-channel reduced BCE losses.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">C</span> <span class="o">=</span> <span class="nb">input</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+
+        <span class="c1"># Vectorised per-channel pos_weight computation.</span>
+        <span class="n">pos_weight_tensor</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">auto_pos_weight</span><span class="p">:</span>
+            <span class="n">valid</span> <span class="o">=</span> <span class="n">weight</span> <span class="o">&gt;</span> <span class="mi">0</span> <span class="k">if</span> <span class="n">weight</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">else</span> <span class="n">torch</span><span class="o">.</span><span class="n">ones_like</span><span class="p">(</span><span class="n">target</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">torch</span><span class="o">.</span><span class="n">bool</span><span class="p">)</span>
+            <span class="n">pos</span> <span class="o">=</span> <span class="p">(</span><span class="n">target</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">)</span> <span class="o">&amp;</span> <span class="n">valid</span>
+            <span class="n">neg</span> <span class="o">=</span> <span class="p">(</span><span class="n">target</span> <span class="o">&lt;=</span> <span class="mi">0</span><span class="p">)</span> <span class="o">&amp;</span> <span class="n">valid</span>
+
+            <span class="c1"># Reduce over batch + spatial dims → (C,)</span>
+            <span class="n">reduce_dims</span> <span class="o">=</span> <span class="p">(</span><span class="mi">0</span><span class="p">,)</span> <span class="o">+</span> <span class="nb">tuple</span><span class="p">(</span><span class="nb">range</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="n">target</span><span class="o">.</span><span class="n">ndim</span><span class="p">))</span>
+            <span class="n">pos_counts</span> <span class="o">=</span> <span class="n">pos</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">dim</span><span class="o">=</span><span class="n">reduce_dims</span><span class="p">)</span><span class="o">.</span><span class="n">float</span><span class="p">()</span>
+            <span class="n">neg_counts</span> <span class="o">=</span> <span class="n">neg</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">dim</span><span class="o">=</span><span class="n">reduce_dims</span><span class="p">)</span><span class="o">.</span><span class="n">float</span><span class="p">()</span>
+
+            <span class="n">pw</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">ones</span><span class="p">(</span><span class="n">C</span><span class="p">,</span> <span class="n">device</span><span class="o">=</span><span class="nb">input</span><span class="o">.</span><span class="n">device</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">torch</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span>
+            <span class="n">nonzero</span> <span class="o">=</span> <span class="n">pos_counts</span> <span class="o">&gt;</span> <span class="mi">0</span>
+            <span class="n">pw</span><span class="p">[</span><span class="n">nonzero</span><span class="p">]</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">clamp</span><span class="p">(</span>
+                <span class="n">neg_counts</span><span class="p">[</span><span class="n">nonzero</span><span class="p">]</span> <span class="o">/</span> <span class="n">pos_counts</span><span class="p">[</span><span class="n">nonzero</span><span class="p">],</span>
+                <span class="nb">max</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">max_pos_weight</span><span class="p">,</span>
+            <span class="p">)</span>
+            <span class="c1"># (1, C, 1, ..., 1) for broadcasting; cast to input dtype for AMP</span>
+            <span class="n">pos_weight_tensor</span> <span class="o">=</span> <span class="n">pw</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="n">C</span><span class="p">,</span> <span class="o">*</span><span class="p">([</span><span class="mi">1</span><span class="p">]</span> <span class="o">*</span> <span class="p">(</span><span class="n">target</span><span class="o">.</span><span class="n">ndim</span> <span class="o">-</span> <span class="mi">2</span><span class="p">)))</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="nb">input</span><span class="o">.</span><span class="n">dtype</span><span class="p">)</span>
+
+        <span class="n">bce</span> <span class="o">=</span> <span class="n">F</span><span class="o">.</span><span class="n">binary_cross_entropy_with_logits</span><span class="p">(</span>
+            <span class="nb">input</span><span class="p">,</span> <span class="n">target</span><span class="p">,</span> <span class="n">pos_weight</span><span class="o">=</span><span class="n">pos_weight_tensor</span><span class="p">,</span> <span class="n">reduction</span><span class="o">=</span><span class="s2">&quot;none&quot;</span><span class="p">,</span>
+        <span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">weight</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">bce</span> <span class="o">=</span> <span class="n">bce</span> <span class="o">*</span> <span class="n">weight</span>
+
+        <span class="c1"># Per-channel reduction, then sum across channels.</span>
+        <span class="n">total</span> <span class="o">=</span> <span class="nb">input</span><span class="o">.</span><span class="n">new_tensor</span><span class="p">(</span><span class="mf">0.0</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">c</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">C</span><span class="p">):</span>
+            <span class="n">ch_bce</span> <span class="o">=</span> <span class="n">bce</span><span class="p">[:,</span> <span class="n">c</span> <span class="p">:</span> <span class="n">c</span> <span class="o">+</span> <span class="mi">1</span><span class="p">,</span> <span class="o">...</span><span class="p">]</span>
+            <span class="n">ch_w</span> <span class="o">=</span> <span class="n">weight</span><span class="p">[:,</span> <span class="n">c</span> <span class="p">:</span> <span class="n">c</span> <span class="o">+</span> <span class="mi">1</span><span class="p">,</span> <span class="o">...</span><span class="p">]</span> <span class="k">if</span> <span class="n">weight</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">else</span> <span class="kc">None</span>
+            <span class="n">total</span> <span class="o">=</span> <span class="n">total</span> <span class="o">+</span> <span class="n">_reduce_weighted_tensor</span><span class="p">(</span><span class="n">ch_bce</span><span class="p">,</span> <span class="n">ch_w</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">reduction</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">total</span>
+
+
 <div class="viewcode-block" id="WeightedMAELoss">
 <a class="viewcode-back" href="../../../../modules/models.html#connectomics.models.loss.WeightedMAELoss">[docs]</a>
 <span class="k">class</span><span class="w"> </span><span class="nc">WeightedMAELoss</span><span class="p">(</span><span class="n">nn</span><span class="o">.</span><span class="n">Module</span><span class="p">):</span>
@@ -683,6 +765,7 @@
 <span class="n">__all__</span> <span class="o">=</span> <span class="p">[</span>
     <span class="s2">&quot;CrossEntropyLossWrapper&quot;</span><span class="p">,</span>
     <span class="s2">&quot;WeightedBCEWithLogitsLoss&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;PerChannelBCEWithLogitsLoss&quot;</span><span class="p">,</span>
     <span class="s2">&quot;WeightedMSELoss&quot;</span><span class="p">,</span>
     <span class="s2">&quot;WeightedMAELoss&quot;</span><span class="p">,</span>
     <span class="s2">&quot;SmoothL1Loss&quot;</span><span class="p">,</span>
