@@ -177,6 +177,21 @@ def _extract_single_sample_batch(batch: Dict[str, Any], sample_idx: int) -> Dict
     return sample_batch
 
 
+def _coerce_singleton_batch_tensor(value: Any) -> Any:
+    """Normalize singleton list wrappers around image/label/mask tensors."""
+    if value is None:
+        return None
+    if isinstance(value, np.ndarray):
+        return torch.from_numpy(value)
+    if torch.is_tensor(value):
+        return value
+    if isinstance(value, (list, tuple)) and len(value) == 1:
+        inner = _coerce_singleton_batch_tensor(value[0])
+        if torch.is_tensor(inner):
+            return inner if inner.ndim > 0 and inner.shape[0] == 1 else inner.unsqueeze(0)
+    return value
+
+
 def _crop_spatial_border(
     data: np.ndarray | torch.Tensor,
     crop_pad: tuple[tuple[int, int], ...],
@@ -747,9 +762,9 @@ def run_test_step(module, batch: Dict[str, torch.Tensor], batch_idx: int) -> STE
     # Build explicit context from module (single point of private method access)
     ctx = TestContext.from_module(module, batch)
 
-    images = batch["image"]
-    labels = batch.get("label")
-    mask = batch.get("mask")
+    images = _coerce_singleton_batch_tensor(batch["image"])
+    labels = _coerce_singleton_batch_tensor(batch.get("label"))
+    mask = _coerce_singleton_batch_tensor(batch.get("mask"))
     crop_pad = _resolve_postprocessing_crop_pad(module)
     reference_image_shape = tuple(int(v) for v in images.shape)
 
