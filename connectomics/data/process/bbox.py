@@ -216,8 +216,6 @@ def _compute_bbox_all_find_objects(
     if len(uid) == 0:
         return None
 
-    uid_set = set(int(x) for x in uid)
-
     # find_objects returns list indexed by (label - 1)
     loc = find_objects(seg)
 
@@ -227,7 +225,6 @@ def _compute_bbox_all_find_objects(
         seg_ui, seg_uc = np.unique(seg, return_counts=True)
         counts_dict = dict(zip(seg_ui, seg_uc))
 
-    n_cols = 1 + 2 * ndim + int(do_count)
     rows = []
     for label_id in uid:
         label_id = int(label_id)

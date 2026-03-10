@@ -298,7 +298,8 @@ def validate_config(cfg: Config) -> None:
     # Data validation
     if len(cfg.data.dataloader.patch_size) not in [2, 3]:
         raise ValueError(
-            f"data.dataloader.patch_size must be 2D or 3D (got length {len(cfg.data.dataloader.patch_size)})"
+            "data.dataloader.patch_size must be 2D or 3D "
+            f"(got length {len(cfg.data.dataloader.patch_size)})"
         )
     if cfg.data.dataloader.batch_size <= 0:
         raise ValueError("data.dataloader.batch_size must be positive")

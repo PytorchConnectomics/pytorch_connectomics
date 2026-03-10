@@ -157,7 +157,8 @@ def _to_abiss_affinity(
     else:
         if n_channels < 3:
             raise ValueError(
-                f"ABISS watershed requires 1 channel (probability) or >=3 affinity channels; got {n_channels}."
+                "ABISS watershed requires 1 channel (probability) or "
+                f">=3 affinity channels; got {n_channels}."
             )
         aff_xyzc = np.transpose(selected[:3], (3, 2, 1, 0))
 
@@ -269,7 +270,8 @@ def _run_abiss_ws(
 ) -> "np.ndarray | dict[float, np.ndarray]":
     if ws_low_threshold > ws_high_threshold:
         raise ValueError(
-            f"Expected ws_low_threshold <= ws_high_threshold, got {ws_low_threshold} > {ws_high_threshold}."
+            "Expected ws_low_threshold <= ws_high_threshold, got "
+            f"{ws_low_threshold} > {ws_high_threshold}."
         )
 
     aff_xyzc = _to_abiss_affinity(predictions_czyx, channels=channels)
@@ -363,7 +365,10 @@ def _parse_args() -> argparse.Namespace:
         "--ws-high-threshold",
         type=str,
         default="0.5",
-        help="ABISS watershed high threshold. Absolute (e.g. 0.8) or percentile (e.g. p80 or 80%%).",
+        help=(
+            "ABISS watershed high threshold. Absolute (e.g. 0.8) or "
+            "percentile (e.g. p80 or 80%%)."
+        ),
     )
     parser.add_argument(
         "--ws-low-threshold",
@@ -387,7 +392,10 @@ def _parse_args() -> argparse.Namespace:
         "--ws-merge-threshold",
         type=str,
         default=None,
-        help="Affinity threshold for size-based merging. Absolute or percentile. Default: --ws-low-threshold.",
+        help=(
+            "Affinity threshold for size-based merging. Absolute or "
+            "percentile. Default: --ws-low-threshold."
+        ),
     )
     parser.add_argument(
         "--ws-merge-thresholds",

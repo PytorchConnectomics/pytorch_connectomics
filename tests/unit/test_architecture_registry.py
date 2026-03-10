@@ -174,7 +174,7 @@ def test_base_model_interface():
     # Test model info
     info = model.get_model_info()
     assert info["name"] == "DummyModel"
-    assert info["deep_supervision"] == False
+    assert not info["deep_supervision"]
     assert info["output_scales"] == 1
     assert info["parameters"] > 0
     assert info["trainable_parameters"] > 0
@@ -201,7 +201,7 @@ def test_deep_supervision_model():
 
     # Check model info
     info = model.get_model_info()
-    assert info["deep_supervision"] == True
+    assert info["deep_supervision"]
     assert info["output_scales"] == 2
 
     # Test forward pass

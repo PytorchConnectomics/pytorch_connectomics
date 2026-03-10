@@ -183,7 +183,8 @@ class DataloaderConfig:
     use_lazy_zarr: bool = False  # Lazy crop-on-read for zarr volumes (no full preload)
     cached_sampling_max_attempts: int = 10  # Retry attempts for foreground-aware sampling
     cached_sampling_foreground_threshold: float = (
-        0.0  # Minimum (label > 0) fraction required for training crops; 0 disables foreground sampling
+        0.0  # Minimum (label > 0) fraction required for training crops.
+        # Zero disables foreground sampling.
     )
     cached_sampling_crop_to_nonzero_mask: bool = (
         False  # Bbox approach: constrain crops to intersect the nonzero mask bounding box

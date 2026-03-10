@@ -285,8 +285,11 @@ def main() -> None:
 
 
 # Example:
-# python scripts/downsample_nisb.py --base-dir /projects/weilab/dataset/nisb/base --splits train val test --downsample-ratio-zyx 2 4 4
+# python scripts/downsample_nisb.py --base-dir /projects/weilab/dataset/nisb/base \
+#     --splits train val test --downsample-ratio-zyx 2 4 4
 # Parallel shard example (task 3 of 7):
-# python scripts/downsample_nisb.py --base-dir /projects/weilab/dataset/nisb/base --splits train val test --downsample-ratio-zyx 2 4 4 --num-shards 7 --shard-index 3
+# python scripts/downsample_nisb.py --base-dir /projects/weilab/dataset/nisb/base \
+#     --splits train val test --downsample-ratio-zyx 2 4 4 \
+#     --num-shards 7 --shard-index 3
 if __name__ == "__main__":
     main()

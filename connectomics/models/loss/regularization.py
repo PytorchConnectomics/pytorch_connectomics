@@ -155,7 +155,8 @@ class ContourDistanceConsistency(nn.Module):
 
         if contour_prob.shape != distance_abs.shape:
             raise ValueError(
-                f"Shape mismatch: contour_prob={contour_prob.shape} vs distance_abs={distance_abs.shape}"
+                f"Shape mismatch: contour_prob={contour_prob.shape} "
+                f"vs distance_abs={distance_abs.shape}"
             )
 
         # Penalize: high contour prob should match low distance

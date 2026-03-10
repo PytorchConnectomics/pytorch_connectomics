@@ -664,7 +664,8 @@ class TTAPredictor:
             )
         except TypeError as exc:
             logger.warning(
-                "Skipping mask application because the provided mask payload is not a tensor-like volume: %s",
+                "Skipping mask application because the provided mask payload "
+                "is not a tensor-like volume: %s",
                 exc,
             )
             return ensemble_result

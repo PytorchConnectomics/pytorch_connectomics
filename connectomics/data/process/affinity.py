@@ -222,7 +222,8 @@ def crop_spatial_by_pad(
             raise ValueError(f"Crop pad must be non-negative for {item_name}, got {crop_pad}")
         if before + after >= dim_size:
             raise ValueError(
-                f"Cannot crop {item_name}: crop pad {tuple(crop_pad)} is too large for shape {tuple(data.shape)}"
+                f"Cannot crop {item_name}: crop pad {tuple(crop_pad)} "
+                f"is too large for shape {tuple(data.shape)}"
             )
         axis = data.ndim - len(crop_pad) + spatial_idx
         end = dim_size - after if after > 0 else dim_size

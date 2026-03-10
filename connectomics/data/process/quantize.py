@@ -53,7 +53,6 @@ def _decode_quant_torch(output, mode="max", levels=None):
         pred = torch.argmax(output, axis=1)
         energy = pred / float(levels)
     elif mode == "mean":
-        out_shape = output.shape
         bins = torch.linspace(
             -1.0 / levels,
             1.0 - 1.0 / levels,
@@ -79,7 +78,6 @@ def _decode_quant_numpy(output, mode="max", levels=None):
         pred = np.argmax(output, axis=0)
         energy = pred / float(levels)
     elif mode == "mean":
-        out_shape = output.shape
         bins = np.linspace(-1.0 / num_channels, 1.0 - 1.0 / num_channels, num_channels)
         bins = bins.reshape(-1, *([1] * (output.ndim - 1)))
 

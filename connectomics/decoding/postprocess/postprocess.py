@@ -254,7 +254,10 @@ def apply_binary_postprocessing(
                        Values: 0 (background) or 1 (foreground).
 
     Example:
-        >>> from connectomics.config.schema import BinaryPostprocessingConfig, ConnectedComponentsConfig
+        >>> from connectomics.config.schema import (
+        ...     BinaryPostprocessingConfig,
+        ...     ConnectedComponentsConfig,
+        ... )
         >>> config = BinaryPostprocessingConfig(
         ...     enabled=True,
         ...     opening_iterations=2,
