@@ -9,24 +9,24 @@ This module provides utilities for:
 """
 
 from __future__ import annotations
-from typing import List, TYPE_CHECKING
+
+from typing import TYPE_CHECKING, List
+
 import numpy as np
 
 if TYPE_CHECKING:
     from connectomics.config.schema import BinaryPostprocessingConfig
 
-from scipy import ndimage
-
 # from skimage.measure import label  # Replaced with cc3d.connected_components
 import cc3d
-from skimage.feature import peak_local_max
 
 # from skimage.segmentation import watershed  # Replaced with mahotas for better performance
 import mahotas
+from scipy import ndimage
+from skimage.feature import peak_local_max
 
 from connectomics.data.process import bbox_ND, crop_ND, replace_ND
 from connectomics.utils.label_overlap import compute_label_overlap
-
 
 __all__ = [
     "binarize_and_median",
@@ -330,7 +330,7 @@ def apply_binary_postprocessing(
 
             if len(sizes) > cc_config.top_k:
                 # Get indices of top-k largest components
-                top_k_indices = np.argsort(sizes)[-cc_config.top_k:]
+                top_k_indices = np.argsort(sizes)[-cc_config.top_k :]
                 top_k_labels = label_ids[top_k_indices]
 
                 # Create mask keeping only top-k

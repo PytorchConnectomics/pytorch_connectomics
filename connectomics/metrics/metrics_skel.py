@@ -20,19 +20,21 @@ Supports multi-CPU parallelism with Python multiprocessing for batch evaluation.
 """
 
 from __future__ import annotations
+
 import functools
-import os
-from typing import Tuple, List, Optional
-import numpy as np
 import multiprocessing
+import os
 from pathlib import Path
+from typing import List, Optional, Tuple
+
+import numpy as np
 
 try:
     import imageio
 except ImportError:
     imageio = None
 
-from skimage.morphology import skeletonize, dilation, square
+from skimage.morphology import dilation, skeletonize, square
 
 
 def compute_skeleton_metrics(

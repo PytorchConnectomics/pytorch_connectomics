@@ -63,21 +63,16 @@ class MonaiFilenameDataset(Dataset):
 
         base_path = Path(json_data.get(base_path_key, ""))
         image_files = json_data.get(images_key, [])
-        label_files = (
-            json_data.get(labels_key, []) if use_labels else []
-        )
+        label_files = json_data.get(labels_key, []) if use_labels else []
 
         if not image_files:
-            raise ValueError(
-                f"No images found in JSON under key '{images_key}'"
-            )
+            raise ValueError(f"No images found in JSON under key '{images_key}'")
 
         # Create paired data
         if use_labels and label_files:
             if len(image_files) != len(label_files):
                 raise ValueError(
-                    f"Image count ({len(image_files)}) != "
-                    f"label count ({len(label_files)})"
+                    f"Image count ({len(image_files)}) != " f"label count ({len(label_files)})"
                 )
             pairs = list(zip(image_files, label_files))
         else:
@@ -86,10 +81,7 @@ class MonaiFilenameDataset(Dataset):
         # Apply train/val split if requested
         if train_val_split is not None:
             if not 0.0 < train_val_split < 1.0:
-                raise ValueError(
-                    f"train_val_split must be in (0, 1), "
-                    f"got {train_val_split}"
-                )
+                raise ValueError(f"train_val_split must be in (0, 1), " f"got {train_val_split}")
             rng = random.Random(random_seed)
             pairs_shuffled = pairs.copy()
             rng.shuffle(pairs_shuffled)
@@ -116,7 +108,9 @@ class MonaiFilenameDataset(Dataset):
 
         logger.info(
             "MonaiFilenameDataset: mode=%s, samples=%d, base=%s",
-            mode, len(data_dicts), base_path,
+            mode,
+            len(data_dicts),
+            base_path,
         )
 
 

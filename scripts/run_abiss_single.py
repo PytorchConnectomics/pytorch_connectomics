@@ -9,17 +9,17 @@ from __future__ import annotations
 import argparse
 import shutil
 import subprocess
+import sys
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from typing import Iterable, Optional
-import sys
 
 import numpy as np
 
 # Match scripts/main.py behavior so this script works when run from any cwd.
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from connectomics.data.io import read_hdf5, write_hdf5
+from connectomics.data.io import read_hdf5, write_hdf5  # noqa: E402
 
 _ABISS_TAG = "0_0_0_0"
 
@@ -126,7 +126,9 @@ def _resolve_ws_binary(abiss_home: Path, ws_binary: Optional[str]) -> Optional[P
     return None
 
 
-def _select_affinity_channels(predictions: np.ndarray, channels: Optional[Iterable[int]]) -> np.ndarray:
+def _select_affinity_channels(
+    predictions: np.ndarray, channels: Optional[Iterable[int]]
+) -> np.ndarray:
     if channels is None:
         if predictions.shape[0] >= 3:
             return predictions[:3]
@@ -138,7 +140,9 @@ def _select_affinity_channels(predictions: np.ndarray, channels: Optional[Iterab
     return predictions[np.asarray(idx, dtype=np.int64)]
 
 
-def _to_abiss_affinity(predictions_czyx: np.ndarray, channels: Optional[Iterable[int]]) -> np.ndarray:
+def _to_abiss_affinity(
+    predictions_czyx: np.ndarray, channels: Optional[Iterable[int]]
+) -> np.ndarray:
     selected = np.asarray(_select_affinity_channels(predictions_czyx, channels), dtype=np.float32)
     if selected.ndim != 4:
         raise ValueError(f"Expected selected affinity predictions to be 4D, got {selected.shape}.")
@@ -160,7 +164,9 @@ def _to_abiss_affinity(predictions_czyx: np.ndarray, channels: Optional[Iterable
     return np.asfortranarray(aff_xyzc.astype(np.float32, copy=False))
 
 
-def _write_affinity_with_halo(path: Path, aff_xyzc: np.ndarray, halo: int = 1) -> tuple[int, int, int]:
+def _write_affinity_with_halo(
+    path: Path, aff_xyzc: np.ndarray, halo: int = 1
+) -> tuple[int, int, int]:
     """Write ABISS affinity mmap with symmetric XYZ halo and return written XYZ shape."""
     if halo < 0:
         raise ValueError(f"`halo` must be >= 0, got {halo}.")
@@ -183,14 +189,16 @@ def _write_affinity_with_halo(path: Path, aff_xyzc: np.ndarray, halo: int = 1) -
     if halo == 0:
         mm[...] = aff_xyzc
     else:
-        mm[halo:halo + xdim, halo:halo + ydim, halo:halo + zdim, :] = aff_xyzc
+        mm[halo : halo + xdim, halo : halo + ydim, halo : halo + zdim, :] = aff_xyzc
     mm.flush()
     del mm
 
     return (x_out, y_out, z_out)
 
 
-def _read_segmentation_xyz(path: Path, xyz_shape: tuple[int, int, int], halo: int = 1) -> np.ndarray:
+def _read_segmentation_xyz(
+    path: Path, xyz_shape: tuple[int, int, int], halo: int = 1
+) -> np.ndarray:
     """Read ABISS segmentation mmap, supporting cropped and uncropped writer variants."""
     itemsize = np.dtype(np.uint64).itemsize
     n_expected = int(np.prod(xyz_shape, dtype=np.int64))
@@ -236,7 +244,9 @@ def _read_segmentation_xyz(path: Path, xyz_shape: tuple[int, int, int], halo: in
     )
 
 
-def _write_abiss_param_file(path: Path, xyz_shape: tuple[int, int, int], boundary_flags: list[int], offset: int) -> None:
+def _write_abiss_param_file(
+    path: Path, xyz_shape: tuple[int, int, int], boundary_flags: list[int], offset: int
+) -> None:
     xdim, ydim, zdim = xyz_shape
     flags = " ".join(str(int(v)) for v in boundary_flags)
     path.write_text(f"{xdim} {ydim} {zdim}\n{flags}\n{int(offset)}\n", encoding="utf-8")
@@ -384,7 +394,7 @@ def _parse_args() -> argparse.Namespace:
         type=str,
         default=None,
         help="Comma-separated merge thresholds for batch mode. Runs watershed once, "
-             "merges with each threshold. Writes {output}_mt{i}.{ext} per threshold.",
+        "merges with each threshold. Writes {output}_mt{i}.{ext} per threshold.",
     )
     parser.add_argument(
         "--abiss-boundary-flags",
@@ -451,8 +461,10 @@ def main() -> int:
     needs_percentile = any(_parse_threshold(v)[1] for v in all_thresh_strs)
     if needs_percentile:
         aff_for_pct = _to_abiss_affinity(predictions, channels=channels)
-        print(f"Resolving percentile thresholds (affinity range: "
-              f"[{aff_for_pct.min():.6f}, {aff_for_pct.max():.6f}]):")
+        print(
+            f"Resolving percentile thresholds (affinity range: "
+            f"[{aff_for_pct.min():.6f}, {aff_for_pct.max():.6f}]):"
+        )
     else:
         aff_for_pct = np.empty(0)  # unused, _resolve_threshold won't compute percentiles
 

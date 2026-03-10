@@ -34,7 +34,7 @@ def load_external_weights(model: nn.Module, cfg) -> nn.Module:
     if isinstance(checkpoint, dict):
         if "state_dict" in checkpoint:
             state_dict = checkpoint["state_dict"]
-            logger.info("Loaded Lightning checkpoint (epoch=%s)", checkpoint.get('epoch', '?'))
+            logger.info("Loaded Lightning checkpoint (epoch=%s)", checkpoint.get("epoch", "?"))
         elif "model_state_dict" in checkpoint:
             state_dict = checkpoint["model_state_dict"]
         else:
@@ -47,7 +47,7 @@ def load_external_weights(model: nn.Module, cfg) -> nn.Module:
         stripped_count = 0
         for key, value in state_dict.items():
             if key.startswith(key_prefix):
-                stripped_state_dict[key[len(key_prefix):]] = value
+                stripped_state_dict[key[len(key_prefix) :]] = value
                 stripped_count += 1
             else:
                 stripped_state_dict[key] = value

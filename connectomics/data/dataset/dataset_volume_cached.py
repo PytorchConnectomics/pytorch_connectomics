@@ -14,9 +14,9 @@ from typing import Any, Dict, List, Optional, Tuple
 import numpy as np
 from monai.transforms import Compose
 
+from ..io import read_volume
 from .base import PatchDataset
 from .crop_sampling import random_crop_position
-from ..io import read_volume
 
 logger = logging.getLogger(__name__)
 
@@ -198,7 +198,9 @@ class CachedVolumeDataset(PatchDataset):
             total = sum(len(c) for c in self.mask_nonzero_coords if c is not None)
             logger.info(
                 "[sample_nonzero_mask] %d/%d volumes have nonzero mask (%d voxels)",
-                n_valid, len(self.mask_nonzero_coords), total,
+                n_valid,
+                len(self.mask_nonzero_coords),
+                total,
             )
         else:
             self.mask_nonzero_coords = [None] * len(self.cached_images)

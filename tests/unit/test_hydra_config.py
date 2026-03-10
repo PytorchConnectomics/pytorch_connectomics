@@ -4,38 +4,41 @@ Test the new Hydra-based configuration system.
 
 import sys
 from pathlib import Path
+
 import numpy as np
 import pytest
+import torch
 
 # Add project root to path
 project_root = Path(__file__).parent.parent
 sys.path.insert(0, str(project_root))
 
-from connectomics.config import (
+from connectomics.config import (  # noqa: E402
     Config,
-    load_config,
-    save_config,
-    merge_configs,
-    update_from_cli,
-    to_dict,
-    from_dict,
-    print_config,
-    validate_config,
-    get_config_hash,
     create_experiment_name,
+    from_dict,
+    get_config_hash,
+    load_config,
+    merge_configs,
+    print_config,
     resolve_default_profiles,
+    save_config,
+    to_dict,
+    update_from_cli,
+    validate_config,
 )
-from connectomics.config.schema import TestConfig as HydraTestConfig, TuneConfig
-from connectomics.data.augment.build import build_test_transforms, build_val_transforms
+from connectomics.config.schema import TestConfig as HydraTestConfig  # noqa: E402
+from connectomics.config.schema import TuneConfig  # noqa: E402
+from connectomics.data.augment.build import build_test_transforms  # noqa: E402
 
 
 def test_default_config_creation():
     """Test creating default config."""
     cfg = Config()
-    
-    assert cfg.model.arch.type == 'monai_basic_unet3d'
+
+    assert cfg.model.arch.type == "monai_basic_unet3d"
     assert cfg.data.dataloader.batch_size == 4
-    assert cfg.optimization.optimizer.name == 'AdamW'
+    assert cfg.optimization.optimizer.name == "AdamW"
     assert cfg.optimization.max_epochs == 200
     assert cfg.monitor.logging.images.channel_mode == "all"
     print("[OK]Default config creation works")
@@ -44,14 +47,14 @@ def test_default_config_creation():
 def test_config_validation():
     """Test config validation."""
     cfg = Config()
-    
+
     # Valid config should pass
     try:
         validate_config(cfg)
         print("[OK]Valid config passes validation")
     except ValueError as e:
         raise AssertionError(f"Valid config failed validation: {e}")
-    
+
     # Invalid config should fail
     cfg.data.dataloader.batch_size = -1
     try:
@@ -109,7 +112,11 @@ def test_cross_section_validation_rejects_label_target_channel_mismatch():
     """Stacked label targets impose a minimum output-channel requirement."""
     cfg = Config()
     cfg.model.out_channels = 2
-    cfg.data.label_transform.targets = [{"name": "binary"}, {"name": "boundary"}, {"name": "distance"}]
+    cfg.data.label_transform.targets = [
+        {"name": "binary"},
+        {"name": "boundary"},
+        {"name": "distance"},
+    ]
 
     with pytest.raises(ValueError, match="require at least 3 channels"):
         validate_config(cfg)
@@ -176,14 +183,14 @@ def test_config_dict_conversion():
     cfg = Config()
     cfg.experiment_name = "test_experiment"
     cfg.model.arch.type = "custom_unet"
-    
+
     # To dict
     cfg_dict = to_dict(cfg)
     assert isinstance(cfg_dict, dict)
-    assert cfg_dict['experiment_name'] == "test_experiment"
-    assert cfg_dict['model']['arch']['type'] == "custom_unet"
+    assert cfg_dict["experiment_name"] == "test_experiment"
+    assert cfg_dict["model"]["arch"]["type"] == "custom_unet"
     print("[OK]Config to dict works")
-    
+
     # From dict
     cfg_restored = from_dict(cfg_dict)
     assert cfg_restored.experiment_name == "test_experiment"
@@ -194,17 +201,17 @@ def test_config_dict_conversion():
 def test_config_cli_updates():
     """Test updating config from CLI arguments."""
     cfg = Config()
-    
+
     overrides = [
-        'data.dataloader.batch_size=8',
-        'model.arch.type=unetr',
-        'optimization.optimizer.lr=0.001'
+        "data.dataloader.batch_size=8",
+        "model.arch.type=unetr",
+        "optimization.optimizer.lr=0.001",
     ]
-    
+
     updated_cfg = update_from_cli(cfg, overrides)
-    
+
     assert updated_cfg.data.dataloader.batch_size == 8
-    assert updated_cfg.model.arch.type == 'unetr'
+    assert updated_cfg.model.arch.type == "unetr"
     assert updated_cfg.optimization.optimizer.lr == 0.001
     print("[OK]CLI updates work")
 
@@ -214,15 +221,15 @@ def test_config_merge():
     base_cfg = Config()
     base_cfg.experiment_name = "base"
     base_cfg.data.dataloader.batch_size = 2
-    
+
     override_dict = {
-        'experiment_name': 'merged',
-        'data': {'dataloader': {'batch_size': 4}},
-        'model': {'arch': {'type': 'custom'}}
+        "experiment_name": "merged",
+        "data": {"dataloader": {"batch_size": 4}},
+        "model": {"arch": {"type": "custom"}},
     }
-    
+
     merged_cfg = merge_configs(base_cfg, override_dict)
-    
+
     assert merged_cfg.experiment_name == "merged"
     assert merged_cfg.data.dataloader.batch_size == 4
     assert merged_cfg.model.arch.type == "custom"
@@ -234,13 +241,13 @@ def test_config_save_load(tmp_path):
     cfg = Config()
     cfg.experiment_name = "save_test"
     cfg.model.monai.filters = (16, 32, 64)
-    
+
     # Save
     config_path = tmp_path / "test_config.yaml"
     save_config(cfg, config_path)
     assert config_path.exists()
     print("[OK]Config save works")
-    
+
     # Load
     loaded_cfg = load_config(config_path)
     assert loaded_cfg.experiment_name == "save_test"
@@ -252,13 +259,13 @@ def test_config_hash():
     """Test config hashing."""
     cfg1 = Config()
     cfg2 = Config()
-    
+
     # Same configs should have same hash
     hash1 = get_config_hash(cfg1)
     hash2 = get_config_hash(cfg2)
     assert hash1 == hash2
     print("[OK]Same configs have same hash")
-    
+
     # Different configs should have different hash
     cfg2.data.dataloader.batch_size = 999
     hash3 = get_config_hash(cfg2)
@@ -272,27 +279,27 @@ def test_experiment_name_generation():
     cfg.model.arch.type = "unet3d"
     cfg.data.dataloader.batch_size = 4
     cfg.optimization.optimizer.lr = 0.001
-    
+
     name = create_experiment_name(cfg)
-    
+
     assert "unet3d" in name
     assert "bs4" in name
     assert "1e-03" in name
-    assert len(name.split('_')[-1]) == 8  # Hash
+    assert len(name.split("_")[-1]) == 8  # Hash
     print(f"[OK]Generated experiment name: {name}")
 
 
 def test_augmentation_config():
     """Test augmentation configuration."""
     cfg = Config()
-    
+
     # Enable EM-specific augmentations
     cfg.data.augmentation.misalignment.enabled = True
     cfg.data.augmentation.misalignment.prob = 0.7
     cfg.data.augmentation.missing_section.enabled = True
     cfg.data.augmentation.mixup.enabled = True
     cfg.data.augmentation.copy_paste.enabled = True
-    
+
     assert cfg.data.augmentation.misalignment.enabled
     assert cfg.data.augmentation.misalignment.prob == 0.7
     assert cfg.data.augmentation.missing_section.enabled
@@ -304,7 +311,7 @@ def test_augmentation_config():
 def test_load_example_configs():
     """Test loading example configs."""
     configs_dir = project_root / "configs" / "hydra"
-    
+
     # Test default config
     default_config = configs_dir / "default.yaml"
     if default_config.exists():
@@ -312,7 +319,7 @@ def test_load_example_configs():
         assert cfg.experiment_name == "connectomics_default"
         validate_config(cfg)
         print("[OK]Default config loads and validates")
-    
+
     # Test Lucchi config
     lucchi_config = configs_dir / "lucchi.yaml"
     if lucchi_config.exists():
@@ -327,12 +334,12 @@ def test_print_config():
     """Test config printing."""
     cfg = Config()
     cfg.experiment_name = "print_test"
-    
-    print("\n" + "="*50)
+
+    print("\n" + "=" * 50)
     print("Sample Config YAML:")
-    print("="*50)
+    print("=" * 50)
     print_config(cfg)
-    print("="*50)
+    print("=" * 50)
     print("[OK]Config printing works")
 
 
@@ -395,8 +402,7 @@ def test_system_profile_no_implicit_legacy_default():
 def test_yaml_shared_profile_selectors(tmp_path):
     """Test YAML selector-only shared keys for arch/aug/loss/label profiles."""
     base_yaml = tmp_path / "base.yaml"
-    base_yaml.write_text(
-        """
+    base_yaml.write_text("""
 arch_profiles:
   mednext:
     arch:
@@ -430,12 +436,10 @@ decoding_profiles:
       - name: decode_instance_binary_contour_distance
         kwargs:
           min_instance_size: 5
-""".strip()
-    )
+""".strip())
 
     config_yaml = tmp_path / "config.yaml"
-    config_yaml.write_text(
-        f"""
+    config_yaml.write_text(f"""
 default:
   model:
     arch:
@@ -452,8 +456,7 @@ default:
   system:
     profile: single-gpu-cpu
 _base_: {base_yaml.name}
-""".strip()
-    )
+""".strip())
 
     cfg = load_config(config_yaml)
     # Profile selectors are validated and expanded in YAML pre-processing, but
@@ -467,27 +470,23 @@ _base_: {base_yaml.name}
 def test_arch_profile_rejects_non_model_sections(tmp_path):
     """Arch profiles with invalid keys are rejected by OmegaConf schema merge."""
     base_yaml = tmp_path / "base.yaml"
-    base_yaml.write_text(
-        """
+    base_yaml.write_text("""
 arch_profiles:
   bad_arch:
     arch:
       type: mednext
     optimization:
       max_epochs: 999
-""".strip()
-    )
+""".strip())
 
     config_yaml = tmp_path / "config.yaml"
-    config_yaml.write_text(
-        f"""
+    config_yaml.write_text(f"""
 default:
   model:
     arch:
       profile: bad_arch
 _base_: {base_yaml.name}
-""".strip()
-    )
+""".strip())
 
     with pytest.raises(Exception):
         load_config(config_yaml)
@@ -497,8 +496,7 @@ _base_: {base_yaml.name}
 def test_arch_profile_precedence_explicit_model_fields_win(tmp_path):
     """Explicit model fields should override profile-applied model defaults."""
     base_yaml = tmp_path / "base.yaml"
-    base_yaml.write_text(
-        """
+    base_yaml.write_text("""
 arch_profiles:
   mednext:
     arch:
@@ -507,12 +505,10 @@ arch_profiles:
       size: S
     monai:
       dropout: 0.4
-""".strip()
-    )
+""".strip())
 
     config_yaml = tmp_path / "config.yaml"
-    config_yaml.write_text(
-        f"""
+    config_yaml.write_text(f"""
 _base_: {base_yaml.name}
 default:
   model:
@@ -521,8 +517,7 @@ default:
 model:
   monai:
     dropout: 0.1
-""".strip()
-    )
+""".strip())
 
     cfg = load_config(config_yaml)
     assert cfg.model.arch.type == "monai_basic_unet3d"
@@ -571,8 +566,7 @@ def test_data_transform_profile_precedence_stage_overrides_win():
 def test_yaml_dataloader_optimizer_profiles_apply(tmp_path):
     """Default-stage dataloader/optimization values should apply from YAML."""
     config_yaml = tmp_path / "config.yaml"
-    config_yaml.write_text(
-        """
+    config_yaml.write_text("""
 default:
   data:
     dataloader:
@@ -582,8 +576,7 @@ default:
     gradient_clip_val: 3.0
     optimizer:
       lr: 0.0003
-""".strip()
-    )
+""".strip())
 
     cfg = load_config(config_yaml)
     assert cfg.default.data.dataloader.use_preloaded_cache_train is True
@@ -646,8 +639,7 @@ def test_runtime_merge_and_inference_profile_for_test_mode():
 def test_runtime_merge_test_data_section_overrides_runtime_data(tmp_path):
     """Mode-specific data merge should read overrides from test.data (not test.data_overrides)."""
     config_yaml = tmp_path / "cfg.yaml"
-    config_yaml.write_text(
-        """
+    config_yaml.write_text("""
 default:
   data:
     image_transform:
@@ -658,8 +650,7 @@ test:
       normalize: none
     val:
       image: "dummy.h5"
-""".strip()
-    )
+""".strip())
 
     cfg = load_config(config_yaml)
     cfg = resolve_default_profiles(cfg, mode="test")
@@ -692,8 +683,7 @@ def test_inference_system_overrides_runtime_system_in_test_mode():
 def test_enabled_flags_require_explicit_opt_in(tmp_path):
     """Most sections require explicit opt-in; image logging defaults to enabled."""
     config_yaml = tmp_path / "auto_enable.yaml"
-    config_yaml.write_text(
-        """
+    config_yaml.write_text("""
 inference:
   test_time_augmentation:
     flip_axes: all
@@ -711,8 +701,7 @@ monitor:
 optimization:
   ema:
     decay: 0.99
-""".strip()
-    )
+""".strip())
 
     cfg = load_config(config_yaml)
     cfg = resolve_default_profiles(cfg, mode="train")
@@ -730,27 +719,23 @@ optimization:
 def test_shared_inference_decoding_profile_list_ref(tmp_path):
     """Allow list refs like `- profile: decoding_bcd` under default.inference.decoding."""
     base_yaml = tmp_path / "base.yaml"
-    base_yaml.write_text(
-        """
+    base_yaml.write_text("""
 decoding_profiles:
   decoding_bcd:
     decoding:
       - name: decode_instance_binary_contour_distance
         kwargs:
           min_instance_size: 3
-""".strip()
-    )
+""".strip())
 
     config_yaml = tmp_path / "config.yaml"
-    config_yaml.write_text(
-        f"""
+    config_yaml.write_text(f"""
 _base_: {base_yaml.name}
 default:
   inference:
     decoding:
       - profile: decoding_bcd
-""".strip()
-    )
+""".strip())
 
     cfg = load_config(config_yaml)
     cfg = resolve_default_profiles(cfg, mode="test")
@@ -763,8 +748,7 @@ default:
 def test_loss_profile_positional_overrides(tmp_path):
     """Loss profile + overrides dict patches individual list entries by index."""
     base_yaml = tmp_path / "base.yaml"
-    base_yaml.write_text(
-        """
+    base_yaml.write_text("""
 loss_profiles:
   loss_binary:
     losses:
@@ -774,12 +758,10 @@ loss_profiles:
       - function: DiceLoss
         weight: 1.0
         kwargs: {sigmoid: true, smooth_nr: 1e-5, smooth_dr: 1e-5}
-""".strip()
-    )
+""".strip())
 
     config_yaml = tmp_path / "config.yaml"
-    config_yaml.write_text(
-        f"""
+    config_yaml.write_text(f"""
 _base_: {base_yaml.name}
 default:
   model:
@@ -788,8 +770,7 @@ default:
       overrides:
         0: {{pos_weight: auto}}
         1: {{weight: 0.5}}
-""".strip()
-    )
+""".strip())
 
     cfg = load_config(config_yaml)
     cfg = resolve_default_profiles(cfg, mode="train")
@@ -888,10 +869,56 @@ def test_mask_binarize_uses_strict_greater_than_threshold():
     print("[OK]Mask binarization uses strict > threshold semantics")
 
 
+def test_build_tune_transforms_reads_mask_from_val_split():
+    """Tune-mode transforms should load mask keys from data.val, not data.test."""
+    cfg = Config()
+    cfg.data.test.image = "dummy_test_image.h5"
+    cfg.data.test.mask = None
+    cfg.data.val.image = "dummy_val_image.h5"
+    cfg.data.val.mask = "dummy_val_mask.h5"
+    cfg.data.image_transform.normalize = "none"
+    cfg.data.dataloader.patch_size = [0, 0, 0]
+
+    transforms = build_test_transforms(cfg, mode="tune")
+    sample = {
+        "image": np.zeros((1, 2, 2, 2), dtype=np.float32),
+        "mask": np.ones((1, 2, 2, 2), dtype=np.float32),
+    }
+    out = transforms(sample)
+
+    assert torch.is_tensor(out["mask"])
+    print("[OK]Tune transforms read mask from val split")
+
+
+def test_build_tune_transforms_do_not_fallback_to_test_split():
+    """Tune-mode transforms should not infer label/mask keys from data.test."""
+    cfg = Config()
+    cfg.data.test.image = "dummy_test_image.h5"
+    cfg.data.test.label = "dummy_test_label.h5"
+    cfg.data.test.mask = "dummy_test_mask.h5"
+    cfg.data.val.image = None
+    cfg.data.val.label = None
+    cfg.data.val.mask = None
+    cfg.data.image_transform.normalize = "none"
+    cfg.data.dataloader.patch_size = [0, 0, 0]
+
+    transforms = build_test_transforms(cfg, mode="tune")
+    keyed_steps = [
+        tuple(getattr(transform, "keys", ()))
+        for transform in transforms.transforms
+        if hasattr(transform, "keys")
+    ]
+
+    assert keyed_steps
+    assert all("label" not in keys for keys in keyed_steps)
+    assert all("mask" not in keys for keys in keyed_steps)
+    print("[OK]Tune transforms do not fall back to test split keys")
+
+
 def main():
     """Run all tests."""
     print("Testing Hydra Config System\n")
-    
+
     test_default_config_creation()
     test_config_validation()
     test_config_dict_conversion()
@@ -904,6 +931,7 @@ def main():
 
     # Test with temp directory
     import tempfile
+
     with tempfile.TemporaryDirectory() as tmp_dir:
         test_config_save_load(Path(tmp_dir))
 
@@ -914,10 +942,10 @@ def main():
     with tempfile.TemporaryDirectory() as tmp_dir:
         test_enabled_flags_require_explicit_opt_in(Path(tmp_dir))
     test_build_test_transforms_with_mask_transform_resize_binarize()
-    
-    print("\n" + "="*50)
+
+    print("\n" + "=" * 50)
     print("All Hydra config tests passed!")
-    print("="*50)
+    print("=" * 50)
 
 
 if __name__ == "__main__":

@@ -8,8 +8,8 @@ from .build import build_model
 
 # Export loss functions
 from .loss import (
-    create_loss,
     create_combined_loss,
+    create_loss,
     create_loss_from_config,
 )
 

@@ -110,7 +110,6 @@ monitor:
     scalar:
       loss: [train_loss_total_epoch]
       loss_every_n_steps: 10
-      val_check_interval: 1.0
       benchmark: true
 
     # visualization

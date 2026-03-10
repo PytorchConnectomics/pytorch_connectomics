@@ -50,7 +50,6 @@ data:
     rotate:
       enabled: true
       prob: 0.5
-      max_angle: 90.0
     elastic:
       enabled: true
       prob: 0.3
@@ -149,7 +148,6 @@ monitor:
       loss:
       - train_loss_total_epoch
       loss_every_n_steps: 10
-      val_check_interval: 1.0
     images:
       max_images: 8
       num_slices: 9

@@ -18,8 +18,6 @@ from typing import Optional
 
 import torch
 
-logger = logging.getLogger(__name__)
-
 from ...config import (
     Config,
     load_config,
@@ -31,6 +29,8 @@ from ...config import (
     validate_config,
 )
 from .path_utils import expand_file_paths
+
+logger = logging.getLogger(__name__)
 
 
 def parse_args():
@@ -203,12 +203,16 @@ def setup_config(args) -> Config:
 
     # Override max_epochs if --reset-max-epochs is specified
     if args.reset_max_epochs is not None:
-        logger.info(f"Overriding max_epochs: {cfg.optimization.max_epochs} -> {args.reset_max_epochs}")
+        logger.info(
+            f"Overriding max_epochs: {cfg.optimization.max_epochs} -> {args.reset_max_epochs}"
+        )
         cfg.optimization.max_epochs = args.reset_max_epochs
 
     # Handle external weights loading (when --external-prefix is specified with --checkpoint)
     if args.external_prefix is not None and args.checkpoint:
-        logger.info(f"Loading external weights from checkpoint with prefix '{args.external_prefix}'")
+        logger.info(
+            f"Loading external weights from checkpoint with prefix '{args.external_prefix}'"
+        )
         cfg.model.external_weights_path = args.checkpoint
         cfg.model.external_weights_key_prefix = args.external_prefix
 
@@ -246,9 +250,7 @@ def setup_config(args) -> Config:
             logger.info("CUDA not available, setting num_gpus=0")
             cfg.system.num_gpus = 0
         if cfg.system.num_workers > 0:
-            logger.info(
-                "CUDA not available, setting num_workers=0 to avoid dataloader crashes"
-            )
+            logger.info("CUDA not available, setting num_workers=0 to avoid dataloader crashes")
             cfg.system.num_workers = 0
 
     # Optional convenience toggle to enable nnU-Net preprocessing via CLI
@@ -324,6 +326,7 @@ def setup_seed_everything():
         seed_everything function
     """
     from pytorch_lightning import seed_everything
+
     return seed_everything
 
 

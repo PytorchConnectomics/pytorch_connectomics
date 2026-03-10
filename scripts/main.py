@@ -13,9 +13,11 @@ Usage:
     python scripts/main.py --config tutorials/mito_lucchi++.yaml
 
     # Testing mode
-    python scripts/main.py --config tutorials/mito_lucchi++.yaml --mode test --checkpoint path/to/checkpoint.ckpt
+    python scripts/main.py --config tutorials/mito_lucchi++.yaml --mode test \
+        --checkpoint path/to/checkpoint.ckpt
 
-    # Fast dev run (1 batch for debugging, auto-sets num_workers=0 and uses GPU only if CUDA is available)
+    # Fast dev run (1 batch for debugging, auto-sets num_workers=0 and uses
+    # GPU only if CUDA is available)
     python scripts/main.py --config tutorials/mito_lucchi++.yaml --fast-dev-run
     python scripts/main.py --config tutorials/mito_lucchi++.yaml --fast-dev-run 2  # Run 2 batches
 
@@ -23,13 +25,15 @@ Usage:
     python scripts/main.py --demo
 
     # Override config parameters
-    python scripts/main.py --config tutorials/mito_lucchi++.yaml data.dataloader.batch_size=8 optimization.max_epochs=200
+    python scripts/main.py --config tutorials/mito_lucchi++.yaml \
+        data.dataloader.batch_size=8 optimization.max_epochs=200
 
     # Print fully resolved runtime config
     python scripts/main.py --config tutorials/mito_lucchi++.yaml --debug-config
 
     # Resume training with different max_epochs
-    python scripts/main.py --config tutorials/mito_lucchi++.yaml --checkpoint path/to/ckpt.ckpt --reset-max-epochs 500
+    python scripts/main.py --config tutorials/mito_lucchi++.yaml \
+        --checkpoint path/to/ckpt.ckpt --reset-max-epochs 500
 """
 
 import os
@@ -39,17 +43,17 @@ from pathlib import Path
 # Add parent directory to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-import torch
+import torch  # noqa: E402
+
+import connectomics.config.schema as config_schema  # noqa: E402
 
 # Import Hydra config system
-from connectomics.config import (
+from connectomics.config import (  # noqa: E402
     Config,
     resolve_data_paths,
     resolve_default_profiles,
     resolve_runtime_resource_sentinels,
-    save_config,
 )
-import connectomics.config.schema as config_schema
 
 # Register safe globals for PyTorch 2.6+ checkpoint loading
 # Allowlist all Config dataclasses used inside Lightning checkpoints
@@ -65,7 +69,7 @@ except AttributeError:
     pass
 
 # Import Lightning components and utilities
-from connectomics.training.lightning import (
+from connectomics.training.lightning import (  # noqa: E402
     ConnectomicsModule,
     cleanup_run_directory,
     create_datamodule,
@@ -76,7 +80,6 @@ from connectomics.training.lightning import (
     setup_run_directory,
     setup_seed_everything,
 )
-
 
 # Setup seed_everything helper
 seed_everything = setup_seed_everything()
@@ -242,7 +245,10 @@ def _is_valid_hdf5_prediction_file(path: Path, dataset: str = "main") -> bool:
             _ = handle[dataset].shape
         return True
     except Exception as exc:
-        print(f"  WARNING: Cached prediction file is unreadable: {path} ({exc}). Ignoring cache entry.")
+        print(
+            "  WARNING: Cached prediction file is unreadable: "
+            f"{path} ({exc}). Ignoring cache entry."
+        )
         return False
 
 
@@ -271,7 +277,8 @@ def preflight_test_cache_hit(cfg: Config, datamodule) -> tuple[bool, str | None,
             return True, "_tta_prediction.h5", 1
 
         print(
-            f"  WARNING: inference.tta_result_path file missing or unreadable during preflight: {pred_file}. "
+            "  WARNING: inference.tta_result_path file missing or unreadable "
+            f"during preflight: {pred_file}. "
             "Falling back to normal cache/inference flow."
         )
 
@@ -352,7 +359,7 @@ def _estimate_tta_total_passes(cfg: Config) -> int:
 
     flip_axes_cfg = getattr(tta_cfg, "flip_axes", None)
     if flip_axes_cfg == "all" or flip_axes_cfg == []:
-        flip_variants = 2 ** spatial_dims
+        flip_variants = 2**spatial_dims
     elif flip_axes_cfg is None:
         flip_variants = 1
     else:
@@ -437,7 +444,9 @@ def _invert_save_prediction_transform(cfg: Config, data):
         data = data / float(intensity_scale)
         print(f"  Inverted intensity scaling by {intensity_scale}")
     elif intensity_scale is not None and intensity_scale < 0:
-        print(f"  INFO: Intensity scaling was disabled (scale={intensity_scale}), no inversion needed")
+        print(
+            f"  INFO: Intensity scaling was disabled (scale={intensity_scale}), no inversion needed"
+        )
 
     return data
 
@@ -460,10 +469,10 @@ def try_cache_only_test_execution(cfg: Config, mode: str) -> bool:
     if not output_dir_value or not test_image:
         return False
 
-    from connectomics.training.lightning.path_utils import expand_file_paths
     from connectomics.data.io import read_hdf5
     from connectomics.decoding import apply_decode_mode, resolve_decode_modes_from_cfg
     from connectomics.inference.output import apply_postprocessing, write_outputs
+    from connectomics.training.lightning.path_utils import expand_file_paths
 
     try:
         test_image_paths = expand_file_paths(test_image)
@@ -491,20 +500,25 @@ def try_cache_only_test_execution(cfg: Config, mode: str) -> bool:
         try:
             cached_arrays.append(read_hdf5(str(pred_file), dataset="main"))
         except Exception as exc:
-            print(f"  WARNING: Cache-only preflight skipped: failed to read {pred_file.name}: {exc}")
+            print(
+                f"  WARNING: Cache-only preflight skipped: failed to read {pred_file.name}: {exc}"
+            )
             return False
 
     if loaded_suffix != "_tta_prediction.h5":
         if _is_test_evaluation_enabled(cfg):
             print(
-                f"  [OK]Loaded final predictions from disk, skipping inference/decoding/postprocessing"
+                "  [OK]Loaded final predictions from disk, skipping "
+                "inference/decoding/postprocessing"
             )
-            print("  INFO:Test evaluation is enabled; using trainer.test() for eval pipeline.")
+            print("  INFO:Test evaluation is enabled; using trainer.test() " "for eval pipeline.")
             return False
         print(
-            f"  [OK]Loaded final predictions from disk, skipping inference/decoding/postprocessing"
+            "  [OK]Loaded final predictions from disk, skipping inference/decoding/postprocessing"
         )
-        print(f"  INFO:Cache preflight hit for {len(filenames)} volume(s); skipping trainer.test().")
+        print(
+            f"  INFO:Cache preflight hit for {len(filenames)} volume(s); skipping trainer.test()."
+        )
         print("[OK]Test completed successfully (cache-only preflight).")
         return True
 
@@ -545,6 +559,97 @@ def try_cache_only_test_execution(cfg: Config, mode: str) -> bool:
         print("Skipping final prediction save (no decoding configuration)")
     print("[OK]Test completed successfully (cache-only decode/postprocess).")
     return True
+
+
+def _configure_checkpoint_output_paths(args, cfg: Config) -> tuple[Path | None, str | None]:
+    """Resolve mode-specific output directories derived from a checkpoint path."""
+    if args.mode not in ["test", "tune", "tune-test"] or not args.checkpoint:
+        return None, None
+
+    output_base = get_output_base_from_checkpoint(args.checkpoint)
+    output_base.mkdir(parents=True, exist_ok=True)
+    step_suffix = extract_step_from_checkpoint(args.checkpoint)
+
+    if args.mode in ["tune", "tune-test"]:
+        if step_suffix:
+            results_folder_name = f"results_{step_suffix}"
+            tuning_folder_name = f"tuning_{step_suffix}"
+        else:
+            results_folder_name = "results"
+            tuning_folder_name = "tuning"
+
+        save_pred_cfg = cfg.inference.save_prediction
+        save_pred_cfg.output_path = str(output_base / results_folder_name)
+        save_pred_cfg.cache_suffix = "_tta_prediction.h5"
+
+        if args.mode == "tune-test":
+            print(f"Test output: {save_pred_cfg.output_path}")
+            print(f"Test cache suffix: {save_pred_cfg.cache_suffix}")
+
+        return output_base, str(output_base / tuning_folder_name)
+
+    results_folder_name = "results"
+    if step_suffix:
+        results_folder_name = f"results_{step_suffix}"
+        print(f"Using checkpoint {step_suffix} - output will be saved to: {results_folder_name}")
+
+    cfg.inference.save_prediction.output_path = str(output_base / results_folder_name)
+    return output_base, cfg.inference.save_prediction.output_path
+
+
+def _setup_runtime_directories(args, cfg: Config) -> tuple[Path, Path]:
+    """Create the run directory and return `(run_dir, output_base)`."""
+    output_base, dirpath = _configure_checkpoint_output_paths(args, cfg)
+    if output_base is not None and dirpath is not None:
+        run_dir = setup_run_directory(args.mode, cfg, dirpath)
+        print(f"Output base: {output_base}")
+        return run_dir, output_base
+
+    resume_checkpoint_path = None
+    if args.mode == "train" and args.checkpoint and args.external_prefix is None:
+        resume_checkpoint_path = args.checkpoint
+
+    run_dir = setup_run_directory(
+        args.mode,
+        cfg,
+        cfg.monitor.checkpoint.dirpath,
+        resume_checkpoint_path=resume_checkpoint_path,
+    )
+    return run_dir, run_dir.parent
+
+
+def _handle_test_cache_hit(
+    args,
+    cfg: Config,
+    cached_suffix: str | None,
+    cache_count: int,
+    ckpt_path: str | None,
+) -> tuple[bool, None]:
+    """Print cache-hit status and return whether the test loop can be skipped."""
+    if cached_suffix == "_tta_prediction.h5":
+        print("  [OK]Loaded intermediate predictions from disk, skipping inference")
+    else:
+        print(
+            "  [OK]Loaded final predictions from disk, skipping "
+            "inference/decoding/postprocessing"
+        )
+
+    if ckpt_path:
+        print(
+            f"  INFO:Cache preflight hit for {cache_count} volume(s); "
+            "skipping checkpoint weight restore for test."
+        )
+
+    should_skip_test_loop = (
+        args.mode == "test"
+        and cached_suffix != "_tta_prediction.h5"
+        and not _is_test_evaluation_enabled(cfg)
+    )
+    if should_skip_test_loop:
+        print("Skipping trainer.test() entirely (cache preflight hit).")
+        print("[OK]Test completed successfully (cache-only preflight).")
+
+    return should_skip_test_loop, None
 
 
 def main():
@@ -596,61 +701,7 @@ def main():
             print_preflight_issues(issues)
 
     # Setup run directory (handles DDP coordination and config saving)
-    # Determine output base directory from checkpoint for test/tune modes
-    if args.mode in ["test", "tune", "tune-test"] and args.checkpoint:
-        # Extract base directory from checkpoint path (same logic for all modes)
-        output_base = get_output_base_from_checkpoint(args.checkpoint)
-        output_base.mkdir(parents=True, exist_ok=True)
-
-        # Extract step number from checkpoint filename (if available)
-        step_suffix = extract_step_from_checkpoint(args.checkpoint)
-
-        # Create mode-specific subdirectories
-        if args.mode in ["tune", "tune-test"]:
-            # For tuning modes, append step suffix if available
-            if step_suffix:
-                results_folder_name = f"results_{step_suffix}"
-                tuning_folder_name = f"tuning_{step_suffix}"
-            else:
-                results_folder_name = "results"
-                tuning_folder_name = "tuning"
-
-            dirpath = str(output_base / tuning_folder_name)
-            results_path = str(output_base / results_folder_name)
-            save_pred_cfg = cfg.inference.save_prediction
-            save_pred_cfg.output_path = results_path
-            save_pred_cfg.cache_suffix = "_tta_prediction.h5"
-            if args.mode == "tune-test":
-                print(f"Test output: {save_pred_cfg.output_path}")
-                print(f"Test cache suffix: {save_pred_cfg.cache_suffix}")
-        else:  # test mode
-            # Create results/ folder with step suffix under checkpoint directory
-            if step_suffix:
-                results_folder_name = f"results_{step_suffix}"
-                print(f"Using checkpoint {step_suffix} - output will be saved to: {results_folder_name}")
-            else:
-                results_folder_name = "results"
-
-            results_path = str(output_base / results_folder_name)
-            dirpath = results_path
-            cfg.inference.save_prediction.output_path = results_path
-
-        run_dir = setup_run_directory(args.mode, cfg, dirpath)
-        print(f"Output base: {output_base}")
-    else:
-        # Train mode or no checkpoint - use default config paths
-        dirpath = cfg.monitor.checkpoint.dirpath
-        resume_checkpoint_path = None
-        if args.mode == "train" and args.checkpoint and args.external_prefix is None:
-            resume_checkpoint_path = args.checkpoint
-
-        run_dir = setup_run_directory(
-            args.mode,
-            cfg,
-            dirpath,
-            resume_checkpoint_path=resume_checkpoint_path,
-        )
-        output_base = run_dir.parent
+    run_dir, output_base = _setup_runtime_directories(args, cfg)
 
     # Set random seed
     if cfg.system.seed is not None:
@@ -673,7 +724,8 @@ def main():
     # External weights are loaded during config setup via model.external_weights_path
     if args.external_prefix:
         print(
-            f"   WARNING: External weights loaded - checkpoint path will not be used for training/testing"
+            "   WARNING: External weights loaded - checkpoint path will not "
+            "be used for training/testing"
         )
         ckpt_path = None
     else:
@@ -753,27 +805,15 @@ def main():
             test_ckpt_path = ckpt_path
             cache_hit, cached_suffix, cache_count = preflight_test_cache_hit(cfg, datamodule)
             if cache_hit:
-                if cached_suffix == "_tta_prediction.h5":
-                    print("  [OK]Loaded intermediate predictions from disk, skipping inference")
-                else:
-                    print(
-                        "  [OK]Loaded final predictions from disk, skipping inference/decoding/postprocessing"
-                    )
-                if ckpt_path:
-                    print(
-                        f"  INFO:Cache preflight hit for {cache_count} volume(s); "
-                        "skipping checkpoint weight restore for test."
-                    )
-                # In plain test mode, fully skip only when final predictions already exist
-                # AND evaluation is not enabled.  If evaluation is enabled we still need
-                # the test loop so that metrics are computed against ground-truth labels.
-                if args.mode == "test" and cached_suffix != "_tta_prediction.h5":
-                    if not _is_test_evaluation_enabled(cfg):
-                        print("Skipping trainer.test() entirely (cache preflight hit).")
-                        print("[OK]Test completed successfully (cache-only preflight).")
-                        return
-
-                test_ckpt_path = None
+                skip_test_loop, test_ckpt_path = _handle_test_cache_hit(
+                    args,
+                    cfg,
+                    cached_suffix,
+                    cache_count,
+                    ckpt_path,
+                )
+                if skip_test_loop:
+                    return
 
             trainer.test(
                 model,

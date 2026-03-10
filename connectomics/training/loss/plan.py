@@ -3,11 +3,17 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any, List, Optional, Sequence, Tuple, Union
+from typing import Any, List, Optional, Sequence, Union
 
 import torch.nn as nn
 
-from ...models.loss.metadata import LossCallKind, LossMetadata, TargetKind, get_loss_metadata_for_module
+from ...config.pipeline.dict_utils import cfg_get as _cfg_get
+from ...models.loss.metadata import (
+    LossCallKind,
+    LossMetadata,
+    TargetKind,
+    get_loss_metadata_for_module,
+)
 from ...utils.channel_slices import ChannelRangeSelector, normalize_channel_range_selector
 
 
@@ -27,9 +33,6 @@ class LossTermSpec:
     apply_deep_supervision: bool = True
     spatial_weight_arg: Optional[str] = None
     pos_weight: Optional[Union[float, str]] = None
-
-
-from ...config.pipeline.dict_utils import cfg_get as _cfg_get
 
 
 def _coerce_channel_range_selector(
@@ -54,9 +57,11 @@ def compile_loss_terms_from_config(
     model_cfg = _cfg_get(cfg, "model", None)
     loss_cfg = _cfg_get(model_cfg, "loss", None)
     losses_cfg = _cfg_get(loss_cfg, "losses", None)
-    metas = list(loss_metadata) if loss_metadata is not None else [
-        get_loss_metadata_for_module(loss_fn) for loss_fn in loss_functions
-    ]
+    metas = (
+        list(loss_metadata)
+        if loss_metadata is not None
+        else [get_loss_metadata_for_module(loss_fn) for loss_fn in loss_functions]
+    )
     compiled: List[LossTermSpec] = []
 
     if losses_cfg is None:
@@ -96,9 +101,7 @@ def compile_loss_terms_from_config(
             return "auto"
         value = float(raw)
         if value <= 0:
-            raise ValueError(
-                f"losses[{term_idx}] pos_weight must be > 0, got {value}"
-            )
+            raise ValueError(f"losses[{term_idx}] pos_weight must be > 0, got {value}")
         return value
 
     for term_idx, term_cfg in enumerate(losses_list):
@@ -182,7 +185,9 @@ def compile_loss_terms_from_config(
             raise ValueError(f"Unsupported target_kind {target_kind!r} in losses[{term_idx}]")
 
         coefficient = float(
-            _cfg_get(term_cfg, "coefficient", _cfg_get(term_cfg, "weight", loss_weights[loss_index]))
+            _cfg_get(
+                term_cfg, "coefficient", _cfg_get(term_cfg, "weight", loss_weights[loss_index])
+            )
         )
         apply_deep_supervision = bool(_cfg_get(term_cfg, "apply_deep_supervision", True))
         pos_weight = _parse_pos_weight(

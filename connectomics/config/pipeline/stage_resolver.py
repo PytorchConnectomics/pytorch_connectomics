@@ -7,15 +7,14 @@ into runtime config with explicit precedence merging.
 
 from __future__ import annotations
 
-from dataclasses import fields
-from dataclasses import is_dataclass
+from dataclasses import fields, is_dataclass
 from typing import Any, Callable, Dict
 
 from omegaconf import DictConfig, ListConfig, OmegaConf
 
-from .dict_utils import as_plain_dict
 from ..schema import Config
 from ..schema.root import MergeContext
+from .dict_utils import as_plain_dict
 
 
 def _collect_explicit_paths(yaml_node: Any, path: str = "") -> set[str]:
@@ -171,8 +170,7 @@ def _collect_default_overrides(
     default_stage = getattr(cfg, "default", None)
     if default_stage is None:
         return {
-            name: {}
-            for name in ("system", "model", "data", "optimization", "monitor", "inference")
+            name: {} for name in ("system", "model", "data", "optimization", "monitor", "inference")
         }
 
     return {
@@ -276,9 +274,7 @@ def _collect_unresolved_selector_paths(node: Any, path: str = "") -> list[str]:
     # Iterate key-value pairs from dataclass fields or dict entries
     if is_dataclass(node):
         items = (
-            (f.name, getattr(node, f.name))
-            for f in fields(node)
-            if not f.name.startswith("_")
+            (f.name, getattr(node, f.name)) for f in fields(node) if not f.name.startswith("_")
         )
     elif isinstance(node, (dict, DictConfig)):
         items = ((str(k), node[k]) for k in node.keys())

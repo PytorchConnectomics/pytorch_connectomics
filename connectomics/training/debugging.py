@@ -9,9 +9,10 @@ This module implements:
 """
 
 from __future__ import annotations
+
 import logging
 import pdb
-from typing import Dict, List, Any, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 import torch
 import torch.nn as nn
@@ -182,17 +183,41 @@ class NaNDetectionHookManager:
 
         if layer_types is None:
             self.layer_types = (
-                nn.Conv1d, nn.Conv2d, nn.Conv3d,
-                nn.ConvTranspose1d, nn.ConvTranspose2d, nn.ConvTranspose3d,
-                nn.BatchNorm1d, nn.BatchNorm2d, nn.BatchNorm3d,
-                nn.InstanceNorm1d, nn.InstanceNorm2d, nn.InstanceNorm3d,
-                nn.GroupNorm, nn.LayerNorm, nn.Linear,
-                nn.ReLU, nn.LeakyReLU, nn.PReLU, nn.ELU, nn.GELU,
-                nn.Sigmoid, nn.Tanh, nn.Softmax,
-                nn.Dropout, nn.Dropout2d, nn.Dropout3d,
-                nn.MaxPool1d, nn.MaxPool2d, nn.MaxPool3d,
-                nn.AvgPool1d, nn.AvgPool2d, nn.AvgPool3d,
-                nn.AdaptiveAvgPool1d, nn.AdaptiveAvgPool2d, nn.AdaptiveAvgPool3d,
+                nn.Conv1d,
+                nn.Conv2d,
+                nn.Conv3d,
+                nn.ConvTranspose1d,
+                nn.ConvTranspose2d,
+                nn.ConvTranspose3d,
+                nn.BatchNorm1d,
+                nn.BatchNorm2d,
+                nn.BatchNorm3d,
+                nn.InstanceNorm1d,
+                nn.InstanceNorm2d,
+                nn.InstanceNorm3d,
+                nn.GroupNorm,
+                nn.LayerNorm,
+                nn.Linear,
+                nn.ReLU,
+                nn.LeakyReLU,
+                nn.PReLU,
+                nn.ELU,
+                nn.GELU,
+                nn.Sigmoid,
+                nn.Tanh,
+                nn.Softmax,
+                nn.Dropout,
+                nn.Dropout2d,
+                nn.Dropout3d,
+                nn.MaxPool1d,
+                nn.MaxPool2d,
+                nn.MaxPool3d,
+                nn.AvgPool1d,
+                nn.AvgPool2d,
+                nn.AvgPool3d,
+                nn.AdaptiveAvgPool1d,
+                nn.AdaptiveAvgPool2d,
+                nn.AdaptiveAvgPool3d,
                 nn.Upsample,
             )
         else:
@@ -433,8 +458,10 @@ class DebugManager:
                 logger.warning(
                     "Summary: NaN parameters: %d, Inf parameters: %d, "
                     "NaN gradients: %d, Inf gradients: %d",
-                    len(nan_params), len(inf_params),
-                    len(nan_grads), len(inf_grads),
+                    len(nan_params),
+                    len(inf_params),
+                    len(nan_grads),
+                    len(inf_grads),
                 )
 
         return result

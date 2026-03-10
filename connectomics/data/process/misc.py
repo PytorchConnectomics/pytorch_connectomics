@@ -1,6 +1,7 @@
 from __future__ import annotations
 
-from typing import Tuple, List, Union
+from typing import List, Tuple, Union
+
 import numpy as np
 
 
@@ -58,5 +59,3 @@ def array_unpad(data: np.ndarray, pad_size: Tuple[int]) -> np.ndarray:
         raise ValueError(f"pad_size length ({len(pad_size)}) must match data.ndim ({data.ndim})")
     index = tuple([slice(pad_size[i][0], data.shape[i] - pad_size[i][1]) for i in range(data.ndim)])
     return data[index]
-
-

@@ -8,10 +8,32 @@ Design pattern inspired by transforms/augment/monai_compose.py.
 """
 
 from __future__ import annotations
-from typing import List, Dict, Optional
+
+from typing import Dict, List, Optional
+
 import torch
 import torch.nn as nn
 
+# Import MONAI losses
+from monai.losses import (
+    DiceCELoss,
+    DiceFocalLoss,
+    DiceLoss,
+    FocalLoss,
+    GeneralizedDiceLoss,
+    TverskyLoss,
+)
+
+# Import custom connectomics losses
+from .losses import (
+    CrossEntropyLossWrapper,
+    GANLoss,
+    PerChannelBCEWithLogitsLoss,
+    SmoothL1Loss,
+    WeightedBCEWithLogitsLoss,
+    WeightedMAELoss,
+    WeightedMSELoss,
+)
 from .metadata import (
     LossMetadata,
     attach_loss_metadata,
@@ -19,33 +41,12 @@ from .metadata import (
     get_loss_metadata_for_module,
 )
 
-# Import MONAI losses
-from monai.losses import (
-    DiceLoss,
-    DiceCELoss,
-    DiceFocalLoss,
-    FocalLoss,
-    TverskyLoss,
-    GeneralizedDiceLoss,
-)
-
-# Import custom connectomics losses
-from .losses import (
-    CrossEntropyLossWrapper,
-    WeightedBCEWithLogitsLoss,
-    PerChannelBCEWithLogitsLoss,
-    WeightedMSELoss,
-    WeightedMAELoss,
-    SmoothL1Loss,
-    GANLoss,
-)
-
 # Import regularization losses
 from .regularization import (
     BinaryRegularization,
-    ForegroundDistanceConsistency,
     ContourDistanceConsistency,
     ForegroundContourConsistency,
+    ForegroundDistanceConsistency,
     NonOverlapRegularization,
 )
 

@@ -12,9 +12,9 @@ import pytest
 from torch.utils.data import Dataset
 
 from connectomics.data.dataset import (
-    WeightedConcatDataset,
     StratifiedConcatDataset,
     UniformConcatDataset,
+    WeightedConcatDataset,
 )
 
 
@@ -29,7 +29,7 @@ class DummyDataset(Dataset):
         return self.size
 
     def __getitem__(self, idx):
-        return {'index': idx, 'value': self.value}
+        return {"index": idx, "value": self.value}
 
 
 class TestWeightedConcatDataset:
@@ -41,16 +41,14 @@ class TestWeightedConcatDataset:
         dataset2 = DummyDataset(200, value=2)
 
         weighted = WeightedConcatDataset(
-            datasets=[dataset1, dataset2],
-            weights=[0.7, 0.3],
-            length=1000
+            datasets=[dataset1, dataset2], weights=[0.7, 0.3], length=1000
         )
 
         assert len(weighted) == 1000
 
         # Sample many times and check distribution
         samples = [weighted[i] for i in range(1000)]
-        values = [s['value'] for s in samples]
+        values = [s["value"] for s in samples]
 
         count_1 = values.count(1)
         count_2 = values.count(2)
@@ -65,13 +63,11 @@ class TestWeightedConcatDataset:
         dataset2 = DummyDataset(100, value=2)
 
         weighted = WeightedConcatDataset(
-            datasets=[dataset1, dataset2],
-            weights=[0.5, 0.5],
-            length=1000
+            datasets=[dataset1, dataset2], weights=[0.5, 0.5], length=1000
         )
 
         samples = [weighted[i] for i in range(1000)]
-        values = [s['value'] for s in samples]
+        values = [s["value"] for s in samples]
 
         count_1 = values.count(1)
         count_2 = values.count(2)
@@ -86,13 +82,11 @@ class TestWeightedConcatDataset:
         dataset2 = DummyDataset(100, value=2)
 
         weighted = WeightedConcatDataset(
-            datasets=[dataset1, dataset2],
-            weights=[0.95, 0.05],
-            length=1000
+            datasets=[dataset1, dataset2], weights=[0.95, 0.05], length=1000
         )
 
         samples = [weighted[i] for i in range(1000)]
-        values = [s['value'] for s in samples]
+        values = [s["value"] for s in samples]
 
         count_1 = values.count(1)
         count_2 = values.count(2)
@@ -106,10 +100,7 @@ class TestWeightedConcatDataset:
         dataset1 = DummyDataset(50, value=1)
         dataset2 = DummyDataset(100, value=2)
 
-        weighted = WeightedConcatDataset(
-            datasets=[dataset1, dataset2],
-            weights=[0.5, 0.5]
-        )
+        weighted = WeightedConcatDataset(datasets=[dataset1, dataset2], weights=[0.5, 0.5])
 
         # Should use minimum length
         assert len(weighted) == 50
@@ -121,13 +112,11 @@ class TestWeightedConcatDataset:
         dataset3 = DummyDataset(100, value=3)
 
         weighted = WeightedConcatDataset(
-            datasets=[dataset1, dataset2, dataset3],
-            weights=[0.5, 0.3, 0.2],
-            length=1000
+            datasets=[dataset1, dataset2, dataset3], weights=[0.5, 0.3, 0.2], length=1000
         )
 
         samples = [weighted[i] for i in range(1000)]
-        values = [s['value'] for s in samples]
+        values = [s["value"] for s in samples]
 
         count_1 = values.count(1)
         count_2 = values.count(2)
@@ -144,10 +133,7 @@ class TestWeightedConcatDataset:
         dataset2 = DummyDataset(100)
 
         with pytest.raises(ValueError, match="Weights must sum to 1.0"):
-            WeightedConcatDataset(
-                datasets=[dataset1, dataset2],
-                weights=[0.6, 0.5]  # Sums to 1.1
-            )
+            WeightedConcatDataset(datasets=[dataset1, dataset2], weights=[0.6, 0.5])  # Sums to 1.1
 
     def test_mismatched_lengths(self):
         """Test error when datasets and weights have different lengths."""
@@ -156,8 +142,7 @@ class TestWeightedConcatDataset:
 
         with pytest.raises(ValueError, match="Number of datasets.*must match"):
             WeightedConcatDataset(
-                datasets=[dataset1, dataset2],
-                weights=[0.5, 0.3, 0.2]  # 3 weights for 2 datasets
+                datasets=[dataset1, dataset2], weights=[0.5, 0.3, 0.2]  # 3 weights for 2 datasets
             )
 
 
@@ -173,7 +158,7 @@ class TestStratifiedConcatDataset:
 
         # Should alternate between datasets
         samples = [stratified[i] for i in range(10)]
-        values = [s['value'] for s in samples]
+        values = [s["value"] for s in samples]
 
         # Pattern should be: 1, 2, 1, 2, 1, 2, 1, 2, 1, 2
         expected = [1, 2, 1, 2, 1, 2, 1, 2, 1, 2]
@@ -184,13 +169,10 @@ class TestStratifiedConcatDataset:
         dataset1 = DummyDataset(3, value=1)
         dataset2 = DummyDataset(5, value=2)
 
-        stratified = StratifiedConcatDataset(
-            datasets=[dataset1, dataset2],
-            length=10
-        )
+        stratified = StratifiedConcatDataset(datasets=[dataset1, dataset2], length=10)
 
         samples = [stratified[i] for i in range(10)]
-        values = [s['value'] for s in samples]
+        values = [s["value"] for s in samples]
 
         # Should alternate, with wrapping for smaller dataset
         assert values == [1, 2, 1, 2, 1, 2, 1, 2, 1, 2]
@@ -214,7 +196,7 @@ class TestStratifiedConcatDataset:
         stratified = StratifiedConcatDataset([dataset1, dataset2, dataset3])
 
         samples = [stratified[i] for i in range(9)]
-        values = [s['value'] for s in samples]
+        values = [s["value"] for s in samples]
 
         # Should cycle through all three
         assert values == [1, 2, 3, 1, 2, 3, 1, 2, 3]
@@ -236,7 +218,7 @@ class TestUniformConcatDataset:
         uniform = UniformConcatDataset([dataset1, dataset2], length=1000)
 
         samples = [uniform[i] for i in range(1000)]
-        values = [s['value'] for s in samples]
+        values = [s["value"] for s in samples]
 
         count_1 = values.count(1)
         count_2 = values.count(2)
@@ -253,7 +235,7 @@ class TestUniformConcatDataset:
         uniform = UniformConcatDataset([dataset1, dataset2], length=1000)
 
         samples = [uniform[i] for i in range(1000)]
-        values = [s['value'] for s in samples]
+        values = [s["value"] for s in samples]
 
         count_1 = values.count(1)
         count_2 = values.count(2)

@@ -8,14 +8,12 @@ This module provides common utilities used across different decoding functions:
     - merge_small_objects: Merge small objects with neighbors
 """
 
-
 from __future__ import annotations
-import numpy as np
 
+import numpy as np
 from skimage.morphology import dilation, remove_small_objects
 
-from connectomics.data.process import get_seg_type, bbox_ND, crop_ND
-
+from connectomics.data.process import bbox_ND, crop_ND, get_seg_type
 
 __all__ = [
     "cast2dtype",

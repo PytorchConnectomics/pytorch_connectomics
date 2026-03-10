@@ -12,8 +12,8 @@ Functions:
       components (Numba-accelerated)
 """
 
-
 from __future__ import annotations
+
 import warnings
 from typing import List, Optional, Tuple
 
@@ -42,6 +42,7 @@ except ImportError:
             return func
 
         return decorator
+
 
 try:
     import edt
@@ -237,7 +238,10 @@ def decode_instance_binary_contour_distance(
     # Remove small instances if min_instance_size is specified
     if min_instance_size > 0:
         from ..utils import remove_small_instances
-        segmentation = remove_small_instances(segmentation, thres_small=min_instance_size, mode='background')
+
+        segmentation = remove_small_instances(
+            segmentation, thres_small=min_instance_size, mode="background"
+        )
 
     if return_seed:
         return segmentation, seed
@@ -322,8 +326,7 @@ def _compute_edt(
         # Fix shape mismatches introduced by zoom rounding
         if distance_fg.shape != foreground_mask.shape:
             slices = tuple(
-                slice(0, min(s1, s2))
-                for s1, s2 in zip(distance_fg.shape, foreground_mask.shape)
+                slice(0, min(s1, s2)) for s1, s2 in zip(distance_fg.shape, foreground_mask.shape)
             )
             corrected = np.zeros(foreground_mask.shape, dtype=distance_fg.dtype)
             corrected[slices] = distance_fg[slices]
@@ -350,26 +353,26 @@ def decode_distance_watershed(
     edt_anisotropy: Optional[Tuple[float, ...]] = None,
     edt_downsample_factor: int = 1,
     return_seed: bool = False,
-    **kwargs  # Accept but ignore unused parameters for compatibility
+    **kwargs,  # Accept but ignore unused parameters for compatibility
 ) -> np.ndarray:
     """
     Convert signed distance transform (SDT) predictions to instance segmentation
     via watershed with recomputed Euclidean Distance Transform (EDT).
-    
+
     This function implements the SDT-only approach where:
     1. Predicted SDT determines foreground mask (SDT > 0)
     2. Precise EDT is recomputed on the foreground mask
     3. Watershed uses the recomputed EDT (not predicted SDT)
-    
+
     Key Difference from decode_instance_binary_contour_distance:
     - This function RECOMPUTES precise geometric EDT from foreground mask
     - decode_instance_binary_contour_distance uses predicted distance directly
     - Generally more accurate but slower due to EDT computation
-    
+
     The recomputed EDT provides ground-truth Euclidean distances within the
     foreground mask, which can be more reliable for watershed flooding compared
     to using the network's predicted distance values directly.
-    
+
     Args:
         predictions (np.ndarray): Predictions of shape :math:`(C, Z, Y, X)`.
             Typically contains SDT predictions in one or more channels.
@@ -398,15 +401,15 @@ def decode_distance_watershed(
         **kwargs: Additional parameters for compatibility with YAML configs.
             Unused parameters (binary_channels, contour_channels, binary_threshold,
             contour_threshold, mode, etc.) are silently ignored.
-        
+
     Returns:
         np.ndarray or tuple: Instance segmentation mask of shape :math:`(Z, Y, X)`.
             If return_seed=True, returns tuple (segmentation, seed).
-            
+
     Examples:
         >>> # Basic usage with default parameters
         >>> seg = decode_distance_watershed(predictions, distance_channels=[0])
-        
+
         >>> # With custom thresholds and seed size
         >>> seg = decode_distance_watershed(
         ...     predictions,
@@ -414,7 +417,7 @@ def decode_distance_watershed(
         ...     min_seed_size=100,
         ...     min_instance_size=500
         ... )
-        
+
         >>> # With anisotropic data (30nm z, 8nm xy)
         >>> seg = decode_distance_watershed(
         ...     predictions,
@@ -423,21 +426,21 @@ def decode_distance_watershed(
         ...     use_fast_edt=True,
         ...     edt_parallel=8
         ... )
-        
+
         >>> # With downsampling for large volumes
         >>> seg = decode_distance_watershed(
         ...     predictions,
         ...     edt_downsample_factor=2,  # 2x downsampling
         ...     use_fast_edt=True
         ... )
-        
+
         >>> # Return seed map for debugging
         >>> seg, seed = decode_distance_watershed(
         ...     predictions,
         ...     distance_channels=[0],
         ...     return_seed=True
         ... )
-        
+
     Note:
         - This function uses 26-connectivity for seed generation (vs 6-connectivity default)
         - EDT recomputation can be slow for large volumes; use edt_downsample_factor
@@ -448,62 +451,62 @@ def decode_distance_watershed(
     # Stage 1: Extract SDT channel
     if distance_channels is None or len(distance_channels) == 0:
         raise ValueError("distance_channels must be specified and non-empty")
-    
+
     if len(distance_channels) > 1:
         # Average multiple channels
         distance = predictions[distance_channels].mean(axis=0)
     else:
         # Use single channel
         distance = predictions[distance_channels[0]]
-    
+
     # Stage 2: Generate foreground mask
     # Use distance_threshold[1] (default: 0) - SDT > 0 indicates foreground
     foreground_mask = distance > distance_threshold[1]
-    
+
     if not foreground_mask.any():
         warnings.warn(
             f"No foreground voxels found with threshold {distance_threshold[1]}. "
             "Returning empty segmentation.",
-            UserWarning
+            UserWarning,
         )
         empty_seg = np.zeros(distance.shape, dtype=np.uint32)
         if return_seed:
             return empty_seg, empty_seg
         return empty_seg
-    
+
     # Stage 3: Generate seeds
     # Use distance_threshold[0] (default: 0.5) - high SDT indicates instance centers
     seed_mask = distance > distance_threshold[0]
-    
+
     if not seed_mask.any():
         warnings.warn(
             f"No seed voxels found with threshold {distance_threshold[0]}. "
             "Returning empty segmentation.",
-            UserWarning
+            UserWarning,
         )
         empty_seg = np.zeros(distance.shape, dtype=np.uint32)
         if return_seed:
             return empty_seg, empty_seg
         return empty_seg
-    
+
     # Connected components with 26-connectivity (captures diagonal connections)
     seed = cc3d.connected_components(seed_mask.astype(np.uint8), connectivity=26)
-    
+
     # Remove small seeds
     if min_seed_size > 0:
         seed = remove_small_objects(seed, min_size=min_seed_size)
-    
+
     if seed.max() == 0:
         warnings.warn(
             f"No seeds remain after removing small objects (min_size={min_seed_size}). "
             "Returning empty segmentation.",
-            UserWarning
+            UserWarning,
         )
         empty_seg = np.zeros(distance.shape, dtype=np.uint32)
         if return_seed:
             return empty_seg, empty_seg
         return empty_seg
-    
+
     # Stage 4: Recompute precise EDT on foreground mask
     # KEY DIFFERENCE: We do NOT use predicted distance directly
     # Instead, we compute ground-truth Euclidean distance within foreground
@@ -514,28 +517,27 @@ def decode_distance_watershed(
         edt_anisotropy=edt_anisotropy,
         edt_downsample_factor=edt_downsample_factor,
     )
-    
+
     # Stage 5: Watershed segmentation
     # Use skimage watershed (supports mask parameter directly)
     segmentation = watershed(
         -distance_fg,  # Invert: peaks (high distance) become valleys for watershed
         seed,
-        mask=foreground_mask
+        mask=foreground_mask,
     )
-    
+
     # Stage 6: Post-processing
     # Refit labels to be consecutive [0, 1, 2, ..., N]
     segmentation = fastremap.refit(segmentation)
-    
+
     # Remove small instances if min_instance_size is specified
     if min_instance_size > 0:
         from ..utils import remove_small_instances
+
         segmentation = remove_small_instances(
-            segmentation,
-            thres_small=min_instance_size,
-            mode='background'
+            segmentation, thres_small=min_instance_size, mode="background"
         )
-    
+
     # Return segmentation (and optionally seed map)
     if return_seed:
         return segmentation, seed
@@ -761,9 +763,7 @@ def decode_affinity_cc(
         # Fast fallback used historically when numba was unavailable.
         segmentation = cc3d.connected_components(hard_aff.any(axis=0))
     else:
-        raise ValueError(
-            f"Unknown backend '{backend}'. Expected one of ['cc3d', 'numba', 'auto']."
-        )
+        raise ValueError(f"Unknown backend '{backend}'. Expected one of ['cc3d', 'numba', 'auto'].")
 
     # Fill any foreground voxels that lost all connections at high thresholds
     if foreground_mask.any():

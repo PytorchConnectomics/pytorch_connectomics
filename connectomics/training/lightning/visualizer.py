@@ -303,7 +303,7 @@ class Visualizer:
 
         # Show each output channel
         for i in range(min(output.shape[1], self.max_channels)):
-            channel_img = output[:, i:i + 1].repeat(1, 3, 1, 1)  # Convert to RGB
+            channel_img = output[:, i : i + 1].repeat(1, 3, 1, 1)  # Convert to RGB
             writer.add_image(
                 f"{prefix}/output_channel_{i}",
                 vutils.make_grid(
@@ -317,7 +317,7 @@ class Visualizer:
 
         # Show each label channel
         for i in range(min(label.shape[1], self.max_channels)):
-            channel_img = label[:, i:i + 1].repeat(1, 3, 1, 1)  # Convert to RGB
+            channel_img = label[:, i : i + 1].repeat(1, 3, 1, 1)  # Convert to RGB
             writer.add_image(
                 f"{prefix}/label_channel_{i}",
                 vutils.make_grid(
@@ -333,7 +333,7 @@ class Visualizer:
         if mask is not None and mask.numel() > 0:
             for i in range(min(mask.shape[1], self.max_channels)):
                 # Show mask in cyan for better visibility
-                mask_channel = mask[:, i:i + 1]
+                mask_channel = mask[:, i : i + 1]
                 mask_rgb = torch.cat(
                     [
                         torch.zeros_like(mask_channel),  # R=0
@@ -393,7 +393,7 @@ class Visualizer:
             # Multi-channel: normalize each channel independently
             normalized = []
             for c in range(tensor.shape[1]):
-                channel = tensor[:, c:c + 1]
+                channel = tensor[:, c : c + 1]
                 min_val = channel.min()
                 max_val = channel.max()
                 if max_val > min_val:
@@ -462,8 +462,7 @@ class Visualizer:
             slice_indices = np.arange(start_idx, end_idx, dtype=int)
         else:
             raise ValueError(
-                f"Unknown slice_sampling mode: {slice_sampling}. "
-                "Use 'uniform' or 'consecutive'."
+                f"Unknown slice_sampling mode: {slice_sampling}. " "Use 'uniform' or 'consecutive'."
             )
 
         # Extract slices

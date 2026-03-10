@@ -7,8 +7,6 @@ DataModules work correctly end-to-end.
 """
 
 import os
-import sys
-import tempfile
 
 import h5py
 import numpy as np
@@ -40,12 +38,9 @@ def create_dummy_lucchi_data(base_path):
         center_y = np.random.randint(8, shape[1] - 8)
         center_x = np.random.randint(8, shape[2] - 8)
         zz, yy, xx = np.mgrid[0 : shape[0], 0 : shape[1], 0 : shape[2]]
-        ellipsoid = (
-            ((zz - center_z) / 2) ** 2
-            + ((yy - center_y) / 4) ** 2
-            + ((xx - center_x) / 4) ** 2
-            < 1
-        )
+        ellipsoid = ((zz - center_z) / 2) ** 2 + ((yy - center_y) / 4) ** 2 + (
+            (xx - center_x) / 4
+        ) ** 2 < 1
         img_data[ellipsoid] = np.random.randint(180, 220)
 
     label_data = np.zeros(shape, dtype=np.uint8)
@@ -54,12 +49,9 @@ def create_dummy_lucchi_data(base_path):
         center_y = np.random.randint(6, shape[1] - 6)
         center_x = np.random.randint(6, shape[2] - 6)
         zz, yy, xx = np.mgrid[0 : shape[0], 0 : shape[1], 0 : shape[2]]
-        mito = (
-            ((zz - center_z) / 1.5) ** 2
-            + ((yy - center_y) / 3) ** 2
-            + ((xx - center_x) / 3) ** 2
-            < 1
-        )
+        mito = ((zz - center_z) / 1.5) ** 2 + ((yy - center_y) / 3) ** 2 + (
+            (xx - center_x) / 3
+        ) ** 2 < 1
         label_data[mito] = 1
 
     train_img_path = os.path.join(base_path, "train_image.h5")
@@ -101,9 +93,11 @@ def test_data_dicts_creation(data_paths):
 
 def test_connectomics_datamodule(data_paths):
     """Test ConnectomicsDataModule with MONAI datasets."""
-    transforms = Compose([
-        LoadVolumed(keys=["image", "label"]),
-    ])
+    transforms = Compose(
+        [
+            LoadVolumed(keys=["image", "label"]),
+        ]
+    )
 
     train_data_dicts = create_data_dicts_from_paths(
         image_paths=data_paths["train_image_paths"],
@@ -135,9 +129,11 @@ def test_connectomics_datamodule(data_paths):
 
 def test_cached_datamodule(data_paths):
     """Test ConnectomicsDataModule with cached datasets."""
-    transforms = Compose([
-        LoadVolumed(keys=["image", "label"]),
-    ])
+    transforms = Compose(
+        [
+            LoadVolumed(keys=["image", "label"]),
+        ]
+    )
 
     train_data_dicts = create_data_dicts_from_paths(
         image_paths=data_paths["train_image_paths"],
@@ -163,9 +159,11 @@ def test_cached_datamodule(data_paths):
 
 def test_transform_integration(data_paths):
     """Test MONAI transform pipeline integration."""
-    transforms = Compose([
-        LoadVolumed(keys=["image", "label"]),
-    ])
+    transforms = Compose(
+        [
+            LoadVolumed(keys=["image", "label"]),
+        ]
+    )
 
     train_data_dicts = create_data_dicts_from_paths(
         image_paths=data_paths["train_image_paths"],

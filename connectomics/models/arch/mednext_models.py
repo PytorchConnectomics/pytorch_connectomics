@@ -15,14 +15,16 @@ Installation:
 See .claude/MEDNEXT.md for detailed documentation.
 """
 
-
 from __future__ import annotations
+
+from typing import Dict, Union
+
 import torch
 import torch.nn as nn
-from typing import Union, Dict
 
 try:
-    from nnunet_mednext import create_mednext_v1, MedNeXt as MedNeXtBase
+    from nnunet_mednext import MedNeXt as MedNeXtBase
+    from nnunet_mednext import create_mednext_v1
 
     MEDNEXT_AVAILABLE = True
 except ImportError:

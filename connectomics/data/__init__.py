@@ -15,10 +15,7 @@ Recommended imports:
 """
 
 # Make submodules available
-from . import augment
-from . import dataset
-from . import io
-from . import process
+from . import augment, dataset, io, process
 
 __all__ = [
     # Submodules

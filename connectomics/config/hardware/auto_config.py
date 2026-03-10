@@ -11,24 +11,25 @@ optimal hyperparameters based on:
 Users can manually override any auto-determined parameters.
 """
 
-
 from __future__ import annotations
-import logging
-import numpy as np
-from typing import Dict, List, Optional, Any
-from dataclasses import dataclass, field
-from omegaconf import OmegaConf, DictConfig
-import warnings
-import os
 
-logger = logging.getLogger(__name__)
+import logging
+import os
+import warnings
+from dataclasses import dataclass, field
+from typing import Any, Dict, List, Optional
+
+import numpy as np
+from omegaconf import DictConfig, OmegaConf
 
 from .gpu_utils import (
-    get_gpu_info,
-    suggest_batch_size,
-    get_optimal_num_workers,
     estimate_gpu_memory_required,
+    get_gpu_info,
+    get_optimal_num_workers,
+    suggest_batch_size,
 )
+
+logger = logging.getLogger(__name__)
 
 
 def _available_cpus_for_current_run() -> int:
@@ -120,7 +121,9 @@ def resolve_runtime_resource_sentinels(
             logger.info(
                 "Auto-detected system.num_workers: -1 -> %d "
                 "(available_cpus=%d, local_processes=%d)",
-                config.system.num_workers, available_cpus, process_count,
+                config.system.num_workers,
+                available_cpus,
+                process_count,
             )
 
     if getattr(config.system, "num_gpus", 0) < -1:
@@ -477,7 +480,10 @@ def auto_plan_config(
     # Collect manual overrides (values explicitly set in config)
     manual_overrides = {}
     if hasattr(config, "data"):
-        if hasattr(config.data, "dataloader") and getattr(config.data.dataloader, "batch_size", None) is not None:
+        if (
+            hasattr(config.data, "dataloader")
+            and getattr(config.data.dataloader, "batch_size", None) is not None
+        ):
             manual_overrides["batch_size"] = config.data.dataloader.batch_size
         if hasattr(config, "system") and getattr(config.system, "num_workers", None) is not None:
             manual_overrides["num_workers"] = config.system.num_workers

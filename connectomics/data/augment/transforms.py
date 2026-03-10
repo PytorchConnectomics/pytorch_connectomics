@@ -11,10 +11,9 @@ from typing import Any, Dict, List, Optional, Tuple, Union
 
 import numpy as np
 import torch
+import torchvision.transforms.functional as tvf
 from monai.config import KeysCollection
 from monai.transforms import MapTransform, RandomizableTransform
-
-import torchvision.transforms.functional as tvf
 from scipy.ndimage import binary_dilation, generate_binary_structure
 
 from . import augment_ops
@@ -762,8 +761,11 @@ class SmartNormalizeIntensityd(MapTransform):
             if key in d:
                 arr, was_tensor, device = _to_numpy(d[key])
                 result = augment_ops.smart_normalize(
-                    arr, self.mode, self.divide_value,
-                    self.clip_percentile_low, self.clip_percentile_high,
+                    arr,
+                    self.mode,
+                    self.divide_value,
+                    self.clip_percentile_low,
+                    self.clip_percentile_high,
                 )
                 d[key] = _from_numpy(result, was_tensor, device)
         return d
@@ -828,9 +830,9 @@ class RandStriped(RandomizableTransform, MapTransform):
                 if self.num_stripes_range[0] == self.num_stripes_range[1]:
                     num_stripes = self.num_stripes_range[0]
                 else:
-                    num_stripes = int(self.R.randint(
-                        self.num_stripes_range[0], self.num_stripes_range[1] + 1
-                    ))
+                    num_stripes = int(
+                        self.R.randint(self.num_stripes_range[0], self.num_stripes_range[1] + 1)
+                    )
 
                 # Generate stripe parameters
                 # We need coord range for positioning — compute from a representative slice
@@ -847,9 +849,9 @@ class RandStriped(RandomizableTransform, MapTransform):
                     if self.thickness_range[0] == self.thickness_range[1]:
                         thickness = self.thickness_range[0]
                     else:
-                        thickness = int(self.R.randint(
-                            self.thickness_range[0], self.thickness_range[1] + 1
-                        ))
+                        thickness = int(
+                            self.R.randint(self.thickness_range[0], self.thickness_range[1] + 1)
+                        )
                     intensity = float(self.R.uniform(*self.intensity_range))
                     stripe_params.append((center, thickness, intensity))
 
@@ -926,14 +928,22 @@ class RandElasticd(MapTransform, RandomizableTransform):
 
         if self.do_2d:
             return Rand2DElasticd(
-                keys=self.keys, prob=1.0, spacing=self.sigma_range,
-                magnitude_range=self.magnitude_range, mode=self.mode,
-                padding_mode=self.padding_mode, allow_missing_keys=self.allow_missing_keys,
+                keys=self.keys,
+                prob=1.0,
+                spacing=self.sigma_range,
+                magnitude_range=self.magnitude_range,
+                mode=self.mode,
+                padding_mode=self.padding_mode,
+                allow_missing_keys=self.allow_missing_keys,
             )
         return Rand3DElasticd(
-            keys=self.keys, prob=1.0, sigma_range=self.sigma_range,
-            magnitude_range=self.magnitude_range, mode=self.mode,
-            padding_mode=self.padding_mode, allow_missing_keys=self.allow_missing_keys,
+            keys=self.keys,
+            prob=1.0,
+            sigma_range=self.sigma_range,
+            magnitude_range=self.magnitude_range,
+            mode=self.mode,
+            padding_mode=self.padding_mode,
+            allow_missing_keys=self.allow_missing_keys,
         )
 
     def __call__(self, data):

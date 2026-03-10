@@ -34,15 +34,15 @@ from ...inference import (
     InferenceManager,
     resolve_output_filenames,
 )
-from ...models import build_model
-from ...models.loss import create_loss, get_loss_metadata_for_module
-from ..debugging import DebugManager
 from ...metrics.metrics_seg import (
     AdaptedRandError,
     InstanceAccuracy,
     InstanceAccuracySimple,
     VariationOfInformation,
 )
+from ...models import build_model
+from ...models.loss import create_loss, get_loss_metadata_for_module
+from ..debugging import DebugManager
 
 # Import training/inference components
 from ..loss import LossOrchestrator, build_loss_weighter, infer_num_loss_tasks_from_config
@@ -202,9 +202,7 @@ class ConnectomicsModule(pl.LightningModule):
                 preview = ", ".join(dropped_keys[:3])
                 if len(dropped_keys) > 3:
                     preview += f", ... (+{len(dropped_keys) - 3} more)"
-                logger.info(
-                    f"Ignoring stale loss-function checkpoint key(s): {preview}"
-                )
+                logger.info(f"Ignoring stale loss-function checkpoint key(s): {preview}")
 
         return super().load_state_dict(state_dict, strict=strict)
 
@@ -225,6 +223,7 @@ class ConnectomicsModule(pl.LightningModule):
     def _cfg_value(cfg_obj: Any, key: str, default: Any = None) -> Any:
         """Unified dict/attribute config accessor (delegates to shared utility)."""
         from ...config.pipeline.dict_utils import cfg_get
+
         return cfg_get(cfg_obj, key, default)
 
     @classmethod
@@ -243,32 +242,55 @@ class ConnectomicsModule(pl.LightningModule):
     def _has_multiple_supervised_loss_tasks(self) -> bool:
         """Infer multi-task supervised setup from compiled explicit loss terms."""
         pred_target_terms = [
-            term for term in self.loss_orchestrator.loss_term_specs
+            term
+            for term in self.loss_orchestrator.loss_term_specs
             if term.call_kind == "pred_target"
         ]
         return len(pred_target_terms) > 1
 
-    def _create_metrics(self, prefix: str, metrics: list, num_classes: int, use_binary: bool,
-                        instance_iou_threshold: float = 0.5):
+    def _create_metrics(
+        self,
+        prefix: str,
+        metrics: list,
+        num_classes: int,
+        use_binary: bool,
+        instance_iou_threshold: float = 0.5,
+    ):
         """Create and attach torchmetrics with the given prefix (test_ or val_)."""
         if "jaccard" in metrics:
-            setattr(self, f"{prefix}jaccard", (
-                torchmetrics.JaccardIndex(task="binary").to(self.device)
-                if use_binary
-                else torchmetrics.JaccardIndex(task="multiclass", num_classes=num_classes).to(self.device)
-            ))
+            setattr(
+                self,
+                f"{prefix}jaccard",
+                (
+                    torchmetrics.JaccardIndex(task="binary").to(self.device)
+                    if use_binary
+                    else torchmetrics.JaccardIndex(task="multiclass", num_classes=num_classes).to(
+                        self.device
+                    )
+                ),
+            )
         if "dice" in metrics:
-            setattr(self, f"{prefix}dice", (
-                torchmetrics.Dice(task="binary").to(self.device)
-                if use_binary
-                else torchmetrics.Dice(num_classes=num_classes, average="macro").to(self.device)
-            ))
+            setattr(
+                self,
+                f"{prefix}dice",
+                (
+                    torchmetrics.Dice(task="binary").to(self.device)
+                    if use_binary
+                    else torchmetrics.Dice(num_classes=num_classes, average="macro").to(self.device)
+                ),
+            )
         if "accuracy" in metrics:
-            setattr(self, f"{prefix}accuracy", (
-                torchmetrics.Accuracy(task="binary").to(self.device)
-                if use_binary
-                else torchmetrics.Accuracy(task="multiclass", num_classes=num_classes).to(self.device)
-            ))
+            setattr(
+                self,
+                f"{prefix}accuracy",
+                (
+                    torchmetrics.Accuracy(task="binary").to(self.device)
+                    if use_binary
+                    else torchmetrics.Accuracy(task="multiclass", num_classes=num_classes).to(
+                        self.device
+                    )
+                ),
+            )
         # Instance-level metrics only for test
         if prefix == "test_":
             if "adapted_rand" in metrics:
@@ -276,13 +298,23 @@ class ConnectomicsModule(pl.LightningModule):
             if "voi" in metrics:
                 setattr(self, f"{prefix}voi", VariationOfInformation().to(self.device))
             if "instance_accuracy" in metrics:
-                setattr(self, f"{prefix}instance_accuracy", InstanceAccuracy(
-                    thresh=instance_iou_threshold, criterion="iou",
-                ).to(self.device))
+                setattr(
+                    self,
+                    f"{prefix}instance_accuracy",
+                    InstanceAccuracy(
+                        thresh=instance_iou_threshold,
+                        criterion="iou",
+                    ).to(self.device),
+                )
             if "instance_accuracy_detail" in metrics:
-                setattr(self, f"{prefix}instance_accuracy_detail", InstanceAccuracySimple(
-                    thresh=instance_iou_threshold, criterion="iou",
-                ).to(self.device))
+                setattr(
+                    self,
+                    f"{prefix}instance_accuracy_detail",
+                    InstanceAccuracySimple(
+                        thresh=instance_iou_threshold,
+                        criterion="iou",
+                    ).to(self.device),
+                )
 
     def _setup_test_metrics(self):
         """Initialize test metrics based on test or inference config."""
@@ -304,7 +336,9 @@ class ConnectomicsModule(pl.LightningModule):
             )
         )
         num_classes = self.cfg.model.out_channels if hasattr(self.cfg.model, "out_channels") else 2
-        self._create_metrics("test_", metrics, num_classes, num_classes == 1, instance_iou_threshold)
+        self._create_metrics(
+            "test_", metrics, num_classes, num_classes == 1, instance_iou_threshold
+        )
 
     def _setup_validation_metrics(self):
         """Initialize validation metrics once (avoid lazy init in validation loop)."""
@@ -482,7 +516,9 @@ class ConnectomicsModule(pl.LightningModule):
             return
 
         mode = "test"
-        output_path = getattr(self._get_runtime_inference_config().save_prediction, "output_path", None)
+        output_path = getattr(
+            self._get_runtime_inference_config().save_prediction, "output_path", None
+        )
 
         if output_path is None:
             logger.warning(f"Cannot save metrics: output_path not found for mode={mode}")
@@ -587,9 +623,7 @@ class ConnectomicsModule(pl.LightningModule):
             return self.loss_orchestrator.compute_deep_supervision_loss(
                 outputs, labels, stage=stage, mask=mask
             )
-        return self.loss_orchestrator.compute_standard_loss(
-            outputs, labels, stage=stage, mask=mask
-        )
+        return self.loss_orchestrator.compute_standard_loss(outputs, labels, stage=stage, mask=mask)
 
     def training_step(self, batch: Dict[str, torch.Tensor], batch_idx: int) -> STEP_OUTPUT:
         """Training step with deep supervision support."""

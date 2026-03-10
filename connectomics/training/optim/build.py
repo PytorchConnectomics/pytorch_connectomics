@@ -5,20 +5,26 @@ Supports Hydra/OmegaConf configurations.
 Code adapted from Detectron2 (https://github.com/facebookresearch/detectron2)
 """
 
-
 from __future__ import annotations
+
 import logging
 from collections.abc import Mapping
 from typing import Any, Dict, List, Set
-import torch
 
-logger = logging.getLogger(__name__)
-from torch.optim.lr_scheduler import MultiStepLR, ReduceLROnPlateau, CosineAnnealingLR, CosineAnnealingWarmRestarts, StepLR
+import torch
+from torch.optim.lr_scheduler import (
+    CosineAnnealingLR,
+    CosineAnnealingWarmRestarts,
+    MultiStepLR,
+    ReduceLROnPlateau,
+    StepLR,
+)
 
 from .lr_scheduler import WarmupCosineLR
 
-
 __all__ = ["build_optimizer", "build_lr_scheduler"]
+
+logger = logging.getLogger(__name__)
 
 
 def _scheduler_param(sched_cfg: Any, key: str, default: Any) -> Any:
@@ -138,8 +144,7 @@ def build_optimizer(cfg, model: torch.nn.Module) -> torch.optim.Optimizer:
         )
     else:
         raise ValueError(
-            f"Unknown optimizer: '{optimizer_name}'. "
-            f"Supported optimizers: adamw, adam, sgd"
+            f"Unknown optimizer: '{optimizer_name}'. " f"Supported optimizers: adamw, adam, sgd"
         )
 
     logger.info(f"Optimizer: {optimizer.__class__.__name__} (lr={lr}, wd={weight_decay})")
@@ -272,10 +277,7 @@ def _build_lr_scheduler_hydra(
         # Recommended for MedNeXt architecture
         from torch.optim.lr_scheduler import LambdaLR
 
-        scheduler = LambdaLR(
-            optimizer,
-            lr_lambda=lambda epoch: 1.0
-        )
+        scheduler = LambdaLR(optimizer, lr_lambda=lambda epoch: 1.0)
         logger.info("  Using constant learning rate (no decay)")
 
     else:

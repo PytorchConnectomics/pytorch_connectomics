@@ -375,7 +375,9 @@ def test_run_test_step_handles_unstacked_list_batches(monkeypatch):
         filenames,
         batch_idx,
     ):
-        seen.append(("eval", filenames[0], tuple(decoded_predictions.shape), tuple(labels.shape), batch_idx))
+        seen.append(
+            ("eval", filenames[0], tuple(decoded_predictions.shape), tuple(labels.shape), batch_idx)
+        )
 
     monkeypatch.setattr(
         "connectomics.training.lightning.test_pipeline._process_decoding_postprocessing",

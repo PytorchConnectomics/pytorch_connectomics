@@ -32,6 +32,7 @@ default:
     test_time_augmentation:
       enabled: false
       flip_axes: all
+      rotation90_axes: all
     postprocessing:
       enabled: true
       # Crop the padded prediction so the later DeepEM affinity crop lands back

@@ -7,7 +7,6 @@ from typing import Literal, Optional
 
 import torch.nn as nn
 
-
 LossCallKind = Literal["pred_target", "pred_only", "pred_pred", "unsupported"]
 TargetKind = Literal["dense", "class_index", "none"]
 

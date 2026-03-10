@@ -17,10 +17,10 @@ from __future__ import annotations
 
 import logging
 import traceback
-from contextlib import contextmanager
-from copy import deepcopy
 import warnings
 from collections import defaultdict
+from contextlib import contextmanager
+from copy import deepcopy
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Union
 
@@ -37,13 +37,13 @@ try:
 except ImportError:
     OPTUNA_AVAILABLE = False
 
-from connectomics.metrics.metrics_seg import adapted_rand
 from connectomics.data.process.affinity import (
     affinity_deepem_crop_enabled,
     compute_affinity_crop_pad,
     crop_spatial_by_pad,
     resolve_affinity_channel_groups_from_cfg,
 )
+from connectomics.metrics.metrics_seg import adapted_rand
 
 from ..registry import get_decoder
 from ..utils import remove_small_instances
@@ -65,7 +65,7 @@ def _maybe_crop_affinity_array(
         int(reference_spatial_shape[axis]) - crop_pad[axis][0] - crop_pad[axis][1]
         for axis in range(len(crop_pad))
     )
-    data_spatial_shape = tuple(int(v) for v in data.shape[-len(crop_pad):])
+    data_spatial_shape = tuple(int(v) for v in data.shape[-len(crop_pad) :])
     if data_spatial_shape == expected_cropped_shape:
         return data
     if data_spatial_shape != reference_spatial_shape:
@@ -186,7 +186,7 @@ class OptunaDecodingTuner:
             self.multi_volume = True
             logger.info("Multi-volume mode: %d volumes", len(self.predictions_list))
         else:
-            # Single-volume mode (backward compatible)
+            # Single-volume mode
             loaded_pred = self._load_data(predictions, "predictions")
             loaded_gt = self._load_data(ground_truth, "ground_truth")
             loaded_mask = self._load_data(mask, "mask") if mask is not None else None
@@ -209,7 +209,8 @@ class OptunaDecodingTuner:
 
         # Resolve decoder function from registry
         self.decoder_fn_name = getattr(
-            self.param_space_cfg.decoding, "function_name",
+            self.param_space_cfg.decoding,
+            "function_name",
             "decode_instance_binary_contour_distance",
         )
         self.decoder_fn = get_decoder(self.decoder_fn_name)
@@ -227,7 +228,10 @@ class OptunaDecodingTuner:
 
         if self.decoder_fn_name == "decode_abiss":
             mt_cfg = None
-            if hasattr(self.param_space_cfg, "decoding") and self.param_space_cfg.decoding.parameters:
+            if (
+                hasattr(self.param_space_cfg, "decoding")
+                and self.param_space_cfg.decoding.parameters
+            ):
                 mt_cfg = self.param_space_cfg.decoding.parameters.get("ws_merge_threshold", None)
             if mt_cfg is not None:
                 lo, hi = mt_cfg["range"]
@@ -280,7 +284,9 @@ class OptunaDecodingTuner:
                 expanded_shape = pred.shape[:1] + (1,) + pred.shape[1:]
                 logger.info(
                     "Volume %d: 2D data detected, expanding predictions: %s -> %s",
-                    i, pred.shape, expanded_shape,
+                    i,
+                    pred.shape,
+                    expanded_shape,
                 )
                 pred = pred[:, np.newaxis, :, :]
                 self.predictions_list[i] = pred
@@ -295,7 +301,9 @@ class OptunaDecodingTuner:
                 expanded_shape = (1,) + gt.shape
                 logger.info(
                     "Volume %d: 2D ground truth detected, expanding: %s -> %s",
-                    i, gt.shape, expanded_shape,
+                    i,
+                    gt.shape,
+                    expanded_shape,
                 )
                 gt = gt[np.newaxis, :, :]
                 self.ground_truth_list[i] = gt
@@ -319,7 +327,9 @@ class OptunaDecodingTuner:
                     if mask.ndim == 2:
                         logger.info(
                             "Volume %d: 2D mask detected, expanding: %s -> %s",
-                            i, mask.shape, (1,) + mask.shape,
+                            i,
+                            mask.shape,
+                            (1,) + mask.shape,
                         )
                         mask = mask[np.newaxis, :, :]
                         self.mask_list[i] = mask
@@ -346,14 +356,19 @@ class OptunaDecodingTuner:
         # Get optimization direction
         direction = self._get_optimization_direction()
 
-        # Create storage directory if using SQLite
+        # Resolve storage: auto-generate SQLite path when save_study=True
         storage = getattr(self.tune_cfg, "storage", None)
+        if not storage and getattr(self.tune_cfg.output, "save_study", False):
+            output_dir = getattr(self.tune_cfg.output, "output_dir", None)
+            if output_dir:
+                db_path = Path(output_dir) / f"{self.tune_cfg.study_name}.db"
+                storage = f"sqlite:///{db_path}"
+                logger.info("Auto-generated study storage: %s", storage)
         if storage and storage.startswith("sqlite:///"):
-            # Extract database file path from SQLite URL
             db_path = storage.replace("sqlite:///", "")
             db_dir = Path(db_path).parent
             db_dir.mkdir(parents=True, exist_ok=True)
-            logger.info("Created optuna storage directory: %s", db_dir)
+        self._resolved_storage = storage
 
         # Create or load study
         study = optuna.create_study(
@@ -369,10 +384,13 @@ class OptunaDecodingTuner:
         n_trials = self.tune_cfg.n_trials
         timeout = self.tune_cfg.timeout
 
-        metric = self.tune_cfg.optimization['single_objective']['metric']
+        metric = self.tune_cfg.optimization["single_objective"]["metric"]
         logger.info(
             "Starting Optuna optimization: %s | Trials: %s | Metric: %s | Direction: %s",
-            self.tune_cfg.study_name, n_trials, metric, direction,
+            self.tune_cfg.study_name,
+            n_trials,
+            metric,
+            direction,
         )
 
         study.optimize(
@@ -484,12 +502,16 @@ class OptunaDecodingTuner:
             except Exception:
                 logger.error(
                     "Trial %d ABISS batch failed (vol %d):\n%s",
-                    self.trial_count, vol_idx, traceback.format_exc(),
+                    self.trial_count,
+                    vol_idx,
+                    traceback.format_exc(),
                 )
                 return bad_value
 
             if not isinstance(results, dict):
-                logger.error("Trial %d: decoder did not return dict in batch mode", self.trial_count)
+                logger.error(
+                    "Trial %d: decoder did not return dict in batch mode", self.trial_count
+                )
                 return bad_value
 
             for mt_val in self._abiss_all_merge_thresholds:
@@ -551,7 +573,12 @@ class OptunaDecodingTuner:
             )
             logger.info(
                 "Trial %3d: best ARE=%.4f (mt=%.2f) Prec=%.4f Rec=%.4f | %s",
-                self.trial_count, best_avg, best_mt, avg_prec, avg_rec, mt_summary,
+                self.trial_count,
+                best_avg,
+                best_mt,
+                avg_prec,
+                avg_rec,
+                mt_summary,
             )
 
         return best_avg
@@ -602,13 +629,14 @@ class OptunaDecodingTuner:
 
             # Decode predictions for this volume
             try:
-                segmentation = self.decoder_fn(
-                    pred_vol, **decoding_params
-                )
-            except Exception as e:
+                segmentation = self.decoder_fn(pred_vol, **decoding_params)
+            except Exception:
                 logger.error(
                     "Trial %d failed during decoding (vol %d): params=%s\n%s",
-                    self.trial_count, vol_idx, decoding_params, traceback.format_exc(),
+                    self.trial_count,
+                    vol_idx,
+                    decoding_params,
+                    traceback.format_exc(),
                 )
                 return (
                     float("-inf")
@@ -620,10 +648,13 @@ class OptunaDecodingTuner:
             if postproc_params is not None:
                 try:
                     segmentation = remove_small_instances(segmentation, **postproc_params)
-                except Exception as e:
+                except Exception:
                     logger.error(
                         "Trial %d failed during post-processing (vol %d): params=%s\n%s",
-                        self.trial_count, vol_idx, postproc_params, traceback.format_exc(),
+                        self.trial_count,
+                        vol_idx,
+                        postproc_params,
+                        traceback.format_exc(),
                     )
                     return (
                         float("-inf")
@@ -641,22 +672,24 @@ class OptunaDecodingTuner:
                     seg_masked = segmentation
 
                 if metric_name == "adapted_rand":
-                    are_val, prec_val, rec_val = adapted_rand(
-                        seg_masked, gt_masked, all_stats=True
-                    )
+                    are_val, prec_val, rec_val = adapted_rand(seg_masked, gt_masked, all_stats=True)
                     metric_values.append(are_val)
                     precision_values.append(prec_val)
                     recall_values.append(rec_val)
                 else:
                     raise ValueError(f"Unknown metric: {metric_name}")
 
-            except Exception as e:
+            except Exception:
                 logger.error(
                     "Trial %d failed during metric computation (vol %d): "
                     "metric=%s, seg shape=%s, dtype=%s, n_labels=%d\n%s",
-                    self.trial_count, vol_idx, metric_name,
-                    segmentation.shape, segmentation.dtype,
-                    len(np.unique(segmentation)), traceback.format_exc(),
+                    self.trial_count,
+                    vol_idx,
+                    metric_name,
+                    segmentation.shape,
+                    segmentation.dtype,
+                    len(np.unique(segmentation)),
+                    traceback.format_exc(),
                 )
                 return (
                     float("-inf")
@@ -677,8 +710,13 @@ class OptunaDecodingTuner:
             logger.info(
                 "Trial %3d: ARE=%.4f Prec=%.4f Rec=%.4f "
                 "(per-vol ARE: [%s] Prec: [%s] Rec: [%s])",
-                self.trial_count, avg_metric, avg_precision, avg_recall,
-                per_vol_are, per_vol_prec, per_vol_rec,
+                self.trial_count,
+                avg_metric,
+                avg_precision,
+                avg_recall,
+                per_vol_are,
+                per_vol_prec,
+                per_vol_rec,
             )
 
         # Store precision/recall as user attributes for later analysis
@@ -696,13 +734,19 @@ class OptunaDecodingTuner:
         param_type = cfg["type"]
         if param_type == "float":
             return trial.suggest_float(
-                name, cfg["range"][0], cfg["range"][1],
-                step=cfg.get("step", None), log=cfg.get("log", False),
+                name,
+                cfg["range"][0],
+                cfg["range"][1],
+                step=cfg.get("step", None),
+                log=cfg.get("log", False),
             )
         elif param_type == "int":
             return trial.suggest_int(
-                name, cfg["range"][0], cfg["range"][1],
-                step=cfg.get("step", 1), log=cfg.get("log", False),
+                name,
+                cfg["range"][0],
+                cfg["range"][1],
+                step=cfg.get("step", 1),
+                log=cfg.get("log", False),
             )
         elif param_type == "categorical":
             return trial.suggest_categorical(name, cfg.choices)
@@ -932,10 +976,14 @@ class OptunaDecodingTuner:
 
         # Save study if requested
         if self.tune_cfg.output.save_study:
-            if self.tune_cfg.storage:
-                logger.info("Study saved to database: %s", self.tune_cfg.storage)
+            resolved = getattr(self, "_resolved_storage", None)
+            if resolved:
+                logger.info("Study persisted to database: %s", resolved)
             else:
-                warnings.warn("No storage configured, study not persisted to database")
+                logger.warning(
+                    "save_study=True but no storage configured and output_dir "
+                    "not set — study not persisted to database"
+                )
 
 
 # ============================================================================
@@ -995,7 +1043,8 @@ def run_tuning(model, trainer, cfg, checkpoint_path=None):
     if best_params_file.exists():
         logger.info(
             "SKIPPING PARAMETER TUNING: best parameters already exist at %s. "
-            "Delete this file to re-run tuning.", best_params_file,
+            "Delete this file to re-run tuning.",
+            best_params_file,
         )
         return
 
@@ -1053,17 +1102,18 @@ def run_tuning(model, trainer, cfg, checkpoint_path=None):
         all_predictions.append(pred)
 
     total_slices = sum(p.shape[1] for p in all_predictions)
-    logger.info("Loaded %d prediction volumes (%d total slices)", len(all_predictions), total_slices)
+    logger.info(
+        "Loaded %d prediction volumes (%d total slices)",
+        len(all_predictions),
+        total_slices,
+    )
 
     # Step 3: Load ground truth
     logger.info("[3/4] Loading ground truth labels...")
-    # Prefer data.val.label, fall back to data.test.label
     tune_label_pattern = getattr(getattr(tune_data, "val", None), "label", None)
-    if tune_label_pattern is None:
-        tune_label_pattern = getattr(getattr(tune_data, "test", None), "label", None)
 
     if tune_label_pattern is None:
-        raise ValueError("Missing data.val.label or data.test.label in configuration")
+        raise ValueError("Missing data.val.label in configuration")
 
     # Handle both string patterns and pre-resolved lists
     if isinstance(tune_label_pattern, list):
@@ -1073,7 +1123,7 @@ def run_tuning(model, trainer, cfg, checkpoint_path=None):
         # Glob pattern - expand it
         label_files = sorted(glob.glob(tune_label_pattern))
     else:
-        raise TypeError(f"tune.data.val.label must be string or list, got {type(tune_label_pattern)}")
+        raise TypeError(f"data.val.label must be string or list, got {type(tune_label_pattern)}")
 
     if not label_files:
         raise FileNotFoundError(f"No label files found matching pattern: {tune_label_pattern}")
@@ -1087,15 +1137,16 @@ def run_tuning(model, trainer, cfg, checkpoint_path=None):
         logger.info("Loaded %s: shape %s", Path(label_file).name, label.shape)
         all_labels.append(label)
 
-    total_label_slices = sum(l.shape[0] for l in all_labels)
-    logger.info("Loaded %d ground truth volumes (%d total slices)", len(all_labels), total_label_slices)
+    total_label_slices = sum(label.shape[0] for label in all_labels)
+    logger.info(
+        "Loaded %d ground truth volumes (%d total slices)",
+        len(all_labels),
+        total_label_slices,
+    )
 
     # Load mask if available
     all_masks = None
-    # Prefer data.val.mask, fall back to data.test.mask
     tune_mask_pattern = getattr(getattr(tune_data, "val", None), "mask", None)
-    if tune_mask_pattern is None:
-        tune_mask_pattern = getattr(getattr(tune_data, "test", None), "mask", None)
     if tune_mask_pattern:
         # Handle both string patterns and pre-resolved lists
         if isinstance(tune_mask_pattern, list):
@@ -1103,7 +1154,7 @@ def run_tuning(model, trainer, cfg, checkpoint_path=None):
         elif isinstance(tune_mask_pattern, str):
             mask_files = sorted(glob.glob(tune_mask_pattern))
         else:
-            raise TypeError(f"data.test.mask must be string or list, got {type(tune_mask_pattern)}")
+            raise TypeError(f"data.val.mask must be string or list, got {type(tune_mask_pattern)}")
 
         if not mask_files:
             logger.warning("No mask files found matching pattern: %s", tune_mask_pattern)
@@ -1125,8 +1176,7 @@ def run_tuning(model, trainer, cfg, checkpoint_path=None):
         )
     if all_masks is not None and len(all_masks) != len(all_predictions):
         raise ValueError(
-            f"Mismatch: {len(all_predictions)} prediction files vs "
-            f"{len(all_masks)} mask files"
+            f"Mismatch: {len(all_predictions)} prediction files vs " f"{len(all_masks)} mask files"
         )
 
     if affinity_deepem_crop_enabled(cfg):
@@ -1140,7 +1190,9 @@ def run_tuning(model, trainer, cfg, checkpoint_path=None):
             cropped_labels = []
             cropped_masks = [] if all_masks is not None else None
             for idx, pred in enumerate(all_predictions):
-                reference_spatial_shape = tuple(int(v) for v in all_labels[idx].shape[-len(crop_pad):])
+                reference_spatial_shape = tuple(
+                    int(v) for v in all_labels[idx].shape[-len(crop_pad) :]
+                )
                 cropped_predictions.append(
                     _maybe_crop_affinity_array(
                         np.asarray(pred),
@@ -1177,9 +1229,10 @@ def run_tuning(model, trainer, cfg, checkpoint_path=None):
     study = tuner.optimize()
 
     logger.info(
-        "TUNING COMPLETED | Best parameters saved to: %s | "
-        "Best value: %.4f | Best params: %s",
-        best_params_file, study.best_value, study.best_params,
+        "TUNING COMPLETED | Best parameters saved to: %s | " "Best value: %.4f | Best params: %s",
+        best_params_file,
+        study.best_value,
+        study.best_params,
     )
 
 

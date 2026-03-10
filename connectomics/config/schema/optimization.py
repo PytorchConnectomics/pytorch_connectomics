@@ -86,13 +86,15 @@ class OptimizationConfig:
     max_epochs: int = 200
     max_steps: Optional[int] = None  # Optional step-based training cap
     n_steps_per_epoch: int = -1  # Optimizer steps per epoch (-1 = auto from dataset size)
-    val_steps_per_epoch: Optional[int] = None  # Validation steps per epoch (auto-calculated if None)
+    val_steps_per_epoch: Optional[int] = (
+        None  # Validation steps per epoch (auto-calculated if None)
+    )
     gradient_clip_val: float = 1.0
     accumulate_grad_batches: int = 1
     precision: str = "16-mixed"  # "32", "16-mixed", "bf16-mixed"
 
     # Validation scheduling
-    val_check_interval: Union[int, float] = 1.0  # Validate every N epochs (legacy key name)
+    val_check_interval: Union[int, float] = 1.0  # Validate every N epochs
 
     # Logging
     log_every_n_steps: int = 100

@@ -9,13 +9,13 @@ command, then reads back an instance-label segmentation.
 
 from __future__ import annotations
 
-from pathlib import Path
-from tempfile import TemporaryDirectory
-from typing import Any, Dict, List, Mapping, Optional, Sequence
 import os
 import shlex
 import subprocess
 import sys
+from pathlib import Path
+from tempfile import TemporaryDirectory
+from typing import Any, Dict, List, Mapping, Optional, Sequence
 
 import numpy as np
 
@@ -229,9 +229,7 @@ def decode_abiss(
     """
     pred = np.asarray(predictions)
     if pred.ndim not in (3, 4):
-        raise ValueError(
-            f"decode_abiss expects 3D/4D predictions, got shape {pred.shape}."
-        )
+        raise ValueError(f"decode_abiss expects 3D/4D predictions, got shape {pred.shape}.")
 
     if channels is not None:
         if pred.ndim != 4:
@@ -257,9 +255,11 @@ def decode_abiss(
     for root in (
         launch_cwd,
         Path(os.environ["HYDRA_ORIG_CWD"]).resolve() if "HYDRA_ORIG_CWD" in os.environ else None,
-        Path(os.environ["HYDRA_ORIGINAL_CWD"]).resolve()
-        if "HYDRA_ORIGINAL_CWD" in os.environ
-        else None,
+        (
+            Path(os.environ["HYDRA_ORIGINAL_CWD"]).resolve()
+            if "HYDRA_ORIGINAL_CWD" in os.environ
+            else None
+        ),
         package_root,
     ):
         if root is None:
@@ -289,7 +289,9 @@ def decode_abiss(
         }
         # Merge cli_args into placeholders so templates can reference them.
         if cli_args:
-            mapping.update({k: str(v) for k, v in cli_args.items() if not isinstance(v, (list, tuple))})
+            mapping.update(
+                {k: str(v) for k, v in cli_args.items() if not isinstance(v, (list, tuple))}
+            )
 
         cmd, use_shell = _format_command(command, mapping)
         cmd = _resolve_python_script_path(cmd, launch_cwd, search_roots)
@@ -329,11 +331,15 @@ def decode_abiss(
                 mt_h5 = workspace_path / f"{stem}_mt{i}{ext}"
                 mt_npy = workspace_path / f"{stem}_mt{i}.npy"
                 results[round(mt, 10)] = _load_output(
-                    output_h5=mt_h5, output_npy=mt_npy, output_dataset=output_dataset,
+                    output_h5=mt_h5,
+                    output_npy=mt_npy,
+                    output_dataset=output_dataset,
                 )
             return results
 
-        return _load_output(output_h5=output_h5, output_npy=output_npy, output_dataset=output_dataset)
+        return _load_output(
+            output_h5=output_h5, output_npy=output_npy, output_dataset=output_dataset
+        )
     finally:
         if temp_ctx is not None and not keep_workspace:
             temp_ctx.cleanup()

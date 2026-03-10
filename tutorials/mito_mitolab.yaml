@@ -57,7 +57,7 @@ data:
     json: datasets/cem-mitolab/files.json
     image_key: images
     label_key: masks
-    val_split: 0.9
+    split_ratio: 0.9
     resolution:
     - 0
     - 5

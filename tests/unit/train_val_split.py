@@ -12,12 +12,13 @@ The approach:
 
 import numpy as np
 import torch
+
 from connectomics.data.dataset.split import (
-    split_volume_train_val,
     create_split_masks,
     pad_volume_to_size,
+    save_split_masks_h5,
     split_and_pad_volume,
-    save_split_masks_h5
+    split_volume_train_val,
 )
 
 
@@ -40,7 +41,7 @@ def example_basic_split():
     # Apply to actual volume
     volume = np.random.randn(*volume_shape)
     train_data = volume[train_slices]  # Shape: (80, 256, 256)
-    val_data = volume[val_slices]      # Shape: (20, 256, 256)
+    val_data = volume[val_slices]  # Shape: (20, 256, 256)
 
     print(f"Train data shape: {train_data.shape}")
     print(f"Val data shape: {val_data.shape}")
@@ -78,9 +79,9 @@ def example_padding_validation():
     model_input_size = (32, 256, 256)
 
     # Pad validation volume
-    val_padded = pad_volume_to_size(val_volume, model_input_size, mode='reflect')
+    val_padded = pad_volume_to_size(val_volume, model_input_size, mode="reflect")
     print(f"Padded val volume: {val_padded.shape}")
-    print(f"Padding mode: reflect (mirrors edges)")
+    print("Padding mode: reflect (mirrors edges)")
     print()
 
 
@@ -96,10 +97,7 @@ def example_split_and_pad():
 
     # Split 80/20 and pad validation
     train_vol, val_vol = split_and_pad_volume(
-        volume,
-        train_ratio=0.8,
-        target_size=model_input_size,
-        pad_mode='reflect'
+        volume, train_ratio=0.8, target_size=model_input_size, pad_mode="reflect"
     )
 
     print(f"Original volume: {volume.shape}")
@@ -118,11 +116,7 @@ def example_channel_dimension():
     volume = np.random.randn(1, 100, 256, 256)
     model_input_size = (32, 256, 256)
 
-    train_vol, val_vol = split_and_pad_volume(
-        volume,
-        train_ratio=0.8,
-        target_size=model_input_size
-    )
+    train_vol, val_vol = split_and_pad_volume(volume, train_ratio=0.8, target_size=model_input_size)
 
     print(f"Original volume: {volume.shape}")
     print(f"Train volume: {train_vol.shape}")
@@ -140,19 +134,19 @@ def example_custom_axis():
 
     # Split along Z-axis (default, axis=0)
     train_z, val_z = split_volume_train_val(volume_shape, train_ratio=0.8, axis=0)
-    print(f"Split along Z (axis=0):")
+    print("Split along Z (axis=0):")
     print(f"  Train: {train_z}")
     print(f"  Val: {val_z}")
 
     # Split along Y-axis (axis=1)
     train_y, val_y = split_volume_train_val(volume_shape, train_ratio=0.8, axis=1)
-    print(f"Split along Y (axis=1):")
+    print("Split along Y (axis=1):")
     print(f"  Train: {train_y}")
     print(f"  Val: {val_y}")
 
     # Split along X-axis (axis=2)
     train_x, val_x = split_volume_train_val(volume_shape, train_ratio=0.8, axis=2)
-    print(f"Split along X (axis=2):")
+    print("Split along X (axis=2):")
     print(f"  Train: {train_x}")
     print(f"  Val: {val_x}")
     print()
@@ -169,14 +163,12 @@ def example_minimum_val_size():
     # Normal 80/20 split would give 10 slices for val
     # But we want at least 20 slices
     train_slices, val_slices = split_volume_train_val(
-        volume_shape,
-        train_ratio=0.8,
-        min_val_size=20  # Ensure at least 20 slices for validation
+        volume_shape, train_ratio=0.8, min_val_size=20  # Ensure at least 20 slices for validation
     )
 
     print(f"Volume shape: {volume_shape}")
-    print(f"Requested train_ratio: 0.8")
-    print(f"Minimum val size: 20")
+    print("Requested train_ratio: 0.8")
+    print("Minimum val size: 20")
     print(f"Actual train slices: {train_slices[0]}")
     print(f"Actual val slices: {val_slices[0]}")
     print()
@@ -189,15 +181,15 @@ def example_save_masks():
     print("=" * 60)
 
     volume_shape = (100, 256, 256)
-    output_dir = '/tmp/connectomics_splits'
+    output_dir = "/tmp/connectomics_splits"
 
     # Save masks
     save_split_masks_h5(
         output_dir=output_dir,
         volume_shape=volume_shape,
         train_ratio=0.8,
-        train_filename='msk_train.h5',
-        val_filename='msk_val.h5'
+        train_filename="msk_train.h5",
+        val_filename="msk_val.h5",
     )
     print()
 
@@ -214,16 +206,13 @@ def example_torch_tensors():
 
     # Split and pad (works seamlessly with tensors)
     train_vol, val_vol = split_and_pad_volume(
-        volume,
-        train_ratio=0.8,
-        target_size=model_input_size,
-        pad_mode='reflect'
+        volume, train_ratio=0.8, target_size=model_input_size, pad_mode="reflect"
     )
 
     print(f"Input type: {type(volume)}")
     print(f"Train volume: {train_vol.shape}, type: {type(train_vol)}")
     print(f"Val volume: {val_vol.shape}, type: {type(val_vol)}")
-    print(f"Both outputs maintain PyTorch tensor type!")
+    print("Both outputs maintain PyTorch tensor type!")
     print()
 
 
@@ -245,7 +234,7 @@ def example_practical_use_case():
     Code example:
     """)
 
-    code = '''
+    code = """
     from connectomics.data.dataset.split import split_and_pad_volume
     from connectomics.data.io import read_volume
 
@@ -265,7 +254,7 @@ def example_practical_use_case():
 
     # Training: use random crops from train portion
     # Validation: use padded val portion for inference
-    '''
+    """
 
     print(code)
 

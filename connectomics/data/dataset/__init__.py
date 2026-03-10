@@ -8,15 +8,11 @@ Provides patch-sampling datasets for volumetric EM data:
 - Multi-dataset wrappers: Weighted, Stratified, Uniform concat
 """
 
-# Shared helpers
-from .data_dicts import create_data_dicts_from_paths
-
 # Base class
 from .base import PatchDataset
 
-# Core datasets
-from .dataset_volume_cached import CachedVolumeDataset, crop_volume
-from .dataset_volume_zarr_lazy import LazyZarrVolumeDataset
+# Shared helpers
+from .data_dicts import create_data_dicts_from_paths
 from .dataset_filename import (
     MonaiFilenameDataset,
     create_filename_datasets,
@@ -29,8 +25,12 @@ from .dataset_multi import (
     WeightedConcatDataset,
 )
 
+# Core datasets
+from .dataset_volume_cached import CachedVolumeDataset, crop_volume
+from .dataset_volume_zarr_lazy import LazyZarrVolumeDataset
+
 # Sampling and splitting utilities (moved from data/utils/)
-from .sampling import count_volume, compute_total_samples
+from .sampling import compute_total_samples, count_volume
 from .split import split_volume_train_val
 
 __all__ = [

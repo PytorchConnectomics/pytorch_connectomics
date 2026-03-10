@@ -6,9 +6,9 @@ from .data import (
     CutNoiseConfig,
     DataConfig,
     DataInputConfig,
+    DataloaderConfig,
     DataTransformConfig,
     DataTransformProfileConfig,
-    DataloaderConfig,
     EdgeModeConfig,
     ElasticConfig,
     FlipConfig,
@@ -58,8 +58,8 @@ from .monitor import (
 from .optimization import OptimizationConfig, OptimizerConfig, SchedulerConfig
 from .root import Config
 from .stages import (
-    DefaultConfig,
     DecodingParameterSpace,
+    DefaultConfig,
     ParameterConfig,
     ParameterSpaceConfig,
     PostprocessingParameterSpace,

@@ -182,9 +182,7 @@ def iter_data_zarr_paths(base_dir: Path, splits: Iterable[str]) -> list[Path]:
 
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(
-        description="Downsample NISB data.zarr and write H5 outputs."
-    )
+    parser = argparse.ArgumentParser(description="Downsample NISB data.zarr and write H5 outputs.")
     parser.add_argument(
         "--base-dir",
         type=Path,
@@ -259,9 +257,7 @@ def main() -> None:
     if args.num_shards <= 0:
         raise ValueError(f"--num-shards must be > 0, got {args.num_shards}")
     if args.shard_index < 0 or args.shard_index >= args.num_shards:
-        raise ValueError(
-            f"--shard-index must be in [0, {args.num_shards}), got {args.shard_index}"
-        )
+        raise ValueError(f"--shard-index must be in [0, {args.num_shards}), got {args.shard_index}")
 
     paths = iter_data_zarr_paths(args.base_dir, args.splits)
     if not paths:

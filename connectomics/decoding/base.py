@@ -20,4 +20,3 @@ class DecodeStep:
 
     name: str
     kwargs: Dict[str, Any] = field(default_factory=dict)
-

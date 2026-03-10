@@ -12,8 +12,8 @@ This module is intentionally model-only:
 It does not load checkpoints or move the model to a device.
 """
 
-
 from __future__ import annotations
+
 import logging
 
 from .arch import get_architecture_builder
@@ -65,9 +65,9 @@ def build_model(cfg):
         info = model.get_model_info()
         logger.info("  Parameters: %s", f"{info['parameters']:,}")
         logger.info("  Trainable: %s", f"{info['trainable_parameters']:,}")
-        logger.info("  Deep Supervision: %s", info['deep_supervision'])
+        logger.info("  Deep Supervision: %s", info["deep_supervision"])
         if info["deep_supervision"]:
-            logger.info("  Output Scales: %s", info['output_scales'])
+            logger.info("  Output Scales: %s", info["output_scales"])
 
     return model
 

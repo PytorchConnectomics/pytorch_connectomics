@@ -159,9 +159,7 @@ class WeightedBCEWithLogitsLoss(nn.Module):
         super().__init__()
         if kwargs:
             unexpected = ", ".join(sorted(kwargs.keys()))
-            raise TypeError(
-                f"Unexpected argument(s) for WeightedBCEWithLogitsLoss: {unexpected}"
-            )
+            raise TypeError(f"Unexpected argument(s) for WeightedBCEWithLogitsLoss: {unexpected}")
         self.reduction = reduction
         if pos_weight is not None and isinstance(pos_weight, (int, float)):
             if float(pos_weight) <= 0:
@@ -285,7 +283,10 @@ class PerChannelBCEWithLogitsLoss(nn.Module):
             pos_weight_tensor = pw.reshape(1, C, *([1] * (target.ndim - 2))).to(input.dtype)
 
         bce = F.binary_cross_entropy_with_logits(
-            input, target, pos_weight=pos_weight_tensor, reduction="none",
+            input,
+            target,
+            pos_weight=pos_weight_tensor,
+            reduction="none",
         )
 
         if weight is not None:

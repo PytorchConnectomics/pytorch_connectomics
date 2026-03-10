@@ -3,14 +3,15 @@ Basic tests for architecture registry (no pytest required).
 """
 
 import sys
+
 import torch
 from omegaconf import OmegaConf
 
 from connectomics.models.arch import (
-    list_architectures,
-    is_architecture_available,
-    get_architecture_builder,
     ConnectomicsModel,
+    get_architecture_builder,
+    is_architecture_available,
+    list_architectures,
 )
 
 
@@ -19,10 +20,10 @@ def test_monai_models_registered():
     print("Testing MONAI model registration...")
 
     expected_models = [
-        'monai_basic_unet3d',
-        'monai_unet',
-        'monai_unetr',
-        'monai_swin_unetr',
+        "monai_basic_unet3d",
+        "monai_unet",
+        "monai_unetr",
+        "monai_swin_unetr",
     ]
 
     for model_name in expected_models:
@@ -44,8 +45,8 @@ def test_list_architectures():
     assert len(archs) >= 4, f"Expected at least 4 architectures (MONAI), got {len(archs)}"
 
     # Count by type
-    monai_count = sum(1 for a in archs if a.startswith('monai_'))
-    mednext_count = sum(1 for a in archs if a.startswith('mednext'))
+    monai_count = sum(1 for a in archs if a.startswith("monai_"))
+    mednext_count = sum(1 for a in archs if a.startswith("mednext"))
     print(f"  [OK]Found {monai_count} MONAI models")
     print(f"  [OK]Found {mednext_count} MedNeXt models")
     print(f"  [OK]Total: {len(archs)} architectures\n")
@@ -55,7 +56,7 @@ def test_get_builder():
     """Test getting architecture builder."""
     print("Testing get_architecture_builder()...")
 
-    builder = get_architecture_builder('monai_basic_unet3d')
+    builder = get_architecture_builder("monai_basic_unet3d")
     assert callable(builder), "Builder should be callable"
     print("  [OK]Builder is callable\n")
 
@@ -65,16 +66,23 @@ def test_build_model():
     print("Testing building a model...")
 
     # Create minimal config
-    cfg = OmegaConf.create({
-        'model': {
-            'arch': {'type': 'monai_basic_unet3d'},
-            'in_channels': 1,
-            'out_channels': 2,
-            'monai': {'filters': [32, 64, 128, 256, 512], 'dropout': 0.0, 'activation': 'relu', 'norm': 'batch'},
+    cfg = OmegaConf.create(
+        {
+            "model": {
+                "arch": {"type": "monai_basic_unet3d"},
+                "in_channels": 1,
+                "out_channels": 2,
+                "monai": {
+                    "filters": [32, 64, 128, 256, 512],
+                    "dropout": 0.0,
+                    "activation": "relu",
+                    "norm": "batch",
+                },
+            }
         }
-    })
+    )
 
-    builder = get_architecture_builder('monai_basic_unet3d')
+    builder = get_architecture_builder("monai_basic_unet3d")
     model = builder(cfg)
 
     assert isinstance(model, ConnectomicsModel), "Model should inherit from ConnectomicsModel"
@@ -86,7 +94,7 @@ def test_build_model():
     print(f"  Parameters: {info['parameters']:,}")
     print(f"  Deep Supervision: {info['deep_supervision']}")
 
-    assert info['parameters'] > 0, "Model should have parameters"
+    assert info["parameters"] > 0, "Model should have parameters"
     print("  [OK]Model has parameters\n")
 
 
@@ -95,16 +103,18 @@ def test_forward_pass():
     print("Testing forward pass...")
 
     # Create minimal config
-    cfg = OmegaConf.create({
-        'model': {
-            'arch': {'type': 'monai_basic_unet3d'},
-            'in_channels': 1,
-            'out_channels': 2,
-            'monai': {'filters': [16, 32, 64, 128, 256]},  # Smaller for fast test
+    cfg = OmegaConf.create(
+        {
+            "model": {
+                "arch": {"type": "monai_basic_unet3d"},
+                "in_channels": 1,
+                "out_channels": 2,
+                "monai": {"filters": [16, 32, 64, 128, 256]},  # Smaller for fast test
+            }
         }
-    })
+    )
 
-    builder = get_architecture_builder('monai_basic_unet3d')
+    builder = get_architecture_builder("monai_basic_unet3d")
     model = builder(cfg)
 
     # Small input for fast test
@@ -113,8 +123,14 @@ def test_forward_pass():
     with torch.no_grad():
         output = model(x)
 
-    assert output.shape == (1, 2, 32, 32, 32), f"Expected shape (1, 2, 32, 32, 32), got {output.shape}"
-    print(f"  [OK]Forward pass successful")
+    assert output.shape == (
+        1,
+        2,
+        32,
+        32,
+        32,
+    ), f"Expected shape (1, 2, 32, 32, 32), got {output.shape}"
+    print("  [OK]Forward pass successful")
     print(f"  Input shape: {x.shape}")
     print(f"  Output shape: {output.shape}\n")
 
@@ -124,7 +140,7 @@ def test_missing_architecture():
     print("Testing missing architecture error handling...")
 
     try:
-        get_architecture_builder('nonexistent_model')
+        get_architecture_builder("nonexistent_model")
         assert False, "Should have raised ValueError"
     except ValueError as e:
         assert "not found" in str(e), "Error message should mention 'not found'"
@@ -156,9 +172,10 @@ def main():
         print("=" * 60)
         print(f"Error: {e}")
         import traceback
+
         traceback.print_exc()
         return 1
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     sys.exit(main())

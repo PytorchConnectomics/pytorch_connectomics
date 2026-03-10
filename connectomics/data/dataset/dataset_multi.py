@@ -12,7 +12,9 @@ Use cases:
 """
 
 from __future__ import annotations
+
 from typing import List, Optional
+
 import numpy as np
 from torch.utils.data import Dataset
 

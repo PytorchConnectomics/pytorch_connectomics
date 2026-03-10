@@ -9,18 +9,19 @@ import itertools
 import subprocess
 from pathlib import Path
 from typing import Dict, List
+
 import yaml
 
 
 def load_sweep_config(config_path: str) -> Dict:
     """Load parameter sweep configuration."""
-    with open(config_path, 'r') as f:
+    with open(config_path, "r") as f:
         return yaml.safe_load(f)
 
 
 def generate_job_configs(sweep_config: Dict) -> List[Dict]:
     """Generate all combinations of parameters."""
-    params = sweep_config['params']
+    params = sweep_config["params"]
 
     # Get all parameter combinations
     keys = list(params.keys())
@@ -35,25 +36,18 @@ def generate_job_configs(sweep_config: Dict) -> List[Dict]:
 
 
 def create_slurm_script(
-    job_config: Dict,
-    template_path: str,
-    output_dir: Path,
-    exp_name: str
+    job_config: Dict, template_path: str, output_dir: Path, exp_name: str
 ) -> Path:
     """Create Slurm batch script from template."""
-    with open(template_path, 'r') as f:
+    with open(template_path, "r") as f:
         template = f.read()
 
     # Format script with job parameters
-    script = template.format(
-        exp_name=exp_name,
-        output_dir=output_dir,
-        **job_config
-    )
+    script = template.format(exp_name=exp_name, output_dir=output_dir, **job_config)
 
     # Write script
     script_path = output_dir / f"job_{exp_name}.sh"
-    with open(script_path, 'w') as f:
+    with open(script_path, "w") as f:
         f.write(script)
 
     return script_path
@@ -83,10 +77,14 @@ def submit_job(script_path: Path, dry_run: bool = False) -> int:
 def main():
     parser = argparse.ArgumentParser(description="Launch Slurm parameter sweep")
     parser.add_argument("--config", type=str, required=True, help="Sweep config YAML")
-    parser.add_argument("--template", type=str, default="scripts/slurm_template.sh", help="Slurm script template")
+    parser.add_argument(
+        "--template", type=str, default="scripts/slurm_template.sh", help="Slurm script template"
+    )
     parser.add_argument("--output-dir", type=str, default="slurm_jobs", help="Output directory")
     parser.add_argument("--dry-run", action="store_true", help="Don't actually submit jobs")
-    parser.add_argument("--max-jobs", type=int, default=None, help="Maximum number of jobs to submit")
+    parser.add_argument(
+        "--max-jobs", type=int, default=None, help="Maximum number of jobs to submit"
+    )
     args = parser.parse_args()
 
     # Load sweep configuration
@@ -97,7 +95,7 @@ def main():
 
     # Limit if requested
     if args.max_jobs is not None:
-        job_configs = job_configs[:args.max_jobs]
+        job_configs = job_configs[: args.max_jobs]
         print(f"Limiting to {len(job_configs)} jobs")
 
     # Create output directory
@@ -110,12 +108,7 @@ def main():
         exp_name = f"exp_{i:04d}"
 
         # Create script
-        script_path = create_slurm_script(
-            job_config,
-            args.template,
-            output_dir,
-            exp_name
-        )
+        script_path = create_slurm_script(job_config, args.template, output_dir, exp_name)
 
         # Submit
         job_id = submit_job(script_path, dry_run=args.dry_run)

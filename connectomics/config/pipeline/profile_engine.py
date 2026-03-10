@@ -8,11 +8,10 @@ and the engine that resolves profile references in YAML configs.
 from __future__ import annotations
 
 import re
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Any, List, Optional, Tuple, Union
 
 from omegaconf import DictConfig, ListConfig, OmegaConf
 from omegaconf.errors import OmegaConfBaseException
-
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -116,7 +115,9 @@ def _collect_selector_candidate_paths(
             child_path = f"{path}[{idx}]" if path else f"[{idx}]"
             item = _safe_get_child(yaml_node, idx)
             if item is not None:
-                paths.update(_collect_selector_candidate_paths(item, child_path, in_profiles_registry))
+                paths.update(
+                    _collect_selector_candidate_paths(item, child_path, in_profiles_registry)
+                )
         return paths
 
     if not isinstance(yaml_node, (DictConfig, dict)):
@@ -128,7 +129,9 @@ def _collect_selector_candidate_paths(
         child_value = _safe_get_child(yaml_node, key)
 
         # Ignore selector-like keys inside profile registries (e.g. arch_profiles.* payloads).
-        child_in_profiles_registry = in_profiles_registry or (path == "" and key_str.endswith("_profiles"))
+        child_in_profiles_registry = in_profiles_registry or (
+            path == "" and key_str.endswith("_profiles")
+        )
         if not child_in_profiles_registry and _is_selector_candidate(child_path, key_str):
             if child_value not in (None, ""):
                 paths.add(_normalize_selector_path(child_path))
@@ -165,8 +168,7 @@ def _reject_removed_stage_keys(yaml_conf: DictConfig) -> None:
     if "shared" not in yaml_conf:
         return
     raise ValueError(
-        "Top-level 'shared' config section has been removed. "
-        "Use top-level 'default' instead."
+        "Top-level 'shared' config section has been removed. " "Use top-level 'default' instead."
     )
 
 
@@ -283,7 +285,10 @@ class ValueProfileApplier(YamlProfileApplier):
         if selected_path == "default.pipeline_profile":
             selected_profile = profiles[selected]
             pipeline_out_ch = OmegaConf.select(selected_profile, "model.out_channels")
-            if pipeline_out_ch is not None and OmegaConf.select(yaml_conf, "model.out_channels") is None:
+            if (
+                pipeline_out_ch is not None
+                and OmegaConf.select(yaml_conf, "model.out_channels") is None
+            ):
                 OmegaConf.update(
                     yaml_conf,
                     "model.out_channels",
@@ -408,9 +413,7 @@ class ListProfileReferenceApplier(YamlProfileApplier):
                             OmegaConf.to_container(profile_list[0], resolve=False)
                         )
                     elif isinstance(profile_list, (DictConfig, dict)):
-                        base = OmegaConf.create(
-                            OmegaConf.to_container(profile_list, resolve=False)
-                        )
+                        base = OmegaConf.create(OmegaConf.to_container(profile_list, resolve=False))
                     else:
                         raise ValueError(
                             f"Profile '{profile_name}' in {self.profiles_key} must be a list or dict, "
@@ -477,20 +480,85 @@ def _stage_path(stage: str, rel_path: str) -> str:
 # nested list within dict-valued profiles (used for positional overrides).
 _VALUE_PROFILE_FAMILIES: List[Tuple[str, Tuple[str, ...], str, str, bool, Optional[str]]] = [
     ("pipeline_profiles", (_STAGE_DEFAULT,), "pipeline_profile", "", True, None),
-    ("system_profiles", (_STAGE_DEFAULT, _STAGE_TRAIN, _STAGE_TEST, _STAGE_TUNE), "system.profile", "system", True, None),
-    ("arch_profiles", (_STAGE_DEFAULT, _STAGE_TRAIN, _STAGE_TEST, _STAGE_TUNE), "model.arch.profile", "model", True, None),
-    ("augmentation_profiles", (_STAGE_DEFAULT, _STAGE_TRAIN), "data.augmentation.profile", "data.augmentation", True, None),
-    ("dataloader_profiles", (_STAGE_DEFAULT, _STAGE_TRAIN, _STAGE_TEST, _STAGE_TUNE), "data.dataloader.profile", "data.dataloader", True, None),
-    ("optimizer_profiles", (_STAGE_DEFAULT, _STAGE_TRAIN), "optimization.profile", "optimization", True, None),
-    ("loss_profiles", (_STAGE_DEFAULT, _STAGE_TRAIN), "model.loss.profile", "model.loss", True, "losses"),
-    ("label_profiles", (_STAGE_DEFAULT, _STAGE_TRAIN), "data.label_transform.profile", "data.label_transform", True, None),
-    ("decoding_profiles", (_STAGE_DEFAULT, _STAGE_TEST, _STAGE_TUNE), "inference.decoding_profile", "inference", True, "decoding"),
-    ("activation_profiles", (_STAGE_DEFAULT, _STAGE_TEST, _STAGE_TUNE), "inference.test_time_augmentation.activation_profile", "inference.test_time_augmentation", True, "channel_activations"),
+    (
+        "system_profiles",
+        (_STAGE_DEFAULT, _STAGE_TRAIN, _STAGE_TEST, _STAGE_TUNE),
+        "system.profile",
+        "system",
+        True,
+        None,
+    ),
+    (
+        "arch_profiles",
+        (_STAGE_DEFAULT, _STAGE_TRAIN, _STAGE_TEST, _STAGE_TUNE),
+        "model.arch.profile",
+        "model",
+        True,
+        None,
+    ),
+    (
+        "augmentation_profiles",
+        (_STAGE_DEFAULT, _STAGE_TRAIN),
+        "data.augmentation.profile",
+        "data.augmentation",
+        True,
+        None,
+    ),
+    (
+        "dataloader_profiles",
+        (_STAGE_DEFAULT, _STAGE_TRAIN, _STAGE_TEST, _STAGE_TUNE),
+        "data.dataloader.profile",
+        "data.dataloader",
+        True,
+        None,
+    ),
+    (
+        "optimizer_profiles",
+        (_STAGE_DEFAULT, _STAGE_TRAIN),
+        "optimization.profile",
+        "optimization",
+        True,
+        None,
+    ),
+    (
+        "loss_profiles",
+        (_STAGE_DEFAULT, _STAGE_TRAIN),
+        "model.loss.profile",
+        "model.loss",
+        True,
+        "losses",
+    ),
+    (
+        "label_profiles",
+        (_STAGE_DEFAULT, _STAGE_TRAIN),
+        "data.label_transform.profile",
+        "data.label_transform",
+        True,
+        None,
+    ),
+    (
+        "decoding_profiles",
+        (_STAGE_DEFAULT, _STAGE_TEST, _STAGE_TUNE),
+        "inference.decoding_profile",
+        "inference",
+        True,
+        "decoding",
+    ),
+    (
+        "activation_profiles",
+        (_STAGE_DEFAULT, _STAGE_TEST, _STAGE_TUNE),
+        "inference.test_time_augmentation.activation_profile",
+        "inference.test_time_augmentation",
+        True,
+        "channel_activations",
+    ),
     ("tune_profiles", (_STAGE_TUNE,), "profile", "", True, None),
 ]
 
 
-def _build_value_profile_specs() -> List[Tuple[List[str], str, str, bool, Tuple[str, ...], Optional[str]]]:
+def _build_value_profile_specs() -> (
+    List[Tuple[List[str], str, str, bool, Tuple[str, ...], Optional[str]]]
+):
     specs: List[Tuple[List[str], str, str, bool, Tuple[str, ...], Optional[str]]] = []
 
     for profiles_key, stages, selector_rel, target_rel, merge, list_key in _VALUE_PROFILE_FAMILIES:
@@ -516,9 +584,17 @@ _REFERENCE_PROFILE_FAMILIES: List[Tuple[str, Tuple[str, ...], str]] = [
     ("loss_profiles", (_STAGE_DEFAULT, _STAGE_TRAIN), "model.loss"),
     ("label_profiles", (_STAGE_DEFAULT, _STAGE_TRAIN), "data.label_transform"),
     ("decoding_profiles", (_STAGE_DEFAULT, _STAGE_TEST, _STAGE_TUNE), "inference"),
-    ("activation_profiles", (_STAGE_DEFAULT, _STAGE_TEST, _STAGE_TUNE), "inference.test_time_augmentation"),
+    (
+        "activation_profiles",
+        (_STAGE_DEFAULT, _STAGE_TEST, _STAGE_TUNE),
+        "inference.test_time_augmentation",
+    ),
     ("augmentation_profiles", (_STAGE_DEFAULT, _STAGE_TRAIN), "data.augmentation"),
-    ("dataloader_profiles", (_STAGE_DEFAULT, _STAGE_TRAIN, _STAGE_TEST, _STAGE_TUNE), "data.dataloader"),
+    (
+        "dataloader_profiles",
+        (_STAGE_DEFAULT, _STAGE_TRAIN, _STAGE_TEST, _STAGE_TUNE),
+        "data.dataloader",
+    ),
     ("optimizer_profiles", (_STAGE_DEFAULT, _STAGE_TRAIN), "optimization"),
     ("system_profiles", (_STAGE_DEFAULT, _STAGE_TRAIN, _STAGE_TEST, _STAGE_TUNE), "system"),
 ]
@@ -535,7 +611,12 @@ def _build_reference_profile_specs() -> List[Tuple[str, List[str]]]:
 # Each tuple: (profiles_key, stages, target_rel, list_key)
 # ``list_key`` identifies the nested list within dict-valued profiles.
 _LIST_REFERENCE_FAMILIES: List[Tuple[str, Tuple[str, ...], str, str]] = [
-    ("decoding_profiles", (_STAGE_DEFAULT, _STAGE_TUNE, _STAGE_TEST), "inference.decoding", "decoding"),
+    (
+        "decoding_profiles",
+        (_STAGE_DEFAULT, _STAGE_TUNE, _STAGE_TEST),
+        "inference.decoding",
+        "decoding",
+    ),
 ]
 
 
@@ -590,30 +671,43 @@ def _build_profile_engine() -> YamlProfileEngine:
     appliers: List[YamlProfileApplier] = []
 
     # 1) Value profile appliers (order defined by _VALUE_PROFILE_FAMILIES table)
-    for selector_paths, profiles_key, target_path, merge, cleanup_keys, list_key in _VALUE_PROFILE_SPECS:
-        appliers.append(ValueProfileApplier(
-            selector_paths=selector_paths,
-            profiles_key=profiles_key,
-            target_path=target_path,
-            merge_into_existing=merge,
-            cleanup_keys=cleanup_keys,
-            list_key=list_key,
-        ))
+    for (
+        selector_paths,
+        profiles_key,
+        target_path,
+        merge,
+        cleanup_keys,
+        list_key,
+    ) in _VALUE_PROFILE_SPECS:
+        appliers.append(
+            ValueProfileApplier(
+                selector_paths=selector_paths,
+                profiles_key=profiles_key,
+                target_path=target_path,
+                merge_into_existing=merge,
+                cleanup_keys=cleanup_keys,
+                list_key=list_key,
+            )
+        )
 
     # 2) Reference profile appliers
     for profiles_key, target_paths in _REFERENCE_PROFILE_SPECS:
-        appliers.append(ReferenceProfileApplier(
-            profiles_key=profiles_key,
-            target_paths=target_paths,
-        ))
+        appliers.append(
+            ReferenceProfileApplier(
+                profiles_key=profiles_key,
+                target_paths=target_paths,
+            )
+        )
 
     # 3) List profile reference appliers
     for profiles_key, target_paths, list_key in _LIST_REFERENCE_SPECS:
-        appliers.append(ListProfileReferenceApplier(
-            profiles_key=profiles_key,
-            target_paths=target_paths,
-            list_key=list_key,
-        ))
+        appliers.append(
+            ListProfileReferenceApplier(
+                profiles_key=profiles_key,
+                target_paths=target_paths,
+                list_key=list_key,
+            )
+        )
 
     return YamlProfileEngine(appliers)
 

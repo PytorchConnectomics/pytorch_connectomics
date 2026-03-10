@@ -16,9 +16,10 @@ from pathlib import Path
 # Add parent directory to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-import numpy as np
-import torch
-from typing import Tuple
+from typing import Tuple  # noqa: E402
+
+import numpy as np  # noqa: E402
+import torch  # noqa: E402
 
 
 def create_synthetic_volume(
@@ -56,7 +57,7 @@ def create_synthetic_volume(
         radius_x = np.random.randint(*object_size_range)
 
         # Create ellipsoid mask
-        z, y, x = np.ogrid[0:shape[0], 0:shape[1], 0:shape[2]]
+        z, y, x = np.ogrid[0 : shape[0], 0 : shape[1], 0 : shape[2]]
         mask = (
             ((z - center_z) / radius_z) ** 2
             + ((y - center_y) / radius_y) ** 2
@@ -90,24 +91,24 @@ def create_demo_config():
     """
     from connectomics.config import Config
     from connectomics.config.schema import (
-        SystemConfig,
-        ModelConfig,
-        ModelArchConfig,
-        MonaiConfig,
-        LossConfig,
+        CheckpointConfig,
         DataConfig,
         DataInputConfig,
         DataloaderConfig,
         DataTransformConfig,
+        EarlyStoppingConfig,
+        ImageLoggingConfig,
+        InferenceConfig,
+        LoggingConfig,
+        LossConfig,
+        ModelArchConfig,
+        ModelConfig,
+        MonaiConfig,
+        MonitorConfig,
         OptimizationConfig,
         OptimizerConfig,
         SchedulerConfig,
-        MonitorConfig,
-        CheckpointConfig,
-        EarlyStoppingConfig,
-        LoggingConfig,
-        ImageLoggingConfig,
-        InferenceConfig,
+        SystemConfig,
     )
 
     cfg = Config(
@@ -222,14 +223,13 @@ def run_demo():
 
     # Set seed
     from pytorch_lightning import seed_everything
+
     seed_everything(cfg.system.seed, workers=True)
     print(f"Random seed: {cfg.system.seed}")
 
     # Generate synthetic data
     print("\nGenerating synthetic training data...")
-    train_image, train_label = create_synthetic_volume(
-        shape=(64, 128, 128), num_objects=20
-    )
+    train_image, train_label = create_synthetic_volume(shape=(64, 128, 128), num_objects=20)
     print(f"   Image shape: {train_image.shape}")
     print(f"   Label shape: {train_label.shape}")
     print(f"   Num objects: {train_label.sum() / train_label.size * 100:.1f}% foreground")
@@ -239,6 +239,7 @@ def run_demo():
 
     # Save to temporary files
     import tempfile
+
     import h5py
 
     temp_dir = Path(tempfile.mkdtemp(prefix="pytc_demo_"))
@@ -271,12 +272,12 @@ def run_demo():
 
     # Create datamodule
     print("\nCreating data loaders...")
-    from connectomics.training.lightning import ConnectomicsDataModule
     from connectomics.data.augment.build import (
         build_train_transforms,
         build_val_transforms,
     )
     from connectomics.data.dataset import create_data_dicts_from_paths
+    from connectomics.training.lightning import ConnectomicsDataModule
 
     train_transforms = build_train_transforms(cfg)
     val_transforms = build_val_transforms(cfg)
@@ -337,6 +338,7 @@ def run_demo():
 
     # Use TensorBoard logger to avoid "no logger" warnings
     from pytorch_lightning.loggers import TensorBoardLogger
+
     demo_logger = TensorBoardLogger(save_dir=str(temp_dir), name="demo_logs", version="")
 
     trainer = pl.Trainer(

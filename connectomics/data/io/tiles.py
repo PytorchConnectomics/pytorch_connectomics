@@ -62,18 +62,10 @@ def reconstruct_volume_from_tiles(
     y1 = min(y1o, y1m)
     x1 = min(x1o, x1m)
 
-    result = background_value * np.ones(
-        (z1 - z0, y1 - y0, x1 - x0), data_type
-    )
+    result = background_value * np.ones((z1 - z0, y1 - y0, x1 - x0), data_type)
 
-    tile_h = (
-        tile_size[0] if isinstance(tile_size, list)
-        else tile_size
-    )
-    tile_w = (
-        tile_size[1] if isinstance(tile_size, list)
-        else tile_size
-    )
+    tile_h = tile_size[0] if isinstance(tile_size, list) else tile_size
+    tile_w = tile_size[1] if isinstance(tile_size, list) else tile_size
 
     col_start = x0 // tile_w
     col_end = (x1 + tile_w - 1) // tile_w
@@ -116,22 +108,22 @@ def reconstruct_volume_from_tiles(
                 if is_image:
                     result[
                         z - z0,
-                        ya - y0: ye - y0,
-                        xa - x0: xe - x0,
+                        ya - y0 : ye - y0,
+                        xa - x0 : xe - x0,
                     ] = patch[
-                        ya - yps: ye - yps,
-                        xa - xps: xe - xps,
+                        ya - yps : ye - yps,
+                        xa - xps : xe - xps,
                         0,
                     ]
                 else:
                     result[
                         z - z0,
-                        ya - y0: ye - y0,
-                        xa - x0: xe - x0,
+                        ya - y0 : ye - y0,
+                        xa - x0 : xe - x0,
                     ] = rgb_to_seg(
                         patch[
-                            ya - yps: ye - yps,
-                            xa - xps: xe - xps,
+                            ya - yps : ye - yps,
+                            xa - xps : xe - xps,
                         ]
                     )
 

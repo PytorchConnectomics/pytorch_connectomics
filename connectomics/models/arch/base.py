@@ -5,12 +5,13 @@ Provides a standard interface that all models should implement,
 with explicit support for deep supervision.
 """
 
-
 from __future__ import annotations
+
+from abc import ABC, abstractmethod
+from typing import Any, Dict, Union
+
 import torch
 import torch.nn as nn
-from typing import Dict, Any, Union
-from abc import ABC, abstractmethod
 
 
 class ConnectomicsModel(nn.Module, ABC):

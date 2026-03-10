@@ -89,9 +89,7 @@ class LazyZarrVolumeDataset(PatchDataset):
             img_channel_last = False
             if img_arr.ndim == 4:
                 img_channel_last = _is_channel_last_4d(tuple(img_arr.shape))
-                spatial_raw = tuple(
-                    img_arr.shape[:3] if img_channel_last else img_arr.shape[1:]
-                )
+                spatial_raw = tuple(img_arr.shape[:3] if img_channel_last else img_arr.shape[1:])
             elif img_arr.ndim == 3:
                 spatial_raw = tuple(img_arr.shape)
             else:
@@ -102,15 +100,11 @@ class LazyZarrVolumeDataset(PatchDataset):
             if lbl_arr is not None:
                 lbl_raw = self._get_label_spatial_shape(lbl_arr)
                 if lbl_raw != spatial_raw:
-                    raise ValueError(
-                        f"Image/label spatial mismatch: {spatial_raw} vs {lbl_raw}"
-                    )
+                    raise ValueError(f"Image/label spatial mismatch: {spatial_raw} vs {lbl_raw}")
             if mask_arr is not None:
                 mask_raw = self._get_label_spatial_shape(mask_arr)
                 if mask_raw != spatial_raw:
-                    raise ValueError(
-                        f"Image/mask spatial mismatch: {spatial_raw} vs {mask_raw}"
-                    )
+                    raise ValueError(f"Image/mask spatial mismatch: {spatial_raw} vs {mask_raw}")
 
             self.images.append(img_arr)
             self.labels.append(lbl_arr)
@@ -120,7 +114,11 @@ class LazyZarrVolumeDataset(PatchDataset):
 
             logger.info(
                 "    Volume %s/%s: image=%s, spatial=%s->%s",
-                i + 1, len(image_paths), img_arr.shape, spatial_raw, spatial,
+                i + 1,
+                len(image_paths),
+                img_arr.shape,
+                spatial_raw,
+                spatial,
             )
 
     # -- PatchDataset abstract methods --
@@ -148,9 +146,7 @@ class LazyZarrVolumeDataset(PatchDataset):
         if path is None:
             return None
         if ".zarr" not in str(path):
-            raise ValueError(
-                f"LazyZarrVolumeDataset expects zarr paths (got: {path})."
-            )
+            raise ValueError(f"LazyZarrVolumeDataset expects zarr paths (got: {path}).")
         return self.zarr.open(str(path), mode="r")
 
     @staticmethod
@@ -197,13 +193,9 @@ class LazyZarrVolumeDataset(PatchDataset):
             return arr
         return np.transpose(arr, self.transpose_axes)
 
-    def _logical_to_raw_slices(
-        self, pos: Tuple[int, int, int]
-    ) -> Tuple[slice, slice, slice]:
+    def _logical_to_raw_slices(self, pos: Tuple[int, int, int]) -> Tuple[slice, slice, slice]:
         if not self.transpose_axes:
-            return tuple(
-                slice(pos[i], pos[i] + self.patch_size[i]) for i in range(3)
-            )
+            return tuple(slice(pos[i], pos[i] + self.patch_size[i]) for i in range(3))
         raw_slices = []
         for raw_axis in range(3):
             logical_axis = self.inverse_transpose_axes[raw_axis]

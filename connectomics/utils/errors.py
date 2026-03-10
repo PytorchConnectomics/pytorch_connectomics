@@ -1,13 +1,13 @@
 """Pre-flight validation checks for PyTorch Connectomics training runs."""
 
-
 from __future__ import annotations
+
+import os
 from glob import glob
 from pathlib import Path
 
 import numpy as np
 import torch
-import os
 
 
 def preflight_check(cfg) -> list:

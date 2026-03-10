@@ -55,7 +55,7 @@ def test_rsunet_group_norm():
         in_channels=1,
         out_channels=2,
         width=[16, 32, 64],
-        norm='group',
+        norm="group",
         num_groups=8,
     )
 
@@ -74,7 +74,7 @@ def test_rsunet_prelu():
         in_channels=1,
         out_channels=2,
         width=[16, 32, 64],
-        activation='prelu',
+        activation="prelu",
         init=0.1,
     )
 
@@ -119,10 +119,10 @@ def test_rsunet_deep_supervision():
     outputs = model(x)
 
     assert isinstance(outputs, dict)
-    assert 'output' in outputs
-    assert outputs['output'].shape == (1, 2, 32, 64, 64)
+    assert "output" in outputs
+    assert outputs["output"].shape == (1, 2, 32, 64, 64)
     # Should have deep supervision outputs
-    assert 'ds_0' in outputs or 'ds_1' in outputs
+    assert "ds_0" in outputs or "ds_1" in outputs
     print("[OK] Deep supervision RSUNet test passed")
 
 
@@ -138,9 +138,9 @@ def test_rsunet_model_info():
 
     info = model.get_model_info()
 
-    assert 'name' in info
-    assert 'parameters' in info
-    assert info['parameters'] > 0
+    assert "name" in info
+    assert "parameters" in info
+    assert info["parameters"] > 0
     print(f"[OK] Model info test passed: {info['parameters']:,} parameters")
 
 
@@ -150,12 +150,12 @@ def test_rsunet_registry():
 
     archs = list_architectures()
 
-    assert 'rsunet' in archs
-    assert 'rsunet_iso' in archs
+    assert "rsunet" in archs
+    assert "rsunet_iso" in archs
     print(f"[OK] Registry test passed: {len(archs)} architectures available")
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     print("Running RSUNet tests...\n")
 
     test_rsunet_basic()

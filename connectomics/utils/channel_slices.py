@@ -237,10 +237,7 @@ def infer_min_required_channels(
     if isinstance(normalized, list):
         if not normalized:
             raise ValueError(f"{context} must not be an empty channel list.")
-        return max(
-            infer_min_required_channels(index, context=context) or 1
-            for index in normalized
-        )
+        return max(infer_min_required_channels(index, context=context) or 1 for index in normalized)
 
     if isinstance(normalized, int):
         return normalized + 1 if normalized >= 0 else -normalized
@@ -262,9 +259,7 @@ def infer_min_required_channels(
             continue
         return num_channels
 
-    raise ValueError(
-        f"Could not infer a valid channel count for {context} {normalized!r}."
-    )
+    raise ValueError(f"Could not infer a valid channel count for {context} {normalized!r}.")
 
 
 __all__ = [

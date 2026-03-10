@@ -259,7 +259,11 @@ def grid_search_threshold(
         if verbose and (i + 1) % 5 == 0:
             logger.info(
                 "[%d/%d] threshold=%.3f, %s=%.4f",
-                i + 1, len(thresholds), thr, metric, current_value,
+                i + 1,
+                len(thresholds),
+                thr,
+                metric,
+                current_value,
             )
 
     if verbose:
@@ -365,8 +369,12 @@ def optimize_threshold(
 
     # Optimize
     if verbose:
-        logger.info("Optimizing threshold with Optuna (%d trials) | Metric: %s (%s)",
-                     n_trials, metric, direction)
+        logger.info(
+            "Optimizing threshold with Optuna (%d trials) | Metric: %s (%s)",
+            n_trials,
+            metric,
+            direction,
+        )
         study.optimize(objective, n_trials=n_trials, show_progress_bar=True)
     else:
         study.optimize(objective, n_trials=n_trials, show_progress_bar=False)
@@ -380,8 +388,12 @@ def optimize_threshold(
     best_metrics["threshold"] = best_threshold
 
     if verbose:
-        logger.info("Optimization complete! Best threshold: %.3f | Best %s: %.4f",
-                     best_threshold, metric, study.best_value)
+        logger.info(
+            "Optimization complete! Best threshold: %.3f | Best %s: %.4f",
+            best_threshold,
+            metric,
+            study.best_value,
+        )
 
     return {
         "best_threshold": best_threshold,
@@ -486,8 +498,13 @@ def optimize_parameters(
 
     # Optimize
     if verbose:
-        logger.info("Optimizing %d parameters with Optuna | Params: %s | Metric: %s (%s)",
-                     len(param_space), list(param_space.keys()), metric, direction)
+        logger.info(
+            "Optimizing %d parameters with Optuna | Params: %s | Metric: %s (%s)",
+            len(param_space),
+            list(param_space.keys()),
+            metric,
+            direction,
+        )
         study.optimize(objective, n_trials=n_trials, show_progress_bar=True)
     else:
         study.optimize(objective, n_trials=n_trials, show_progress_bar=False)
@@ -502,11 +519,14 @@ def optimize_parameters(
 
     if verbose:
         params_str = ", ".join(
-            f"{k}: {v:.3f}" if isinstance(v, float) else f"{k}: {v}"
-            for k, v in best_params.items()
+            f"{k}: {v:.3f}" if isinstance(v, float) else f"{k}: {v}" for k, v in best_params.items()
         )
-        logger.info("Optimization complete! Best params: {%s} | Best %s: %.4f",
-                     params_str, metric, study.best_value)
+        logger.info(
+            "Optimization complete! Best params: {%s} | Best %s: %.4f",
+            params_str,
+            metric,
+            study.best_value,
+        )
 
     return {
         "best_params": best_params,

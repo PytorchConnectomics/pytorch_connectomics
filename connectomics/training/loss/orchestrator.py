@@ -6,10 +6,9 @@ including multi-task target routing and optional task weighting.
 """
 
 from __future__ import annotations
-import logging
-from typing import Callable, Dict, List, Tuple, Optional
 
-logger = logging.getLogger(__name__)
+import logging
+from typing import Callable, Dict, List, Optional, Tuple
 
 import torch
 import torch.nn as nn
@@ -24,10 +23,13 @@ from ...models.loss import (
 from ...utils.channel_slices import resolve_channel_range
 from .plan import LossTermSpec, compile_loss_terms_from_config
 
+logger = logging.getLogger(__name__)
+
 
 def _default_affinity_deepem_crop_enabled(cfg) -> bool:
     """Lazy-import bridge to data.process.affinity."""
     from ...data.process.affinity import affinity_deepem_crop_enabled
+
     return affinity_deepem_crop_enabled(cfg)
 
 
@@ -36,22 +38,29 @@ def _default_crop_spatial_fn(
 ) -> torch.Tensor:
     """Lazy-import bridge to data.process.affinity."""
     from ...data.process.affinity import crop_spatial_by_offsets
+
     return crop_spatial_by_offsets(tensor, offsets, item_name=item_name)
 
 
 def _default_compute_valid_mask(
-    offsets: list, spatial_shape: tuple, device: torch.device | None = None,
+    offsets: list,
+    spatial_shape: tuple,
+    device: torch.device | None = None,
 ) -> torch.Tensor:
     """Lazy-import bridge to data.process.affinity."""
     from ...data.process.affinity import compute_affinity_valid_mask
+
     return compute_affinity_valid_mask(offsets, spatial_shape, device=device)
 
 
 def _default_resolve_affinity_offsets(cfg, *, num_channels: int, channel_slice):
     """Lazy-import bridge to data.process.affinity."""
     from ...data.process.affinity import resolve_affinity_offsets_for_channel_slice
+
     return resolve_affinity_offsets_for_channel_slice(
-        cfg, num_channels=num_channels, channel_slice=channel_slice,
+        cfg,
+        num_channels=num_channels,
+        channel_slice=channel_slice,
     )
 
 
@@ -87,9 +96,13 @@ class LossOrchestrator:
         self.loss_cfg = getattr(cfg.model, "loss", None)
 
         # Injected affinity functions (decoupled from data.process.affinity)
-        self._affinity_crop_enabled_fn = affinity_crop_enabled_fn or _default_affinity_deepem_crop_enabled
+        self._affinity_crop_enabled_fn = (
+            affinity_crop_enabled_fn or _default_affinity_deepem_crop_enabled
+        )
         self._crop_spatial_fn = crop_spatial_fn or _default_crop_spatial_fn
-        self._resolve_affinity_offsets_fn = resolve_affinity_offsets_fn or _default_resolve_affinity_offsets
+        self._resolve_affinity_offsets_fn = (
+            resolve_affinity_offsets_fn or _default_resolve_affinity_offsets
+        )
         self._compute_valid_mask_fn = compute_valid_mask_fn or _default_compute_valid_mask
 
         if self.loss_cfg is None:
@@ -104,9 +117,7 @@ class LossOrchestrator:
             loss_metadata=self.loss_metadata,
         )
         if not self.loss_term_specs:
-            raise ValueError(
-                "No loss terms were compiled. Configure model.loss.losses."
-            )
+            raise ValueError("No loss terms were compiled. Configure model.loss.losses.")
 
     def _apply_task_weighting(
         self,
@@ -347,12 +358,20 @@ class LossOrchestrator:
                 is_main_scale=is_main_scale,
             )
 
-            pred = output if term.pred_slice is None else self._slice_channels(output, term.pred_slice)
+            pred = (
+                output if term.pred_slice is None else self._slice_channels(output, term.pred_slice)
+            )
             pred2 = (
-                output if term.pred2_slice is None else self._slice_channels(output, term.pred2_slice)
+                output
+                if term.pred2_slice is None
+                else self._slice_channels(output, term.pred2_slice)
             )
             if call_kind == "pred_target":
-                target = labels if term.target_slice is None else self._slice_channels(labels, term.target_slice)
+                target = (
+                    labels
+                    if term.target_slice is None
+                    else self._slice_channels(labels, term.target_slice)
+                )
             else:
                 target = None
             term_mask_tensor = (
@@ -396,7 +415,9 @@ class LossOrchestrator:
                 if affinity_offsets:
                     spatial_shape = tuple(int(v) for v in pred.shape[2:])
                     affinity_valid_mask = self._compute_valid_mask_fn(
-                        affinity_offsets, spatial_shape, device=pred.device,
+                        affinity_offsets,
+                        spatial_shape,
+                        device=pred.device,
                     )
                     # (C, D, H, W) -> (1, C, D, H, W); match pred dtype for AMP
                     affinity_valid_mask = affinity_valid_mask.unsqueeze(0).to(pred.dtype)
@@ -408,7 +429,9 @@ class LossOrchestrator:
             combined_mask_tensor: Optional[torch.Tensor] = None
             for m in (term_mask_tensor, batch_mask_tensor, affinity_valid_mask):
                 if m is not None:
-                    combined_mask_tensor = m if combined_mask_tensor is None else combined_mask_tensor * m
+                    combined_mask_tensor = (
+                        m if combined_mask_tensor is None else combined_mask_tensor * m
+                    )
 
             if call_kind == "pred_target":
                 if pred is None or target is None:
@@ -459,7 +482,10 @@ class LossOrchestrator:
                             device=pred_for_loss.device,
                             dtype=pred_for_loss.dtype,
                         )
-                    elif float(term.pos_weight) != 1.0 and getattr(loss_fn, "pos_weight", None) is None:
+                    elif (
+                        float(term.pos_weight) != 1.0
+                        and getattr(loss_fn, "pos_weight", None) is None
+                    ):
                         extra_loss_kwargs["pos_weight"] = torch.tensor(
                             [float(term.pos_weight)],
                             device=pred_for_loss.device,
@@ -560,7 +586,9 @@ class LossOrchestrator:
             task_losses, task_names_in_order, stage=stage
         )
         if self.loss_weighter is not None:
-            for task_name, task_loss, task_weight in zip(task_names_in_order, task_losses, task_weights):
+            for task_name, task_loss, task_weight in zip(
+                task_names_in_order, task_losses, task_weights
+            ):
                 term_prefix = term_prefix_by_name[task_name]
                 loss_dict[f"{term_prefix}_balance_weight"] = float(task_weight)
                 loss_dict[f"{term_prefix}_balanced"] = (task_loss * task_weight).item()

@@ -156,17 +156,13 @@ def _fit_array_to_shape(
     return array
 
 
-def _restore_prediction_to_input_space(
-    sample: np.ndarray, meta: Dict[str, Any]
-) -> np.ndarray:
+def _restore_prediction_to_input_space(sample: np.ndarray, meta: Dict[str, Any]) -> np.ndarray:
     preprocess_meta = meta.get("nnunet_preprocess")
     if not isinstance(preprocess_meta, dict) or not preprocess_meta.get("enabled", False):
         return sample
 
     array = sample
-    spatial_dims = int(
-        preprocess_meta.get("spatial_dims", _infer_spatial_dims_from_array(array))
-    )
+    spatial_dims = int(preprocess_meta.get("spatial_dims", _infer_spatial_dims_from_array(array)))
     is_integer = np.issubdtype(array.dtype, np.integer)
     interp_order = 0 if is_integer else 1
 
@@ -197,9 +193,7 @@ def _restore_prediction_to_input_space(
                 slices = tuple(slice(int(b[0]), int(b[1])) for b in bbox)
                 restored[(slice(None), *slices)] = array
             else:
-                restored = np.zeros(
-                    tuple(int(v) for v in original_shape), dtype=array.dtype
-                )
+                restored = np.zeros(tuple(int(v) for v in original_shape), dtype=array.dtype)
                 slices = tuple(slice(int(b[0]), int(b[1])) for b in bbox)
                 restored[slices] = array
             array = restored
@@ -222,8 +216,7 @@ def _should_restore_outputs(cfg: Config | DictConfig, mode: str) -> bool:
         pre = getattr(data_cfg, "nnunet_preprocessing", None)
         if pre is not None:
             return bool(
-                getattr(pre, "enabled", False)
-                and getattr(pre, "restore_to_input_space", False)
+                getattr(pre, "enabled", False) and getattr(pre, "restore_to_input_space", False)
             )
 
     return False
@@ -274,7 +267,9 @@ def apply_save_prediction_transform(cfg: Config | DictConfig, data: np.ndarray) 
 
         if data_max > data_min:
             data = (data - data_min) / (data_max - data_min)
-            logger.info(f"Normalized predictions to [0, 1] (min={data_min:.4f}, max={data_max:.4f})")
+            logger.info(
+                f"Normalized predictions to [0, 1] (min={data_min:.4f}, max={data_max:.4f})"
+            )
         else:
             logger.warning(f"data_min == data_max ({data_min:.4f}), skipping normalization")
 
@@ -435,9 +430,7 @@ def write_outputs(
 
     for idx in range(actual_batch_size):
         if idx >= len(filenames):
-            logger.warning(
-                f"write_outputs - no filename for batch index {idx}, skipping"
-            )
+            logger.warning(f"write_outputs - no filename for batch index {idx}, skipping")
             continue
 
         sample = predictions[idx]
@@ -461,9 +454,11 @@ def write_outputs(
                 out_path = output_dir / f"{filename}_{suffix}.h5"
                 write_hdf5(
                     out_path,
-                    sample.astype(np.float32)
-                    if not np.issubdtype(sample.dtype, np.integer)
-                    else sample,
+                    (
+                        sample.astype(np.float32)
+                        if not np.issubdtype(sample.dtype, np.integer)
+                        else sample
+                    ),
                     dataset="main",
                 )
                 logger.info(f"Saved HDF5: {out_path.name}")

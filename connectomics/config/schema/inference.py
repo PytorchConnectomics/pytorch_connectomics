@@ -30,8 +30,7 @@ class SlidingWindowConfig:
     sigma_scale: float = 0.125
     padding_mode: str = "reflect"
     cval: float = 0.0
-    keep_input_on_cpu: bool = False  # Legacy option; ignored when unsupported
-    pad_size: Optional[List[int]] = None  # Legacy alias for explicit padding before inference
+    keep_input_on_cpu: bool = False  # Move full volume to CPU between sliding-window batches
     sw_device: Optional[str] = None
     output_device: Optional[str] = None
 
@@ -53,11 +52,9 @@ class TestTimeAugmentationConfig:
     # Accepts: None (all channels), int, slice string like ":"/"0:3"/"-1:", or [int, ...].
     select_channel: Optional[Any] = None
 
-    # Legacy/simple controls
     flip_axes: Any = "all"  # "all" | "none" | list[int]
     flip_combinations: Optional[List[List[int]]] = None  # explicit list of axis subsets
-    rotate90_axes: Optional[List[List[int]]] = None  # e.g. [[3,4]] for H/W in NCDHW
-    rotation90_axes: Optional[List[List[int]]] = None  # Legacy alias for rotate90_axes
+    rotation90_axes: Any = None  # "all" | None | [[int, int], ...] spatial plane pairs
     rotate90_k: Optional[List[int]] = None  # e.g. [1,2,3]
     apply_mask: bool = True
     transforms: Optional[List[Dict[str, Any]]] = None  # advanced explicit transforms

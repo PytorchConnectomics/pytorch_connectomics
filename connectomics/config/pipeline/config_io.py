@@ -8,11 +8,11 @@ from __future__ import annotations
 
 import dataclasses
 import hashlib
-from pathlib import Path
-import warnings
 import os
 import re
+import warnings
 from glob import glob
+from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple, Union
 
 from omegaconf import DictConfig, ListConfig, OmegaConf
@@ -23,7 +23,6 @@ from ..schema import Config
 from ..schema.root import MergeContext
 from .profile_engine import _YAML_PROFILE_ENGINE
 from .stage_resolver import _collect_explicit_paths
-
 
 # ---------------------------------------------------------------------------
 # Config loading helpers
@@ -414,7 +413,9 @@ def _validate_cross_section_coherence(cfg: Config) -> None:
                     context=f"inference.decoding[{i}].kwargs.{key}",
                 )
                 if min_channels is not None:
-                    required_channels.append((f"inference.decoding[{i}].kwargs.{key}", min_channels))
+                    required_channels.append(
+                        (f"inference.decoding[{i}].kwargs.{key}", min_channels)
+                    )
 
     # 2d) TTA channel selectors
     tta_cfg = getattr(cfg.inference, "test_time_augmentation", None)
@@ -450,15 +451,14 @@ def _validate_cross_section_coherence(cfg: Config) -> None:
         context="inference.test_time_augmentation.select_channel",
     )
     if min_channels is not None:
-        required_channels.append(
-            ("inference.test_time_augmentation.select_channel", min_channels)
-        )
+        required_channels.append(("inference.test_time_augmentation.select_channel", min_channels))
 
     if required_channels:
         required_max = max(req for _, req in required_channels)
         if required_max > out_channels:
             details = ", ".join(
-                f"{path} needs >= {req}" for path, req in sorted(required_channels, key=lambda x: x[1], reverse=True)
+                f"{path} needs >= {req}"
+                for path, req in sorted(required_channels, key=lambda x: x[1], reverse=True)
             )
             raise ValueError(
                 "Cross-section validation failed: model.out_channels is "
@@ -467,7 +467,9 @@ def _validate_cross_section_coherence(cfg: Config) -> None:
             )
 
     # 3) deep_supervision=True with architectures that don't support it
-    deep_supervision = getattr(model_loss_cfg, "deep_supervision", False) if model_loss_cfg else False
+    deep_supervision = (
+        getattr(model_loss_cfg, "deep_supervision", False) if model_loss_cfg else False
+    )
     if deep_supervision:
         arch_type = getattr(cfg.model.arch, "type", "")
         if not _architecture_supports_deep_supervision(arch_type):
@@ -561,6 +563,7 @@ def resolve_data_paths(cfg: Config) -> Config:
         >>> print(cfg.data.test.image)
         ['/data/test/volume_1.tif', '/data/test/volume_2.tif']
     """
+
     def _combine_path(
         base_path: str, file_path: Optional[Union[str, List[str]]]
     ) -> Optional[Union[str, List[str]]]:

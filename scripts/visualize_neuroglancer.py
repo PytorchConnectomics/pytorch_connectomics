@@ -7,8 +7,10 @@ Runs in interactive mode so you can examine loaded volumes.
 
 Usage:
     python -i scripts/visualize_neuroglancer.py --config tutorials/monai_lucchi.yaml
-    python -i scripts/visualize_neuroglancer.py --image path/to/image.tif --label path/to/label.h5
-    python -i scripts/visualize_neuroglancer.py --volumes image:path/img.tif label:path/lbl.h5 seg:path/seg.h5
+    python -i scripts/visualize_neuroglancer.py --image path/to/image.tif \
+        --label path/to/label.h5
+    python -i scripts/visualize_neuroglancer.py --volumes image:path/img.tif \
+        label:path/lbl.h5 seg:path/seg.h5
 
 Interactive mode variables:
     viewer      - Neuroglancer viewer instance
@@ -41,15 +43,21 @@ import argparse
 import logging
 import sys
 from pathlib import Path
-from typing import Dict, Optional, Tuple, List, TYPE_CHECKING, Sequence
+from typing import TYPE_CHECKING, Dict, List, Optional, Sequence, Tuple
+
 import numpy as np
 
 # Add parent directory to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
+from connectomics.config import (  # noqa: E402
+    load_config,
+    resolve_data_paths,
+    resolve_default_profiles,
+)
+
 # Import connectomics modules (needed for helper functions)
-from connectomics.data.io import read_volume
-from connectomics.config import load_config, resolve_data_paths, resolve_default_profiles
+from connectomics.data.io import read_volume  # noqa: E402
 
 # Lazy import for neuroglancer (checked at runtime)
 if TYPE_CHECKING:
@@ -110,7 +118,7 @@ def apply_image_transform(data: np.ndarray, cfg) -> np.ndarray:
     Returns:
         Transformed image array (same dtype as input)
     """
-    if not hasattr(cfg.data, 'image_transform'):
+    if not hasattr(cfg.data, "image_transform"):
         return data
 
     transform_cfg = cfg.data.image_transform
@@ -118,31 +126,36 @@ def apply_image_transform(data: np.ndarray, cfg) -> np.ndarray:
     data = data.astype(np.float32)  # Work in float32
     normalize_mode = getattr(transform_cfg, "normalize", "none")
 
-    print(f"  Applying image transformations from config:")
+    print("  Applying image transformations from config:")
     print(f"    Original range: [{data.min():.2f}, {data.max():.2f}]")
 
     # Percentile clipping
-    if hasattr(transform_cfg, 'clip_percentile_low') and hasattr(transform_cfg, 'clip_percentile_high'):
+    if hasattr(transform_cfg, "clip_percentile_low") and hasattr(
+        transform_cfg, "clip_percentile_high"
+    ):
         low_pct = transform_cfg.clip_percentile_low
         high_pct = transform_cfg.clip_percentile_high
 
         if low_pct > 0.0 or high_pct < 1.0:
             low_val = np.percentile(data, low_pct * 100)
             high_val = np.percentile(data, high_pct * 100)
-            print(f"    Clipping: {low_pct*100:.1f}th percentile ({low_val:.2f}) to {high_pct*100:.1f}th percentile ({high_val:.2f})")
+            print(
+                f"    Clipping: {low_pct*100:.1f}th percentile ({low_val:.2f}) "
+                f"to {high_pct*100:.1f}th percentile ({high_val:.2f})"
+            )
             data = np.clip(data, low_val, high_val)
 
     # Normalization
-    if hasattr(transform_cfg, 'normalize'):
+    if hasattr(transform_cfg, "normalize"):
         if normalize_mode == "0-1":
             # Min-max normalization to [0, 1]
             data_min = data.min()
             data_max = data.max()
             if data_max > data_min:
                 data = (data - data_min) / (data_max - data_min)
-                print(f"    Normalized to [0, 1] (min-max)")
+                print("    Normalized to [0, 1] (min-max)")
             else:
-                print(f"    Warning: data_min == data_max, skipping normalization")
+                print("    Warning: data_min == data_max, skipping normalization")
 
         elif normalize_mode == "normal":
             # Z-score normalization
@@ -152,10 +165,10 @@ def apply_image_transform(data: np.ndarray, cfg) -> np.ndarray:
                 data = (data - data_mean) / data_std
                 print(f"    Normalized (z-score): mean={data_mean:.2f}, std={data_std:.2f}")
             else:
-                print(f"    Warning: data_std == 0, skipping normalization")
+                print("    Warning: data_std == 0, skipping normalization")
 
         elif normalize_mode == "none":
-            print(f"    No normalization applied")
+            print("    No normalization applied")
 
     print(f"    Final range: [{data.min():.2f}, {data.max():.2f}]")
 
@@ -169,6 +182,156 @@ def apply_image_transform(data: np.ndarray, cfg) -> np.ndarray:
         pass
 
     return data
+
+
+def _ensure_spatial_3d(data: np.ndarray, *, context: str) -> np.ndarray:
+    """Insert a singleton z-axis for 2D arrays so downstream logic always sees 3D."""
+    if data.ndim != 2:
+        return data
+
+    converted = data[None, :, :]
+    logger.info("Converted 2D %s to 3D: %s", context, converted.shape)
+    return converted
+
+
+def _select_file_paths(
+    files_list: Sequence[str],
+    selector: str,
+    *,
+    allow_all: bool,
+) -> list[str]:
+    """Select one or more files from a resolved file list."""
+    files = list(files_list)
+    if len(files) <= 1:
+        return files
+
+    if selector.lower() == "all":
+        if allow_all:
+            print(f"  Found {len(files)} files, loading all...")
+            return files
+        print(
+            f"  Found {len(files)} files, 'all' not supported here, using first: "
+            f"{Path(files[0]).name}"
+        )
+        return [files[0]]
+
+    try:
+        index = int(selector)
+    except ValueError:
+        matching = [f for f in files if Path(f).name == selector or Path(f).stem == selector]
+        if not matching:
+            matching = [f for f in files if selector in Path(f).name]
+        if matching:
+            print(
+                f"  Found {len(files)} files, selected by name '{selector}': "
+                f"{Path(matching[0]).name}"
+            )
+            return [matching[0]]
+
+        print(
+            f"  Warning: No file matches selector '{selector}', using first of "
+            f"{len(files)} files"
+        )
+        return [files[0]]
+
+    if index < -len(files) or index >= len(files):
+        print(f"  Warning: Index {index} out of range for {len(files)} files, using first")
+        return [files[0]]
+
+    selected = files[index]
+    print(f"  Found {len(files)} files, selected index [{index}]: {Path(selected).name}")
+    return [selected]
+
+
+def _load_config_volume_array(
+    path: str,
+    *,
+    context: str,
+    cfg=None,
+    apply_transform: bool = False,
+) -> np.ndarray:
+    """Read a config-backed volume, normalize 2D inputs, and optionally transform images."""
+    data = read_volume(path)
+    data = _ensure_spatial_3d(data, context=context)
+    if apply_transform:
+        data = apply_image_transform(data, cfg)
+    return data
+
+
+def _resolve_prediction_matched_path(
+    test_image_path: str,
+    prediction_base_name: Optional[str],
+) -> str:
+    """Best-effort match of a test image path to a prediction basename."""
+    if (
+        not prediction_base_name
+        or not isinstance(test_image_path, str)
+        or ("*" not in test_image_path and "?" not in test_image_path)
+    ):
+        return test_image_path
+
+    print(f"  Auto-matching specific test_image for prediction base name: {prediction_base_name}")
+    test_path_obj = Path(test_image_path)
+    test_dir = test_path_obj.parent
+    print(f"  Search directory: {test_dir}")
+
+    extensions_to_try = [".tif", ".tiff", ".h5", ".hdf5", ".png", ".jpg", ".jpeg"]
+    for ext in extensions_to_try:
+        potential_file = test_dir / f"{prediction_base_name}{ext}"
+        if potential_file.exists():
+            matched_file = str(potential_file)
+            print(f"  Found matching test_image: {matched_file}")
+            return matched_file
+
+    matching_files = sorted(test_dir.glob(f"{prediction_base_name}.*"))
+    if matching_files:
+        matched_file = str(matching_files[0])
+        print(f"  Found matching test_image: {matched_file}")
+        return matched_file
+
+    print(f"  No matching test_image found for base name: {prediction_base_name}")
+    print("  Falling back to loading all files from glob pattern")
+    return test_image_path
+
+
+def _store_config_volume_entries(
+    volumes: Dict[str, Tuple[np.ndarray, str, Optional[Tuple], None]],
+    raw_paths,
+    *,
+    select: str,
+    allow_all: bool,
+    display_label: str,
+    volume_name: str,
+    volume_type: str,
+    resolution: Optional[Tuple[float, float, float]],
+    cfg=None,
+    apply_transform: bool = False,
+) -> None:
+    """Load one config entry that may resolve to a single path or a list of paths."""
+    if not raw_paths:
+        return
+
+    print(f"Loading {display_label}: {raw_paths}")
+    if isinstance(raw_paths, list):
+        paths_to_load = _select_file_paths(raw_paths, select, allow_all=allow_all)
+    else:
+        paths_to_load = [raw_paths]
+
+    for idx, path in enumerate(paths_to_load):
+        if len(paths_to_load) > 1:
+            print(f"  [{idx + 1}/{len(paths_to_load)}] Loading: {path}")
+        try:
+            data = _load_config_volume_array(
+                path,
+                context=volume_name,
+                cfg=cfg,
+                apply_transform=apply_transform,
+            )
+            resolved_name = f"{volume_name}_{idx}" if len(paths_to_load) > 1 else volume_name
+            volumes[resolved_name] = (data, volume_type, resolution, None)
+            print(f"      Loaded: {data.shape}, dtype={data.dtype}")
+        except Exception as exc:
+            print(f"      Error loading {path}: {exc}")
 
 
 def parse_args():
@@ -253,11 +416,13 @@ Interactive mode (with -i flag):
         "--volumes",
         type=str,
         nargs="+",
-        help='Volume paths in format "name:type:path[:channel[:resolution[:offset]]]" where type is "image" or "seg", '
-        'channel is an optional channel index (serves as --select for this volume), '
+        help='Volume paths in format "name:type:path[:channel[:resolution[:offset]]]" '
+        'where type is "image" or "seg", '
+        "channel is an optional channel index (serves as --select for this volume), "
         'resolution is "z-y-x" in nm, and offset is "z-y-x" in voxels. '
         "Type can be omitted for backward compatibility (inferred from name). "
-        "Glob patterns supported with selectors: path/*.tiff[0] (index), path/*.tiff[name] (filename). "
+        "Glob patterns supported with selectors: path/*.tiff[0] (index), "
+        "path/*.tiff[name] (filename). "
         'Examples: "pred:image:path.h5", "label:seg:data/*.tiff[0]", "multi:image:path.h5:2", '
         '"pred:image:path.h5:0:5-5-5", "pred:image:path.h5:0:5-5-5:100-200-300"',
     )
@@ -279,15 +444,15 @@ Interactive mode (with -i flag):
         type=str,
         default="30-6-6",
         help='Voxel resolution in nm in zyx order as "z-y-x" (or "y-x" for 2D). '
-        'Default: 30-6-6 for EM data. '
-        '2D resolution will be padded to 3D with z=1.0',
+        "Default: 30-6-6 for EM data. "
+        "2D resolution will be padded to 3D with z=1.0",
     )
     parser.add_argument(
         "--offset",
         type=str,
         default="0-0-0",
         help='Volume offset as "z-y-x" or "y-x" for 2D in voxels (default: 0-0-0). '
-        '2D offset will be padded to 3D with z=0',
+        "2D offset will be padded to 3D with z=0",
     )
     parser.add_argument(
         "--scale",
@@ -308,7 +473,8 @@ Interactive mode (with -i flag):
         "--select",
         type=str,
         default="0",
-        help="Select specific file from glob patterns by index (e.g., '0', '-1') or filename (e.g., 'volume_001'). "
+        help="Select specific file from glob patterns by index (e.g., '0', '-1') "
+        "or filename (e.g., 'volume_001'). "
         "Default: '0' (first file). Use 'all' to load all files.",
     )
     parser.add_argument(
@@ -328,9 +494,7 @@ def parse_bbox_arg(bbox_str: str) -> Tuple[int, int, int, int, int, int]:
     """Parse bbox string 'zmin,ymin,xmin,zmax,ymax,xmax' into integer coordinates."""
     parts = [p.strip() for p in bbox_str.split(",")]
     if len(parts) != 6:
-        raise ValueError(
-            "bbox must have 6 comma-separated integers: zmin,ymin,xmin,zmax,ymax,xmax"
-        )
+        raise ValueError("bbox must have 6 comma-separated integers: zmin,ymin,xmin,zmax,ymax,xmax")
 
     try:
         zmin, ymin, xmin, zmax, ymax, xmax = (int(p) for p in parts)
@@ -381,10 +545,16 @@ def crop_volumes_to_bbox(
             crop_slices = (slice(zmin, zmax), slice(ymin, ymax), slice(xmin, xmax))
         elif data.ndim == 4:
             spatial_shape = data.shape[-3:]
-            crop_slices = (slice(None), slice(zmin, zmax), slice(ymin, ymax), slice(xmin, xmax))
+            crop_slices = (
+                slice(None),
+                slice(zmin, zmax),
+                slice(ymin, ymax),
+                slice(xmin, xmax),
+            )
         else:
             raise ValueError(
-                f"Volume '{name}' has unsupported ndim={data.ndim} for bbox cropping (expected 3D or 4D)"
+                f"Volume '{name}' has unsupported ndim={data.ndim} for bbox "
+                "cropping (expected 3D or 4D)"
             )
 
         if not (
@@ -400,15 +570,19 @@ def crop_volumes_to_bbox(
         base_offset = vol_offset if vol_offset is not None else default_offset
         new_offset = (base_offset[0] + zmin, base_offset[1] + ymin, base_offset[2] + xmin)
 
-        print(f"  {name}: {data.shape} -> {cropped_data.shape}, offset {base_offset} -> {new_offset}")
+        print(
+            f"  {name}: {data.shape} -> {cropped_data.shape}, offset {base_offset} -> {new_offset}"
+        )
         cropped_volumes[name] = (cropped_data, vol_type, vol_resolution, new_offset)
 
     return cropped_volumes
 
 
 def load_volumes_from_config(
-    config_path: str, mode: str = "train", prediction_base_name: Optional[str] = None,
-    select: str = "0"
+    config_path: str,
+    mode: str = "train",
+    prediction_base_name: Optional[str] = None,
+    select: str = "0",
 ) -> Dict[str, Tuple[np.ndarray, str, Optional[Tuple], None]]:
     """
     Load volumes from a config file.
@@ -421,7 +595,8 @@ def load_volumes_from_config(
 
     Returns:
         Dictionary mapping volume names to (data, type, resolution, offset) tuples
-        where type is 'image' or 'segmentation', resolution is from config (or None), and offset is None
+        where type is 'image' or 'segmentation', resolution is from config
+        (or None), and offset is None
     """
     cfg = load_config(config_path)
 
@@ -432,45 +607,9 @@ def load_volumes_from_config(
     cfg = resolve_data_paths(cfg)  # Resolve paths and expand globs
     volumes = {}
 
-    def apply_selection(files_list, selector):
-        """Apply selector to list of files."""
-        if not isinstance(files_list, list) or len(files_list) <= 1:
-            return files_list
-
-        # Handle 'all' selector
-        if selector.lower() == "all":
-            print(f"  Found {len(files_list)} files, loading all...")
-            return files_list
-
-        try:
-            # Try numeric index
-            index = int(selector)
-            if index < -len(files_list) or index >= len(files_list):
-                print(f"  Warning: Index {index} out of range for {len(files_list)} files, using first")
-                return [files_list[0]]
-            selected = files_list[index]
-            print(f"  Found {len(files_list)} files, selected index [{index}]: {Path(selected).name}")
-            return [selected]
-        except ValueError:
-            # Not a number, try filename match
-            matching = [f for f in files_list if Path(f).name == selector or Path(f).stem == selector]
-            if not matching:
-                # Try partial match
-                matching = [f for f in files_list if selector in Path(f).name]
-            if matching:
-                print(f"  Found {len(files_list)} files, selected by name '{selector}': {Path(matching[0]).name}")
-                return [matching[0]]
-            else:
-                print(f"  Warning: No file matches selector '{selector}', using first of {len(files_list)} files")
-                return [files_list[0]]
-
     # Get resolution from config (explicit zyx convention).
     train_resolution = None
-    if (
-        mode in ["train", "both"]
-        and hasattr(cfg.data, "train")
-        and cfg.data.train.resolution
-    ):
+    if mode in ["train", "both"] and hasattr(cfg.data, "train") and cfg.data.train.resolution:
         train_resolution = normalize_resolution_zyx(
             cfg.data.train.resolution,
             context="cfg.data.train.resolution",
@@ -492,152 +631,83 @@ def load_volumes_from_config(
 
     # Training data
     if mode in ["train", "both"]:
-        if hasattr(cfg.data, "train") and hasattr(cfg.data.train, "image") and cfg.data.train.image:
-            print(f"Loading train images: {cfg.data.train.image}")
-
-            # Handle list of files (apply selection)
-            if isinstance(cfg.data.train.image, list):
-                files_to_load = apply_selection(cfg.data.train.image, select)
-                for idx, img_file in enumerate(files_to_load):
-                    print(f"  [{idx+1}/{len(files_to_load)}] Loading: {img_file}")
-                    try:
-                        data = read_volume(img_file)
-
-                        # Convert 2D to 3D if needed
-                        if data.ndim == 2:
-                            data = data[None, :, :]  # (H, W) -> (1, H, W)
-                            logger.info("Converted 2D to 3D: %s", data.shape)
-
-                        # Apply image transformations (normalization, clipping)
-                        data = apply_image_transform(data, cfg)
-
-                        # Create unique name for this volume
-                        vol_name = f"train_image_{idx}" if len(files_to_load) > 1 else "train_image"
-                        volumes[vol_name] = (data, "image", train_resolution, None)
-                        print(f"      Loaded: {data.shape}, dtype={data.dtype}")
-                    except Exception as e:
-                        print(f"      Error loading {img_file}: {e}")
-            else:
-                # Single file
-                data = read_volume(cfg.data.train.image)
-                if data is not None:
-                    # Convert 2D to 3D if needed
-                    if data.ndim == 2:
-                        data = data[None, :, :]  # (H, W) -> (1, H, W)
-                        logger.info("Converted 2D train image to 3D: %s", data.shape)
-
-                    # Apply image transformations (normalization, clipping)
-                    data = apply_image_transform(data, cfg)
-                    volumes["train_image"] = (data, "image", train_resolution, None)
-
-        if hasattr(cfg.data, "train") and hasattr(cfg.data.train, "label") and cfg.data.train.label:
-            print(f"Loading train labels: {cfg.data.train.label}")
-
-            # Handle list of files (apply selection)
-            if isinstance(cfg.data.train.label, list):
-                files_to_load = apply_selection(cfg.data.train.label, select)
-                for idx, lbl_file in enumerate(files_to_load):
-                    print(f"  [{idx+1}/{len(files_to_load)}] Loading: {lbl_file}")
-                    try:
-                        data = read_volume(lbl_file)
-
-                        # Convert 2D to 3D if needed
-                        if data.ndim == 2:
-                            data = data[None, :, :]  # (H, W) -> (1, H, W)
-                            logger.info("Converted 2D to 3D: %s", data.shape)
-
-                        # Create unique name for this volume
-                        vol_name = f"train_label_{idx}" if len(files_to_load) > 1 else "train_label"
-                        volumes[vol_name] = (data, "segmentation", train_resolution, None)
-                        print(f"      Loaded: {data.shape}, dtype={data.dtype}")
-                    except Exception as e:
-                        print(f"      Error loading {lbl_file}: {e}")
-            else:
-                # Single file
-                data = read_volume(cfg.data.train.label)
-                if data is not None:
-                    # Convert 2D to 3D if needed
-                    if data.ndim == 2:
-                        data = data[None, :, :]  # (H, W) -> (1, H, W)
-                        logger.info("Converted 2D train label to 3D: %s", data.shape)
-                    volumes["train_label"] = (data, "segmentation", train_resolution, None)
+        if hasattr(cfg.data, "train"):
+            _store_config_volume_entries(
+                volumes,
+                getattr(cfg.data.train, "image", None),
+                select=select,
+                allow_all=True,
+                display_label="train images",
+                volume_name="train_image",
+                volume_type="image",
+                resolution=train_resolution,
+                cfg=cfg,
+                apply_transform=True,
+            )
+            _store_config_volume_entries(
+                volumes,
+                getattr(cfg.data.train, "label", None),
+                select=select,
+                allow_all=True,
+                display_label="train labels",
+                volume_name="train_label",
+                volume_type="segmentation",
+                resolution=train_resolution,
+            )
+            _store_config_volume_entries(
+                volumes,
+                getattr(cfg.data.train, "mask", None),
+                select=select,
+                allow_all=True,
+                display_label="train masks",
+                volume_name="train_mask",
+                volume_type="segmentation",
+                resolution=train_resolution,
+            )
 
     # Test data
     if mode in ["test", "both"]:
-        if (
-            hasattr(cfg, "data")
-            and hasattr(cfg.data, "test")
-            and cfg.data.test.image
-        ):
-            test_image_path = cfg.data.test.image
+        if hasattr(cfg, "data") and hasattr(cfg.data, "test"):
+            test_image_paths = getattr(cfg.data.test, "image", None)
+            if isinstance(test_image_paths, list):
+                selected_paths = _select_file_paths(test_image_paths, select, allow_all=False)
+                test_image_paths = selected_paths[0] if selected_paths else None
+            test_image_path = _resolve_prediction_matched_path(
+                test_image_paths,
+                prediction_base_name,
+            )
+            if test_image_path:
+                _store_config_volume_entries(
+                    volumes,
+                    test_image_path,
+                    select=select,
+                    allow_all=False,
+                    display_label="test image",
+                    volume_name="test_image",
+                    volume_type="image",
+                    resolution=test_resolution,
+                )
 
-            # Apply selection if it's a list (from glob expansion)
-            if isinstance(test_image_path, list):
-                test_image_path = apply_selection(test_image_path, select)
-                if isinstance(test_image_path, list):
-                    test_image_path = test_image_path[0]  # Get single file
-
-            print(f"Loading test image: {test_image_path}")
-
-            # If prediction_base_name is provided and test_image_path contains glob pattern,
-            # find the specific matching file
-            if prediction_base_name and isinstance(test_image_path, str) and ("*" in test_image_path or "?" in test_image_path):
-                print(f"  Auto-matching specific test_image for prediction base name: {prediction_base_name}")
-                import glob
-                test_path_obj = Path(test_image_path)
-                test_dir = test_path_obj.parent
-                print(f"  Search directory: {test_dir}")
-                
-                # Search for files with matching base name (any extension)
-                extensions_to_try = ['.tif', '.tiff', '.h5', '.hdf5', '.png', '.jpg', '.jpeg']
-                matched_file = None
-                for ext in extensions_to_try:
-                    potential_file = test_dir / f"{prediction_base_name}{ext}"
-                    if potential_file.exists():
-                        matched_file = str(potential_file)
-                        print(f"  Found matching test_image: {matched_file}")
-                        break
-                
-                # If not found, search for any file with matching base name
-                if not matched_file:
-                    matching_files = sorted(test_dir.glob(f"{prediction_base_name}.*"))
-                    if matching_files:
-                        matched_file = str(matching_files[0])
-                        print(f"  Found matching test_image: {matched_file}")
-                
-                if matched_file:
-                    test_image_path = matched_file
-                else:
-                    print(f"  No matching test_image found for base name: {prediction_base_name}")
-                    print(f"  Falling back to loading all files from glob pattern")
-            
-            data = read_volume(test_image_path)
-            # Convert 2D to 3D if needed
-            if data.ndim == 2:
-                data = data[None, :, :]  # (H, W) -> (1, H, W)
-                logger.info("Converted 2D test image to 3D: %s", data.shape)
-            volumes["test_image"] = (data, "image", test_resolution, None)
-
-        if (
-            hasattr(cfg, "data")
-            and hasattr(cfg.data, "test")
-            and cfg.data.test.label
-        ):
-            test_label_path = cfg.data.test.label
-
-            # Apply selection if it's a list (from glob expansion)
-            if isinstance(test_label_path, list):
-                test_label_path = apply_selection(test_label_path, select)
-                if isinstance(test_label_path, list):
-                    test_label_path = test_label_path[0]  # Get single file
-
-            print(f"Loading test label: {test_label_path}")
-            data = read_volume(test_label_path)
-            # Convert 2D to 3D if needed
-            if data.ndim == 2:
-                data = data[None, :, :]  # (H, W) -> (1, H, W)
-                logger.info("Converted 2D test label to 3D: %s", data.shape)
-            volumes["test_label"] = (data, "segmentation", test_resolution, None)
+            _store_config_volume_entries(
+                volumes,
+                getattr(cfg.data.test, "label", None),
+                select=select,
+                allow_all=False,
+                display_label="test label",
+                volume_name="test_label",
+                volume_type="segmentation",
+                resolution=test_resolution,
+            )
+            _store_config_volume_entries(
+                volumes,
+                getattr(cfg.data.test, "mask", None),
+                select=select,
+                allow_all=False,
+                display_label="test mask",
+                volume_name="test_mask",
+                volume_type="segmentation",
+                resolution=test_resolution,
+            )
 
     if not volumes:
         print(f"WARNING: No volumes found in config for mode='{mode}'")
@@ -666,11 +736,11 @@ def resolve_glob_with_selector(path: str, default_selector: str = "0") -> str:
     import re
 
     # Check for selector pattern: path[selector]
-    match = re.match(r'^(.+)\[(.+)\]$', path)
+    match = re.match(r"^(.+)\[(.+)\]$", path)
     if match:
         glob_pattern = match.group(1)
         selector = match.group(2)
-    elif '*' in path or '?' in path:
+    elif "*" in path or "?" in path:
         # No inline selector, use default
         glob_pattern = path
         selector = default_selector
@@ -683,38 +753,8 @@ def resolve_glob_with_selector(path: str, default_selector: str = "0") -> str:
     if not files:
         raise FileNotFoundError(f"No files match pattern: {glob_pattern}")
 
-    # Handle single file
-    if len(files) == 1:
-        return files[0]
-
-    # Handle 'all' selector - return first but warn
-    if selector.lower() == "all":
-        print(f"  Found {len(files)} files, 'all' not supported for --volumes, using first: {Path(files[0]).name}")
-        return files[0]
-
-    # Select file based on selector
-    try:
-        # Try numeric index
-        index = int(selector)
-        if index < -len(files) or index >= len(files):
-            print(f"  Warning: Index {index} out of range for {len(files)} files, using first")
-            return files[0]
-        selected = files[index]
-        print(f"  Found {len(files)} files, selected index [{index}]: {Path(selected).name}")
-    except ValueError:
-        # Not a number, try filename match
-        matching = [f for f in files if Path(f).name == selector or Path(f).stem == selector]
-        if not matching:
-            # Try partial match
-            matching = [f for f in files if selector in Path(f).name]
-        if not matching:
-            available = [Path(f).name for f in files]
-            print(f"  Warning: No file matches selector '{selector}'. Available: {available[:5]}{'...' if len(available) > 5 else ''}")
-            return files[0]
-        selected = matching[0]
-        print(f"  Found {len(files)} files, selected by name '{selector}': {Path(selected).name}")
-
-    return selected
+    selected = _select_file_paths(files, selector, allow_all=False)
+    return selected[0]
 
 
 def _parse_optional_channel(raw_channel: Optional[str]) -> Optional[int]:
@@ -748,9 +788,7 @@ def _parse_optional_resolution(
     if len(resolution_values) == 3:
         return resolution_values, False
 
-    print(
-        f"  Warning: Invalid resolution '{raw_resolution}' (expected 2 or 3 values), ignoring"
-    )
+    print(f"  Warning: Invalid resolution '{raw_resolution}' (expected 2 or 3 values), ignoring")
     return None, global_is_2d
 
 
@@ -779,7 +817,15 @@ def _parse_volume_spec(
     spec: str,
     *,
     global_is_2d: bool,
-) -> Tuple[str, str, Optional[str], Optional[int], Optional[Tuple[float, float, float]], Optional[Tuple[int, int, int]], bool]:
+) -> Tuple[
+    str,
+    str,
+    Optional[str],
+    Optional[int],
+    Optional[Tuple[float, float, float]],
+    Optional[Tuple[int, int, int]],
+    bool,
+]:
     """Parse one --volumes spec into normalized fields."""
     parts = spec.split(":")
     has_explicit_type = len(parts) >= 3 and parts[1] in ["image", "img", "seg", "segmentation"]
@@ -833,8 +879,10 @@ def load_volumes_from_paths(
             - "name:path" - name and path (type inferred from name)
             - "name:type:path" - name, type (image/seg), and path
             - "name:type:path:channel" - with channel index (e.g., "0", "2")
-            - "name:type:path:channel:resolution" - with channel and resolution (e.g., "0:5-5-5")
-            - "name:type:path:channel:resolution:offset" - with channel, resolution, and offset (e.g., "0:5-5-5:100-200-300")
+            - "name:type:path:channel:resolution" - with channel and
+              resolution (e.g., "0:5-5-5")
+            - "name:type:path:channel:resolution:offset" - with channel,
+              resolution, and offset (e.g., "0:5-5-5:100-200-300")
 
         Paths can include glob patterns with selectors:
             - "name:type:path/*.tiff[0]" - select first file
@@ -885,7 +933,10 @@ def load_volumes_from_paths(
         if channel is not None:
             if data.ndim == 4:  # (C, Z, Y, X) - 3D multi-channel
                 if channel >= data.shape[0]:
-                    print(f"  Warning: Channel {channel} out of range (max: {data.shape[0]-1}), using channel 0")
+                    print(
+                        f"  Warning: Channel {channel} out of range "
+                        f"(max: {data.shape[0]-1}), using channel 0"
+                    )
                     data = data[0]
                 else:
                     print(f"  Selected channel {channel} from 4D shape {data.shape}")
@@ -895,14 +946,22 @@ def load_volumes_from_paths(
                 if is_2d_resolution:
                     # Treat as (C, H, W) - 2D multi-channel
                     if channel >= data.shape[0]:
-                        print(f"  Warning: Channel {channel} out of range (max: {data.shape[0]-1}), using channel 0")
+                        print(
+                            f"  Warning: Channel {channel} out of range "
+                            f"(max: {data.shape[0]-1}), using channel 0"
+                        )
                         data = data[0]
                     else:
-                        print(f"  Selected channel {channel} from 2D multi-channel shape {data.shape}")
+                        print(
+                            f"  Selected channel {channel} from 2D multi-channel shape {data.shape}"
+                        )
                         data = data[channel]
                 else:
                     # Treat as (Z, H, W) - 3D single-channel, ignore channel selection
-                    print(f"  Warning: Channel {channel} specified but data is 3D {data.shape} (single-channel), ignoring")
+                    print(
+                        f"  Warning: Channel {channel} specified but data is 3D "
+                        f"{data.shape} (single-channel), ignoring"
+                    )
             else:
                 print(f"  Warning: Unexpected data shape {data.shape}, ignoring channel selection")
         else:
@@ -934,7 +993,7 @@ def load_volumes_from_paths(
                 vol_type = "image"
 
         # Apply default intensity scaling (only for images, not segmentations)
-        is_image = (vol_type == "image")
+        is_image = vol_type == "image"
         data = apply_default_scaling(data, scale, is_image=is_image)
 
         print(f"  Volume type: {vol_type}, final shape: {data.shape}")
@@ -1035,7 +1094,7 @@ def visualize_volumes(
     print("\n" + "=" * 70)
     print("Neuroglancer viewer ready!")
     print("=" * 70)
-    print(f"\nOpen this URL in your browser:")
+    print("\nOpen this URL in your browser:")
     print(f"  {viewer}")
     print(f"\nServer: {ip}:{port}")
     print(f"Volumes: {list(volumes.keys())}")
@@ -1044,7 +1103,10 @@ def visualize_volumes(
     print("  viewer      - Neuroglancer viewer instance")
     print("  volumes     - Dictionary of loaded volumes")
     print("  cfg         - Config object (if --config used)")
-    print("  add_layer() - Add new layer: add_layer('name', file_path='path.h5', res=[5,5,5], tt='image')")
+    print(
+        "  add_layer() - Add new layer: add_layer("
+        "'name', file_path='path.h5', res=[5,5,5], tt='image')"
+    )
     print("  ngLayer()   - Create layer: ngLayer(data, [5,5,5], tt='image')")
     print("\nExamples:")
     print("  volumes['name'][0]  # Access numpy array")
@@ -1121,39 +1183,49 @@ def main():
             logger.info("2D resolution detected, padded to 3D: %s", resolution)
         elif len(resolution) != 3:
             raise ValueError(f"Resolution must have 2 or 3 components, got {len(resolution)}")
-    except (ValueError, AttributeError) as e:
-        print(f"ERROR: Invalid resolution format '{args.resolution}'. Expected format: 'z-y-x' or 'y-x' for 2D (e.g., '30-6-6' or '0.365-0.365')")
+    except (ValueError, AttributeError):
+        print(
+            f"ERROR: Invalid resolution format '{args.resolution}'. "
+            "Expected format: 'z-y-x' or 'y-x' for 2D "
+            "(e.g., '30-6-6' or '0.365-0.365')"
+        )
         sys.exit(1)
 
     # Load from config first (if provided)
     if args.config:
         cfg = load_config(args.config)  # Store config for interactive access
-        volumes.update(load_volumes_from_config(args.config, args.mode, prediction_base_name=prediction_base_name, select=args.select))
+        volumes.update(
+            load_volumes_from_config(
+                args.config,
+                args.mode,
+                prediction_base_name=prediction_base_name,
+                select=args.select,
+            )
+        )
 
     # Add image/label (if provided and not empty strings)
     if args.image and args.image.strip():
         print(f"Loading image: {args.image}")
-        data = read_volume(args.image)
-        # Convert 2D to 3D if needed
-        if data.ndim == 2:
-            data = data[None, :, :]  # (H, W) -> (1, H, W)
-            logger.info("Converted 2D image to 3D: %s", data.shape)
+        data = _load_config_volume_array(args.image, context="image")
         # Apply default intensity scaling
         data = apply_default_scaling(data, args.scale, is_image=True)
         volumes["image"] = (data, "image", None, None)
     if args.label and args.label.strip():
         print(f"Loading label: {args.label}")
-        data = read_volume(args.label)
-        # Convert 2D to 3D if needed
-        if data.ndim == 2:
-            data = data[None, :, :]  # (H, W) -> (1, H, W)
-            logger.info("Converted 2D label to 3D: %s", data.shape)
+        data = _load_config_volume_array(args.label, context="label")
         # No scaling for labels (they are segmentation)
         volumes["label"] = (data, "segmentation", None, None)
 
     # Add additional volumes (if provided) - these can override config volumes
     if args.volumes:
-        volumes.update(load_volumes_from_paths(args.volumes, select=args.select, scale=args.scale, global_resolution=(resolution, is_global_2d)))
+        volumes.update(
+            load_volumes_from_paths(
+                args.volumes,
+                select=args.select,
+                scale=args.scale,
+                global_resolution=(resolution, is_global_2d),
+            )
+        )
 
     if not volumes:
         print("ERROR: No volumes loaded. Check your input paths.")
@@ -1167,8 +1239,11 @@ def main():
             logger.info("2D offset detected, padded to 3D: %s", offset)
         elif len(offset) != 3:
             raise ValueError(f"Offset must have 2 or 3 components, got {len(offset)}")
-    except (ValueError, AttributeError) as e:
-        print(f"ERROR: Invalid offset format '{args.offset}'. Expected format: 'z-y-x' or 'y-x' for 2D (e.g., '0-0-0' or '0-0')")
+    except (ValueError, AttributeError):
+        print(
+            f"ERROR: Invalid offset format '{args.offset}'. Expected format: "
+            "'z-y-x' or 'y-x' for 2D (e.g., '0-0-0' or '0-0')"
+        )
         sys.exit(1)
 
     if args.bbox:
@@ -1189,7 +1264,7 @@ def main():
     )
 
     # Helper function for interactive mode: create neuroglancer layer from data and resolution
-    def ngLayer(data, res, oo=[0, 0, 0], tt='segmentation'):
+    def ngLayer(data, res, oo=[0, 0, 0], tt="segmentation"):
         """
         Create a Neuroglancer layer from volume data.
 
@@ -1213,22 +1288,17 @@ def main():
         # Create coordinate space from resolution if it's a list/tuple
         if isinstance(res, (list, tuple)):
             coord_space = neuroglancer.CoordinateSpace(
-                names=["z", "y", "x"],
-                units=["nm", "nm", "nm"],
-                scales=res
+                names=["z", "y", "x"], units=["nm", "nm", "nm"], scales=res
             )
         else:
             # Assume it's already a CoordinateSpace object
             coord_space = res
 
         return neuroglancer.LocalVolume(
-            data,
-            dimensions=coord_space,
-            volume_type=tt,
-            voxel_offset=oo
+            data, dimensions=coord_space, volume_type=tt, voxel_offset=oo
         )
 
-    def add_layer(name, file_path=None, data=None, res=None, oo=[0, 0, 0], tt='image'):
+    def add_layer(name, file_path=None, data=None, res=None, oo=[0, 0, 0], tt="image"):
         """
         Add a layer to the viewer (convenience function for interactive mode).
 
@@ -1276,11 +1346,11 @@ def main():
         print(f"  Layer '{name}' added successfully")
 
         # Store in volumes dict for future reference
-        volumes[name] = (data, 'segmentation' if tt == 'seg' else tt, tuple(res), tuple(oo))
+        volumes[name] = (data, "segmentation" if tt == "seg" else tt, tuple(res), tuple(oo))
 
     # Make helper functions available in interactive mode
-    globals()['ngLayer'] = ngLayer
-    globals()['add_layer'] = add_layer
+    globals()["ngLayer"] = ngLayer
+    globals()["add_layer"] = add_layer
 
     # Return viewer for interactive mode
     return viewer

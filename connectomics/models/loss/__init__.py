@@ -9,26 +9,26 @@ Design pattern follows transforms/augment/ for consistency.
 
 # Main factory functions (recommended interface)
 from .build import (
-    create_loss,
     create_combined_loss,
+    create_loss,
     create_loss_from_config,
     list_available_losses,
 )
-from .metadata import LossMetadata, get_loss_metadata, get_loss_metadata_for_module
 
 # Connectomics-specific losses (for direct use if needed)
 from .losses import (
-    WeightedMSELoss,
-    WeightedMAELoss,
     GANLoss,
+    WeightedMAELoss,
+    WeightedMSELoss,
 )
+from .metadata import LossMetadata, get_loss_metadata, get_loss_metadata_for_module
 
 # Regularization losses
 from .regularization import (
     BinaryRegularization,
-    ForegroundDistanceConsistency,
     ContourDistanceConsistency,
     ForegroundContourConsistency,
+    ForegroundDistanceConsistency,
     NonOverlapRegularization,
 )
 

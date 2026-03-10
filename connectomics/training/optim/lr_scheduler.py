@@ -4,6 +4,7 @@ from __future__ import annotations
 import math
 from bisect import bisect_right
 from typing import List
+
 import torch
 
 # NOTE: PyTorch's LR scheduler interface uses names that assume the LR changes

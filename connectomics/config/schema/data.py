@@ -182,7 +182,9 @@ class DataloaderConfig:
     cache_rate: float = 1.0
     use_lazy_zarr: bool = False  # Lazy crop-on-read for zarr volumes (no full preload)
     cached_sampling_max_attempts: int = 10  # Retry attempts for foreground-aware sampling
-    cached_sampling_foreground_threshold: float = 0.0  # Minimum (label > 0) fraction required for training crops; 0 disables foreground sampling
+    cached_sampling_foreground_threshold: float = (
+        0.0  # Minimum (label > 0) fraction required for training crops; 0 disables foreground sampling
+    )
     cached_sampling_crop_to_nonzero_mask: bool = (
         False  # Bbox approach: constrain crops to intersect the nonzero mask bounding box
     )
@@ -217,11 +219,9 @@ class DataInputConfig:
     image_key: str = "images"  # Key in JSON for image files
     label_key: str = "masks"  # Key in JSON for label files
     split_ratio: Optional[float] = None  # Auto split ratio (e.g., 0.9 = 90% train, 10% val)
-    val_split: Optional[float] = None  # Legacy alias for split_ratio
 
     # Voxel resolution (physical dimensions in nm)
     resolution: Optional[List[float]] = None  # Data resolution [z, y, x] in nm
-    train_resolution: Optional[List[float]] = None  # Legacy alias for resolution
 
 
 @dataclass
@@ -251,7 +251,6 @@ class RotateConfig:
     enabled: bool = True
     prob: float = 0.5
     spatial_axes: Tuple[int, int] = (1, 2)
-    max_angle: Optional[float] = None  # Legacy single-angle alias
 
 
 @dataclass
@@ -301,7 +300,7 @@ class MissingSectionConfig:
 
 @dataclass
 class MotionBlurConfig:
-    """Legacy out-of-focus blur augmentation configuration."""
+    """Out-of-focus blur augmentation configuration."""
 
     enabled: bool = False
     prob: float = 0.0

@@ -4,7 +4,6 @@ import pytest
 
 from connectomics.config import load_config
 
-
 PRESET_CONFIGS = [
     pytest.param(
         Path("tutorials/bases/augmentation_profiles.yaml"),
@@ -12,9 +11,17 @@ PRESET_CONFIGS = [
         id="augmentation_profiles",
     ),
     pytest.param(Path("tutorials/presets/aug_light.yaml"), False, id="aug_light_removed"),
-    pytest.param(Path("tutorials/presets/aug_realistic.yaml"), False, id="aug_realistic_legacy_scalar_sections"),
-    pytest.param(Path("tutorials/presets/aug_heavy.yaml"), False, id="aug_heavy_legacy_scalar_ranges"),
-    pytest.param(Path("tutorials/presets/aug_superres.yaml"), False, id="aug_superres_legacy_scalar_ranges"),
+    pytest.param(
+        Path("tutorials/presets/aug_realistic.yaml"),
+        False,
+        id="aug_realistic_legacy_scalar_sections",
+    ),
+    pytest.param(
+        Path("tutorials/presets/aug_heavy.yaml"), False, id="aug_heavy_legacy_scalar_ranges"
+    ),
+    pytest.param(
+        Path("tutorials/presets/aug_superres.yaml"), False, id="aug_superres_legacy_scalar_ranges"
+    ),
     pytest.param(Path("tutorials/presets/aug_instance.yaml"), False, id="aug_instance_removed"),
 ]
 

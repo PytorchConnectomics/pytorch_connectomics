@@ -8,6 +8,7 @@ expected outputs for common connectomics processing tasks.
 
 import sys
 from pathlib import Path
+
 import numpy as np
 import torch
 from monai.data import MetaTensor
@@ -15,16 +16,17 @@ from monai.data import MetaTensor
 # Add the package to Python path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
+from connectomics.config.schema import LabelTargetConfig, LabelTransformConfig  # noqa: E402
+
 # Import the new MONAI transforms
-from connectomics.data.process import (
-    SegToBinaryMaskd,
+from connectomics.data.process import (  # noqa: E402
     SegToAffinityMapd,
+    SegToBinaryMaskd,
+    SegToFlowFieldd,
     SegToInstanceBoundaryMaskd,
     SegToInstanceEDTd,
-    SegToFlowFieldd,
     create_label_transform_pipeline,
 )
-from connectomics.config.schema import LabelTargetConfig, LabelTransformConfig
 
 
 def create_test_data():

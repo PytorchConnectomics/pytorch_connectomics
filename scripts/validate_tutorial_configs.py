@@ -17,7 +17,6 @@ import yaml
 
 from connectomics.config import load_config
 
-
 LEGACY_PATTERNS: List[Tuple[Tuple[str, ...], str]] = [
     (("inference", "data"), "Use `test.data` instead of `inference.data`."),
     (

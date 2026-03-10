@@ -563,11 +563,7 @@ def test_defect_mutex_false_keeps_independent():
     oneof = [t for t in transforms if isinstance(t, OneOf)]
     assert len(oneof) == 0
 
-    individual = [
-        t
-        for t in transforms
-        if isinstance(t, (RandMisAlignmentd, RandMissingSectiond))
-    ]
+    individual = [t for t in transforms if isinstance(t, (RandMisAlignmentd, RandMissingSectiond))]
     assert len(individual) == 2
 
 

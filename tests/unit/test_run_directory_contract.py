@@ -6,11 +6,13 @@ import torch
 from connectomics.config import Config
 from connectomics.training.lightning.runtime import (
     cleanup_run_directory,
-    modify_checkpoint_state,
-    setup_run_directory,
 )
+from connectomics.training.lightning.runtime import modify_checkpoint_state
 from connectomics.training.lightning.runtime import (
     modify_checkpoint_state as runtime_modify_checkpoint_state,
+)
+from connectomics.training.lightning.runtime import (
+    setup_run_directory,
 )
 
 

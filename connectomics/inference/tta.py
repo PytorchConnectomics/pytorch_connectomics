@@ -9,8 +9,9 @@ from __future__ import annotations
 
 import logging
 from itertools import combinations
-from typing import Any, Optional, Sequence
+from typing import Any, Optional
 
+import numpy as np
 import torch
 import torch.nn.functional as F
 from monai.transforms import Flip
@@ -93,9 +94,7 @@ class TTAPredictor:
         )
 
         if channel_activations is not None:
-            channel_count_hint = int(
-                getattr(getattr(self.cfg, "model", None), "out_channels", 0)
-            )
+            channel_count_hint = int(getattr(getattr(self.cfg, "model", None), "out_channels", 0))
             if channel_count_hint <= 0:
                 self.channel_activation_types = None
                 return
@@ -159,9 +158,7 @@ class TTAPredictor:
 
         for start in range(0, flat_tensor.numel(), elems_per_chunk):
             end = min(start + elems_per_chunk, flat_tensor.numel())
-            reduced_chunk = flat_tensor[start:end].to(
-                device=reduction_device, non_blocking=False
-            )
+            reduced_chunk = flat_tensor[start:end].to(device=reduction_device, non_blocking=False)
             torch.distributed.reduce(reduced_chunk, dst=0, op=op)
             if rank == 0:
                 reduced_flat[start:end].copy_(reduced_chunk.cpu())
@@ -181,9 +178,7 @@ class TTAPredictor:
         if not is_dist:
             return int(count)
 
-        count_tensor = torch.tensor(
-            [int(count)], device=reduction_device, dtype=torch.int64
-        )
+        count_tensor = torch.tensor([int(count)], device=reduction_device, dtype=torch.int64)
         torch.distributed.reduce(count_tensor, dst=0, op=torch.distributed.ReduceOp.SUM)
         if rank == 0:
             return int(count_tensor.item())
@@ -216,17 +211,11 @@ class TTAPredictor:
 
                 channel_list = list(channels)
                 if act == "sigmoid":
-                    tensor[:, channel_list, ...] = torch.sigmoid(
-                        tensor[:, channel_list, ...]
-                    )
+                    tensor[:, channel_list, ...] = torch.sigmoid(tensor[:, channel_list, ...])
                 elif act == "scale_sigmoid":
-                    tensor[:, channel_list, ...] = torch.sigmoid(
-                        0.2 * tensor[:, channel_list, ...]
-                    )
+                    tensor[:, channel_list, ...] = torch.sigmoid(0.2 * tensor[:, channel_list, ...])
                 elif act == "tanh":
-                    tensor[:, channel_list, ...] = torch.tanh(
-                        tensor[:, channel_list, ...]
-                    )
+                    tensor[:, channel_list, ...] = torch.tanh(tensor[:, channel_list, ...])
                 elif act == "softmax":
                     if len(channel_list) > 1:
                         tensor[:, channel_list, ...] = torch.softmax(
@@ -265,9 +254,7 @@ class TTAPredictor:
                     f"Supported: 'softmax', 'sigmoid', 'tanh', None"
                 )
 
-        tta_channel = getattr(
-            self.cfg.inference.test_time_augmentation, "select_channel", None
-        )
+        tta_channel = getattr(self.cfg.inference.test_time_augmentation, "select_channel", None)
         if tta_channel is None:
             tta_channel = getattr(self.cfg.inference, "output_channel", None)
 
@@ -280,7 +267,9 @@ class TTAPredictor:
             if channel_list != list(range(int(tensor.shape[1]))):
                 tensor = tensor[:, channel_list, ...]
             if self.channel_activation_types is not None:
-                self.channel_activation_types = [self.channel_activation_types[idx] for idx in channel_list]
+                self.channel_activation_types = [
+                    self.channel_activation_types[idx] for idx in channel_list
+                ]
 
         return tensor
 
@@ -288,14 +277,10 @@ class TTAPredictor:
         """Run network with optional sliding window."""
         with torch.no_grad():
             if self.sliding_inferer is not None:
-                return self.sliding_inferer(
-                    inputs=images, network=self._sliding_window_predict
-                )
+                return self.sliding_inferer(inputs=images, network=self._sliding_window_predict)
             keep_input_on_cpu = bool(
                 getattr(
-                    getattr(
-                        getattr(self.cfg, "inference", None), "sliding_window", None
-                    ),
+                    getattr(getattr(self.cfg, "inference", None), "sliding_window", None),
                     "keep_input_on_cpu",
                     False,
                 )
@@ -313,9 +298,7 @@ class TTAPredictor:
             outputs = self.forward_fn(inputs)
             if isinstance(outputs, dict):
                 if "output" not in outputs:
-                    raise KeyError(
-                        "Expected key 'output' in model outputs for deep supervision."
-                    )
+                    raise KeyError("Expected key 'output' in model outputs for deep supervision.")
                 return outputs["output"]
             return outputs
 
@@ -328,6 +311,8 @@ class TTAPredictor:
         """Validate mask shape against prediction and return a binarized mask tensor."""
         if mask is None:
             raise ValueError("Mask is None while mask application is enabled.")
+
+        mask = self._coerce_mask_to_tensor(mask)
 
         if mask.device != prediction.device:
             mask = mask.to(device=prediction.device, non_blocking=True)
@@ -402,6 +387,32 @@ class TTAPredictor:
 
         return (mask > 0).to(dtype=prediction.dtype)
 
+    def _coerce_mask_to_tensor(self, mask: Any) -> torch.Tensor:
+        """Convert nested mask containers from dataloader collation into a tensor."""
+        while isinstance(mask, (list, tuple)) and len(mask) == 1:
+            mask = mask[0]
+
+        if isinstance(mask, np.ndarray):
+            return torch.from_numpy(mask)
+        if torch.is_tensor(mask):
+            return mask
+
+        if isinstance(mask, (list, tuple)):
+            converted = [self._coerce_mask_to_tensor(item) for item in mask]
+            if not converted:
+                raise ValueError("Mask list is empty after collation.")
+            try:
+                return torch.stack(converted)
+            except RuntimeError:
+                if len(converted) == 1:
+                    return converted[0]
+                shapes = [tuple(t.shape) for t in converted]
+                raise ValueError(
+                    "Mask list contains tensors with incompatible shapes for stacking: " f"{shapes}"
+                )
+
+        raise TypeError(f"Unsupported mask type: {type(mask).__name__}")
+
     # ------------------------------------------------------------------
     # predict() decomposed into focused helpers
     # ------------------------------------------------------------------
@@ -416,9 +427,7 @@ class TTAPredictor:
             )
         elif images.ndim == 4:
             images = images.unsqueeze(1)
-            logger.warning(
-                "Input shape (B, D, H, W) automatically expanded to (B, 1, D, H, W)"
-            )
+            logger.warning("Input shape (B, D, H, W) automatically expanded to (B, 1, D, H, W)")
         elif images.ndim != 5:
             raise ValueError(
                 f"TTA requires 3D, 4D, or 5D input tensor. Got {images.ndim}D "
@@ -489,9 +498,7 @@ class TTAPredictor:
             else:
                 for rotation_plane in tta_rotation90_axes:
                     for k in range(4):
-                        augmentation_combinations.append(
-                            (flip_axes, rotation_plane, k)
-                        )
+                        augmentation_combinations.append((flip_axes, rotation_plane, k))
 
         return augmentation_combinations
 
@@ -641,9 +648,7 @@ class TTAPredictor:
     ) -> torch.Tensor:
         """Apply activation-aware masking to ensemble result."""
         apply_mask = (
-            getattr(
-                self.cfg.inference.test_time_augmentation, "apply_mask", True
-            )
+            getattr(self.cfg.inference.test_time_augmentation, "apply_mask", True)
             if hasattr(self.cfg, "inference")
             and hasattr(self.cfg.inference, "test_time_augmentation")
             else True
@@ -651,11 +656,18 @@ class TTAPredictor:
         if not apply_mask or mask is None:
             return ensemble_result
 
-        mask = self._validate_and_prepare_mask(
-            mask,
-            ensemble_result,
-            align_to_image=mask_align_to_image,
-        )
+        try:
+            mask = self._validate_and_prepare_mask(
+                mask,
+                ensemble_result,
+                align_to_image=mask_align_to_image,
+            )
+        except TypeError as exc:
+            logger.warning(
+                "Skipping mask application because the provided mask payload is not a tensor-like volume: %s",
+                exc,
+            )
+            return ensemble_result
 
         if (
             self.channel_activation_types is not None
@@ -663,19 +675,16 @@ class TTAPredictor:
         ):
             for c, act_type in enumerate(self.channel_activation_types):
                 mask_channel = (
-                    mask[:, c:c + 1]
+                    mask[:, c : c + 1]
                     if mask.shape[1] == ensemble_result.shape[1]
                     else mask[:, 0:1]
                 )
                 if act_type == "tanh":
-                    ensemble_result[:, c:c + 1] = (
-                        mask_channel * ensemble_result[:, c:c + 1]
-                        + (1 - mask_channel) * (-1.0)
-                    )
+                    ensemble_result[:, c : c + 1] = mask_channel * ensemble_result[:, c : c + 1] + (
+                        1 - mask_channel
+                    ) * (-1.0)
                 else:
-                    ensemble_result[:, c:c + 1] = (
-                        mask_channel * ensemble_result[:, c:c + 1]
-                    )
+                    ensemble_result[:, c : c + 1] = mask_channel * ensemble_result[:, c : c + 1]
         else:
             ensemble_result = ensemble_result * mask
 
@@ -707,24 +716,15 @@ class TTAPredictor:
         if not tta_enabled:
             pred = self._run_network(images)
             ensemble_result = self.apply_preprocessing(pred)
-            return self._apply_mask_to_result(
-                ensemble_result, mask, mask_align_to_image
-            )
+            return self._apply_mask_to_result(ensemble_result, mask, mask_align_to_image)
 
-        augmentation_combinations = self._build_augmentation_combinations(
-            tta_cfg, images.dim()
-        )
+        augmentation_combinations = self._build_augmentation_combinations(tta_cfg, images.dim())
 
         # If only the identity augmentation, run network once
-        if (
-            len(augmentation_combinations) == 1
-            and augmentation_combinations[0] == ([], None, 0)
-        ):
+        if len(augmentation_combinations) == 1 and augmentation_combinations[0] == ([], None, 0):
             pred = self._run_network(images)
             ensemble_result = self.apply_preprocessing(pred)
-            return self._apply_mask_to_result(
-                ensemble_result, mask, mask_align_to_image
-            )
+            return self._apply_mask_to_result(ensemble_result, mask, mask_align_to_image)
 
         ensemble_mode = getattr(tta_cfg, "ensemble_mode", "mean")
         empty_cache_interval = int(getattr(tta_cfg, "empty_cache_interval", 4))
@@ -743,9 +743,11 @@ class TTAPredictor:
             reduction_device = (
                 images.device
                 if images.is_cuda
-                else torch.device(f"cuda:{torch.cuda.current_device()}")
-                if torch.cuda.is_available()
-                else torch.device("cpu")
+                else (
+                    torch.device(f"cuda:{torch.cuda.current_device()}")
+                    if torch.cuda.is_available()
+                    else torch.device("cpu")
+                )
             )
 
             reduced = self._apply_distributed_reduction(
@@ -758,11 +760,7 @@ class TTAPredictor:
             _is_dist, rank, _world_size = self._distributed_context()
             if rank != 0:
                 self._last_skip_postprocess_on_rank = True
-                return torch.empty(
-                    0, device=images.device if images.is_cuda else "cpu"
-                )
+                return torch.empty(0, device=images.device if images.is_cuda else "cpu")
             ensemble_result = reduced
 
-        return self._apply_mask_to_result(
-            ensemble_result, mask, mask_align_to_image
-        )
+        return self._apply_mask_to_result(ensemble_result, mask, mask_align_to_image)

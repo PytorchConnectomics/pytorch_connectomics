@@ -94,6 +94,22 @@ def test_tta_allows_minor_mask_alignment_when_enabled():
     assert torch.all(pred == 0)
 
 
+def test_tta_accepts_nested_singleton_list_masks():
+    cfg = Config()
+    cfg.inference.test_time_augmentation.enabled = False
+    setattr(cfg.inference.test_time_augmentation, "apply_mask", True)
+
+    predictor = TTAPredictor(cfg=cfg, sliding_inferer=None, forward_fn=_forward_constant)
+
+    images = torch.zeros((1, 1, 4, 4, 4), dtype=torch.float32)
+    nested_mask = [[torch.zeros((1, 4, 4, 4), dtype=torch.float32)]]
+
+    pred = predictor.predict(images, mask=nested_mask)
+
+    assert pred.shape == (1, 2, 4, 4, 4)
+    assert torch.all(pred == 0)
+
+
 def test_tta_channel_activations_colon_applies_to_all_channels():
     cfg = Config()
     cfg.model.out_channels = 3
@@ -102,7 +118,9 @@ def test_tta_channel_activations_colon_applies_to_all_channels():
         {"channels": ":", "activation": "sigmoid"}
     ]
 
-    predictor = TTAPredictor(cfg=cfg, sliding_inferer=None, forward_fn=_forward_three_channel_logits)
+    predictor = TTAPredictor(
+        cfg=cfg, sliding_inferer=None, forward_fn=_forward_three_channel_logits
+    )
 
     images = torch.zeros((1, 1, 2, 2, 2), dtype=torch.float32)
     pred = predictor.predict(images)
@@ -121,7 +139,9 @@ def test_tta_channel_activations_follow_python_slice_semantics():
         {"channels": "-1:", "activation": "tanh"},
     ]
 
-    predictor = TTAPredictor(cfg=cfg, sliding_inferer=None, forward_fn=_forward_three_channel_logits)
+    predictor = TTAPredictor(
+        cfg=cfg, sliding_inferer=None, forward_fn=_forward_three_channel_logits
+    )
 
     images = torch.zeros((1, 1, 2, 2, 2), dtype=torch.float32)
     pred = predictor.predict(images)

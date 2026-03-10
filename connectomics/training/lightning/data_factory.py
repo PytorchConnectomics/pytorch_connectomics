@@ -7,8 +7,6 @@ from glob import glob
 from pathlib import Path
 from typing import List, Optional
 
-logger = logging.getLogger(__name__)
-
 from ...config import Config
 from ...data.augment.build import (
     build_test_transforms,
@@ -19,6 +17,8 @@ from ...data.dataset import create_data_dicts_from_paths
 from ...data.io import get_vol_shape
 from .data import ConnectomicsDataModule, SimpleDataModule
 from .path_utils import expand_file_paths
+
+logger = logging.getLogger(__name__)
 
 
 def _maybe_prepare_random_data(cfg: Config, mode: str) -> None:
@@ -51,9 +51,9 @@ def _maybe_prepare_random_data(cfg: Config, mode: str) -> None:
     val_label_path = data_root / "val_label.h5"
 
     if not all(
-        p.exists()
-        for p in [train_image_path, train_label_path, val_image_path, val_label_path]
+        p.exists() for p in [train_image_path, train_label_path, val_image_path, val_label_path]
     ):
+
         def _write_pair(image_path: Path, label_path: Path) -> None:
             image = rng.random(vol_shape, dtype=np.float32)
             label = (rng.random(vol_shape) > 0.85).astype(np.uint8)
@@ -242,7 +242,9 @@ def create_datamodule(
     # Build transforms
     train_transforms = build_train_transforms(cfg)
     val_transforms = build_val_transforms(cfg)
-    test_transforms = build_test_transforms(cfg) if mode in ["test", "tune"] else val_transforms
+    test_transforms = (
+        build_test_transforms(cfg, mode=mode) if mode in ["test", "tune"] else val_transforms
+    )
 
     logger.info(f"Train transforms: {len(train_transforms.transforms)} steps")
     logger.info(f"Val transforms: {len(val_transforms.transforms)} steps")
@@ -340,7 +342,9 @@ def create_datamodule(
 
             if train_json_empty:
                 # Fallback to volume-based dataset when train_json is empty
-                logger.warning("Train JSON is empty or invalid, falling back to volume-based dataset")
+                logger.warning(
+                    "Train JSON is empty or invalid, falling back to volume-based dataset"
+                )
                 logger.warning(f"Train JSON: {cfg.data.train.json}")
                 dataset_type = None  # Switch to volume-based
             else:
@@ -424,13 +428,11 @@ def create_datamodule(
         test_label_paths = expand_file_paths(split.label) if split.label else None
         test_mask_paths = expand_file_paths(split.mask) if split.mask else None
     elif mode == "tune":
-        # Tune mode: prefer data.val, fall back to data.test
-        split = cfg.data.val if getattr(cfg.data.val, "image", None) else cfg.data.test
+        split = cfg.data.val
         if not split.image:
             raise ValueError(
-                "Tune mode requires data.val.image or data.test.image to be set.\n"
-                f"Current resolved val.image = {getattr(cfg.data.val, 'image', None)}, "
-                f"test.image = {getattr(cfg.data.test, 'image', None)}"
+                "Tune mode requires data.val.image to be set.\n"
+                f"Current resolved val.image = {getattr(cfg.data.val, 'image', None)}"
             )
 
         logger.info(f"Creating tune dataset from: {split.image}")
@@ -560,8 +562,8 @@ def create_datamodule(
         logger.info("Using pre-loaded volume cache (loads once, crops in memory)")
         from torch.utils.data import DataLoader
 
-        from ...data.process.nnunet_preprocess import NNUNetPreprocessd
         from ...data.dataset.dataset_volume_cached import CachedVolumeDataset
+        from ...data.process.nnunet_preprocess import NNUNetPreprocessd
 
         def _build_preloaded_nnunet_preprocess(split: str):
             nnunet_pre_cfg = getattr(cfg.data, "nnunet_preprocessing", None)
@@ -749,7 +751,9 @@ def create_datamodule(
             max_attempts=cfg.data.dataloader.cached_sampling_max_attempts,
             foreground_threshold=cfg.data.dataloader.cached_sampling_foreground_threshold,
             transpose_axes=(
-                cfg.data.data_transform.train_transpose if cfg.data.data_transform.train_transpose else None
+                cfg.data.data_transform.train_transpose
+                if cfg.data.data_transform.train_transpose
+                else None
             ),
         )
 
@@ -771,8 +775,7 @@ def create_datamodule(
             val_masks = [d.get("mask") for d in val_data_dicts]
             if not all(".zarr" in str(p) for p in val_images):
                 raise ValueError(
-                    "data.use_lazy_zarr=true requires zarr val image paths "
-                    "(containing '.zarr')."
+                    "data.use_lazy_zarr=true requires zarr val image paths " "(containing '.zarr')."
                 )
 
             val_transforms_lazy = build_val_transforms(cfg, skip_loading=True)
@@ -798,7 +801,9 @@ def create_datamodule(
                 max_attempts=cfg.data.dataloader.cached_sampling_max_attempts,
                 foreground_threshold=cfg.data.dataloader.cached_sampling_foreground_threshold,
                 transpose_axes=(
-                    cfg.data.data_transform.val_transpose if cfg.data.data_transform.val_transpose else None
+                    cfg.data.data_transform.val_transpose
+                    if cfg.data.data_transform.val_transpose
+                    else None
                 ),
             )
 

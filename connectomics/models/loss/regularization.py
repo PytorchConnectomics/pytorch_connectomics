@@ -10,7 +10,9 @@ All losses are implemented as nn.Module for consistency with MONAI.
 """
 
 from __future__ import annotations
+
 from typing import Optional
+
 import torch
 import torch.nn as nn
 import torch.nn.functional as F

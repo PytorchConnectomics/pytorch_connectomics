@@ -41,13 +41,9 @@ class LoadVolumed(MapTransform):
         allow_missing_keys: bool = False,
     ):
         super().__init__(keys, allow_missing_keys)
-        self.transpose_axes = (
-            list(transpose_axes) if transpose_axes else []
-        )
+        self.transpose_axes = list(transpose_axes) if transpose_axes else []
 
-    def __call__(
-        self, data: Dict[str, Any]
-    ) -> Dict[str, Any]:
+    def __call__(self, data: Dict[str, Any]) -> Dict[str, Any]:
         d = dict(data)
         for key in self.key_iterator(d):
             if key not in d or not isinstance(d[key], str):
@@ -57,16 +53,10 @@ class LoadVolumed(MapTransform):
 
             if self.transpose_axes:
                 if volume.ndim == 3:
-                    volume = np.transpose(
-                        volume, self.transpose_axes
-                    )
+                    volume = np.transpose(volume, self.transpose_axes)
                 elif volume.ndim == 4:
-                    spatial_t = [
-                        i + 1 for i in self.transpose_axes
-                    ]
-                    volume = np.transpose(
-                        volume, [0] + spatial_t
-                    )
+                    spatial_t = [i + 1 for i in self.transpose_axes]
+                    volume = np.transpose(volume, [0] + spatial_t)
 
             # Ensure channel dim: (H,W)->(1,H,W),
             # (D,H,W)->(1,D,H,W)
@@ -80,15 +70,9 @@ class LoadVolumed(MapTransform):
                 {
                     "filename_or_obj": source_path,
                     "original_shape": tuple(volume.shape),
-                    "spatial_shape": tuple(
-                        volume.shape[1:]
-                    ),
+                    "spatial_shape": tuple(volume.shape[1:]),
                     "channels_first": True,
-                    "transpose_axes": (
-                        self.transpose_axes
-                        if self.transpose_axes
-                        else None
-                    ),
+                    "transpose_axes": (self.transpose_axes if self.transpose_axes else None),
                 }
             )
             d[meta_key] = meta_dict
@@ -116,9 +100,7 @@ class SaveVolumed(MapTransform):
         self.output_dir = output_dir
         self.output_format = output_format
 
-    def __call__(
-        self, data: Dict[str, Any]
-    ) -> Dict[str, Any]:
+    def __call__(self, data: Dict[str, Any]) -> Dict[str, Any]:
         os.makedirs(self.output_dir, exist_ok=True)
         d = dict(data)
         for key in self.key_iterator(d):
@@ -153,20 +135,13 @@ class TileLoaderd(MapTransform):
     ):
         super().__init__(keys, allow_missing_keys)
 
-    def __call__(
-        self, data: Dict[str, Any]
-    ) -> Dict[str, Any]:
+    def __call__(self, data: Dict[str, Any]) -> Dict[str, Any]:
         d = dict(data)
         for key in self.key_iterator(d):
             if key in d and isinstance(d[key], dict):
                 ti = d[key]
-                if (
-                    "metadata" in ti
-                    and "chunk_coords" in ti
-                ):
-                    d[key] = self._load_tiles_for_chunk(
-                        ti["metadata"], ti["chunk_coords"]
-                    )
+                if "metadata" in ti and "chunk_coords" in ti:
+                    d[key] = self._load_tiles_for_chunk(ti["metadata"], ti["chunk_coords"])
         return d
 
     def _load_tiles_for_chunk(

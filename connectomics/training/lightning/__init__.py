@@ -10,10 +10,10 @@ from .callbacks import (
     ValidationReseedingCallback,
     VisualizationCallback,
 )
-from .path_utils import expand_file_paths
 from .data import ConnectomicsDataModule, SimpleDataModule
 from .data_factory import create_datamodule
 from .model import ConnectomicsModule
+from .path_utils import expand_file_paths
 from .runtime import cleanup_run_directory, modify_checkpoint_state, setup_run_directory
 from .trainer import create_trainer
 from .utils import (

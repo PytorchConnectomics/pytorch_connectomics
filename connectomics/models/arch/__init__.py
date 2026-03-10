@@ -25,18 +25,18 @@ Usage:
 
 import logging
 
-# Import registry functions
-from .registry import (
-    register_architecture,
-    get_architecture_builder,
-    list_architectures,
-    is_architecture_available,
-    unregister_architecture,
-    get_architecture_info,
-)
-
 # Import base model
 from .base import ConnectomicsModel
+
+# Import registry functions
+from .registry import (
+    get_architecture_builder,
+    get_architecture_info,
+    is_architecture_available,
+    list_architectures,
+    register_architecture,
+    unregister_architecture,
+)
 
 # Import MONAI models to trigger registration
 try:
