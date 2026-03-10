@@ -30,9 +30,10 @@ monitor:
     dirpath: outputs/neuron_nisb_40nm_exm_mednext_b_sdt/checkpoints/
 
 test:
+  output_path: outputs/neuron_nisb_40nm_exm_mednext_b_sdt/results_seed101/
   data:
-    test_path: /projects/weilab/dataset/nisb/exm/test/
-    output_path: outputs/neuron_nisb_40nm_exm_mednext_b_sdt/results_seed101/
+    test:
+      path: /projects/weilab/dataset/nisb/exm/test/
 
 train:
   system:

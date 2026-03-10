@@ -36,9 +36,6 @@ model:
     depth_2d: 1
     kernel_2d: [1, 3, 3]
 data:
-  reject_sampling:
-    size_thres: 1000
-    p: 0.95
   image_transform:
     clip_percentile_low: 0.0
     clip_percentile_high: 1.0
@@ -109,6 +106,9 @@ data:
     - 32
     pad_mode: reflect
   dataloader:
+    reject_sampling:
+      size_thres: 1000
+      p: 0.95
     use_preloaded_cache_train: true
     use_preloaded_cache_val: true
     patch_size:
@@ -163,26 +163,27 @@ monitor:
   early_stopping:
     enabled: false
 test:
+  output_path: outputs/rsunet_cremi_synapse_cleft/results/
   data:
     # For local evaluation (labels available): use training volumes
-    test_image:
-    - datasets/corrected/im_A.h5
-    - datasets/corrected/im_B.h5
-    - datasets/corrected/im_C.h5
-    test_label:
-    - datasets/corrected/syn_A.h5
-    - datasets/corrected/syn_B.h5
-    - datasets/corrected/syn_C.h5
-    # For CREMI challenge submission (no labels): uncomment below, comment above
-    # test_image:
-    # - datasets/corrected/im_A+.h5
-    # - datasets/corrected/im_B+.h5
-    # - datasets/corrected/im_C+.h5
-    test_resolution:
-    - 40
-    - 4
-    - 4
-    output_path: outputs/rsunet_cremi_synapse_cleft/results/
+    test:
+      image:
+      - datasets/corrected/im_A.h5
+      - datasets/corrected/im_B.h5
+      - datasets/corrected/im_C.h5
+      label:
+      - datasets/corrected/syn_A.h5
+      - datasets/corrected/syn_B.h5
+      - datasets/corrected/syn_C.h5
+      # For CREMI challenge submission (no labels): uncomment below, comment above
+      # image:
+      # - datasets/corrected/im_A+.h5
+      # - datasets/corrected/im_B+.h5
+      # - datasets/corrected/im_C+.h5
+      resolution:
+      - 40
+      - 4
+      - 4
     image_transform:
       normalize: "0-1"
       clip_percentile_low: 0.0

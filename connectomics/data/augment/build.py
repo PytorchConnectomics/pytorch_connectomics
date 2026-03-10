@@ -319,9 +319,11 @@ def _build_eval_transforms_impl(cfg: Config, mode: str = "val", keys: list[str] 
     # Apply resize if configured (before cropping)
     image_resize_factors = getattr(data_cfg.image_transform, "resize", None)
 
+    # Prefer mask_transform over data_transform for mask-specific settings.
+    mask_cfg = getattr(data_cfg, "mask_transform", None) or data_cfg.data_transform
     mask_resize_factors = None
-    if mode in {"test", "tune"} and data_cfg.data_transform.resize is not None:
-        mask_resize_factors = data_cfg.data_transform.resize
+    if mode in {"test", "tune"} and mask_cfg.resize is not None:
+        mask_resize_factors = mask_cfg.resize
 
     if image_resize_factors is not None and image_resize_factors:
         transforms.append(
@@ -366,8 +368,8 @@ def _build_eval_transforms_impl(cfg: Config, mode: str = "val", keys: list[str] 
     mask_binarize = False
     mask_threshold = 0.0
     if mode in {"test", "tune"}:
-        mask_binarize = bool(getattr(data_cfg.data_transform, "binarize", False))
-        mask_threshold = float(getattr(data_cfg.data_transform, "threshold", 0.0))
+        mask_binarize = bool(getattr(mask_cfg, "binarize", False))
+        mask_threshold = float(getattr(mask_cfg, "threshold", 0.0))
 
     if "mask" in keys and mask_binarize:
         transforms.append(

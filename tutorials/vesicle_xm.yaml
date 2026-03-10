@@ -30,9 +30,6 @@ default:
         - adapted_rand
 
 train:
-  model:
-    loss:
-      deep_supervision: false
   data:
     train:
       path: "/projects/weilab/dataset/xiaomeng/vesicle/"
@@ -64,12 +61,26 @@ train:
 test:
   data:
     test:
+      #path: "/projects/weilab/dataset/xiaomeng/vesicle/"
+      #image: "im/Bouton_100_EM.tif"
+      #mask: "mask/Bouton_100_em_mask.tif"
       path: "/projects/weilab/dataset/xiaomeng/vesicle/"
-      image: "im/Bouton_100_EM.tif"
-      mask: "mask/Bouton_100_em_mask.tif"
+      image: ["datasets/bouton-lv/train/vol0_im.h5", "datasets/hydra-lv/vol*_im.h5"]
+      label: ["datasets/bouton-lv/train/vol0_lv.h5", "datasets/hydra-lv/vol*_vesicle_ins.h5"]
+      mask: ["datasets/bouton-lv/train/vol0_mask.h5", "datasets/hydra-lv/vol*_mask.h5"]
       resolution: [30, 8, 8]
     # fix: the exported mask is 2x downsampled, so we need to upsample it to the original size
-    data_transform:
+    mask_transform:
       resize: [1, 2, 2]
       align_to_image: true
       binarize: true
+  inference:
+    decoding:
+      - name: decode_instance_binary_contour_distance
+        kwargs:
+          binary_threshold: [0.9, 0.85]
+          contour_threshold: [0.8, 1.1]
+          distance_threshold: [0.5, -0.5]
+          min_instance_size: 30
+          min_seed_size: 5
+

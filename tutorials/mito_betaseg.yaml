@@ -202,11 +202,12 @@ monitor:
 
 # Inference - MONAI SlidingWindowInferer for BetaSeg
 test:
+  output_path: outputs/betaseg_mednext_affinity_sdt/results/
   data:
-    test_image: /projects/weilab/liupeng/banis/data/mito_data/betaSeg/high_c2_im.tiff
-    test_label: /projects/weilab/liupeng/banis/data/mito_data/betaSeg/high_c2_mito.tiff
-    test_resolution: [16, 16, 16]
-    output_path: outputs/betaseg_mednext_affinity_sdt/results/
+    test:
+      image: /projects/weilab/liupeng/banis/data/mito_data/betaSeg/high_c2_im.tiff
+      label: /projects/weilab/liupeng/banis/data/mito_data/betaSeg/high_c2_mito.tiff
+      resolution: [16, 16, 16]
 
     #  Inference normalization (must match training normalization!)
     image_transform:

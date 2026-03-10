@@ -152,12 +152,14 @@ monitor:
     enabled: false
 
 test:
+  output_path: outputs/neuron_nisb_base_40nm_mednext_b_sdt/results/
   data:
-    test_image: /projects/weilab/dataset/nisb/base/test/seed*/data.zarr/img
-    test_label: /projects/weilab/dataset/nisb/base/test/seed*/data.zarr/seg
-    test_resolution: [20, 9, 9]
-    test_transpose: [2, 1, 0]
-    output_path: outputs/neuron_nisb_base_40nm_mednext_b_sdt/results/
+    test:
+      image: /projects/weilab/dataset/nisb/base/test/seed*/data.zarr/img
+      label: /projects/weilab/dataset/nisb/base/test/seed*/data.zarr/seg
+      resolution: [20, 9, 9]
+    data_transform:
+      val_transpose: [2, 1, 0]
 
   decoding:
   - name: decode_affinity_cc
