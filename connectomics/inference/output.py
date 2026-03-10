@@ -369,6 +369,35 @@ def apply_postprocessing(cfg: Config | DictConfig, data: np.ndarray) -> np.ndarr
 
         data = np.stack(results, axis=0)
 
+    instance_cc3d_config = getattr(postprocessing, "instance_cc3d", None)
+    if instance_cc3d_config is not None:
+        import cc3d
+
+        cc3d_cfg = dict(instance_cc3d_config) if hasattr(instance_cc3d_config, "items") else {}
+        connectivity = cc3d_cfg.get("connectivity", 6)
+        min_size = cc3d_cfg.get("min_size", 0)
+
+        spatial = data
+        had_batch = False
+        if spatial.ndim == 4:
+            had_batch = True
+            spatial = spatial[0]
+
+        # Relabel connected components so disconnected parts get separate IDs
+        relabeled = cc3d.connected_components(spatial.astype(np.uint32), connectivity=connectivity)
+
+        # Remove small components
+        if min_size > 0:
+            relabeled = cc3d.dust(relabeled, threshold=min_size, connectivity=connectivity)
+
+        data = relabeled[np.newaxis, ...] if had_batch else relabeled
+        logger.info(
+            "Instance cc3d postprocessing: connectivity=%d, min_size=%d, instances=%d",
+            connectivity,
+            min_size,
+            len(np.unique(relabeled)) - 1,
+        )
+
     output_transpose = getattr(postprocessing, "output_transpose", [])
     if output_transpose and len(output_transpose) > 0:
         try:
