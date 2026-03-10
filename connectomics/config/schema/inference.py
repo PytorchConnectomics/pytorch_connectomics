@@ -144,6 +144,10 @@ class PostprocessingConfig:
         default_factory=dict
     )  # Binary postprocessing config (e.g., {'opening_iterations': 2})
 
+    # Instance cc3d relabeling: split disconnected components and remove small ones
+    instance_cc3d: Optional[Dict[str, Any]] = None
+    # Example: {connectivity: 6, min_size: 100, remove_boundary: false}
+
     # Axis permutation
     output_transpose: List[int] = field(
         default_factory=list

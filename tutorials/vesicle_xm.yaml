@@ -68,10 +68,10 @@ test:
   data:
     test:
       path: "/projects/weilab/dataset/xiaomeng/vesicle/"
-      image: "im/Bouton_000_EM.tif"
-      mask: "mask/Bouton_000_em_mask.tif"
-      #image: "im/Bouton_*_EM.tif"
-      #mask: "mask/Bouton_*_em_mask.tif"
+      #image: "im/Bouton_100_EM.tif"
+      #mask: "mask/Bouton_100_em_mask.tif"
+      image: "im/Bouton_*_EM.tif"
+      mask: "mask/Bouton_*_em_mask.tif"
       #image: ["datasets/bouton-lv/train/vol0_im_bouton.h5", "datasets/hydra-lv/vol*_im.h5"]
       #label: ["datasets/bouton-lv/train/vol0_lv_bouton.h5", "datasets/hydra-lv/vol*_vesicle_ins.h5"]
       #mask: ["datasets/bouton-lv/train/vol0_mask_bouton.h5", "datasets/hydra-lv/vol*_mask.h5"]
@@ -90,6 +90,11 @@ test:
           distance_threshold: [0.7, -0.2]
           min_instance_size: 100
           min_seed_size: 20
+    postprocessing:
+      enabled: true
+      instance_cc3d:
+        connectivity: 6        # 6-connected (face only) for conservative splitting
+        min_size: 100           # remove components smaller than 100 voxels
 
 # ============================================================================
 # Parameter tuning for BCD watershed thresholds (--mode tune)
