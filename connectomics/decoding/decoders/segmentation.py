@@ -236,7 +236,7 @@ def decode_instance_binary_contour_distance(
 
     # Remove small instances if min_instance_size is specified
     if min_instance_size > 0:
-        from .utils import remove_small_instances
+        from ..utils import remove_small_instances
         segmentation = remove_small_instances(segmentation, thres_small=min_instance_size, mode='background')
 
     if return_seed:
@@ -529,7 +529,7 @@ def decode_distance_watershed(
     
     # Remove small instances if min_instance_size is specified
     if min_instance_size > 0:
-        from .utils import remove_small_instances
+        from ..utils import remove_small_instances
         segmentation = remove_small_instances(
             segmentation,
             thres_small=min_instance_size,
