@@ -300,6 +300,7 @@ def create_trainer(
         detect_anomaly=detect_anomaly,
         enable_progress_bar=True,
         plugins=plugins,
+        use_distributed_sampler=mode not in ("test", "tune-test"),
     )
 
     _log.info(f"  Training mode: {training_mode}")

@@ -399,6 +399,15 @@ def maybe_limit_test_devices(cfg: Config, datamodule) -> bool:
 
     tta_cfg = getattr(getattr(cfg, "inference", None), "test_time_augmentation", None)
     distributed_tta_sharding = bool(getattr(tta_cfg, "distributed_sharding", False))
+    if distributed_tta_sharding and test_volume_count != 1:
+        print(
+            "  WARNING: Disabling distributed TTA sharding for multi-volume test datasets. "
+            "DDP ranks would otherwise reduce predictions from different volumes, which can "
+            "mix samples or hang when shapes differ."
+        )
+        tta_cfg.distributed_sharding = False
+        distributed_tta_sharding = False
+
     if distributed_tta_sharding and test_volume_count == 1:
         safe_devices = max(1, min(requested_devices, _estimate_tta_total_passes(cfg)))
         if safe_devices < requested_devices:

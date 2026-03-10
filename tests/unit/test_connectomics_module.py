@@ -1,5 +1,6 @@
 from typing import List, Optional
 
+import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -173,3 +174,25 @@ def test_save_metrics_to_file_uses_runtime_inference_output_path(tmp_path):
     )
 
     assert (tmp_path / "evaluation_metrics_vol0.txt").exists()
+
+
+def test_load_cached_predictions_reads_existing_prediction_files(tmp_path, monkeypatch):
+    """Existing cached predictions should load without falling back to inference."""
+    cfg = _base_config()
+    module = ConnectomicsModule(cfg, model=SimpleModel())
+    pred_file = tmp_path / "sample_prediction.h5"
+    pred_file.write_text("stub")
+
+    expected = np.ones((1, 4, 4, 4), dtype=np.float32)
+    monkeypatch.setattr("connectomics.training.lightning.model.read_volume", lambda *_args, **_kwargs: expected)
+
+    predictions, loaded, suffix = module._load_cached_predictions(
+        str(tmp_path),
+        ["sample"],
+        "_prediction.h5",
+        "test",
+    )
+
+    assert loaded is True
+    assert suffix == "_prediction.h5"
+    assert predictions.shape == (1, 4, 4, 4)

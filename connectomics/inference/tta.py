@@ -604,6 +604,10 @@ class TTAPredictor:
     ) -> Optional[torch.Tensor]:
         """Reduce ensemble results across DDP ranks. Returns None on non-zero ranks."""
         _is_dist, rank, _world_size = self._distributed_context()
+        self._validate_distributed_reduction_shape(
+            ensemble_result,
+            reduction_device=reduction_device,
+        )
 
         if ensemble_mode == "mean":
             reduced_sum = self._reduce_cpu_tensor_to_rank_zero(
@@ -639,6 +643,53 @@ class TTAPredictor:
                 return result
 
         return None  # non-zero ranks
+
+    def _validate_distributed_reduction_shape(
+        self,
+        ensemble_result: torch.Tensor,
+        *,
+        reduction_device: torch.device,
+    ) -> None:
+        """Fail fast when DDP ranks try to reduce different TTA prediction shapes."""
+        is_dist, _rank, world_size = self._distributed_context()
+        if not is_dist or world_size <= 1:
+            return
+
+        max_dims = 6
+        if ensemble_result.ndim > max_dims:
+            raise RuntimeError(
+                "Distributed TTA shape validation only supports tensors with up to "
+                f"{max_dims} dimensions, got shape {tuple(ensemble_result.shape)}."
+            )
+
+        shape_info = torch.zeros(max_dims + 1, device=reduction_device, dtype=torch.int64)
+        shape_info[0] = int(ensemble_result.ndim)
+        if ensemble_result.ndim:
+            shape_info[1 : 1 + ensemble_result.ndim] = torch.tensor(
+                tuple(int(v) for v in ensemble_result.shape),
+                device=reduction_device,
+                dtype=torch.int64,
+            )
+
+        gathered = [torch.empty_like(shape_info) for _ in range(world_size)]
+        torch.distributed.all_gather(gathered, shape_info)
+
+        shapes: list[tuple[int, ...]] = []
+        for gathered_shape in gathered:
+            ndim = int(gathered_shape[0].item())
+            shapes.append(tuple(int(v.item()) for v in gathered_shape[1 : 1 + ndim]))
+
+        if any(shape != shapes[0] for shape in shapes[1:]):
+            shape_summary = ", ".join(
+                f"rank {rank_idx}: {shape}" for rank_idx, shape in enumerate(shapes)
+            )
+            raise RuntimeError(
+                "Distributed TTA sharding requires every DDP rank to reduce predictions "
+                f"with the same shape, got {shape_summary}. This usually means multiple "
+                "test volumes were sharded across ranks; disable "
+                "`inference.test_time_augmentation.distributed_sharding` for multi-volume "
+                "tests."
+            )
 
     def _apply_mask_to_result(
         self,
