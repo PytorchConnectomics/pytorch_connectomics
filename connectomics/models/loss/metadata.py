@@ -39,6 +39,9 @@ _LOSS_METADATA_BY_NAME = {
     "WeightedBCEWithLogitsLoss": LossMetadata(
         "WeightedBCEWithLogitsLoss", spatial_weight_arg="weight"
     ),
+    "PerChannelBCEWithLogitsLoss": LossMetadata(
+        "PerChannelBCEWithLogitsLoss", spatial_weight_arg="weight"
+    ),
     "WeightedMSELoss": LossMetadata("WeightedMSELoss", spatial_weight_arg="weight"),
     "WeightedMAELoss": LossMetadata("WeightedMAELoss", spatial_weight_arg="weight"),
     # GAN is not compatible with the generic supervised orchestrator path

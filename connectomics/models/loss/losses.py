@@ -219,6 +219,88 @@ class WeightedBCEWithLogitsLoss(nn.Module):
         return _reduce_weighted_tensor(bce, weight, self.reduction)
 
 
+class PerChannelBCEWithLogitsLoss(nn.Module):
+    """BCE loss computed independently per channel with per-channel class balancing.
+
+    Equivalent to summing C separate WeightedBCEWithLogitsLoss instances (one
+    per output channel) but expressed as a single loss entry for config brevity.
+    Matches the DeepEM per-edge loss structure where each affinity channel has
+    its own class-balanced BCE.
+
+    Args:
+        auto_pos_weight: If True, compute per-channel pos_weight as
+            min(n_neg / n_pos, max_pos_weight) from the current batch.
+        max_pos_weight: Cap for auto pos_weight to avoid extreme values.
+        reduction: Per-channel reduction before summing ('mean' or 'sum').
+    """
+
+    def __init__(
+        self,
+        auto_pos_weight: bool = True,
+        max_pos_weight: float = 10.0,
+        reduction: str = "mean",
+    ):
+        super().__init__()
+        self.auto_pos_weight = auto_pos_weight
+        self.max_pos_weight = max_pos_weight
+        self.reduction = reduction
+
+    def forward(
+        self,
+        input: torch.Tensor,
+        target: torch.Tensor,
+        weight: torch.Tensor = None,
+    ) -> torch.Tensor:
+        """Compute per-channel BCE loss.
+
+        Args:
+            input: Logits [B, C, ...].
+            target: Ground truth [B, C, ...].
+            weight: Optional spatial mask [B, C, ...] (e.g. affinity valid mask).
+
+        Returns:
+            Sum of per-channel reduced BCE losses.
+        """
+        C = input.shape[1]
+
+        # Vectorised per-channel pos_weight computation.
+        pos_weight_tensor = None
+        if self.auto_pos_weight:
+            valid = weight > 0 if weight is not None else torch.ones_like(target, dtype=torch.bool)
+            pos = (target > 0) & valid
+            neg = (target <= 0) & valid
+
+            # Reduce over batch + spatial dims → (C,)
+            reduce_dims = (0,) + tuple(range(2, target.ndim))
+            pos_counts = pos.sum(dim=reduce_dims).float()
+            neg_counts = neg.sum(dim=reduce_dims).float()
+
+            pw = torch.ones(C, device=input.device, dtype=torch.float32)
+            nonzero = pos_counts > 0
+            pw[nonzero] = torch.clamp(
+                neg_counts[nonzero] / pos_counts[nonzero],
+                max=self.max_pos_weight,
+            )
+            # (1, C, 1, ..., 1) for broadcasting; cast to input dtype for AMP
+            pos_weight_tensor = pw.reshape(1, C, *([1] * (target.ndim - 2))).to(input.dtype)
+
+        bce = F.binary_cross_entropy_with_logits(
+            input, target, pos_weight=pos_weight_tensor, reduction="none",
+        )
+
+        if weight is not None:
+            bce = bce * weight
+
+        # Per-channel reduction, then sum across channels.
+        total = input.new_tensor(0.0)
+        for c in range(C):
+            ch_bce = bce[:, c : c + 1, ...]
+            ch_w = weight[:, c : c + 1, ...] if weight is not None else None
+            total = total + _reduce_weighted_tensor(ch_bce, ch_w, self.reduction)
+
+        return total
+
+
 class WeightedMAELoss(nn.Module):
     """
     Weighted mean absolute error loss.
@@ -386,6 +468,7 @@ class GANLoss(nn.Module):
 __all__ = [
     "CrossEntropyLossWrapper",
     "WeightedBCEWithLogitsLoss",
+    "PerChannelBCEWithLogitsLoss",
     "WeightedMSELoss",
     "WeightedMAELoss",
     "SmoothL1Loss",

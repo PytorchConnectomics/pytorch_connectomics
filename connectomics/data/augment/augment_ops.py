@@ -19,6 +19,20 @@ import numpy as np
 # ---------------------------------------------------------------------------
 
 
+def _move_depth_axis_to_front(img: np.ndarray, depth_axis: int) -> np.ndarray:
+    """Return a view with depth axis moved to the front."""
+    if depth_axis == 0:
+        return img
+    return np.moveaxis(img, depth_axis, 0)
+
+
+def _restore_depth_axis(img: np.ndarray, depth_axis: int) -> np.ndarray:
+    """Restore a depth-first array back to the original depth axis."""
+    if depth_axis == 0:
+        return img
+    return np.moveaxis(img, 0, depth_axis)
+
+
 def shift_2d(section: np.ndarray, dy: int, dx: int) -> np.ndarray:
     """Shift a 2D section by (dy, dx) pixels, filling with zeros."""
     h, w = section.shape[-2:]
@@ -40,6 +54,7 @@ def apply_misalignment_translation(
     dx1: int,
     split_idx: int,
     mode: str,
+    depth_axis: int = 0,
 ) -> np.ndarray:
     """Apply translation-based misalignment to a 3D numpy volume.
 
@@ -51,20 +66,20 @@ def apply_misalignment_translation(
         split_idx: section index at which to split
         mode: 'slip' (single section) or 'translation' (block shift)
     """
-    if img.ndim < 3 or img.shape[0] <= 2:
+    if img.ndim < 3 or img.shape[depth_axis] <= 2:
         return img
-    if img.shape[1] <= displacement or img.shape[2] <= displacement:
+    if img.shape[-2] <= displacement or img.shape[-1] <= displacement:
         return img
 
-    output = img.copy()
+    depth_first = _move_depth_axis_to_front(img, depth_axis).copy()
     if mode == "slip":
-        output[split_idx] = shift_2d(img[split_idx], dy1, dx1)
+        depth_first[split_idx] = shift_2d(depth_first[split_idx], dy1, dx1)
     else:
-        for i in range(split_idx, img.shape[0]):
-            output[i] = shift_2d(img[i], dy1, dx1)
+        for i in range(split_idx, depth_first.shape[0]):
+            depth_first[i] = shift_2d(depth_first[i], dy1, dx1)
         for i in range(0, split_idx):
-            output[i] = shift_2d(img[i], dy0, dx0)
-    return output
+            depth_first[i] = shift_2d(depth_first[i], dy0, dx0)
+    return _restore_depth_axis(depth_first, depth_axis)
 
 
 def apply_misalignment_rotation(
@@ -73,6 +88,7 @@ def apply_misalignment_rotation(
     angle: float,
     split_idx: int,
     mode: str,
+    depth_axis: int = 0,
 ) -> np.ndarray:
     """Apply rotation-based misalignment to a 3D numpy volume.
 
@@ -83,29 +99,54 @@ def apply_misalignment_rotation(
         split_idx: section index at which to split
         mode: 'slip' (single section) or 'translation' (block rotation)
     """
-    if img.ndim < 3 or img.shape[0] <= 2:
+    if img.ndim < 3 or img.shape[depth_axis] <= 2:
         return img
 
-    height, width = img.shape[-2:]
+    depth_first = _move_depth_axis_to_front(img, depth_axis).copy()
+    height, width = depth_first.shape[-2:]
     if height != width:
         return img
 
-    img = img.copy()
     M = cv2.getRotationMatrix2D((height / 2, height / 2), angle, 1)
-    interpolation = cv2.INTER_LINEAR if img.dtype == np.float32 else cv2.INTER_NEAREST
+    interpolation = cv2.INTER_LINEAR if depth_first.dtype == np.float32 else cv2.INTER_NEAREST
 
     if mode == "slip":
-        img[split_idx] = cv2.warpAffine(
-            img[split_idx], M, (height, width),
-            flags=interpolation, borderMode=cv2.BORDER_CONSTANT,
+        depth_first[split_idx] = _warp_section(
+            depth_first[split_idx], M, (height, width), interpolation
         )
     else:
-        for i in range(split_idx, img.shape[0]):
-            img[i] = cv2.warpAffine(
-                img[i], M, (height, width),
-                flags=interpolation, borderMode=cv2.BORDER_CONSTANT,
+        for i in range(split_idx, depth_first.shape[0]):
+            depth_first[i] = _warp_section(
+                depth_first[i], M, (height, width), interpolation
             )
-    return img
+    return _restore_depth_axis(depth_first, depth_axis)
+
+
+def _warp_section(
+    section: np.ndarray,
+    matrix: np.ndarray,
+    output_shape: tuple[int, int],
+    interpolation: int,
+) -> np.ndarray:
+    """Apply the same affine transform to a 2D slice or channel-first stack."""
+    if section.ndim == 3:
+        warped = np.empty_like(section)
+        for c in range(section.shape[0]):
+            warped[c] = cv2.warpAffine(
+                section[c],
+                matrix,
+                output_shape,
+                flags=interpolation,
+                borderMode=cv2.BORDER_CONSTANT,
+            )
+        return warped
+    return cv2.warpAffine(
+        section,
+        matrix,
+        output_shape,
+        flags=interpolation,
+        borderMode=cv2.BORDER_CONSTANT,
+    )
 
 
 def compute_misalignment_angle_range(displacement: int, height: int) -> float:
@@ -132,6 +173,21 @@ def zero_out_sections(
     return img
 
 
+def fill_sections(
+    img: np.ndarray,
+    indices: np.ndarray,
+    fill_value: float,
+    depth_axis: int = 0,
+) -> np.ndarray:
+    """Fill entire sections with a constant value."""
+    img = img.copy()
+    if depth_axis == 0:
+        img[indices, ...] = fill_value
+    else:
+        img[:, indices, ...] = fill_value
+    return img
+
+
 def create_missing_hole(
     img: np.ndarray,
     y_start: int,
@@ -152,6 +208,27 @@ def create_missing_hole(
     return img
 
 
+def fill_region(
+    img: np.ndarray,
+    y_start: int,
+    x_start: int,
+    hole_h: int,
+    hole_w: int,
+    section_axis: Optional[int],
+    section_idx: Optional[int],
+    fill_value: float,
+) -> np.ndarray:
+    """Fill a rectangular region with a constant value."""
+    img = img.copy()
+    index = [slice(None)] * img.ndim
+    if section_axis is not None and section_idx is not None:
+        index[section_axis] = section_idx
+    index[-2] = slice(y_start, y_start + hole_h)
+    index[-1] = slice(x_start, x_start + hole_w)
+    img[tuple(index)] = fill_value
+    return img
+
+
 # ---------------------------------------------------------------------------
 # Motion blur
 # ---------------------------------------------------------------------------
@@ -166,6 +243,65 @@ def create_motion_blur_kernel(kernel_size: int, horizontal: bool) -> np.ndarray:
     else:
         kernel[:, center] = np.ones(kernel_size)
     return kernel / kernel_size
+
+
+def ensure_odd_kernel_size(kernel_size: int) -> int:
+    """Return a positive odd kernel size for OpenCV filters."""
+    kernel_size = max(1, int(kernel_size))
+    return kernel_size if kernel_size % 2 == 1 else kernel_size + 1
+
+
+def apply_gaussian_blur(
+    img: np.ndarray,
+    kernel_size: int,
+    sigma: float,
+) -> np.ndarray:
+    """Apply 2D Gaussian blur to a slice or channel-first stack."""
+    kernel = (ensure_odd_kernel_size(kernel_size), ensure_odd_kernel_size(kernel_size))
+    if img.ndim == 3:
+        result = np.empty_like(img)
+        for c in range(img.shape[0]):
+            result[c] = cv2.GaussianBlur(
+                img[c], kernel, sigmaX=sigma, sigmaY=sigma, borderType=cv2.BORDER_REFLECT
+            )
+        return result
+    return cv2.GaussianBlur(
+        img, kernel, sigmaX=sigma, sigmaY=sigma, borderType=cv2.BORDER_REFLECT
+    )
+
+
+def blur_sections(
+    img: np.ndarray,
+    indices: np.ndarray,
+    kernel_size: int,
+    sigma: float,
+    depth_axis: int = 0,
+) -> np.ndarray:
+    """Apply full-section Gaussian blur along the depth axis."""
+    depth_first = _move_depth_axis_to_front(img, depth_axis).copy()
+    for idx in indices:
+        depth_first[idx] = apply_gaussian_blur(depth_first[idx], kernel_size, sigma)
+    return _restore_depth_axis(depth_first, depth_axis)
+
+
+def blur_region(
+    img: np.ndarray,
+    section_idx: int,
+    y_start: int,
+    x_start: int,
+    hole_h: int,
+    hole_w: int,
+    kernel_size: int,
+    sigma: float,
+    depth_axis: int = 0,
+) -> np.ndarray:
+    """Apply Gaussian blur to a rectangular region within one section."""
+    depth_first = _move_depth_axis_to_front(img, depth_axis).copy()
+    blurred = apply_gaussian_blur(depth_first[section_idx], kernel_size, sigma)
+    depth_first[section_idx][..., y_start:y_start + hole_h, x_start:x_start + hole_w] = (
+        blurred[..., y_start:y_start + hole_h, x_start:x_start + hole_w]
+    )
+    return _restore_depth_axis(depth_first, depth_axis)
 
 
 def apply_motion_blur(

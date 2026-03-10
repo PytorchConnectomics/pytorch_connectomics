@@ -715,7 +715,7 @@ def run_test_step(module, batch: Dict[str, torch.Tensor], batch_idx: int) -> STE
     filenames = ctx.filenames
     output_dir_value = ctx.output_dir_value
     cache_suffix = ctx.cache_suffix
-    mode = "test"
+    mode = "tune" if getattr(module, "_tune_mode", False) else "test"
     predictions_np, loaded_from_file, loaded_suffix = module._load_cached_predictions(
         output_dir_value,
         filenames,

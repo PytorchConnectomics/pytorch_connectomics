@@ -53,7 +53,7 @@ def _build_cli_suffix(cli_args: Dict[str, Any]) -> List[str]:
     """Convert a dict of parameters into CLI ``--key value`` tokens.
 
     Underscores in keys are converted to hyphens (``ws_high_threshold`` →
-    ``--ws-high-threshold``).
+    ``--ws-high-threshold``).  List/tuple values are joined with commas.
     """
     tokens: List[str] = []
     for key, value in cli_args.items():
@@ -61,6 +61,9 @@ def _build_cli_suffix(cli_args: Dict[str, Any]) -> List[str]:
         if isinstance(value, bool):
             if value:
                 tokens.append(flag)
+        elif isinstance(value, (list, tuple)):
+            tokens.append(flag)
+            tokens.append(",".join(str(v) for v in value))
         elif value is not None:
             tokens.append(flag)
             tokens.append(str(value))
@@ -189,7 +192,7 @@ def decode_abiss(
     env: Optional[Dict[str, Any]] = None,
     check: bool = True,
     cli_args: Optional[Dict[str, Any]] = None,
-) -> np.ndarray:
+) -> "np.ndarray | Dict[float, np.ndarray]":
     """Decode instance segmentation with an external ABISS command.
 
     Args:
@@ -214,8 +217,15 @@ def decode_abiss(
             to hyphens (e.g. ``ws_high_threshold`` → ``--ws-high-threshold``).
             Values are also available as placeholders in the command template.
 
+            **Batch mode**: when *cli_args* contains a key
+            ``ws_merge_thresholds`` whose value is a list of floats, the
+            external script is invoked once with all thresholds and this
+            function returns ``Dict[float, np.ndarray]`` instead of a
+            single array.
+
     Returns:
-        3D instance label volume ``(Z, Y, X)``.
+        3D instance label volume ``(Z, Y, X)`` — or a dict mapping each
+        merge threshold to its label volume when batch mode is active.
     """
     pred = np.asarray(predictions)
     if pred.ndim not in (3, 4):
@@ -227,6 +237,11 @@ def decode_abiss(
         if pred.ndim != 4:
             raise ValueError("`channels` can only be used for 4D predictions (C, Z, Y, X).")
         pred = pred[np.asarray(channels)]
+
+    # Detect batch merge-threshold mode.
+    batch_mt: Optional[list] = None
+    if cli_args and "ws_merge_thresholds" in cli_args:
+        batch_mt = list(cli_args["ws_merge_thresholds"])
 
     if workdir is not None:
         workspace_path = Path(workdir).resolve()
@@ -274,7 +289,7 @@ def decode_abiss(
         }
         # Merge cli_args into placeholders so templates can reference them.
         if cli_args:
-            mapping.update({k: str(v) for k, v in cli_args.items()})
+            mapping.update({k: str(v) for k, v in cli_args.items() if not isinstance(v, (list, tuple))})
 
         cmd, use_shell = _format_command(command, mapping)
         cmd = _resolve_python_script_path(cmd, launch_cwd, search_roots)
@@ -299,8 +314,24 @@ def decode_abiss(
             )
         except subprocess.CalledProcessError:
             if _command_uses_run_abiss_single(cmd):
+                if batch_mt:
+                    seg = _fallback_decode_connected_components(pred)
+                    return {round(mt, 10): seg for mt in batch_mt}
                 return _fallback_decode_connected_components(pred)
             raise
+
+        # Batch mode: read multiple output files written by run_abiss_single.
+        if batch_mt:
+            stem = output_h5.stem  # "segmentation"
+            ext = output_h5.suffix  # ".h5"
+            results: Dict[float, np.ndarray] = {}
+            for i, mt in enumerate(batch_mt):
+                mt_h5 = workspace_path / f"{stem}_mt{i}{ext}"
+                mt_npy = workspace_path / f"{stem}_mt{i}.npy"
+                results[round(mt, 10)] = _load_output(
+                    output_h5=mt_h5, output_npy=mt_npy, output_dataset=output_dataset,
+                )
+            return results
 
         return _load_output(output_h5=output_h5, output_npy=output_npy, output_dataset=output_dataset)
     finally:

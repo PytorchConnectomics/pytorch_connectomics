@@ -293,17 +293,23 @@ class MissingSectionConfig:
 
     enabled: bool = False
     prob: float = 0.0
-    num_sections: int = 2
+    num_sections: Any = 2
+    full_section_prob: float = 0.5
+    partial_ratio_range: Tuple[float, float] = (0.25, 0.75)
+    fill_value_range: Tuple[float, float] = (0.0, 1.0)
 
 
 @dataclass
 class MotionBlurConfig:
-    """Motion blur augmentation configuration."""
+    """Legacy out-of-focus blur augmentation configuration."""
 
     enabled: bool = False
     prob: float = 0.0
     sections: Any = (1, 3)
     kernel_size: int = 9
+    sigma_range: Tuple[float, float] = (1.0, 3.0)
+    full_section_prob: float = 0.5
+    partial_ratio_range: Tuple[float, float] = (0.25, 0.75)
 
 
 @dataclass
@@ -390,6 +396,11 @@ class AugmentationConfig:
 
     # Preset for controlling enabled groups: "none", "some", "all"
     preset: str = "some"
+
+    # Mutual exclusion: when True, at most one defect augmentation
+    # (misalignment, missing_section, motion_blur) fires per sample.
+    # Matches the DeepEM Blend(mutex) behavior.
+    defect_mutex: bool = False
 
     # Individual augmentation blocks (auto-enabled when keys are present)
     flip: FlipConfig = field(default_factory=FlipConfig)

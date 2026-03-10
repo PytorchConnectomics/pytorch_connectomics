@@ -10,7 +10,7 @@ default:
     profile: all-gpu-cpu
   model:
     arch:
-      profile: rsunet
+      profile: rsunet0
     input_size: [16, 224, 224]
     output_size: [16, 224, 224]
   data:
@@ -20,15 +20,15 @@ default:
     data_transform:
       # Keep symmetric full-volume context padding on the inference input.
       pad_size: [8, 128, 128]
-
   inference:
     # tta_result_path: outputs/neuron_snemi/20260305_195321/results/train-input_prediction_p1.h5
     batch_size: 4    
     sliding_window:
       window_size: [16, 224, 224]
       sw_batch_size: 4
+      keep_input_on_cpu: true
     test_time_augmentation:
-      enabled: true
+      enabled: false
       flip_axes: all
     postprocessing:
       enabled: true
@@ -73,13 +73,23 @@ test:
       image: train-input.tif
       label: train-labels.tif
       resolution: [30, 6, 6]
+  inference:
+    decoding:
+    - name: decoding_abiss
+      kwargs:
+        cli_args:
+          ws_high_threshold: 80%
+          ws_low_threshold: 1%
+          ws_merge_threshold: 20%
+          ws_size_threshold: 1300
+          ws_dust_threshold: 900
 
 # ============================================================================
 # Parameter tuning for ABISS watershed thresholds (--mode tune)
 # ============================================================================
 tune:
   enabled: true
-  n_trials: 50
+  n_trials: 25
   study_name: snemi_abiss_tuning
   load_if_exists: true
 
@@ -127,8 +137,8 @@ tune:
           description: "ABISS Tmax: high watershed threshold"
         ws_low_threshold:
           type: float
-          range: [0.05, 0.2]
-          step: 0.05
+          range: [0.01, 0.1]
+          step: 0.01
           nest_under: cli_args
           description: "ABISS Tmin: low watershed threshold"
         ws_merge_threshold:

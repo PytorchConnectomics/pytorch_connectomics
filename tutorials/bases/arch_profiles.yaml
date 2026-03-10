@@ -35,6 +35,17 @@ arch_profiles:
     arch:
       type: rsunet
     rsunet:
+      width: [18, 36, 48, 64, 80]
+      norm: group
+      activation: elu
+      num_groups: 4
+      down_factors: [[1, 2, 2], [1, 2, 2], [1, 2, 2], [1, 2, 2]]
+      depth_2d: 1
+      kernel_2d: [1, 3, 3]
+  rsunet0:
+    arch:
+      type: rsunet
+    rsunet:
       width: [36, 48, 64, 80]
       norm: group
       activation: elu

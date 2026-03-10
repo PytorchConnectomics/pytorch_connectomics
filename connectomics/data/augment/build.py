@@ -11,6 +11,7 @@ import torch
 from monai.transforms import (
     BorderPadd,
     Compose,
+    OneOf,
     RandRotate90d,
     RandFlipd,
     RandAffined,
@@ -635,11 +636,15 @@ def _build_augmentations(aug_cfg: AugmentationConfig, keys: list[str], do_2d: bo
                 )
             )
 
-    # EM-specific augmentations
+    # EM-specific defect augmentations.
+    # When defect_mutex is True, at most one defect fires per sample (DeepEM
+    # Blend(mutex) behaviour).  Otherwise they are applied independently.
+    defect_transforms = []
+
     if should_augment("misalignment", aug_cfg.misalignment.enabled):
-        transforms.append(
+        defect_transforms.append(
             RandMisAlignmentd(
-                keys=keys,
+                keys=["image"],
                 prob=aug_cfg.misalignment.prob,
                 displacement=aug_cfg.misalignment.displacement,
                 rotate_ratio=aug_cfg.misalignment.rotate_ratio,
@@ -647,23 +652,36 @@ def _build_augmentations(aug_cfg: AugmentationConfig, keys: list[str], do_2d: bo
         )
 
     if should_augment("missing_section", aug_cfg.missing_section.enabled):
-        transforms.append(
+        defect_transforms.append(
             RandMissingSectiond(
                 keys=["image"],
                 prob=aug_cfg.missing_section.prob,
                 num_sections=aug_cfg.missing_section.num_sections,
+                full_section_prob=aug_cfg.missing_section.full_section_prob,
+                partial_ratio_range=aug_cfg.missing_section.partial_ratio_range,
+                fill_value_range=aug_cfg.missing_section.fill_value_range,
             )
         )
 
     if should_augment("motion_blur", aug_cfg.motion_blur.enabled):
-        transforms.append(
+        defect_transforms.append(
             RandMotionBlurd(
                 keys=["image"],
                 prob=aug_cfg.motion_blur.prob,
                 sections=aug_cfg.motion_blur.sections,
                 kernel_size=aug_cfg.motion_blur.kernel_size,
+                sigma_range=aug_cfg.motion_blur.sigma_range,
+                full_section_prob=aug_cfg.motion_blur.full_section_prob,
+                partial_ratio_range=aug_cfg.motion_blur.partial_ratio_range,
             )
         )
+
+    if defect_transforms:
+        if getattr(aug_cfg, "defect_mutex", False) and len(defect_transforms) > 1:
+            # Mutual exclusion: randomly pick one defect per sample.
+            transforms.append(OneOf(transforms=defect_transforms))
+        else:
+            transforms.extend(defect_transforms)
 
     if should_augment("cut_noise", aug_cfg.cut_noise.enabled):
         transforms.append(

@@ -255,7 +255,8 @@ def _run_abiss_ws(
     workdir: Optional[Path] = None,
     keep_workdir: bool = False,
     ws_merge_threshold: Optional[float] = None,
-) -> np.ndarray:
+    ws_merge_thresholds: Optional[list[float]] = None,
+) -> "np.ndarray | dict[float, np.ndarray]":
     if ws_low_threshold > ws_high_threshold:
         raise ValueError(
             f"Expected ws_low_threshold <= ws_high_threshold, got {ws_low_threshold} > {ws_high_threshold}."
@@ -290,11 +291,30 @@ def _run_abiss_ws(
             str(int(ws_dust_threshold)),
             _ABISS_TAG,
         ]
-        # Optional merge threshold (argv[8] in the C++ binary).
-        # Defaults to ws_low_threshold when not specified.
-        if ws_merge_threshold is not None:
+
+        # Batch mode: multiple merge thresholds in one run (argv[8..N]).
+        # The C++ binary computes watershed + region graph once, then
+        # repeats the merge step for each threshold.
+        use_batch = ws_merge_thresholds is not None and len(ws_merge_thresholds) > 1
+        if use_batch:
+            for mt in ws_merge_thresholds:
+                cmd.append(str(mt))
+        elif ws_merge_threshold is not None:
             cmd.append(str(ws_merge_threshold))
+
         subprocess.run(cmd, cwd=str(ws_dir), check=True)
+
+        if use_batch:
+            results: dict[float, np.ndarray] = {}
+            for i, mt in enumerate(ws_merge_thresholds):
+                seg_file = ws_dir / f"seg_{_ABISS_TAG}_{i}.data"
+                if not seg_file.exists():
+                    raise FileNotFoundError(
+                        f"ABISS watershed did not produce expected output: {seg_file}"
+                    )
+                seg_xyz = _read_segmentation_xyz(seg_file, output_xyz_shape, halo=1)
+                results[round(mt, 10)] = np.transpose(seg_xyz, (2, 1, 0))
+            return results
 
         if not seg_raw.exists():
             raise FileNotFoundError(f"ABISS watershed did not produce expected output: {seg_raw}")
@@ -360,6 +380,13 @@ def _parse_args() -> argparse.Namespace:
         help="Affinity threshold for size-based merging. Absolute or percentile. Default: --ws-low-threshold.",
     )
     parser.add_argument(
+        "--ws-merge-thresholds",
+        type=str,
+        default=None,
+        help="Comma-separated merge thresholds for batch mode. Runs watershed once, "
+             "merges with each threshold. Writes {output}_mt{i}.{ext} per threshold.",
+    )
+    parser.add_argument(
         "--abiss-boundary-flags",
         default="1,1,1,1,1,1",
         help="Six boundary flags for ABISS param.txt as comma-separated ints.",
@@ -411,6 +438,11 @@ def main() -> int:
             "Set --ws-binary or --abiss-home to a valid ABISS checkout."
         )
 
+    # Determine batch vs single merge threshold mode.
+    batch_merge_thresholds: Optional[list[float]] = None
+    if args.ws_merge_thresholds is not None:
+        batch_merge_thresholds = [float(x.strip()) for x in args.ws_merge_thresholds.split(",")]
+
     # Resolve percentile thresholds against the affinity data.
     all_thresh_strs = [args.ws_high_threshold, args.ws_low_threshold]
     if args.ws_merge_threshold is not None:
@@ -430,6 +462,32 @@ def main() -> int:
     if args.ws_merge_threshold is not None:
         ws_merge = _resolve_threshold(args.ws_merge_threshold, aff_for_pct, "ws_merge_threshold")
 
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+
+    if batch_merge_thresholds is not None and len(batch_merge_thresholds) > 1:
+        # Batch mode: run watershed once, merge with each threshold
+        result = _run_abiss_ws(
+            predictions_czyx=predictions,
+            ws_binary=ws_binary,
+            ws_high_threshold=ws_high,
+            ws_low_threshold=ws_low,
+            ws_size_threshold=int(args.ws_size_threshold),
+            ws_dust_threshold=int(ws_dust),
+            boundary_flags=boundary_flags,
+            offset=int(args.abiss_offset),
+            channels=channels,
+            workdir=Path(args.abiss_workdir).resolve() if args.abiss_workdir else None,
+            keep_workdir=bool(args.keep_abiss_workdir),
+            ws_merge_thresholds=batch_merge_thresholds,
+        )
+        stem = output_path.stem
+        ext = output_path.suffix
+        parent = output_path.parent
+        for i, mt in enumerate(batch_merge_thresholds):
+            mt_path = parent / f"{stem}_mt{i}{ext}"
+            _write_array(mt_path, result[round(mt, 10)], dataset=args.output_dataset)
+        return 0
+
     segmentation = _run_abiss_ws(
         predictions_czyx=predictions,
         ws_binary=ws_binary,
@@ -445,7 +503,6 @@ def main() -> int:
         ws_merge_threshold=ws_merge,
     )
 
-    output_path.parent.mkdir(parents=True, exist_ok=True)
     _write_array(output_path, segmentation, dataset=args.output_dataset)
     return 0
 
