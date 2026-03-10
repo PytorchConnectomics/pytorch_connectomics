@@ -20,7 +20,10 @@ def resolve_output_filenames(
     """Extract and resolve filenames from batch metadata."""
     images = batch.get("image")
     if images is not None:
-        batch_size = images.shape[0]
+        if isinstance(images, (list, tuple)):
+            batch_size = len(images)
+        else:
+            batch_size = images.shape[0]
     else:
         batch_size = 1
 

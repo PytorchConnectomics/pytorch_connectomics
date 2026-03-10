@@ -6,6 +6,7 @@ import numpy as np
 import torch
 
 from connectomics.config import Config
+from connectomics.inference.output import resolve_output_filenames
 from connectomics.training.lightning.test_pipeline import run_test_step
 
 
@@ -305,3 +306,92 @@ def test_run_test_step_combines_asymmetric_crop_pad_with_affinity_crop(monkeypat
     assert captured["predictions_shape"] == (1, 3, 4, 4, 4)
     assert captured["decoded_shape"] == (1, 3, 4, 4, 4)
     assert captured["label_shape"] == (1, 3, 4, 4, 4)
+
+
+class _ListBatchModule:
+    def __init__(self):
+        self.device = torch.device("cpu")
+        self.cfg = Config()
+        self.inference_manager = _DummyInferenceManager()
+
+    def _get_runtime_inference_config(self):
+        return self.cfg.inference
+
+    def _get_test_evaluation_config(self):
+        return None
+
+    def _resolve_test_output_config(self, batch):
+        filenames = resolve_output_filenames(self.cfg, batch, global_step=0)
+        return "test", "/tmp/results", "_prediction.h5", filenames
+
+    def _load_cached_predictions(self, _output_dir, _filenames, _cache_suffix, _mode):
+        return None, False, ""
+
+    def _summarize_tta_plan(self, _image_ndim):
+        return "disabled"
+
+    def _is_test_evaluation_enabled(self):
+        return False
+
+
+def test_run_test_step_handles_unstacked_list_batches(monkeypatch):
+    module = _ListBatchModule()
+    batch = {
+        "image": [
+            torch.zeros((1, 4, 4, 4), dtype=torch.float32),
+            torch.zeros((1, 5, 6, 6), dtype=torch.float32),
+        ],
+        "label": [
+            torch.zeros((1, 4, 4, 4), dtype=torch.float32),
+            torch.zeros((1, 5, 6, 6), dtype=torch.float32),
+        ],
+        "image_meta_dict": [
+            {"filename_or_obj": "/tmp/vol_a.h5"},
+            {"filename_or_obj": "/tmp/vol_b.h5"},
+        ],
+    }
+
+    seen = []
+
+    def _fake_process_decoding_postprocessing(
+        _module,
+        predictions_np,
+        *,
+        filenames,
+        mode,
+        batch_meta,
+        save_final_predictions,
+    ):
+        assert mode == "test"
+        assert batch_meta and len(batch_meta) == 1
+        seen.append(("decode", filenames[0], tuple(predictions_np.shape)))
+        return predictions_np
+
+    def _fake_evaluate_decoded_predictions(
+        _module,
+        decoded_predictions,
+        labels,
+        *,
+        filenames,
+        batch_idx,
+    ):
+        seen.append(("eval", filenames[0], tuple(decoded_predictions.shape), tuple(labels.shape), batch_idx))
+
+    monkeypatch.setattr(
+        "connectomics.training.lightning.test_pipeline._process_decoding_postprocessing",
+        _fake_process_decoding_postprocessing,
+    )
+    monkeypatch.setattr(
+        "connectomics.training.lightning.test_pipeline._evaluate_decoded_predictions",
+        _fake_evaluate_decoded_predictions,
+    )
+
+    out = run_test_step(module, batch, batch_idx=3)
+
+    assert isinstance(out, torch.Tensor)
+    assert seen == [
+        ("decode", "vol_a", (1, 1, 4, 4, 4)),
+        ("eval", "vol_a", (1, 1, 4, 4, 4), (1, 1, 4, 4, 4), 6),
+        ("decode", "vol_b", (1, 1, 5, 6, 6)),
+        ("eval", "vol_b", (1, 1, 5, 6, 6), (1, 1, 5, 6, 6), 7),
+    ]

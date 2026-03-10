@@ -148,6 +148,33 @@ def _distributed_tta_barrier(module) -> None:
         torch.distributed.barrier()
 
 
+def _is_unstacked_test_batch(batch: Dict[str, Any]) -> bool:
+    """Return True when collate preserved per-sample tensors as a Python list."""
+    return isinstance(batch.get("image"), (list, tuple))
+
+
+def _wrap_single_sample_value(value: Any) -> Any:
+    """Convert a collated list entry back into a singleton batch value."""
+    if isinstance(value, np.ndarray):
+        value = torch.from_numpy(value)
+    if torch.is_tensor(value):
+        return value.unsqueeze(0)
+    return [value]
+
+
+def _extract_single_sample_batch(batch: Dict[str, Any], sample_idx: int) -> Dict[str, Any]:
+    """Slice a list-collated test batch into a regular singleton batch."""
+    sample_batch: Dict[str, Any] = {}
+    for key, value in batch.items():
+        if isinstance(value, (list, tuple)):
+            if sample_idx >= len(value):
+                continue
+            sample_batch[key] = _wrap_single_sample_value(value[sample_idx])
+        else:
+            sample_batch[key] = value
+    return sample_batch
+
+
 def _crop_spatial_border(
     data: np.ndarray | torch.Tensor,
     crop_pad: tuple[tuple[int, int], ...],
@@ -703,6 +730,18 @@ def _evaluate_decoded_predictions(
 
 def run_test_step(module, batch: Dict[str, torch.Tensor], batch_idx: int) -> STEP_OUTPUT:
     """End-to-end test-step workflow with cache reuse and staged processing."""
+    if _is_unstacked_test_batch(batch):
+        images = batch.get("image") or []
+        num_samples = len(images)
+        if num_samples == 0:
+            return torch.tensor(0.0, device=module.device)
+
+        base_batch_idx = batch_idx * num_samples
+        for sample_idx in range(num_samples):
+            sample_batch = _extract_single_sample_batch(batch, sample_idx)
+            run_test_step(module, sample_batch, batch_idx=base_batch_idx + sample_idx)
+        return torch.tensor(0.0, device=module.device)
+
     # Build explicit context from module (single point of private method access)
     ctx = TestContext.from_module(module, batch)
 

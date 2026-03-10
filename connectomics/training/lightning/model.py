@@ -742,6 +742,16 @@ class ConnectomicsModule(pl.LightningModule):
         keep_input_on_cpu = bool(getattr(sliding_cfg, "keep_input_on_cpu", False))
 
         preserve_cpu_input = keep_input_on_cpu and is_test_or_predict and isinstance(batch, dict)
+
+        def _preserve_cpu_value(value: Any) -> Any:
+            if torch.is_tensor(value):
+                return value
+            if isinstance(value, list) and all(v is None or torch.is_tensor(v) for v in value):
+                return list(value)
+            if isinstance(value, tuple) and all(v is None or torch.is_tensor(v) for v in value):
+                return list(value)
+            return None
+
         cpu_image = None
         cpu_label = None
         cpu_mask = None
@@ -749,12 +759,9 @@ class ConnectomicsModule(pl.LightningModule):
             image = batch.get("image")
             label = batch.get("label")
             mask = batch.get("mask")
-            if torch.is_tensor(image):
-                cpu_image = image
-            if torch.is_tensor(label):
-                cpu_label = label
-            if torch.is_tensor(mask):
-                cpu_mask = mask
+            cpu_image = _preserve_cpu_value(image)
+            cpu_label = _preserve_cpu_value(label)
+            cpu_mask = _preserve_cpu_value(mask)
 
         moved_batch = super().transfer_batch_to_device(batch, device, dataloader_idx)
 
