@@ -782,23 +782,9 @@ def run_test_step(module, batch: Dict[str, torch.Tensor], batch_idx: int) -> STE
             return torch.tensor(0.0, device=module.device)
         _log_volume_header(volume_name, "PROCESSING VOLUME")
         predictions_np = module._invert_save_prediction_transform(predictions_np)
-        predictions_np = _apply_prediction_crop_pad_if_needed(
-            module,
-            predictions_np,
-            reference_image_shape,
-            item_name="cached intermediate predictions",
-        )
-        reference_spatial_shape = (
-            tuple(int(v) for v in labels.shape[-3:])
-            if labels is not None
-            else _resolve_reference_spatial_shape_after_crop_pad(module, reference_image_shape)
-        )
-        predictions_np = _apply_affinity_inference_crop_if_needed(
-            module,
-            predictions_np,
-            reference_spatial_shape=reference_spatial_shape,
-            item_name="cached intermediate predictions",
-        )
+        # NOTE: skip crop_pad and affinity_crop — intermediate predictions
+        # were saved before these postprocessing steps, so their spatial shape
+        # matches the original (unpadded) data, not the padded input.
         decoded_predictions = _process_decoding_postprocessing(
             module,
             predictions_np,
@@ -810,14 +796,7 @@ def run_test_step(module, batch: Dict[str, torch.Tensor], batch_idx: int) -> STE
         _evaluate_decoded_predictions(
             module,
             decoded_predictions,
-            _apply_affinity_inference_crop_if_needed(
-                module,
-                labels,
-                reference_spatial_shape=reference_spatial_shape,
-                item_name="labels",
-            )
-            if labels is not None
-            else None,
+            labels,
             filenames=filenames,
             batch_idx=batch_idx,
         )
