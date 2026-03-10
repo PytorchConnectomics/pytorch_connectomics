@@ -155,6 +155,8 @@ def _is_unstacked_test_batch(batch: Dict[str, Any]) -> bool:
 
 def _wrap_single_sample_value(value: Any) -> Any:
     """Convert a collated list entry back into a singleton batch value."""
+    if value is None:
+        return None
     if isinstance(value, np.ndarray):
         value = torch.from_numpy(value)
     if torch.is_tensor(value):
