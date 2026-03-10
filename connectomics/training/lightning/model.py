@@ -467,8 +467,6 @@ class ConnectomicsModule(pl.LightningModule):
         all_exist = True
 
         for filename in filenames:
-            from connectomics.data.io import read_hdf5
-
             pred_file = output_dir / f"{filename}{cache_suffix}"
             if not pred_file.exists() and mode == "test" and cache_suffix != "_tta_prediction.h5":
                 tta_pred_file = output_dir / f"{filename}_tta_prediction.h5"
@@ -490,7 +488,8 @@ class ConnectomicsModule(pl.LightningModule):
 
         if all_exist and len(existing_predictions) == len(filenames):
             logger.info(
-                f"All prediction files exist. Loading {len(existing_predictions)} predictions and skipping inference."
+                "All prediction files exist. Loading %d predictions and skipping inference.",
+                len(existing_predictions),
             )
             if len(existing_predictions) == 1:
                 predictions_np = existing_predictions[0]
@@ -550,7 +549,8 @@ class ConnectomicsModule(pl.LightningModule):
                     f.write("Instance Segmentation Metrics:\n")
                     f.write("-" * 80 + "\n")
                     f.write(
-                        f"  Adapted Rand Error:           {metrics_dict['adapted_rand_error']:.6f}\n"
+                        "  Adapted Rand Error:           "
+                        f"{metrics_dict['adapted_rand_error']:.6f}\n"
                     )
 
                     if "voi_split" in metrics_dict:
@@ -566,21 +566,26 @@ class ConnectomicsModule(pl.LightningModule):
 
                     if "instance_accuracy" in metrics_dict:
                         f.write(
-                            f"  Instance Accuracy:            {metrics_dict['instance_accuracy']:.6f}\n"
+                            "  Instance Accuracy:            "
+                            f"{metrics_dict['instance_accuracy']:.6f}\n"
                         )
 
                     if "instance_accuracy_detail" in metrics_dict:
                         f.write(
-                            f"\n  Instance Accuracy (Detail):   {metrics_dict['instance_accuracy_detail']:.6f}\n"
+                            "\n  Instance Accuracy (Detail):   "
+                            f"{metrics_dict['instance_accuracy_detail']:.6f}\n"
                         )
                         f.write(
-                            f"    ├─ Precision:               {metrics_dict['instance_precision_detail']:.6f}\n"
+                            "    ├─ Precision:               "
+                            f"{metrics_dict['instance_precision_detail']:.6f}\n"
                         )
                         f.write(
-                            f"    ├─ Recall:                  {metrics_dict['instance_recall_detail']:.6f}\n"
+                            "    ├─ Recall:                  "
+                            f"{metrics_dict['instance_recall_detail']:.6f}\n"
                         )
                         f.write(
-                            f"    └─ F1:                      {metrics_dict['instance_f1_detail']:.6f}\n"
+                            "    └─ F1:                      "
+                            f"{metrics_dict['instance_f1_detail']:.6f}\n"
                         )
                     f.write("\n")
 
@@ -927,7 +932,8 @@ class ConnectomicsModule(pl.LightningModule):
                     # Default to validation loss
                     scheduler_config["monitor"] = "val_loss_total"
                     logger.warning(
-                        "ReduceLROnPlateau will monitor: val_loss_total (default, no monitor specified in config)"
+                        "ReduceLROnPlateau will monitor: val_loss_total "
+                        "(default, no monitor specified in config)"
                     )
 
             return {

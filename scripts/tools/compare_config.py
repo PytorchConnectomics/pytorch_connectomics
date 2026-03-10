@@ -1,4 +1,5 @@
-# Based on https://stackoverflow.com/questions/19120489/compare-two-files-report-difference-in-python
+# Based on
+# https://stackoverflow.com/questions/19120489/compare-two-files-report-difference-in-python
 import argparse
 from difflib import unified_diff
 

@@ -128,7 +128,8 @@ def build_sliding_inferer(cfg) -> Optional[SlidingWindowInferer]:
         "Sliding-window inference configured: "
         f"roi_size={roi_size}, overlap={overlap}, sw_batch={sw_batch_size}, "
         f"mode={mode}, sigma_scale={sigma_scale}, padding={padding_mode}, "
-        f"keep_input_on_cpu={keep_input_on_cpu}, sw_device={sw_device}, output_device={output_device}"
+        f"keep_input_on_cpu={keep_input_on_cpu}, sw_device={sw_device}, "
+        f"output_device={output_device}"
     )
 
     return inferer

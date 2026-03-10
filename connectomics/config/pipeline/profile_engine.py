@@ -398,7 +398,8 @@ class ListProfileReferenceApplier(YamlProfileApplier):
                     # Pure profile reference: expand entire profile list inline
                     if not isinstance(profile_list, (ListConfig, list)):
                         raise ValueError(
-                            f"Profile '{profile_name}' in {self.profiles_key} must resolve to a list "
+                            f"Profile '{profile_name}' in {self.profiles_key} "
+                            "must resolve to a list "
                             f"for target '{target_path}', got {type(profile_list)}"
                         )
                     expanded_items.extend(list(profile_list))
@@ -416,7 +417,8 @@ class ListProfileReferenceApplier(YamlProfileApplier):
                         base = OmegaConf.create(OmegaConf.to_container(profile_list, resolve=False))
                     else:
                         raise ValueError(
-                            f"Profile '{profile_name}' in {self.profiles_key} must be a list or dict, "
+                            f"Profile '{profile_name}' in {self.profiles_key} "
+                            "must be a list or dict, "
                             f"got {type(profile_list)}"
                         )
                     merged = OmegaConf.merge(base, OmegaConf.create(overrides))

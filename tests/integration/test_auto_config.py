@@ -1,5 +1,6 @@
 """
-Tests for automatic configuration system (config/hardware/auto_config.py and config/hardware/gpu_utils.py).
+Tests for automatic configuration system
+(`config/hardware/auto_config.py` and `config/hardware/gpu_utils.py`).
 
 Tests cover:
 - GPU info detection
