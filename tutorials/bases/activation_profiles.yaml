@@ -1,11 +1,14 @@
 activation_profiles:
   act_binary:
-    - {channels: ":", activation: sigmoid}
+    channel_activations:
+      - {channels: ":", activation: sigmoid}
 
   act_bcd:
-    - {channels: "0:2", activation: sigmoid}
-    - {channels: "2:3", activation: tanh}
+    channel_activations:
+      - {channels: "0:2", activation: sigmoid}
+      - {channels: "2:3", activation: tanh}
 
   act_bd:
-    - {channels: "0:-1", activation: sigmoid}
-    - {channels: "-1:", activation: tanh}
+    channel_activations:
+      - {channels: "0:-1", activation: sigmoid}
+      - {channels: "-1:", activation: tanh}

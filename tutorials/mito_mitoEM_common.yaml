@@ -131,10 +131,11 @@ monitor:
     enabled: false
 test:
   data:
-    test_resolution:
-    - 30
-    - 8
-    - 8
+    test:
+      resolution:
+      - 30
+      - 8
+      - 8
 inference:
   system:
     num_gpus: 1

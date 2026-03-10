@@ -22,10 +22,11 @@ monitor:
   checkpoint:
     dirpath: outputs/mitoem30r_mednext_sdt/checkpoints/
 test:
+  output_path: outputs/mitoem30r_mednext_sdt/results/
   data:
-    test_image: /projects/weilab/dataset/mito/mitoEM/EM30-R/im_test.h5
-    test_label: /projects/weilab/dataset/mito/mitoEM/EM30-R/mito_test-v2.h5
-    output_path: outputs/mitoem30r_mednext_sdt/results/
+    test:
+      image: /projects/weilab/dataset/mito/mitoEM/EM30-R/im_test.h5
+      label: /projects/weilab/dataset/mito/mitoEM/EM30-R/mito_test-v2.h5
 
 inference:
   batch_size: 1

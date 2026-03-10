@@ -47,10 +47,11 @@ monitor:
     dirpath: outputs/neuron_nisb_9nm_liconn_mednext_b_sdt/checkpoints/
 
 test:
+  output_path: outputs/neuron_nisb_9nm_liconn_mednext_b_sdt/results_seed101/
   data:
-    test_path: /projects/weilab/dataset/nisb/liconn/test/
-    test_resolution: [12, 9, 9]
-    output_path: outputs/neuron_nisb_9nm_liconn_mednext_b_sdt/results_seed101/
+    test:
+      path: /projects/weilab/dataset/nisb/liconn/test/
+      resolution: [12, 9, 9]
 
 train:
   system:

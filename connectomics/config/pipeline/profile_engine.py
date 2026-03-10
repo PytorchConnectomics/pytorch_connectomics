@@ -194,6 +194,7 @@ class ValueProfileApplier(YamlProfileApplier):
         target_path: str,
         merge_into_existing: bool = True,
         cleanup_keys: Optional[Tuple[str, ...]] = None,
+        list_key: Optional[str] = None,
     ) -> None:
         if isinstance(selector_paths, str):
             selector_paths = [selector_paths]
@@ -202,6 +203,7 @@ class ValueProfileApplier(YamlProfileApplier):
         self.target_path = target_path
         self.merge_into_existing = merge_into_existing
         self.cleanup_keys = cleanup_keys if cleanup_keys is not None else (profiles_key,)
+        self.list_key = list_key
 
     def _apply_list_overrides(self, yaml_conf: DictConfig, selector_path: str) -> None:
         """Apply per-index overrides to a list-valued profile.
@@ -224,7 +226,8 @@ class ValueProfileApplier(YamlProfileApplier):
         if overrides is None or not isinstance(overrides, (DictConfig, dict)):
             return
 
-        target_list = OmegaConf.select(yaml_conf, self.target_path)
+        list_path = f"{self.target_path}.{self.list_key}" if self.list_key else self.target_path
+        target_list = OmegaConf.select(yaml_conf, list_path)
         if not isinstance(target_list, (ListConfig, list)):
             return
 
@@ -343,10 +346,12 @@ class ListProfileReferenceApplier(YamlProfileApplier):
         profiles_key: str,
         target_paths: List[str],
         profile_key: str = "profile",
+        list_key: Optional[str] = None,
     ) -> None:
         self.profiles_key = profiles_key
         self.target_paths = target_paths
         self.profile_key = profile_key
+        self.list_key = list_key
         self.cleanup_keys = (profiles_key,)
 
     def apply(self, yaml_conf: DictConfig) -> None:
@@ -376,34 +381,40 @@ class ListProfileReferenceApplier(YamlProfileApplier):
                     )
 
                 profile_payload = profiles[profile_name]
+
+                # Extract nested list from dict-valued profiles.
+                profile_list = profile_payload
+                if self.list_key and isinstance(profile_payload, (DictConfig, dict)):
+                    profile_list = profile_payload.get(self.list_key, profile_payload)
+
                 overrides = {k: v for k, v in item.items() if k != self.profile_key}
 
                 if not overrides:
                     # Pure profile reference: expand entire profile list inline
-                    if not isinstance(profile_payload, (ListConfig, list)):
+                    if not isinstance(profile_list, (ListConfig, list)):
                         raise ValueError(
                             f"Profile '{profile_name}' in {self.profiles_key} must resolve to a list "
-                            f"for target '{target_path}', got {type(profile_payload)}"
+                            f"for target '{target_path}', got {type(profile_list)}"
                         )
-                    expanded_items.extend(list(profile_payload))
+                    expanded_items.extend(list(profile_list))
                 else:
                     # Profile + overrides: use first profile item as base, merge overrides on top
-                    if isinstance(profile_payload, (ListConfig, list)):
-                        if not profile_payload:
+                    if isinstance(profile_list, (ListConfig, list)):
+                        if not profile_list:
                             raise ValueError(
                                 f"Profile '{profile_name}' in {self.profiles_key} is empty."
                             )
                         base = OmegaConf.create(
-                            OmegaConf.to_container(profile_payload[0], resolve=False)
+                            OmegaConf.to_container(profile_list[0], resolve=False)
                         )
-                    elif isinstance(profile_payload, (DictConfig, dict)):
+                    elif isinstance(profile_list, (DictConfig, dict)):
                         base = OmegaConf.create(
-                            OmegaConf.to_container(profile_payload, resolve=False)
+                            OmegaConf.to_container(profile_list, resolve=False)
                         )
                     else:
                         raise ValueError(
                             f"Profile '{profile_name}' in {self.profiles_key} must be a list or dict, "
-                            f"got {type(profile_payload)}"
+                            f"got {type(profile_list)}"
                         )
                     merged = OmegaConf.merge(base, OmegaConf.create(overrides))
                     expanded_items.append(merged)
@@ -460,26 +471,28 @@ def _stage_path(stage: str, rel_path: str) -> str:
 
 
 # Each tuple:
-# (profiles_key, stages, selector_rel, target_rel, merge_into_existing)
+# (profiles_key, stages, selector_rel, target_rel, merge_into_existing, list_key)
 # Order matters: pipeline/system first, then arch, then the rest.
-_VALUE_PROFILE_FAMILIES: List[Tuple[str, Tuple[str, ...], str, str, bool]] = [
-    ("pipeline_profiles", (_STAGE_DEFAULT,), "pipeline_profile", "", True),
-    ("system_profiles", (_STAGE_DEFAULT, _STAGE_TRAIN, _STAGE_TEST, _STAGE_TUNE), "system.profile", "system", True),
-    ("arch_profiles", (_STAGE_DEFAULT, _STAGE_TRAIN, _STAGE_TEST, _STAGE_TUNE), "model.arch.profile", "model", True),
-    ("augmentation_profiles", (_STAGE_DEFAULT, _STAGE_TRAIN), "data.augmentation.profile", "data.augmentation", True),
-    ("dataloader_profiles", (_STAGE_DEFAULT, _STAGE_TRAIN, _STAGE_TEST, _STAGE_TUNE), "data.dataloader.profile", "data.dataloader", True),
-    ("optimizer_profiles", (_STAGE_DEFAULT, _STAGE_TRAIN), "optimization.profile", "optimization", True),
-    ("loss_profiles", (_STAGE_DEFAULT, _STAGE_TRAIN), "model.loss.profile", "model.loss.losses", False),
-    ("label_profiles", (_STAGE_DEFAULT, _STAGE_TRAIN), "data.label_transform.profile", "data.label_transform", False),
-    ("decoding_profiles", (_STAGE_DEFAULT, _STAGE_TEST, _STAGE_TUNE), "inference.decoding_profile", "inference.decoding", False),
-    ("activation_profiles", (_STAGE_DEFAULT, _STAGE_TEST, _STAGE_TUNE), "inference.test_time_augmentation.activation_profile", "inference.test_time_augmentation.channel_activations", False),
+# All profiles are dict-valued and use merge semantics. ``list_key`` identifies the
+# nested list within dict-valued profiles (used for positional overrides).
+_VALUE_PROFILE_FAMILIES: List[Tuple[str, Tuple[str, ...], str, str, bool, Optional[str]]] = [
+    ("pipeline_profiles", (_STAGE_DEFAULT,), "pipeline_profile", "", True, None),
+    ("system_profiles", (_STAGE_DEFAULT, _STAGE_TRAIN, _STAGE_TEST, _STAGE_TUNE), "system.profile", "system", True, None),
+    ("arch_profiles", (_STAGE_DEFAULT, _STAGE_TRAIN, _STAGE_TEST, _STAGE_TUNE), "model.arch.profile", "model", True, None),
+    ("augmentation_profiles", (_STAGE_DEFAULT, _STAGE_TRAIN), "data.augmentation.profile", "data.augmentation", True, None),
+    ("dataloader_profiles", (_STAGE_DEFAULT, _STAGE_TRAIN, _STAGE_TEST, _STAGE_TUNE), "data.dataloader.profile", "data.dataloader", True, None),
+    ("optimizer_profiles", (_STAGE_DEFAULT, _STAGE_TRAIN), "optimization.profile", "optimization", True, None),
+    ("loss_profiles", (_STAGE_DEFAULT, _STAGE_TRAIN), "model.loss.profile", "model.loss", True, "losses"),
+    ("label_profiles", (_STAGE_DEFAULT, _STAGE_TRAIN), "data.label_transform.profile", "data.label_transform", True, None),
+    ("decoding_profiles", (_STAGE_DEFAULT, _STAGE_TEST, _STAGE_TUNE), "inference.decoding_profile", "inference", True, "decoding"),
+    ("activation_profiles", (_STAGE_DEFAULT, _STAGE_TEST, _STAGE_TUNE), "inference.test_time_augmentation.activation_profile", "inference.test_time_augmentation", True, "channel_activations"),
 ]
 
 
-def _build_value_profile_specs() -> List[Tuple[List[str], str, str, bool, Tuple[str, ...]]]:
-    specs: List[Tuple[List[str], str, str, bool, Tuple[str, ...]]] = []
+def _build_value_profile_specs() -> List[Tuple[List[str], str, str, bool, Tuple[str, ...], Optional[str]]]:
+    specs: List[Tuple[List[str], str, str, bool, Tuple[str, ...], Optional[str]]] = []
 
-    for profiles_key, stages, selector_rel, target_rel, merge in _VALUE_PROFILE_FAMILIES:
+    for profiles_key, stages, selector_rel, target_rel, merge, list_key in _VALUE_PROFILE_FAMILIES:
         for stage in stages:
             selector_path = _stage_path(stage, selector_rel)
             target_path = _stage_path(stage, target_rel)
@@ -490,6 +503,7 @@ def _build_value_profile_specs() -> List[Tuple[List[str], str, str, bool, Tuple[
                     target_path,
                     merge,
                     (profiles_key, selector_path),
+                    list_key,
                 )
             )
 
@@ -498,10 +512,10 @@ def _build_value_profile_specs() -> List[Tuple[List[str], str, str, bool, Tuple[
 
 # Each tuple: (profiles_key, stages, target_rel)
 _REFERENCE_PROFILE_FAMILIES: List[Tuple[str, Tuple[str, ...], str]] = [
-    ("loss_profiles", (_STAGE_DEFAULT, _STAGE_TRAIN), "model.loss.losses"),
+    ("loss_profiles", (_STAGE_DEFAULT, _STAGE_TRAIN), "model.loss"),
     ("label_profiles", (_STAGE_DEFAULT, _STAGE_TRAIN), "data.label_transform"),
-    ("decoding_profiles", (_STAGE_DEFAULT, _STAGE_TEST, _STAGE_TUNE), "inference.decoding"),
-    ("activation_profiles", (_STAGE_DEFAULT, _STAGE_TEST, _STAGE_TUNE), "inference.test_time_augmentation.channel_activations"),
+    ("decoding_profiles", (_STAGE_DEFAULT, _STAGE_TEST, _STAGE_TUNE), "inference"),
+    ("activation_profiles", (_STAGE_DEFAULT, _STAGE_TEST, _STAGE_TUNE), "inference.test_time_augmentation"),
     ("augmentation_profiles", (_STAGE_DEFAULT, _STAGE_TRAIN), "data.augmentation"),
     ("dataloader_profiles", (_STAGE_DEFAULT, _STAGE_TRAIN, _STAGE_TEST, _STAGE_TUNE), "data.dataloader"),
     ("optimizer_profiles", (_STAGE_DEFAULT, _STAGE_TRAIN), "optimization"),
@@ -517,24 +531,25 @@ def _build_reference_profile_specs() -> List[Tuple[str, List[str]]]:
     return specs
 
 
-# Each tuple: (profiles_key, stages, target_rel)
-_LIST_REFERENCE_FAMILIES: List[Tuple[str, Tuple[str, ...], str]] = [
-    ("decoding_profiles", (_STAGE_DEFAULT, _STAGE_TUNE, _STAGE_TEST), "inference.decoding"),
+# Each tuple: (profiles_key, stages, target_rel, list_key)
+# ``list_key`` identifies the nested list within dict-valued profiles.
+_LIST_REFERENCE_FAMILIES: List[Tuple[str, Tuple[str, ...], str, str]] = [
+    ("decoding_profiles", (_STAGE_DEFAULT, _STAGE_TUNE, _STAGE_TEST), "inference.decoding", "decoding"),
 ]
 
 
-def _build_list_reference_specs() -> List[Tuple[str, List[str]]]:
-    specs: List[Tuple[str, List[str]]] = []
-    for profiles_key, stages, target_rel in _LIST_REFERENCE_FAMILIES:
+def _build_list_reference_specs() -> List[Tuple[str, List[str], str]]:
+    specs: List[Tuple[str, List[str], str]] = []
+    for profiles_key, stages, target_rel, list_key in _LIST_REFERENCE_FAMILIES:
         target_paths = [_stage_path(stage, target_rel) for stage in stages]
-        specs.append((profiles_key, target_paths))
+        specs.append((profiles_key, target_paths, list_key))
     return specs
 
 
 def _build_allowed_selector_paths() -> set[str]:
     paths: set[str] = set()
 
-    for _, stages, selector_rel, _, _ in _VALUE_PROFILE_FAMILIES:
+    for _, stages, selector_rel, _, _, _ in _VALUE_PROFILE_FAMILIES:
         for stage in stages:
             paths.add(_normalize_selector_path(_stage_path(stage, selector_rel)))
 
@@ -574,13 +589,14 @@ def _build_profile_engine() -> YamlProfileEngine:
     appliers: List[YamlProfileApplier] = []
 
     # 1) Value profile appliers (order defined by _VALUE_PROFILE_FAMILIES table)
-    for selector_paths, profiles_key, target_path, merge, cleanup_keys in _VALUE_PROFILE_SPECS:
+    for selector_paths, profiles_key, target_path, merge, cleanup_keys, list_key in _VALUE_PROFILE_SPECS:
         appliers.append(ValueProfileApplier(
             selector_paths=selector_paths,
             profiles_key=profiles_key,
             target_path=target_path,
             merge_into_existing=merge,
             cleanup_keys=cleanup_keys,
+            list_key=list_key,
         ))
 
     # 2) Reference profile appliers
@@ -591,10 +607,11 @@ def _build_profile_engine() -> YamlProfileEngine:
         ))
 
     # 3) List profile reference appliers
-    for profiles_key, target_paths in _LIST_REFERENCE_SPECS:
+    for profiles_key, target_paths, list_key in _LIST_REFERENCE_SPECS:
         appliers.append(ListProfileReferenceApplier(
             profiles_key=profiles_key,
             target_paths=target_paths,
+            list_key=list_key,
         ))
 
     return YamlProfileEngine(appliers)

@@ -469,6 +469,9 @@ class DataConfig:
         default_factory=NNUNetPreprocessingConfig
     )
 
+    # Mask-specific transformation (overrides data_transform for masks when present)
+    mask_transform: Optional[DataTransformConfig] = None
+
     # Multi-channel label transformation (for affinity maps, distance transforms, etc.)
     label_transform: LabelTransformConfig = field(default_factory=LabelTransformConfig)
 

@@ -151,15 +151,16 @@ monitor:
 
 test:
   data:
-    test_path: /projects/weilab/dataset/barcode/2026/PT37_round2/
-    test_image:
-    - "*raw.tif"
-    test_label:
-    - "*mask.tif"
-    test_resolution:
-    - 40
-    - 16
-    - 16
+    test:
+      path: /projects/weilab/dataset/barcode/2026/PT37_round2/
+      image:
+      - "*raw.tif"
+      label:
+      - "*mask.tif"
+      resolution:
+      - 40
+      - 16
+      - 16
 inference:
   system:
     num_workers: 1

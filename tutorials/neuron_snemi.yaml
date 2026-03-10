@@ -77,14 +77,14 @@ test:
       resolution: [30, 6, 6]
   inference:
     decoding:
-    - name: decode_abiss
+    - profile: decoding_abiss
       kwargs:
         cli_args:
-          ws_high_threshold: 80%
-          ws_low_threshold: 1%
-          ws_merge_threshold: 20%
           ws_size_threshold: 1300
           ws_dust_threshold: 900
+          ws_high_threshold: 0.8
+          ws_low_threshold: 0.01
+          ws_merge_threshold: 0.3
 
 # ============================================================================
 # Parameter tuning for ABISS watershed thresholds (--mode tune)

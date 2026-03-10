@@ -109,14 +109,15 @@ monitor:
     threshold: 0.05
     divergence_threshold: 2.0
 test:
+  output_path: outputs/cem-mitolab_mednext2d/results/
   data:
-    test_image: datasets/cem-mitolab/test.json
-    test_label:
-    test_resolution:
-    - 0
-    - 5
-    - 5
-    output_path: outputs/cem-mitolab_mednext2d/results/
+    test:
+      image: datasets/cem-mitolab/test.json
+      label:
+      resolution:
+      - 0
+      - 5
+      - 5
 inference:
   system:
     num_workers: 4

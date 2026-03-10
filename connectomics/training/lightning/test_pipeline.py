@@ -831,7 +831,9 @@ def run_test_step(module, batch: Dict[str, torch.Tensor], batch_idx: int) -> STE
     logger.info("Starting sliding-window inference...")
 
     mask_align_to_image = False
-    mask_transform_cfg = getattr(module.cfg.data, "data_transform", None)
+    mask_transform_cfg = getattr(module.cfg.data, "mask_transform", None) or getattr(
+        module.cfg.data, "data_transform", None
+    )
     if mask_transform_cfg is not None:
         mask_align_to_image = bool(getattr(mask_transform_cfg, "align_to_image", False))
 

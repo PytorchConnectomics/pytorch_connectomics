@@ -107,12 +107,13 @@ monitor:
     divergence_threshold: 100.0
 test:
   data:
-    test_image: datasets/NucMM-Z/Image/val/img_0000_0640_0896.h5
-    test_label: datasets/NucMM-Z/Label/val/seg_0000_0640_0896.h5
-    test_resolution:
-    - 1.0
-    - 1.0
-    - 1.0
+    test:
+      image: datasets/NucMM-Z/Image/val/img_0000_0640_0896.h5
+      label: datasets/NucMM-Z/Label/val/seg_0000_0640_0896.h5
+      resolution:
+      - 1.0
+      - 1.0
+      - 1.0
 inference:
   system:
     num_workers: 4
