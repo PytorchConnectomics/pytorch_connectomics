@@ -208,7 +208,7 @@ def run_demo():
     and validates the installation.
     """
     print("\n" + "=" * 60)
-    print("🎯 PyTorch Connectomics Demo Mode")
+    print("PyTorch Connectomics Demo Mode")
     print("=" * 60)
     print("\nThis demo will:")
     print("  1. Generate synthetic 3D volumes (mitochondria-like structures)")
@@ -217,16 +217,16 @@ def run_demo():
     print("\n" + "-" * 60 + "\n")
 
     # Create demo config
-    print("📝 Creating demo configuration...")
+    print("Creating demo configuration...")
     cfg = create_demo_config()
 
     # Set seed
     from pytorch_lightning import seed_everything
     seed_everything(cfg.system.seed, workers=True)
-    print(f"🎲 Random seed: {cfg.system.seed}")
+    print(f"Random seed: {cfg.system.seed}")
 
     # Generate synthetic data
-    print("\n🔧 Generating synthetic training data...")
+    print("\nGenerating synthetic training data...")
     train_image, train_label = create_synthetic_volume(
         shape=(64, 128, 128), num_objects=20
     )
@@ -234,7 +234,7 @@ def run_demo():
     print(f"   Label shape: {train_label.shape}")
     print(f"   Num objects: {train_label.sum() / train_label.size * 100:.1f}% foreground")
 
-    print("\n🔧 Generating synthetic validation data...")
+    print("\nGenerating synthetic validation data...")
     val_image, val_label = create_synthetic_volume(shape=(64, 128, 128), num_objects=15)
 
     # Save to temporary files
@@ -242,7 +242,7 @@ def run_demo():
     import h5py
 
     temp_dir = Path(tempfile.mkdtemp(prefix="pytc_demo_"))
-    print(f"\n💾 Saving to temporary directory: {temp_dir}")
+    print(f"\nSaving to temporary directory: {temp_dir}")
 
     train_image_path = temp_dir / "train_image.h5"
     train_label_path = temp_dir / "train_label.h5"
@@ -258,10 +258,10 @@ def run_demo():
     with h5py.File(val_label_path, "w") as f:
         f.create_dataset("main", data=val_label, compression="gzip")
 
-    print("   ✓ train_image.h5")
-    print("   ✓ train_label.h5")
-    print("   ✓ val_image.h5")
-    print("   ✓ val_label.h5")
+    print("train_image.h5")
+    print("train_label.h5")
+    print("val_image.h5")
+    print("val_label.h5")
 
     # Update config with file paths
     cfg.data.train.image = str(train_image_path)
@@ -270,7 +270,7 @@ def run_demo():
     cfg.data.val.label = str(val_label_path)
 
     # Create datamodule
-    print("\n📊 Creating data loaders...")
+    print("\nCreating data loaders...")
     from connectomics.training.lightning import ConnectomicsDataModule
     from connectomics.data.augment.build import (
         build_train_transforms,
@@ -303,7 +303,7 @@ def run_demo():
     datamodule.setup(stage="fit")
 
     # Create model
-    print(f"\n🏗️  Building model: {cfg.model.arch.type}")
+    print(f"\nBuilding model: {cfg.model.arch.type}")
     from connectomics.training.lightning import ConnectomicsModule
 
     model = ConnectomicsModule(cfg)
@@ -311,7 +311,7 @@ def run_demo():
     print(f"   Parameters: {num_params:,}")
 
     # Create trainer
-    print("\n⚡ Creating Lightning trainer...")
+    print("\nCreating Lightning trainer...")
     import pytorch_lightning as pl
     from pytorch_lightning.callbacks import ModelCheckpoint, RichProgressBar
 
@@ -358,17 +358,17 @@ def run_demo():
 
     # Train
     print("\n" + "=" * 60)
-    print("🏃 STARTING DEMO TRAINING")
+    print("STARTING DEMO TRAINING")
     print("=" * 60 + "\n")
 
     try:
         trainer.fit(model, datamodule=datamodule)
 
         print("\n" + "=" * 60)
-        print("✅ DEMO COMPLETED SUCCESSFULLY!")
+        print("DEMO COMPLETED SUCCESSFULLY!")
         print("=" * 60)
-        print("\nYour installation is working correctly! 🎉")
-        print("\n📚 Next steps:")
+        print("\nYour installation is working correctly!")
+        print("\nNext steps:")
         print("  1. Download tutorial data:")
         print("     just download lucchi++")
         print("     just download-list  # See all available datasets")
@@ -385,11 +385,11 @@ def run_demo():
         print("\n" + "=" * 60 + "\n")
 
     except Exception as e:
-        print(f"\n❌ Demo failed: {e}")
+        print(f"\nDemo failed: {e}")
         import traceback
 
         traceback.print_exc()
-        print("\n💡 If you see errors, please:")
+        print("\nIf you see errors, please:")
         print("  1. Check your installation: python -c 'import connectomics'")
         print("  2. Report issues: https://github.com/zudi-lin/pytorch_connectomics/issues")
         raise
@@ -398,7 +398,7 @@ def run_demo():
         # Cleanup temporary files
         import shutil
 
-        print(f"\n🧹 Cleaning up temporary files: {temp_dir}")
+        print(f"\nCleaning up temporary files: {temp_dir}")
         try:
             shutil.rmtree(temp_dir)
         except Exception as e:

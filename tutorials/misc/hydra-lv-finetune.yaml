@@ -19,7 +19,7 @@ model:
 
   # Architecture settings
 
-  # ⭐⭐⭐ CRITICAL FIX: Enable deep supervision for small objects
+  # CRITICAL FIX: Enable deep supervision for small objects
   loss:
     deep_supervision: true
     losses:
@@ -88,7 +88,7 @@ data:
         mode: "3d"
         quantize: false
 
-  # ⭐⭐⭐ CRITICAL FIX: Maximum augmentation for small dataset
+  # CRITICAL FIX: Maximum augmentation for small dataset
   augmentation:
     preset: "all"  # CHANGED FROM: "some"
 
@@ -155,7 +155,7 @@ optimization:
 
   optimizer:
     name: AdamW
-    # ⭐⭐ HIGHER LR: More aggressive for small dataset
+    # HIGHER LR: More aggressive for small dataset
     lr: 0.0003  # INCREASED FROM: 0.0001 (3x higher)
     weight_decay: 0.001  # DECREASED FROM: 0.01 (less regularization)
     betas: [0.9, 0.999]
@@ -225,7 +225,7 @@ inference:
     sigma_scale: 0.25
     padding_mode: replicate
 
-  # ⭐ IMPROVEMENT: Enable TTA for better evaluation
+  # IMPROVEMENT: Enable TTA for better evaluation
   test_time_augmentation:
     flip_axes: [[0], [1], [2], [0, 1], [0, 2], [1, 2]]  # CHANGED FROM: null
     rotation90_axes: [[1, 2]]  # CHANGED FROM: null
@@ -252,7 +252,7 @@ test:
       clip_percentile_low: 0.0
       clip_percentile_high: 1.0
 
-  # ⭐ IMPROVEMENT: More sensitive thresholds for better recall
+  # IMPROVEMENT: More sensitive thresholds for better recall
   decoding:
   - name: decode_instance_binary_contour_distance
     kwargs:

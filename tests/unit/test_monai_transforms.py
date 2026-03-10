@@ -125,7 +125,7 @@ def test_individual_transforms():
     flow = result["label"]
     print(f"   Flow field shape: {flow.shape}")
 
-    print("✅ All individual transforms passed!")
+    print("[OK]All individual transforms passed!")
 
 
 def test_compose_pipelines():
@@ -177,7 +177,7 @@ def test_compose_pipelines():
     assert "label" in result, "Multi-task output not generated"
     print(f"   Multi-task output shape: {result['label'].shape}")  # Should be [3, D, H, W]
 
-    print("✅ All label transform pipelines passed!")
+    print("[OK]All label transform pipelines passed!")
 
 
 def test_affinity_pipeline_ignores_deepem_crop_control_kwarg():
@@ -225,7 +225,7 @@ def test_weight_computation():
     """Test weight computation transforms."""
     print("\n=== Testing Weight Computation ===")
     print("   NOTE: This test is deprecated. Weight computation is now handled by loss functions.")
-    print("   ⚠️  SKIPPED")
+    print("   [WARN]SKIPPED")
     # Weight computation has been integrated into loss functions
     # The ComputeBinaryRatioWeightd API has changed
     return
@@ -238,11 +238,11 @@ def test_full_pipeline():
     no longer exists. Use create_label_transform_pipeline instead.
     """
     print("\n=== Testing Full Processing Pipeline (DEPRECATED - SKIPPED) ===")
-    print("   ⚠️  This test is deprecated. Use test_compose_pipelines() instead.")
+    print("   [WARN]This test is deprecated. Use test_compose_pipelines() instead.")
     # Test skipped - function no longer exists
     return
 
-    print("✅ Full pipeline passed!")
+    print("[OK]Full pipeline passed!")
 
 
 def test_compatibility():
@@ -277,12 +277,12 @@ def test_compatibility():
     assert "label" in result, "Binary mask not generated from torch tensor"
     print(f"   Processed torch tensor with shape: {result['label'].shape}")
 
-    print("✅ Compatibility tests passed!")
+    print("[OK]Compatibility tests passed!")
 
 
 def main():
     """Run all tests."""
-    print("🧪 Testing MONAI-native transforms for PyTorch Connectomics")
+    print("Testing MONAI-native transforms for PyTorch Connectomics")
     print("=" * 60)
 
     try:
@@ -293,12 +293,12 @@ def main():
         test_compatibility()
 
         print("\n" + "=" * 60)
-        print("🎉 ALL TESTS PASSED! MONAI transforms are working correctly.")
+        print("ALL TESTS PASSED! MONAI transforms are working correctly.")
         print("\nThe refactoring is complete. You can now use MONAI-style")
         print("Compose pipelines for all connectomics processing operations.")
 
     except Exception as e:
-        print(f"\n❌ TEST FAILED: {e}")
+        print(f"\nTEST FAILED: {e}")
         import traceback
 
         traceback.print_exc()

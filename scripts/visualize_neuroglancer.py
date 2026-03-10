@@ -582,7 +582,7 @@ def load_volumes_from_config(
             # If prediction_base_name is provided and test_image_path contains glob pattern,
             # find the specific matching file
             if prediction_base_name and isinstance(test_image_path, str) and ("*" in test_image_path or "?" in test_image_path):
-                print(f"  🔍 Auto-matching specific test_image for prediction base name: {prediction_base_name}")
+                print(f"  Auto-matching specific test_image for prediction base name: {prediction_base_name}")
                 import glob
                 test_path_obj = Path(test_image_path)
                 test_dir = test_path_obj.parent
@@ -595,7 +595,7 @@ def load_volumes_from_config(
                     potential_file = test_dir / f"{prediction_base_name}{ext}"
                     if potential_file.exists():
                         matched_file = str(potential_file)
-                        print(f"  ✓ Found matching test_image: {matched_file}")
+                        print(f"  Found matching test_image: {matched_file}")
                         break
                 
                 # If not found, search for any file with matching base name
@@ -603,12 +603,12 @@ def load_volumes_from_config(
                     matching_files = sorted(test_dir.glob(f"{prediction_base_name}.*"))
                     if matching_files:
                         matched_file = str(matching_files[0])
-                        print(f"  ✓ Found matching test_image: {matched_file}")
+                        print(f"  Found matching test_image: {matched_file}")
                 
                 if matched_file:
                     test_image_path = matched_file
                 else:
-                    print(f"  ⚠ No matching test_image found for base name: {prediction_base_name}")
+                    print(f"  No matching test_image found for base name: {prediction_base_name}")
                     print(f"  Falling back to loading all files from glob pattern")
             
             data = read_volume(test_image_path)
@@ -1105,7 +1105,7 @@ def main():
             if "_prediction" in path_obj.stem:
                 # Extract base name by removing "_prediction" and extension
                 prediction_base_name = path_obj.stem.replace("_prediction", "")
-                print(f"📋 Detected prediction file: {path_obj.name}")
+                print(f"Detected prediction file: {path_obj.name}")
                 print(f"   Extracted base name for auto-matching: {prediction_base_name}")
                 break
 
@@ -1273,7 +1273,7 @@ def main():
         with viewer.txn() as s:
             s.layers.append(name=name, layer=layer)
 
-        print(f"  ✓ Layer '{name}' added successfully")
+        print(f"  Layer '{name}' added successfully")
 
         # Store in volumes dict for future reference
         volumes[name] = (data, 'segmentation' if tt == 'seg' else tt, tuple(res), tuple(oo))

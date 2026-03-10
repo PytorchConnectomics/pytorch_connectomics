@@ -34,7 +34,7 @@ def profile_dataloader(config_path: str, num_batches: int = 10):
     start = time.time()
     datamodule = create_datamodule(cfg)
     setup_time = time.time() - start
-    print(f"✓ Setup time: {setup_time:.2f}s")
+    print(f"Setup time: {setup_time:.2f}s")
     print()
 
     # Get dataloader
@@ -90,19 +90,19 @@ def profile_dataloader(config_path: str, num_batches: int = 10):
     avg_time = sum(batch_times) / len(batch_times)
 
     if avg_time > 1.0:
-        print("⚠️  SLOW: Average batch time > 1s")
+        print("SLOW: Average batch time > 1s")
         print("   Recommendations:")
         print(f"   - Increase num_workers (current: {cfg.system.num_workers})")
         print("   - Enable caching if possible")
         print("   - Check disk I/O performance")
         print("   - Simplify transform pipeline")
     elif avg_time > 0.5:
-        print("⚠️  MODERATE: Average batch time 0.5-1.0s")
+        print("MODERATE: Average batch time 0.5-1.0s")
         print("   Could be improved with:")
         print(f"   - More workers (current: {cfg.system.num_workers})")
         print("   - Caching strategy")
     else:
-        print("✓ GOOD: Average batch time < 0.5s")
+        print("GOOD: Average batch time < 0.5s")
 
     print()
 

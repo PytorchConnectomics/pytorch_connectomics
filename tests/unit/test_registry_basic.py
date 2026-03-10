@@ -27,7 +27,7 @@ def test_monai_models_registered():
 
     for model_name in expected_models:
         assert is_architecture_available(model_name), f"{model_name} not registered!"
-        print(f"  ✓ {model_name} is registered")
+        print(f"  [OK]{model_name} is registered")
 
     print("  All MONAI models registered successfully!\n")
 
@@ -46,9 +46,9 @@ def test_list_architectures():
     # Count by type
     monai_count = sum(1 for a in archs if a.startswith('monai_'))
     mednext_count = sum(1 for a in archs if a.startswith('mednext'))
-    print(f"  ✓ Found {monai_count} MONAI models")
-    print(f"  ✓ Found {mednext_count} MedNeXt models")
-    print(f"  ✓ Total: {len(archs)} architectures\n")
+    print(f"  [OK]Found {monai_count} MONAI models")
+    print(f"  [OK]Found {mednext_count} MedNeXt models")
+    print(f"  [OK]Total: {len(archs)} architectures\n")
 
 
 def test_get_builder():
@@ -57,7 +57,7 @@ def test_get_builder():
 
     builder = get_architecture_builder('monai_basic_unet3d')
     assert callable(builder), "Builder should be callable"
-    print("  ✓ Builder is callable\n")
+    print("  [OK]Builder is callable\n")
 
 
 def test_build_model():
@@ -78,7 +78,7 @@ def test_build_model():
     model = builder(cfg)
 
     assert isinstance(model, ConnectomicsModel), "Model should inherit from ConnectomicsModel"
-    print("  ✓ Model inherits from ConnectomicsModel")
+    print("  [OK]Model inherits from ConnectomicsModel")
 
     # Check model info
     info = model.get_model_info()
@@ -87,7 +87,7 @@ def test_build_model():
     print(f"  Deep Supervision: {info['deep_supervision']}")
 
     assert info['parameters'] > 0, "Model should have parameters"
-    print("  ✓ Model has parameters\n")
+    print("  [OK]Model has parameters\n")
 
 
 def test_forward_pass():
@@ -114,7 +114,7 @@ def test_forward_pass():
         output = model(x)
 
     assert output.shape == (1, 2, 32, 32, 32), f"Expected shape (1, 2, 32, 32, 32), got {output.shape}"
-    print(f"  ✓ Forward pass successful")
+    print(f"  [OK]Forward pass successful")
     print(f"  Input shape: {x.shape}")
     print(f"  Output shape: {output.shape}\n")
 
@@ -128,7 +128,7 @@ def test_missing_architecture():
         assert False, "Should have raised ValueError"
     except ValueError as e:
         assert "not found" in str(e), "Error message should mention 'not found'"
-        print("  ✓ Correctly raises ValueError for missing architecture\n")
+        print("  [OK]Correctly raises ValueError for missing architecture\n")
 
 
 def main():
@@ -146,13 +146,13 @@ def main():
         test_missing_architecture()
 
         print("=" * 60)
-        print("✓ ALL TESTS PASSED!")
+        print("ALL TESTS PASSED!")
         print("=" * 60)
         return 0
 
     except Exception as e:
         print("\n" + "=" * 60)
-        print("✗ TEST FAILED")
+        print("TEST FAILED")
         print("=" * 60)
         print(f"Error: {e}")
         import traceback
