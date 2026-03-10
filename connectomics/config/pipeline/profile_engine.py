@@ -486,6 +486,7 @@ _VALUE_PROFILE_FAMILIES: List[Tuple[str, Tuple[str, ...], str, str, bool, Option
     ("label_profiles", (_STAGE_DEFAULT, _STAGE_TRAIN), "data.label_transform.profile", "data.label_transform", True, None),
     ("decoding_profiles", (_STAGE_DEFAULT, _STAGE_TEST, _STAGE_TUNE), "inference.decoding_profile", "inference", True, "decoding"),
     ("activation_profiles", (_STAGE_DEFAULT, _STAGE_TEST, _STAGE_TUNE), "inference.test_time_augmentation.activation_profile", "inference.test_time_augmentation", True, "channel_activations"),
+    ("tune_profiles", (_STAGE_TUNE,), "profile", "", True, None),
 ]
 
 
