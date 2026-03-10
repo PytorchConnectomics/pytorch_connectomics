@@ -7,14 +7,14 @@ that conform to the ConnectomicsModel interface.
 Uses Hydra/OmegaConf configuration.
 """
 
-
 from __future__ import annotations
+
 import torch
 import torch.nn as nn
 
 try:
-    from monai.networks.nets import BasicUNet, UNet, UNETR, SwinUNETR
-    from monai.networks.blocks import UpSample, ResidualUnit
+    from monai.networks.blocks import ResidualUnit, UpSample
+    from monai.networks.nets import UNETR, BasicUNet, SwinUNETR, UNet
 
     MONAI_AVAILABLE = True
 except ImportError:
@@ -175,9 +175,7 @@ def build_basic_unet(cfg) -> ConnectomicsModel:
 
     # BasicUNet requires exactly 6 feature levels
     # Pad with last value repeated (not doubled) to keep memory usage low
-    base_features = (
-        list(getattr(cfg.model.monai, "filters", [32, 64, 128, 256, 512, 1024]))
-    )
+    base_features = list(getattr(cfg.model.monai, "filters", [32, 64, 128, 256, 512, 1024]))
     while len(base_features) < 6:
         base_features.append(base_features[-1])  # Repeat last value instead of doubling
     features = tuple(base_features[:6])

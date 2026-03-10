@@ -60,9 +60,7 @@ class ConnectomicsDataModule(pl.LightningDataModule):
         self.train_data_dicts = train_data_dicts
         self.val_data_dicts = val_data_dicts
         self.test_data_dicts = test_data_dicts
-        self.skip_validation = (
-            not val_data_dicts or len(val_data_dicts) == 0
-        )
+        self.skip_validation = not val_data_dicts or len(val_data_dicts) == 0
         self.transforms = transforms or {}
         self.dataset_type = dataset_type
         self.batch_size = batch_size
@@ -112,25 +110,19 @@ class ConnectomicsDataModule(pl.LightningDataModule):
                 cache_rate=self.cache_rate,
             )
         else:
-            ds = Dataset(
-                data=data_dicts, transform=transforms
-            )
+            ds = Dataset(data=data_dicts, transform=transforms)
 
         if iter_num and iter_num > 0:
             ds = _IterNumDataset(ds, iter_num)
         return ds
 
     def train_dataloader(self):
-        return self._create_dataloader(
-            self.train_dataset, shuffle=True
-        )
+        return self._create_dataloader(self.train_dataset, shuffle=True)
 
     def val_dataloader(self):
         if self.skip_validation:
             return []
-        return self._create_dataloader(
-            self.val_dataset, shuffle=False
-        )
+        return self._create_dataloader(self.val_dataset, shuffle=False)
 
     def test_dataloader(self):
         return self._create_dataloader(
@@ -150,9 +142,7 @@ class ConnectomicsDataModule(pl.LightningDataModule):
             shuffle=shuffle,
             num_workers=self.num_workers,
             pin_memory=self.pin_memory,
-            persistent_workers=(
-                self.persistent_workers and self.num_workers > 0
-            ),
+            persistent_workers=(self.persistent_workers and self.num_workers > 0),
             collate_fn=collate_fn,
         )
 
@@ -211,9 +201,7 @@ def collate_dict(
         if isinstance(values[0], torch.Tensor):
             result[key] = torch.stack(values)
         elif isinstance(values[0], np.ndarray):
-            result[key] = torch.stack(
-                [torch.from_numpy(v) for v in values]
-            )
+            result[key] = torch.stack([torch.from_numpy(v) for v in values])
         else:
             result[key] = values
     return result

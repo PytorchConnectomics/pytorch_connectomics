@@ -8,19 +8,6 @@ Subpackages:
 
 # --- Framework / Infrastructure ---
 from .base import DecodeStep
-from .pipeline import (
-    apply_decode_mode,
-    apply_decode_pipeline,
-    normalize_decode_modes,
-    resolve_decode_modes_from_cfg,
-)
-from .registry import (
-    DecoderRegistry,
-    get_decoder,
-    list_decoders,
-    register_builtin_decoders,
-    register_decoder,
-)
 
 # --- Segmentation Decoders ---
 from .decoders import (
@@ -29,6 +16,12 @@ from .decoders import (
     decode_distance_watershed,
     decode_instance_binary_contour_distance,
     polarity2instance,
+)
+from .pipeline import (
+    apply_decode_mode,
+    apply_decode_pipeline,
+    normalize_decode_modes,
+    resolve_decode_modes_from_cfg,
 )
 
 # --- Post-processing & Utilities ---
@@ -42,11 +35,12 @@ from .postprocess import (
     stitch_3d,
     watershed_split,
 )
-from .utils import (
-    cast2dtype,
-    merge_small_objects,
-    remove_large_instances,
-    remove_small_instances,
+from .registry import (
+    DecoderRegistry,
+    get_decoder,
+    list_decoders,
+    register_builtin_decoders,
+    register_decoder,
 )
 
 # --- Hyperparameter Tuning ---
@@ -58,6 +52,12 @@ from .tuning import (
     optimize_parameters,
     optimize_threshold,
     run_tuning,
+)
+from .utils import (
+    cast2dtype,
+    merge_small_objects,
+    remove_large_instances,
+    remove_small_instances,
 )
 
 register_builtin_decoders()

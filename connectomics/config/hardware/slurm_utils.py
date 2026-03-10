@@ -1,15 +1,15 @@
 """SLURM cluster resource detection and management utilities."""
 
-
 from __future__ import annotations
-import subprocess
-import re
+
 import json
-import time
-from pathlib import Path
-from dataclasses import dataclass, asdict
-from typing import Dict, List, Optional
 import logging
+import re
+import subprocess
+import time
+from dataclasses import asdict, dataclass
+from pathlib import Path
+from typing import Dict, List, Optional
 
 logger = logging.getLogger(__name__)
 

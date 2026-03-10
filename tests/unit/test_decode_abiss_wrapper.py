@@ -37,13 +37,13 @@ def test_decode_abiss_with_string_command_writes_h5_output():
     pred[1, 1:4, 2:5, 3:7] = 1.0
 
     command = (
-        f"{sys.executable} -c \""
+        f'{sys.executable} -c "'
         "import h5py, numpy as np; "
         "x = h5py.File('{input_h5}', 'r')['{input_dataset}'][:]; "
         "y = (x[1] > 0.5).astype(np.uint64); "
         "f = h5py.File('{output_h5}', 'w'); "
         "f.create_dataset('{output_dataset}', data=y); "
-        "f.close()\""
+        'f.close()"'
     )
 
     seg = decode_abiss(pred, command=command)

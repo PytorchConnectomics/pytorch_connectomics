@@ -1,9 +1,9 @@
 from __future__ import annotations
 
-from collections import OrderedDict
-from typing import Optional, Union, Tuple
-
 import itertools
+from collections import OrderedDict
+from typing import Optional, Tuple, Union
+
 import numpy as np
 from scipy.ndimage import find_objects
 
@@ -16,8 +16,6 @@ __all__ = [
     "replace_ND",
     "rand_window",
     "compute_bbox_all",
-    "compute_bbox_all_2d",
-    "compute_bbox_all_3d",
 ]
 
 
@@ -45,7 +43,9 @@ def bbox_ND(img: np.ndarray, relax: int = 0) -> tuple:
 
 def bbox_relax(coord: Union[tuple, list], shape: tuple, relax: int = 0) -> tuple:
     if len(coord) != len(shape) * 2:
-        raise ValueError(f"Expected {len(shape) * 2} coordinates for {len(shape)}D shape, got {len(coord)}")
+        raise ValueError(
+            f"Expected {len(shape) * 2} coordinates for {len(shape)}D shape, got {len(coord)}"
+        )
     coord = list(coord)
     for i in range(len(shape)):
         coord[2 * i] = max(0, coord[2 * i] - relax)
@@ -247,8 +247,3 @@ def _compute_bbox_all_find_objects(
         return None
 
     return np.array(rows, dtype=int)
-
-
-# Keep old names as aliases for backward compatibility within the codebase
-compute_bbox_all_2d = _compute_bbox_all_find_objects
-compute_bbox_all_3d = _compute_bbox_all_find_objects

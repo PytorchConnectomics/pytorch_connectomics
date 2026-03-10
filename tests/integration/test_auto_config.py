@@ -9,47 +9,51 @@ Tests cover:
 - Config integration
 """
 
-import pytest
-import torch
 from unittest.mock import patch
+
+import pytest
 
 
 # Test imports
 def test_imports():
     """Test that config modules can be imported."""
     from connectomics.config.hardware import auto_config, gpu_utils
-    assert hasattr(auto_config, 'AutoConfigPlanner')
-    assert hasattr(auto_config, 'auto_plan_config')
-    assert hasattr(gpu_utils, 'get_gpu_info')
-    assert hasattr(gpu_utils, 'suggest_batch_size')
+
+    assert hasattr(auto_config, "AutoConfigPlanner")
+    assert hasattr(auto_config, "auto_plan_config")
+    assert hasattr(gpu_utils, "get_gpu_info")
+    assert hasattr(gpu_utils, "suggest_batch_size")
 
 
 # ==================== GPU Utils Tests ====================
+
 
 class TestGPUInfo:
     """Tests for GPU information detection."""
 
     def test_get_gpu_info_no_cuda(self):
         """Test GPU info when CUDA is not available."""
-        with patch('torch.cuda.is_available', return_value=False):
+        with patch("torch.cuda.is_available", return_value=False):
             from connectomics.config.hardware.gpu_utils import get_gpu_info
 
             info = get_gpu_info()
 
-            assert info['cuda_available'] is False
-            assert info['num_gpus'] == 0
-            assert info['gpu_names'] == []
-            assert info['total_memory_gb'] == []
-            assert info['available_memory_gb'] == []
+            assert info["cuda_available"] is False
+            assert info["num_gpus"] == 0
+            assert info["gpu_names"] == []
+            assert info["total_memory_gb"] == []
+            assert info["available_memory_gb"] == []
 
     def test_get_gpu_info_with_cuda(self):
         """Test GPU info when CUDA is available (mocked)."""
-        with patch('torch.cuda.is_available', return_value=True), \
-                patch('torch.cuda.device_count', return_value=1), \
-                patch('torch.cuda.get_device_name', return_value="FakeGPU"), \
-                patch('torch.cuda.get_device_properties') as mock_props, \
-                patch('torch.cuda.memory_allocated', return_value=0), \
-                patch('torch.cuda.set_device'):
+        with (
+            patch("torch.cuda.is_available", return_value=True),
+            patch("torch.cuda.device_count", return_value=1),
+            patch("torch.cuda.get_device_name", return_value="FakeGPU"),
+            patch("torch.cuda.get_device_properties") as mock_props,
+            patch("torch.cuda.memory_allocated", return_value=0),
+            patch("torch.cuda.set_device"),
+        ):
             # Mock device properties
             class Props:
                 total_memory = 4 * 1024**3
@@ -60,11 +64,11 @@ class TestGPUInfo:
 
             info = get_gpu_info()
 
-            assert info['cuda_available'] is True
-            assert info['num_gpus'] == 1
-            assert info['gpu_names'] == ["FakeGPU"]
-            assert info['total_memory_gb'][0] == pytest.approx(4.0)
-            assert info['available_memory_gb'][0] > 0
+            assert info["cuda_available"] is True
+            assert info["num_gpus"] == 1
+            assert info["gpu_names"] == ["FakeGPU"]
+            assert info["total_memory_gb"][0] == pytest.approx(4.0)
+            assert info["available_memory_gb"][0] > 0
 
     def test_get_system_memory(self):
         """Test system memory detection."""
@@ -77,8 +81,8 @@ class TestGPUInfo:
     def test_get_available_system_memory(self):
         """Test available system memory detection."""
         from connectomics.config.hardware.gpu_utils import (
+            get_available_system_memory_gb,
             get_system_memory_gb,
-            get_available_system_memory_gb
         )
 
         available = get_available_system_memory_gb()
@@ -261,6 +265,7 @@ class TestOptimalNumWorkers:
 
 # ==================== Auto Config Tests ====================
 
+
 class TestAutoConfigPlanner:
     """Tests for AutoConfigPlanner class."""
 
@@ -269,12 +274,12 @@ class TestAutoConfigPlanner:
         from connectomics.config.hardware.auto_config import AutoConfigPlanner
 
         planner = AutoConfigPlanner(
-            architecture='mednext',
+            architecture="mednext",
             target_spacing=[1.0, 1.0, 1.0],
             median_shape=[128, 128, 128],
         )
 
-        assert planner.architecture == 'mednext'
+        assert planner.architecture == "mednext"
         assert planner.target_spacing == [1.0, 1.0, 1.0]
         assert planner.median_shape == [128, 128, 128]
         assert planner.gpu_info is not None
@@ -283,30 +288,30 @@ class TestAutoConfigPlanner:
         """Test MedNeXt architecture defaults."""
         from connectomics.config.hardware.auto_config import AutoConfigPlanner
 
-        planner = AutoConfigPlanner(architecture='mednext')
+        planner = AutoConfigPlanner(architecture="mednext")
         defaults = planner._get_architecture_defaults()
 
-        assert defaults['base_features'] == 32
-        assert defaults['lr'] == 1e-3
-        assert defaults['use_scheduler'] is False
+        assert defaults["base_features"] == 32
+        assert defaults["lr"] == 1e-3
+        assert defaults["use_scheduler"] is False
 
     def test_architecture_defaults_unet(self):
         """Test U-Net architecture defaults."""
         from connectomics.config.hardware.auto_config import AutoConfigPlanner
 
-        planner = AutoConfigPlanner(architecture='monai_basic_unet3d')
+        planner = AutoConfigPlanner(architecture="monai_basic_unet3d")
         defaults = planner._get_architecture_defaults()
 
-        assert defaults['base_features'] == 32
-        assert defaults['lr'] == 1e-4
-        assert defaults['use_scheduler'] is True
+        assert defaults["base_features"] == 32
+        assert defaults["lr"] == 1e-4
+        assert defaults["use_scheduler"] is True
 
     def test_plan_basic(self):
         """Test basic planning."""
         from connectomics.config.hardware.auto_config import AutoConfigPlanner
 
         planner = AutoConfigPlanner(
-            architecture='mednext',
+            architecture="mednext",
             median_shape=[128, 128, 128],
         )
 
@@ -332,7 +337,7 @@ class TestAutoConfigPlanner:
 
         # Anisotropic spacing (e.g., CT data)
         planner = AutoConfigPlanner(
-            architecture='mednext',
+            architecture="mednext",
             target_spacing=[5.0, 1.0, 1.0],  # 5mm z-spacing, 1mm xy-spacing
             median_shape=[64, 256, 256],
         )
@@ -348,12 +353,12 @@ class TestAutoConfigPlanner:
         from connectomics.config.hardware.auto_config import AutoConfigPlanner
 
         manual_overrides = {
-            'batch_size': 8,
-            'lr': 5e-4,
+            "batch_size": 8,
+            "lr": 5e-4,
         }
 
         planner = AutoConfigPlanner(
-            architecture='mednext',
+            architecture="mednext",
             manual_overrides=manual_overrides,
         )
 
@@ -363,12 +368,12 @@ class TestAutoConfigPlanner:
         assert result.batch_size == 8
         assert result.lr == 5e-4
 
-    @patch('torch.cuda.is_available', return_value=False)
+    @patch("torch.cuda.is_available", return_value=False)
     def test_plan_cpu_only(self, mock_cuda):
         """Test planning for CPU-only training."""
         from connectomics.config.hardware.auto_config import AutoConfigPlanner
 
-        planner = AutoConfigPlanner(architecture='mednext')
+        planner = AutoConfigPlanner(architecture="mednext")
         result = planner.plan()
 
         # CPU mode
@@ -382,12 +387,13 @@ class TestAutoPlanConfig:
 
     def test_auto_plan_config_basic(self):
         """Test basic auto-planning of config."""
-        from connectomics.config import Config, auto_plan_config
         from omegaconf import OmegaConf
+
+        from connectomics.config import Config, auto_plan_config
 
         # Create test config
         cfg = OmegaConf.structured(Config())
-        cfg.model.arch.type = 'mednext'
+        cfg.model.arch.type = "mednext"
         cfg.model.loss.deep_supervision = True
 
         # Auto-plan
@@ -397,12 +403,13 @@ class TestAutoPlanConfig:
         assert cfg.data.dataloader.batch_size > 0
         assert cfg.system.num_workers > 0
         assert len(cfg.data.dataloader.patch_size) == 3
-        assert cfg.optimization.precision in ['32', '16-mixed', 'bf16-mixed']
+        assert cfg.optimization.precision in ["32", "16-mixed", "bf16-mixed"]
 
     def test_auto_plan_config_disabled(self):
         """Test that explicit manual values are preserved."""
-        from connectomics.config import Config, auto_plan_config
         from omegaconf import OmegaConf
+
+        from connectomics.config import Config, auto_plan_config
 
         cfg = OmegaConf.structured(Config())
         cfg.data.dataloader.batch_size = 11
@@ -414,8 +421,9 @@ class TestAutoPlanConfig:
 
     def test_auto_plan_config_respects_overrides(self):
         """Test that planning respects manual config values."""
-        from connectomics.config import Config, auto_plan_config
         from omegaconf import OmegaConf
+
+        from connectomics.config import Config, auto_plan_config
 
         cfg = OmegaConf.structured(Config())
         cfg.data.dataloader.batch_size = 16  # Manual override
@@ -437,13 +445,13 @@ class TestAutoPlanResult:
 
         result = AutoPlanResult()
 
-        assert hasattr(result, 'patch_size')
-        assert hasattr(result, 'batch_size')
-        assert hasattr(result, 'num_workers')
-        assert hasattr(result, 'precision')
-        assert hasattr(result, 'lr')
-        assert hasattr(result, 'planning_notes')
-        assert hasattr(result, 'warnings')
+        assert hasattr(result, "patch_size")
+        assert hasattr(result, "batch_size")
+        assert hasattr(result, "num_workers")
+        assert hasattr(result, "precision")
+        assert hasattr(result, "lr")
+        assert hasattr(result, "planning_notes")
+        assert hasattr(result, "warnings")
 
     def test_auto_plan_result_with_values(self):
         """Test AutoPlanResult with custom values."""
@@ -466,17 +474,19 @@ class TestAutoPlanResult:
 
 # ==================== Integration Tests ====================
 
+
 class TestIntegration:
     """Integration tests for complete auto-configuration workflow."""
 
     def test_end_to_end_planning(self):
         """Test complete planning workflow from config to planned values."""
-        from connectomics.config import Config, auto_plan_config
         from omegaconf import OmegaConf
+
+        from connectomics.config import Config, auto_plan_config
 
         # Create config
         cfg = OmegaConf.structured(Config())
-        cfg.model.arch.type = 'mednext'
+        cfg.model.arch.type = "mednext"
         cfg.model.in_channels = 1
         cfg.model.out_channels = 6
         cfg.model.loss.deep_supervision = True
@@ -493,8 +503,9 @@ class TestIntegration:
 
     def test_planning_with_dataset_properties(self):
         """Test planning with dataset properties specified."""
-        from connectomics.config import Config, auto_plan_config
         from omegaconf import OmegaConf
+
+        from connectomics.config import Config, auto_plan_config
 
         cfg = OmegaConf.structured(Config())
         cfg.data.data_transform.target_spacing = [1.0, 1.0, 1.0]
@@ -507,11 +518,12 @@ class TestIntegration:
 
     def test_planning_with_real_gpu(self):
         """Test planning with real GPU (if available)."""
-        from connectomics.config import Config, auto_plan_config
         from omegaconf import OmegaConf
 
+        from connectomics.config import Config, auto_plan_config
+
         cfg = OmegaConf.structured(Config())
-        cfg.model.arch.type = 'mednext'
+        cfg.model.arch.type = "mednext"
         cfg.model.loss.deep_supervision = True
 
         fake_gpu_info = {
@@ -522,9 +534,11 @@ class TestIntegration:
             "available_memory_gb": [7.5],
         }
 
-        with patch("connectomics.config.hardware.auto_config.get_gpu_info", return_value=fake_gpu_info):
+        with patch(
+            "connectomics.config.hardware.auto_config.get_gpu_info", return_value=fake_gpu_info
+        ):
             cfg = auto_plan_config(cfg, print_results=False)
 
         # With GPU, planner should consider mixed precision or keep safe default
-        assert cfg.optimization.precision in ['16-mixed', 'bf16-mixed', '32']
+        assert cfg.optimization.precision in ["16-mixed", "bf16-mixed", "32"]
         assert cfg.data.dataloader.batch_size > 0

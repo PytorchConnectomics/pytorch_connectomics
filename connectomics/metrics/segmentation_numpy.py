@@ -4,11 +4,18 @@ import numpy as np
 import scipy.sparse as sparse
 from scipy.optimize import linear_sum_assignment
 from skimage.segmentation import relabel_sequential
+
 from connectomics.utils.label_overlap import compute_label_overlap
 
 matching_criteria = dict()
 
-__all__ = ["adapted_rand", "voi", "instance_matching", "instance_matching_simple", "matching_criteria"]
+__all__ = [
+    "adapted_rand",
+    "voi",
+    "instance_matching",
+    "instance_matching_simple",
+    "matching_criteria",
+]
 
 
 def adapted_rand(seg, gt, all_stats=False):
@@ -124,7 +131,7 @@ def voi(reconstruction, groundtruth, ignore_reconstruction=None, ignore_groundtr
         ignore_reconstruction = []
     if ignore_groundtruth is None:
         ignore_groundtruth = [0]
-    (hyxg, hxgy) = split_vi(reconstruction, groundtruth, ignore_reconstruction, ignore_groundtruth)
+    hyxg, hxgy = split_vi(reconstruction, groundtruth, ignore_reconstruction, ignore_groundtruth)
     return (hxgy, hyxg)
 
 
@@ -563,7 +570,9 @@ def instance_matching(y_true, y_pred, thresh=0.5, criterion="iou", report_matche
     overlap = label_overlap(y_true, y_pred, check=False)
     scores = matching_criteria[criterion](overlap)
     if not (0 <= np.min(scores) <= np.max(scores) <= 1):
-        raise ValueError(f"Scores must be in [0, 1], got range [{np.min(scores)}, {np.max(scores)}]")
+        raise ValueError(
+            f"Scores must be in [0, 1], got range [{np.min(scores)}, {np.max(scores)}]"
+        )
 
     # ignoring background
     scores = scores[1:, 1:]
@@ -695,7 +704,9 @@ def instance_matching_simple(y_true, y_pred, thresh=0.5, criterion="iou"):
     overlap = label_overlap(y_true, y_pred, check=False)
     scores = matching_criteria[criterion](overlap)
     if not (0 <= np.min(scores) <= np.max(scores) <= 1):
-        raise ValueError(f"Scores must be in [0, 1], got range [{np.min(scores)}, {np.max(scores)}]")
+        raise ValueError(
+            f"Scores must be in [0, 1], got range [{np.min(scores)}, {np.max(scores)}]"
+        )
 
     # ignoring background
     scores = scores[1:, 1:]

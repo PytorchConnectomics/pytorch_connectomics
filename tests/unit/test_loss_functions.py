@@ -1,5 +1,7 @@
 """Test loss functions (migrated to MONAI)."""
+
 import unittest
+
 import torch
 
 from connectomics.models.loss import create_loss
@@ -10,7 +12,7 @@ class TestLossFunctions(unittest.TestCase):
 
     def test_dice_loss(self):
         """Test Dice loss."""
-        loss_fn = create_loss('DiceLoss')
+        loss_fn = create_loss("DiceLoss")
         pred = torch.rand(2, 2, 4, 8, 8)
         target = torch.randint(0, 2, (2, 2, 4, 8, 8)).float()
 
@@ -19,7 +21,7 @@ class TestLossFunctions(unittest.TestCase):
 
     def test_focal_loss(self):
         """Test Focal loss."""
-        loss_fn = create_loss('FocalLoss')
+        loss_fn = create_loss("FocalLoss")
         pred = torch.rand(2, 2, 4, 8, 8)
         target = torch.randint(0, 2, (2, 2, 4, 8, 8)).float()
 
@@ -28,7 +30,7 @@ class TestLossFunctions(unittest.TestCase):
 
     def test_tversky_loss(self):
         """Test Tversky loss."""
-        loss_fn = create_loss('TverskyLoss')
+        loss_fn = create_loss("TverskyLoss")
         pred = torch.rand(2, 2, 4, 8, 8)
         target = torch.randint(0, 2, (2, 2, 4, 8, 8)).float()
 
@@ -36,5 +38,5 @@ class TestLossFunctions(unittest.TestCase):
         self.assertTrue(loss >= 0.0)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()

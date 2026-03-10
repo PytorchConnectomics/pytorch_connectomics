@@ -7,13 +7,6 @@ from scipy.ndimage import grey_dilation, grey_erosion
 from skimage.morphology import binary_dilation, disk
 
 from .affinity import (
-    affinity_deepem_crop_enabled,
-    compute_affinity_crop_pad,
-    crop_spatial_by_offsets,
-    crop_spatial_by_pad,
-    parse_affinity_offsets,
-    resolve_affinity_channel_groups_from_cfg,
-    resolve_affinity_offsets_for_channel_slice,
     seg_to_affinity,
 )
 from .flow import seg2d_to_flows
@@ -193,7 +186,7 @@ def seg_to_binary(label, segment_id=[]):
 
     fg_mask = np.zeros_like(label, dtype=bool)
     for seg_id in segment_id:
-        fg_mask |= (label == int(seg_id))
+        fg_mask |= label == int(seg_id)
     return fg_mask
 
 
@@ -266,7 +259,7 @@ def seg_erosion_dilation(
         operation: 'erosion', 'dilation', or 'both'
         kernel_size: Kernel size for morphological operation
     """
-    from skimage.morphology import erosion, dilation
+    from skimage.morphology import dilation, erosion
 
     struct_elem = disk(kernel_size, dtype=bool)
     footprint_2d = struct_elem

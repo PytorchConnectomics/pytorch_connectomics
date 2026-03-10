@@ -48,24 +48,12 @@ class NNUNetPreprocessd(MapTransform):
         self.image_key = image_key
         self.enabled = enabled
         self.crop_to_nonzero = crop_to_nonzero
-        self.source_spacing = (
-            list(source_spacing)
-            if source_spacing is not None
-            else None
-        )
-        self.target_spacing = (
-            list(target_spacing)
-            if target_spacing is not None
-            else None
-        )
+        self.source_spacing = list(source_spacing) if source_spacing is not None else None
+        self.target_spacing = list(target_spacing) if target_spacing is not None else None
         self.normalization = normalization
-        self.normalization_use_nonzero_mask = (
-            normalization_use_nonzero_mask
-        )
+        self.normalization_use_nonzero_mask = normalization_use_nonzero_mask
         self.clip_percentile_low = float(clip_percentile_low)
-        self.clip_percentile_high = float(
-            clip_percentile_high
-        )
+        self.clip_percentile_high = float(clip_percentile_high)
         self.force_separate_z = force_separate_z
         self.anisotropy_threshold = anisotropy_threshold
         self.image_order = image_order
@@ -73,13 +61,11 @@ class NNUNetPreprocessd(MapTransform):
         self.order_z = order_z
         if not (0.0 <= self.clip_percentile_low <= 1.0):
             raise ValueError(
-                "clip_percentile_low must be in [0, 1], "
-                f"got {self.clip_percentile_low}"
+                "clip_percentile_low must be in [0, 1], " f"got {self.clip_percentile_low}"
             )
         if not (0.0 <= self.clip_percentile_high <= 1.0):
             raise ValueError(
-                "clip_percentile_high must be in [0, 1], "
-                f"got {self.clip_percentile_high}"
+                "clip_percentile_high must be in [0, 1], " f"got {self.clip_percentile_high}"
             )
         if self.clip_percentile_low > self.clip_percentile_high:
             raise ValueError(
@@ -89,139 +75,88 @@ class NNUNetPreprocessd(MapTransform):
                 f"{self.clip_percentile_high}"
             )
 
-    def __call__(
-        self, data: Dict[str, Any]
-    ) -> Dict[str, Any]:
+    def __call__(self, data: Dict[str, Any]) -> Dict[str, Any]:
         d = dict(data)
         if not self.enabled or self.image_key not in d:
             return d
 
-        image_np, image_state = self._as_numpy(
-            d[self.image_key]
-        )
+        image_np, image_state = self._as_numpy(d[self.image_key])
         spatial_dims = self._infer_spatial_dims(image_np)
-        image_spatial_shape = self._get_spatial_shape(
-            image_np, spatial_dims
-        )
+        image_spatial_shape = self._get_spatial_shape(image_np, spatial_dims)
 
         meta_key = f"{self.image_key}_meta_dict"
         meta_dict = dict(d.get(meta_key, {}))
 
         source_spacing = self._normalize_spacing(
-            self.source_spacing
-            or meta_dict.get("spacing")
-            or meta_dict.get("resolution"),
+            self.source_spacing or meta_dict.get("spacing") or meta_dict.get("resolution"),
             spatial_dims,
         )
-        target_spacing = self._normalize_spacing(
-            self.target_spacing, spatial_dims
-        )
+        target_spacing = self._normalize_spacing(self.target_spacing, spatial_dims)
 
         preprocess_meta = {
             "enabled": True,
             "spatial_dims": spatial_dims,
-            "original_spatial_shape": list(
-                image_spatial_shape
-            ),
+            "original_spatial_shape": list(image_spatial_shape),
             "source_spacing": source_spacing,
             "target_spacing": target_spacing,
             "normalization": self.normalization,
-            "normalization_use_nonzero_mask": (
-                self.normalization_use_nonzero_mask
-            ),
+            "normalization_use_nonzero_mask": (self.normalization_use_nonzero_mask),
             "clip_percentile_low": self.clip_percentile_low,
-            "clip_percentile_high": (
-                self.clip_percentile_high
-            ),
+            "clip_percentile_high": (self.clip_percentile_high),
             "crop_bbox": None,
-            "cropped_spatial_shape": list(
-                image_spatial_shape
-            ),
-            "resampled_spatial_shape": list(
-                image_spatial_shape
-            ),
+            "cropped_spatial_shape": list(image_spatial_shape),
+            "resampled_spatial_shape": list(image_spatial_shape),
             "applied_crop": False,
             "applied_resample": False,
-            "transpose_axes": meta_dict.get(
-                "transpose_axes"
-            ),
+            "transpose_axes": meta_dict.get("transpose_axes"),
         }
 
         # --- Crop to nonzero ---
         if self.crop_to_nonzero:
-            nonzero_mask = self._create_nonzero_mask(
-                image_np, spatial_dims
-            )
-            if nonzero_mask is not None and np.any(
-                nonzero_mask
-            ):
+            nonzero_mask = self._create_nonzero_mask(image_np, spatial_dims)
+            if nonzero_mask is not None and np.any(nonzero_mask):
                 bbox = self._bbox_from_mask(nonzero_mask)
-                preprocess_meta["crop_bbox"] = [
-                    [int(b.start), int(b.stop)] for b in bbox
-                ]
+                preprocess_meta["crop_bbox"] = [[int(b.start), int(b.stop)] for b in bbox]
                 preprocess_meta["applied_crop"] = True
                 # Crop non-image keys only
                 for key in self.key_iterator(d):
                     if key not in d or key == self.image_key:
                         continue
                     val_np, st = self._as_numpy(d[key])
-                    val_np = self._crop_to_bbox(
-                        val_np, bbox, spatial_dims
-                    )
+                    val_np = self._crop_to_bbox(val_np, bbox, spatial_dims)
                     d[key] = self._from_numpy(val_np, st)
                 # Crop image
-                image_np = self._crop_to_bbox(
-                    image_np, bbox, spatial_dims
-                )
-                preprocess_meta["cropped_spatial_shape"] = (
-                    list(
-                        self._get_spatial_shape(
-                            image_np, spatial_dims
-                        )
-                    )
+                image_np = self._crop_to_bbox(image_np, bbox, spatial_dims)
+                preprocess_meta["cropped_spatial_shape"] = list(
+                    self._get_spatial_shape(image_np, spatial_dims)
                 )
 
         # --- Resample ---
-        if (
-            source_spacing is not None
-            and target_spacing is not None
-        ):
+        if source_spacing is not None and target_spacing is not None:
             current_shape = np.array(
                 preprocess_meta["cropped_spatial_shape"],
                 dtype=np.float32,
             )
-            spacing_factors = np.array(
-                source_spacing, dtype=np.float32
-            ) / np.array(target_spacing, dtype=np.float32)
+            spacing_factors = np.array(source_spacing, dtype=np.float32) / np.array(
+                target_spacing, dtype=np.float32
+            )
             target_shape = np.maximum(
-                np.round(current_shape * spacing_factors)
-                .astype(int),
+                np.round(current_shape * spacing_factors).astype(int),
                 1,
             )
-            if np.any(
-                target_shape != current_shape.astype(int)
-            ):
-                separate_z, lowres_axis = (
-                    self._resolve_separate_z(
-                        source_spacing,
-                        target_spacing,
-                        spatial_dims,
-                    )
+            if np.any(target_shape != current_shape.astype(int)):
+                separate_z, lowres_axis = self._resolve_separate_z(
+                    source_spacing,
+                    target_spacing,
+                    spatial_dims,
                 )
                 preprocess_meta["applied_resample"] = True
                 preprocess_meta["separate_z"] = separate_z
-                preprocess_meta["lowres_axis"] = (
-                    lowres_axis
-                )
-                tgt = tuple(
-                    int(v) for v in target_shape
-                )
+                preprocess_meta["lowres_axis"] = lowres_axis
+                tgt = tuple(int(v) for v in target_shape)
                 # Resample non-image keys only
                 for key in self.key_iterator(d):
-                    if (
-                        key not in d
-                        or key == self.image_key
-                    ):
+                    if key not in d or key == self.image_key:
                         continue
                     val_np, st = self._as_numpy(d[key])
                     val_np = self._resample_to_shape(
@@ -243,9 +178,7 @@ class NNUNetPreprocessd(MapTransform):
                     lowres_axis=lowres_axis,
                 )
                 preprocess_meta["resampled_spatial_shape"] = list(
-                    self._get_spatial_shape(
-                        image_np, spatial_dims
-                    )
+                    self._get_spatial_shape(image_np, spatial_dims)
                 )
 
         # --- Clip and normalize image ---
@@ -255,17 +188,13 @@ class NNUNetPreprocessd(MapTransform):
             spatial_dims=spatial_dims,
             low=self.clip_percentile_low,
             high=self.clip_percentile_high,
-            use_nonzero_mask=(
-                self.normalization_use_nonzero_mask
-            ),
+            use_nonzero_mask=(self.normalization_use_nonzero_mask),
         )
         image_np = self._normalize_image(
             image_np,
             spatial_dims=spatial_dims,
             mode=self.normalization,
-            use_nonzero_mask=(
-                self.normalization_use_nonzero_mask
-            ),
+            use_nonzero_mask=(self.normalization_use_nonzero_mask),
         )
         post_stats = self._format_debug_stats(image_np)
         logger.info(
@@ -280,9 +209,7 @@ class NNUNetPreprocessd(MapTransform):
             pre_stats,
             post_stats,
         )
-        d[self.image_key] = self._from_numpy(
-            image_np, image_state
-        )
+        d[self.image_key] = self._from_numpy(image_np, image_state)
 
         meta_dict["nnunet_preprocess"] = preprocess_meta
         d[meta_key] = meta_dict
@@ -297,14 +224,10 @@ class NNUNetPreprocessd(MapTransform):
         return array.ndim - 1
 
     @staticmethod
-    def _get_spatial_shape(
-        array: np.ndarray, spatial_dims: int
-    ) -> tuple:
+    def _get_spatial_shape(array: np.ndarray, spatial_dims: int) -> tuple:
         if array.ndim == spatial_dims:
             return tuple(int(v) for v in array.shape)
-        return tuple(
-            int(v) for v in array.shape[-spatial_dims:]
-        )
+        return tuple(int(v) for v in array.shape[-spatial_dims:])
 
     @staticmethod
     def _as_numpy(
@@ -323,15 +246,10 @@ class NNUNetPreprocessd(MapTransform):
                 }
         except Exception:
             pass
-        raise TypeError(
-            "NNUNetPreprocessd expects numpy or tensor, "
-            f"got {type(value)}"
-        )
+        raise TypeError("NNUNetPreprocessd expects numpy or tensor, " f"got {type(value)}")
 
     @staticmethod
-    def _from_numpy(
-        value: np.ndarray, state: Dict[str, Any]
-    ) -> Any:
+    def _from_numpy(value: np.ndarray, state: Dict[str, Any]) -> Any:
         if state["type"] == "numpy":
             return value
         import torch
@@ -374,9 +292,7 @@ class NNUNetPreprocessd(MapTransform):
         )
 
     @staticmethod
-    def _create_nonzero_mask(
-        image: np.ndarray, spatial_dims: int
-    ) -> Optional[np.ndarray]:
+    def _create_nonzero_mask(image: np.ndarray, spatial_dims: int) -> Optional[np.ndarray]:
         if image.ndim == spatial_dims + 1:
             mask = np.any(image != 0, axis=0)
         elif image.ndim == spatial_dims:
@@ -394,10 +310,7 @@ class NNUNetPreprocessd(MapTransform):
         mask: np.ndarray,
     ) -> tuple[slice, ...]:
         coords = np.where(mask)
-        return tuple(
-            slice(int(np.min(c)), int(np.max(c)) + 1)
-            for c in coords
-        )
+        return tuple(slice(int(np.min(c)), int(np.max(c)) + 1) for c in coords)
 
     @staticmethod
     def _crop_to_bbox(
@@ -422,25 +335,13 @@ class NNUNetPreprocessd(MapTransform):
         if self.force_separate_z is not None:
             if not self.force_separate_z:
                 return False, None
-            axis = int(
-                np.argmax(np.asarray(source_spacing))
-            )
+            axis = int(np.argmax(np.asarray(source_spacing)))
             return True, axis
-        spacing = np.asarray(
-            source_spacing, dtype=np.float32
-        )
-        ratio = float(
-            np.max(spacing)
-            / np.maximum(np.min(spacing), 1e-8)
-        )
+        spacing = np.asarray(source_spacing, dtype=np.float32)
+        ratio = float(np.max(spacing) / np.maximum(np.min(spacing), 1e-8))
         if ratio <= self.anisotropy_threshold:
-            spacing = np.asarray(
-                target_spacing, dtype=np.float32
-            )
-            ratio = float(
-                np.max(spacing)
-                / np.maximum(np.min(spacing), 1e-8)
-            )
+            spacing = np.asarray(target_spacing, dtype=np.float32)
+            ratio = float(np.max(spacing) / np.maximum(np.min(spacing), 1e-8))
         if ratio <= self.anisotropy_threshold:
             return False, None
         axis = int(np.argmax(np.asarray(source_spacing)))
@@ -455,14 +356,9 @@ class NNUNetPreprocessd(MapTransform):
         separate_z: bool,
         lowres_axis: Optional[int],
     ) -> np.ndarray:
-        if (
-            self._get_spatial_shape(array, spatial_dims)
-            == target_shape
-        ):
+        if self._get_spatial_shape(array, spatial_dims) == target_shape:
             return array
-        order = (
-            self.label_order if is_seg else self.image_order
-        )
+        order = self.label_order if is_seg else self.image_order
 
         if array.ndim == spatial_dims + 1:
             channels = [
@@ -476,21 +372,17 @@ class NNUNetPreprocessd(MapTransform):
                 )[None]
                 for c in range(array.shape[0])
             ]
-            return np.vstack(channels).astype(
-                array.dtype, copy=False
-            )
+            return np.vstack(channels).astype(array.dtype, copy=False)
 
         if array.ndim == spatial_dims:
-            return (
-                self._resample_spatial(
-                    array,
-                    target_shape=target_shape,
-                    order=order,
-                    is_seg=is_seg,
-                    separate_z=separate_z,
-                    lowres_axis=lowres_axis,
-                ).astype(array.dtype, copy=False)
-            )
+            return self._resample_spatial(
+                array,
+                target_shape=target_shape,
+                order=order,
+                is_seg=is_seg,
+                separate_z=separate_z,
+                lowres_axis=lowres_axis,
+            ).astype(array.dtype, copy=False)
 
         return array
 
@@ -534,10 +426,8 @@ class NNUNetPreprocessd(MapTransform):
                 part = array[:, :, i]
 
             pf = [
-                target[inplane[0]]
-                / max(part.shape[0], 1),
-                target[inplane[1]]
-                / max(part.shape[1], 1),
+                target[inplane[0]] / max(part.shape[0], 1),
+                target[inplane[1]] / max(part.shape[1], 1),
             ]
             resized = zoom(
                 part.astype(np.float32, copy=False),
@@ -551,14 +441,8 @@ class NNUNetPreprocessd(MapTransform):
         stacked = np.stack(slices, axis=axis)
         if stacked.shape[axis] != int(target[axis]):
             af = np.ones(3, dtype=np.float32)
-            af[axis] = target[axis] / max(
-                stacked.shape[axis], 1
-            )
-            z_order = (
-                self.order_z
-                if not is_seg
-                else self.label_order
-            )
+            af[axis] = target[axis] / max(stacked.shape[axis], 1)
+            z_order = self.order_z if not is_seg else self.label_order
             stacked = zoom(
                 stacked.astype(np.float32, copy=False),
                 zoom=af,
@@ -600,11 +484,7 @@ class NNUNetPreprocessd(MapTransform):
             return np.clip(vol, lo, hi)
 
         if image.ndim == spatial_dims + 1:
-            nz = (
-                np.any(image != 0, axis=0)
-                if use_nonzero_mask
-                else None
-            )
+            nz = np.any(image != 0, axis=0) if use_nonzero_mask else None
             if nz is not None and np.all(nz):
                 nz = None  # Skip masking if all nonzero
             for c in range(image.shape[0]):
@@ -662,11 +542,7 @@ class NNUNetPreprocessd(MapTransform):
             return vol
 
         if image.ndim == spatial_dims + 1:
-            nz = (
-                np.any(image != 0, axis=0)
-                if use_nonzero_mask
-                else None
-            )
+            nz = np.any(image != 0, axis=0) if use_nonzero_mask else None
             if nz is not None and np.all(nz):
                 nz = None
             for c in range(image.shape[0]):

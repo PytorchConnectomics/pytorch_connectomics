@@ -12,9 +12,6 @@ import torch
 import torchmetrics
 from pytorch_lightning.utilities.types import STEP_OUTPUT
 
-from ...inference import apply_postprocessing, apply_save_prediction_transform, write_outputs
-from ...metrics.metrics_seg import AdaptedRandError
-from ...metrics.segmentation_numpy import instance_matching, instance_matching_simple, voi
 from ...data.process.affinity import (
     affinity_deepem_crop_enabled,
     compute_affinity_crop_pad,
@@ -22,6 +19,9 @@ from ...data.process.affinity import (
     resolve_affinity_channel_groups_from_cfg,
 )
 from ...data.process.misc import get_padsize
+from ...inference import apply_postprocessing, apply_save_prediction_transform, write_outputs
+from ...metrics.metrics_seg import AdaptedRandError
+from ...metrics.segmentation_numpy import instance_matching, instance_matching_simple, voi
 
 logger = logging.getLogger(__name__)
 
@@ -61,11 +61,13 @@ class TestContext:
         if evaluation_enabled and evaluation_cfg is not None:
             inference_eval_defaults = inference_cfg.evaluation
             prediction_threshold = module._cfg_float(
-                evaluation_cfg, "prediction_threshold",
+                evaluation_cfg,
+                "prediction_threshold",
                 float(inference_eval_defaults.prediction_threshold),
             )
             instance_iou_threshold = module._cfg_float(
-                evaluation_cfg, "instance_iou_threshold",
+                evaluation_cfg,
+                "instance_iou_threshold",
                 float(inference_eval_defaults.instance_iou_threshold),
             )
 
@@ -220,10 +222,10 @@ def _apply_prediction_crop_pad_if_needed(
             f"Got reference_image_shape={reference_image_shape}, crop_pad={crop_pad}"
         )
 
-    padded_spatial_shape = tuple(int(v) for v in reference_image_shape[-len(crop_pad):])
+    spatial_slice = slice(-len(crop_pad), None)
+    padded_spatial_shape = tuple(int(v) for v in reference_image_shape[spatial_slice])
     expected_cropped_shape = tuple(
-        padded_spatial_shape[i] - crop_pad[i][0] - crop_pad[i][1]
-        for i in range(len(crop_pad))
+        padded_spatial_shape[i] - crop_pad[i][0] - crop_pad[i][1] for i in range(len(crop_pad))
     )
     if any(size <= 0 for size in expected_cropped_shape):
         raise ValueError(
@@ -231,13 +233,15 @@ def _apply_prediction_crop_pad_if_needed(
             f"crop_pad={crop_pad}, padded_shape={padded_spatial_shape}"
         )
 
-    data_spatial_shape = tuple(int(v) for v in data.shape[-len(crop_pad):])
+    data_spatial_shape = tuple(int(v) for v in data.shape[spatial_slice])
     if data_spatial_shape == expected_cropped_shape:
         return data
     if data_spatial_shape != padded_spatial_shape:
         raise ValueError(
-            f"Cannot apply inference.postprocessing.crop_pad to {item_name}: spatial shape {data_spatial_shape} "
-            f"matches neither padded input {padded_spatial_shape} nor cropped shape {expected_cropped_shape}."
+            "Cannot apply inference.postprocessing.crop_pad to "
+            f"{item_name}: spatial shape {data_spatial_shape} matches neither "
+            f"padded input {padded_spatial_shape} nor cropped shape "
+            f"{expected_cropped_shape}."
         )
 
     cropped = _crop_spatial_border(data, crop_pad, item_name=item_name)
@@ -258,7 +262,9 @@ def _resolve_reference_spatial_shape_after_crop_pad(
     crop_rank = len(crop_pad)
     unchanged_prefix = reference_spatial_shape[:-crop_rank]
     cropped_suffix = tuple(
-        reference_spatial_shape[len(unchanged_prefix) + axis] - crop_pad[axis][0] - crop_pad[axis][1]
+        reference_spatial_shape[len(unchanged_prefix) + axis]
+        - crop_pad[axis][0]
+        - crop_pad[axis][1]
         for axis in range(crop_rank)
     )
     return unchanged_prefix + cropped_suffix
@@ -308,7 +314,8 @@ def _apply_affinity_inference_crop_if_needed(
             f"Affinity crop {crop_pad} is too large for {item_name} shape {reference_spatial_shape}"
         )
 
-    data_spatial_shape = tuple(int(v) for v in data.shape[-len(crop_pad):])
+    spatial_slice = slice(-len(crop_pad), None)
+    data_spatial_shape = tuple(int(v) for v in data.shape[spatial_slice])
     if data_spatial_shape == expected_cropped_shape:
         return data
     if data_spatial_shape != reference_spatial_shape:
@@ -336,7 +343,10 @@ def _align_metric_tensors(
         labels_tensor = labels_tensor.unsqueeze(0)
 
     if pred_tensor.shape != labels_tensor.shape:
-        logger.warning(f"Cannot compute metrics: incompatible shapes after alignment, pred={pred_tensor.shape}, labels={labels_tensor.shape}")
+        logger.warning(
+            "Cannot compute metrics: incompatible shapes after alignment, "
+            f"pred={pred_tensor.shape}, labels={labels_tensor.shape}"
+        )
         return None, None
 
     return pred_tensor, labels_tensor
@@ -362,7 +372,9 @@ def _compute_instance_metrics(
     pred_instances = pred_tensor.long()
     labels_instances = labels_tensor.long()
 
-    if hasattr(module, "test_adapted_rand") and isinstance(module.test_adapted_rand, torchmetrics.Metric):
+    if hasattr(module, "test_adapted_rand") and isinstance(
+        module.test_adapted_rand, torchmetrics.Metric
+    ):
         per_volume_metric = AdaptedRandError(return_all_stats=True).to(module.device)
         per_volume_metric.update(pred_instances.cpu(), labels_instances.cpu())
         adapted_rand_value = per_volume_metric.compute()
@@ -430,7 +442,9 @@ def _compute_instance_metrics(
         metrics_dict["voi_total"] = split + merge
 
         module.test_voi.update(pred_instances.cpu(), labels_instances.cpu())
-        module.log("test_voi", module.test_voi, on_step=False, on_epoch=True, prog_bar=True, logger=True)
+        module.log(
+            "test_voi", module.test_voi, on_step=False, on_epoch=True, prog_bar=True, logger=True
+        )
         module.log(
             "test_voi_split",
             module.test_voi.compute_split(),
@@ -480,7 +494,8 @@ def _compute_instance_metrics(
             criterion="iou",
         )
         logger.info(
-            f"{volume_prefix}Instance Accuracy (Detail): {stats_simple['accuracy']:.6f} [relaxed, non-Hungarian]"
+            f"{volume_prefix}Instance Accuracy (Detail): "
+            f"{stats_simple['accuracy']:.6f} [relaxed, non-Hungarian]"
         )
         logger.info(f"{volume_prefix}  Precision: {stats_simple['precision']:.6f}")
         logger.info(f"{volume_prefix}  Recall: {stats_simple['recall']:.6f}")
@@ -790,7 +805,9 @@ def run_test_step(module, batch: Dict[str, torch.Tensor], batch_idx: int) -> STE
             logger.info("Nonzero rank skipping cached final prediction postprocessing.")
             _distributed_tta_barrier(module)
             return torch.tensor(0.0, device=module.device)
-        logger.info("Loaded final predictions from disk, skipping inference/decoding/postprocessing")
+        logger.info(
+            "Loaded final predictions from disk, skipping inference/decoding/postprocessing"
+        )
         predictions_np = _apply_prediction_crop_pad_if_needed(
             module,
             predictions_np,
@@ -917,7 +934,9 @@ def run_test_step(module, batch: Dict[str, torch.Tensor], batch_idx: int) -> STE
         item_name="predictions",
     )
     inference_duration = time.time() - inference_start
-    logger.info(f"Inference completed in {inference_duration / 60:.2f} minutes ({inference_duration:.1f}s)")
+    logger.info(
+        f"Inference completed in {inference_duration / 60:.2f} minutes ({inference_duration:.1f}s)"
+    )
 
     logger.info("Prediction Summary:")
     logger.info(f"    Shape:  {predictions_np.shape}")
@@ -958,14 +977,16 @@ def run_test_step(module, batch: Dict[str, torch.Tensor], batch_idx: int) -> STE
     _evaluate_decoded_predictions(
         module,
         decoded_predictions,
-        _apply_affinity_inference_crop_if_needed(
-            module,
-            labels,
-            reference_spatial_shape=reference_spatial_shape,
-            item_name="labels",
-        )
-        if labels is not None
-        else None,
+        (
+            _apply_affinity_inference_crop_if_needed(
+                module,
+                labels,
+                reference_spatial_shape=reference_spatial_shape,
+                item_name="labels",
+            )
+            if labels is not None
+            else None
+        ),
         filenames=filenames,
         batch_idx=batch_idx,
     )

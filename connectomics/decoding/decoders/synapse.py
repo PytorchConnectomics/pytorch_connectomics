@@ -9,21 +9,19 @@ Functions:
     - polarity2instance: Convert synaptic polarity predictions to instance masks
 """
 
-
 from __future__ import annotations
+
 import logging
 from typing import Tuple
 
-import numpy as np
-
-logger = logging.getLogger(__name__)
-
-from skimage.morphology import binary_dilation, remove_small_objects
-from scipy.ndimage import zoom
 import cc3d
+import numpy as np
+from scipy.ndimage import zoom
+from skimage.morphology import binary_dilation, remove_small_objects
 
 from ..utils import cast2dtype
 
+logger = logging.getLogger(__name__)
 
 __all__ = ["polarity2instance"]
 

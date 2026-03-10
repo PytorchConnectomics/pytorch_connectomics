@@ -198,9 +198,7 @@ def test_standard_loss_uses_pos_weight_only_for_weight_aware_losses():
     )
 
     outputs = torch.zeros(1, 1, 2, 2, 2)
-    labels = torch.tensor(
-        [[[[[-1.0, 0.0], [1.0, 2.0]], [[-0.5, 0.2], [0.0, 3.0]]]]]
-    )
+    labels = torch.tensor([[[[[-1.0, 0.0], [1.0, 2.0]], [[-0.5, 0.2], [0.0, 3.0]]]]])
 
     total_loss, loss_dict = orchestrator.compute_standard_loss(outputs, labels, stage="train")
 
@@ -318,13 +316,13 @@ def test_standard_loss_supports_affinity_deepem_crop():
     assert weight is not None
     # Channel 0 (offset 1-0-0): valid region is z >= 1, so first z-slice is masked
     assert weight[0, 0, 0, :, :].sum() == 0  # z=0 masked for channel 0
-    assert weight[0, 0, 1, :, :].sum() > 0   # z=1 valid for channel 0
+    assert weight[0, 0, 1, :, :].sum() > 0  # z=1 valid for channel 0
     # Channel 1 (offset 0-1-0): valid region is y >= 1
     assert weight[0, 1, :, 0, :].sum() == 0  # y=0 masked for channel 1
-    assert weight[0, 1, :, 1, :].sum() > 0   # y=1 valid for channel 1
+    assert weight[0, 1, :, 1, :].sum() > 0  # y=1 valid for channel 1
     # Channel 2 (offset 0-0-1): valid region is x >= 1
     assert weight[0, 2, :, :, 0].sum() == 0  # x=0 masked for channel 2
-    assert weight[0, 2, :, :, 1].sum() > 0   # x=1 valid for channel 2
+    assert weight[0, 2, :, :, 1].sum() > 0  # x=1 valid for channel 2
 
 
 def test_standard_loss_rejects_invalid_runtime_negative_channel_slice():
@@ -707,7 +705,9 @@ def test_deep_supervision_multitask_resizes_targets_per_task_and_applies_pos_wei
     dense_labels = torch.randn(1, 1, 6, 6, 6)
     labels = torch.cat([class_labels, dense_labels], dim=1)
 
-    total_loss, loss_dict = orchestrator.compute_deep_supervision_loss(outputs, labels, stage="train")
+    total_loss, loss_dict = orchestrator.compute_deep_supervision_loss(
+        outputs, labels, stage="train"
+    )
 
     assert torch.isfinite(total_loss)
     assert "train_loss_scale_0" in loss_dict
@@ -831,7 +831,9 @@ def test_explicit_loss_terms_deep_supervision_resizes_masks_and_respects_main_on
     }
     labels = torch.rand(1, 2, 6, 6, 6)
 
-    total_loss, loss_dict = orchestrator.compute_deep_supervision_loss(outputs, labels, stage="train")
+    total_loss, loss_dict = orchestrator.compute_deep_supervision_loss(
+        outputs, labels, stage="train"
+    )
 
     assert torch.isfinite(total_loss)
     assert len(pred_only_loss.calls) == 1  # main scale only

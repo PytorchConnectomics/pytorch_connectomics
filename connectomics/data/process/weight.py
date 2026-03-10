@@ -14,10 +14,7 @@ def split_multichannel_mask(label_data: np.ndarray) -> np.ndarray:
     if len(unique_indices) > 1:
         if unique_indices[0] == 0:
             unique_indices = unique_indices[1:]
-        masks = [
-            (label_data == idx).astype(np.uint8)
-            for idx in unique_indices
-        ]
+        masks = [(label_data == idx).astype(np.uint8) for idx in unique_indices]
         return np.stack(masks, 0)
     return np.ones_like(label_data).astype(np.uint8)[np.newaxis]
 

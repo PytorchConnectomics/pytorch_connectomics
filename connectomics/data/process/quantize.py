@@ -2,11 +2,11 @@
 Quantization functions for PyTorch Connectomics processing.
 """
 
-
 from __future__ import annotations
+
 import numpy as np
-import torch
 import scipy
+import torch
 
 
 def energy_quantize(energy, levels=10):
@@ -54,8 +54,13 @@ def _decode_quant_torch(output, mode="max", levels=None):
         energy = pred / float(levels)
     elif mode == "mean":
         out_shape = output.shape
-        bins = torch.linspace(-1.0 / levels, 1.0 - 1.0 / levels, num_channels,
-                              dtype=torch.float32, device=output.device)
+        bins = torch.linspace(
+            -1.0 / levels,
+            1.0 - 1.0 / levels,
+            num_channels,
+            dtype=torch.float32,
+            device=output.device,
+        )
         bins = bins.view(1, -1, *([1] * (output.ndim - 2)))
 
         pred = torch.softmax(output, dim=1)

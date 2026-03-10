@@ -17,10 +17,11 @@ Key design principles from EMVision:
 - Anisotropic convolutions for EM data (1,2,2) by default
 """
 
-
 from __future__ import annotations
+
 import math
-from typing import List, Tuple, Union, Dict, Optional
+from typing import Dict, List, Optional, Tuple, Union
+
 import torch
 import torch.nn as nn
 from torch.nn import functional as F

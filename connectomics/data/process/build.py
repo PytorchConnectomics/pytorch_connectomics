@@ -1,6 +1,7 @@
 """Factory for label transform pipelines in PyTorch Connectomics."""
 
 from __future__ import annotations
+
 from typing import Any, Dict, List, Optional
 
 import torch
@@ -25,9 +26,7 @@ def _resolve_dtype(dtype_value: Optional[Any]) -> Optional[torch.dtype]:
     raise ValueError(f"Unsupported torch dtype specification: {dtype_value!r}")
 
 
-def create_label_transform_pipeline(
-    cfg: Any = None, **kwargs: Any
-) -> MapTransform:
+def create_label_transform_pipeline(cfg: Any = None, **kwargs: Any) -> MapTransform:
     """Create a label transformation pipeline from config.
 
     Primary entry point for label processing. Uses MultiTaskLabelTransformd

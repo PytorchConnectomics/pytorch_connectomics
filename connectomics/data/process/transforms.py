@@ -6,24 +6,33 @@ functions previously handled by the custom DataProcessor system.
 """
 
 from __future__ import annotations
+
 from copy import deepcopy
-from typing import Callable, Dict, Any, List, Optional, Sequence, Union, Tuple
+from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, Union
+
 import numpy as np
 import torch
 from monai.config import KeysCollection
 from monai.transforms import MapTransform
 from monai.utils import ensure_tuple_rep
 
-from .target import (
-    seg_to_binary, seg_to_affinity, seg_to_instance_bd,
-    seg_to_polarity, seg_to_small_seg, seg_to_flows, seg_erosion_dilation,
-)
 from .distance import (
-    edt_instance, edt_semantic, signed_distance_transform,
+    edt_instance,
+    edt_semantic,
+    signed_distance_transform,
     skeleton_aware_distance_transform,
 )
+from .quantize import decode_quantize, energy_quantize
 from .segment import seg_selection
-from .quantize import energy_quantize, decode_quantize
+from .target import (
+    seg_erosion_dilation,
+    seg_to_affinity,
+    seg_to_binary,
+    seg_to_flows,
+    seg_to_instance_bd,
+    seg_to_polarity,
+    seg_to_small_seg,
+)
 from .weight import seg_to_weights
 
 

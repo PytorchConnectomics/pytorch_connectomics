@@ -39,11 +39,7 @@ def _detect_format(filename: str) -> str:
         return "zarr"
     if filename.endswith(".nii.gz"):
         return "nifti"
-    suffix = (
-        filename.rsplit(".", 1)[-1].lower()
-        if "." in filename
-        else ""
-    )
+    suffix = filename.rsplit(".", 1)[-1].lower() if "." in filename else ""
     _SUFFIX_MAP = {
         "h5": "h5",
         "hdf5": "h5",
@@ -97,11 +93,7 @@ def write_hdf5(
     with h5py.File(filename, "w") as fh:
         if isinstance(dataset, list):
             for i, name in enumerate(dataset):
-                _opts = (
-                    compression_level
-                    if compression == "gzip"
-                    else None
-                )
+                _opts = compression_level if compression == "gzip" else None
                 fh.create_dataset(
                     name,
                     data=data_array[i],
@@ -110,11 +102,7 @@ def write_hdf5(
                     dtype=data_array[i].dtype,
                 )
         else:
-            _opts = (
-                compression_level
-                if compression == "gzip"
-                else None
-            )
+            _opts = compression_level if compression == "gzip" else None
             fh.create_dataset(
                 dataset,
                 data=data_array,
@@ -138,9 +126,7 @@ def _read_image(
     Raises FileNotFoundError if the file does not exist.
     """
     if not os.path.exists(filename):
-        raise FileNotFoundError(
-            f"Image file not found: {filename}"
-        )
+        raise FileNotFoundError(f"Image file not found: {filename}")
     image = imageio.imread(filename)
     if image_type == "seg" and image.ndim == 3:
         image = rgb_to_seg(image)
@@ -173,13 +159,9 @@ def read_images(
     """
     file_list = sorted(glob.glob(filename_pattern))
     if len(file_list) == 0:
-        raise ValueError(
-            f"No files found matching: {filename_pattern}"
-        )
+        raise ValueError(f"No files found matching: {filename_pattern}")
     first = _read_image(file_list[0], image_type=image_type)
-    data = np.zeros(
-        (len(file_list), *first.shape), dtype=first.dtype
-    )
+    data = np.zeros((len(file_list), *first.shape), dtype=first.dtype)
     data[0] = first
     for i, fp in enumerate(file_list[1:], start=1):
         data[i] = _read_image(fp, image_type=image_type)
@@ -200,11 +182,7 @@ def _tiff_series_are_stackable(tif) -> bool:
     ref_axes = ref.axes
     ref_dtype = ref.dtype
     for s in tif.series[1:]:
-        if (
-            tuple(s.shape) != ref_shape
-            or s.axes != ref_axes
-            or s.dtype != ref_dtype
-        ):
+        if tuple(s.shape) != ref_shape or s.axes != ref_axes or s.dtype != ref_dtype:
             return False
     return True
 
@@ -218,9 +196,7 @@ def _read_tiff_volume(filename: str) -> np.ndarray:
 
     with tifffile.TiffFile(filename) as tif:
         if len(tif.pages) == 0:
-            raise ValueError(
-                f"TIFF file has no pages: {filename}"
-            )
+            raise ValueError(f"TIFF file has no pages: {filename}")
         if len(tif.series) == 0:
             data = tif.pages[0].asarray()
         elif _tiff_series_are_stackable(tif):
@@ -241,9 +217,7 @@ def _get_tiff_volume_shape(filename: str) -> tuple:
 
     with tifffile.TiffFile(filename) as tif:
         if len(tif.pages) == 0:
-            raise ValueError(
-                f"TIFF file has no pages: {filename}"
-            )
+            raise ValueError(f"TIFF file has no pages: {filename}")
         if len(tif.series) == 0:
             return tuple(tif.pages[0].shape)
         if _tiff_series_are_stackable(tif):
@@ -297,9 +271,7 @@ def _read_nifti(filename: str) -> np.ndarray:
     return data
 
 
-def _write_nifti(
-    filename: str, volume: np.ndarray
-) -> None:
+def _write_nifti(filename: str, volume: np.ndarray) -> None:
     """Write NIfTI volume."""
     import nibabel as nib
 
@@ -349,10 +321,7 @@ def read_volume(
         if "*" in filename or "?" in filename:
             file_list = sorted(glob.glob(filename))
             if not file_list:
-                raise FileNotFoundError(
-                    "No TIFF files found matching: "
-                    f"{filename}"
-                )
+                raise FileNotFoundError("No TIFF files found matching: " f"{filename}")
             volumes = []
             for fp in file_list:
                 vol = _read_tiff_volume(fp)
@@ -378,9 +347,7 @@ def read_volume(
         raise ValueError(f"Unsupported format: {fmt}")
 
     if data.ndim not in (2, 3, 4):
-        raise ValueError(
-            f"Expected 2D/3D/4D data, got {data.ndim}D"
-        )
+        raise ValueError(f"Expected 2D/3D/4D data, got {data.ndim}D")
 
     if drop_channel and data.ndim == 4:
         original_dtype = data.dtype
@@ -429,8 +396,7 @@ def save_volume(
 
     else:
         raise ValueError(
-            f"Unsupported format: {file_format}. "
-            f"Expected: h5, tiff, png, nii, nii.gz"
+            f"Unsupported format: {file_format}. " f"Expected: h5, tiff, png, nii, nii.gz"
         )
 
 
@@ -443,9 +409,7 @@ def _save_images(
     """Save a stack of images to a directory."""
     os.makedirs(directory, exist_ok=True)
     for i in range(data.shape[0]):
-        path = os.path.join(
-            directory, f"{prefix}{i:04d}.{fmt}"
-        )
+        path = os.path.join(directory, f"{prefix}{i:04d}.{fmt}")
         imageio.imsave(path, data[i])
 
 
@@ -467,9 +431,7 @@ def get_vol_shape(
         try:
             import zarr
         except ModuleNotFoundError as exc:
-            raise ModuleNotFoundError(
-                "zarr required. pip install zarr"
-            ) from exc
+            raise ModuleNotFoundError("zarr required. pip install zarr") from exc
         obj = zarr.open(filename, mode="r")
         if hasattr(obj, "shape"):
             return tuple(obj.shape)
@@ -477,9 +439,7 @@ def get_vol_shape(
             return tuple(obj[dataset].shape)
         keys = list(obj.keys())
         if not keys:
-            raise ValueError(
-                f"No arrays in zarr group: {filename}"
-            )
+            raise ValueError(f"No arrays in zarr group: {filename}")
         return tuple(obj[keys[0]].shape)
 
     if fmt == "h5":
@@ -494,9 +454,7 @@ def get_vol_shape(
     if fmt == "png":
         file_list = sorted(glob.glob(filename))
         if not file_list:
-            raise ValueError(
-                f"No PNG files found: {filename}"
-            )
+            raise ValueError(f"No PNG files found: {filename}")
         first = imageio.imread(file_list[0])
         n = len(file_list)
         if first.ndim == 2:
@@ -505,9 +463,7 @@ def get_vol_shape(
             # Match read_volume: (C, D, H, W)
             c = first.shape[-1]
             return (c, n, first.shape[0], first.shape[1])
-        raise ValueError(
-            f"Unsupported PNG dims: {first.ndim}D"
-        )
+        raise ValueError(f"Unsupported PNG dims: {first.ndim}D")
 
     if fmt == "nifti":
         return _get_nifti_shape(filename)

@@ -41,7 +41,6 @@ class ScalarLoggingConfig:
     interval: str = "step"  # "step" or "epoch"
     loss: Optional[List[str]] = None
     loss_every_n_steps: int = 100
-    val_check_interval: Optional[float] = None  # Legacy alias (use optimization.val_check_interval)
     benchmark: Optional[bool] = None
 
 

@@ -15,7 +15,7 @@ from pathlib import Path
 # Add parent directory to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from connectomics.data.download import DATASETS, download_dataset, list_datasets
+from connectomics.data.download import DATASETS, download_dataset, list_datasets  # noqa: E402
 
 
 def main():
@@ -28,27 +28,20 @@ Examples:
   python scripts/download_data.py snemi mitoem
   python scripts/download_data.py all
   python scripts/download_data.py --list
-        """
+        """,
     )
     parser.add_argument(
-        "datasets",
-        nargs="*",
-        help="Dataset name(s) to download, or 'all' for all datasets"
+        "datasets", nargs="*", help="Dataset name(s) to download, or 'all' for all datasets"
     )
+    parser.add_argument("--list", "-l", action="store_true", help="List available datasets")
     parser.add_argument(
-        "--list", "-l",
-        action="store_true",
-        help="List available datasets"
-    )
-    parser.add_argument(
-        "--output", "-o",
+        "--output",
+        "-o",
         default=".",
-        help="Base directory (default: current dir, datasets saved to <output>/datasets/)"
+        help="Base directory (default: current dir, datasets saved to <output>/datasets/)",
     )
     parser.add_argument(
-        "--force", "-f",
-        action="store_true",
-        help="Force re-download even if dataset exists"
+        "--force", "-f", action="store_true", help="Force re-download even if dataset exists"
     )
 
     args = parser.parse_args()

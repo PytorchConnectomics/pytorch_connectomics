@@ -148,7 +148,6 @@ augmentation_profiles:
     rotate:
       enabled: true
       prob: 0.5
-      max_angle: 90.0
     elastic:
       enabled: true
       prob: 0.7

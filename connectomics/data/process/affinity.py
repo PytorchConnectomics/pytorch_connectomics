@@ -74,9 +74,7 @@ def parse_affinity_offsets(offsets: Sequence[Any]) -> list[tuple[int, int, int]]
         if isinstance(offset, str):
             parts = offset.split("-")
             if len(parts) != 3:
-                raise ValueError(
-                    f"Invalid affinity offset {offset!r}. Expected 'z-y-x' format."
-                )
+                raise ValueError(f"Invalid affinity offset {offset!r}. Expected 'z-y-x' format.")
             parsed.append((int(parts[0]), int(parts[1]), int(parts[2])))
             continue
         if isinstance(offset, (list, tuple)) and len(offset) == 3:
@@ -217,7 +215,7 @@ def crop_spatial_by_pad(
         )
 
     slices = [slice(None)] * data.ndim
-    spatial_shape = tuple(int(v) for v in data.shape[-len(crop_pad):])
+    spatial_shape = tuple(int(v) for v in data.shape[-len(crop_pad) :])
     for spatial_idx, (before, after) in enumerate(crop_pad):
         dim_size = spatial_shape[spatial_idx]
         if before < 0 or after < 0:

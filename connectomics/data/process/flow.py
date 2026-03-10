@@ -1,8 +1,8 @@
 from __future__ import annotations
 
-import torch
-import scipy
 import numpy as np
+import scipy
+import torch
 
 
 def seg2d_to_flows(masks: np.ndarray):
@@ -98,5 +98,3 @@ def extend_centers(neighbors, centers, isneighbor, h, w, n_iter: int = 200):
     dx = grads[:, 2] - grads[:, 3]
     mu = np.stack((dy.cpu().squeeze(), dx.cpu().squeeze()), axis=-2)
     return mu
-
-

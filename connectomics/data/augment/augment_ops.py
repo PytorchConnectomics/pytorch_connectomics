@@ -13,7 +13,6 @@ from typing import List, Optional, Tuple
 import cv2
 import numpy as np
 
-
 # ---------------------------------------------------------------------------
 # Misalignment operations
 # ---------------------------------------------------------------------------
@@ -116,9 +115,7 @@ def apply_misalignment_rotation(
         )
     else:
         for i in range(split_idx, depth_first.shape[0]):
-            depth_first[i] = _warp_section(
-                depth_first[i], M, (height, width), interpolation
-            )
+            depth_first[i] = _warp_section(depth_first[i], M, (height, width), interpolation)
     return _restore_depth_axis(depth_first, depth_axis)
 
 
@@ -161,9 +158,7 @@ def compute_misalignment_angle_range(displacement: int, height: int) -> float:
 # ---------------------------------------------------------------------------
 
 
-def zero_out_sections(
-    img: np.ndarray, indices: np.ndarray, depth_axis: int = 0
-) -> np.ndarray:
+def zero_out_sections(img: np.ndarray, indices: np.ndarray, depth_axis: int = 0) -> np.ndarray:
     """Zero out sections at given indices along depth_axis."""
     img = img.copy()
     if depth_axis == 0:
@@ -265,9 +260,7 @@ def apply_gaussian_blur(
                 img[c], kernel, sigmaX=sigma, sigmaY=sigma, borderType=cv2.BORDER_REFLECT
             )
         return result
-    return cv2.GaussianBlur(
-        img, kernel, sigmaX=sigma, sigmaY=sigma, borderType=cv2.BORDER_REFLECT
-    )
+    return cv2.GaussianBlur(img, kernel, sigmaX=sigma, sigmaY=sigma, borderType=cv2.BORDER_REFLECT)
 
 
 def blur_sections(
@@ -298,9 +291,9 @@ def blur_region(
     """Apply Gaussian blur to a rectangular region within one section."""
     depth_first = _move_depth_axis_to_front(img, depth_axis).copy()
     blurred = apply_gaussian_blur(depth_first[section_idx], kernel_size, sigma)
-    depth_first[section_idx][..., y_start:y_start + hole_h, x_start:x_start + hole_w] = (
-        blurred[..., y_start:y_start + hole_h, x_start:x_start + hole_w]
-    )
+    depth_first[section_idx][..., y_start : y_start + hole_h, x_start : x_start + hole_w] = blurred[
+        ..., y_start : y_start + hole_h, x_start : x_start + hole_w
+    ]
     return _restore_depth_axis(depth_first, depth_axis)
 
 

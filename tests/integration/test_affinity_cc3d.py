@@ -88,15 +88,18 @@ class TestAffinityCC3D:
         assert segm.shape == simple_affinities.shape[1:], "Output shape mismatch"
 
         # Check output dtype
-        assert segm.dtype in [np.uint8, np.uint16, np.uint32, np.uint64], (
-            "Output should be integer type"
-        )
+        assert segm.dtype in [
+            np.uint8,
+            np.uint16,
+            np.uint32,
+            np.uint64,
+        ], "Output should be integer type"
 
         # Check number of components (should be 2 + background)
         unique_labels = np.unique(segm)
-        assert len(unique_labels) == 3, (
-            f"Expected 3 labels (bg + 2 objects), got {len(unique_labels)}"
-        )
+        assert (
+            len(unique_labels) == 3
+        ), f"Expected 3 labels (bg + 2 objects), got {len(unique_labels)}"
         assert 0 in unique_labels, "Background label 0 should be present"
 
     def test_threshold_sensitivity(self, simple_affinities):
@@ -110,9 +113,9 @@ class TestAffinityCC3D:
         n_labels_high = len(np.unique(segm_high)) - 1
 
         # High threshold should create more or equal segments
-        assert n_labels_high >= n_labels_low, (
-            "Higher threshold should not decrease number of segments"
-        )
+        assert (
+            n_labels_high >= n_labels_low
+        ), "Higher threshold should not decrease number of segments"
 
     def test_fully_connected(self, connected_affinities):
         """Test single fully connected component."""
@@ -120,9 +123,9 @@ class TestAffinityCC3D:
 
         unique_labels = np.unique(segm)
         # Should be background + 1 component
-        assert len(unique_labels) == 2, (
-            f"Fully connected volume should have 2 labels (bg + 1 object), got {len(unique_labels)}"
-        )
+        assert (
+            len(unique_labels) == 2
+        ), f"Fully connected volume should have 2 labels (bg + 1 object), got {len(unique_labels)}"
 
     def test_six_channel_input(self, six_channel_affinities):
         """Test that only first 3 channels are used."""
@@ -161,9 +164,12 @@ class TestAffinityCC3D:
         # Large volume - may need uint32
         large_aff = np.random.rand(3, 64, 64, 64).astype(np.float32)
         large_segm = decode_affinity_cc(large_aff, threshold=0.5)
-        assert large_segm.dtype in [np.uint8, np.uint16, np.uint32, np.uint64], (
-            "Output should be integer type"
-        )
+        assert large_segm.dtype in [
+            np.uint8,
+            np.uint16,
+            np.uint32,
+            np.uint64,
+        ], "Output should be integer type"
 
     def test_invalid_input_shape(self):
         """Test error handling for invalid input shapes."""
@@ -225,9 +231,9 @@ class TestAffinityCC3DIntegration:
 
         # Generally, higher thresholds should not decrease fragmentation
         # (though this is not guaranteed for all data)
-        assert all(isinstance(n, (int, np.integer)) for n in results), (
-            "All results should be integers"
-        )
+        assert all(
+            isinstance(n, (int, np.integer)) for n in results
+        ), "All results should be integers"
 
     def test_postprocessing_chain(self, simple_affinities):
         """Test chaining with other post-processing operations."""

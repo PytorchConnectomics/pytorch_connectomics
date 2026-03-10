@@ -1,6 +1,6 @@
 """Training utilities package."""
 
-from .loss import LossOrchestrator, match_target_to_output
 from .debugging import DebugManager
+from .loss import LossOrchestrator, match_target_to_output
 
 __all__ = ["LossOrchestrator", "match_target_to_output", "DebugManager"]

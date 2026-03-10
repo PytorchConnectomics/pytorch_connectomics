@@ -5,8 +5,9 @@ Provides callbacks for visualization, checkpointing, and monitoring.
 """
 
 from __future__ import annotations
+
 import logging
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional
 
 import pytorch_lightning as pl
 import torch
@@ -15,6 +16,7 @@ from torch.utils.data import ConcatDataset, DataLoader, Dataset, Subset
 
 try:
     from torch.utils.data import ChainDataset
+
     _HAS_CHAIN_DATASET = True
 except ImportError:
     _HAS_CHAIN_DATASET = False
@@ -195,12 +197,14 @@ class VisualizationCallback(Callback):
                 mask_cpu = cached_batch.get("mask", None)
                 if mask_cpu is not None:
                     mask_cpu = mask_cpu.cpu()
-                image_cpu, label_cpu, pred_cpu, mask_cpu = _apply_affinity_visualization_crop_if_needed(
-                    self.cfg,
-                    image=image_cpu,
-                    label=label_cpu,
-                    pred=pred_cpu,
-                    mask=mask_cpu,
+                image_cpu, label_cpu, pred_cpu, mask_cpu = (
+                    _apply_affinity_visualization_crop_if_needed(
+                        self.cfg,
+                        image=image_cpu,
+                        label=label_cpu,
+                        pred=pred_cpu,
+                        mask=mask_cpu,
+                    )
                 )
 
             self._log_visualization(
@@ -220,7 +224,10 @@ class VisualizationCallback(Callback):
             logger.error("%s epoch-end visualization failed: %s", prefix, e)
             logger.error("Error type: %s", type(e).__name__)
             if hasattr(e, "__traceback__"):
-                logger.error("Traceback:\n%s", "".join(traceback.format_exception(type(e), e, e.__traceback__)))
+                logger.error(
+                    "Traceback:\n%s",
+                    "".join(traceback.format_exception(type(e), e, e.__traceback__)),
+                )
 
     def _log_visualization(
         self,
@@ -374,7 +381,9 @@ class NaNDetectionCallback(Callback):
 
         if self.debug_on_nan:
             logger.warning("Interactive debugger disabled in production path.")
-            logger.warning("   Set monitor.nan_detection.debug_on_nan=false to suppress this notice.")
+            logger.warning(
+                "   Set monitor.nan_detection.debug_on_nan=false to suppress this notice."
+            )
 
         if self.terminate_on_nan:
             raise ValueError(
@@ -664,7 +673,9 @@ class ValidationReseedingCallback(Callback):
         if self.verbose:
             logger.info(
                 "[VAL RESEED] %s | Step %s | Rank %s",
-                epoch_type, trainer.global_step, trainer.global_rank,
+                epoch_type,
+                trainer.global_step,
+                trainer.global_rank,
             )
 
         val_dataloaders = self._get_validation_dataloaders(trainer)
@@ -693,7 +704,8 @@ class ValidationReseedingCallback(Callback):
                             logger.info("[VAL RESEED]  Dataset %s: %s", ds_idx, dataset_info)
                             logger.info(
                                 "[VAL RESEED]    set_epoch(epoch=%s, base_seed=%s)",
-                                seed_epoch, self.base_seed,
+                                seed_epoch,
+                                self.base_seed,
                             )
 
                         total_reseeded += 1
@@ -707,14 +719,17 @@ class ValidationReseedingCallback(Callback):
                     except Exception as e:
                         logger.warning(
                             "[VAL RESEED SKIPPED] Dataset %s: %s | Exception: %s",
-                            ds_idx, dataset_info, e,
+                            ds_idx,
+                            dataset_info,
+                            e,
                         )
                         total_skipped += 1
                         skipped_reasons.append(f"Exception: {e}")
                 else:
                     logger.warning(
                         "[VAL RESEED SKIPPED] Dataset %s: %s | no set_epoch() method",
-                        ds_idx, dataset_info,
+                        ds_idx,
+                        dataset_info,
                     )
                     total_skipped += 1
                     skipped_reasons.append("no set_epoch() method")

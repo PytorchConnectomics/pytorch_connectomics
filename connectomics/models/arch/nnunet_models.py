@@ -8,22 +8,23 @@ with automatic configuration from plans.json and dataset.json.
 Uses Hydra/OmegaConf configuration.
 """
 
-
 from __future__ import annotations
+
 import logging
 import os
 import warnings
+from pathlib import Path
+from typing import Any, Dict
+
 import torch
 import torch.nn as nn
-from pathlib import Path
-from typing import Dict, Any
 
 try:
-    from nnunetv2.utilities.plans_handling.plans_handler import PlansManager
-    from nnunetv2.utilities.label_handling.label_handling import determine_num_input_channels
-    from nnunetv2.utilities.find_class_by_name import recursive_find_python_class
-    from batchgenerators.utilities.file_and_folder_operations import load_json
     import nnunetv2
+    from batchgenerators.utilities.file_and_folder_operations import load_json
+    from nnunetv2.utilities.find_class_by_name import recursive_find_python_class
+    from nnunetv2.utilities.label_handling.label_handling import determine_num_input_channels
+    from nnunetv2.utilities.plans_handling.plans_handler import PlansManager
 
     NNUNET_AVAILABLE = True
 except ImportError:

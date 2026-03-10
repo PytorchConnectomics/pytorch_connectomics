@@ -11,13 +11,15 @@ This pattern provides 5-10x speedup by avoiding full-volume operations.
 """
 
 from __future__ import annotations
-from typing import Callable, Optional, Tuple, Dict
+
 from dataclasses import dataclass
+from typing import Callable, Dict, Optional, Tuple
+
 import numpy as np
 from skimage.measure import label as label_cc
 
-from .bbox import compute_bbox_all, bbox_relax
-from .misc import get_padsize, array_unpad
+from .bbox import bbox_relax, compute_bbox_all
+from .misc import array_unpad, get_padsize
 
 
 @dataclass

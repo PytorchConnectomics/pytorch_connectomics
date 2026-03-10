@@ -20,10 +20,7 @@ def is_2d_inference_mode(cfg) -> bool:
     """Return True when data config indicates 2D mode."""
     train_cfg = getattr(getattr(cfg, "data", None), "train", None)
     val_cfg = getattr(getattr(cfg, "data", None), "val", None)
-    return bool(
-        getattr(train_cfg, "do_2d", False)
-        or getattr(val_cfg, "do_2d", False)
-    )
+    return bool(getattr(train_cfg, "do_2d", False) or getattr(val_cfg, "do_2d", False))
 
 
 def resolve_inferer_roi_size(cfg) -> Optional[Tuple[int, ...]]:
@@ -93,7 +90,9 @@ def build_sliding_inferer(cfg) -> Optional[SlidingWindowInferer]:
     mode = getattr(sliding_cfg, "blending", "gaussian") if sliding_cfg else "gaussian"
     sigma_scale = float(getattr(sliding_cfg, "sigma_scale", 0.125)) if sliding_cfg else 0.125
     padding_mode = getattr(sliding_cfg, "padding_mode", "constant") if sliding_cfg else "constant"
-    keep_input_on_cpu = bool(getattr(sliding_cfg, "keep_input_on_cpu", False)) if sliding_cfg else False
+    keep_input_on_cpu = (
+        bool(getattr(sliding_cfg, "keep_input_on_cpu", False)) if sliding_cfg else False
+    )
     sw_device = getattr(sliding_cfg, "sw_device", None) if sliding_cfg else None
     output_device = getattr(sliding_cfg, "output_device", None) if sliding_cfg else None
 

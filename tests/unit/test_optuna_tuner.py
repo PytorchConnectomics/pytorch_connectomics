@@ -3,6 +3,7 @@ from __future__ import annotations
 import glob
 
 import numpy as np
+import pytest
 
 from connectomics.config import Config
 from connectomics.config.schema.stages import TuneConfig
@@ -103,3 +104,40 @@ def test_run_tuning_uses_intermediate_only_inference_overrides(monkeypatch, tmp_
     assert len(captured["predictions"]) == 1
     assert len(captured["ground_truth"]) == 1
     assert captured["mask"] is None
+
+
+def test_run_tuning_requires_val_labels_in_tune_mode(monkeypatch, tmp_path):
+    cfg = Config()
+    cfg.tune = TuneConfig()
+    cfg.inference.save_prediction.output_path = str(tmp_path / "results")
+    cfg.data.test.label = str(tmp_path / "labels" / "test_*.h5")
+
+    model = _DummyModel(cfg)
+    trainer = _DummyTrainer()
+
+    prediction_file = str(tmp_path / "results" / "volume_0_tta_prediction.h5")
+    loaded_arrays = {
+        prediction_file: np.zeros((3, 4, 4, 4), dtype=np.float32),
+    }
+    glob_patterns = []
+
+    def _fake_glob(pattern):
+        glob_patterns.append(pattern)
+        if pattern.endswith("_tta_prediction.h5"):
+            return [prediction_file]
+        if pattern == cfg.data.test.label:
+            return [str(tmp_path / "labels" / "test_label.h5")]
+        return []
+
+    monkeypatch.setattr("connectomics.decoding.tuning.optuna_tuner.OPTUNA_AVAILABLE", True)
+    monkeypatch.setattr(
+        "connectomics.training.lightning.create_datamodule",
+        lambda cfg, mode="tune": {"cfg": cfg, "mode": mode},
+    )
+    monkeypatch.setattr("connectomics.data.io.read_volume", lambda path: loaded_arrays[path])
+    monkeypatch.setattr(glob, "glob", _fake_glob)
+
+    with pytest.raises(ValueError, match="Missing data.val.label in configuration"):
+        run_tuning(model, trainer, cfg, checkpoint_path="checkpoint.ckpt")
+
+    assert cfg.data.test.label not in glob_patterns

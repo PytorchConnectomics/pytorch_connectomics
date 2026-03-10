@@ -9,18 +9,17 @@ This module provides Lightning trainer factory functions with:
 """
 
 from __future__ import annotations
+
 import logging
 import os
 from pathlib import Path
 from typing import Optional
 
-import torch
-
-_log = logging.getLogger(__name__)
 import pytorch_lightning as pl
+import torch
 from pytorch_lightning.callbacks import (
-    ModelCheckpoint,
     EarlyStopping,
+    ModelCheckpoint,
 )
 from pytorch_lightning.loggers import TensorBoardLogger
 from pytorch_lightning.plugins.environments import LightningEnvironment
@@ -28,16 +27,18 @@ from pytorch_lightning.strategies import DDPStrategy
 
 from ...config import Config
 from ...config.schema import (
-    SystemConfig,
-    ModelConfig,
     DataConfig,
-    OptimizationConfig,
-    MonitorConfig,
     InferenceConfig,
+    ModelConfig,
+    MonitorConfig,
+    OptimizationConfig,
+    SystemConfig,
     TestConfig,
     TuneConfig,
 )
 from .callbacks import EMAWeightsCallback, ValidationReseedingCallback, VisualizationCallback
+
+_log = logging.getLogger(__name__)
 
 # Register safe globals for PyTorch 2.6+ checkpoint loading
 # This allows our Config class to be unpickled from Lightning checkpoints
@@ -253,7 +254,7 @@ def create_trainer(
         max_steps = -1  # -1 means unlimited steps
         training_mode = f"epoch-based ({max_epochs} epochs)"
 
-    # Treat optimization.val_check_interval as epoch interval (legacy key name).
+    # Treat optimization.val_check_interval as epoch interval.
     # Accept values like 1.0 from existing YAMLs, but reject non-integer floats.
     val_check_cfg = cfg.optimization.val_check_interval
     if isinstance(val_check_cfg, float):
@@ -268,8 +269,7 @@ def create_trainer(
 
     if check_val_every_n_epoch < 1:
         raise ValueError(
-            "optimization.val_check_interval must be >= 1 "
-            f"(got {check_val_every_n_epoch})."
+            "optimization.val_check_interval must be >= 1 " f"(got {check_val_every_n_epoch})."
         )
 
     _log.info(f"  Validation: every {check_val_every_n_epoch} epoch(s)")

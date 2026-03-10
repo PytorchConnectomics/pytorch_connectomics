@@ -7,10 +7,8 @@ and provides lightweight torchmetrics-compatible wrappers for online evaluation.
 
 from __future__ import annotations
 
-
 import torch
 import torchmetrics
-import numpy as np
 
 from .segmentation_numpy import (
     adapted_rand,
@@ -167,8 +165,9 @@ class InstanceAccuracy(torchmetrics.Metric):
 
     full_state_update: bool = False
 
-    def __init__(self, thresh: float = 0.5, criterion: str = 'iou',
-                 dist_sync_on_step: bool = False) -> None:
+    def __init__(
+        self, thresh: float = 0.5, criterion: str = "iou", dist_sync_on_step: bool = False
+    ) -> None:
         super().__init__(dist_sync_on_step=dist_sync_on_step)
         self.thresh = thresh
         self.criterion = criterion
@@ -181,9 +180,9 @@ class InstanceAccuracy(torchmetrics.Metric):
         preds_np = preds.detach().cpu().numpy()
         target_np = target.detach().cpu().numpy()
         stats = instance_matching(target_np, preds_np, thresh=self.thresh, criterion=self.criterion)
-        self.tp_total += int(stats['tp'])
-        self.fp_total += int(stats['fp'])
-        self.fn_total += int(stats['fn'])
+        self.tp_total += int(stats["tp"])
+        self.fp_total += int(stats["fp"])
+        self.fn_total += int(stats["fn"])
 
     def compute(self) -> torch.Tensor:
         """Return instance-level accuracy: TP / (TP + FP + FN)."""
@@ -219,8 +218,9 @@ class InstanceAccuracySimple(torchmetrics.Metric):
 
     full_state_update: bool = False
 
-    def __init__(self, thresh: float = 0.5, criterion: str = 'iou',
-                 dist_sync_on_step: bool = False) -> None:
+    def __init__(
+        self, thresh: float = 0.5, criterion: str = "iou", dist_sync_on_step: bool = False
+    ) -> None:
         super().__init__(dist_sync_on_step=dist_sync_on_step)
         self.thresh = thresh
         self.criterion = criterion
@@ -232,10 +232,12 @@ class InstanceAccuracySimple(torchmetrics.Metric):
         # Move to CPU and numpy for the underlying implementation
         preds_np = preds.detach().cpu().numpy()
         target_np = target.detach().cpu().numpy()
-        stats = instance_matching_simple(target_np, preds_np, thresh=self.thresh, criterion=self.criterion)
-        self.tp_total += int(stats['tp'])
-        self.fp_total += int(stats['fp'])
-        self.fn_total += int(stats['fn'])
+        stats = instance_matching_simple(
+            target_np, preds_np, thresh=self.thresh, criterion=self.criterion
+        )
+        self.tp_total += int(stats["tp"])
+        self.fp_total += int(stats["fp"])
+        self.fn_total += int(stats["fn"])
 
     def compute(self) -> torch.Tensor:
         """Return relaxed instance-level accuracy: TP / (TP + FP + FN)."""

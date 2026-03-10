@@ -7,9 +7,9 @@ from typing import Any, Iterable, List, Sequence, Tuple
 
 import numpy as np
 
-from .base import DecodeStep
-from .registry import DecoderRegistry, DEFAULT_DECODER_REGISTRY
 from ..utils.channel_slices import resolve_channel_indices
+from .base import DecodeStep
+from .registry import DEFAULT_DECODER_REGISTRY, DecoderRegistry
 
 logger = logging.getLogger(__name__)
 
@@ -19,9 +19,7 @@ def _coerce_kwargs(kwargs: Any) -> dict:
         return {}
     if hasattr(kwargs, "items"):
         return dict(kwargs)
-    raise TypeError(
-        f"Decode kwargs must be a mapping, got {type(kwargs).__name__}"
-    )
+    raise TypeError(f"Decode kwargs must be a mapping, got {type(kwargs).__name__}")
 
 
 def normalize_decode_modes(decode_modes: Iterable[Any]) -> List[DecodeStep]:
@@ -63,9 +61,7 @@ def _prepare_batched_input(data: np.ndarray) -> Tuple[np.ndarray, int]:
         return arr[np.newaxis, np.newaxis, ...], 1
     if arr.ndim == 2:
         return arr[np.newaxis, np.newaxis, np.newaxis, ...], 1
-    raise ValueError(
-        f"Expected input with 2-5 dimensions, got shape {arr.shape}."
-    )
+    raise ValueError(f"Expected input with 2-5 dimensions, got shape {arr.shape}.")
 
 
 def apply_decode_pipeline(
@@ -105,9 +101,7 @@ def apply_decode_pipeline(
                         )
                 sample = decoder(sample, **decoder_kwargs)
             except Exception as exc:
-                raise RuntimeError(
-                    f"Error applying decode function '{step.name}': {exc}"
-                ) from exc
+                raise RuntimeError(f"Error applying decode function '{step.name}': {exc}") from exc
 
         results.append(sample)
 

@@ -5,12 +5,13 @@ Provides functions to query GPU memory, count available GPUs,
 and estimate memory requirements for training.
 """
 
-
 from __future__ import annotations
-import torch
-import psutil
+
 import warnings
 from typing import Any, Dict, Tuple
+
+import psutil
+import torch
 
 
 def get_gpu_info() -> Dict[str, Any]:

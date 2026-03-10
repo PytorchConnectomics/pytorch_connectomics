@@ -7,19 +7,19 @@ data augmentation, enabling seamless integration with MONAI Compose pipelines.
 
 # MONAI-native augmentation interface
 from .build import (
+    build_test_transforms,
     build_train_transforms,
     build_val_transforms,
-    build_test_transforms,
 )
 from .transforms import (
-    RandMisAlignmentd,
-    RandMissingSectiond,
-    RandMissingPartsd,
-    RandMotionBlurd,
-    RandCutNoised,
-    RandCutBlurd,
-    RandMixupd,
     RandCopyPasted,
+    RandCutBlurd,
+    RandCutNoised,
+    RandMisAlignmentd,
+    RandMissingPartsd,
+    RandMissingSectiond,
+    RandMixupd,
+    RandMotionBlurd,
 )
 
 __all__ = [

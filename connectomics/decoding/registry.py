@@ -33,9 +33,7 @@ class DecoderRegistry:
             return self._decoders[name]
         except KeyError as exc:
             available = ", ".join(sorted(self._decoders))
-            raise KeyError(
-                f"Unknown decoder '{name}'. Available decoders: [{available}]"
-            ) from exc
+            raise KeyError(f"Unknown decoder '{name}'. Available decoders: [{available}]") from exc
 
     def available(self) -> List[str]:
         """Return registered decoder names."""

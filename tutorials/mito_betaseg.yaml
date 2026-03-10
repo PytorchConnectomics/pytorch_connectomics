@@ -133,10 +133,8 @@ data:
     - "high_c1_im.tiff"
     label:
     - "high_c1_mito.tiff"
-  # val_resolution defaults to train_resolution if not specified
-
   # Data loading optimization
-    train_resolution: [16, 16, 16]                    # 16nm x 16nm x 16nm isotropic
+    resolution: [16, 16, 16]                          # 16nm x 16nm x 16nm isotropic
   #  Validation: 1 volume (high_c1) - for monitoring generalization
   data_transform:
     pad_size: [16, 16, 16]                           # from resolution
@@ -167,7 +165,6 @@ monitor:
     scalar:
       loss: [train_loss_total_epoch, val_loss_total_epoch, train_loss_affinity_total, train_loss_sdt_total]
       loss_every_n_steps: 100            # Log every 50 steps
-      val_check_interval: 1.0           # Validate every epoch
       benchmark: true
 
     # Visualization - SDT predictions (train + validation)

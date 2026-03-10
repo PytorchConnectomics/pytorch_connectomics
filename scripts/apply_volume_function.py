@@ -34,7 +34,7 @@ import numpy as np
 # Allow running the script directly from any working directory.
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from connectomics.data.io.io import read_volume, save_volume
+from connectomics.data.io.io import read_volume, save_volume  # noqa: E402
 
 
 def _infer_output_format(path: str) -> str:
@@ -151,7 +151,9 @@ def _parse_json(value: str, name: str, expected_type: type) -> Any:
         raise ValueError(f"Invalid JSON for {name}: {exc}") from exc
 
     if not isinstance(parsed, expected_type):
-        raise TypeError(f"{name} must decode to {expected_type.__name__}, got {type(parsed).__name__}")
+        raise TypeError(
+            f"{name} must decode to {expected_type.__name__}, got {type(parsed).__name__}"
+        )
     return parsed
 
 
@@ -159,8 +161,12 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description="Load input data, apply a Python function, and save the output."
     )
-    parser.add_argument("--input", required=True, help="Input file path or pattern (for PNG/TIFF stacks).")
-    parser.add_argument("--output", required=True, help="Output file path (or PNG output directory).")
+    parser.add_argument(
+        "--input", required=True, help="Input file path or pattern (for PNG/TIFF stacks)."
+    )
+    parser.add_argument(
+        "--output", required=True, help="Output file path (or PNG output directory)."
+    )
     parser.add_argument(
         "--function",
         required=True,
@@ -238,7 +244,11 @@ def main() -> None:
     if not isinstance(result, np.ndarray):
         result = np.asarray(result)
 
-    output_dir = args.output if (args.output_format == "png" or args.output.endswith(".png")) else os.path.dirname(args.output)
+    output_dir = (
+        args.output
+        if (args.output_format == "png" or args.output.endswith(".png"))
+        else os.path.dirname(args.output)
+    )
     if output_dir:
         os.makedirs(output_dir, exist_ok=True)
 

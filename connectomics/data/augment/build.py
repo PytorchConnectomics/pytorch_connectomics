@@ -5,48 +5,50 @@ Modern replacement for monai_compose.py that works with the new Hydra config sys
 """
 
 from __future__ import annotations
-from typing import Optional
+
 from functools import partial
+from typing import Optional
+
 import torch
+from monai.transforms import EnsureChannelFirstd  # Ensure channel-first format for 2D/3D images
+from monai.transforms import LoadImaged  # For filename-based datasets (PNG, JPG, etc.)
 from monai.transforms import (
     BorderPadd,
-    Compose,
-    OneOf,
-    RandRotate90d,
-    RandFlipd,
-    RandAffined,
-    RandGaussianNoised,
-    RandShiftIntensityd,
-    RandAdjustContrastd,
-    RandSpatialCropd,
-    ToTensord,
     CenterSpatialCropd,
-    SpatialPadd,
-    Resized,
+    Compose,
     Lambdad,
-    LoadImaged,  # For filename-based datasets (PNG, JPG, etc.)
-    EnsureChannelFirstd,  # Ensure channel-first format for 2D/3D images
+    OneOf,
+    RandAdjustContrastd,
+    RandAffined,
+    RandFlipd,
+    RandGaussianNoised,
+    RandRotate90d,
+    RandShiftIntensityd,
+    RandSpatialCropd,
+    Resized,
+    SpatialPadd,
+    ToTensord,
 )
 
 # Import custom loader for HDF5/TIFF volumes
 from connectomics.data.io.transforms import LoadVolumed
 from connectomics.data.process.nnunet_preprocess import NNUNetPreprocessd
 
+from ...config.schema import AugmentationConfig, Config
 from .transforms import (
-    RandMisAlignmentd,
-    RandMissingSectiond,
-    RandMissingPartsd,
-    RandMotionBlurd,
-    RandCutNoised,
-    RandCutBlurd,
-    RandMixupd,
     RandCopyPasted,
-    RandStriped,
-    SmartNormalizeIntensityd,
-    ResizeByFactord,
+    RandCutBlurd,
+    RandCutNoised,
     RandElasticd,
+    RandMisAlignmentd,
+    RandMissingPartsd,
+    RandMissingSectiond,
+    RandMixupd,
+    RandMotionBlurd,
+    RandStriped,
+    ResizeByFactord,
+    SmartNormalizeIntensityd,
 )
-from ...config.schema import Config, AugmentationConfig
 
 
 def _strict_binarize_mask(mask, threshold: float = 0.0):
@@ -119,7 +121,9 @@ def build_train_transforms(
         else:
             # For volume-based datasets (HDF5, TIFF volumes), use custom LoadVolumed
             train_transpose = (
-                cfg.data.data_transform.train_transpose if cfg.data.data_transform.train_transpose else []
+                cfg.data.data_transform.train_transpose
+                if cfg.data.data_transform.train_transpose
+                else []
             )
             transforms.append(
                 LoadVolumed(keys=keys, transpose_axes=train_transpose if train_transpose else None)
@@ -164,7 +168,9 @@ def build_train_transforms(
 
     # Ensure target patch size is respected (unless using pre-cached dataset)
     if not skip_loading:
-        patch_size = tuple(cfg.data.dataloader.patch_size) if cfg.data.dataloader.patch_size else None
+        patch_size = (
+            tuple(cfg.data.dataloader.patch_size) if cfg.data.dataloader.patch_size else None
+        )
         if patch_size and all(size > 0 for size in patch_size):
             # Pad smaller volumes so random crops always succeed
             transforms.append(
@@ -232,7 +238,9 @@ def build_train_transforms(
     return Compose(transforms)
 
 
-def _build_eval_transforms_impl(cfg: Config, mode: str = "val", keys: list[str] = None, skip_loading: bool = False) -> Compose:
+def _build_eval_transforms_impl(
+    cfg: Config, mode: str = "val", keys: list[str] = None, skip_loading: bool = False
+) -> Compose:
     """
     Internal implementation for building evaluation transforms (validation or test).
 
@@ -250,24 +258,37 @@ def _build_eval_transforms_impl(cfg: Config, mode: str = "val", keys: list[str] 
     """
     data_cfg = cfg.data
 
+    def _resolve_eval_split():
+        if mode == "val":
+            return data_cfg.val
+        if mode == "tune":
+            return data_cfg.val
+        return data_cfg.test
+
     if keys is None:
         # Auto-detect keys based on mode
         if mode == "val":
             # Validation: default to image+label
             keys = ["image", "label"]
             # Add mask if val_mask or train_mask exists
-            if (hasattr(data_cfg, "val") and hasattr(data_cfg.val, "mask") and data_cfg.val.mask is not None) or (
-                hasattr(data_cfg, "train") and hasattr(data_cfg.train, "mask") and data_cfg.train.mask is not None
+            if (
+                hasattr(data_cfg, "val")
+                and hasattr(data_cfg.val, "mask")
+                and data_cfg.val.mask is not None
+            ) or (
+                hasattr(data_cfg, "train")
+                and hasattr(data_cfg.train, "mask")
+                and data_cfg.train.mask is not None
             ):
                 keys.append("mask")
-        else:  # mode == "test"
+        else:  # mode == "test" or "tune"
             # Test/inference: default to image only
+            eval_split = _resolve_eval_split()
             keys = ["image"]
-            test_split = data_cfg.test
-            if test_split.label is not None:
+            if eval_split.label is not None:
                 keys.append("label")
 
-            if test_split.mask is not None:
+            if eval_split.mask is not None:
                 keys.append("mask")
 
     transforms = []
@@ -289,7 +310,9 @@ def _build_eval_transforms_impl(cfg: Config, mode: str = "val", keys: list[str] 
         else:
             # For volume-based datasets (HDF5, TIFF volumes), use custom LoadVolumed
             transpose_axes = (
-                data_cfg.data_transform.val_transpose if data_cfg.data_transform.val_transpose else []
+                data_cfg.data_transform.val_transpose
+                if data_cfg.data_transform.val_transpose
+                else []
             )
 
             transforms.append(
@@ -298,10 +321,10 @@ def _build_eval_transforms_impl(cfg: Config, mode: str = "val", keys: list[str] 
 
     nnunet_pre_cfg = getattr(data_cfg, "nnunet_preprocessing", None)
     if mode in {"test", "tune"}:
-        source_spacing = data_cfg.test.resolution
+        source_spacing = _resolve_eval_split().resolution
     elif mode == "val":
-        source_spacing = (
-            getattr(data_cfg.val, "resolution", None) or getattr(data_cfg.train, "resolution", None)
+        source_spacing = getattr(data_cfg.val, "resolution", None) or getattr(
+            data_cfg.train, "resolution", None
         )
     else:
         source_spacing = getattr(data_cfg.train, "resolution", None)
@@ -476,7 +499,9 @@ def _build_eval_transforms_impl(cfg: Config, mode: str = "val", keys: list[str] 
     return Compose(transforms)
 
 
-def build_val_transforms(cfg: Config, keys: list[str] = None, skip_loading: bool = False) -> Compose:
+def build_val_transforms(
+    cfg: Config, keys: list[str] = None, skip_loading: bool = False
+) -> Compose:
     """
     Build validation transforms from Hydra config.
 
@@ -491,9 +516,9 @@ def build_val_transforms(cfg: Config, keys: list[str] = None, skip_loading: bool
     return _build_eval_transforms_impl(cfg, mode="val", keys=keys, skip_loading=skip_loading)
 
 
-def build_test_transforms(cfg: Config, keys: list[str] = None) -> Compose:
+def build_test_transforms(cfg: Config, keys: list[str] = None, mode: str = "test") -> Compose:
     """
-    Build test/inference transforms from Hydra config.
+    Build test/tune inference transforms from Hydra config.
 
     Similar to validation transforms but WITHOUT cropping to enable
     sliding window inference on full volumes.
@@ -501,12 +526,12 @@ def build_test_transforms(cfg: Config, keys: list[str] = None) -> Compose:
     Args:
         cfg: Hydra Config object
         keys: Keys to transform (default: auto-detected as ['image'] only)
+        mode: 'test' or 'tune' to choose the correct eval split
 
     Returns:
         Composed MONAI transforms (no augmentation, no cropping)
     """
-    return _build_eval_transforms_impl(cfg, mode="test", keys=keys)
-
+    return _build_eval_transforms_impl(cfg, mode=mode, keys=keys)
 
 
 def _build_augmentations(aug_cfg: AugmentationConfig, keys: list[str], do_2d: bool = False) -> list:

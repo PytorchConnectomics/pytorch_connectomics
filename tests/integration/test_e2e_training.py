@@ -11,18 +11,22 @@ Tests cover:
 - Deep supervision
 """
 
+import shutil
+import tempfile
+from pathlib import Path
+
+import numpy as np
 import pytest
 import torch
-import numpy as np
-from pathlib import Path
-import tempfile
-import shutil
 
 from connectomics.config import from_dict
-from connectomics.training.lightning import ConnectomicsModule, ConnectomicsDataModule, create_trainer
-
+from connectomics.training.lightning import (
+    ConnectomicsModule,
+    create_trainer,
+)
 
 # ==================== Fixtures ====================
+
 
 @pytest.fixture
 def temp_dir():
@@ -37,53 +41,60 @@ def temp_dir():
 @pytest.fixture
 def minimal_config():
     """Create minimal config for fast testing."""
-    return from_dict({
-        'system': {
-            'num_gpus': 0,  # CPU-only for testing
-            'num_workers': 0,
-            'seed': 42,
-        },
-        'data': {
-            'dataloader': {
-                'batch_size': 1,
+    return from_dict(
+        {
+            "system": {
+                "num_gpus": 0,  # CPU-only for testing
+                "num_workers": 0,
+                "seed": 42,
             },
-        },
-            'model': {
-                'arch': {'type': 'monai_basic_unet3d'},
-                'input_size': [16, 16, 16],
-                'in_channels': 1,
-                'out_channels': 1,
-                'monai': {
-                    'filters': [8, 16],  # Very small for fast testing
-                    'norm': 'group',
-                    'num_groups': 1,
+            "data": {
+                "dataloader": {
+                    "batch_size": 1,
                 },
-                'loss': {
-                    'losses': [
-                        {'function': 'DiceLoss', 'weight': 1.0, 'pred_slice': "0:1", 'target_slice': "0:1"}
+            },
+            "model": {
+                "arch": {"type": "monai_basic_unet3d"},
+                "input_size": [16, 16, 16],
+                "in_channels": 1,
+                "out_channels": 1,
+                "monai": {
+                    "filters": [8, 16],  # Very small for fast testing
+                    "norm": "group",
+                    "num_groups": 1,
+                },
+                "loss": {
+                    "losses": [
+                        {
+                            "function": "DiceLoss",
+                            "weight": 1.0,
+                            "pred_slice": "0:1",
+                            "target_slice": "0:1",
+                        }
                     ],
                 },
             },
-        'optimization': {
-            'optimizer': {
-                'name': 'AdamW',
-                'lr': 1e-3,
-                'weight_decay': 1e-4,
+            "optimization": {
+                "optimizer": {
+                    "name": "AdamW",
+                    "lr": 1e-3,
+                    "weight_decay": 1e-4,
+                },
+                "max_epochs": 2,  # Just 2 epochs for testing
+                "precision": "32",  # FP32 for CPU
+                "gradient_clip_val": 1.0,
+                "log_every_n_steps": 1,
             },
-            'max_epochs': 2,  # Just 2 epochs for testing
-            'precision': '32',  # FP32 for CPU
-            'gradient_clip_val': 1.0,
-            'log_every_n_steps': 1,
-        },
-        'monitor': {
-            'checkpoint': {
-                'monitor': 'train_loss_total_epoch',
-                'mode': 'min',
-                'save_top_k': 1,
-                'save_last': True,
-            }
+            "monitor": {
+                "checkpoint": {
+                    "monitor": "train_loss_total_epoch",
+                    "mode": "min",
+                    "save_top_k": 1,
+                    "save_last": True,
+                }
+            },
         }
-    })
+    )
 
 
 @pytest.fixture
@@ -106,13 +117,14 @@ def synthetic_data(temp_dir):
     np.save(label_path, label)
 
     return {
-        'image': str(image_path),
-        'label': str(label_path),
-        'shape': vol_shape,
+        "image": str(image_path),
+        "label": str(label_path),
+        "shape": vol_shape,
     }
 
 
 # ==================== Basic Training Tests ====================
+
 
 class TestBasicTraining:
     """Test basic training functionality."""
@@ -121,8 +133,8 @@ class TestBasicTraining:
         """Test that model can be created from config."""
         module = ConnectomicsModule(minimal_config)
         assert module is not None
-        assert hasattr(module, 'model')
-        assert hasattr(module, 'loss_functions')
+        assert hasattr(module, "model")
+        assert hasattr(module, "loss_functions")
 
     def test_forward_pass(self, minimal_config):
         """Test model forward pass."""
@@ -145,8 +157,8 @@ class TestBasicTraining:
 
         # Create dummy batch
         batch = {
-            'image': torch.randn(1, 1, 16, 16, 16),
-            'label': torch.randint(0, 2, (1, 1, 16, 16, 16)).float(),
+            "image": torch.randn(1, 1, 16, 16, 16),
+            "label": torch.randint(0, 2, (1, 1, 16, 16, 16)).float(),
         }
 
         # Training step
@@ -162,8 +174,8 @@ class TestBasicTraining:
 
         # Create dummy batch
         batch = {
-            'image': torch.randn(1, 1, 16, 16, 16),
-            'label': torch.randint(0, 2, (1, 1, 16, 16, 16)).float(),
+            "image": torch.randn(1, 1, 16, 16, 16),
+            "label": torch.randint(0, 2, (1, 1, 16, 16, 16)).float(),
         }
 
         # Validation step
@@ -181,10 +193,10 @@ class TestE2ETraining:
         """Test complete training loop (fit)."""
         # Update config with data paths
         cfg = minimal_config
-        cfg.data.train.image = synthetic_data['image']
-        cfg.data.train.label = synthetic_data['label']
-        cfg.data.val.image = synthetic_data['image']  # Use same for val
-        cfg.data.val.label = synthetic_data['label']
+        cfg.data.train.image = synthetic_data["image"]
+        cfg.data.train.label = synthetic_data["label"]
+        cfg.data.val.image = synthetic_data["image"]  # Use same for val
+        cfg.data.val.label = synthetic_data["label"]
         cfg.data.dataloader.patch_size = [8, 8, 8]
         cfg.data.dataloader.batch_size = 1
         cfg.system.num_workers = 0
@@ -213,18 +225,19 @@ class TestE2ETraining:
         opt_config = module.configure_optimizers()
 
         # Check optimizer exists
-        assert 'optimizer' in opt_config
-        optimizer = opt_config['optimizer']
+        assert "optimizer" in opt_config
+        optimizer = opt_config["optimizer"]
 
         # Verify optimizer type
         assert isinstance(optimizer, torch.optim.AdamW)
 
         # Check learning rate
-        assert optimizer.param_groups[0]['lr'] == 1e-3
-        assert optimizer.param_groups[0]['weight_decay'] == 1e-4
+        assert optimizer.param_groups[0]["lr"] == 1e-3
+        assert optimizer.param_groups[0]["weight_decay"] == 1e-4
 
 
 # ==================== Checkpoint Tests ====================
+
 
 class TestCheckpointing:
     """Test checkpoint save/load/resume."""
@@ -263,7 +276,7 @@ class TestCheckpointing:
 
         # Verify loaded module
         assert module2 is not None
-        assert hasattr(module2, 'model')
+        assert hasattr(module2, "model")
 
     def test_state_dict_consistency(self, minimal_config):
         """Test that state dict can be saved and restored."""
@@ -280,8 +293,7 @@ class TestCheckpointing:
 
         # Verify parameters match
         for (name1, param1), (name2, param2) in zip(
-            module.named_parameters(),
-            module2.named_parameters()
+            module.named_parameters(), module2.named_parameters()
         ):
             assert name1 == name2
             assert torch.allclose(param1, param2)
@@ -289,64 +301,110 @@ class TestCheckpointing:
 
 # ==================== Multi-Task Tests ====================
 
+
 class TestMultiTask:
     """Test multi-task learning."""
 
     def test_multi_task_loss_terms(self):
         """Test multi-task explicit loss terms configuration."""
-        cfg = from_dict({
-            'system': {'num_gpus': 0},
-            'model': {
-                'arch': {'type': 'monai_basic_unet3d'},
-                'in_channels': 1,
-                'out_channels': 3,  # Multi-task: binary, boundary, EDT
-                'monai': {'filters': [8, 16], 'norm': 'group', 'num_groups': 1},
-                'loss': {
-                    'losses': [
-                        {'function': 'DiceLoss', 'weight': 1.0, 'pred_slice': "0:1", 'target_slice': "0:1"},
-                        {'function': 'BCEWithLogitsLoss', 'weight': 0.5, 'coefficient': 0.5, 'pred_slice': "0:1", 'target_slice': "0:1"},
-                        {'function': 'BCEWithLogitsLoss', 'weight': 0.5, 'pred_slice': "1:2", 'target_slice': "1:2"},
-                        {'function': 'MSELoss', 'weight': 1.0, 'pred_slice': "2:3", 'target_slice': "2:3"},
-                    ],
+        cfg = from_dict(
+            {
+                "system": {"num_gpus": 0},
+                "model": {
+                    "arch": {"type": "monai_basic_unet3d"},
+                    "in_channels": 1,
+                    "out_channels": 3,  # Multi-task: binary, boundary, EDT
+                    "monai": {"filters": [8, 16], "norm": "group", "num_groups": 1},
+                    "loss": {
+                        "losses": [
+                            {
+                                "function": "DiceLoss",
+                                "weight": 1.0,
+                                "pred_slice": "0:1",
+                                "target_slice": "0:1",
+                            },
+                            {
+                                "function": "BCEWithLogitsLoss",
+                                "weight": 0.5,
+                                "coefficient": 0.5,
+                                "pred_slice": "0:1",
+                                "target_slice": "0:1",
+                            },
+                            {
+                                "function": "BCEWithLogitsLoss",
+                                "weight": 0.5,
+                                "pred_slice": "1:2",
+                                "target_slice": "1:2",
+                            },
+                            {
+                                "function": "MSELoss",
+                                "weight": 1.0,
+                                "pred_slice": "2:3",
+                                "target_slice": "2:3",
+                            },
+                        ],
+                    },
                 },
-            },
-            'optimization': {
-                'optimizer': {'name': 'Adam', 'lr': 1e-3},
-                'max_epochs': 1,
-            },
-        })
+                "optimization": {
+                    "optimizer": {"name": "Adam", "lr": 1e-3},
+                    "max_epochs": 1,
+                },
+            }
+        )
 
         module = ConnectomicsModule(cfg)
         assert module is not None
         term_names = {term.name for term in module.loss_orchestrator.loss_term_specs}
         assert term_names in (
-            {'loss_0', 'loss_1', 'loss_2', 'loss_3'},
-            {'term_0', 'term_1', 'term_2', 'term_3'},
+            {"loss_0", "loss_1", "loss_2", "loss_3"},
+            {"term_0", "term_1", "term_2", "term_3"},
         )
 
     def test_multi_task_forward(self):
         """Test multi-task forward pass."""
-        cfg = from_dict({
-            'system': {'num_gpus': 0},
-            'model': {
-                'arch': {'type': 'monai_basic_unet3d'},
-                'in_channels': 1,
-                'out_channels': 3,
-                'monai': {'filters': [8, 16], 'norm': 'group', 'num_groups': 1},
-                'loss': {
-                    'losses': [
-                        {'function': 'DiceLoss', 'weight': 1.0, 'pred_slice': "0:1", 'target_slice': "0:1"},
-                        {'function': 'BCEWithLogitsLoss', 'weight': 0.5, 'pred_slice': "0:1", 'target_slice': "0:1"},
-                        {'function': 'BCEWithLogitsLoss', 'weight': 0.5, 'pred_slice': "1:2", 'target_slice': "1:2"},
-                        {'function': 'MSELoss', 'weight': 1.0, 'pred_slice': "2:3", 'target_slice': "2:3"},
-                    ],
+        cfg = from_dict(
+            {
+                "system": {"num_gpus": 0},
+                "model": {
+                    "arch": {"type": "monai_basic_unet3d"},
+                    "in_channels": 1,
+                    "out_channels": 3,
+                    "monai": {"filters": [8, 16], "norm": "group", "num_groups": 1},
+                    "loss": {
+                        "losses": [
+                            {
+                                "function": "DiceLoss",
+                                "weight": 1.0,
+                                "pred_slice": "0:1",
+                                "target_slice": "0:1",
+                            },
+                            {
+                                "function": "BCEWithLogitsLoss",
+                                "weight": 0.5,
+                                "pred_slice": "0:1",
+                                "target_slice": "0:1",
+                            },
+                            {
+                                "function": "BCEWithLogitsLoss",
+                                "weight": 0.5,
+                                "pred_slice": "1:2",
+                                "target_slice": "1:2",
+                            },
+                            {
+                                "function": "MSELoss",
+                                "weight": 1.0,
+                                "pred_slice": "2:3",
+                                "target_slice": "2:3",
+                            },
+                        ],
+                    },
                 },
-            },
-            'optimization': {
-                'optimizer': {'name': 'Adam', 'lr': 1e-3},
-                'max_epochs': 1,
-            },
-        })
+                "optimization": {
+                    "optimizer": {"name": "Adam", "lr": 1e-3},
+                    "max_epochs": 1,
+                },
+            }
+        )
 
         module = ConnectomicsModule(cfg)
 
@@ -360,6 +418,7 @@ class TestMultiTask:
 
 # ==================== Integration Tests ====================
 
+
 class TestIntegration:
     """Integration tests for complete workflows."""
 
@@ -371,12 +430,12 @@ class TestIntegration:
 
         # Step 2: Configure optimizers
         opt_config = module.configure_optimizers()
-        assert 'optimizer' in opt_config
+        assert "optimizer" in opt_config
 
         # Step 3: Simulate training step
         batch = {
-            'image': torch.randn(1, 1, 16, 16, 16),
-            'label': torch.randint(0, 2, (1, 1, 16, 16, 16)).float(),
+            "image": torch.randn(1, 1, 16, 16, 16),
+            "label": torch.randint(0, 2, (1, 1, 16, 16, 16)).float(),
         }
 
         loss = module.training_step(batch, batch_idx=0)
@@ -397,9 +456,9 @@ class TestIntegration:
 
         # Verify trainer properties
         assert trainer.max_epochs == 2
-        assert str(trainer.precision).startswith('32')
+        assert str(trainer.precision).startswith("32")
         assert trainer.gradient_clip_val == 1.0
 
 
-if __name__ == '__main__':
-    pytest.main([__file__, '-v', '--tb=short'])
+if __name__ == "__main__":
+    pytest.main([__file__, "-v", "--tb=short"])

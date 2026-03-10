@@ -14,19 +14,19 @@ Import patterns:
 """
 
 from .metrics_seg import (
+    AdaptedRandError,
+    InstanceAccuracy,
+    InstanceAccuracySimple,
+    VariationOfInformation,
     adapted_rand,
     instance_matching,
     instance_matching_simple,
     matching_criteria,
-    AdaptedRandError,
-    VariationOfInformation,
-    InstanceAccuracy,
-    InstanceAccuracySimple,
 )
 from .metrics_skel import (
-    evaluate_image_pair,
-    evaluate_file_pair,
     evaluate_directory,
+    evaluate_file_pair,
+    evaluate_image_pair,
 )
 
 __all__ = [

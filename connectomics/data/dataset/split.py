@@ -5,13 +5,14 @@ Inspired by DeepEM's approach of using spatial splits along the Z-axis
 for training and validation, with automatic padding to model input size.
 """
 
-
 from __future__ import annotations
+
 import logging
-from typing import Tuple, Optional, Union
+from pathlib import Path
+from typing import Optional, Tuple, Union
+
 import numpy as np
 import torch
-from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
@@ -65,7 +66,9 @@ def split_volume_train_val(
         actual_ratio = train_size / split_dim
         logger.warning(
             "Adjusted train_ratio from %.2f to %.2f to satisfy min_val_size=%d",
-            train_ratio, actual_ratio, min_val_size,
+            train_ratio,
+            actual_ratio,
+            min_val_size,
         )
 
     # Create slices

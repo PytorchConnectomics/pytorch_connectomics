@@ -7,7 +7,6 @@ import random
 from abc import abstractmethod
 from typing import Any, Dict, List, Optional, Tuple
 
-import numpy as np
 import torch.utils.data
 from monai.transforms import Compose
 from monai.utils import ensure_tuple_rep
@@ -87,9 +86,7 @@ class PatchDataset(torch.utils.data.Dataset):
         vol_idx = random.randint(0, self.num_volumes - 1)
 
         use_fg = (
-            self.mode == "train"
-            and self._has_labels(vol_idx)
-            and self.foreground_threshold > 0
+            self.mode == "train" and self._has_labels(vol_idx) and self.foreground_threshold > 0
         )
 
         data = None
@@ -133,9 +130,7 @@ class PatchDataset(torch.utils.data.Dataset):
     # -- Crop position helpers (overridable by subclasses) --
 
     def _get_random_crop_position(self, vol_idx: int) -> Tuple[int, ...]:
-        return random_crop_position(
-            self.volume_sizes[vol_idx], self.patch_size, rng=random
-        )
+        return random_crop_position(self.volume_sizes[vol_idx], self.patch_size, rng=random)
 
     def _get_center_crop_position(self, vol_idx: int) -> Tuple[int, ...]:
         return center_crop_position(self.volume_sizes[vol_idx], self.patch_size)
@@ -151,7 +146,10 @@ class PatchDataset(torch.utils.data.Dataset):
             random.seed(effective_seed)
             logger.debug(
                 "[Validation] epoch=%s, effective_seed=%s, dataset=%s@%s",
-                epoch, effective_seed, type(self).__name__, id(self),
+                epoch,
+                effective_seed,
+                type(self).__name__,
+                id(self),
             )
 
     def get_sampling_fingerprint(self, num_samples: int = 5) -> str:
