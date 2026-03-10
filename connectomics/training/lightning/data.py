@@ -134,12 +134,16 @@ class ConnectomicsDataModule(pl.LightningDataModule):
 
     def test_dataloader(self):
         return self._create_dataloader(
-            self.test_dataset, shuffle=False
+            self.test_dataset,
+            shuffle=False,
+            collate_fn=collate_dict_list,
         )
 
-    def _create_dataloader(self, dataset, shuffle):
+    def _create_dataloader(self, dataset, shuffle, collate_fn=None):
         if dataset is None:
             return None
+        if collate_fn is None:
+            collate_fn = collate_dict
         return DataLoader(
             dataset=dataset,
             batch_size=self.batch_size,
@@ -149,7 +153,7 @@ class ConnectomicsDataModule(pl.LightningDataModule):
             persistent_workers=(
                 self.persistent_workers and self.num_workers > 0
             ),
-            collate_fn=collate_dict,
+            collate_fn=collate_fn,
         )
 
 
@@ -215,8 +219,26 @@ def collate_dict(
     return result
 
 
+def collate_dict_list(
+    batch: List[Dict[str, Any]],
+) -> Dict[str, Any]:
+    """Preserve per-sample values as lists for variable-shape test volumes."""
+    if not batch:
+        return {}
+
+    result = {}
+    for key in batch[0]:
+        values = [sample[key] for sample in batch]
+        if isinstance(values[0], np.ndarray):
+            result[key] = [torch.from_numpy(v) for v in values]
+        else:
+            result[key] = values
+    return result
+
+
 __all__ = [
     "ConnectomicsDataModule",
     "SimpleDataModule",
     "collate_dict",
+    "collate_dict_list",
 ]
