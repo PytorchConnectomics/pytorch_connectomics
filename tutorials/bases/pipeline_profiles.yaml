@@ -29,8 +29,6 @@ pipeline_profiles:
     data:
       label_transform:
         profile: label_affinity_12
-      augmentation:
-        profile: aug_em_neuron
     inference:
       decoding_profile: decoding_abiss
       test_time_augmentation:

@@ -20,6 +20,8 @@ default:
     data_transform:
       # Keep symmetric full-volume context padding on the inference input.
       pad_size: [8, 128, 128]
+    augmentation:
+      profile: aug_em_neuron
   inference:
     # tta_result_path: outputs/neuron_snemi/20260305_195321/results/train-input_prediction_p1.h5
     batch_size: 4    
@@ -75,7 +77,7 @@ test:
       resolution: [30, 6, 6]
   inference:
     decoding:
-    - name: decoding_abiss
+    - name: decode_abiss
       kwargs:
         cli_args:
           ws_high_threshold: 80%
