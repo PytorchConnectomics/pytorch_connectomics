@@ -39,6 +39,14 @@ def _default_crop_spatial_fn(
     return crop_spatial_by_offsets(tensor, offsets, item_name=item_name)
 
 
+def _default_compute_valid_mask(
+    offsets: list, spatial_shape: tuple, device: torch.device | None = None,
+) -> torch.Tensor:
+    """Lazy-import bridge to data.process.affinity."""
+    from ...data.process.affinity import compute_affinity_valid_mask
+    return compute_affinity_valid_mask(offsets, spatial_shape, device=device)
+
+
 def _default_resolve_affinity_offsets(cfg, *, num_channels: int, channel_slice):
     """Lazy-import bridge to data.process.affinity."""
     from ...data.process.affinity import resolve_affinity_offsets_for_channel_slice
@@ -63,6 +71,7 @@ class LossOrchestrator:
         affinity_crop_enabled_fn: Optional[Callable] = None,
         crop_spatial_fn: Optional[Callable] = None,
         resolve_affinity_offsets_fn: Optional[Callable] = None,
+        compute_valid_mask_fn: Optional[Callable] = None,
     ):
         self.cfg = cfg
         self.loss_functions = loss_functions
@@ -81,6 +90,7 @@ class LossOrchestrator:
         self._affinity_crop_enabled_fn = affinity_crop_enabled_fn or _default_affinity_deepem_crop_enabled
         self._crop_spatial_fn = crop_spatial_fn or _default_crop_spatial_fn
         self._resolve_affinity_offsets_fn = resolve_affinity_offsets_fn or _default_resolve_affinity_offsets
+        self._compute_valid_mask_fn = compute_valid_mask_fn or _default_compute_valid_mask
 
         if self.loss_cfg is None:
             raise ValueError("cfg.model.loss is required for loss orchestration")
@@ -377,34 +387,28 @@ class LossOrchestrator:
                         pred,
                         target_kind="class_index",
                     )
+                # DeepEM get_pair logic: per-channel valid mask instead of
+                # uniform spatial crop.  Each channel is masked to its own
+                # valid region so (a) border zeros don't train the model and
+                # (b) reflection-padding artifacts from augmentation are
+                # excluded for long-range channels.
+                affinity_valid_mask: Optional[torch.Tensor] = None
                 if affinity_offsets:
-                    pred = self._crop_spatial_fn(pred, affinity_offsets, item_name="affinity prediction")
-                    if target is not None:
-                        target = self._crop_spatial_fn(
-                            target,
-                            affinity_offsets,
-                            item_name="affinity target",
-                        )
-                    if term_mask_tensor is not None:
-                        term_mask_tensor = self._crop_spatial_fn(
-                            term_mask_tensor,
-                            affinity_offsets,
-                            item_name="affinity term mask",
-                        )
-                    if batch_mask_tensor is not None:
-                        batch_mask_tensor = self._crop_spatial_fn(
-                            batch_mask_tensor,
-                            affinity_offsets,
-                            item_name="affinity batch mask",
-                        )
+                    spatial_shape = tuple(int(v) for v in pred.shape[2:])
+                    affinity_valid_mask = self._compute_valid_mask_fn(
+                        affinity_offsets, spatial_shape, device=pred.device,
+                    )
+                    # (C, D, H, W) -> (1, C, D, H, W); match pred dtype for AMP
+                    affinity_valid_mask = affinity_valid_mask.unsqueeze(0).to(pred.dtype)
 
+            # Merge all masks into combined_mask_tensor (for masking invalid
+            # regions in the loss).  The affinity valid mask is kept separate
+            # from term_mask_tensor so that the pos_weight / class-balancing
+            # computation below works correctly.
             combined_mask_tensor: Optional[torch.Tensor] = None
-            if term_mask_tensor is not None and batch_mask_tensor is not None:
-                combined_mask_tensor = term_mask_tensor * batch_mask_tensor
-            elif term_mask_tensor is not None:
-                combined_mask_tensor = term_mask_tensor
-            elif batch_mask_tensor is not None:
-                combined_mask_tensor = batch_mask_tensor
+            for m in (term_mask_tensor, batch_mask_tensor, affinity_valid_mask):
+                if m is not None:
+                    combined_mask_tensor = m if combined_mask_tensor is None else combined_mask_tensor * m
 
             if call_kind == "pred_target":
                 if pred is None or target is None:
@@ -417,13 +421,22 @@ class LossOrchestrator:
                         spatial_weight_tensor = self._build_pos_weight_tensor(
                             target,
                             pos_weight=term.pos_weight,
-                            valid_mask=batch_mask_tensor,
+                            valid_mask=combined_mask_tensor,
                         )
                 if batch_mask_tensor is not None:
                     if spatial_weight_tensor is None:
                         spatial_weight_tensor = batch_mask_tensor
                     else:
                         spatial_weight_tensor = spatial_weight_tensor * batch_mask_tensor
+                # Fold affinity valid mask into the spatial weight so border
+                # voxels get zero weight (no gradient).  This is applied AFTER
+                # pos_weight computation so class balancing uses the correct
+                # valid-region statistics.
+                if affinity_valid_mask is not None:
+                    if spatial_weight_tensor is None:
+                        spatial_weight_tensor = affinity_valid_mask
+                    else:
+                        spatial_weight_tensor = spatial_weight_tensor * affinity_valid_mask
 
                 pred_for_loss = pred
                 target_for_loss = target

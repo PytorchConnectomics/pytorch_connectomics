@@ -87,6 +87,22 @@ class TestRandMisAlignmentd:
         # Note: shapes may differ due to cropping
         assert result["image"].ndim == sample_data_dict["image"].ndim
 
+    def test_channel_first_image_uses_depth_axis(self):
+        """Misalignment should operate on z slices, not the channel axis."""
+        data = {"image": torch.arange(1 * 8 * 16 * 16, dtype=torch.float32).reshape(1, 8, 16, 16)}
+        transform = RandMisAlignmentd(
+            keys=["image"],
+            prob=1.0,
+            displacement=4,
+            rotate_ratio=0.0,
+        )
+        transform.set_random_state(seed=0)
+
+        result = transform({"image": data["image"].clone()})
+
+        assert result["image"].shape == data["image"].shape
+        assert not torch.equal(result["image"], data["image"])
+
     def test_probability_control(self, sample_data_dict):
         """Test probability control."""
         transform = RandMisAlignmentd(
@@ -106,32 +122,39 @@ class TestRandMissingSectiond:
 
     def test_basic_functionality(self, sample_data_dict):
         """Test basic missing section."""
+        sample_data_dict["image"] = torch.rand_like(sample_data_dict["image"])
         transform = RandMissingSectiond(
             keys=["image"],
             prob=1.0,
             num_sections=2,
+            full_section_prob=1.0,
+            fill_value_range=(0.25, 0.75),
         )
+        transform.set_random_state(seed=0)
 
         result = transform(sample_data_dict)
 
         assert "image" in result
-        # Shape should be preserved (sections zeroed, not removed)
+        # Shape should be preserved (sections corrupted, not removed)
         assert result["image"].shape == sample_data_dict["image"].shape
-        # Some sections should be zeroed out
-        # Check that at least one section is zero (with tolerance for float)
         depth = result["image"].shape[1]
-        # Skip first/last sections
-        section_sums = result["image"][0, 1 : depth - 1, :, :].sum(dim=(1, 2))
-        # At least one middle section should be zero (or very close to zero)
-        assert (section_sums == 0).any() or (section_sums < 1e-6).any()
+        changed = (
+            result["image"][0, 1 : depth - 1] != sample_data_dict["image"][0, 1 : depth - 1]
+        ).any(dim=(1, 2))
+        assert changed.any()
+        assert float(result["image"].min()) >= 0.0
+        assert float(result["image"].max()) <= 1.0
 
     def test_respects_boundaries(self, sample_data_dict):
         """Test that first and last sections are preserved."""
+        sample_data_dict["image"] = torch.rand_like(sample_data_dict["image"])
         transform = RandMissingSectiond(
             keys=["image"],
             prob=1.0,
             num_sections=1,
+            full_section_prob=1.0,
         )
+        transform.set_random_state(seed=0)
 
         original_first = sample_data_dict["image"][0, 0, :, :].clone()
         original_last = sample_data_dict["image"][0, -1, :, :].clone()
@@ -145,6 +168,23 @@ class TestRandMissingSectiond:
             # First and last sections should be unchanged (preserved)
             assert torch.equal(result["image"][0, 0, :, :], original_first)
             assert torch.equal(result["image"][0, -1, :, :], original_last)
+
+    def test_fixed_fill_value_is_used(self, sample_data_dict):
+        """Missing sections should use configured random fill values, not zeros."""
+        sample_data_dict["image"] = torch.zeros_like(sample_data_dict["image"])
+        transform = RandMissingSectiond(
+            keys=["image"],
+            prob=1.0,
+            num_sections=1,
+            full_section_prob=1.0,
+            fill_value_range=(0.75, 0.75),
+        )
+        transform.set_random_state(seed=1)
+
+        result = transform(sample_data_dict)
+
+        assert (result["image"] == 0.75).any()
+        assert not (result["image"] == 0).all()
 
     def test_probability_control(self, sample_data_dict):
         """Test probability control."""
@@ -253,17 +293,35 @@ def test_missing_section_builder_targets_image_only():
     assert missing_section[0].keys == ("image",)
 
 
+def test_misalignment_builder_targets_image_only():
+    """Misalignment artifact augmentation should not modify labels."""
+    cfg = AugmentationConfig()
+    cfg.misalignment.enabled = True
+    cfg.misalignment.prob = 1.0
+    cfg.misalignment.displacement = 8
+
+    transforms = _build_augmentations(cfg, keys=["image", "label"])
+    misalignment = [t for t in transforms if isinstance(t, RandMisAlignmentd)]
+
+    assert len(misalignment) == 1
+    assert misalignment[0].keys == ("image",)
+
+
 class TestRandMotionBlurd:
-    """Test RandMotionBlurd transform."""
+    """Test legacy-named out-of-focus blur transform."""
 
     def test_basic_functionality(self, sample_data_dict):
-        """Test basic motion blur."""
+        """Test basic out-of-focus blur."""
+        sample_data_dict["image"] = torch.rand_like(sample_data_dict["image"])
         transform = RandMotionBlurd(
             keys=["image"],
             prob=1.0,
             sections=2,
             kernel_size=7,
+            sigma_range=(2.0, 2.0),
+            full_section_prob=1.0,
         )
+        transform.set_random_state(seed=0)
 
         result = transform(sample_data_dict)
 
@@ -280,10 +338,31 @@ class TestRandMotionBlurd:
             prob=1.0,
             sections=(1, 3),  # 1-3 sections
             kernel_size=7,
+            sigma_range=(1.5, 1.5),
+            full_section_prob=1.0,
         )
+        transform.set_random_state(seed=0)
 
         result = transform(sample_data_dict)
         assert result["image"].shape == sample_data_dict["image"].shape
+
+    def test_channel_first_image_uses_depth_axis(self):
+        """Out-of-focus blur should select z slices for channel-first inputs."""
+        image = torch.rand(1, 8, 16, 16)
+        transform = RandMotionBlurd(
+            keys=["image"],
+            prob=1.0,
+            sections=2,
+            kernel_size=7,
+            sigma_range=(2.0, 2.0),
+            full_section_prob=1.0,
+        )
+        transform.set_random_state(seed=0)
+
+        result = transform({"image": image.clone()})
+
+        changed = (result["image"][0] != image[0]).any(dim=(1, 2))
+        assert 1 <= changed.sum().item() <= 2
 
 
 class TestRandCutNoised:
@@ -440,6 +519,56 @@ class TestRandCopyPasted:
 
         # Should return unchanged (no label)
         assert torch.equal(result["image"], data["image"])
+
+
+def test_defect_mutex_wraps_in_oneof():
+    """When defect_mutex=True, defect transforms are wrapped in OneOf."""
+    from monai.transforms import OneOf
+
+    cfg = AugmentationConfig()
+    cfg.defect_mutex = True
+    cfg.misalignment.enabled = True
+    cfg.misalignment.prob = 1.0
+    cfg.missing_section.enabled = True
+    cfg.missing_section.prob = 1.0
+    cfg.motion_blur.enabled = True
+    cfg.motion_blur.prob = 1.0
+
+    transforms = _build_augmentations(cfg, keys=["image", "label"])
+    oneof = [t for t in transforms if isinstance(t, OneOf)]
+    assert len(oneof) == 1
+    assert len(oneof[0].transforms) == 3
+
+    # No individual defect transforms should appear outside OneOf
+    individual = [
+        t
+        for t in transforms
+        if isinstance(t, (RandMisAlignmentd, RandMissingSectiond, RandMotionBlurd))
+    ]
+    assert len(individual) == 0
+
+
+def test_defect_mutex_false_keeps_independent():
+    """When defect_mutex=False, defect transforms remain independent."""
+    from monai.transforms import OneOf
+
+    cfg = AugmentationConfig()
+    cfg.defect_mutex = False
+    cfg.misalignment.enabled = True
+    cfg.misalignment.prob = 1.0
+    cfg.missing_section.enabled = True
+    cfg.missing_section.prob = 1.0
+
+    transforms = _build_augmentations(cfg, keys=["image", "label"])
+    oneof = [t for t in transforms if isinstance(t, OneOf)]
+    assert len(oneof) == 0
+
+    individual = [
+        t
+        for t in transforms
+        if isinstance(t, (RandMisAlignmentd, RandMissingSectiond))
+    ]
+    assert len(individual) == 2
 
 
 class TestIntegration:

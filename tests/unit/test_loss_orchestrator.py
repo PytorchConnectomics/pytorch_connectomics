@@ -310,8 +310,21 @@ def test_standard_loss_supports_affinity_deepem_crop():
 
     assert torch.isfinite(total_loss)
     assert "train_loss_total" in loss_dict
-    assert weighted_loss.calls[0]["pred_shape"] == (1, 3, 4, 4, 4)
-    assert weighted_loss.calls[0]["target_shape"] == (1, 3, 4, 4, 4)
+    # Per-channel valid masking (DeepEM get_pair): spatial dims are preserved,
+    # but a per-channel weight mask zeros out invalid border voxels.
+    assert weighted_loss.calls[0]["pred_shape"] == (1, 3, 5, 5, 5)
+    assert weighted_loss.calls[0]["target_shape"] == (1, 3, 5, 5, 5)
+    weight = weighted_loss.calls[0]["weight"]
+    assert weight is not None
+    # Channel 0 (offset 1-0-0): valid region is z >= 1, so first z-slice is masked
+    assert weight[0, 0, 0, :, :].sum() == 0  # z=0 masked for channel 0
+    assert weight[0, 0, 1, :, :].sum() > 0   # z=1 valid for channel 0
+    # Channel 1 (offset 0-1-0): valid region is y >= 1
+    assert weight[0, 1, :, 0, :].sum() == 0  # y=0 masked for channel 1
+    assert weight[0, 1, :, 1, :].sum() > 0   # y=1 valid for channel 1
+    # Channel 2 (offset 0-0-1): valid region is x >= 1
+    assert weight[0, 2, :, :, 0].sum() == 0  # x=0 masked for channel 2
+    assert weight[0, 2, :, :, 1].sum() > 0   # x=1 valid for channel 2
 
 
 def test_standard_loss_rejects_invalid_runtime_negative_channel_slice():

@@ -33,6 +33,10 @@ loss_profiles:
       kwargs: {tanh: true}
       pred_slice: "2:3"
       target_slice: "2:3"
+  loss_per_channel:
+    - function: PerChannelBCEWithLogitsLoss
+      weight: 1.0
+      kwargs: {auto_pos_weight: true}
   loss_bd:
     - function: WeightedBCEWithLogitsLoss
       weight: 1.0

@@ -34,6 +34,35 @@ def _from_numpy(img: np.ndarray, was_tensor: bool, device: Any) -> Union[np.ndar
     return img
 
 
+def _infer_depth_axis(arr: np.ndarray) -> int:
+    """Infer the depth axis for channel-first volumes."""
+    if arr.ndim >= 4 and arr.shape[0] <= 4:
+        return 1
+    return 0
+
+
+def _sample_count(
+    rng: np.random.RandomState,
+    spec: Union[int, Tuple[int, int], List[int]],
+    max_count: int,
+) -> int:
+    """Sample a non-negative count from an int or inclusive [min, max] pair."""
+    if isinstance(spec, (tuple, list)):
+        if len(spec) == 0:
+            return 0
+        if len(spec) == 1:
+            count = int(spec[0])
+        else:
+            low = int(spec[0])
+            high = int(spec[1])
+            if high < low:
+                low, high = high, low
+            count = int(rng.randint(low, high + 1))
+    else:
+        count = int(spec)
+    return min(max(count, 0), max_count)
+
+
 class RandMisAlignmentd(RandomizableTransform, MapTransform):
     """Random misalignment augmentation simulating EM section alignment artifacts."""
 
@@ -64,10 +93,15 @@ class RandMisAlignmentd(RandomizableTransform, MapTransform):
         for key in self.key_iterator(d):
             if key in d:
                 arr, was_tensor, device = _to_numpy(d[key])
-                if arr.ndim < 3 or arr.shape[0] <= 2:
+                if arr.ndim < 3:
                     continue
 
-                split_idx = int(self.R.choice(np.arange(1, arr.shape[0] - 1)))
+                depth_axis = _infer_depth_axis(arr)
+                depth = arr.shape[depth_axis]
+                if depth <= 2:
+                    continue
+
+                split_idx = int(self.R.choice(np.arange(1, depth - 1)))
                 mode = "slip" if self.R.rand() < 0.5 else "translation"
 
                 if use_rotation:
@@ -77,7 +111,12 @@ class RandMisAlignmentd(RandomizableTransform, MapTransform):
                     )
                     rand_angle = (self.R.rand() - 0.5) * 2.0 * angle_range
                     result = augment_ops.apply_misalignment_rotation(
-                        arr, self.displacement, rand_angle, split_idx, mode
+                        arr,
+                        self.displacement,
+                        rand_angle,
+                        split_idx,
+                        mode,
+                        depth_axis=depth_axis,
                     )
                 else:
                     dy0 = int(self.R.randint(-self.displacement, self.displacement + 1))
@@ -85,7 +124,15 @@ class RandMisAlignmentd(RandomizableTransform, MapTransform):
                     dy1 = int(self.R.randint(-self.displacement, self.displacement + 1))
                     dx1 = int(self.R.randint(-self.displacement, self.displacement + 1))
                     result = augment_ops.apply_misalignment_translation(
-                        arr, self.displacement, dy0, dx0, dy1, dx1, split_idx, mode
+                        arr,
+                        self.displacement,
+                        dy0,
+                        dx0,
+                        dy1,
+                        dx1,
+                        split_idx,
+                        mode,
+                        depth_axis=depth_axis,
                     )
                 d[key] = _from_numpy(result, was_tensor, device)
         return d
@@ -95,18 +142,24 @@ class RandMisAlignmentd(RandomizableTransform, MapTransform):
 
 
 class RandMissingSectiond(RandomizableTransform, MapTransform):
-    """Random missing section augmentation — zeros out sections in EM volumes."""
+    """Random missing section augmentation with paper-style fill values."""
 
     def __init__(
         self,
         keys: KeysCollection,
         prob: float = 0.1,
-        num_sections: int = 2,
+        num_sections: Union[int, Tuple[int, int]] = 2,
+        full_section_prob: float = 0.5,
+        partial_ratio_range: Tuple[float, float] = (0.25, 0.75),
+        fill_value_range: Tuple[float, float] = (0.0, 1.0),
         allow_missing_keys: bool = False,
     ) -> None:
         MapTransform.__init__(self, keys, allow_missing_keys)
         RandomizableTransform.__init__(self, prob)
         self.num_sections = num_sections
+        self.full_section_prob = full_section_prob
+        self.partial_ratio_range = partial_ratio_range
+        self.fill_value_range = fill_value_range
 
     def __call__(self, data: Dict[str, Any]) -> Dict[str, Any]:
         if self.prob <= 0:
@@ -123,19 +176,48 @@ class RandMissingSectiond(RandomizableTransform, MapTransform):
                 if arr.ndim < 3:
                     continue
 
-                depth_axis = 0
-                if arr.ndim >= 4 and arr.shape[0] <= 3:
-                    depth_axis = 1
-
+                depth_axis = _infer_depth_axis(arr)
                 depth = arr.shape[depth_axis]
                 if depth <= 3:
                     continue
 
-                num_to_zero = min(self.num_sections, depth - 2)
-                indices = self.R.choice(
-                    np.arange(1, depth - 1), size=num_to_zero, replace=False
-                )
-                result = augment_ops.zero_out_sections(arr, indices, depth_axis)
+                num_to_fill = _sample_count(self.R, self.num_sections, depth - 2)
+                if num_to_fill == 0:
+                    continue
+
+                indices = self.R.choice(np.arange(1, depth - 1), size=num_to_fill, replace=False)
+                result = arr
+                for idx in indices:
+                    fill_value = float(self.R.uniform(*self.fill_value_range))
+                    if self.R.rand() < self.full_section_prob:
+                        result = augment_ops.fill_sections(
+                            result,
+                            np.asarray([idx]),
+                            fill_value=fill_value,
+                            depth_axis=depth_axis,
+                        )
+                        continue
+
+                    hole_h = max(
+                        1,
+                        int(arr.shape[-2] * self.R.uniform(*self.partial_ratio_range)),
+                    )
+                    hole_w = max(
+                        1,
+                        int(arr.shape[-1] * self.R.uniform(*self.partial_ratio_range)),
+                    )
+                    y_start = int(self.R.randint(0, max(1, arr.shape[-2] - hole_h + 1)))
+                    x_start = int(self.R.randint(0, max(1, arr.shape[-1] - hole_w + 1)))
+                    result = augment_ops.fill_region(
+                        result,
+                        y_start,
+                        x_start,
+                        hole_h,
+                        hole_w,
+                        section_axis=depth_axis,
+                        section_idx=int(idx),
+                        fill_value=fill_value,
+                    )
                 d[key] = _from_numpy(result, was_tensor, device)
         return d
 
@@ -204,7 +286,7 @@ class RandMissingPartsd(RandomizableTransform, MapTransform):
 
 
 class RandMotionBlurd(RandomizableTransform, MapTransform):
-    """Random motion blur — applies directional blur to simulate motion artifacts."""
+    """Legacy name for paper-style out-of-focus Gaussian blur augmentation."""
 
     def __init__(
         self,
@@ -212,12 +294,18 @@ class RandMotionBlurd(RandomizableTransform, MapTransform):
         prob: float = 0.1,
         sections: Union[int, Tuple[int, int]] = 2,
         kernel_size: int = 11,
+        sigma_range: Tuple[float, float] = (1.0, 3.0),
+        full_section_prob: float = 0.5,
+        partial_ratio_range: Tuple[float, float] = (0.25, 0.75),
         allow_missing_keys: bool = False,
     ) -> None:
         MapTransform.__init__(self, keys, allow_missing_keys)
         RandomizableTransform.__init__(self, prob)
         self.sections = sections
         self.kernel_size = kernel_size
+        self.sigma_range = sigma_range
+        self.full_section_prob = full_section_prob
+        self.partial_ratio_range = partial_ratio_range
 
     def __call__(self, data: Dict[str, Any]) -> Dict[str, Any]:
         d = dict(data)
@@ -231,17 +319,47 @@ class RandMotionBlurd(RandomizableTransform, MapTransform):
                 if arr.ndim < 3:
                     continue
 
-                horizontal = bool(self.R.rand() > 0.5)
-                kernel = augment_ops.create_motion_blur_kernel(self.kernel_size, horizontal)
+                depth_axis = _infer_depth_axis(arr)
+                depth = arr.shape[depth_axis]
+                num_sections = _sample_count(self.R, self.sections, depth)
+                if num_sections == 0:
+                    continue
 
-                if isinstance(self.sections, tuple):
-                    num_sections = int(self.R.randint(*self.sections))
-                else:
-                    num_sections = self.sections
-                num_sections = min(num_sections, arr.shape[0])
-                section_indices = self.R.choice(arr.shape[0], size=num_sections, replace=False)
+                section_indices = self.R.choice(depth, size=num_sections, replace=False)
+                result = arr
+                for idx in section_indices:
+                    sigma = float(self.R.uniform(*self.sigma_range))
+                    if self.R.rand() < self.full_section_prob:
+                        result = augment_ops.blur_sections(
+                            result,
+                            np.asarray([idx]),
+                            kernel_size=self.kernel_size,
+                            sigma=sigma,
+                            depth_axis=depth_axis,
+                        )
+                        continue
 
-                result = augment_ops.apply_motion_blur(arr, kernel, section_indices)
+                    hole_h = max(
+                        1,
+                        int(arr.shape[-2] * self.R.uniform(*self.partial_ratio_range)),
+                    )
+                    hole_w = max(
+                        1,
+                        int(arr.shape[-1] * self.R.uniform(*self.partial_ratio_range)),
+                    )
+                    y_start = int(self.R.randint(0, max(1, arr.shape[-2] - hole_h + 1)))
+                    x_start = int(self.R.randint(0, max(1, arr.shape[-1] - hole_w + 1)))
+                    result = augment_ops.blur_region(
+                        result,
+                        section_idx=int(idx),
+                        y_start=y_start,
+                        x_start=x_start,
+                        hole_h=hole_h,
+                        hole_w=hole_w,
+                        kernel_size=self.kernel_size,
+                        sigma=sigma,
+                        depth_axis=depth_axis,
+                    )
                 d[key] = _from_numpy(result, was_tensor, device)
         return d
 

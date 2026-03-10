@@ -80,8 +80,10 @@ def compile_loss_terms_from_config(
     ) -> Optional[Union[float, str]]:
         raw = _cfg_get(term_cfg, "pos_weight", None)
         if raw is None:
-            # Keep WeightedBCEWithLogitsLoss unweighted by default unless explicitly set.
-            if loss_name == "WeightedBCEWithLogitsLoss":
+            # Keep BCE-family losses unweighted by default unless explicitly set.
+            # PerChannelBCEWithLogitsLoss handles its own per-channel pos_weight
+            # internally, so the orchestrator must not add class balancing on top.
+            if loss_name in ("WeightedBCEWithLogitsLoss", "PerChannelBCEWithLogitsLoss"):
                 return 1.0
             return None
         if isinstance(raw, str):

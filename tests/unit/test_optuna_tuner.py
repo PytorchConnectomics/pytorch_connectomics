@@ -5,6 +5,7 @@ import glob
 import numpy as np
 
 from connectomics.config import Config
+from connectomics.config.schema.stages import TuneConfig
 from connectomics.decoding.tuning.optuna_tuner import run_tuning
 
 
@@ -37,6 +38,7 @@ class _FakeStudy:
 
 def test_run_tuning_uses_intermediate_only_inference_overrides(monkeypatch, tmp_path):
     cfg = Config()
+    cfg.tune = TuneConfig()
     cfg.inference.save_prediction.output_path = str(tmp_path / "results")
     cfg.inference.save_prediction.enabled = False
     cfg.inference.save_prediction.cache_suffix = "_prediction.h5"

@@ -217,6 +217,34 @@ class OptunaDecodingTuner:
         # Initialize trial counter
         self.trial_count = 0
 
+        # ABISS batch merge-threshold optimisation: when the decoder is
+        # decode_abiss and ws_merge_threshold is a tunable parameter, we
+        # can run the C++ binary once with *all* merge threshold candidates
+        # and cache the segmentations, avoiding redundant watershed + RG
+        # recomputation.
+        self._abiss_batch_enabled = False
+        self._abiss_all_merge_thresholds: list[float] = []
+
+        if self.decoder_fn_name == "decode_abiss":
+            mt_cfg = None
+            if hasattr(self.param_space_cfg, "decoding") and self.param_space_cfg.decoding.parameters:
+                mt_cfg = self.param_space_cfg.decoding.parameters.get("ws_merge_threshold", None)
+            if mt_cfg is not None:
+                lo, hi = mt_cfg["range"]
+                step = mt_cfg.get("step", None)
+                if step:
+                    self._abiss_all_merge_thresholds = [
+                        round(lo + i * step, 10) for i in range(int(round((hi - lo) / step)) + 1)
+                    ]
+                else:
+                    self._abiss_all_merge_thresholds = [round(lo, 10), round(hi, 10)]
+                self._abiss_batch_enabled = True
+                logger.info(
+                    "ABISS batch mode: will sweep %d merge thresholds per ABISS call: %s",
+                    len(self._abiss_all_merge_thresholds),
+                    self._abiss_all_merge_thresholds,
+                )
+
     def _load_data(self, data: np.ndarray | str | Path, name: str) -> np.ndarray:
         """Load data from array or HDF5 file."""
         if isinstance(data, np.ndarray):
@@ -412,6 +440,122 @@ class OptunaDecodingTuner:
         else:
             raise NotImplementedError("Multi-objective optimization not yet implemented")
 
+    # ------------------------------------------------------------------
+    # ABISS batch merge-threshold sweep
+    # ------------------------------------------------------------------
+
+    def _abiss_batch_objective(
+        self,
+        trial: "optuna.Trial",
+        decoding_params: Dict[str, Any],
+        postproc_params: Optional[Dict[str, Any]],
+    ) -> float:
+        """Inner sweep of merge thresholds for a single ABISS call.
+
+        Runs the C++ binary once with *all* merge threshold candidates
+        (watershed + region-graph computed once), evaluates each resulting
+        segmentation, and reports the best metric to Optuna.
+        """
+        metric_name = self.tune_cfg.optimization["single_objective"]["metric"]
+        direction = self._get_optimization_direction()
+        bad_value = float("inf") if direction == "minimize" else float("-inf")
+
+        # Build batch decoding params: replace single merge threshold with list.
+        batch_params: Dict[str, Any] = {}
+        for k, v in decoding_params.items():
+            batch_params[k] = dict(v) if isinstance(v, dict) else v
+        batch_cli = dict(batch_params.get("cli_args", {}))
+        batch_cli.pop("ws_merge_threshold", None)
+        batch_cli["ws_merge_thresholds"] = self._abiss_all_merge_thresholds
+        batch_params["cli_args"] = batch_cli
+
+        # per merge-threshold → per-volume metrics
+        mt_are: Dict[float, List[float]] = {mt: [] for mt in self._abiss_all_merge_thresholds}
+        mt_prec: Dict[float, List[float]] = {mt: [] for mt in self._abiss_all_merge_thresholds}
+        mt_rec: Dict[float, List[float]] = {mt: [] for mt in self._abiss_all_merge_thresholds}
+
+        for vol_idx in range(len(self.predictions_list)):
+            pred_vol = self.predictions_list[vol_idx]
+            gt_vol = self.ground_truth_list[vol_idx]
+            mask_vol = self.mask_list[vol_idx] if self.mask_list else None
+
+            try:
+                results = self.decoder_fn(pred_vol, **batch_params)
+            except Exception:
+                logger.error(
+                    "Trial %d ABISS batch failed (vol %d):\n%s",
+                    self.trial_count, vol_idx, traceback.format_exc(),
+                )
+                return bad_value
+
+            if not isinstance(results, dict):
+                logger.error("Trial %d: decoder did not return dict in batch mode", self.trial_count)
+                return bad_value
+
+            for mt_val in self._abiss_all_merge_thresholds:
+                mt_key = round(mt_val, 10)
+                seg = results.get(mt_key)
+                if seg is None:
+                    continue
+
+                if postproc_params is not None:
+                    try:
+                        seg = remove_small_instances(seg, **postproc_params)
+                    except Exception:
+                        continue
+
+                gt_m = gt_vol * mask_vol if mask_vol is not None else gt_vol
+                seg_m = seg * mask_vol if mask_vol is not None else seg
+
+                if metric_name == "adapted_rand":
+                    are_v, prec_v, rec_v = adapted_rand(seg_m, gt_m, all_stats=True)
+                    mt_are[mt_val].append(are_v)
+                    mt_prec[mt_val].append(prec_v)
+                    mt_rec[mt_val].append(rec_v)
+                else:
+                    raise ValueError(f"Unknown metric: {metric_name}")
+
+        # Pick the merge threshold with the best averaged metric.
+        best_mt = self._abiss_all_merge_thresholds[0]
+        best_avg = bad_value
+        for mt_val in self._abiss_all_merge_thresholds:
+            if not mt_are[mt_val]:
+                continue
+            avg = float(np.mean(mt_are[mt_val]))
+            if (direction == "minimize" and avg < best_avg) or (
+                direction == "maximize" and avg > best_avg
+            ):
+                best_avg = avg
+                best_mt = mt_val
+
+        avg_prec = float(np.mean(mt_prec.get(best_mt, [0.0])))
+        avg_rec = float(np.mean(mt_rec.get(best_mt, [0.0])))
+
+        trial.set_user_attr("precision", avg_prec)
+        trial.set_user_attr("recall", avg_rec)
+        trial.set_user_attr("best_ws_merge_threshold", best_mt)
+        trial.set_user_attr("per_vol_are", mt_are.get(best_mt, []))
+        trial.set_user_attr("per_vol_precision", mt_prec.get(best_mt, []))
+        trial.set_user_attr("per_vol_recall", mt_rec.get(best_mt, []))
+
+        # Store per-threshold metrics for analysis.
+        for mt_val in self._abiss_all_merge_thresholds:
+            if mt_are[mt_val]:
+                trial.set_user_attr(f"are_mt_{mt_val}", float(np.mean(mt_are[mt_val])))
+
+        if getattr(self.tune_cfg.logging, "verbose", True):
+            mt_summary = " | ".join(
+                f"mt={mt:.2f}:{float(np.mean(mt_are[mt])):.4f}"
+                for mt in self._abiss_all_merge_thresholds
+                if mt_are[mt]
+            )
+            logger.info(
+                "Trial %3d: best ARE=%.4f (mt=%.2f) Prec=%.4f Rec=%.4f | %s",
+                self.trial_count, best_avg, best_mt, avg_prec, avg_rec, mt_summary,
+            )
+
+        return best_avg
+
     def _objective(self, trial: optuna.Trial) -> float:
         """
         Objective function for Optuna optimization.
@@ -427,7 +571,7 @@ class OptunaDecodingTuner:
         """
         self.trial_count += 1
 
-        # Sample parameters
+        # Sample parameters (ws_merge_threshold skipped when batch enabled)
         params = self._sample_parameters(trial)
 
         # Reconstruct decoding parameters from sampled values
@@ -440,6 +584,10 @@ class OptunaDecodingTuner:
             and self.param_space_cfg.postprocessing.enabled
         ):
             postproc_params = self._reconstruct_postproc_params(params)
+
+        # ABISS batch: sweep all merge thresholds in a single binary call.
+        if self._abiss_batch_enabled:
+            return self._abiss_batch_objective(trial, decoding_params, postproc_params)
 
         metric_name = self.tune_cfg.optimization["single_objective"]["metric"]
         metric_values = []
@@ -568,6 +716,10 @@ class OptunaDecodingTuner:
         # Sample decoding parameters
         if hasattr(self.param_space_cfg, "decoding") and self.param_space_cfg.decoding.parameters:
             for name, cfg in self.param_space_cfg.decoding.parameters.items():
+                # When ABISS batch mode is active, ws_merge_threshold is
+                # swept internally (not sampled by Optuna).
+                if self._abiss_batch_enabled and name == "ws_merge_threshold":
+                    continue
                 params[name] = self._suggest_param(trial, name, cfg)
 
         # Sample post-processing parameters
@@ -705,6 +857,15 @@ class OptunaDecodingTuner:
             lines.append(f"  Per-volume Rec:  [{' '.join(f'{v:.3f}' for v in per_vol_rec)}]")
 
         best_decoding_params = self._reconstruct_decoding_params(study.best_params)
+
+        # When ABISS batch mode was active, inject the best merge threshold
+        # back into the decoding params for display / saving.
+        best_ws_mt = best_trial.user_attrs.get("best_ws_merge_threshold", None)
+        if best_ws_mt is not None:
+            cli = best_decoding_params.get("cli_args", {})
+            cli["ws_merge_threshold"] = best_ws_mt
+            best_decoding_params["cli_args"] = cli
+
         lines.append("  Params:")
         for key, value in best_decoding_params.items():
             lines.append(f"    {key}: {value}")
@@ -730,8 +891,15 @@ class OptunaDecodingTuner:
         best_decoding_params = self._reconstruct_decoding_params(study.best_params)
         best_postproc_params = self._reconstruct_postproc_params(study.best_params)
 
-        # Create YAML content
+        # Inject best merge threshold from ABISS batch sweep.
         best_trial = study.best_trial
+        best_ws_mt = best_trial.user_attrs.get("best_ws_merge_threshold", None)
+        if best_ws_mt is not None:
+            cli = best_decoding_params.get("cli_args", {})
+            cli["ws_merge_threshold"] = best_ws_mt
+            best_decoding_params["cli_args"] = cli
+
+        # Create YAML content
         params_dict = {
             "best_trial": best_trial.number,
             "best_value": float(study.best_value),
@@ -817,6 +985,10 @@ def run_tuning(model, trainer, cfg, checkpoint_path=None):
     output_dir = Path(output_pred_dir).parent / "tuning"
     output_dir.mkdir(parents=True, exist_ok=True)
 
+    # Propagate the resolved output_dir into the tune config so that
+    # OptunaDecodingTuner._save_results() can find it.
+    cfg.tune.output.output_dir = str(output_dir)
+
     best_params_file = output_dir / "best_params.yaml"
 
     # Check if best parameters already exist
@@ -848,7 +1020,11 @@ def run_tuning(model, trainer, cfg, checkpoint_path=None):
     # decoding sweep afterward, so the tune inference pass must not decode with the
     # default config first.
     with _temporary_tuning_inference_overrides(cfg, getattr(model, "cfg", None)) as cache_suffix:
-        results = trainer.test(model, datamodule=datamodule, ckpt_path=checkpoint_path)
+        model._tune_mode = True
+        try:
+            results = trainer.test(model, datamodule=datamodule, ckpt_path=checkpoint_path)
+        finally:
+            model._tune_mode = False
 
     logger.info("Test completed. Results: %s", results)
 

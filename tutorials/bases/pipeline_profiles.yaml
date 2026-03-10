@@ -25,10 +25,7 @@ pipeline_profiles:
     model:
       out_channels: 12
       loss:
-        profile: loss_binary
-        overrides:
-          0: {pos_weight: auto}
-          1: {weight: 0.5}
+        profile: loss_per_channel
     data:
       label_transform:
         profile: label_affinity_12

@@ -130,13 +130,17 @@ augmentation_profiles:
       noise_scale: [0.05, 0.15]
 
   # ---------------------------------------------------------------------------
-  # aug_em_neuron: Aggressive EM augmentation for neuron segmentation
+  # aug_em_neuron: DeepEM-matched augmentation for neuron segmentation
   # ---------------------------------------------------------------------------
   # Use for: neuron affinity learning on anisotropic EM data (e.g. SNEMI3D).
-  # Heavy elastic deformation, wide contrast range, aggressive EM artifacts.
+  # Matches DeepEM (Lee et al. 2017) augmentation recipe:
+  #   - Defect mutex: only one of misalignment/missing_section/motion_blur per sample
+  #   - Elastic deformation (DeepEM Warp)
+  #   - Aggressive ±50% contrast/brightness (DeepEM MixedGrayscale2D)
   # Tuned for small training volumes with long training schedules.
   aug_em_neuron:
     preset: some
+    defect_mutex: true           # DeepEM Blend(mutex): one defect per sample
     flip:
       enabled: true
       prob: 0.5
@@ -157,21 +161,27 @@ augmentation_profiles:
       shift_intensity_prob: 0.7
       shift_intensity_offset: 0.2
       contrast_prob: 0.7
-      contrast_range: [0.5, 1.5]
+      contrast_range: [0.5, 1.5]   # DeepEM ±50%
     misalignment:
       enabled: true
-      prob: 0.6
-      displacement: 25
-      rotate_ratio: 0.3
+      prob: 1.0                     # Always fires when selected by OneOf
+      displacement: 17
+      rotate_ratio: 0.0
     missing_section:
       enabled: true
-      prob: 0.4
-      num_sections: 7
+      prob: 1.0
+      num_sections: [0, 5]
+      full_section_prob: 0.5
+      partial_ratio_range: [0.25, 0.75]
+      fill_value_range: [0.0, 1.0]
     motion_blur:
       enabled: true
-      prob: 0.4
-      sections: 3
+      prob: 1.0
+      sections: [0, 5]
       kernel_size: 11
+      sigma_range: [1.0, 3.0]
+      full_section_prob: 0.5
+      partial_ratio_range: [0.25, 0.75]
     missing_parts:
       enabled: true
       prob: 0.2

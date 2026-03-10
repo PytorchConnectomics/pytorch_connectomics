@@ -12,6 +12,7 @@ from ...utils.channel_slices import resolve_channel_range
 __all__ = [
     "affinity_deepem_crop_enabled",
     "compute_affinity_crop_pad",
+    "compute_affinity_valid_mask",
     "crop_spatial_by_offsets",
     "crop_spatial_by_pad",
     "parse_affinity_offsets",
@@ -240,6 +241,49 @@ def crop_spatial_by_offsets(
     """Crop to the common valid spatial region across affinity offsets."""
     crop_pad = compute_affinity_crop_pad(offsets)
     return crop_spatial_by_pad(data, crop_pad, item_name=item_name)
+
+
+def compute_affinity_valid_mask(
+    offsets: Sequence[tuple[int, int, int]],
+    spatial_shape: Sequence[int],
+    device: torch.device | None = None,
+) -> torch.Tensor:
+    """Build per-channel valid mask for affinity offsets (DeepEM ``get_pair`` logic).
+
+    For each channel *i* with offset ``(dz, dy, dx)``, the valid region is
+    where both source and destination voxels exist — i.e. the overlap region
+    that ``get_pair`` would produce.  Voxels outside this region are set to 0.
+
+    Args:
+        offsets: Parsed offsets, each a 3-tuple ``(dz, dy, dx)``.
+        spatial_shape: ``(D, H, W)`` of the prediction / target.
+        device: Torch device for the returned tensor.
+
+    Returns:
+        Float tensor of shape ``(len(offsets), D, H, W)`` with 1 in valid
+        positions and 0 elsewhere.
+    """
+    num_channels = len(offsets)
+    mask = torch.zeros(num_channels, *spatial_shape, device=device)
+
+    for i, offset in enumerate(offsets):
+        dz, dy, dx = int(offset[0]), int(offset[1]), int(offset[2])
+        if dz == 0 and dy == 0 and dx == 0:
+            mask[i] = 1.0
+            continue
+
+        # Build the valid-region slice identical to seg_to_affinity's dst_slice
+        slices: list[slice] = []
+        for d in (dz, dy, dx):
+            if d > 0:
+                slices.append(slice(d, None))
+            elif d < 0:
+                slices.append(slice(None, d))
+            else:
+                slices.append(slice(None))
+        mask[i][tuple(slices)] = 1.0
+
+    return mask
 
 
 def seg_to_affinity(

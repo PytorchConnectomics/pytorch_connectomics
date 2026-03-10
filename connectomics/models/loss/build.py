@@ -33,6 +33,7 @@ from monai.losses import (
 from .losses import (
     CrossEntropyLossWrapper,
     WeightedBCEWithLogitsLoss,
+    PerChannelBCEWithLogitsLoss,
     WeightedMSELoss,
     WeightedMAELoss,
     SmoothL1Loss,
@@ -96,6 +97,7 @@ def _get_loss_registry() -> Dict[str, type[nn.Module]]:
         "SmoothL1Loss": SmoothL1Loss,
         # Custom connectomics losses
         "WeightedBCEWithLogitsLoss": WeightedBCEWithLogitsLoss,
+        "PerChannelBCEWithLogitsLoss": PerChannelBCEWithLogitsLoss,
         "WeightedMSELoss": WeightedMSELoss,
         "WeightedMAELoss": WeightedMAELoss,
         "GANLoss": GANLoss,
