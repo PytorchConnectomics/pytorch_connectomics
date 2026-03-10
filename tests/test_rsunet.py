@@ -26,7 +26,7 @@ def test_rsunet_basic():
     y = model(x)
 
     assert y.shape == (2, 2, 32, 64, 64)
-    print("✓ Basic RSUNet test passed")
+    print("[OK] Basic RSUNet test passed")
 
 
 def test_rsunet_isotropic():
@@ -44,7 +44,7 @@ def test_rsunet_isotropic():
     y = model(x)
 
     assert y.shape == (1, 2, 64, 128, 128)
-    print("✓ Isotropic RSUNet test passed")
+    print("[OK] Isotropic RSUNet test passed")
 
 
 def test_rsunet_group_norm():
@@ -63,7 +63,7 @@ def test_rsunet_group_norm():
     y = model(x)
 
     assert y.shape == (2, 2, 32, 64, 64)
-    print("✓ GroupNorm RSUNet test passed")
+    print("[OK] GroupNorm RSUNet test passed")
 
 
 def test_rsunet_prelu():
@@ -82,7 +82,7 @@ def test_rsunet_prelu():
     y = model(x)
 
     assert y.shape == (2, 2, 32, 64, 64)
-    print("✓ PReLU RSUNet test passed")
+    print("[OK] PReLU RSUNet test passed")
 
 
 def test_rsunet_2d3d_hybrid():
@@ -101,7 +101,7 @@ def test_rsunet_2d3d_hybrid():
     y = model(x)
 
     assert y.shape == (1, 2, 32, 64, 64)
-    print("✓ 2D/3D Hybrid RSUNet test passed")
+    print("[OK] 2D/3D Hybrid RSUNet test passed")
 
 
 def test_rsunet_deep_supervision():
@@ -123,7 +123,7 @@ def test_rsunet_deep_supervision():
     assert outputs['output'].shape == (1, 2, 32, 64, 64)
     # Should have deep supervision outputs
     assert 'ds_0' in outputs or 'ds_1' in outputs
-    print("✓ Deep supervision RSUNet test passed")
+    print("[OK] Deep supervision RSUNet test passed")
 
 
 def test_rsunet_model_info():
@@ -141,7 +141,7 @@ def test_rsunet_model_info():
     assert 'name' in info
     assert 'parameters' in info
     assert info['parameters'] > 0
-    print(f"✓ Model info test passed: {info['parameters']:,} parameters")
+    print(f"[OK] Model info test passed: {info['parameters']:,} parameters")
 
 
 def test_rsunet_registry():
@@ -152,7 +152,7 @@ def test_rsunet_registry():
 
     assert 'rsunet' in archs
     assert 'rsunet_iso' in archs
-    print(f"✓ Registry test passed: {len(archs)} architectures available")
+    print(f"[OK] Registry test passed: {len(archs)} architectures available")
 
 
 if __name__ == '__main__':
@@ -167,4 +167,4 @@ if __name__ == '__main__':
     test_rsunet_model_info()
     test_rsunet_registry()
 
-    print("\n✅ All RSUNet tests passed!")
+    print("\nAll RSUNet tests passed!")

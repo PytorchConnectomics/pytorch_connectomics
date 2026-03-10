@@ -72,10 +72,10 @@ def submit_job(script_path: Path, dry_run: bool = False) -> int:
     if result.returncode == 0:
         # Extract job ID
         job_id = int(result.stdout.strip().split()[-1])
-        print(f"✓ Submitted job {job_id}: {script_path.name}")
+        print(f"Submitted job {job_id}: {script_path.name}")
         return job_id
     else:
-        print(f"✗ Failed to submit: {script_path.name}")
+        print(f"Failed to submit: {script_path.name}")
         print(f"  Error: {result.stderr}")
         return -1
 

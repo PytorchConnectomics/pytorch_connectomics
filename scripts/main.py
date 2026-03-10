@@ -119,9 +119,9 @@ def configure_matmul_precision(cfg: Config) -> None:
 
         if has_tensor_cores:
             torch.set_float32_matmul_precision("medium")
-            print("⚙️  Enabled float32 matmul precision='medium' (Tensor Cores detected)")
+            print("Enabled float32 matmul precision='medium' (Tensor Cores detected)")
     except Exception as exc:
-        print(f"⚠️  Could not configure float32 matmul precision automatically: {exc}")
+        print(f"WARNING: Could not configure float32 matmul precision automatically: {exc}")
 
 
 def get_output_base_from_checkpoint(checkpoint_path: str) -> Path:
@@ -235,14 +235,14 @@ def _is_valid_hdf5_prediction_file(path: Path, dataset: str = "main") -> bool:
         with h5py.File(path, "r") as handle:
             if dataset not in handle:
                 print(
-                    f"  ⚠️  Cached prediction file missing dataset '{dataset}': {path}. "
+                    f"  WARNING: Cached prediction file missing dataset '{dataset}': {path}. "
                     "Ignoring cache entry."
                 )
                 return False
             _ = handle[dataset].shape
         return True
     except Exception as exc:
-        print(f"  ⚠️  Cached prediction file is unreadable: {path} ({exc}). Ignoring cache entry.")
+        print(f"  WARNING: Cached prediction file is unreadable: {path} ({exc}). Ignoring cache entry.")
         return False
 
 
@@ -271,7 +271,7 @@ def preflight_test_cache_hit(cfg: Config, datamodule) -> tuple[bool, str | None,
             return True, "_tta_prediction.h5", 1
 
         print(
-            f"  ⚠️  inference.tta_result_path file missing or unreadable during preflight: {pred_file}. "
+            f"  WARNING: inference.tta_result_path file missing or unreadable during preflight: {pred_file}. "
             "Falling back to normal cache/inference flow."
         )
 
@@ -321,10 +321,10 @@ def resolve_test_stage_runtime(cfg: Config) -> Config:
     # Keep runtime behavior consistent with setup_config() for CPU-only environments.
     if not torch.cuda.is_available():
         if cfg.system.num_gpus > 0:
-            print("🔧 CUDA not available, setting num_gpus=0")
+            print("CUDA not available, setting num_gpus=0")
             cfg.system.num_gpus = 0
         if cfg.system.num_workers > 0:
-            print("🔧 CUDA not available, setting num_workers=0 to avoid dataloader crashes")
+            print("CUDA not available, setting num_workers=0 to avoid dataloader crashes")
             cfg.system.num_workers = 0
 
     return cfg
@@ -396,14 +396,14 @@ def maybe_limit_test_devices(cfg: Config, datamodule) -> bool:
         safe_devices = max(1, min(requested_devices, _estimate_tta_total_passes(cfg)))
         if safe_devices < requested_devices:
             print(
-                "  ⚠️  Reducing devices to match available TTA passes: "
+                "  WARNING: Reducing devices to match available TTA passes: "
                 f"{requested_devices} → {safe_devices}."
             )
             cfg.system.num_gpus = safe_devices
             return True
 
         print(
-            "  ℹ️  Keeping multi-GPU test enabled for single-volume TTA sharding "
+            "  INFO: Keeping multi-GPU test enabled for single-volume TTA sharding "
             f"({safe_devices} device(s), {_estimate_tta_total_passes(cfg)} total TTA pass(es))."
         )
         return False
@@ -413,7 +413,7 @@ def maybe_limit_test_devices(cfg: Config, datamodule) -> bool:
         return False
 
     print(
-        "  ⚠️  Test dataset has fewer volumes than requested GPUs; "
+        "  WARNING: Test dataset has fewer volumes than requested GPUs; "
         f"reducing devices from {requested_devices} to {safe_devices} "
         "to avoid duplicated DDP test work and output-file write collisions."
     )
@@ -435,9 +435,9 @@ def _invert_save_prediction_transform(cfg: Config, data):
     data = data.astype(np.float32)
     if intensity_scale is not None and intensity_scale > 0 and intensity_scale != 1.0:
         data = data / float(intensity_scale)
-        print(f"  🔄 Inverted intensity scaling by {intensity_scale}")
+        print(f"  Inverted intensity scaling by {intensity_scale}")
     elif intensity_scale is not None and intensity_scale < 0:
-        print(f"  ℹ️  Intensity scaling was disabled (scale={intensity_scale}), no inversion needed")
+        print(f"  INFO: Intensity scaling was disabled (scale={intensity_scale}), no inversion needed")
 
     return data
 
@@ -468,7 +468,7 @@ def try_cache_only_test_execution(cfg: Config, mode: str) -> bool:
     try:
         test_image_paths = expand_file_paths(test_image)
     except Exception as exc:
-        print(f"  ⚠️  Cache-only preflight skipped: failed to resolve test_image paths: {exc}")
+        print(f"  WARNING: Cache-only preflight skipped: failed to resolve test_image paths: {exc}")
         return False
 
     if not test_image_paths:
@@ -491,28 +491,28 @@ def try_cache_only_test_execution(cfg: Config, mode: str) -> bool:
         try:
             cached_arrays.append(read_hdf5(str(pred_file), dataset="main"))
         except Exception as exc:
-            print(f"  ⚠️  Cache-only preflight skipped: failed to read {pred_file.name}: {exc}")
+            print(f"  WARNING: Cache-only preflight skipped: failed to read {pred_file.name}: {exc}")
             return False
 
     if loaded_suffix != "_tta_prediction.h5":
         if _is_test_evaluation_enabled(cfg):
             print(
-                f"  ✅ Loaded final predictions from disk, skipping inference/decoding/postprocessing"
+                f"  [OK]Loaded final predictions from disk, skipping inference/decoding/postprocessing"
             )
-            print("  ℹ️  Test evaluation is enabled; using trainer.test() for eval pipeline.")
+            print("  INFO:Test evaluation is enabled; using trainer.test() for eval pipeline.")
             return False
         print(
-            f"  ✅ Loaded final predictions from disk, skipping inference/decoding/postprocessing"
+            f"  [OK]Loaded final predictions from disk, skipping inference/decoding/postprocessing"
         )
-        print(f"  ℹ️  Cache preflight hit for {len(filenames)} volume(s); skipping trainer.test().")
-        print("✅ Test completed successfully (cache-only preflight).")
+        print(f"  INFO:Cache preflight hit for {len(filenames)} volume(s); skipping trainer.test().")
+        print("[OK]Test completed successfully (cache-only preflight).")
         return True
 
-    print("  ✅ Loaded intermediate predictions from disk, skipping inference")
-    print(f"  ℹ️  Cache preflight hit for {len(filenames)} volume(s).")
+    print("  [OK]Loaded intermediate predictions from disk, skipping inference")
+    print(f"  INFO:Cache preflight hit for {len(filenames)} volume(s).")
 
     if _is_test_evaluation_enabled(cfg):
-        print("  ℹ️  Test evaluation is enabled; using trainer.test() for decode/eval pipeline.")
+        print("  INFO:Test evaluation is enabled; using trainer.test() for decode/eval pipeline.")
         return False
 
     import numpy as np
@@ -526,7 +526,7 @@ def try_cache_only_test_execution(cfg: Config, mode: str) -> bool:
             [arr[np.newaxis, ...] if arr.ndim < 4 else arr for arr in cached_arrays], axis=0
         )
 
-    print("  🔄 Cache-only decode/postprocess/save path (evaluation disabled)")
+    print("Cache-only decode/postprocess/save path (evaluation disabled)")
     predictions_np = _invert_save_prediction_transform(cfg, predictions_np)
     has_decoding_cfg = bool(resolve_decode_modes_from_cfg(cfg))
     decoded_predictions = apply_decode_mode(cfg, predictions_np)
@@ -541,9 +541,9 @@ def try_cache_only_test_execution(cfg: Config, mode: str) -> bool:
             batch_meta=None,
         )
     else:
-        print("  ⏭️  Skipping postprocessing (no decoding configuration)")
-        print("  ⏭️  Skipping final prediction save (no decoding configuration)")
-    print("✅ Test completed successfully (cache-only decode/postprocess).")
+        print("Skipping postprocessing (no decoding configuration)")
+        print("Skipping final prediction save (no decoding configuration)")
+    print("[OK]Test completed successfully (cache-only decode/postprocess).")
     return True
 
 
@@ -558,7 +558,7 @@ def main():
     if args.demo:
         minimal_config = Path(__file__).parent.parent / "tutorials" / "minimal.yaml"
         if not minimal_config.exists():
-            print(f"❌ Demo config not found: {minimal_config}")
+            print(f"Error: Demo config not found: {minimal_config}")
             sys.exit(1)
         if not args.config:
             args.config = str(minimal_config)
@@ -566,11 +566,11 @@ def main():
             args.fast_dev_run = 1
         if args.mode != "train":
             args.mode = "train"
-        print(f"🎯 Demo mode: using minimal config {args.config}")
+        print(f"Demo mode: using minimal config {args.config}")
 
     # Validate that config is provided for non-demo modes
     if not args.config:
-        print("❌ Error: --config is required (or use --demo for a quick test)")
+        print("Error: --config is required (or use --demo for a quick test)")
         print("\nUsage:")
         print("  python scripts/main.py --config tutorials/mito_lucchi++.yaml")
         print("  python scripts/main.py --demo")
@@ -578,7 +578,7 @@ def main():
 
     # Setup config
     print("\n" + "=" * 60)
-    print("🚀 PyTorch Connectomics Hydra Training")
+    print("PyTorch Connectomics Hydra Training")
     print("=" * 60)
     cfg = setup_config(args)
     configure_matmul_precision(cfg)
@@ -621,13 +621,13 @@ def main():
             save_pred_cfg.output_path = results_path
             save_pred_cfg.cache_suffix = "_tta_prediction.h5"
             if args.mode == "tune-test":
-                print(f"📋 Test output: {save_pred_cfg.output_path}")
-                print(f"📋 Test cache suffix: {save_pred_cfg.cache_suffix}")
+                print(f"Test output: {save_pred_cfg.output_path}")
+                print(f"Test cache suffix: {save_pred_cfg.cache_suffix}")
         else:  # test mode
             # Create results/ folder with step suffix under checkpoint directory
             if step_suffix:
                 results_folder_name = f"results_{step_suffix}"
-                print(f"📋 Using checkpoint {step_suffix} - output will be saved to: {results_folder_name}")
+                print(f"Using checkpoint {step_suffix} - output will be saved to: {results_folder_name}")
             else:
                 results_folder_name = "results"
 
@@ -636,7 +636,7 @@ def main():
             cfg.inference.save_prediction.output_path = results_path
 
         run_dir = setup_run_directory(args.mode, cfg, dirpath)
-        print(f"📂 Output base: {output_base}")
+        print(f"Output base: {output_base}")
     else:
         # Train mode or no checkpoint - use default config paths
         dirpath = cfg.monitor.checkpoint.dirpath
@@ -654,7 +654,7 @@ def main():
 
     # Set random seed
     if cfg.system.seed is not None:
-        print(f"🎲 Random seed set to: {cfg.system.seed}")
+        print(f"Random seed set to: {cfg.system.seed}")
         seed_everything(cfg.system.seed, workers=True)
 
     # Cache-only preflight path for test mode (can skip model/trainer/dataloader entirely).
@@ -673,7 +673,7 @@ def main():
     # External weights are loaded during config setup via model.external_weights_path
     if args.external_prefix:
         print(
-            f"   ⚠️  External weights loaded - checkpoint path will not be used for training/testing"
+            f"   WARNING: External weights loaded - checkpoint path will not be used for training/testing"
         )
         ckpt_path = None
     else:
@@ -703,7 +703,7 @@ def main():
                 cfg, mode=args.mode, fast_dev_run=bool(args.fast_dev_run)
             )
             print("\n" + "=" * 60)
-            print("🏃 STARTING TRAINING")
+            print("STARTING TRAINING")
             print("=" * 60)
 
             trainer.fit(
@@ -711,7 +711,7 @@ def main():
                 datamodule=datamodule,
                 ckpt_path=ckpt_path,
             )
-            print("\n✅ Training completed successfully!")
+            print("\n[OK]Training completed successfully!")
 
         # Handle tune modes
         if args.mode in ["tune", "tune-test"]:
@@ -723,7 +723,7 @@ def main():
         # Handle test modes
         if args.mode in ["tune-test", "test"]:
             print("\n" + "=" * 60)
-            print("🧪 RUNNING TEST")
+            print("RUNNING TEST")
             print("=" * 60)
 
             # Re-resolve test-stage runtime overrides after tuning, including sentinels.
@@ -754,14 +754,14 @@ def main():
             cache_hit, cached_suffix, cache_count = preflight_test_cache_hit(cfg, datamodule)
             if cache_hit:
                 if cached_suffix == "_tta_prediction.h5":
-                    print("  ✅ Loaded intermediate predictions from disk, skipping inference")
+                    print("  [OK]Loaded intermediate predictions from disk, skipping inference")
                 else:
                     print(
-                        "  ✅ Loaded final predictions from disk, skipping inference/decoding/postprocessing"
+                        "  [OK]Loaded final predictions from disk, skipping inference/decoding/postprocessing"
                     )
                 if ckpt_path:
                     print(
-                        f"  ℹ️  Cache preflight hit for {cache_count} volume(s); "
+                        f"  INFO:Cache preflight hit for {cache_count} volume(s); "
                         "skipping checkpoint weight restore for test."
                     )
                 # In plain test mode, fully skip only when final predictions already exist
@@ -769,8 +769,8 @@ def main():
                 # the test loop so that metrics are computed against ground-truth labels.
                 if args.mode == "test" and cached_suffix != "_tta_prediction.h5":
                     if not _is_test_evaluation_enabled(cfg):
-                        print("  ⏭️  Skipping trainer.test() entirely (cache preflight hit).")
-                        print("✅ Test completed successfully (cache-only preflight).")
+                        print("Skipping trainer.test() entirely (cache preflight hit).")
+                        print("[OK]Test completed successfully (cache-only preflight).")
                         return
 
                 test_ckpt_path = None
@@ -783,7 +783,7 @@ def main():
 
     except Exception as e:
         mode_name = args.mode.capitalize() if args.mode else "Operation"
-        print(f"\n❌ {mode_name} failed: {e}")
+        print(f"\n{mode_name} failed: {e}")
         import traceback
 
         traceback.print_exc()

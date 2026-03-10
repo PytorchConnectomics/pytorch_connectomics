@@ -38,7 +38,7 @@ def test_default_config_creation():
     assert cfg.optimization.optimizer.name == 'AdamW'
     assert cfg.optimization.max_epochs == 200
     assert cfg.monitor.logging.images.channel_mode == "all"
-    print("✅ Default config creation works")
+    print("[OK]Default config creation works")
 
 
 def test_config_validation():
@@ -48,7 +48,7 @@ def test_config_validation():
     # Valid config should pass
     try:
         validate_config(cfg)
-        print("✅ Valid config passes validation")
+        print("[OK]Valid config passes validation")
     except ValueError as e:
         raise AssertionError(f"Valid config failed validation: {e}")
     
@@ -58,7 +58,7 @@ def test_config_validation():
         validate_config(cfg)
         raise AssertionError("Invalid config should have failed validation")
     except ValueError:
-        print("✅ Invalid config fails validation")
+        print("[OK]Invalid config fails validation")
 
 
 def test_cross_section_validation_rejects_input_patch_mismatch():
@@ -182,13 +182,13 @@ def test_config_dict_conversion():
     assert isinstance(cfg_dict, dict)
     assert cfg_dict['experiment_name'] == "test_experiment"
     assert cfg_dict['model']['arch']['type'] == "custom_unet"
-    print("✅ Config to dict works")
+    print("[OK]Config to dict works")
     
     # From dict
     cfg_restored = from_dict(cfg_dict)
     assert cfg_restored.experiment_name == "test_experiment"
     assert cfg_restored.model.arch.type == "custom_unet"
-    print("✅ Dict to config works")
+    print("[OK]Dict to config works")
 
 
 def test_config_cli_updates():
@@ -206,7 +206,7 @@ def test_config_cli_updates():
     assert updated_cfg.data.dataloader.batch_size == 8
     assert updated_cfg.model.arch.type == 'unetr'
     assert updated_cfg.optimization.optimizer.lr == 0.001
-    print("✅ CLI updates work")
+    print("[OK]CLI updates work")
 
 
 def test_config_merge():
@@ -226,7 +226,7 @@ def test_config_merge():
     assert merged_cfg.experiment_name == "merged"
     assert merged_cfg.data.dataloader.batch_size == 4
     assert merged_cfg.model.arch.type == "custom"
-    print("✅ Config merge works")
+    print("[OK]Config merge works")
 
 
 def test_config_save_load(tmp_path):
@@ -239,13 +239,13 @@ def test_config_save_load(tmp_path):
     config_path = tmp_path / "test_config.yaml"
     save_config(cfg, config_path)
     assert config_path.exists()
-    print("✅ Config save works")
+    print("[OK]Config save works")
     
     # Load
     loaded_cfg = load_config(config_path)
     assert loaded_cfg.experiment_name == "save_test"
     assert tuple(loaded_cfg.model.monai.filters) == (16, 32, 64)
-    print("✅ Config load works")
+    print("[OK]Config load works")
 
 
 def test_config_hash():
@@ -257,13 +257,13 @@ def test_config_hash():
     hash1 = get_config_hash(cfg1)
     hash2 = get_config_hash(cfg2)
     assert hash1 == hash2
-    print("✅ Same configs have same hash")
+    print("[OK]Same configs have same hash")
     
     # Different configs should have different hash
     cfg2.data.dataloader.batch_size = 999
     hash3 = get_config_hash(cfg2)
     assert hash1 != hash3
-    print("✅ Different configs have different hash")
+    print("[OK]Different configs have different hash")
 
 
 def test_experiment_name_generation():
@@ -279,7 +279,7 @@ def test_experiment_name_generation():
     assert "bs4" in name
     assert "1e-03" in name
     assert len(name.split('_')[-1]) == 8  # Hash
-    print(f"✅ Generated experiment name: {name}")
+    print(f"[OK]Generated experiment name: {name}")
 
 
 def test_augmentation_config():
@@ -298,7 +298,7 @@ def test_augmentation_config():
     assert cfg.data.augmentation.missing_section.enabled
     assert cfg.data.augmentation.mixup.enabled
     assert cfg.data.augmentation.copy_paste.enabled
-    print("✅ Augmentation config works")
+    print("[OK]Augmentation config works")
 
 
 def test_load_example_configs():
@@ -311,7 +311,7 @@ def test_load_example_configs():
         cfg = load_config(default_config)
         assert cfg.experiment_name == "connectomics_default"
         validate_config(cfg)
-        print("✅ Default config loads and validates")
+        print("[OK]Default config loads and validates")
     
     # Test Lucchi config
     lucchi_config = configs_dir / "lucchi.yaml"
@@ -320,7 +320,7 @@ def test_load_example_configs():
         assert cfg.experiment_name == "lucchi_mitochondria"
         assert cfg.model.input_size == [18, 160, 160]
         assert cfg.augmentation.misalignment.enabled
-        print("✅ Lucchi config loads and validates")
+        print("[OK]Lucchi config loads and validates")
 
 
 def test_print_config():
@@ -333,7 +333,7 @@ def test_print_config():
     print("="*50)
     print_config(cfg)
     print("="*50)
-    print("✅ Config printing works")
+    print("[OK]Config printing works")
 
 
 def test_shared_profile_resolution():
@@ -374,7 +374,7 @@ def test_shared_profile_resolution():
     assert cfg.data.image_transform.normalize == "none"
     assert cfg.inference.test_time_augmentation.enabled is False
     assert cfg.inference.sliding_window.overlap == 0.25
-    print("✅ Shared profile resolution works")
+    print("[OK]Shared profile resolution works")
 
 
 def test_system_profile_no_implicit_legacy_default():
@@ -389,7 +389,7 @@ def test_system_profile_no_implicit_legacy_default():
     cfg = resolve_default_profiles(cfg, mode="train")
     assert cfg.data.dataloader.batch_size == 4
     assert cfg.system.num_workers == 8
-    print("✅ System profiles are explicit (no implicit legacy defaults)")
+    print("[OK]System profiles are explicit (no implicit legacy defaults)")
 
 
 def test_yaml_shared_profile_selectors(tmp_path):
@@ -405,10 +405,11 @@ arch_profiles:
       size: S
 loss_profiles:
   loss_unit:
-    - function: DiceLoss
-      weight: 1.5
-      pred_slice: "0:1"
-      target_slice: "0:1"
+    losses:
+      - function: DiceLoss
+        weight: 1.5
+        pred_slice: "0:1"
+        target_slice: "0:1"
 label_profiles:
   label_unit:
     targets:
@@ -425,9 +426,10 @@ system_profiles:
     num_workers: 1
 decoding_profiles:
   decode_unit:
-    - name: decode_instance_binary_contour_distance
-      kwargs:
-        min_instance_size: 5
+    decoding:
+      - name: decode_instance_binary_contour_distance
+        kwargs:
+          min_instance_size: 5
 """.strip()
     )
 
@@ -459,7 +461,7 @@ _base_: {base_yaml.name}
     assert cfg.model.arch.type == "monai_basic_unet3d"
     assert cfg.data.augmentation.preset in {"none", "some", "all"}
     assert cfg.inference.decoding is None or isinstance(cfg.inference.decoding, list)
-    print("✅ YAML shared profile selectors work")
+    print("[OK]YAML shared profile selectors work")
 
 
 def test_arch_profile_rejects_non_model_sections(tmp_path):
@@ -489,7 +491,7 @@ _base_: {base_yaml.name}
 
     with pytest.raises(Exception):
         load_config(config_yaml)
-    print("✅ Arch profile key boundary enforcement works")
+    print("[OK]Arch profile key boundary enforcement works")
 
 
 def test_arch_profile_precedence_explicit_model_fields_win(tmp_path):
@@ -525,7 +527,7 @@ model:
     cfg = load_config(config_yaml)
     assert cfg.model.arch.type == "monai_basic_unet3d"
     assert cfg.model.monai.dropout == 0.1
-    print("✅ Arch profile precedence works (explicit model field wins)")
+    print("[OK]Arch profile precedence works (explicit model field wins)")
 
 
 def test_system_profile_precedence_shared_then_stage_overrides():
@@ -545,7 +547,7 @@ def test_system_profile_precedence_shared_then_stage_overrides():
     cfg = resolve_default_profiles(cfg, mode="train")
     assert cfg.system.num_gpus == 2
     assert cfg.system.num_workers == 10
-    print("✅ System profile precedence works")
+    print("[OK]System profile precedence works")
 
 
 def test_data_transform_profile_precedence_stage_overrides_win():
@@ -563,7 +565,7 @@ def test_data_transform_profile_precedence_stage_overrides_win():
 
     cfg = resolve_default_profiles(cfg, mode="test")
     assert cfg.data.image_transform.normalize == "normal"
-    print("✅ Data transform profile precedence works")
+    print("[OK]Data transform profile precedence works")
 
 
 def test_yaml_dataloader_optimizer_profiles_apply(tmp_path):
@@ -588,7 +590,7 @@ default:
     assert cfg.default.data.dataloader.persistent_workers is True
     assert cfg.default.optimization.gradient_clip_val == 3.0
     assert cfg.default.optimization.optimizer.lr == 0.0003
-    print("✅ Dataloader/optimizer profiles apply from YAML selectors")
+    print("[OK]Dataloader/optimizer profiles apply from YAML selectors")
 
 
 def test_runtime_merge_shared_then_mode_for_train_sections():
@@ -611,7 +613,7 @@ def test_runtime_merge_shared_then_mode_for_train_sections():
     assert cfg.model.arch.type == "mednext"
     assert cfg.model.monai.dropout == 0.2
     assert cfg.monitor.detect_anomaly is False
-    print("✅ Generic runtime merge precedence works for train mode")
+    print("[OK]Generic runtime merge precedence works for train mode")
 
 
 def test_runtime_merge_and_inference_profile_for_test_mode():
@@ -638,7 +640,7 @@ def test_runtime_merge_and_inference_profile_for_test_mode():
     assert cfg.model.monai.dropout == 0.15
     assert cfg.inference.test_time_augmentation.enabled is False
     assert cfg.inference.sliding_window.overlap == 0.4
-    print("✅ Test mode runtime + inference profile merge works")
+    print("[OK]Test mode runtime + inference profile merge works")
 
 
 def test_runtime_merge_test_data_section_overrides_runtime_data(tmp_path):
@@ -662,7 +664,7 @@ test:
     cfg = load_config(config_yaml)
     cfg = resolve_default_profiles(cfg, mode="test")
     assert cfg.data.image_transform.normalize == "none"
-    print("✅ test.data drives runtime data overrides")
+    print("[OK]test.data drives runtime data overrides")
 
 
 def test_inference_system_overrides_runtime_system_in_test_mode():
@@ -684,7 +686,7 @@ def test_inference_system_overrides_runtime_system_in_test_mode():
     assert cfg.system.num_workers == 8
     assert cfg.inference.system.num_gpus == 2
     assert cfg.inference.system.num_workers == 5
-    print("✅ inference.system stores test-mode overrides")
+    print("[OK]inference.system stores test-mode overrides")
 
 
 def test_enabled_flags_require_explicit_opt_in(tmp_path):
@@ -722,7 +724,7 @@ optimization:
     assert cfg.optimization.ema.enabled is False
     # Explicit value in YAML should always win.
     assert cfg.monitor.early_stopping.enabled is False
-    print("✅ Enabled flags require explicit opt-in")
+    print("[OK]Enabled flags require explicit opt-in")
 
 
 def test_shared_inference_decoding_profile_list_ref(tmp_path):
@@ -732,9 +734,10 @@ def test_shared_inference_decoding_profile_list_ref(tmp_path):
         """
 decoding_profiles:
   decoding_bcd:
-    - name: decode_instance_binary_contour_distance
-      kwargs:
-        min_instance_size: 3
+    decoding:
+      - name: decode_instance_binary_contour_distance
+        kwargs:
+          min_instance_size: 3
 """.strip()
     )
 
@@ -754,7 +757,7 @@ default:
     assert cfg.inference.decoding is not None and len(cfg.inference.decoding) == 1
     assert cfg.inference.decoding[0].name == "decode_instance_binary_contour_distance"
     assert cfg.inference.decoding[0].kwargs["min_instance_size"] == 3
-    print("✅ Shared inference decoding profile-list ref resolves")
+    print("[OK]Shared inference decoding profile-list ref resolves")
 
 
 def test_loss_profile_positional_overrides(tmp_path):
@@ -764,12 +767,13 @@ def test_loss_profile_positional_overrides(tmp_path):
         """
 loss_profiles:
   loss_binary:
-    - function: WeightedBCEWithLogitsLoss
-      weight: 1.0
-      kwargs: {reduction: mean}
-    - function: DiceLoss
-      weight: 1.0
-      kwargs: {sigmoid: true, smooth_nr: 1e-5, smooth_dr: 1e-5}
+    losses:
+      - function: WeightedBCEWithLogitsLoss
+        weight: 1.0
+        kwargs: {reduction: mean}
+      - function: DiceLoss
+        weight: 1.0
+        kwargs: {sigmoid: true, smooth_nr: 1e-5, smooth_dr: 1e-5}
 """.strip()
     )
 
@@ -802,7 +806,7 @@ default:
     assert losses[1]["function"] == "DiceLoss"
     assert losses[1]["weight"] == 0.5
     assert losses[1]["kwargs"]["sigmoid"] is True
-    print("✅ Loss profile positional overrides work")
+    print("[OK]Loss profile positional overrides work")
 
 
 def test_build_test_transforms_with_mask_transform_resize_binarize():
@@ -820,7 +824,7 @@ def test_build_test_transforms_with_mask_transform_resize_binarize():
 
     assert "ResizeByFactord" in transform_names
     assert "Lambdad" in transform_names
-    print("✅ Test transforms include mask resize+binarize")
+    print("[OK]Test transforms include mask resize+binarize")
 
 
 def test_build_test_transforms_applies_context_pad_to_image_and_mask_only():
@@ -850,7 +854,7 @@ def test_build_test_transforms_applies_context_pad_to_image_and_mask_only():
     assert label.shape == (1, 2, 3, 4)
     assert mask.shape == (1, 4, 7, 10)
     assert mask[0, 0, 0, 0] == 0.0
-    print("✅ Test transforms apply explicit context padding for image/mask")
+    print("[OK]Test transforms apply explicit context padding for image/mask")
 
 
 def test_mask_binarize_uses_strict_greater_than_threshold():
@@ -881,7 +885,7 @@ def test_mask_binarize_uses_strict_greater_than_threshold():
     assert mask[0, 0, 0, 0] == 0.0
     assert mask[0, 0, 1, 1] == 0.0
     assert mask[0, 0, 0, 1] == 1.0
-    print("✅ Mask binarization uses strict > threshold semantics")
+    print("[OK]Mask binarization uses strict > threshold semantics")
 
 
 def main():
@@ -912,7 +916,7 @@ def main():
     test_build_test_transforms_with_mask_transform_resize_binarize()
     
     print("\n" + "="*50)
-    print("🎉 All Hydra config tests passed!")
+    print("All Hydra config tests passed!")
     print("="*50)
 
 

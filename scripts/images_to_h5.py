@@ -76,10 +76,10 @@ def main():
     # Save as HDF5
     try:
         write_hdf5(output_file, volume, dataset=dataset_key)
-        print(f"\n✓ Successfully saved 3D volume to {output_file}")
+        print(f"\nSuccessfully saved 3D volume to {output_file}")
         print(f"  You can access it with h5py using: f['{dataset_key}']")
     except Exception as e:
-        print(f"\n✗ Error writing HDF5 file: {e}")
+        print(f"\nError writing HDF5 file: {e}")
         sys.exit(1)
 
 

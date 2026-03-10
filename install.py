@@ -72,22 +72,22 @@ def print_header(text: str):
 
 def print_success(text: str):
     """Print success message."""
-    print(f"{Colors.OKGREEN}✓ {text}{Colors.ENDC}")
+    print(f"{Colors.OKGREEN}[OK] {text}{Colors.ENDC}")
 
 
 def print_warning(text: str):
     """Print warning message."""
-    print(f"{Colors.WARNING}⚠ {text}{Colors.ENDC}")
+    print(f"{Colors.WARNING}[WARN] {text}{Colors.ENDC}")
 
 
 def print_error(text: str):
     """Print error message."""
-    print(f"{Colors.FAIL}✗ {text}{Colors.ENDC}")
+    print(f"{Colors.FAIL}[FAIL] {text}{Colors.ENDC}")
 
 
 def print_info(text: str):
     """Print info message."""
-    print(f"{Colors.OKCYAN}ℹ {text}{Colors.ENDC}")
+    print(f"{Colors.OKCYAN}[INFO] {text}{Colors.ENDC}")
 
 
 def check_package_installed(package_name: str, env_name: str) -> tuple[bool, Optional[str]]:
