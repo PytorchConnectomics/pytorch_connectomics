@@ -23,19 +23,24 @@ default:
     augmentation:
       profile: aug_light
   inference:
+    test_time_augmentation:
+      enabled: true
+      flip_axes: all
     sliding_window:
       window_size: [32, 128, 128]
+    save_prediction:
+      enabled: true
     evaluation:
+      enabled: true
       metrics:
         - adapted_rand
 
 train:
   data:
     train:
-      path: "/projects/weilab/dataset/xiaomeng/vesicle/"
-      image: ["datasets/bouton-lv/train/vol0_im.h5", "datasets/hydra-lv/vol*_im.h5"]
-      label: ["datasets/bouton-lv/train/vol0_lv.h5", "datasets/hydra-lv/vol*_vesicle_ins.h5"]
-      mask: ["datasets/bouton-lv/train/vol0_mask.h5", "datasets/hydra-lv/vol*_mask.h5"]
+      image: ["datasets/bouton-lv/train/vol0_im_bouton.h5", "datasets/hydra-lv/vol*_im.h5"]
+      label: ["datasets/bouton-lv/train/vol0_lv_bouton.h5", "datasets/hydra-lv/vol*_vesicle_ins.h5"]
+      mask: ["datasets/bouton-lv/train/vol0_mask_bouton.h5", "datasets/hydra-lv/vol*_mask.h5"]
       resolution: [30, 8, 8]
     # make sure samples have enough foreground for masked sampling
     dataloader:
@@ -64,10 +69,9 @@ test:
       #path: "/projects/weilab/dataset/xiaomeng/vesicle/"
       #image: "im/Bouton_100_EM.tif"
       #mask: "mask/Bouton_100_em_mask.tif"
-      path: "/projects/weilab/dataset/xiaomeng/vesicle/"
-      image: ["datasets/bouton-lv/train/vol0_im.h5", "datasets/hydra-lv/vol*_im.h5"]
-      label: ["datasets/bouton-lv/train/vol0_lv.h5", "datasets/hydra-lv/vol*_vesicle_ins.h5"]
-      mask: ["datasets/bouton-lv/train/vol0_mask.h5", "datasets/hydra-lv/vol*_mask.h5"]
+      image: ["datasets/bouton-lv/train/vol0_im_bouton.h5", "datasets/hydra-lv/vol*_im.h5"]
+      label: ["datasets/bouton-lv/train/vol0_lv_bouton.h5", "datasets/hydra-lv/vol*_vesicle_ins.h5"]
+      mask: ["datasets/bouton-lv/train/vol0_mask_bouton.h5", "datasets/hydra-lv/vol*_mask.h5"]
       resolution: [30, 8, 8]
     # fix: the exported mask is 2x downsampled, so we need to upsample it to the original size
     mask_transform:
@@ -83,4 +87,51 @@ test:
           distance_threshold: [0.5, -0.5]
           min_instance_size: 30
           min_seed_size: 5
+
+# ============================================================================
+# Parameter tuning for BCD watershed thresholds (--mode tune)
+# ============================================================================
+tune:
+  profile: tune_bcd
+  n_trials: 50
+  study_name: vesicle_xm_bcd_tuning
+  data:
+    val:
+      image: ["datasets/bouton-lv/train/vol0_im_bouton.h5", "datasets/hydra-lv/vol*_im.h5"]
+      label: ["datasets/bouton-lv/train/vol0_lv_bouton.h5", "datasets/hydra-lv/vol*_vesicle_ins.h5"]
+      mask: ["datasets/bouton-lv/train/vol0_mask_bouton.h5", "datasets/hydra-lv/vol*_mask.h5"]
+  # Override profile defaults for vesicle-specific search ranges
+  parameter_space:
+    decoding:
+      defaults:
+        binary_threshold: [0.9, 0.85]
+        contour_threshold: [0.8, 1.1]
+        distance_threshold: [0.5, -0.5]
+        min_instance_size: 30
+        min_seed_size: 5
+      parameters:
+        binary_threshold_seed:
+          range: [0.7, 0.99]
+          step: 0.01
+        binary_threshold_fg:
+          range: [0.5, 0.95]
+          step: 0.05
+        contour_threshold_low:
+          range: [0.3, 0.95]
+          step: 0.05
+        contour_threshold_high:
+          range: [0.8, 1.5]
+          step: 0.1
+        distance_threshold_seed:
+          range: [0.0, 1.0]
+          step: 0.1
+        distance_threshold_fg:
+          range: [-1.0, 0.5]
+          step: 0.1
+        min_instance_size:
+          range: [10, 200]
+          step: 10
+        min_seed_size:
+          range: [1, 30]
+          step: 1
 

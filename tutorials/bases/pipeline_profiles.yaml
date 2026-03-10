@@ -19,6 +19,7 @@ pipeline_profiles:
     inference:
       decoding_profile: decoding_bcd
       test_time_augmentation:
+        ensemble_mode: mean
         activation_profile: act_bcd
 
   affinity-12:
