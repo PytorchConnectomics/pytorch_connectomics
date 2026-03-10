@@ -4,7 +4,11 @@ from pathlib import Path
 from connectomics.config import Config, save_config
 from connectomics.config.schema.inference import EvaluationConfig
 from connectomics.training.lightning.utils import setup_config
-from scripts.main import _is_test_evaluation_enabled, resolve_test_stage_runtime
+from scripts.main import (
+    _is_test_evaluation_enabled,
+    maybe_limit_test_devices,
+    resolve_test_stage_runtime,
+)
 
 
 def _make_args(config_path: Path, mode: str = "test"):
@@ -69,3 +73,36 @@ def test_is_test_evaluation_enabled_supports_mapping_or_dataclass_config():
 
     cfg.inference.evaluation.enabled = True
     assert _is_test_evaluation_enabled(cfg) is True
+
+
+class _DummyTestDataModule:
+    def __init__(self, volume_count: int):
+        self.test_data_dicts = [{} for _ in range(volume_count)]
+
+
+def test_maybe_limit_test_devices_disables_distributed_tta_sharding_for_multi_volume_tests():
+    cfg = Config()
+    cfg.system.num_gpus = 4
+    cfg.inference.test_time_augmentation.enabled = True
+    cfg.inference.test_time_augmentation.distributed_sharding = True
+
+    changed = maybe_limit_test_devices(cfg, _DummyTestDataModule(volume_count=2))
+
+    assert changed is True
+    assert cfg.system.num_gpus == 2
+    assert cfg.inference.test_time_augmentation.distributed_sharding is False
+
+
+def test_maybe_limit_test_devices_keeps_distributed_tta_sharding_for_single_volume_tests():
+    cfg = Config()
+    cfg.system.num_gpus = 4
+    cfg.inference.test_time_augmentation.enabled = True
+    cfg.inference.test_time_augmentation.distributed_sharding = True
+    cfg.inference.test_time_augmentation.flip_axes = [1, 2]
+    cfg.inference.test_time_augmentation.rotation90_axes = [[1, 2]]
+
+    changed = maybe_limit_test_devices(cfg, _DummyTestDataModule(volume_count=1))
+
+    assert changed is False
+    assert cfg.system.num_gpus == 4
+    assert cfg.inference.test_time_augmentation.distributed_sharding is True

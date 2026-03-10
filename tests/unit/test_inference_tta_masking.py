@@ -151,3 +151,22 @@ def test_tta_channel_activations_follow_python_slice_semantics():
     expected[:, 0:2, ...] = torch.sigmoid(expected[:, 0:2, ...])
     expected[:, 2:3, ...] = torch.tanh(expected[:, 2:3, ...])
     assert torch.allclose(pred, expected)
+
+
+def test_distributed_tta_reduction_raises_on_mismatched_rank_shapes(monkeypatch):
+    cfg = Config()
+    predictor = TTAPredictor(cfg=cfg, sliding_inferer=None, forward_fn=_forward_constant)
+
+    monkeypatch.setattr(predictor, "_distributed_context", lambda: (True, 0, 2))
+
+    def _fake_all_gather(output_tensors, _input_tensor):
+        output_tensors[0].copy_(torch.tensor([5, 1, 2, 4, 4, 4, 0], dtype=torch.int64))
+        output_tensors[1].copy_(torch.tensor([5, 1, 2, 6, 4, 4, 0], dtype=torch.int64))
+
+    monkeypatch.setattr(torch.distributed, "all_gather", _fake_all_gather)
+
+    with pytest.raises(RuntimeError, match="same shape"):
+        predictor._validate_distributed_reduction_shape(
+            torch.zeros((1, 2, 4, 4, 4), dtype=torch.float32),
+            reduction_device=torch.device("cpu"),
+        )

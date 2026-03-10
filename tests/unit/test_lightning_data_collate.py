@@ -4,7 +4,11 @@ import torch
 
 from connectomics.config import Config
 from connectomics.inference.output import resolve_output_filenames
-from connectomics.training.lightning.data import ConnectomicsDataModule, collate_dict
+from connectomics.training.lightning.data import (
+    ConnectomicsDataModule,
+    DistributedEvaluationSampler,
+    collate_dict,
+)
 
 
 def test_test_dataloader_preserves_variable_shape_tensors():
@@ -53,3 +57,17 @@ def test_resolve_output_filenames_supports_list_collated_images():
     }
 
     assert resolve_output_filenames(cfg, batch, global_step=11) == ["input_a", "input_b"]
+
+
+def test_distributed_evaluation_sampler_partitions_without_duplicates():
+    dataset = list(range(10))
+
+    rank0 = list(DistributedEvaluationSampler(dataset, rank=0, world_size=4))
+    rank1 = list(DistributedEvaluationSampler(dataset, rank=1, world_size=4))
+    rank2 = list(DistributedEvaluationSampler(dataset, rank=2, world_size=4))
+    rank3 = list(DistributedEvaluationSampler(dataset, rank=3, world_size=4))
+
+    combined = rank0 + rank1 + rank2 + rank3
+
+    assert sorted(combined) == list(range(10))
+    assert len(set(combined)) == 10

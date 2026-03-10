@@ -14,7 +14,7 @@ import pytorch_lightning as pl
 import torch
 from monai.data import CacheDataset, Dataset
 from monai.transforms import Compose
-from torch.utils.data import DataLoader
+from torch.utils.data import DataLoader, Sampler
 
 
 class ConnectomicsDataModule(pl.LightningDataModule):
@@ -125,13 +125,17 @@ class ConnectomicsDataModule(pl.LightningDataModule):
         return self._create_dataloader(self.val_dataset, shuffle=False)
 
     def test_dataloader(self):
+        sampler = None
+        if self.test_dataset is not None and _is_distributed_evaluation_active():
+            sampler = DistributedEvaluationSampler(self.test_dataset)
         return self._create_dataloader(
             self.test_dataset,
             shuffle=False,
             collate_fn=collate_dict_list,
+            sampler=sampler,
         )
 
-    def _create_dataloader(self, dataset, shuffle, collate_fn=None):
+    def _create_dataloader(self, dataset, shuffle, collate_fn=None, sampler=None):
         if dataset is None:
             return None
         if collate_fn is None:
@@ -139,7 +143,8 @@ class ConnectomicsDataModule(pl.LightningDataModule):
         return DataLoader(
             dataset=dataset,
             batch_size=self.batch_size,
-            shuffle=shuffle,
+            shuffle=shuffle if sampler is None else False,
+            sampler=sampler,
             num_workers=self.num_workers,
             pin_memory=self.pin_memory,
             persistent_workers=(self.persistent_workers and self.num_workers > 0),
@@ -189,6 +194,45 @@ class _IterNumDataset(torch.utils.data.Dataset):
         return self.dataset[index % len(self.dataset)]
 
 
+def _is_distributed_evaluation_active() -> bool:
+    return torch.distributed.is_available() and torch.distributed.is_initialized()
+
+
+class DistributedEvaluationSampler(Sampler[int]):
+    """Shard evaluation samples across DDP ranks without padding or duplication."""
+
+    def __init__(
+        self,
+        dataset,
+        *,
+        rank: Optional[int] = None,
+        world_size: Optional[int] = None,
+    ):
+        if rank is None or world_size is None:
+            if not _is_distributed_evaluation_active():
+                raise RuntimeError(
+                    "DistributedEvaluationSampler requires an initialized distributed process "
+                    "group or explicit rank/world_size."
+                )
+            rank = torch.distributed.get_rank()
+            world_size = torch.distributed.get_world_size()
+
+        if world_size <= 0:
+            raise ValueError(f"world_size must be positive, got {world_size}.")
+        if rank < 0 or rank >= world_size:
+            raise ValueError(f"rank must satisfy 0 <= rank < world_size, got {rank}/{world_size}.")
+
+        self.rank = int(rank)
+        self.world_size = int(world_size)
+        self.indices = list(range(len(dataset)))[self.rank :: self.world_size]
+
+    def __iter__(self):
+        return iter(self.indices)
+
+    def __len__(self):
+        return len(self.indices)
+
+
 def collate_dict(
     batch: List[Dict[str, Any]],
 ) -> Dict[str, Any]:
@@ -226,6 +270,7 @@ def collate_dict_list(
 
 __all__ = [
     "ConnectomicsDataModule",
+    "DistributedEvaluationSampler",
     "SimpleDataModule",
     "collate_dict",
     "collate_dict_list",
