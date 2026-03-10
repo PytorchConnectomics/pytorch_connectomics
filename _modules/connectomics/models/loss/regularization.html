@@ -447,7 +447,8 @@
 
         <span class="k">if</span> <span class="n">contour_prob</span><span class="o">.</span><span class="n">shape</span> <span class="o">!=</span> <span class="n">distance_abs</span><span class="o">.</span><span class="n">shape</span><span class="p">:</span>
             <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
-                <span class="sa">f</span><span class="s2">&quot;Shape mismatch: contour_prob=</span><span class="si">{</span><span class="n">contour_prob</span><span class="o">.</span><span class="n">shape</span><span class="si">}</span><span class="s2"> vs distance_abs=</span><span class="si">{</span><span class="n">distance_abs</span><span class="o">.</span><span class="n">shape</span><span class="si">}</span><span class="s2">&quot;</span>
+                <span class="sa">f</span><span class="s2">&quot;Shape mismatch: contour_prob=</span><span class="si">{</span><span class="n">contour_prob</span><span class="o">.</span><span class="n">shape</span><span class="si">}</span><span class="s2"> &quot;</span>
+                <span class="sa">f</span><span class="s2">&quot;vs distance_abs=</span><span class="si">{</span><span class="n">distance_abs</span><span class="o">.</span><span class="n">shape</span><span class="si">}</span><span class="s2">&quot;</span>
             <span class="p">)</span>
 
         <span class="c1"># Penalize: high contour prob should match low distance</span>
