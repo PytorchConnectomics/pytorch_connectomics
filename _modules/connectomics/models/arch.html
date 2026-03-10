@@ -301,18 +301,18 @@
 
 <span class="kn">import</span><span class="w"> </span><span class="nn">logging</span>
 
-<span class="c1"># Import registry functions</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">.registry</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
-    <span class="n">register_architecture</span><span class="p">,</span>
-    <span class="n">get_architecture_builder</span><span class="p">,</span>
-    <span class="n">list_architectures</span><span class="p">,</span>
-    <span class="n">is_architecture_available</span><span class="p">,</span>
-    <span class="n">unregister_architecture</span><span class="p">,</span>
-    <span class="n">get_architecture_info</span><span class="p">,</span>
-<span class="p">)</span>
-
 <span class="c1"># Import base model</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">.base</span><span class="w"> </span><span class="kn">import</span> <span class="n">ConnectomicsModel</span>
+
+<span class="c1"># Import registry functions</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">.registry</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
+    <span class="n">get_architecture_builder</span><span class="p">,</span>
+    <span class="n">get_architecture_info</span><span class="p">,</span>
+    <span class="n">is_architecture_available</span><span class="p">,</span>
+    <span class="n">list_architectures</span><span class="p">,</span>
+    <span class="n">register_architecture</span><span class="p">,</span>
+    <span class="n">unregister_architecture</span><span class="p">,</span>
+<span class="p">)</span>
 
 <span class="c1"># Import MONAI models to trigger registration</span>
 <span class="k">try</span><span class="p">:</span>

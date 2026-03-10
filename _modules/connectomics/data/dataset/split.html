@@ -281,13 +281,14 @@
 <span class="sd">for training and validation, with automatic padding to model input size.</span>
 <span class="sd">&quot;&quot;&quot;</span>
 
-
 <span class="kn">from</span><span class="w"> </span><span class="nn">__future__</span><span class="w"> </span><span class="kn">import</span> <span class="n">annotations</span>
+
 <span class="kn">import</span><span class="w"> </span><span class="nn">logging</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Tuple</span><span class="p">,</span> <span class="n">Optional</span><span class="p">,</span> <span class="n">Union</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">pathlib</span><span class="w"> </span><span class="kn">import</span> <span class="n">Path</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Optional</span><span class="p">,</span> <span class="n">Tuple</span><span class="p">,</span> <span class="n">Union</span>
+
 <span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">torch</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">pathlib</span><span class="w"> </span><span class="kn">import</span> <span class="n">Path</span>
 
 <span class="n">logger</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="vm">__name__</span><span class="p">)</span>
 
@@ -343,7 +344,9 @@
         <span class="n">actual_ratio</span> <span class="o">=</span> <span class="n">train_size</span> <span class="o">/</span> <span class="n">split_dim</span>
         <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span>
             <span class="s2">&quot;Adjusted train_ratio from </span><span class="si">%.2f</span><span class="s2"> to </span><span class="si">%.2f</span><span class="s2"> to satisfy min_val_size=</span><span class="si">%d</span><span class="s2">&quot;</span><span class="p">,</span>
-            <span class="n">train_ratio</span><span class="p">,</span> <span class="n">actual_ratio</span><span class="p">,</span> <span class="n">min_val_size</span><span class="p">,</span>
+            <span class="n">train_ratio</span><span class="p">,</span>
+            <span class="n">actual_ratio</span><span class="p">,</span>
+            <span class="n">min_val_size</span><span class="p">,</span>
         <span class="p">)</span>
 
     <span class="c1"># Create slices</span>
