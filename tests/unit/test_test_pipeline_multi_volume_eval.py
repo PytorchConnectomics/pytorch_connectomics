@@ -395,3 +395,37 @@ def test_run_test_step_handles_unstacked_list_batches(monkeypatch):
         ("decode", "vol_b", (1, 1, 5, 6, 6)),
         ("eval", "vol_b", (1, 1, 5, 6, 6), (1, 1, 5, 6, 6), 7),
     ]
+
+
+class _MaskCheckingInferenceManager(_DummyInferenceManager):
+    def predict_with_tta(self, images, mask=None, mask_align_to_image=False):
+        assert torch.is_tensor(mask)
+        assert mask.ndim in (images.ndim - 1, images.ndim)
+        return torch.ones_like(images)
+
+
+class _MaskListBatchModule(_ListBatchModule):
+    def __init__(self):
+        super().__init__()
+        self.inference_manager = _MaskCheckingInferenceManager()
+
+
+def test_run_test_step_coerces_singleton_list_masks(monkeypatch):
+    module = _MaskListBatchModule()
+    batch = {
+        "image": [torch.zeros((1, 4, 4, 4), dtype=torch.float32)],
+        "mask": [[torch.ones((1, 4, 4, 4), dtype=torch.float32)]],
+        "image_meta_dict": [{"filename_or_obj": "/tmp/vol_mask.h5"}],
+    }
+
+    monkeypatch.setattr(
+        "connectomics.training.lightning.test_pipeline._process_decoding_postprocessing",
+        lambda _module, predictions_np, **kwargs: predictions_np,
+    )
+    monkeypatch.setattr(
+        "connectomics.training.lightning.test_pipeline._evaluate_decoded_predictions",
+        lambda *_args, **_kwargs: None,
+    )
+
+    out = run_test_step(module, batch, batch_idx=0)
+    assert isinstance(out, torch.Tensor)
