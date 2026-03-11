@@ -116,7 +116,7 @@ tensorboard-run experiment timestamp port='6006':
 # Time limits: short=12h, medium=2d, long=5d
 # CPU-only convenience wrapper for single-task jobs.
 #   just slurm short 8 0 "python scripts/downsample_nisb.py --splits train"
-slurm partition num_cpu num_gpu cmd constraint='' mem='32G' nodelist='' reservation='':
+slurm partition num_cpu num_gpu cmd constraint='' mem='32G' nodelist='' reservation='' exclude='':
     #!/usr/bin/env bash
     constraint_flag=""
     if [ -n "{{constraint}}" ]; then
@@ -133,11 +133,20 @@ slurm partition num_cpu num_gpu cmd constraint='' mem='32G' nodelist='' reservat
         reservation_flag="--reservation={{reservation}}"
     fi
 
+    exclude_flag=""
+    if [ -n "{{exclude}}" ]; then
+        exclude_flag="--exclude={{exclude}}"
+    fi
+
     # Resolve partition time limit (with fallback defaults)
     time_limit=$(just _slurm-time-limit {{partition}})
 
-    # Run the command exactly as provided (no auto "just" wrapping).
-    sbatch --job-name="pytc_{{cmd}}" \
+    # Sanitize job name: take first 2 words, replace non-alphanumeric with _
+    job_name=$(echo "pytc_{{cmd}}" | awk '{print $1"_"$2"_"$3}' | tr -c '[:alnum:]_.\n' '_' | head -c 64)
+
+    # Pass command via env var to avoid quoting issues with long --wrap strings.
+    export PYTC_CMD="{{cmd}}"
+    sbatch --job-name="$job_name" \
            --partition={{partition}} \
            --output=slurm_outputs/slurm-%j.out \
            --error=slurm_outputs/slurm-%j.err \
@@ -150,7 +159,9 @@ slurm partition num_cpu num_gpu cmd constraint='' mem='32G' nodelist='' reservat
            $constraint_flag \
            $nodelist_flag \
            $reservation_flag \
-           --wrap="mkdir -p \$HOME/.just && export JUST_TEMPDIR=\$HOME/.just TMPDIR=\$HOME/.just NCCL_SOCKET_FAMILY=AF_INET && unset SLURM_CPU_BIND && source /projects/weilab/weidf/lib/miniconda3/bin/activate pytc && cd $PWD && srun --cpu-bind=none --ntasks=1 --gpus-per-task={{num_gpu}} --cpus-per-task={{num_cpu}} {{cmd}}"
+           $exclude_flag \
+           --export=ALL,PYTC_CMD \
+           --wrap='mkdir -p $HOME/.just && export JUST_TEMPDIR=$HOME/.just TMPDIR=$HOME/.just NCCL_SOCKET_FAMILY=AF_INET && unset SLURM_CPU_BIND && source /projects/weilab/weidf/lib/miniconda3/bin/activate pytc && cd '"$PWD"' && srun --cpu-bind=none --ntasks=1 --gpus-per-task={{num_gpu}} --cpus-per-task={{num_cpu}} $PYTC_CMD'
 
 # Generic CPU-only multi-task launcher (single node, no GPU).
 # Example:
@@ -207,19 +218,19 @@ slurm-cpu-sharded partition num_tasks='7' cpu_per_task='4' cmd='' constraint='' 
 # Each job gets --shard-id <i> --num-shards <N> appended to the command.
 # Example:
 #   just slurm-sharded short 8 1 4 "just test neuron_snemi ckpt.pt" vr40g 64G
-slurm-sharded partition num_cpu num_gpu num_shards cmd constraint='' mem='32G' nodelist='' reservation='':
+slurm-sharded partition num_cpu num_gpu num_shards cmd constraint='' mem='32G' nodelist='' reservation='' exclude='':
     #!/usr/bin/env bash
     set -euo pipefail
     cmd_value='{{cmd}}'
     if [ -z "$cmd_value" ]; then
         echo "Error: cmd must be provided. Usage:"
-        echo "  just slurm-sharded <partition> <num_cpu> <num_gpu> <num_shards> \"<command>\" [constraint] [mem] [nodelist] [reservation]"
+        echo "  just slurm-sharded <partition> <num_cpu> <num_gpu> <num_shards> \"<command>\" [constraint] [mem] [nodelist] [reservation] [exclude]"
         exit 2
     fi
     echo "Launching {{num_shards}} GPU-sharded jobs..."
     for i in $(seq 0 $(({{num_shards}} - 1))); do
         echo "  Shard $i/{{num_shards}}"
-        just slurm {{partition}} {{num_cpu}} {{num_gpu}} "$cmd_value --shard-id $i --num-shards {{num_shards}}" "{{constraint}}" "{{mem}}" "{{nodelist}}" "{{reservation}}"
+        just slurm {{partition}} {{num_cpu}} {{num_gpu}} "$cmd_value --shard-id $i --num-shards {{num_shards}}" "{{constraint}}" "{{mem}}" "{{nodelist}}" "{{reservation}}" "{{exclude}}"
     done
     echo "All {{num_shards}} shard jobs submitted."
 
