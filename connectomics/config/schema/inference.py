@@ -52,7 +52,7 @@ class TestTimeAugmentationConfig:
     # Accepts: None (all channels), int, slice string like ":"/"0:3"/"-1:", or [int, ...].
     select_channel: Optional[Any] = None
 
-    flip_axes: Any = "all"  # "all" | "none" | list[int]
+    flip_axes: Any = "all"  # "all" | "none" | list[int] (0-indexed spatial: 0=z, 1=y, 2=x)
     flip_combinations: Optional[List[List[int]]] = None  # explicit list of axis subsets
     rotation90_axes: Any = None  # "all" | None | [[int, int], ...] spatial plane pairs
     rotate90_k: Optional[List[int]] = None  # e.g. [1,2,3]

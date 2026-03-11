@@ -122,20 +122,36 @@ def parse_args():
         default=None,
         help="Prefix to strip from external checkpoint keys (e.g., 'model.' for BANIS checkpoints)",
     )
+    # Test arguments
+    test_group = parser.add_argument_group("test", "Test/inference arguments")
+    test_group.add_argument(
+        "--shard-id",
+        type=int,
+        default=None,
+        help="Shard index for distributing test volumes across machines (0-indexed)",
+    )
+    test_group.add_argument(
+        "--num-shards",
+        type=int,
+        default=None,
+        help="Total number of shards for distributing test volumes across machines",
+    )
+
     # Parameter tuning arguments
-    parser.add_argument(
+    tune_group = parser.add_argument_group("tune", "Parameter tuning arguments")
+    tune_group.add_argument(
         "--params",
         type=str,
         default=None,
         help="Path to parameter file (overrides config parameter_source)",
     )
-    parser.add_argument(
+    tune_group.add_argument(
         "--param-source",
         choices=["fixed", "tuned", "optuna"],
         default=None,
         help="Parameter source: fixed, tuned, or optuna (overrides config)",
     )
-    parser.add_argument(
+    tune_group.add_argument(
         "--tune-trials",
         type=int,
         default=None,

@@ -4,10 +4,12 @@ import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+import torchmetrics
 
 from connectomics.config import Config
 from connectomics.config.schema.stages import TestConfig as HydraTestConfig
 from connectomics.training.lightning import ConnectomicsModule
+from connectomics.training.lightning.test_pipeline import log_test_epoch_metrics
 
 
 def _stub_logging(module: ConnectomicsModule, sink: Optional[List[str]] = None) -> None:
@@ -196,3 +198,19 @@ def test_load_cached_predictions_reads_existing_prediction_files(tmp_path, monke
     assert loaded is True
     assert suffix == "_prediction.h5"
     assert predictions.shape == (1, 4, 4, 4)
+
+
+def test_on_test_end_logs_aggregated_metrics_once():
+    cfg = _base_config()
+    cfg.inference.evaluation.enabled = True
+    cfg.inference.evaluation.metrics = ["accuracy"]
+
+    module = ConnectomicsModule(cfg, model=SimpleModel())
+    logged_names: list[str] = []
+    _stub_logging(module, sink=logged_names)
+    module.test_accuracy = torchmetrics.Accuracy(task="binary")
+    module.test_accuracy.update(torch.tensor([1, 0]), torch.tensor([1, 0]))
+
+    module.on_test_end()
+
+    assert logged_names == ["test_accuracy"]

@@ -14,8 +14,6 @@ from typing import Any, Optional
 import numpy as np
 import torch
 import torch.nn.functional as F
-from monai.transforms import Flip
-
 from ..utils.channel_slices import resolve_channel_indices
 from .sliding import is_2d_inference_mode
 
@@ -443,16 +441,21 @@ class TTAPredictor:
     def _build_augmentation_combinations(
         self, tta_cfg, ndim: int
     ) -> list[tuple[list, Optional[tuple], int]]:
-        """Parse TTA config and build list of (flip_axes, rotation_plane, k_rotations)."""
+        """Parse TTA config and build list of (flip_axes, rotation_plane, k_rotations).
+
+        All axes use 0-indexed spatial convention matching training augmentation:
+        0=z (depth), 1=y (height), 2=x (width).  Internally converted to tensor
+        dimensions by adding ``spatial_offset`` (2 for B,C prefix).
+        """
         tta_flip_axes_config = getattr(tta_cfg, "flip_axes", None)
         tta_rotation90_axes_config = getattr(tta_cfg, "rotation90_axes", None)
 
-        # Resolve flip axes
+        # Resolve flip axes (0-indexed spatial: 0=z, 1=y, 2=x)
         if tta_flip_axes_config == "all" or tta_flip_axes_config == []:
             if ndim == 5:
-                spatial_axes = [1, 2, 3]
+                spatial_axes = [0, 1, 2]
             elif ndim == 4:
-                spatial_axes = [1, 2]
+                spatial_axes = [0, 1]
             else:
                 raise ValueError(f"Unsupported data dimensions: {ndim}")
 
@@ -541,11 +544,15 @@ class TTAPredictor:
         ensemble_result = None
         num_predictions = 0
 
+        spatial_offset = 2  # batch + channel dims
+
         for flip_axes, rotation_plane, k_rotations in local_combinations:
             x_aug = images
 
             if flip_axes:
-                x_aug = Flip(spatial_axis=flip_axes)(x_aug)
+                flip_dims = [a + spatial_offset for a in
+                             (flip_axes if isinstance(flip_axes, list) else [flip_axes])]
+                x_aug = torch.flip(x_aug, dims=flip_dims)
 
             if rotation_plane is not None and k_rotations > 0:
                 x_aug = torch.rot90(x_aug, k=k_rotations, dims=rotation_plane)
@@ -556,7 +563,9 @@ class TTAPredictor:
                 pred = torch.rot90(pred, k=-k_rotations, dims=rotation_plane)
 
             if flip_axes:
-                pred = Flip(spatial_axis=flip_axes)(pred)
+                flip_dims = [a + spatial_offset for a in
+                             (flip_axes if isinstance(flip_axes, list) else [flip_axes])]
+                pred = torch.flip(pred, dims=flip_dims)
 
             pred_processed = self.apply_preprocessing(pred)
 

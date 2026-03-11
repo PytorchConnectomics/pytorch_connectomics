@@ -23,7 +23,6 @@ default:
     augmentation:
       profile: aug_em_neuron
   inference:
-    # tta_result_path: outputs/neuron_snemi/20260305_195321/results/train-input_prediction_p1.h5
     batch_size: 4    
     sliding_window:
       window_size: [16, 224, 224]

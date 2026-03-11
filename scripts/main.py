@@ -437,6 +437,46 @@ def maybe_limit_test_devices(cfg: Config, datamodule) -> bool:
     return True
 
 
+def shard_test_datamodule(datamodule, shard_id: int, num_shards: int):
+    """Shard test volumes across machines.
+
+    Splits test_data_dicts into num_shards chunks and keeps only the
+    chunk at index shard_id. This allows running test mode in parallel
+    across N machines, each processing a disjoint subset of volumes.
+
+    Usage:
+        python scripts/main.py --config ... --mode test --shard-id 0 --num-shards 4
+        python scripts/main.py --config ... --mode test --shard-id 1 --num-shards 4
+        ...
+    """
+    data_dicts = getattr(datamodule, "test_data_dicts", None)
+    if not data_dicts:
+        raise ValueError("No test_data_dicts to shard")
+    n = len(data_dicts)
+    if shard_id < 0 or shard_id >= num_shards:
+        raise ValueError(
+            f"shard_id={shard_id} out of range for num_shards={num_shards}"
+        )
+    if num_shards > n:
+        print(
+            f"  WARNING: num_shards={num_shards} > test volumes={n}; "
+            f"shard {shard_id} may be empty"
+        )
+
+    shard = data_dicts[shard_id::num_shards]
+    if not shard:
+        raise ValueError(
+            f"Shard {shard_id}/{num_shards} is empty (only {n} test volumes)"
+        )
+
+    print(
+        f"  Test sharding: shard {shard_id}/{num_shards}, "
+        f"processing {len(shard)}/{n} volumes"
+    )
+    datamodule.test_data_dicts = shard
+    return datamodule
+
+
 def _invert_save_prediction_transform(cfg: Config, data):
     """Invert save_prediction intensity scaling (matches ConnectomicsModule behavior)."""
     import numpy as np
@@ -460,7 +500,9 @@ def _invert_save_prediction_transform(cfg: Config, data):
     return data
 
 
-def try_cache_only_test_execution(cfg: Config, mode: str) -> bool:
+def try_cache_only_test_execution(
+    cfg: Config, mode: str, shard_id: int = None, num_shards: int = None
+) -> bool:
     """Run cache-only test path before model/trainer/datamodule creation when possible.
 
     Returns True if test processing completed and caller should exit early.
@@ -478,7 +520,7 @@ def try_cache_only_test_execution(cfg: Config, mode: str) -> bool:
     if not output_dir_value or not test_image:
         return False
 
-    from connectomics.data.io import read_hdf5
+    from connectomics.data.io import read_volume
     from connectomics.decoding import apply_decode_mode, resolve_decode_modes_from_cfg
     from connectomics.inference.output import apply_postprocessing, write_outputs
     from connectomics.training.lightning.path_utils import expand_file_paths
@@ -491,6 +533,13 @@ def try_cache_only_test_execution(cfg: Config, mode: str) -> bool:
 
     if not test_image_paths:
         return False
+
+    # Apply sharding to cache-only path
+    if shard_id is not None and num_shards is not None:
+        test_image_paths = test_image_paths[shard_id::num_shards]
+        if not test_image_paths:
+            print(f"  Shard {shard_id}/{num_shards} is empty, nothing to do.")
+            return True
 
     output_dir = Path(output_dir_value)
     cache_suffix = getattr(save_pred_cfg, "cache_suffix", "_prediction.h5")
@@ -507,7 +556,7 @@ def try_cache_only_test_execution(cfg: Config, mode: str) -> bool:
     cached_arrays = []
     for pred_file in resolved_files:
         try:
-            cached_arrays.append(read_hdf5(str(pred_file), dataset="main"))
+            cached_arrays.append(read_volume(str(pred_file), dataset="main"))
         except Exception as exc:
             print(
                 f"  WARNING: Cache-only preflight skipped: failed to read {pred_file.name}: {exc}"
@@ -718,7 +767,7 @@ def main():
         seed_everything(cfg.system.seed, workers=True)
 
     # Cache-only preflight path for test mode (can skip model/trainer/dataloader entirely).
-    if try_cache_only_test_execution(cfg, args.mode):
+    if try_cache_only_test_execution(cfg, args.mode, args.shard_id, args.num_shards):
         return
 
     # Create model
@@ -792,6 +841,13 @@ def main():
 
             # Create datamodule
             datamodule = create_datamodule(cfg, mode="test")
+
+            # Apply test volume sharding across machines
+            if args.shard_id is not None and args.num_shards is not None:
+                datamodule = shard_test_datamodule(
+                    datamodule, args.shard_id, args.num_shards
+                )
+
             if maybe_limit_test_devices(cfg, datamodule):
                 trainer = create_trainer(
                     cfg,
