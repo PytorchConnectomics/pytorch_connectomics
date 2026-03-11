@@ -22,7 +22,6 @@ import fastremap
 import mahotas
 import numpy as np
 from scipy import ndimage
-from skimage.morphology import remove_small_objects
 from skimage.segmentation import watershed
 
 from connectomics.data.process.distance import edt_semantic as seg_to_semantic_edt
@@ -222,7 +221,8 @@ def decode_instance_binary_contour_distance(
                     else (distance > distance_threshold[0])
                 )
             seed = cc3d.connected_components(seed_map)
-            seed = remove_small_objects(seed, min_seed_size)
+            if min_seed_size > 0:
+                seed = cc3d.dust(seed, threshold=min_seed_size, in_place=True)
 
         # step 3: compute the segmentation mask
         distance[distance < 0] = 0
@@ -494,7 +494,7 @@ def decode_distance_watershed(
 
     # Remove small seeds
     if min_seed_size > 0:
-        seed = remove_small_objects(seed, min_size=min_seed_size)
+        seed = cc3d.dust(seed, threshold=min_seed_size, in_place=True)
 
     if seed.max() == 0:
         warnings.warn(
