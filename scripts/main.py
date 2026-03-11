@@ -437,6 +437,99 @@ def maybe_limit_test_devices(cfg: Config, datamodule) -> bool:
     return True
 
 
+def resolve_test_rank_shard_from_env() -> tuple[int | None, int | None]:
+    """Return rank/world_size for externally launched multi-process test jobs."""
+    for rank_key, world_key in (("RANK", "WORLD_SIZE"), ("SLURM_PROCID", "SLURM_NTASKS")):
+        rank_raw = os.environ.get(rank_key)
+        world_raw = os.environ.get(world_key)
+        if rank_raw is None or world_raw is None:
+            continue
+        try:
+            rank = int(rank_raw)
+            world_size = int(world_raw)
+        except ValueError:
+            continue
+        if world_size > 1:
+            return rank, world_size
+
+    return None, None
+
+
+def resolve_test_image_paths(cfg: Config) -> list[str]:
+    """Resolve test image paths from config for shard planning."""
+    data_cfg = getattr(cfg, "data", None)
+    test_image = getattr(getattr(data_cfg, "test", None), "image", None)
+    if not test_image:
+        return []
+
+    from connectomics.training.lightning.path_utils import expand_file_paths
+
+    try:
+        return expand_file_paths(test_image)
+    except Exception as exc:
+        print(f"  WARNING: Failed to resolve test_image paths for sharding: {exc}")
+        return []
+
+
+def maybe_enable_independent_test_sharding(args, cfg: Config) -> bool:
+    """Run test as independent single-GPU shards instead of DDP when rank info is available."""
+    requested_devices = int(getattr(cfg.system, "num_gpus", 0) or 0)
+    if requested_devices <= 1:
+        return False
+
+    shard_id = getattr(args, "shard_id", None)
+    num_shards = getattr(args, "num_shards", None)
+    source = None
+
+    if shard_id is not None and num_shards is not None and int(num_shards) > 1:
+        source = "explicit shard arguments"
+    else:
+        test_image_paths = resolve_test_image_paths(cfg)
+        if len(test_image_paths) <= 1:
+            return False
+
+        shard_id, num_shards = resolve_test_rank_shard_from_env()
+        if shard_id is None or num_shards is None:
+            return False
+
+        args.shard_id = shard_id
+        args.num_shards = num_shards
+        source = "distributed launcher environment"
+
+    tta_cfg = getattr(getattr(cfg, "inference", None), "test_time_augmentation", None)
+    if tta_cfg is not None and bool(getattr(tta_cfg, "distributed_sharding", False)):
+        print(
+            "  WARNING: Disabling distributed TTA sharding for independent per-rank test sharding."
+        )
+        tta_cfg.distributed_sharding = False
+
+    cfg.system.num_gpus = 1 if torch.cuda.is_available() else 0
+    print(
+        "  INFO: Independent multi-GPU test sharding enabled "
+        f"({source}); each process will handle its own shard with no DDP communication."
+    )
+    return True
+
+
+def has_assigned_test_shard(cfg: Config, args) -> bool:
+    """Return True if the current shard has at least one test volume to process."""
+    shard_id = getattr(args, "shard_id", None)
+    num_shards = getattr(args, "num_shards", None)
+    if shard_id is None or num_shards is None:
+        return True
+
+    test_image_paths = resolve_test_image_paths(cfg)
+    if not test_image_paths:
+        return True
+
+    if test_image_paths[shard_id::num_shards]:
+        return True
+
+    print(f"  Shard {shard_id}/{num_shards} is empty, nothing to do.")
+    print("[OK]Test completed successfully (empty shard).")
+    return False
+
+
 def shard_test_datamodule(datamodule, shard_id: int, num_shards: int):
     """Shard test volumes across machines.
 
@@ -766,6 +859,11 @@ def main():
         print(f"Random seed set to: {cfg.system.seed}")
         seed_everything(cfg.system.seed, workers=True)
 
+    if args.mode == "test":
+        maybe_enable_independent_test_sharding(args, cfg)
+        if not has_assigned_test_shard(cfg, args):
+            return
+
     # Cache-only preflight path for test mode (can skip model/trainer/dataloader entirely).
     if try_cache_only_test_execution(cfg, args.mode, args.shard_id, args.num_shards):
         return
@@ -839,6 +937,17 @@ def main():
             # Re-resolve test-stage runtime overrides after tuning, including sentinels.
             cfg = resolve_test_stage_runtime(cfg)
 
+            if maybe_enable_independent_test_sharding(args, cfg):
+                trainer = create_trainer(
+                    cfg,
+                    run_dir=run_dir,
+                    fast_dev_run=args.fast_dev_run,
+                    ckpt_path=ckpt_path,
+                    mode="test",
+                )
+            if not has_assigned_test_shard(cfg, args):
+                return
+
             # Create datamodule
             datamodule = create_datamodule(cfg, mode="test")
 
@@ -882,7 +991,7 @@ def main():
 
             trainer.test(
                 model,
-                datamodule=datamodule,
+                datamodule,
                 ckpt_path=test_ckpt_path,
             )
 
