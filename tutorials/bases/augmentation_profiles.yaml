@@ -144,7 +144,6 @@ augmentation_profiles:
     flip:
       enabled: true
       prob: 0.5
-      spatial_axis: [0, 1, 2]
     rotate:
       enabled: true
       prob: 0.5

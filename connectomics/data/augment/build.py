@@ -571,9 +571,15 @@ def _build_augmentations(aug_cfg: AugmentationConfig, keys: list[str], do_2d: bo
 
     # Standard geometric augmentations
     if should_augment("flip", aug_cfg.flip.enabled):
-        transforms.append(
-            RandFlipd(keys=keys, prob=aug_cfg.flip.prob, spatial_axis=aug_cfg.flip.spatial_axis)
-        )
+        spatial_axis = aug_cfg.flip.spatial_axis
+        if isinstance(spatial_axis, (list, tuple)):
+            # One RandFlipd per axis so each is flipped independently
+            for ax in spatial_axis:
+                transforms.append(RandFlipd(keys=keys, prob=aug_cfg.flip.prob, spatial_axis=ax))
+        else:
+            transforms.append(
+                RandFlipd(keys=keys, prob=aug_cfg.flip.prob, spatial_axis=spatial_axis)
+            )
 
     if should_augment("rotate", aug_cfg.rotate.enabled):
         # Determine spatial_axes based on data dimensionality
@@ -703,6 +709,15 @@ def _build_augmentations(aug_cfg: AugmentationConfig, keys: list[str], do_2d: bo
             )
         )
 
+    if should_augment("missing_parts", aug_cfg.missing_parts.enabled):
+        defect_transforms.append(
+            RandMissingPartsd(
+                keys=["image"],
+                prob=aug_cfg.missing_parts.prob,
+                hole_range=aug_cfg.missing_parts.hole_range,
+            )
+        )
+
     if defect_transforms:
         if getattr(aug_cfg, "defect_mutex", False) and len(defect_transforms) > 1:
             # Mutual exclusion: randomly pick one defect per sample.
@@ -728,15 +743,6 @@ def _build_augmentations(aug_cfg: AugmentationConfig, keys: list[str], do_2d: bo
                 length_ratio=aug_cfg.cut_blur.length_ratio,
                 down_ratio_range=aug_cfg.cut_blur.down_ratio_range,
                 downsample_z=aug_cfg.cut_blur.downsample_z,
-            )
-        )
-
-    if should_augment("missing_parts", aug_cfg.missing_parts.enabled):
-        transforms.append(
-            RandMissingPartsd(
-                keys=["image"],
-                prob=aug_cfg.missing_parts.prob,
-                hole_range=aug_cfg.missing_parts.hole_range,
             )
         )
 

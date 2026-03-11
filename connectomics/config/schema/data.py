@@ -231,7 +231,7 @@ class FlipConfig:
 
     enabled: bool = True
     prob: float = 0.5
-    spatial_axis: Any = 0
+    spatial_axis: Any = field(default_factory=lambda: [0, 1, 2])
 
 
 @dataclass
@@ -398,8 +398,7 @@ class AugmentationConfig:
     preset: str = "some"
 
     # Mutual exclusion: when True, at most one defect augmentation
-    # (misalignment, missing_section, motion_blur) fires per sample.
-    # Matches the DeepEM Blend(mutex) behavior.
+    # (misalignment, missing_section, motion_blur, missing_parts) fires per sample.
     defect_mutex: bool = False
 
     # Individual augmentation blocks (auto-enabled when keys are present)

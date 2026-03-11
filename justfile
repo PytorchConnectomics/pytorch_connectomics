@@ -154,14 +154,14 @@ slurm partition num_cpu num_gpu cmd constraint='' mem='32G' nodelist='' reservat
 
 # Generic CPU-only multi-task launcher (single node, no GPU).
 # Example:
-slurm-cpu-parallel partition num_tasks='7' cpu_per_task='4' cmd='' constraint='' mem='64G':
+slurm-cpu partition num_tasks='7' cpu_per_task='4' cmd='' constraint='' mem='64G':
     #!/usr/bin/env bash
     set -euo pipefail
     mkdir -p slurm_outputs
     cmd_value='{{cmd}}'
     if [ -z "$cmd_value" ]; then
         echo "Error: cmd must be provided. Usage:"
-        echo "  just slurm-cpu-parallel <partition> <num_tasks> <cpu_per_task> \"<command>\" [constraint] [mem]"
+        echo "  just slurm-cpu <partition> <num_tasks> <cpu_per_task> \"<command>\" [constraint] [mem]"
         exit 2
     fi
 
@@ -201,7 +201,27 @@ slurm-cpu-sharded partition num_tasks='7' cpu_per_task='4' cmd='' constraint='' 
         echo "  just slurm-cpu-sharded <partition> <num_tasks> <cpu_per_task> \"<command>\" [constraint] [mem]"
         exit 2
     fi
-    just slurm-cpu-parallel {{partition}} {{num_tasks}} {{cpu_per_task}} "{{cmd}} --num-shards \$SLURM_NTASKS --shard-index \$SLURM_PROCID" "{{constraint}}" "{{mem}}"
+    just slurm-cpu {{partition}} {{num_tasks}} {{cpu_per_task}} "{{cmd}} --num-shards \$SLURM_NTASKS --shard-index \$SLURM_PROCID" "{{constraint}}" "{{mem}}"
+
+# GPU-sharded test: launch N separate SLURM GPU jobs, one per shard.
+# Each job gets --shard-id <i> --num-shards <N> appended to the command.
+# Example:
+#   just slurm-sharded short 8 1 4 "just test neuron_snemi ckpt.pt" vr40g 64G
+slurm-sharded partition num_cpu num_gpu num_shards cmd constraint='' mem='32G' nodelist='' reservation='':
+    #!/usr/bin/env bash
+    set -euo pipefail
+    cmd_value='{{cmd}}'
+    if [ -z "$cmd_value" ]; then
+        echo "Error: cmd must be provided. Usage:"
+        echo "  just slurm-sharded <partition> <num_cpu> <num_gpu> <num_shards> \"<command>\" [constraint] [mem] [nodelist] [reservation]"
+        exit 2
+    fi
+    echo "Launching {{num_shards}} GPU-sharded jobs..."
+    for i in $(seq 0 $(({{num_shards}} - 1))); do
+        echo "  Shard $i/{{num_shards}}"
+        just slurm {{partition}} {{num_cpu}} {{num_gpu}} "$cmd_value --shard-id $i --num-shards {{num_shards}}" "{{constraint}}" "{{mem}}" "{{nodelist}}" "{{reservation}}"
+    done
+    echo "All {{num_shards}} shard jobs submitted."
 
 # Launch parameter sweep from config (e.g., just sweep tutorials/sweep_example.yaml)
 sweep config:

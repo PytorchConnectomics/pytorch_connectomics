@@ -165,7 +165,7 @@ inference:
   # Test-Time Augmentation
   test_time_augmentation:
     enabled: true
-    flip_axes: [[1], [2], [1, 2]]  # H, W, and H+W flips (no Z flip)
+    flip_axes: [[0], [1], [0, 1]]  # H, W, and H+W flips (0-indexed spatial: 0=H, 1=W for 2D)
     channel_activations:
       - {channels: "0:1", activation: sigmoid}
     select_channel:

@@ -395,42 +395,6 @@ def _compute_instance_metrics(
         metrics_dict["adapted_rand_error"] = are_score
         module.test_adapted_rand.update(pred_instances.cpu(), labels_instances.cpu())
 
-        epoch_stats = module.test_adapted_rand.compute()
-        if isinstance(epoch_stats, dict):
-            module.log(
-                "test_adapted_rand",
-                epoch_stats["adapted_rand_error"],
-                on_step=False,
-                on_epoch=True,
-                prog_bar=True,
-                logger=True,
-            )
-            module.log(
-                "test_adapted_rand_precision",
-                epoch_stats["adapted_rand_precision"],
-                on_step=False,
-                on_epoch=True,
-                prog_bar=True,
-                logger=True,
-            )
-            module.log(
-                "test_adapted_rand_recall",
-                epoch_stats["adapted_rand_recall"],
-                on_step=False,
-                on_epoch=True,
-                prog_bar=True,
-                logger=True,
-            )
-        else:
-            module.log(
-                "test_adapted_rand",
-                epoch_stats,
-                on_step=False,
-                on_epoch=True,
-                prog_bar=True,
-                logger=True,
-            )
-
     if hasattr(module, "test_voi") and isinstance(module.test_voi, torchmetrics.Metric):
         split, merge = voi(pred_instances.cpu().numpy(), labels_instances.cpu().numpy())
         logger.info(f"{volume_prefix}VOI Split: {split:.6f}")
@@ -442,25 +406,6 @@ def _compute_instance_metrics(
         metrics_dict["voi_total"] = split + merge
 
         module.test_voi.update(pred_instances.cpu(), labels_instances.cpu())
-        module.log(
-            "test_voi", module.test_voi, on_step=False, on_epoch=True, prog_bar=True, logger=True
-        )
-        module.log(
-            "test_voi_split",
-            module.test_voi.compute_split(),
-            on_step=False,
-            on_epoch=True,
-            prog_bar=False,
-            logger=True,
-        )
-        module.log(
-            "test_voi_merge",
-            module.test_voi.compute_merge(),
-            on_step=False,
-            on_epoch=True,
-            prog_bar=False,
-            logger=True,
-        )
 
     if hasattr(module, "test_instance_accuracy") and isinstance(
         module.test_instance_accuracy, torchmetrics.Metric
@@ -475,14 +420,6 @@ def _compute_instance_metrics(
         metrics_dict["instance_accuracy"] = stats["accuracy"]
 
         module.test_instance_accuracy.update(pred_instances.cpu(), labels_instances.cpu())
-        module.log(
-            "test_instance_accuracy",
-            module.test_instance_accuracy,
-            on_step=False,
-            on_epoch=True,
-            prog_bar=True,
-            logger=True,
-        )
 
     if hasattr(module, "test_instance_accuracy_detail") and isinstance(
         module.test_instance_accuracy_detail, torchmetrics.Metric
@@ -507,38 +444,6 @@ def _compute_instance_metrics(
         metrics_dict["instance_f1_detail"] = stats_simple["f1"]
 
         module.test_instance_accuracy_detail.update(pred_instances.cpu(), labels_instances.cpu())
-        module.log(
-            "test_instance_accuracy_detail",
-            module.test_instance_accuracy_detail,
-            on_step=False,
-            on_epoch=True,
-            prog_bar=True,
-            logger=True,
-        )
-        module.log(
-            "test_instance_precision_detail",
-            module.test_instance_accuracy_detail.compute_precision(),
-            on_step=False,
-            on_epoch=True,
-            prog_bar=False,
-            logger=True,
-        )
-        module.log(
-            "test_instance_recall_detail",
-            module.test_instance_accuracy_detail.compute_recall(),
-            on_step=False,
-            on_epoch=True,
-            prog_bar=False,
-            logger=True,
-        )
-        module.log(
-            "test_instance_f1_detail",
-            module.test_instance_accuracy_detail.compute_f1(),
-            on_step=False,
-            on_epoch=True,
-            prog_bar=False,
-            logger=True,
-        )
 
 
 def _compute_binary_metrics(
@@ -569,28 +474,12 @@ def _compute_binary_metrics(
         logger.info(f"{volume_prefix}Jaccard: {jaccard_value.item():.6f}")
         metrics_dict["jaccard"] = jaccard_value.item()
         module.test_jaccard.update(pred_binary, labels_binary)
-        module.log(
-            "test_jaccard",
-            module.test_jaccard,
-            on_step=False,
-            on_epoch=True,
-            prog_bar=True,
-            logger=True,
-        )
 
     if hasattr(module, "test_dice") and module.test_dice is not None:
         dice_value = torchmetrics.functional.dice(pred_binary, labels_binary)
         logger.info(f"{volume_prefix}Dice: {dice_value.item():.6f}")
         metrics_dict["dice"] = dice_value.item()
         module.test_dice.update(pred_binary, labels_binary)
-        module.log(
-            "test_dice",
-            module.test_dice,
-            on_step=False,
-            on_epoch=True,
-            prog_bar=True,
-            logger=True,
-        )
 
     if hasattr(module, "test_accuracy") and module.test_accuracy is not None:
         accuracy_value = torchmetrics.functional.accuracy(
@@ -601,14 +490,6 @@ def _compute_binary_metrics(
         logger.info(f"{volume_prefix}Accuracy: {accuracy_value.item():.6f}")
         metrics_dict["accuracy"] = accuracy_value.item()
         module.test_accuracy.update(pred_binary, labels_binary)
-        module.log(
-            "test_accuracy",
-            module.test_accuracy,
-            on_step=False,
-            on_epoch=True,
-            prog_bar=True,
-            logger=True,
-        )
 
 
 def compute_test_metrics(
@@ -663,6 +544,168 @@ def compute_test_metrics(
         )
 
     module._save_metrics_to_file(metrics_dict)
+
+
+def log_test_epoch_metrics(module) -> None:
+    """Log aggregated test metrics once after all ranks finish processing."""
+    if not module._is_test_evaluation_enabled():
+        return
+
+    if hasattr(module, "test_adapted_rand") and isinstance(module.test_adapted_rand, torchmetrics.Metric):
+        epoch_stats = module.test_adapted_rand.compute()
+        if isinstance(epoch_stats, dict):
+            module.log(
+                "test_adapted_rand",
+                epoch_stats["adapted_rand_error"],
+                on_step=False,
+                on_epoch=True,
+                prog_bar=True,
+                logger=True,
+                sync_dist=True,
+            )
+            module.log(
+                "test_adapted_rand_precision",
+                epoch_stats["adapted_rand_precision"],
+                on_step=False,
+                on_epoch=True,
+                prog_bar=True,
+                logger=True,
+                sync_dist=True,
+            )
+            module.log(
+                "test_adapted_rand_recall",
+                epoch_stats["adapted_rand_recall"],
+                on_step=False,
+                on_epoch=True,
+                prog_bar=True,
+                logger=True,
+                sync_dist=True,
+            )
+        else:
+            module.log(
+                "test_adapted_rand",
+                epoch_stats,
+                on_step=False,
+                on_epoch=True,
+                prog_bar=True,
+                logger=True,
+                sync_dist=True,
+            )
+
+    if hasattr(module, "test_voi") and isinstance(module.test_voi, torchmetrics.Metric):
+        module.log(
+            "test_voi",
+            module.test_voi,
+            on_step=False,
+            on_epoch=True,
+            prog_bar=True,
+            logger=True,
+            sync_dist=True,
+        )
+        module.log(
+            "test_voi_split",
+            module.test_voi.compute_split(),
+            on_step=False,
+            on_epoch=True,
+            prog_bar=False,
+            logger=True,
+            sync_dist=True,
+        )
+        module.log(
+            "test_voi_merge",
+            module.test_voi.compute_merge(),
+            on_step=False,
+            on_epoch=True,
+            prog_bar=False,
+            logger=True,
+            sync_dist=True,
+        )
+
+    if hasattr(module, "test_instance_accuracy") and isinstance(
+        module.test_instance_accuracy, torchmetrics.Metric
+    ):
+        module.log(
+            "test_instance_accuracy",
+            module.test_instance_accuracy,
+            on_step=False,
+            on_epoch=True,
+            prog_bar=True,
+            logger=True,
+            sync_dist=True,
+        )
+
+    if hasattr(module, "test_instance_accuracy_detail") and isinstance(
+        module.test_instance_accuracy_detail, torchmetrics.Metric
+    ):
+        module.log(
+            "test_instance_accuracy_detail",
+            module.test_instance_accuracy_detail,
+            on_step=False,
+            on_epoch=True,
+            prog_bar=True,
+            logger=True,
+            sync_dist=True,
+        )
+        module.log(
+            "test_instance_precision_detail",
+            module.test_instance_accuracy_detail.compute_precision(),
+            on_step=False,
+            on_epoch=True,
+            prog_bar=False,
+            logger=True,
+            sync_dist=True,
+        )
+        module.log(
+            "test_instance_recall_detail",
+            module.test_instance_accuracy_detail.compute_recall(),
+            on_step=False,
+            on_epoch=True,
+            prog_bar=False,
+            logger=True,
+            sync_dist=True,
+        )
+        module.log(
+            "test_instance_f1_detail",
+            module.test_instance_accuracy_detail.compute_f1(),
+            on_step=False,
+            on_epoch=True,
+            prog_bar=False,
+            logger=True,
+            sync_dist=True,
+        )
+
+    if hasattr(module, "test_jaccard") and module.test_jaccard is not None:
+        module.log(
+            "test_jaccard",
+            module.test_jaccard,
+            on_step=False,
+            on_epoch=True,
+            prog_bar=True,
+            logger=True,
+            sync_dist=True,
+        )
+
+    if hasattr(module, "test_dice") and module.test_dice is not None:
+        module.log(
+            "test_dice",
+            module.test_dice,
+            on_step=False,
+            on_epoch=True,
+            prog_bar=True,
+            logger=True,
+            sync_dist=True,
+        )
+
+    if hasattr(module, "test_accuracy") and module.test_accuracy is not None:
+        module.log(
+            "test_accuracy",
+            module.test_accuracy,
+            on_step=False,
+            on_epoch=True,
+            prog_bar=True,
+            logger=True,
+            sync_dist=True,
+        )
 
 
 def _log_volume_header(volume_name: str, title: str) -> None:

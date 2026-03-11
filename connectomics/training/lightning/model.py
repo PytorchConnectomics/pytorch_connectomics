@@ -30,6 +30,7 @@ from pytorch_lightning.utilities.types import STEP_OUTPUT
 
 # Import existing components
 from ...config import Config
+from ...data.io import read_volume
 from ...inference import (
     InferenceManager,
     resolve_output_filenames,
@@ -48,7 +49,7 @@ from ..debugging import DebugManager
 from ..loss import LossOrchestrator, build_loss_weighter, infer_num_loss_tasks_from_config
 from ..model_weights import load_external_weights
 from ..optim import build_lr_scheduler, build_optimizer
-from .test_pipeline import compute_test_metrics, run_test_step
+from .test_pipeline import compute_test_metrics, log_test_epoch_metrics, run_test_step
 
 logger = logging.getLogger(__name__)
 
@@ -428,8 +429,6 @@ class ConnectomicsModule(pl.LightningModule):
         """Attempt to load cached predictions from disk."""
         explicit_prediction = self._resolve_tta_result_path_override()
         if isinstance(explicit_prediction, str) and explicit_prediction.strip():
-            from connectomics.data.io import read_hdf5
-
             pred_file = Path(explicit_prediction).expanduser()
             if not pred_file.is_absolute():
                 pred_file = Path.cwd() / pred_file
@@ -437,7 +436,7 @@ class ConnectomicsModule(pl.LightningModule):
             if pred_file.exists():
                 try:
                     logger.info(f"Using explicit inference.tta_result_path file: {pred_file}")
-                    pred = read_hdf5(str(pred_file), dataset="main")
+                    pred = read_volume(str(pred_file), dataset="main")
                     if pred.ndim < 4:
                         pred = pred[np.newaxis, ...]
                     if len(filenames) > 1:
@@ -476,7 +475,7 @@ class ConnectomicsModule(pl.LightningModule):
 
             if pred_file.exists():
                 try:
-                    pred = read_hdf5(str(pred_file), dataset="main")
+                    pred = read_volume(str(pred_file), dataset="main")
                     existing_predictions.append(pred)
                 except Exception as e:
                     logger.warning(f"Failed to load {pred_file}: {e}, will re-run inference")
@@ -767,6 +766,10 @@ class ConnectomicsModule(pl.LightningModule):
                 "Sliding-window CPU input mode enabled: keeping test image tensors on CPU "
                 "and letting MONAI move window batches to the configured sw_device."
             )
+
+    def on_test_end(self) -> None:
+        """Log aggregated test metrics after all ranks finish their assigned volumes."""
+        log_test_epoch_metrics(self)
 
     def transfer_batch_to_device(
         self, batch: Any, device: torch.device, dataloader_idx: int
