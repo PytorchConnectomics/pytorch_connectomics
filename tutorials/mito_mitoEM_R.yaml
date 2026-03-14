@@ -28,8 +28,5 @@ test:
       image: /projects/weilab/dataset/mito/mitoEM/EM30-R/im_test.h5
       label: /projects/weilab/dataset/mito/mitoEM/EM30-R/mito_test-v2.h5
 
-inference:
-  batch_size: 1
-
 train:
   system:

@@ -68,13 +68,11 @@ test:
   data:
     test:
       path: "/projects/weilab/dataset/xiaomeng/vesicle/"
-      #image: "im/Bouton_100_EM.tif"
-      #mask: "mask/Bouton_100_em_mask.tif"
-      image: "im/Bouton_*_EM.tif"
-      mask: "mask/Bouton_*_em_mask.tif"
-      #image: ["datasets/bouton-lv/train/vol0_im_bouton.h5", "datasets/hydra-lv/vol*_im.h5"]
-      #label: ["datasets/bouton-lv/train/vol0_lv_bouton.h5", "datasets/hydra-lv/vol*_vesicle_ins.h5"]
-      #mask: ["datasets/bouton-lv/train/vol0_mask_bouton.h5", "datasets/hydra-lv/vol*_mask.h5"]
+      # debugging 
+      image: "im/Bouton_228_EM.tif"
+      mask: "mask/Bouton_228_em_mask.tif"
+      #image: "im/Bouton_*_EM.tif"
+      #mask: "mask/Bouton_*_em_mask.tif"
       resolution: [30, 8, 8]
     # fix: the exported mask is 2x downsampled, so we need to upsample it to the original size
     mask_transform:

@@ -164,7 +164,6 @@ test:
 inference:
   system:
     num_workers: 1
-  batch_size: 8
   sliding_window:
     window_size:
     - 32

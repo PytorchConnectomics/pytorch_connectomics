@@ -23,7 +23,6 @@ default:
     augmentation:
       profile: aug_em_neuron
   inference:
-    batch_size: 4    
     sliding_window:
       window_size: [16, 224, 224]
       sw_batch_size: 4

@@ -201,4 +201,3 @@ class InferenceConfig:
     # Inference-specific runtime overrides (applied in test/tune modes)
     # `system` overrides selected keys on top-level cfg.system during stage resolution.
     system: SystemConfig = field(default_factory=lambda: SystemConfig(num_gpus=-1, num_workers=-1))
-    batch_size: int = -1  # Overrides data.dataloader.batch_size if >= 0

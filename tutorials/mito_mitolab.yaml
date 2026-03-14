@@ -121,7 +121,6 @@ test:
 inference:
   system:
     num_workers: 4
-  batch_size: 32
   test_time_augmentation:
     enabled: false
     channel_activations:

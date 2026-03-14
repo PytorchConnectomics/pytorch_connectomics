@@ -23,7 +23,6 @@ default:
     augmentation:
       profile: aug_standard
   inference:
-    batch_size: 16
     sliding_window:
       window_size: [112, 112, 112]      
     test_time_augmentation:
