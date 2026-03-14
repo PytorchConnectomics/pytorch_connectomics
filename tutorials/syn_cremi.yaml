@@ -192,7 +192,6 @@ test:
     - cremi_distance
     - jaccard
 inference:
-  batch_size: 1
   sliding_window:
     window_size:
     - 18

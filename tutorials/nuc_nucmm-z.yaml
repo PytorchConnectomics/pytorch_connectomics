@@ -117,7 +117,6 @@ test:
 inference:
   system:
     num_workers: 4
-  batch_size: 4
   sliding_window:
     window_size:
     - 64

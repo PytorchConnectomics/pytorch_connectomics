@@ -152,7 +152,6 @@ inference:
   system:
     num_gpus: 1
     num_workers: 2
-  batch_size: 1
   # MONAI SlidingWindowInferer for 2D
   sliding_window:
     window_size: [1, 512, 512]     # 2D window

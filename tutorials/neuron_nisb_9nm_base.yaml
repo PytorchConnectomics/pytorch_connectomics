@@ -172,7 +172,6 @@ inference:
   system:
     num_gpus: 1
     num_workers: 8
-  batch_size: 1
   sliding_window:
     window_size: [32, 256, 256]
     sw_batch_size: 1

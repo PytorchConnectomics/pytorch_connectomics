@@ -183,7 +183,6 @@ inference:
   system:
     num_gpus: 1
     num_workers: 4
-  batch_size: 64
   sliding_window:
     window_size: [256, 256]
     overlap: 0.5

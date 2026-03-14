@@ -232,7 +232,6 @@ inference:
   system:
     num_gpus: 4
     num_workers: 8
-  batch_size: 1
   # MONAI SlidingWindowInferer parameters
   sliding_window:
     window_size: [128, 128, 128]         # Match training patch size

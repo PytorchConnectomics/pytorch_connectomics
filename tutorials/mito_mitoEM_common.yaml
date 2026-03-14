@@ -140,7 +140,6 @@ inference:
   system:
     num_gpus: 1
     num_workers: 2
-  batch_size: 6
   sliding_window:
     window_size:
     - 32
