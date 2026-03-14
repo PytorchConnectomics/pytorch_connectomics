@@ -1,6 +1,6 @@
 experiment_name: liconn_affinity_instance_seg
 description: >
-  LiConn neuron instance segmentation using long-range affinity model (distances 1, 3, 27)
+  LiConn neuron instance segmentation using long-range affinity model (distances 1, 3, 9)
   with ABISS-based decoding for large-volume EM data.
 
   Data: /orcd/scratch/bcs/002/mansour/train_liconn/liconn_18nm_labelled.zarr/
@@ -135,7 +135,7 @@ default:
             sigmoid: true
             smooth_nr: 1.0e-5
             smooth_dr: 1.0e-5
-        # ── Long-range channels (ch 6-8, offset 27) ──────────────────────────
+        # ── Long-range channels (ch 6-8, offset 9) ───────────────────────────
         - function: FocalLoss
           weight: 0.5
           pred_slice: [6, 9]
@@ -211,7 +211,10 @@ default:
       # activation_profile is not in TestTimeAugmentationConfig — removed
     postprocessing:
       enabled: true
-      crop_pad: [32, 32, 128, 128, 128, 128]
+      # With DeepEM affinity crop enabled for offsets up to 9 voxels, crop only
+      # enough input padding so the later affinity valid-region crop lands back
+      # on the original image support.
+      crop_pad: [23, 32, 119, 128, 119, 128]
 
 
 # ── Training stage ─────────────────────────────────────────────────────────────
@@ -229,7 +232,7 @@ train:
       # Increase to erosion=2 if boundaries are still ambiguous after training.
       erosion: 1
 
-      # 9-channel affinity: distances 1, 3, 27 along each axis (z, y, x)
+      # 9-channel affinity: distances 1, 3, 9 along each axis (z, y, x)
       targets:
         - name: affinity
           kwargs:
@@ -246,6 +249,7 @@ train:
               - "9-0-0"   # ch 6: z
               - "0-9-0"   # ch 7: y
               - "0-0-9"   # ch 8: x
+            deepem_crop: true
 
     # ── Data paths ───────────────────────────────────────────────────────────
     # NOTE: split_enabled only works with HDF5/TIFF, not Zarr (raises ValueError).
@@ -268,7 +272,7 @@ train:
     #   train_transpose: [2, 1, 0]   # only needed if Zarr is stored XYZ
 
     dataloader:
-      # Patch must be ≥ 27 in all axes (largest affinity offset).
+      # Patch must be ≥ 9 in all axes (largest affinity offset).
       # 64×256×256 = 4,194,304 voxels — good axon context (10–50 axons per crop at 18 nm).
       # Reducing crop size hurts long-range affinity training more than reducing batch size.
       patch_size: [64, 256, 256]
