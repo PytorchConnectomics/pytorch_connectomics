@@ -37,13 +37,8 @@ try:
 except ImportError:
     OPTUNA_AVAILABLE = False
 
-from connectomics.data.process.affinity import (
-    affinity_deepem_crop_enabled,
-    compute_affinity_crop_pad,
-    crop_spatial_by_pad,
-    resolve_affinity_channel_groups_from_cfg,
-)
 from connectomics.metrics.metrics_seg import adapted_rand
+from connectomics.training.lightning.utils import tta_cache_suffix
 
 from ..registry import get_decoder
 from ..utils import remove_small_instances
@@ -51,26 +46,6 @@ from ..utils import remove_small_instances
 logger = logging.getLogger(__name__)
 
 __all__ = ["OptunaDecodingTuner", "run_tuning", "load_and_apply_best_params"]
-
-
-def _maybe_crop_affinity_array(
-    data: np.ndarray,
-    *,
-    reference_spatial_shape: tuple[int, ...],
-    crop_pad: tuple[tuple[int, int], ...],
-) -> np.ndarray:
-    if not crop_pad:
-        return data
-    expected_cropped_shape = tuple(
-        int(reference_spatial_shape[axis]) - crop_pad[axis][0] - crop_pad[axis][1]
-        for axis in range(len(crop_pad))
-    )
-    data_spatial_shape = tuple(int(v) for v in data.shape[-len(crop_pad) :])
-    if data_spatial_shape == expected_cropped_shape:
-        return data
-    if data_spatial_shape != reference_spatial_shape:
-        return data
-    return crop_spatial_by_pad(data, crop_pad, item_name="tuning array")
 
 
 def _expand_tuning_paths(path_or_pattern: Any, *, field_name: str) -> list[str]:
@@ -119,9 +94,12 @@ def _temporary_tuning_inference_overrides(*cfg_objects: Any):
     """Force the pre-Optuna inference pass to cache raw predictions only."""
     inference_cfgs = []
     seen_inference_cfgs: set[int] = set()
+    primary_cfg = None
     for cfg_obj in cfg_objects:
         if cfg_obj is None:
             continue
+        if primary_cfg is None:
+            primary_cfg = cfg_obj
         inference_cfg = getattr(cfg_obj, "inference", None)
         if inference_cfg is None or id(inference_cfg) in seen_inference_cfgs:
             continue
@@ -130,6 +108,8 @@ def _temporary_tuning_inference_overrides(*cfg_objects: Any):
 
     if not inference_cfgs:
         raise ValueError("Missing runtime cfg.inference configuration required for tuning")
+
+    suffix = tta_cache_suffix(primary_cfg) if primary_cfg is not None else "_tta_x1_prediction.h5"
 
     backups = []
     for inference_cfg in inference_cfgs:
@@ -156,13 +136,13 @@ def _temporary_tuning_inference_overrides(*cfg_objects: Any):
         )
 
         save_prediction_cfg.enabled = True
-        save_prediction_cfg.cache_suffix = "_tta_prediction.h5"
+        save_prediction_cfg.cache_suffix = suffix
         inference_cfg.decoding = None
         if evaluation_cfg is not None:
             evaluation_cfg.enabled = False
 
     try:
-        yield "_tta_prediction.h5"
+        yield suffix
     finally:
         for backup in backups:
             inference_cfg = backup["inference_cfg"]
@@ -1164,7 +1144,7 @@ def run_tuning(model, trainer, cfg, checkpoint_path=None):
     logger.info("[1/4] Running inference on tuning dataset...")
 
     tune_data = cfg.data
-    cache_suffix = "_tta_prediction.h5"
+    cache_suffix = tta_cache_suffix(cfg)
 
     output_pred_dir = cfg.inference.save_prediction.output_path
     predictions_dir = Path(output_pred_dir)
@@ -1294,45 +1274,19 @@ def run_tuning(model, trainer, cfg, checkpoint_path=None):
             f"Mismatch: {len(all_predictions)} prediction files vs " f"{len(all_masks)} mask files"
         )
 
-    if affinity_deepem_crop_enabled(cfg):
-        groups = resolve_affinity_channel_groups_from_cfg(cfg)
-        all_offsets = []
-        for _, offsets in groups:
-            all_offsets.extend(offsets)
-        crop_pad = compute_affinity_crop_pad(all_offsets)
-        if crop_pad and any(before or after for before, after in crop_pad):
-            cropped_predictions = []
-            cropped_labels = []
-            cropped_masks = [] if all_masks is not None else None
-            for idx, pred in enumerate(all_predictions):
-                reference_spatial_shape = tuple(
-                    int(v) for v in all_labels[idx].shape[-len(crop_pad) :]
-                )
-                cropped_predictions.append(
-                    _maybe_crop_affinity_array(
-                        np.asarray(pred),
-                        reference_spatial_shape=reference_spatial_shape,
-                        crop_pad=crop_pad,
-                    )
-                )
-                cropped_labels.append(
-                    _maybe_crop_affinity_array(
-                        np.asarray(all_labels[idx]),
-                        reference_spatial_shape=reference_spatial_shape,
-                        crop_pad=crop_pad,
-                    )
-                )
-                if cropped_masks is not None:
-                    cropped_masks.append(
-                        _maybe_crop_affinity_array(
-                            np.asarray(all_masks[idx]),
-                            reference_spatial_shape=reference_spatial_shape,
-                            crop_pad=crop_pad,
-                        )
-                    )
-            all_predictions = cropped_predictions
-            all_labels = cropped_labels
-            all_masks = cropped_masks
+    # Validate that prediction and label spatial shapes match.
+    # Cached TTA prediction files are saved after crop_pad + affinity_crop
+    # in the test pipeline, so they should already align with the label volume.
+    for idx, pred in enumerate(all_predictions):
+        pred_spatial = tuple(int(v) for v in pred.shape[-3:])
+        label_spatial = tuple(int(v) for v in all_labels[idx].shape[-3:])
+        if pred_spatial != label_spatial:
+            raise ValueError(
+                f"Prediction/label spatial shape mismatch for volume {idx}: "
+                f"prediction {pred_spatial} vs label {label_spatial}. "
+                f"Cached predictions may be stale — regenerate TTA predictions "
+                f"by re-running inference with the real model checkpoint."
+            )
 
     # Step 4: Create tuner and run optimization (per-volume evaluation)
     logger.info("[4/5] Creating Optuna tuner...")

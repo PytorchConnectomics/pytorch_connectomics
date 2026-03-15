@@ -346,10 +346,68 @@ def setup_seed_everything():
     return seed_everything
 
 
+def compute_tta_passes(cfg: Config, spatial_dims: int = 3) -> int:
+    """Return the total number of TTA inference passes from config.
+
+    This determines the multiplier in the cached prediction filename
+    (e.g. ``_tta_x16_prediction.h5``).  When TTA is disabled the count is 1.
+    """
+    inference_cfg = getattr(cfg, "inference", None)
+    if inference_cfg is None:
+        return 1
+    tta_cfg = getattr(inference_cfg, "test_time_augmentation", None)
+    if tta_cfg is None or not bool(getattr(tta_cfg, "enabled", False)):
+        return 1
+
+    flip_axes_cfg = getattr(tta_cfg, "flip_axes", None)
+    rotation90_axes_cfg = getattr(tta_cfg, "rotation90_axes", None)
+
+    def _cfg_len(value):
+        if value is None or isinstance(value, str):
+            return 0
+        try:
+            return len(value)
+        except TypeError:
+            return 0
+
+    if flip_axes_cfg == "all" or flip_axes_cfg == []:
+        flip_variants = 2 ** spatial_dims if spatial_dims > 0 else 1
+    elif flip_axes_cfg is None:
+        flip_variants = 1
+    else:
+        flip_variants = 1 + _cfg_len(flip_axes_cfg)
+
+    if rotation90_axes_cfg == "all":
+        rotation_planes = 3 if spatial_dims == 3 else 1 if spatial_dims == 2 else 0
+    elif rotation90_axes_cfg is None:
+        rotation_planes = 0
+    else:
+        rotation_planes = _cfg_len(rotation90_axes_cfg)
+
+    passes_per_flip = 1 if rotation_planes == 0 else rotation_planes * 4
+    return flip_variants * passes_per_flip
+
+
+def tta_cache_suffix(cfg: Config, spatial_dims: int = 3) -> str:
+    """Return the TTA prediction cache suffix, e.g. ``_tta_x1_prediction.h5``."""
+    n = compute_tta_passes(cfg, spatial_dims=spatial_dims)
+    return f"_tta_x{n}_prediction.h5"
+
+
+def is_tta_cache_suffix(suffix: str | None) -> bool:
+    """Return True for any TTA intermediate prediction suffix (``_tta_x*_prediction.h5``)."""
+    if not suffix:
+        return False
+    return suffix.startswith("_tta_x") and suffix.endswith("_prediction.h5")
+
+
 __all__ = [
     "parse_args",
     "setup_config",
     "expand_file_paths",
     "extract_best_score_from_checkpoint",
     "setup_seed_everything",
+    "compute_tta_passes",
+    "tta_cache_suffix",
+    "is_tta_cache_suffix",
 ]

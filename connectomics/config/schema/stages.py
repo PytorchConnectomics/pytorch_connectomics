@@ -55,7 +55,7 @@ class TuneOutputConfig:
 
     output_dir: Optional[str] = None
     output_pred: Optional[str] = None
-    cache_suffix: str = "_tta_prediction.h5"
+    cache_suffix: str = "_tta_x1_prediction.h5"
     save_all_trials: bool = False
     save_best_segmentation: bool = True
     save_study: bool = True

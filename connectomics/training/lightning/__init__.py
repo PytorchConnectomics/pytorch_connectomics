@@ -17,10 +17,13 @@ from .path_utils import expand_file_paths
 from .runtime import cleanup_run_directory, modify_checkpoint_state, setup_run_directory
 from .trainer import create_trainer
 from .utils import (
+    compute_tta_passes,
     extract_best_score_from_checkpoint,
+    is_tta_cache_suffix,
     parse_args,
     setup_config,
     setup_seed_everything,
+    tta_cache_suffix,
 )
 
 __all__ = [
@@ -41,4 +44,7 @@ __all__ = [
     "parse_args",
     "setup_config",
     "extract_best_score_from_checkpoint",
+    "compute_tta_passes",
+    "tta_cache_suffix",
+    "is_tta_cache_suffix",
 ]

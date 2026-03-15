@@ -74,11 +74,13 @@ from connectomics.training.lightning import (  # noqa: E402
     cleanup_run_directory,
     create_datamodule,
     create_trainer,
+    is_tta_cache_suffix,
     modify_checkpoint_state,
     parse_args,
     setup_config,
     setup_run_directory,
     setup_seed_everything,
+    tta_cache_suffix,
 )
 
 # Setup seed_everything helper
@@ -211,11 +213,12 @@ def _resolve_cached_prediction_files(
         pred_file = output_dir / f"{filename}{cache_suffix}"
         current_suffix = cache_suffix
 
-        if not pred_file.exists() and cache_suffix != "_tta_prediction.h5":
-            tta_pred_file = output_dir / f"{filename}_tta_prediction.h5"
-            if tta_pred_file.exists():
-                pred_file = tta_pred_file
-                current_suffix = "_tta_prediction.h5"
+        # Fallback: search for any _tta_x*_prediction.h5 if exact suffix not found.
+        if not pred_file.exists() and not is_tta_cache_suffix(cache_suffix):
+            tta_matches = sorted(output_dir.glob(f"{filename}_tta_x*_prediction.h5"))
+            if tta_matches:
+                pred_file = tta_matches[-1]  # latest / highest augmentation count
+                current_suffix = pred_file.name[len(filename):]
 
         if not pred_file.exists():
             return False, None, []
@@ -223,8 +226,8 @@ def _resolve_cached_prediction_files(
         if not _is_valid_hdf5_prediction_file(pred_file):
             return False, None, []
 
-        if current_suffix == "_tta_prediction.h5":
-            loaded_suffix = "_tta_prediction.h5"
+        if is_tta_cache_suffix(current_suffix):
+            loaded_suffix = current_suffix
         resolved_files.append(pred_file)
 
     return True, loaded_suffix, resolved_files
@@ -272,7 +275,7 @@ def _has_tta_prediction_file(cfg: Config) -> bool:
 
 
 def _has_cached_predictions_in_output_dir(cfg: Config, mode: str) -> bool:
-    """Return True if all expected _tta_prediction.h5 files exist in the output directory."""
+    """Return True if all expected TTA prediction files exist in the output directory."""
     save_pred_cfg = getattr(cfg.inference, "save_prediction", None)
     if save_pred_cfg is None:
         return False
@@ -285,9 +288,10 @@ def _has_cached_predictions_in_output_dir(cfg: Config, mode: str) -> bool:
     if not test_image_paths:
         return False
 
+    suffix = tta_cache_suffix(cfg)
     output_path = Path(output_dir)
     for image_path in test_image_paths:
-        pred_file = output_path / f"{Path(image_path).stem}_tta_prediction.h5"
+        pred_file = output_path / f"{Path(image_path).stem}{suffix}"
         if not pred_file.exists():
             return False
         if not _is_valid_hdf5_prediction_file(pred_file):
@@ -309,7 +313,7 @@ def preflight_test_cache_hit(cfg: Config, datamodule) -> tuple[bool, str | None,
 
         # If explicit intermediate prediction exists, skip TTA inference and ckpt restore.
         if pred_file.exists() and _is_valid_hdf5_prediction_file(pred_file):
-            return True, "_tta_prediction.h5", 1
+            return True, tta_cache_suffix(cfg), 1
 
         print(
             "  WARNING: inference.tta_result_path file missing or unreadable "
@@ -691,7 +695,7 @@ def try_cache_only_test_execution(
             )
             return False
 
-    if loaded_suffix != "_tta_prediction.h5":
+    if not is_tta_cache_suffix(loaded_suffix):
         if _is_test_evaluation_enabled(cfg):
             print(
                 "  [OK]Loaded final predictions from disk, skipping "
@@ -766,7 +770,7 @@ def _configure_checkpoint_output_paths(args, cfg: Config) -> tuple[Path | None, 
 
         save_pred_cfg = cfg.inference.save_prediction
         save_pred_cfg.output_path = str(output_base / results_folder_name)
-        save_pred_cfg.cache_suffix = "_tta_prediction.h5"
+        save_pred_cfg.cache_suffix = tta_cache_suffix(cfg)
 
         if args.mode == "tune-test":
             print(f"Test output: {save_pred_cfg.output_path}")
@@ -812,7 +816,7 @@ def _handle_test_cache_hit(
     ckpt_path: str | None,
 ) -> tuple[bool, None]:
     """Print cache-hit status and return whether the test loop can be skipped."""
-    if cached_suffix == "_tta_prediction.h5":
+    if is_tta_cache_suffix(cached_suffix):
         print("  [OK]Loaded intermediate predictions from disk, skipping inference")
     else:
         print(
@@ -828,7 +832,7 @@ def _handle_test_cache_hit(
 
     should_skip_test_loop = (
         args.mode == "test"
-        and cached_suffix != "_tta_prediction.h5"
+        and not is_tta_cache_suffix(cached_suffix)
         and not _is_test_evaluation_enabled(cfg)
     )
     if should_skip_test_loop:
@@ -876,7 +880,7 @@ def main():
 
     # Tuning expects cached intermediate predictions by default.
     if args.mode in ["tune", "tune-test"]:
-        cfg.inference.save_prediction.cache_suffix = "_tta_prediction.h5"
+        cfg.inference.save_prediction.cache_suffix = tta_cache_suffix(cfg)
 
     # Run preflight checks for training mode
     if args.mode == "train":

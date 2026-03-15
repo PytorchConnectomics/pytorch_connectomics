@@ -44,6 +44,7 @@ from ...metrics.metrics_seg import (
 from ...models import build_model
 from ...models.loss import create_loss, get_loss_metadata_for_module
 from ..debugging import DebugManager
+from .utils import is_tta_cache_suffix, tta_cache_suffix
 
 # Import training/inference components
 from ..loss import LossOrchestrator, build_loss_weighter, infer_num_loss_tasks_from_config
@@ -445,7 +446,7 @@ class ConnectomicsModule(pl.LightningModule):
                             f"{len(filenames)} filenames; decoding will use the explicit file only."
                         )
                     # Treat explicit file as intermediate prediction so decoding still runs.
-                    return pred, True, "_tta_prediction.h5"
+                    return pred, True, tta_cache_suffix(self.cfg)
                 except Exception as e:
                     logger.warning(
                         f"Failed to load explicit inference.tta_result_path file {pred_file}: {e}. "
@@ -467,11 +468,11 @@ class ConnectomicsModule(pl.LightningModule):
 
         for filename in filenames:
             pred_file = output_dir / f"{filename}{cache_suffix}"
-            if not pred_file.exists() and mode == "test" and cache_suffix != "_tta_prediction.h5":
-                tta_pred_file = output_dir / f"{filename}_tta_prediction.h5"
-                if tta_pred_file.exists():
-                    pred_file = tta_pred_file
-                    loaded_suffix = "_tta_prediction.h5"
+            if not pred_file.exists() and mode == "test" and not is_tta_cache_suffix(cache_suffix):
+                tta_matches = sorted(output_dir.glob(f"{filename}_tta_x*_prediction.h5"))
+                if tta_matches:
+                    pred_file = tta_matches[-1]
+                    loaded_suffix = pred_file.name[len(filename):]
 
             if pred_file.exists():
                 try:
