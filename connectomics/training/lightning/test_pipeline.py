@@ -921,6 +921,16 @@ def run_test_step(module, batch: Dict[str, torch.Tensor], batch_idx: int) -> STE
         return torch.tensor(0.0, device=module.device)
 
     logger.info("No cached predictions found, running inference")
+
+    # If the model is a lightweight dummy (e.g. nn.Identity), inference would
+    # produce garbage.  Error out early instead of crashing later in TTA.
+    if getattr(module, "_skip_inference", False):
+        raise RuntimeError(
+            "Cached predictions expected but not found for this volume. "
+            "Cannot run inference with a lightweight (dummy) model. "
+            "Re-run with the real model checkpoint to generate predictions first."
+        )
+
     _log_volume_header(volume_name, "INFERENCE PLAN")
     logger.info(f"Input shape:       {tuple(images.shape)}")
     logger.info(f"Input device:      {images.device}")

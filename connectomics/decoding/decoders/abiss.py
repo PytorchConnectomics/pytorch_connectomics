@@ -153,31 +153,6 @@ def _load_output(output_h5: Path, output_npy: Path, output_dataset: str) -> np.n
     return cast2dtype(seg)
 
 
-def _command_uses_run_abiss_single(cmd: str | Sequence[str]) -> bool:
-    if isinstance(cmd, str):
-        try:
-            tokens = shlex.split(cmd)
-        except ValueError:
-            return "run_abiss_single.py" in cmd
-        return any("run_abiss_single.py" in token for token in tokens)
-    return any("run_abiss_single.py" in str(token) for token in cmd)
-
-
-def _fallback_decode_connected_components(pred: np.ndarray) -> np.ndarray:
-    """Lightweight fallback when ABISS executable dependencies are unavailable."""
-    from scipy import ndimage as ndi
-
-    if pred.ndim == 4:
-        if pred.shape[0] == 1:
-            foreground = pred[0] > 0.5
-        else:
-            foreground = np.max(pred, axis=0) > 0.5
-    else:
-        foreground = pred > 0.5
-
-    labeled, _ = ndi.label(foreground.astype(np.uint8, copy=False))
-    return cast2dtype(labeled.astype(np.uint64, copy=False))
-
 
 def decode_abiss(
     predictions: np.ndarray,
@@ -305,22 +280,14 @@ def decode_abiss(
         if env:
             proc_env.update({str(k): str(v) for k, v in env.items()})
 
-        try:
-            subprocess.run(
-                cmd,
-                shell=use_shell,
-                env=proc_env,
-                cwd=str(workspace_path),
-                check=check,
-                timeout=timeout_sec,
-            )
-        except subprocess.CalledProcessError:
-            if _command_uses_run_abiss_single(cmd):
-                if batch_mt:
-                    seg = _fallback_decode_connected_components(pred)
-                    return {round(mt, 10): seg for mt in batch_mt}
-                return _fallback_decode_connected_components(pred)
-            raise
+        subprocess.run(
+            cmd,
+            shell=use_shell,
+            env=proc_env,
+            cwd=str(workspace_path),
+            check=check,
+            timeout=timeout_sec,
+        )
 
         # Batch mode: read multiple output files written by run_abiss_single.
         if batch_mt:

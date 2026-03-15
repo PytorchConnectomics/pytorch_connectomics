@@ -767,7 +767,7 @@ class ConnectomicsModule(pl.LightningModule):
                 "and letting MONAI move window batches to the configured sw_device."
             )
 
-    def on_test_end(self) -> None:
+    def on_test_epoch_end(self) -> None:
         """Log aggregated test metrics after all ranks finish their assigned volumes."""
         log_test_epoch_metrics(self)
 

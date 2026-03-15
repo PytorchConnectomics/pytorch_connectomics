@@ -304,9 +304,10 @@ def _run_abiss_ws(
             _ABISS_TAG,
         ]
 
-        # Batch mode: multiple merge thresholds in one run (argv[8..N]).
+        # Batch mode: pass multiple merge thresholds as argv[8..N].
         # The C++ binary computes watershed + region graph once, then
-        # repeats the merge step for each threshold.
+        # deep-copies and repeats the merge step for each threshold,
+        # writing indexed output files (seg_{TAG}_{i}.data).
         use_batch = ws_merge_thresholds is not None and len(ws_merge_thresholds) > 1
         if use_batch:
             for mt in ws_merge_thresholds:
@@ -322,7 +323,8 @@ def _run_abiss_ws(
                 seg_file = ws_dir / f"seg_{_ABISS_TAG}_{i}.data"
                 if not seg_file.exists():
                     raise FileNotFoundError(
-                        f"ABISS watershed did not produce expected output: {seg_file}"
+                        f"ABISS batch mode did not produce expected output: {seg_file}. "
+                        f"Ensure the ws binary at {ws_binary} supports multi-threshold mode."
                     )
                 seg_xyz = _read_segmentation_xyz(seg_file, output_xyz_shape, halo=1)
                 results[round(mt, 10)] = np.transpose(seg_xyz, (2, 1, 0))

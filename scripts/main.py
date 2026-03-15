@@ -260,6 +260,41 @@ def _resolve_tta_result_path_override(cfg: Config) -> str:
     return ""
 
 
+def _has_tta_prediction_file(cfg: Config) -> bool:
+    """Return True if an explicit tta_result_path exists and is a valid HDF5 file."""
+    tta_path = _resolve_tta_result_path_override(cfg)
+    if not tta_path:
+        return False
+    pred_file = Path(tta_path).expanduser()
+    if not pred_file.is_absolute():
+        pred_file = Path.cwd() / pred_file
+    return pred_file.exists() and _is_valid_hdf5_prediction_file(pred_file)
+
+
+def _has_cached_predictions_in_output_dir(cfg: Config, mode: str) -> bool:
+    """Return True if all expected _tta_prediction.h5 files exist in the output directory."""
+    save_pred_cfg = getattr(cfg.inference, "save_prediction", None)
+    if save_pred_cfg is None:
+        return False
+    output_dir = getattr(save_pred_cfg, "output_path", None)
+    if not output_dir:
+        return False
+
+    # Resolve test/tune image paths to derive expected prediction filenames.
+    test_image_paths = resolve_test_image_paths(cfg)
+    if not test_image_paths:
+        return False
+
+    output_path = Path(output_dir)
+    for image_path in test_image_paths:
+        pred_file = output_path / f"{Path(image_path).stem}_tta_prediction.h5"
+        if not pred_file.exists():
+            return False
+        if not _is_valid_hdf5_prediction_file(pred_file):
+            return False
+    return True
+
+
 def preflight_test_cache_hit(cfg: Config, datamodule) -> tuple[bool, str | None, int]:
     """Check if test outputs already exist so inference (and ckpt restore) can be skipped."""
     save_pred_cfg = getattr(cfg.inference, "save_prediction", None)
@@ -868,23 +903,35 @@ def main():
     if try_cache_only_test_execution(cfg, args.mode, args.shard_id, args.num_shards):
         return
 
+    # Check for cached intermediate predictions early so we can skip both the
+    # expensive model build and checkpoint restore for test/tune modes.
+    tta_cached = args.mode in ("test", "tune", "tune-test") and (
+        _has_tta_prediction_file(cfg)
+        or _has_cached_predictions_in_output_dir(cfg, mode=args.mode)
+    )
+
     # Create model
-    print(f"Creating model: {cfg.model.arch.type}")
-    model = ConnectomicsModule(cfg)
-
-    # Count parameters
-    num_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
-    print(f"  Model parameters: {num_params:,}")
-
-    # Don't use checkpoint path if external weights were loaded (already in model state)
-    # External weights are loaded during config setup via model.external_weights_path
-    if args.external_prefix:
+    if tta_cached:
+        print(
+            f"  Cached intermediate predictions found; "
+            f"creating lightweight module (skipping {cfg.model.arch.type} build)."
+        )
+        model = ConnectomicsModule(cfg, model=torch.nn.Identity())
+        model._skip_inference = True
+        ckpt_path = None
+    elif args.external_prefix:
+        print(f"Creating model: {cfg.model.arch.type}")
+        model = ConnectomicsModule(cfg)
         print(
             "   WARNING: External weights loaded - checkpoint path will not "
             "be used for training/testing"
         )
         ckpt_path = None
     else:
+        print(f"Creating model: {cfg.model.arch.type}")
+        model = ConnectomicsModule(cfg)
+        num_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
+        print(f"  Model parameters: {num_params:,}")
         ckpt_path = modify_checkpoint_state(
             args.checkpoint,
             run_dir,
