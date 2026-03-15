@@ -973,30 +973,14 @@ def run_test_step(module, batch: Dict[str, torch.Tensor], batch_idx: int) -> STE
         _distributed_tta_barrier(module)
         return torch.tensor(0.0, device=module.device)
     predictions_np = predictions.detach().cpu().float().numpy()
-    predictions_np = _apply_prediction_crop_pad_if_needed(
-        module,
-        predictions_np,
-        reference_image_shape,
-        item_name="predictions",
-    )
-    reference_spatial_shape = tuple(int(v) for v in predictions_np.shape[-3:])
-    predictions_np = _apply_affinity_inference_crop_if_needed(
-        module,
-        predictions_np,
-        reference_spatial_shape=reference_spatial_shape,
-        item_name="predictions",
-    )
+
+    # Save intermediate predictions BEFORE crop_pad/affinity_crop so that
+    # the tuner (which applies its own crops to both predictions and labels)
+    # works from the same pre-crop data as the test pipeline.
     inference_duration = time.time() - inference_start
     logger.info(
         f"Inference completed in {inference_duration / 60:.2f} minutes ({inference_duration:.1f}s)"
     )
-
-    logger.info("Prediction Summary:")
-    logger.info(f"    Shape:  {predictions_np.shape}")
-    logger.info(f"    Dtype:  {predictions_np.dtype}")
-    logger.info(f"    Min:    {predictions_np.min():.6f}")
-    logger.info(f"    Max:    {predictions_np.max():.6f}")
-    logger.info(f"    Mean:   {predictions_np.mean():.6f}")
 
     save_intermediate = bool(getattr(inference_cfg.save_prediction, "enabled", False))
     if save_intermediate:
@@ -1012,6 +996,27 @@ def run_test_step(module, batch: Dict[str, torch.Tensor], batch_idx: int) -> STE
             batch_meta=batch.get("image_meta_dict"),
         )
         logger.info(f"Intermediate predictions saved ({time.time() - save_start:.1f}s)")
+
+    predictions_np = _apply_prediction_crop_pad_if_needed(
+        module,
+        predictions_np,
+        reference_image_shape,
+        item_name="predictions",
+    )
+    reference_spatial_shape = tuple(int(v) for v in predictions_np.shape[-3:])
+    predictions_np = _apply_affinity_inference_crop_if_needed(
+        module,
+        predictions_np,
+        reference_spatial_shape=reference_spatial_shape,
+        item_name="predictions",
+    )
+
+    logger.info("Prediction Summary:")
+    logger.info(f"    Shape:  {predictions_np.shape}")
+    logger.info(f"    Dtype:  {predictions_np.dtype}")
+    logger.info(f"    Min:    {predictions_np.min():.6f}")
+    logger.info(f"    Max:    {predictions_np.max():.6f}")
+    logger.info(f"    Mean:   {predictions_np.mean():.6f}")
 
     # In tune mode, skip decoding — the Optuna tuner will handle it.
     if mode == "tune":

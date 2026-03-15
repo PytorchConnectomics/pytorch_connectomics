@@ -619,14 +619,9 @@ class OptunaDecodingTuner:
                 for mt in self._abiss_all_merge_thresholds
                 if mt_are[mt]
             )
-            logger.info(
-                "Trial %3d: best ARE=%.4f (mt=%.2f) Prec=%.4f Rec=%.4f | %s",
-                self.trial_count,
-                best_avg,
-                best_mt,
-                avg_prec,
-                avg_rec,
-                mt_summary,
+            print(
+                f"  Trial {self.trial_count:3d}: best ARE={best_avg:.4f} (mt={best_mt:.2f}) "
+                f"Prec={avg_prec:.4f} Rec={avg_rec:.4f} | {mt_summary}"
             )
 
         return best_avg
@@ -1230,7 +1225,8 @@ def run_tuning(model, trainer, cfg, checkpoint_path=None):
     all_predictions = []
     for pred_file in pred_files:
         pred = read_volume(pred_file)
-        logger.info("Loaded %s: shape %s", Path(pred_file).name, pred.shape)
+        logger.info("Loaded %s: shape %s, dtype %s, range [%.4f, %.4f]",
+                     Path(pred_file).name, pred.shape, pred.dtype, pred.min(), pred.max())
         all_predictions.append(pred)
 
     total_slices = sum(p.shape[1] for p in all_predictions)

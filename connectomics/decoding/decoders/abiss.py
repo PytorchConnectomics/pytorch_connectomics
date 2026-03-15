@@ -13,8 +13,8 @@ import os
 import shlex
 import subprocess
 import sys
+import tempfile
 from pathlib import Path
-from tempfile import TemporaryDirectory
 from typing import Any, Dict, List, Mapping, Optional, Sequence
 
 import numpy as np
@@ -221,7 +221,7 @@ def decode_abiss(
         workspace_path.mkdir(parents=True, exist_ok=True)
         temp_ctx = None
     else:
-        temp_ctx = TemporaryDirectory(prefix="decode_abiss_")
+        temp_ctx = tempfile.TemporaryDirectory(prefix="decode_abiss_", dir=tempfile.gettempdir())
         workspace_path = Path(temp_ctx.name).resolve()
     launch_cwd = Path.cwd().resolve()
     package_root = Path(__file__).resolve().parents[2]
