@@ -37,6 +37,8 @@ class ConnectomicsDataModule(pl.LightningDataModule):
         cache_rate: Cache rate for CacheDataset.
         val_steps_per_epoch: Override validation dataset length.
         seed: Random seed for validation reseeding.
+        distributed_tta_sharding: Keep test samples replicated on all ranks so
+            TTA passes can be partitioned inside inference rather than by sampler.
         **dataset_kwargs: Extra args (iter_num, sample_size, etc.).
     """
 
@@ -54,6 +56,7 @@ class ConnectomicsDataModule(pl.LightningDataModule):
         cache_rate: float = 1.0,
         val_steps_per_epoch: Optional[int] = None,
         seed: int = 0,
+        distributed_tta_sharding: bool = False,
         **dataset_kwargs,
     ):
         super().__init__()
@@ -70,6 +73,7 @@ class ConnectomicsDataModule(pl.LightningDataModule):
         self.cache_rate = cache_rate
         self.val_steps_per_epoch = val_steps_per_epoch
         self.seed = seed
+        self.distributed_tta_sharding = distributed_tta_sharding
         self.dataset_kwargs = dataset_kwargs
 
         self.train_dataset = None
@@ -126,8 +130,16 @@ class ConnectomicsDataModule(pl.LightningDataModule):
 
     def test_dataloader(self):
         sampler = None
-        if self.test_dataset is not None and _is_distributed_evaluation_active():
-            sampler = DistributedEvaluationSampler(self.test_dataset)
+        if self.test_dataset is not None and _distributed_world_size() > 1:
+            if self.distributed_tta_sharding:
+                if len(self.test_dataset) != 1:
+                    raise RuntimeError(
+                        "Distributed TTA sharding requires a single test sample per rank. "
+                        "Disable inference.test_time_augmentation.distributed_sharding for "
+                        "multi-volume test datasets."
+                    )
+            else:
+                sampler = DistributedEvaluationSampler(self.test_dataset)
         return self._create_dataloader(
             self.test_dataset,
             shuffle=False,
@@ -196,6 +208,12 @@ class _IterNumDataset(torch.utils.data.Dataset):
 
 def _is_distributed_evaluation_active() -> bool:
     return torch.distributed.is_available() and torch.distributed.is_initialized()
+
+
+def _distributed_world_size() -> int:
+    if not _is_distributed_evaluation_active():
+        return 1
+    return int(torch.distributed.get_world_size())
 
 
 class DistributedEvaluationSampler(Sampler[int]):

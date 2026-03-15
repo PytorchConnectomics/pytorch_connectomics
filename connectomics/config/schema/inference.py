@@ -56,7 +56,7 @@ class TestTimeAugmentationConfig:
     flip_axes: Any = "all"  # "all" | "none" | list[int] (0-indexed spatial: 0=z, 1=y, 2=x)
     flip_combinations: Optional[List[List[int]]] = None  # explicit list of axis subsets
     rotation90_axes: Any = None  # "all" | None | [[int, int], ...] spatial plane pairs
-    rotate90_k: Optional[List[int]] = None  # e.g. [1,2,3]
+    rotate90_k: Optional[List[int]] = None  # subset of quarter-turns, defaults to [0,1,2,3]
     apply_mask: bool = True
     transforms: Optional[List[Dict[str, Any]]] = None  # advanced explicit transforms
 

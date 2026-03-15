@@ -12,6 +12,7 @@ from connectomics.training.lightning.path_utils import (
 from connectomics.training.lightning.utils import (
     expand_file_paths,
     extract_best_score_from_checkpoint,
+    resolve_prediction_cache_suffix,
     setup_config,
 )
 
@@ -155,3 +156,21 @@ def test_extract_best_score_from_checkpoint():
         "outputs/run/train_loss_total_epoch=0.1234.ckpt", "train_loss_total_epoch"
     )
     assert score == 0.1234
+
+
+def test_resolve_prediction_cache_suffix_uses_current_tta_plan_for_test_mode():
+    cfg = Config()
+    cfg.inference.save_prediction.cache_suffix = "_x1_prediction.h5"
+    cfg.inference.test_time_augmentation.enabled = True
+    cfg.inference.test_time_augmentation.flip_axes = [1, 2]
+    cfg.inference.test_time_augmentation.rotation90_axes = [[1, 2]]
+
+    assert resolve_prediction_cache_suffix(cfg, mode="test") == "_tta_x8_prediction.h5"
+
+
+def test_resolve_prediction_cache_suffix_preserves_non_tta_test_suffix_when_tta_disabled():
+    cfg = Config()
+    cfg.inference.save_prediction.cache_suffix = "_x1_prediction.h5"
+    cfg.inference.test_time_augmentation.enabled = False
+
+    assert resolve_prediction_cache_suffix(cfg, mode="test") == "_x1_prediction.h5"
