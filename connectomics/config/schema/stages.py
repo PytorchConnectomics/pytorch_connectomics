@@ -46,7 +46,7 @@ class TestConfig:
     evaluation: Optional[Dict[str, Any]] = None
 
     output_path: Optional[str] = None
-    cache_suffix: str = "_prediction.h5"
+    cache_suffix: str = "_x1_prediction.h5"
 
 
 @dataclass

@@ -341,7 +341,7 @@ def preflight_test_cache_hit(cfg: Config, datamodule) -> tuple[bool, str | None,
     cache_hit, loaded_suffix, _resolved_files = _resolve_cached_prediction_files(
         Path(output_dir_value),
         filenames,
-        getattr(save_pred_cfg, "cache_suffix", "_prediction.h5"),
+        getattr(save_pred_cfg, "cache_suffix", "_x1_prediction.h5"),
     )
     if not cache_hit:
         return False, None, len(filenames)
@@ -674,7 +674,7 @@ def try_cache_only_test_execution(
             return True
 
     output_dir = Path(output_dir_value)
-    cache_suffix = getattr(save_pred_cfg, "cache_suffix", "_prediction.h5")
+    cache_suffix = getattr(save_pred_cfg, "cache_suffix", "_x1_prediction.h5")
     filenames = [Path(str(p)).stem for p in test_image_paths]
 
     cache_hit, loaded_suffix, resolved_files = _resolve_cached_prediction_files(

@@ -73,7 +73,7 @@ class SavePredictionConfig:
     enabled: bool = False
     output_formats: List[str] = field(default_factory=lambda: ["h5"])  # Any of: h5, tiff, png
     output_path: Optional[str] = None
-    cache_suffix: str = "_prediction.h5"
+    cache_suffix: str = "_x1_prediction.h5"
 
     # Data scaling and output typing
     # -1 keeps native float probabilities/logits; >0 scales and casts to integer dtype if chosen.

@@ -143,7 +143,7 @@ def test_resolve_test_output_config_uses_runtime_inference_output_path(monkeypat
     """Output path should come from cfg.inference.save_prediction."""
     cfg = _base_config()
     cfg.inference.save_prediction.output_path = "/tmp/test_results"
-    cfg.inference.save_prediction.cache_suffix = "_prediction.h5"
+    cfg.inference.save_prediction.cache_suffix = "_x1_prediction.h5"
     module = ConnectomicsModule(cfg, model=SimpleModel())
 
     monkeypatch.setattr(
@@ -157,7 +157,7 @@ def test_resolve_test_output_config_uses_runtime_inference_output_path(monkeypat
 
     assert mode == "test"
     assert output_dir == "/tmp/test_results"
-    assert cache_suffix == "_prediction.h5"
+    assert cache_suffix == "_x1_prediction.h5"
     assert filenames == ["sample_a"]
 
 
@@ -182,7 +182,7 @@ def test_load_cached_predictions_reads_existing_prediction_files(tmp_path, monke
     """Existing cached predictions should load without falling back to inference."""
     cfg = _base_config()
     module = ConnectomicsModule(cfg, model=SimpleModel())
-    pred_file = tmp_path / "sample_prediction.h5"
+    pred_file = tmp_path / "sample_x1_prediction.h5"
     pred_file.write_text("stub")
 
     expected = np.ones((1, 4, 4, 4), dtype=np.float32)
@@ -191,12 +191,12 @@ def test_load_cached_predictions_reads_existing_prediction_files(tmp_path, monke
     predictions, loaded, suffix = module._load_cached_predictions(
         str(tmp_path),
         ["sample"],
-        "_prediction.h5",
+        "_x1_prediction.h5",
         "test",
     )
 
     assert loaded is True
-    assert suffix == "_prediction.h5"
+    assert suffix == "_x1_prediction.h5"
     assert predictions.shape == (1, 4, 4, 4)
 
 

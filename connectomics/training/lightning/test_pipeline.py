@@ -54,7 +54,7 @@ class TestContext:
     save_prediction_cfg: Any = None
     filenames: List[str] = field(default_factory=list)
     output_dir_value: Optional[str] = None
-    cache_suffix: str = "_prediction.h5"
+    cache_suffix: str = "_x1_prediction.h5"
 
     @staticmethod
     def from_module(module, batch: Dict[str, Any]) -> "TestContext":
@@ -779,11 +779,12 @@ def _process_decoding_postprocessing(
     if save_final_predictions:
         logger.info("[STAGE: Saving Final Predictions]")
         save_start = time.time()
+        final_tta_passes = compute_tta_passes(module.cfg)
         write_outputs(
             module.cfg,
             postprocessed_predictions,
             filenames,
-            suffix="prediction",
+            suffix=f"x{final_tta_passes}_prediction",
             mode=mode,
             batch_meta=batch_meta,
         )
@@ -877,7 +878,7 @@ def run_test_step(module, batch: Dict[str, torch.Tensor], batch_idx: int) -> STE
         mode,
     )
 
-    loaded_final_predictions = loaded_from_file and loaded_suffix == "_prediction.h5"
+    loaded_final_predictions = loaded_from_file and not is_tta_cache_suffix(loaded_suffix)
     loaded_intermediate_predictions = loaded_from_file and is_tta_cache_suffix(loaded_suffix)
     volume_name = filenames[0] if filenames else f"volume_{batch_idx}"
     is_global_zero = bool(getattr(getattr(module, "trainer", None), "is_global_zero", True))
