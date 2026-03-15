@@ -59,6 +59,18 @@ def test_resolve_output_filenames_supports_list_collated_images():
     assert resolve_output_filenames(cfg, batch, global_step=11) == ["input_a", "input_b"]
 
 
+def test_resolve_output_filenames_supports_string_image_paths_without_meta():
+    cfg = Config()
+    batch = {
+        "image": [
+            "/tmp/input_c.h5",
+            "/tmp/input_d.tif",
+        ],
+    }
+
+    assert resolve_output_filenames(cfg, batch, global_step=7) == ["input_c", "input_d"]
+
+
 def test_distributed_evaluation_sampler_partitions_without_duplicates():
     dataset = list(range(10))
 

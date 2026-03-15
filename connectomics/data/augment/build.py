@@ -339,53 +339,109 @@ def _build_eval_transforms_impl(
 
         transforms.append(ApplyVolumetricSplitd(keys=keys))
 
-    # Apply resize if configured (before cropping)
-    image_resize_factors = getattr(data_cfg.image_transform, "resize", None)
-
-    # Prefer mask_transform over data_transform for mask-specific settings.
+    # Apply resize if configured (before cropping).
+    # Validation uses target spatial size so patch-based val can mirror train-time
+    # crop-then-upsample workflows. Test/tune interpret data_transform.resize as
+    # the model-space patch size and derive full-volume scale factors from
+    # resize / dataloader.patch_size.
+    paired_resize_size = data_cfg.data_transform.resize if mode == "val" else None
+    paired_resize_factors = None
     mask_cfg = getattr(data_cfg, "mask_transform", None) or data_cfg.data_transform
-    mask_resize_factors = None
-    if mode in {"test", "tune"} and mask_cfg.resize is not None:
-        mask_resize_factors = mask_cfg.resize
+    if mode in {"test", "tune"} and data_cfg.data_transform.resize:
+        patch_size_cfg = data_cfg.dataloader.patch_size
+        if (
+            patch_size_cfg
+            and len(patch_size_cfg) == len(data_cfg.data_transform.resize)
+            and all(float(v) > 0 for v in patch_size_cfg)
+        ):
+            paired_resize_factors = [
+                float(out_size) / float(in_size)
+                for out_size, in_size in zip(data_cfg.data_transform.resize, patch_size_cfg)
+            ]
 
-    if image_resize_factors is not None and image_resize_factors:
+    if paired_resize_size:
         transforms.append(
-            ResizeByFactord(
+            Resized(
                 keys=["image"],
-                scale_factors=image_resize_factors,
+                spatial_size=paired_resize_size,
                 mode="bilinear",
                 align_corners=True,
             )
         )
-        if "label" in keys:
+        label_mask_keys = [k for k in keys if k in ["label", "mask"]]
+        if label_mask_keys:
             transforms.append(
-                ResizeByFactord(
-                    keys=["label"],
-                    scale_factors=image_resize_factors,
+                Resized(
+                    keys=label_mask_keys,
+                    spatial_size=paired_resize_size,
                     mode="nearest",
                     align_corners=None,
                 )
             )
-        # By default, mask follows image resize unless mask_transform explicitly overrides it.
-        if "mask" in keys and mask_resize_factors is None:
+    elif paired_resize_factors:
+        transforms.append(
+            ResizeByFactord(
+                keys=["image"],
+                scale_factors=paired_resize_factors,
+                mode="bilinear",
+                align_corners=True,
+            )
+        )
+        label_mask_keys = [k for k in keys if k in ["label", "mask"]]
+        if label_mask_keys:
+            transforms.append(
+                ResizeByFactord(
+                    keys=label_mask_keys,
+                    scale_factors=paired_resize_factors,
+                    mode="nearest",
+                    align_corners=None,
+                )
+            )
+    else:
+        image_resize_factors = getattr(data_cfg.image_transform, "resize", None)
+
+        mask_resize_factors = None
+        if mode in {"test", "tune"} and mask_cfg.resize is not None:
+            mask_resize_factors = mask_cfg.resize
+
+        if image_resize_factors is not None and image_resize_factors:
+            transforms.append(
+                ResizeByFactord(
+                    keys=["image"],
+                    scale_factors=image_resize_factors,
+                    mode="bilinear",
+                    align_corners=True,
+                )
+            )
+            if "label" in keys:
+                transforms.append(
+                    ResizeByFactord(
+                        keys=["label"],
+                        scale_factors=image_resize_factors,
+                        mode="nearest",
+                        align_corners=None,
+                    )
+                )
+            # By default, mask follows image resize unless mask_transform explicitly overrides it.
+            if "mask" in keys and mask_resize_factors is None:
+                transforms.append(
+                    ResizeByFactord(
+                        keys=["mask"],
+                        scale_factors=image_resize_factors,
+                        mode="nearest",
+                        align_corners=None,
+                    )
+                )
+
+        if mask_resize_factors is not None and mask_resize_factors and "mask" in keys:
             transforms.append(
                 ResizeByFactord(
                     keys=["mask"],
-                    scale_factors=image_resize_factors,
+                    scale_factors=mask_resize_factors,
                     mode="nearest",
                     align_corners=None,
                 )
             )
-
-    if mask_resize_factors is not None and mask_resize_factors and "mask" in keys:
-        transforms.append(
-            ResizeByFactord(
-                keys=["mask"],
-                scale_factors=mask_resize_factors,
-                mode="nearest",
-                align_corners=None,
-            )
-        )
 
     # Optional mask binarization for inference masks (e.g., enforce mask > 0).
     mask_binarize = False

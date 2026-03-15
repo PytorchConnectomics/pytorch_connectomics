@@ -31,6 +31,7 @@ class SlidingWindowConfig:
     padding_mode: str = "reflect"
     cval: float = 0.0
     keep_input_on_cpu: bool = False  # Move full volume to CPU between sliding-window batches
+    lazy_load: bool = False  # Stream ROIs from disk instead of materializing the full volume
     sw_device: Optional[str] = None
     output_device: Optional[str] = None
 

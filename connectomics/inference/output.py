@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import os
 from pathlib import Path
 from typing import Any, Dict, List, Sequence
 
@@ -45,6 +46,18 @@ def resolve_output_filenames(
             filenames = [meta_filenames]
         if len(filenames) > 0:
             batch_size = max(batch_size, len(filenames))
+
+    if not filenames:
+        if isinstance(images, (str, os.PathLike)):
+            filenames = [str(images)]
+        elif isinstance(images, (list, tuple)):
+            filenames = [
+                str(image)
+                for image in images
+                if isinstance(image, (str, os.PathLike))
+            ]
+            if filenames:
+                batch_size = max(batch_size, len(filenames))
 
     resolved_names: List[str] = []
     for idx in range(batch_size):

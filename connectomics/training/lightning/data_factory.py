@@ -7,6 +7,8 @@ from glob import glob
 from pathlib import Path
 from typing import List, Optional
 
+from monai.transforms import Compose
+
 from ...config import Config
 from ...data.augment.build import (
     build_test_transforms,
@@ -242,9 +244,21 @@ def create_datamodule(
     # Build transforms
     train_transforms = build_train_transforms(cfg)
     val_transforms = build_val_transforms(cfg)
-    test_transforms = (
-        build_test_transforms(cfg, mode=mode) if mode in ["test", "tune"] else val_transforms
+    lazy_test_inference = bool(
+        mode in ["test", "tune"]
+        and getattr(getattr(cfg.inference, "sliding_window", None), "lazy_load", False)
     )
+    if lazy_test_inference:
+        test_transforms = Compose([])
+        logger.info(
+            "Lazy sliding-window inference enabled for %s mode: test volumes will stay on disk "
+            "and be read ROI-by-ROI during inference.",
+            mode,
+        )
+    else:
+        test_transforms = (
+            build_test_transforms(cfg, mode=mode) if mode in ["test", "tune"] else val_transforms
+        )
 
     logger.info(f"Train transforms: {len(train_transforms.transforms)} steps")
     logger.info(f"Val transforms: {len(val_transforms.transforms)} steps")

@@ -890,11 +890,19 @@ class ResizeByFactord(MapTransform):
                 arr = torch.from_numpy(arr)
 
             inp = arr.unsqueeze(0).float()
+            spatial_dims = inp.ndim - 2
+            interp_mode = self.mode
+            if interp_mode == "bilinear":
+                if spatial_dims == 3:
+                    interp_mode = "trilinear"
+                elif spatial_dims == 1:
+                    interp_mode = "linear"
+
             out = torch.nn.functional.interpolate(
                 inp,
                 scale_factor=[float(f) for f in self.scale_factors],
-                mode=self.mode,
-                align_corners=self.align_corners,
+                mode=interp_mode,
+                align_corners=None if interp_mode == "nearest" else self.align_corners,
             ).squeeze(0)
 
             d[key] = out.numpy() if is_numpy else out.to(arr.dtype)
