@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import os
 import time
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional
@@ -20,8 +21,14 @@ from ...data.process.affinity import (
 )
 from ...data.process.misc import get_padsize
 from ...inference import apply_postprocessing, apply_save_prediction_transform, write_outputs
+from ...inference.lazy import (
+    get_lazy_image_reference_shape,
+    lazy_predict_volume,
+    load_lazy_volume,
+)
 from ...metrics.metrics_seg import AdaptedRandError
 from ...metrics.segmentation_numpy import instance_matching, instance_matching_simple, voi
+from .utils import compute_tta_passes, is_tta_cache_suffix
 
 logger = logging.getLogger(__name__)
 
@@ -159,6 +166,8 @@ def _wrap_single_sample_value(value: Any) -> Any:
     """Convert a collated list entry back into a singleton batch value."""
     if value is None:
         return None
+    if isinstance(value, (str, os.PathLike)):
+        return value
     if isinstance(value, np.ndarray):
         value = torch.from_numpy(value)
     if torch.is_tensor(value):
@@ -192,6 +201,26 @@ def _coerce_singleton_batch_tensor(value: Any) -> Any:
         if torch.is_tensor(inner):
             return inner if inner.ndim > 0 and inner.shape[0] == 1 else inner.unsqueeze(0)
     return value
+
+
+def _is_lazy_test_sample(batch: Dict[str, Any]) -> bool:
+    image = batch.get("image")
+    return isinstance(image, (str, os.PathLike))
+
+
+def _maybe_load_lazy_labels(
+    module,
+    label_value: Any,
+    *,
+    mode: str,
+) -> Optional[torch.Tensor]:
+    if label_value is None:
+        return None
+    if not isinstance(label_value, (str, os.PathLike)):
+        return _coerce_singleton_batch_tensor(label_value)
+
+    label_np = load_lazy_volume(module.cfg, str(label_value), kind="label", mode=mode)
+    return torch.from_numpy(label_np[np.newaxis, ...])
 
 
 def _crop_spatial_border(
@@ -820,16 +849,27 @@ def run_test_step(module, batch: Dict[str, torch.Tensor], batch_idx: int) -> STE
     # Build explicit context from module (single point of private method access)
     ctx = TestContext.from_module(module, batch)
 
-    images = _coerce_singleton_batch_tensor(batch["image"])
-    labels = _coerce_singleton_batch_tensor(batch.get("label"))
-    mask = _coerce_singleton_batch_tensor(batch.get("mask"))
-    crop_pad = _resolve_postprocessing_crop_pad(module)
-    reference_image_shape = tuple(int(v) for v in images.shape)
-
     filenames = ctx.filenames
     output_dir_value = ctx.output_dir_value
     cache_suffix = ctx.cache_suffix
     mode = "tune" if getattr(module, "_tune_mode", False) else "test"
+    lazy_sample = _is_lazy_test_sample(batch)
+
+    if lazy_sample:
+        image_path = str(batch["image"])
+        mask_path = str(batch["mask"]) if isinstance(batch.get("mask"), (str, os.PathLike)) else None
+        labels = None
+        reference_image_shape = get_lazy_image_reference_shape(module.cfg, image_path, mode=mode)
+        crop_pad = _resolve_postprocessing_crop_pad(module)
+        images = None
+        mask = None
+    else:
+        images = _coerce_singleton_batch_tensor(batch["image"])
+        labels = _coerce_singleton_batch_tensor(batch.get("label"))
+        mask = _coerce_singleton_batch_tensor(batch.get("mask"))
+        crop_pad = _resolve_postprocessing_crop_pad(module)
+        reference_image_shape = tuple(int(v) for v in images.shape)
+
     predictions_np, loaded_from_file, loaded_suffix = module._load_cached_predictions(
         output_dir_value,
         filenames,
@@ -838,7 +878,7 @@ def run_test_step(module, batch: Dict[str, torch.Tensor], batch_idx: int) -> STE
     )
 
     loaded_final_predictions = loaded_from_file and loaded_suffix == "_prediction.h5"
-    loaded_intermediate_predictions = loaded_from_file and loaded_suffix == "_tta_prediction.h5"
+    loaded_intermediate_predictions = loaded_from_file and is_tta_cache_suffix(loaded_suffix)
     volume_name = filenames[0] if filenames else f"volume_{batch_idx}"
     is_global_zero = bool(getattr(getattr(module, "trainer", None), "is_global_zero", True))
     distributed_tta_sharding = _is_distributed_tta_sharding_active(module)
@@ -851,6 +891,8 @@ def run_test_step(module, batch: Dict[str, torch.Tensor], batch_idx: int) -> STE
         logger.info(
             "Loaded final predictions from disk, skipping inference/decoding/postprocessing"
         )
+        if lazy_sample:
+            labels = _maybe_load_lazy_labels(module, batch.get("label"), mode=mode)
         predictions_np = _apply_prediction_crop_pad_if_needed(
             module,
             predictions_np,
@@ -891,6 +933,8 @@ def run_test_step(module, batch: Dict[str, torch.Tensor], batch_idx: int) -> STE
             _distributed_tta_barrier(module)
             return torch.tensor(0.0, device=module.device)
         logger.info("Loaded intermediate predictions from disk, skipping inference")
+        if lazy_sample:
+            labels = _maybe_load_lazy_labels(module, batch.get("label"), mode=mode)
         # In tune mode, the Optuna tuner handles decoding — skip it here.
         if mode == "tune":
             logger.info("Tune mode: skipping decoding (Optuna tuner will handle it)")
@@ -899,8 +943,8 @@ def run_test_step(module, batch: Dict[str, torch.Tensor], batch_idx: int) -> STE
         _log_volume_header(volume_name, "PROCESSING VOLUME")
         predictions_np = module._invert_save_prediction_transform(predictions_np)
         # NOTE: skip crop_pad and affinity_crop — intermediate predictions
-        # were saved before these postprocessing steps, so their spatial shape
-        # matches the original (unpadded) data, not the padded input.
+        # were saved after these crops, so their spatial shape already matches
+        # the original label volume.
         decoded_predictions = _process_decoding_postprocessing(
             module,
             predictions_np,
@@ -932,8 +976,13 @@ def run_test_step(module, batch: Dict[str, torch.Tensor], batch_idx: int) -> STE
         )
 
     _log_volume_header(volume_name, "INFERENCE PLAN")
-    logger.info(f"Input shape:       {tuple(images.shape)}")
-    logger.info(f"Input device:      {images.device}")
+    if lazy_sample:
+        logger.info(f"Input source:      {image_path}")
+        logger.info(f"Input shape:       {reference_image_shape}")
+        logger.info("Input device:      [lazy disk-backed volume]")
+    else:
+        logger.info(f"Input shape:       {tuple(images.shape)}")
+        logger.info(f"Input device:      {images.device}")
     if crop_pad is not None:
         logger.info(f"Postprocess crop:  {list(crop_pad)}")
 
@@ -950,7 +999,8 @@ def run_test_step(module, batch: Dict[str, torch.Tensor], batch_idx: int) -> STE
         logger.info(f"Blending mode:      {blending}")
     else:
         logger.info("Sliding window:     [Direct inference, no sliding window]")
-    logger.info(f"TTA:                {module._summarize_tta_plan(images.ndim)}")
+    image_ndim = len(reference_image_shape) if lazy_sample else images.ndim
+    logger.info(f"TTA:                {module._summarize_tta_plan(image_ndim)}")
     logger.info(f"{'=' * 70}")
 
     inference_start = time.time()
@@ -963,39 +1013,32 @@ def run_test_step(module, batch: Dict[str, torch.Tensor], batch_idx: int) -> STE
     if mask_transform_cfg is not None:
         mask_align_to_image = bool(getattr(mask_transform_cfg, "align_to_image", False))
 
-    predictions = module.inference_manager.predict_with_tta(
-        images,
-        mask=mask,
-        mask_align_to_image=mask_align_to_image,
-    )
+    if lazy_sample:
+        predictions = lazy_predict_volume(
+            module.cfg,
+            module.forward,
+            image_path,
+            mask_path=mask_path,
+            mask_align_to_image=mask_align_to_image,
+            device=module.device,
+        )
+        labels = _maybe_load_lazy_labels(module, batch.get("label"), mode=mode)
+    else:
+        predictions = module.inference_manager.predict_with_tta(
+            images,
+            mask=mask,
+            mask_align_to_image=mask_align_to_image,
+        )
     if distributed_tta_sharding and _should_skip_postprocess_on_rank(module):
         logger.info("Completed local distributed TTA shard; waiting for rank 0 postprocessing.")
         _distributed_tta_barrier(module)
         return torch.tensor(0.0, device=module.device)
     predictions_np = predictions.detach().cpu().float().numpy()
 
-    # Save intermediate predictions BEFORE crop_pad/affinity_crop so that
-    # the tuner (which applies its own crops to both predictions and labels)
-    # works from the same pre-crop data as the test pipeline.
     inference_duration = time.time() - inference_start
     logger.info(
         f"Inference completed in {inference_duration / 60:.2f} minutes ({inference_duration:.1f}s)"
     )
-
-    save_intermediate = bool(getattr(inference_cfg.save_prediction, "enabled", False))
-    if save_intermediate:
-        logger.info("[STAGE: Saving Intermediate Predictions]")
-        save_start = time.time()
-        predictions_to_save = apply_save_prediction_transform(module.cfg, predictions_np)
-        write_outputs(
-            module.cfg,
-            predictions_to_save,
-            filenames,
-            suffix="tta_prediction",
-            mode=mode,
-            batch_meta=batch.get("image_meta_dict"),
-        )
-        logger.info(f"Intermediate predictions saved ({time.time() - save_start:.1f}s)")
 
     predictions_np = _apply_prediction_crop_pad_if_needed(
         module,
@@ -1017,6 +1060,22 @@ def run_test_step(module, batch: Dict[str, torch.Tensor], batch_idx: int) -> STE
     logger.info(f"    Min:    {predictions_np.min():.6f}")
     logger.info(f"    Max:    {predictions_np.max():.6f}")
     logger.info(f"    Mean:   {predictions_np.mean():.6f}")
+
+    save_intermediate = bool(getattr(inference_cfg.save_prediction, "enabled", False))
+    if save_intermediate:
+        logger.info("[STAGE: Saving Intermediate Predictions]")
+        save_start = time.time()
+        tta_passes = compute_tta_passes(module.cfg)
+        predictions_to_save = apply_save_prediction_transform(module.cfg, predictions_np)
+        write_outputs(
+            module.cfg,
+            predictions_to_save,
+            filenames,
+            suffix=f"tta_x{tta_passes}_prediction",
+            mode=mode,
+            batch_meta=batch.get("image_meta_dict"),
+        )
+        logger.info(f"Intermediate predictions saved ({time.time() - save_start:.1f}s)")
 
     # In tune mode, skip decoding — the Optuna tuner will handle it.
     if mode == "tune":
