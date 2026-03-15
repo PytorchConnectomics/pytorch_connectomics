@@ -10,8 +10,8 @@ import argparse
 import shutil
 import subprocess
 import sys
+import tempfile
 from pathlib import Path
-from tempfile import TemporaryDirectory
 from typing import Iterable, Optional
 
 import numpy as np
@@ -282,7 +282,7 @@ def _run_abiss_ws(
         ws_dir.mkdir(parents=True, exist_ok=True)
         temp_ctx = None
     else:
-        temp_ctx = TemporaryDirectory(prefix="abiss_single_")
+        temp_ctx = tempfile.TemporaryDirectory(prefix="abiss_single_", dir=tempfile.gettempdir())
         ws_dir = Path(temp_ctx.name).resolve()
 
     try:
