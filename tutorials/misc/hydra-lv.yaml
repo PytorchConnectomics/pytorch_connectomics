@@ -364,7 +364,7 @@ tune:
   output:
     output_dir: "outputs/hydra-lv_rsunet/tuning"
     output_pred:                            # Will default to outputs/hydra-lv_rsunet/results
-    cache_suffix: "_tta_prediction.h5"      # Suffix for prediction files
+    cache_suffix: "_tta_x1_prediction.h5"   # Suffix for prediction files
     save_all_trials: false
     save_best_segmentation: true
     save_study: true
