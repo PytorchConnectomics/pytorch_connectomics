@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import torch
+import pytest
 
 from connectomics.config import Config
 from connectomics.inference.output import resolve_output_filenames
@@ -83,3 +84,49 @@ def test_distributed_evaluation_sampler_partitions_without_duplicates():
 
     assert sorted(combined) == list(range(10))
     assert len(set(combined)) == 10
+
+
+def test_test_dataloader_reuses_single_volume_for_distributed_tta_sharding(monkeypatch):
+    monkeypatch.setattr(
+        "connectomics.training.lightning.data._is_distributed_evaluation_active",
+        lambda: True,
+    )
+    monkeypatch.setattr("torch.distributed.get_world_size", lambda: 4)
+
+    datamodule = ConnectomicsDataModule(
+        train_data_dicts=[],
+        test_data_dicts=[{"image": torch.zeros((1, 8, 8, 8), dtype=torch.float32)}],
+        batch_size=1,
+        num_workers=0,
+        distributed_tta_sharding=True,
+    )
+
+    datamodule.setup(stage="test")
+    dataloader = datamodule.test_dataloader()
+
+    assert not isinstance(dataloader.sampler, DistributedEvaluationSampler)
+    assert len(dataloader) == 1
+
+
+def test_test_dataloader_rejects_multi_volume_distributed_tta_sharding(monkeypatch):
+    monkeypatch.setattr(
+        "connectomics.training.lightning.data._is_distributed_evaluation_active",
+        lambda: True,
+    )
+    monkeypatch.setattr("torch.distributed.get_world_size", lambda: 2)
+
+    datamodule = ConnectomicsDataModule(
+        train_data_dicts=[],
+        test_data_dicts=[
+            {"image": torch.zeros((1, 8, 8, 8), dtype=torch.float32)},
+            {"image": torch.zeros((1, 8, 8, 8), dtype=torch.float32)},
+        ],
+        batch_size=1,
+        num_workers=0,
+        distributed_tta_sharding=True,
+    )
+
+    datamodule.setup(stage="test")
+
+    with pytest.raises(RuntimeError, match="Distributed TTA sharding requires a single test sample"):
+        datamodule.test_dataloader()

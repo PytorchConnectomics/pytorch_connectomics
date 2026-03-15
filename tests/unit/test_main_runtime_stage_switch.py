@@ -114,6 +114,21 @@ def test_maybe_limit_test_devices_keeps_distributed_tta_sharding_for_single_volu
     assert cfg.inference.test_time_augmentation.distributed_sharding is True
 
 
+def test_maybe_limit_test_devices_uses_deduplicated_tta_pass_count_for_single_volume_tests():
+    cfg = Config()
+    cfg.system.num_gpus = 32
+    cfg.inference.test_time_augmentation.enabled = True
+    cfg.inference.test_time_augmentation.distributed_sharding = True
+    cfg.inference.test_time_augmentation.flip_axes = "all"
+    cfg.inference.test_time_augmentation.rotation90_axes = [[1, 2]]
+
+    changed = maybe_limit_test_devices(cfg, _DummyTestDataModule(volume_count=1))
+
+    assert changed is True
+    assert cfg.system.num_gpus == 16
+    assert cfg.inference.test_time_augmentation.distributed_sharding is True
+
+
 def test_maybe_enable_independent_test_sharding_uses_rank_env_for_multi_volume_tests(
     tmp_path, monkeypatch
 ):

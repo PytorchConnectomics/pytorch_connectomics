@@ -28,6 +28,179 @@ except ImportError:
 logger = logging.getLogger(__name__)
 
 
+def _to_plain_list(config_value) -> list:
+    """Convert OmegaConf ListConfig (or plain list) to nested plain Python lists."""
+    if HAS_OMEGACONF and isinstance(config_value, ListConfig):
+        return OmegaConf.to_container(config_value, resolve=True)
+    if isinstance(config_value, (list, tuple)):
+        return list(config_value)
+    return [config_value]
+
+
+def _resolve_spatial_dims(ndim: int) -> int:
+    if ndim == 5:
+        return 3
+    if ndim == 4:
+        return 2
+    raise ValueError(f"Unsupported data dimensions: {ndim}")
+
+
+def _normalize_spatial_axes(
+    axes: Any,
+    *,
+    spatial_dims: int,
+    context: str,
+) -> list[int]:
+    if isinstance(axes, int):
+        axes = [axes]
+    if not isinstance(axes, (list, tuple)):
+        raise ValueError(f"{context} must be an int or list of ints, got {axes!r}.")
+
+    normalized: list[int] = []
+    seen: set[int] = set()
+    for raw_axis in axes:
+        axis = int(raw_axis)
+        if axis < 0 or axis >= spatial_dims:
+            raise ValueError(
+                f"{context} axis must be in [0, {spatial_dims - 1}], got {axis}."
+            )
+        if axis in seen:
+            continue
+        normalized.append(axis)
+        seen.add(axis)
+    return normalized
+
+
+def _resolve_flip_augmentations(tta_cfg, *, spatial_dims: int) -> list[list[int]]:
+    flip_axes_cfg = getattr(tta_cfg, "flip_axes", None)
+    if isinstance(flip_axes_cfg, str) and flip_axes_cfg.lower() == "none":
+        return [[]]
+
+    if flip_axes_cfg == "all" or flip_axes_cfg == []:
+        spatial_axes = list(range(spatial_dims))
+        tta_flip_axes = [[]]
+        for r in range(1, len(spatial_axes) + 1):
+            for combo in combinations(spatial_axes, r):
+                tta_flip_axes.append(list(combo))
+        return tta_flip_axes
+
+    if flip_axes_cfg is None:
+        return [[]]
+
+    tta_flip_axes = [[]]
+    for raw_axes in _to_plain_list(flip_axes_cfg):
+        tta_flip_axes.append(
+            _normalize_spatial_axes(
+                raw_axes,
+                spatial_dims=spatial_dims,
+                context="flip_axes",
+            )
+        )
+    return tta_flip_axes
+
+
+def _resolve_rotation_planes(tta_cfg, *, spatial_dims: int) -> list[tuple[int, int]]:
+    rotation90_axes_cfg = getattr(tta_cfg, "rotation90_axes", None)
+    if isinstance(rotation90_axes_cfg, str) and rotation90_axes_cfg.lower() == "none":
+        return []
+
+    if rotation90_axes_cfg == "all":
+        if spatial_dims == 3:
+            return [(0, 1), (0, 2), (1, 2)]
+        if spatial_dims == 2:
+            return [(0, 1)]
+        raise ValueError(f"Unsupported spatial dimensions: {spatial_dims}")
+
+    if rotation90_axes_cfg is None:
+        return []
+
+    resolved_planes: list[tuple[int, int]] = []
+    for axes in _to_plain_list(rotation90_axes_cfg):
+        normalized = _normalize_spatial_axes(
+            axes,
+            spatial_dims=spatial_dims,
+            context="rotation90_axes",
+        )
+        if len(normalized) != 2:
+            raise ValueError(
+                f"Invalid rotation plane: {axes}. Each plane must contain exactly 2 axes."
+            )
+        plane = (normalized[0], normalized[1])
+        if plane not in resolved_planes:
+            resolved_planes.append(plane)
+    return resolved_planes
+
+
+def _resolve_rotation_k_values(tta_cfg) -> list[int]:
+    rotate90_k_cfg = getattr(tta_cfg, "rotate90_k", None)
+    if rotate90_k_cfg is None:
+        return [0, 1, 2, 3]
+
+    resolved_values: list[int] = []
+    seen: set[int] = set()
+    for raw_k in _to_plain_list(rotate90_k_cfg):
+        k = int(raw_k) % 4
+        if k in seen:
+            continue
+        resolved_values.append(k)
+        seen.add(k)
+    return resolved_values or [0]
+
+
+def _augmentation_signature(
+    *,
+    spatial_dims: int,
+    flip_axes: list[int],
+    rotation_plane: Optional[tuple[int, int]],
+    k_rotations: int,
+) -> tuple[int, ...]:
+    if spatial_dims == 3:
+        base = torch.arange(2 * 3 * 5, dtype=torch.int64).reshape(2, 3, 5)
+    elif spatial_dims == 2:
+        base = torch.arange(2 * 5, dtype=torch.int64).reshape(2, 5)
+    else:
+        raise ValueError(f"Unsupported spatial dimensions: {spatial_dims}")
+
+    if flip_axes:
+        base = torch.flip(base, dims=flip_axes)
+    if rotation_plane is not None and k_rotations % 4:
+        base = torch.rot90(base, k=k_rotations, dims=rotation_plane)
+    return tuple(int(v) for v in base.reshape(-1).tolist())
+
+
+def resolve_tta_augmentation_combinations(
+    tta_cfg,
+    *,
+    spatial_dims: int,
+) -> list[tuple[list[int], Optional[tuple[int, int]], int]]:
+    """Return unique spatial TTA combinations for the configured flips/rotations."""
+    flip_variants = _resolve_flip_augmentations(tta_cfg, spatial_dims=spatial_dims)
+    rotation_planes = _resolve_rotation_planes(tta_cfg, spatial_dims=spatial_dims)
+
+    if not rotation_planes:
+        return [(flip_axes, None, 0) for flip_axes in flip_variants]
+
+    rotation_ks = _resolve_rotation_k_values(tta_cfg)
+    combinations_out: list[tuple[list[int], Optional[tuple[int, int]], int]] = []
+    seen_signatures: set[tuple[int, ...]] = set()
+
+    for flip_axes in flip_variants:
+        for rotation_plane in rotation_planes:
+            for k_rotations in rotation_ks:
+                signature = _augmentation_signature(
+                    spatial_dims=spatial_dims,
+                    flip_axes=flip_axes,
+                    rotation_plane=rotation_plane,
+                    k_rotations=k_rotations,
+                )
+                if signature in seen_signatures:
+                    continue
+                seen_signatures.add(signature)
+                combinations_out.append((flip_axes, rotation_plane, k_rotations))
+
+    return combinations_out
+
+
 class TTAPredictor:
     """Encapsulates TTA preprocessing and flip ensemble logic."""
 
@@ -447,72 +620,24 @@ class TTAPredictor:
         0=z (depth), 1=y (height), 2=x (width).  Internally converted to tensor
         dimensions by adding ``spatial_offset`` (2 for B,C prefix).
         """
-        tta_flip_axes_config = getattr(tta_cfg, "flip_axes", None)
-        tta_rotation90_axes_config = getattr(tta_cfg, "rotation90_axes", None)
-
-        # Resolve flip axes (0-indexed spatial: 0=z, 1=y, 2=x)
-        if tta_flip_axes_config == "all" or tta_flip_axes_config == []:
-            if ndim == 5:
-                spatial_axes = [0, 1, 2]
-            elif ndim == 4:
-                spatial_axes = [0, 1]
-            else:
-                raise ValueError(f"Unsupported data dimensions: {ndim}")
-
-            tta_flip_axes = [[]]
-            for r in range(1, len(spatial_axes) + 1):
-                for combo in combinations(spatial_axes, r):
-                    tta_flip_axes.append(list(combo))
-        elif tta_flip_axes_config is None:
-            tta_flip_axes = [[]]
-        else:
-            config_list = self._to_plain_list(tta_flip_axes_config)
-            tta_flip_axes = [[]] + config_list
-
-        # Resolve rotation axes
+        spatial_dims = _resolve_spatial_dims(ndim)
         spatial_offset = 2  # Offset for batch and channel dimensions
-
-        if tta_rotation90_axes_config == "all":
-            if ndim == 5:
-                tta_rotation90_axes = [(2, 3), (2, 4), (3, 4)]
-            elif ndim == 4:
-                tta_rotation90_axes = [(2, 3)]
-            else:
-                raise ValueError(f"Unsupported data dimensions: {ndim}")
-        elif tta_rotation90_axes_config is None:
-            tta_rotation90_axes = []
-        else:
-            raw_axes = self._to_plain_list(tta_rotation90_axes_config)
-            tta_rotation90_axes = []
-            for axes in raw_axes:
-                if not isinstance(axes, (list, tuple)) or len(axes) != 2:
-                    raise ValueError(
-                        f"Invalid rotation plane: {axes}. "
-                        f"Each plane must be a list/tuple of 2 axes."
-                    )
-                full_axes = tuple(a + spatial_offset for a in axes)
-                tta_rotation90_axes.append(full_axes)
-
-        # Build all combinations
         augmentation_combinations = []
-        for flip_axes in tta_flip_axes:
-            if not tta_rotation90_axes:
-                augmentation_combinations.append((flip_axes, None, 0))
-            else:
-                for rotation_plane in tta_rotation90_axes:
-                    for k in range(4):
-                        augmentation_combinations.append((flip_axes, rotation_plane, k))
+        for flip_axes, rotation_plane, k_rotations in resolve_tta_augmentation_combinations(
+            tta_cfg,
+            spatial_dims=spatial_dims,
+        ):
+            full_axes = None
+            if rotation_plane is not None:
+                full_axes = tuple(axis + spatial_offset for axis in rotation_plane)
+            augmentation_combinations.append((flip_axes, full_axes, k_rotations))
 
         return augmentation_combinations
 
     @staticmethod
     def _to_plain_list(config_value) -> list:
         """Convert OmegaConf ListConfig (or plain list) to nested plain Python lists."""
-        if HAS_OMEGACONF and isinstance(config_value, ListConfig):
-            return OmegaConf.to_container(config_value, resolve=True)
-        if isinstance(config_value, (list, tuple)):
-            return list(config_value)
-        return [config_value]
+        return _to_plain_list(config_value)
 
     def _run_ensemble(
         self,

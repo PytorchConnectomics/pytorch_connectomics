@@ -28,9 +28,9 @@ default:
       sw_batch_size: 4
       keep_input_on_cpu: true
     test_time_augmentation:
-      enabled: false
+      enabled: true
       flip_axes: all
-      rotation90_axes: all
+      rotation90_axes: [[1, 2]]
     postprocessing:
       enabled: true
       # Crop the padded prediction so the later DeepEM affinity crop lands back
@@ -73,7 +73,8 @@ test:
       # label: [train-labels.tif, test-labels.h5]
       #image: train-input.tif
       #label: train-labels.tif
-      image: test-input_z29.h5
+      #image: test-input_z29.h5
+      image: test-input.tif
       label: test-labels.h5
       resolution: [30, 6, 6]
   inference:
@@ -96,8 +97,10 @@ tune:
   study_name: snemi_abiss_tuning
   data:
     val:
-      image: datasets/SNEMI/train-input.tif
-      label: datasets/SNEMI/train-labels.tif
+      image: datasets/SNEMI/test-input.tif
+      label: datasets/SNEMI/test-labels.h5
+      #image: datasets/SNEMI/train-input.tif
+      #label: datasets/SNEMI/train-labels.tif
   # Override profile defaults for SNEMI-specific search ranges
   parameter_space:
     decoding:

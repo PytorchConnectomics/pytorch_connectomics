@@ -44,7 +44,7 @@ from ...metrics.metrics_seg import (
 from ...models import build_model
 from ...models.loss import create_loss, get_loss_metadata_for_module
 from ..debugging import DebugManager
-from .utils import is_tta_cache_suffix, tta_cache_suffix
+from .utils import is_tta_cache_suffix, resolve_prediction_cache_suffix, tta_cache_suffix
 
 # Import training/inference components
 from ..loss import LossOrchestrator, build_loss_weighter, infer_num_loss_tasks_from_config
@@ -411,7 +411,7 @@ class ConnectomicsModule(pl.LightningModule):
         mode = "test"
         save_pred_cfg = self._get_runtime_inference_config().save_prediction
         output_dir_value = getattr(save_pred_cfg, "output_path", None)
-        cache_suffix = getattr(save_pred_cfg, "cache_suffix", "_x1_prediction.h5")
+        cache_suffix = resolve_prediction_cache_suffix(self.cfg, mode=mode)
 
         filenames = resolve_output_filenames(self.cfg, batch, global_step=self.global_step)
         return mode, output_dir_value, cache_suffix, filenames

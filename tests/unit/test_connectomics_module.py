@@ -161,6 +161,30 @@ def test_resolve_test_output_config_uses_runtime_inference_output_path(monkeypat
     assert filenames == ["sample_a"]
 
 
+def test_resolve_test_output_config_uses_current_tta_suffix_when_tta_is_enabled(monkeypatch):
+    cfg = _base_config()
+    cfg.inference.save_prediction.output_path = "/tmp/test_results"
+    cfg.inference.save_prediction.cache_suffix = "_x1_prediction.h5"
+    cfg.inference.test_time_augmentation.enabled = True
+    cfg.inference.test_time_augmentation.flip_axes = [0, 1, 2]
+    cfg.inference.test_time_augmentation.rotation90_axes = [[1, 2]]
+    module = ConnectomicsModule(cfg, model=SimpleModel())
+
+    monkeypatch.setattr(
+        "connectomics.training.lightning.model.resolve_output_filenames",
+        lambda _cfg, _batch, global_step=0: ["sample_a"],
+    )
+
+    mode, output_dir, cache_suffix, filenames = ConnectomicsModule._resolve_test_output_config(
+        module, batch={}
+    )
+
+    assert mode == "test"
+    assert output_dir == "/tmp/test_results"
+    assert cache_suffix == "_tta_x12_prediction.h5"
+    assert filenames == ["sample_a"]
+
+
 def test_save_metrics_to_file_uses_runtime_inference_output_path(tmp_path):
     """Metrics should be written under cfg.inference.save_prediction.output_path."""
     cfg = _base_config()

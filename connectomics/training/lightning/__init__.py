@@ -21,6 +21,7 @@ from .utils import (
     extract_best_score_from_checkpoint,
     is_tta_cache_suffix,
     parse_args,
+    resolve_prediction_cache_suffix,
     setup_config,
     setup_seed_everything,
     tta_cache_suffix,
@@ -46,5 +47,6 @@ __all__ = [
     "extract_best_score_from_checkpoint",
     "compute_tta_passes",
     "tta_cache_suffix",
+    "resolve_prediction_cache_suffix",
     "is_tta_cache_suffix",
 ]

@@ -171,8 +171,10 @@ default:
       clip_percentile_low: 0.0
       clip_percentile_high: 1.0
     data_transform:
-      # Keep symmetric full-volume context padding on the inference input.
-      pad_size: [32, 128, 128]
+      # Context padding in the upsampled coordinate space (applied after 2x resize).
+      # [16,64,64] pads 16/64/64 on each side → total [32,128,128] = half of
+      # model input [64,256,256].
+      pad_size: [16, 64, 64]
       # Sample half-size raw patches/volumes and upsample them 2x before the model.
       resize: [64, 256, 256]
     dataloader:
@@ -215,10 +217,9 @@ default:
       # activation_profile is not in TestTimeAugmentationConfig — removed
     postprocessing:
       enabled: true
-      # With DeepEM affinity crop enabled for offsets up to 9 voxels, crop only
-      # enough input padding so the later affinity valid-region crop lands back
-      # on the original image support.
-      crop_pad: [23, 32, 119, 128, 119, 128]
+      # crop_pad + affinity_crop[(9,0),(9,0),(9,0)] = pad_size [16,64,64]:
+      #   Z: 7+9=16, 16+0=16 | Y: 55+9=64, 64+0=64 | X: 55+9=64, 64+0=64
+      crop_pad: [7, 16, 55, 64, 55, 64]
 
 
 # ── Training stage ─────────────────────────────────────────────────────────────
@@ -338,8 +339,11 @@ test:
 
   inference:
     sliding_window:
-      # The full volume is upsampled 2x before sliding-window inference, so use
-      # the same transformed tensor size seen during training.
+      # Lazy 2x upsampling: _resolve_scale_factors() computes resize/patch_size
+      # = [64,256,256]/[32,128,128] = [2.0,2.0,2.0].  LazyVolumeAccessor reads
+      # ~[32,128,128] raw patches from disk and upsamples them 2x via grid_sample,
+      # so the model sees [64,256,256] — same transform as training's Resized().
+      lazy_load: true
       window_size: [64, 256, 256]
       overlap: 0.5
       blending: gaussian

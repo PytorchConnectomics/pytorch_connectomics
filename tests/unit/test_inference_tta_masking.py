@@ -3,6 +3,7 @@ import torch
 
 from connectomics.config import Config
 from connectomics.inference.tta import TTAPredictor
+from connectomics.training.lightning.utils import compute_tta_passes
 
 
 def _forward_constant(x: torch.Tensor) -> torch.Tensor:
@@ -170,3 +171,41 @@ def test_distributed_tta_reduction_raises_on_mismatched_rank_shapes(monkeypatch)
             torch.zeros((1, 2, 4, 4, 4), dtype=torch.float32),
             reduction_device=torch.device("cpu"),
         )
+
+
+def test_tta_rotate90_k_subset_is_honored():
+    cfg = Config()
+    cfg.inference.test_time_augmentation.enabled = True
+    cfg.inference.test_time_augmentation.flip_axes = None
+    cfg.inference.test_time_augmentation.rotation90_axes = [[1, 2]]
+    cfg.inference.test_time_augmentation.rotate90_k = [1, 3]
+
+    predictor = TTAPredictor(cfg=cfg, sliding_inferer=None, forward_fn=_forward_constant)
+    combinations = predictor._build_augmentation_combinations(
+        cfg.inference.test_time_augmentation,
+        ndim=5,
+    )
+
+    assert combinations == [
+        ([], (3, 4), 1),
+        ([], (3, 4), 3),
+    ]
+    assert compute_tta_passes(cfg, spatial_dims=3) == 2
+
+
+def test_tta_deduplicates_redundant_xy_flip_rotation_combinations():
+    cfg = Config()
+    cfg.inference.test_time_augmentation.enabled = True
+    cfg.inference.test_time_augmentation.flip_axes = "all"
+    cfg.inference.test_time_augmentation.rotation90_axes = [[1, 2]]
+
+    predictor = TTAPredictor(cfg=cfg, sliding_inferer=None, forward_fn=_forward_constant)
+    combinations = predictor._build_augmentation_combinations(
+        cfg.inference.test_time_augmentation,
+        ndim=5,
+    )
+    unique_combinations = {(tuple(flip_axes), rotation_plane, k) for flip_axes, rotation_plane, k in combinations}
+
+    assert len(combinations) == 16
+    assert len(unique_combinations) == 16
+    assert compute_tta_passes(cfg, spatial_dims=3) == 16

@@ -72,11 +72,13 @@ except AttributeError:
 from connectomics.training.lightning import (  # noqa: E402
     ConnectomicsModule,
     cleanup_run_directory,
+    compute_tta_passes,
     create_datamodule,
     create_trainer,
     is_tta_cache_suffix,
     modify_checkpoint_state,
     parse_args,
+    resolve_prediction_cache_suffix,
     setup_config,
     setup_run_directory,
     setup_seed_everything,
@@ -341,7 +343,7 @@ def preflight_test_cache_hit(cfg: Config, datamodule) -> tuple[bool, str | None,
     cache_hit, loaded_suffix, _resolved_files = _resolve_cached_prediction_files(
         Path(output_dir_value),
         filenames,
-        getattr(save_pred_cfg, "cache_suffix", "_x1_prediction.h5"),
+        resolve_prediction_cache_suffix(cfg, mode="test"),
     )
     if not cache_hit:
         return False, None, len(filenames)
@@ -378,42 +380,12 @@ def resolve_test_stage_runtime(cfg: Config) -> Config:
 
 def _estimate_tta_total_passes(cfg: Config) -> int:
     """Estimate total TTA passes from config for device-cap decisions."""
-    tta_cfg = getattr(getattr(cfg, "inference", None), "test_time_augmentation", None)
-    if tta_cfg is None or not bool(getattr(tta_cfg, "enabled", False)):
-        return 1
-
     do_2d = bool(
         getattr(getattr(cfg.data, "train", None), "do_2d", False)
         or getattr(getattr(cfg.data, "val", None), "do_2d", False)
     )
     spatial_dims = 2 if do_2d else 3
-
-    def _cfg_len(value) -> int:
-        if value is None or isinstance(value, str):
-            return 0
-        try:
-            return len(value)
-        except TypeError:
-            return 0
-
-    flip_axes_cfg = getattr(tta_cfg, "flip_axes", None)
-    if flip_axes_cfg == "all" or flip_axes_cfg == []:
-        flip_variants = 2**spatial_dims
-    elif flip_axes_cfg is None:
-        flip_variants = 1
-    else:
-        flip_variants = 1 + _cfg_len(flip_axes_cfg)
-
-    rotation90_axes_cfg = getattr(tta_cfg, "rotation90_axes", None)
-    if rotation90_axes_cfg == "all":
-        rotation_planes = 3 if spatial_dims == 3 else 1
-    elif rotation90_axes_cfg is None:
-        rotation_planes = 0
-    else:
-        rotation_planes = _cfg_len(rotation90_axes_cfg)
-
-    passes_per_flip = 1 if rotation_planes == 0 else rotation_planes * 4
-    return max(1, flip_variants * passes_per_flip)
+    return max(1, compute_tta_passes(cfg, spatial_dims=spatial_dims))
 
 
 def maybe_limit_test_devices(cfg: Config, datamodule) -> bool:
@@ -674,7 +646,7 @@ def try_cache_only_test_execution(
             return True
 
     output_dir = Path(output_dir_value)
-    cache_suffix = getattr(save_pred_cfg, "cache_suffix", "_x1_prediction.h5")
+    cache_suffix = resolve_prediction_cache_suffix(cfg, mode)
     filenames = [Path(str(p)).stem for p in test_image_paths]
 
     cache_hit, loaded_suffix, resolved_files = _resolve_cached_prediction_files(
@@ -878,9 +850,11 @@ def main():
     cfg = setup_config(args)
     configure_matmul_precision(cfg)
 
-    # Tuning expects cached intermediate predictions by default.
-    if args.mode in ["tune", "tune-test"]:
-        cfg.inference.save_prediction.cache_suffix = tta_cache_suffix(cfg)
+    # Keep cache lookup aligned with the current runtime mode and TTA plan.
+    if args.mode in ["test", "tune", "tune-test"]:
+        cfg.inference.save_prediction.cache_suffix = resolve_prediction_cache_suffix(
+            cfg, args.mode
+        )
 
     # Run preflight checks for training mode
     if args.mode == "train":
@@ -987,6 +961,9 @@ def main():
 
             # Re-resolve test-stage runtime overrides after tuning, including sentinels.
             cfg = resolve_test_stage_runtime(cfg)
+            cfg.inference.save_prediction.cache_suffix = resolve_prediction_cache_suffix(
+                cfg, args.mode
+            )
 
             if maybe_enable_independent_test_sharding(args, cfg):
                 trainer = create_trainer(
@@ -1026,6 +1003,9 @@ def main():
 
                 # Load and apply best parameters
                 cfg = load_and_apply_best_params(cfg)
+                cfg.inference.save_prediction.cache_suffix = resolve_prediction_cache_suffix(
+                    cfg, args.mode
+                )
 
             test_ckpt_path = ckpt_path
             cache_hit, cached_suffix, cache_count = preflight_test_cache_hit(cfg, datamodule)

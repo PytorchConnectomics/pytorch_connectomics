@@ -880,6 +880,12 @@ def create_datamodule(
         # Standard data module
         # Disable caching for test/tune modes to avoid issues with partial cache returning 0 length
         use_cache = cfg.data.dataloader.use_cache and mode == "train"
+        tta_cfg = getattr(getattr(cfg, "inference", None), "test_time_augmentation", None)
+        distributed_tta_sharding = bool(
+            mode in ["test", "tune"]
+            and tta_cfg is not None
+            and getattr(tta_cfg, "distributed_sharding", False)
+        )
 
         if mode in ["test", "tune"] and cfg.data.dataloader.use_cache:
             logger.warning("Caching disabled for test/tune mode (incompatible with partial cache)")
@@ -918,6 +924,7 @@ def create_datamodule(
             iter_num=iter_num_for_dataset,
             val_steps_per_epoch=val_steps_per_epoch,
             seed=cfg.system.seed,  # [FIX 1] Pass seed for validation reseeding
+            distributed_tta_sharding=distributed_tta_sharding,
             sample_size=tuple(cfg.data.dataloader.patch_size),
             do_2d=bool(
                 getattr(cfg.data.train, "do_2d", False) or getattr(cfg.data.val, "do_2d", False)
