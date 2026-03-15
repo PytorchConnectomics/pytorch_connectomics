@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-import glob
+from pathlib import Path
 
 import numpy as np
 import pytest
@@ -16,8 +16,9 @@ class _DummyModel:
 
 
 class _DummyTrainer:
-    def __init__(self):
+    def __init__(self, on_test=None):
         self.observed = {}
+        self.on_test = on_test
 
     def test(self, model, datamodule=None, ckpt_path=None):
         inference_cfg = model.cfg.inference
@@ -29,6 +30,8 @@ class _DummyTrainer:
             "decoding": inference_cfg.decoding,
             "evaluation_enabled": inference_cfg.evaluation.enabled,
         }
+        if self.on_test is not None:
+            self.on_test()
         return [{"status": "ok"}]
 
 
@@ -45,27 +48,30 @@ def test_run_tuning_uses_intermediate_only_inference_overrides(monkeypatch, tmp_
     cfg.inference.save_prediction.cache_suffix = "_prediction.h5"
     cfg.inference.decoding = [{"name": "decode_semantic", "kwargs": {"threshold": 0.8}}]
     cfg.inference.evaluation.enabled = True
-    cfg.data.val.label = str(tmp_path / "labels" / "*.h5")
+    cfg.data.val.image = str(tmp_path / "images" / "volume_0_input.h5")
+    cfg.data.val.label = str(tmp_path / "labels" / "volume_0_label.h5")
 
     model = _DummyModel(cfg)
-    trainer = _DummyTrainer()
 
-    prediction_file = str(tmp_path / "results" / "volume_0_tta_prediction.h5")
+    image_file = tmp_path / "images" / "volume_0_input.h5"
+    image_file.parent.mkdir(parents=True, exist_ok=True)
+    image_file.touch()
+
+    prediction_file = str(tmp_path / "results" / "volume_0_input_tta_prediction.h5")
     label_file = str(tmp_path / "labels" / "volume_0_label.h5")
+    Path(label_file).parent.mkdir(parents=True, exist_ok=True)
+    Path(label_file).touch()
     loaded_arrays = {
         prediction_file: np.zeros((3, 4, 4, 4), dtype=np.float32),
         label_file: np.zeros((4, 4, 4), dtype=np.uint16),
     }
-    glob_patterns = []
     captured = {}
-
-    def _fake_glob(pattern):
-        glob_patterns.append(pattern)
-        if pattern.endswith("_tta_prediction.h5"):
-            return [prediction_file]
-        if pattern == cfg.data.val.label:
-            return [label_file]
-        return []
+    trainer = _DummyTrainer(
+        on_test=lambda: (
+            Path(prediction_file).parent.mkdir(parents=True, exist_ok=True),
+            Path(prediction_file).touch(),
+        )
+    )
 
     class _FakeTuner:
         def __init__(self, cfg, predictions, ground_truth, mask=None):
@@ -83,7 +89,6 @@ def test_run_tuning_uses_intermediate_only_inference_overrides(monkeypatch, tmp_
         lambda cfg, mode="tune": {"cfg": cfg, "mode": mode},
     )
     monkeypatch.setattr("connectomics.data.io.read_volume", lambda path: loaded_arrays[path])
-    monkeypatch.setattr(glob, "glob", _fake_glob)
     monkeypatch.setattr("connectomics.decoding.tuning.optuna_tuner.OptunaDecodingTuner", _FakeTuner)
 
     run_tuning(model, trainer, cfg, checkpoint_path="checkpoint.ckpt")
@@ -100,34 +105,50 @@ def test_run_tuning_uses_intermediate_only_inference_overrides(monkeypatch, tmp_
     assert cfg.inference.decoding == [{"name": "decode_semantic", "kwargs": {"threshold": 0.8}}]
     assert cfg.inference.evaluation.enabled is True
 
-    assert any(pattern.endswith("*_tta_prediction.h5") for pattern in glob_patterns)
     assert len(captured["predictions"]) == 1
     assert len(captured["ground_truth"]) == 1
     assert captured["mask"] is None
 
 
-def test_run_tuning_requires_val_labels_in_tune_mode(monkeypatch, tmp_path):
+def test_run_tuning_ignores_stale_test_prediction_cache_when_tuning(monkeypatch, tmp_path):
     cfg = Config()
     cfg.tune = TuneConfig()
     cfg.inference.save_prediction.output_path = str(tmp_path / "results")
-    cfg.data.test.label = str(tmp_path / "labels" / "test_*.h5")
+    cfg.data.val.image = str(tmp_path / "images" / "train-input.tif")
+    cfg.data.val.label = str(tmp_path / "labels" / "train-labels.h5")
 
     model = _DummyModel(cfg)
-    trainer = _DummyTrainer()
 
-    prediction_file = str(tmp_path / "results" / "volume_0_tta_prediction.h5")
+    image_file = tmp_path / "images" / "train-input.tif"
+    image_file.parent.mkdir(parents=True, exist_ok=True)
+    image_file.touch()
+
+    stale_prediction_file = tmp_path / "results" / "test-input_z29_tta_prediction.h5"
+    stale_prediction_file.parent.mkdir(parents=True, exist_ok=True)
+    stale_prediction_file.touch()
+
+    expected_prediction_file = tmp_path / "results" / "train-input_tta_prediction.h5"
+    label_file = tmp_path / "labels" / "train-labels.h5"
+    label_file.parent.mkdir(parents=True, exist_ok=True)
+    label_file.touch()
+
+    stale_prediction = np.ones((3, 4, 4, 4), dtype=np.float32)
+    expected_prediction = np.full((3, 4, 4, 4), 7.0, dtype=np.float32)
     loaded_arrays = {
-        prediction_file: np.zeros((3, 4, 4, 4), dtype=np.float32),
+        str(stale_prediction_file): stale_prediction,
+        str(expected_prediction_file): expected_prediction,
+        str(label_file): np.zeros((4, 4, 4), dtype=np.uint16),
     }
-    glob_patterns = []
+    captured = {}
+    trainer = _DummyTrainer(on_test=lambda: expected_prediction_file.touch())
 
-    def _fake_glob(pattern):
-        glob_patterns.append(pattern)
-        if pattern.endswith("_tta_prediction.h5"):
-            return [prediction_file]
-        if pattern == cfg.data.test.label:
-            return [str(tmp_path / "labels" / "test_label.h5")]
-        return []
+    class _FakeTuner:
+        def __init__(self, cfg, predictions, ground_truth, mask=None):
+            captured["predictions"] = predictions
+            captured["ground_truth"] = ground_truth
+
+        def optimize(self):
+            return _FakeStudy()
 
     monkeypatch.setattr("connectomics.decoding.tuning.optuna_tuner.OPTUNA_AVAILABLE", True)
     monkeypatch.setattr(
@@ -135,9 +156,45 @@ def test_run_tuning_requires_val_labels_in_tune_mode(monkeypatch, tmp_path):
         lambda cfg, mode="tune": {"cfg": cfg, "mode": mode},
     )
     monkeypatch.setattr("connectomics.data.io.read_volume", lambda path: loaded_arrays[path])
-    monkeypatch.setattr(glob, "glob", _fake_glob)
+    monkeypatch.setattr("connectomics.decoding.tuning.optuna_tuner.OptunaDecodingTuner", _FakeTuner)
+
+    run_tuning(model, trainer, cfg, checkpoint_path="checkpoint.ckpt")
+
+    assert trainer.observed["datamodule"]["mode"] == "tune"
+    assert len(captured["predictions"]) == 1
+    assert np.array_equal(captured["predictions"][0], expected_prediction)
+    assert len(captured["ground_truth"]) == 1
+
+
+def test_run_tuning_requires_val_labels_in_tune_mode(monkeypatch, tmp_path):
+    cfg = Config()
+    cfg.tune = TuneConfig()
+    cfg.inference.save_prediction.output_path = str(tmp_path / "results")
+    cfg.data.val.image = str(tmp_path / "images" / "val_input.h5")
+    cfg.data.test.label = str(tmp_path / "labels" / "test_*.h5")
+
+    image_file = tmp_path / "images" / "val_input.h5"
+    image_file.parent.mkdir(parents=True, exist_ok=True)
+    image_file.touch()
+    expected_prediction_file = tmp_path / "results" / "val_input_tta_prediction.h5"
+
+    model = _DummyModel(cfg)
+    trainer = _DummyTrainer(
+        on_test=lambda: (
+            expected_prediction_file.parent.mkdir(parents=True, exist_ok=True),
+            expected_prediction_file.touch(),
+        )
+    )
+
+    monkeypatch.setattr("connectomics.decoding.tuning.optuna_tuner.OPTUNA_AVAILABLE", True)
+    monkeypatch.setattr(
+        "connectomics.training.lightning.create_datamodule",
+        lambda cfg, mode="tune": {"cfg": cfg, "mode": mode},
+    )
+    monkeypatch.setattr(
+        "connectomics.data.io.read_volume",
+        lambda path: np.zeros((3, 4, 4, 4), dtype=np.float32),
+    )
 
     with pytest.raises(ValueError, match="Missing data.val.label in configuration"):
         run_tuning(model, trainer, cfg, checkpoint_path="checkpoint.ckpt")
-
-    assert cfg.data.test.label not in glob_patterns
