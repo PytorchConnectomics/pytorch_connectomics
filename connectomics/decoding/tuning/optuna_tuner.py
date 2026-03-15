@@ -73,6 +73,47 @@ def _maybe_crop_affinity_array(
     return crop_spatial_by_pad(data, crop_pad, item_name="tuning array")
 
 
+def _expand_tuning_paths(path_or_pattern: Any, *, field_name: str) -> list[str]:
+    """Expand string/list path inputs used by the tuning loader."""
+    import glob
+
+    if path_or_pattern is None:
+        return []
+
+    if isinstance(path_or_pattern, (str, Path)):
+        pattern = str(path_or_pattern)
+        if "*" in pattern or "?" in pattern:
+            return sorted(glob.glob(pattern))
+        return [pattern]
+
+    if isinstance(path_or_pattern, list):
+        expanded: list[str] = []
+        for entry in path_or_pattern:
+            expanded.extend(_expand_tuning_paths(entry, field_name=field_name))
+        return expanded
+
+    raise TypeError(f"{field_name} must be string or list, got {type(path_or_pattern)}")
+
+
+def _resolve_tuning_prediction_files(
+    cfg,
+    predictions_dir: Path,
+    cache_suffix: str,
+) -> tuple[list[str], list[str]]:
+    """Resolve cached prediction files for the current tune dataset only."""
+    tune_image_pattern = getattr(getattr(cfg.data, "val", None), "image", None)
+    if tune_image_pattern is None:
+        raise ValueError("Missing data.val.image in configuration")
+
+    image_files = _expand_tuning_paths(tune_image_pattern, field_name="data.val.image")
+    if not image_files:
+        raise FileNotFoundError(f"No image files found matching pattern: {tune_image_pattern}")
+
+    expected_files = [predictions_dir / f"{Path(str(path)).stem}{cache_suffix}" for path in image_files]
+    existing_files = [str(path) for path in expected_files if path.exists()]
+    return existing_files, [str(path) for path in expected_files]
+
+
 @contextmanager
 def _temporary_tuning_inference_overrides(*cfg_objects: Any):
     """Force the pre-Optuna inference pass to cache raw predictions only."""
@@ -379,6 +420,13 @@ class OptunaDecodingTuner:
             pruner=pruner,
             direction=direction,
         )
+
+        # Seed the first trial with known-good defaults so TPE has a strong
+        # baseline from the start instead of wasting early trials on random configs.
+        default_params = self._build_default_trial_params()
+        if default_params:
+            study.enqueue_trial(default_params)
+            logger.info("Seeded first trial with default parameters: %s", default_params)
 
         # Run optimization
         n_trials = self.tune_cfg.n_trials
@@ -776,6 +824,70 @@ class OptunaDecodingTuner:
 
         return params
 
+    def _build_default_trial_params(self) -> Optional[Dict[str, Any]]:
+        """Build a param dict from config defaults to seed the first Optuna trial.
+
+        Maps ``parameter_space.decoding.defaults`` (and postprocessing defaults)
+        back to the flat Optuna parameter names used by ``_suggest_param``.
+        """
+        params: Dict[str, Any] = {}
+
+        # --- decoding defaults ---
+        decoding_cfg = getattr(self.param_space_cfg, "decoding", None)
+        defaults = getattr(decoding_cfg, "defaults", None) if decoding_cfg else None
+        param_defs = getattr(decoding_cfg, "parameters", None) if decoding_cfg else None
+
+        if defaults and param_defs:
+            for name, pcfg in param_defs.items():
+                if self._abiss_batch_enabled and name == "ws_merge_threshold":
+                    continue
+                val = self._lookup_default(defaults, name, pcfg)
+                if val is not None:
+                    params[name] = val
+
+        # --- postprocessing defaults ---
+        postproc_cfg = getattr(self.param_space_cfg, "postprocessing", None)
+        if postproc_cfg and getattr(postproc_cfg, "enabled", False):
+            pp_defaults = getattr(postproc_cfg, "defaults", None)
+            pp_params = getattr(postproc_cfg, "parameters", None)
+            if pp_defaults and pp_params:
+                for name, pcfg in pp_params.items():
+                    val = self._lookup_default(pp_defaults, name, pcfg)
+                    if val is not None:
+                        params[name] = val
+
+        return params if params else None
+
+    @staticmethod
+    def _lookup_default(defaults: Any, name: str, pcfg: Any) -> Any:
+        """Resolve a single default value from the defaults block.
+
+        Handles three layouts:
+        - ``nest_under``: ``defaults.<nest_under>.<name>``
+        - ``param_group`` + ``tuple_index``: ``defaults.<param_group>[tuple_index]``
+        - direct: ``defaults.<name>``
+        """
+        # nested (e.g. cli_args.ws_high_threshold)
+        nest_under = pcfg.get("nest_under", None) if hasattr(pcfg, "get") else getattr(pcfg, "nest_under", None)
+        if nest_under:
+            nested = getattr(defaults, nest_under, None) if not isinstance(defaults, dict) else defaults.get(nest_under)
+            if nested is not None:
+                val = nested.get(name, None) if isinstance(nested, dict) else getattr(nested, name, None)
+                if val is not None:
+                    return val
+
+        # tuple param (e.g. binary_threshold[0])
+        param_group = pcfg.get("param_group", None) if hasattr(pcfg, "get") else getattr(pcfg, "param_group", None)
+        tuple_index = pcfg.get("tuple_index", None) if hasattr(pcfg, "get") else getattr(pcfg, "tuple_index", None)
+        if param_group is not None and tuple_index is not None:
+            group_val = getattr(defaults, param_group, None) if not isinstance(defaults, dict) else defaults.get(param_group)
+            if isinstance(group_val, (list, tuple)) and int(tuple_index) < len(group_val):
+                return group_val[int(tuple_index)]
+
+        # direct
+        val = getattr(defaults, name, None) if not isinstance(defaults, dict) else defaults.get(name)
+        return val
+
     def _reconstruct_decoding_params(self, sampled_params: Dict[str, Any]) -> Dict[str, Any]:
         """
         Reconstruct decoding function parameters from sampled values.
@@ -1051,45 +1163,65 @@ def run_tuning(model, trainer, cfg, checkpoint_path=None):
     logger.info("STARTING PARAMETER TUNING | Output directory: %s", output_dir)
 
     # Step 1: Run inference on tune dataset
-    import glob
-
     from connectomics.data.io import read_volume
     from connectomics.training.lightning import create_datamodule
 
     logger.info("[1/4] Running inference on tuning dataset...")
 
     tune_data = cfg.data
+    cache_suffix = "_tta_prediction.h5"
 
-    # Create datamodule with tune mode using merged runtime cfg.data/cfg.inference.
-    datamodule = create_datamodule(cfg, mode="tune")
+    output_pred_dir = cfg.inference.save_prediction.output_path
+    predictions_dir = Path(output_pred_dir)
+    pred_files, expected_pred_files = _resolve_tuning_prediction_files(cfg, predictions_dir, cache_suffix)
 
-    logger.info("Using intermediate-only cache generation (decoding/evaluation disabled)")
+    if len(pred_files) == len(expected_pred_files):
+        logger.info(
+            "Found %d existing tuning prediction file(s) for the current tune dataset in %s "
+            "— skipping inference.",
+            len(pred_files),
+            predictions_dir,
+        )
+    else:
+        if pred_files:
+            logger.info(
+                "Found %d/%d matching tuning prediction file(s); rerunning inference for missing "
+                "volumes instead of mixing partial caches.",
+                len(pred_files),
+                len(expected_pred_files),
+            )
+        else:
+            logger.info("No matching tuning prediction files found in %s.", predictions_dir)
 
-    # Run test to populate/load raw prediction caches only. Optuna applies its own
-    # decoding sweep afterward, so the tune inference pass must not decode with the
-    # default config first.
-    with _temporary_tuning_inference_overrides(cfg, getattr(model, "cfg", None)) as cache_suffix:
-        model._tune_mode = True
-        try:
-            results = trainer.test(model, datamodule=datamodule, ckpt_path=checkpoint_path)
-        finally:
-            model._tune_mode = False
+        # Create datamodule with tune mode using merged runtime cfg.data/cfg.inference.
+        datamodule = create_datamodule(cfg, mode="tune")
 
-    logger.info("Test completed. Results: %s", results)
+        logger.info("Using intermediate-only cache generation (decoding/evaluation disabled)")
+
+        # Run test to populate/load raw prediction caches only. Optuna applies its own
+        # decoding sweep afterward, so the tune inference pass must not decode with the
+        # default config first.
+        with _temporary_tuning_inference_overrides(cfg, getattr(model, "cfg", None)) as cache_suffix:
+            model._tune_mode = True
+            try:
+                results = trainer.test(model, datamodule=datamodule, ckpt_path=checkpoint_path)
+            finally:
+                model._tune_mode = False
+
+        logger.info("Test completed. Results: %s", results)
+        pred_files, expected_pred_files = _resolve_tuning_prediction_files(
+            cfg, predictions_dir, cache_suffix
+        )
 
     # Step 2: Load predictions from saved files
     logger.info("[2/4] Loading predictions from saved files...")
-    output_pred_dir = cfg.inference.save_prediction.output_path
-    predictions_dir = Path(output_pred_dir)
 
-    # Find all prediction files using cache_suffix from config
-    pred_pattern = f"*{cache_suffix}"
-    pred_files = sorted(glob.glob(str(predictions_dir / pred_pattern)))
-
-    if not pred_files:
+    if len(pred_files) != len(expected_pred_files):
+        missing = sorted(set(expected_pred_files) - set(pred_files))
         raise FileNotFoundError(
-            f"No prediction files found in: {predictions_dir}\n"
-            f"Expected files matching pattern: {pred_pattern}"
+            "Missing tuning prediction files for the current tune dataset.\n"
+            f"Found: {len(pred_files)}/{len(expected_pred_files)} in {predictions_dir}\n"
+            f"Missing: {missing}"
         )
 
     logger.info("Found %d prediction file(s)", len(pred_files))
@@ -1116,14 +1248,7 @@ def run_tuning(model, trainer, cfg, checkpoint_path=None):
         raise ValueError("Missing data.val.label in configuration")
 
     # Handle both string patterns and pre-resolved lists
-    if isinstance(tune_label_pattern, list):
-        # Already resolved to list of files
-        label_files = sorted(tune_label_pattern)
-    elif isinstance(tune_label_pattern, str):
-        # Glob pattern - expand it
-        label_files = sorted(glob.glob(tune_label_pattern))
-    else:
-        raise TypeError(f"data.val.label must be string or list, got {type(tune_label_pattern)}")
+    label_files = _expand_tuning_paths(tune_label_pattern, field_name="data.val.label")
 
     if not label_files:
         raise FileNotFoundError(f"No label files found matching pattern: {tune_label_pattern}")
@@ -1148,13 +1273,7 @@ def run_tuning(model, trainer, cfg, checkpoint_path=None):
     all_masks = None
     tune_mask_pattern = getattr(getattr(tune_data, "val", None), "mask", None)
     if tune_mask_pattern:
-        # Handle both string patterns and pre-resolved lists
-        if isinstance(tune_mask_pattern, list):
-            mask_files = sorted(tune_mask_pattern)
-        elif isinstance(tune_mask_pattern, str):
-            mask_files = sorted(glob.glob(tune_mask_pattern))
-        else:
-            raise TypeError(f"data.val.mask must be string or list, got {type(tune_mask_pattern)}")
+        mask_files = _expand_tuning_paths(tune_mask_pattern, field_name="data.val.mask")
 
         if not mask_files:
             logger.warning("No mask files found matching pattern: %s", tune_mask_pattern)
