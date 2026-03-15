@@ -411,7 +411,7 @@ class ConnectomicsModule(pl.LightningModule):
         mode = "test"
         save_pred_cfg = self._get_runtime_inference_config().save_prediction
         output_dir_value = getattr(save_pred_cfg, "output_path", None)
-        cache_suffix = getattr(save_pred_cfg, "cache_suffix", "_prediction.h5")
+        cache_suffix = getattr(save_pred_cfg, "cache_suffix", "_x1_prediction.h5")
 
         filenames = resolve_output_filenames(self.cfg, batch, global_step=self.global_step)
         return mode, output_dir_value, cache_suffix, filenames

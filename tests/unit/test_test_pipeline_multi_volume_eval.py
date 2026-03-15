@@ -34,11 +34,11 @@ class _DummyModule:
         return None
 
     def _resolve_test_output_config(self, _batch):
-        return "test", "/tmp/results", "_prediction.h5", ["train-input", "test-input_z29"]
+        return "test", "/tmp/results", "_x1_prediction.h5", ["train-input", "test-input_z29"]
 
     def _load_cached_predictions(self, _output_dir, _filenames, _cache_suffix, _mode):
         pred = np.zeros((2, 1, 4, 4, 4), dtype=np.uint16)
-        return pred, True, "_prediction.h5"
+        return pred, True, "_x1_prediction.h5"
 
     def _is_test_evaluation_enabled(self):
         return True
@@ -80,7 +80,7 @@ class _CroppingModule:
         return None
 
     def _resolve_test_output_config(self, _batch):
-        return "test", "/tmp/results", "_prediction.h5", ["sample"]
+        return "test", "/tmp/results", "_x1_prediction.h5", ["sample"]
 
     def _load_cached_predictions(self, _output_dir, _filenames, _cache_suffix, _mode):
         return None, False, ""
@@ -163,7 +163,7 @@ class _AffinityCroppingModule:
         return None
 
     def _resolve_test_output_config(self, _batch):
-        return "test", "/tmp/results", "_prediction.h5", ["sample"]
+        return "test", "/tmp/results", "_x1_prediction.h5", ["sample"]
 
     def _load_cached_predictions(self, _output_dir, _filenames, _cache_suffix, _mode):
         return None, False, ""
@@ -247,7 +247,7 @@ class _AsymmetricPostprocessAffinityModule:
         return None
 
     def _resolve_test_output_config(self, _batch):
-        return "test", "/tmp/results", "_prediction.h5", ["sample"]
+        return "test", "/tmp/results", "_x1_prediction.h5", ["sample"]
 
     def _load_cached_predictions(self, _output_dir, _filenames, _cache_suffix, _mode):
         return None, False, ""
@@ -322,7 +322,7 @@ class _ListBatchModule:
 
     def _resolve_test_output_config(self, batch):
         filenames = resolve_output_filenames(self.cfg, batch, global_step=0)
-        return "test", "/tmp/results", "_prediction.h5", filenames
+        return "test", "/tmp/results", "_x1_prediction.h5", filenames
 
     def _load_cached_predictions(self, _output_dir, _filenames, _cache_suffix, _mode):
         return None, False, ""

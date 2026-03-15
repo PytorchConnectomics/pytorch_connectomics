@@ -123,7 +123,7 @@ def _temporary_tuning_inference_overrides(*cfg_objects: Any):
                 "inference_cfg": inference_cfg,
                 "save_prediction_enabled": bool(getattr(save_prediction_cfg, "enabled", False)),
                 "save_prediction_cache_suffix": getattr(
-                    save_prediction_cfg, "cache_suffix", "_prediction.h5"
+                    save_prediction_cfg, "cache_suffix", "_x1_prediction.h5"
                 ),
                 "decoding": deepcopy(getattr(inference_cfg, "decoding", None)),
                 "evaluation_cfg": evaluation_cfg,

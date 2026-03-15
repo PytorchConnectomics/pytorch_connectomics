@@ -45,7 +45,7 @@ def test_run_tuning_uses_intermediate_only_inference_overrides(monkeypatch, tmp_
     cfg.tune = TuneConfig()
     cfg.inference.save_prediction.output_path = str(tmp_path / "results")
     cfg.inference.save_prediction.enabled = False
-    cfg.inference.save_prediction.cache_suffix = "_prediction.h5"
+    cfg.inference.save_prediction.cache_suffix = "_x1_prediction.h5"
     cfg.inference.decoding = [{"name": "decode_semantic", "kwargs": {"threshold": 0.8}}]
     cfg.inference.evaluation.enabled = True
     cfg.data.val.image = str(tmp_path / "images" / "volume_0_input.h5")
@@ -101,7 +101,7 @@ def test_run_tuning_uses_intermediate_only_inference_overrides(monkeypatch, tmp_
     assert trainer.observed["evaluation_enabled"] is False
 
     assert cfg.inference.save_prediction.enabled is False
-    assert cfg.inference.save_prediction.cache_suffix == "_prediction.h5"
+    assert cfg.inference.save_prediction.cache_suffix == "_x1_prediction.h5"
     assert cfg.inference.decoding == [{"name": "decode_semantic", "kwargs": {"threshold": 0.8}}]
     assert cfg.inference.evaluation.enabled is True
 
