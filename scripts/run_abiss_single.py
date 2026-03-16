@@ -267,6 +267,7 @@ def _run_abiss_ws(
     keep_workdir: bool = False,
     ws_merge_threshold: Optional[float] = None,
     ws_merge_thresholds: Optional[list[float]] = None,
+    ws_merge_function: Optional[str] = None,
 ) -> "np.ndarray | dict[float, np.ndarray]":
     if ws_low_threshold > ws_high_threshold:
         raise ValueError(
@@ -304,7 +305,12 @@ def _run_abiss_ws(
             _ABISS_TAG,
         ]
 
-        # Batch mode: pass multiple merge thresholds as argv[8..N].
+        # Optional merge function (e.g. "max", "mean", "p75") must appear
+        # before any merge thresholds in the argv list.
+        if ws_merge_function is not None:
+            cmd.append(str(ws_merge_function))
+
+        # Batch mode: pass multiple merge thresholds as trailing argv.
         # The C++ binary computes watershed + region graph once, then
         # deep-copies and repeats the merge step for each threshold,
         # writing indexed output files (seg_{TAG}_{i}.data).
@@ -407,6 +413,17 @@ def _parse_args() -> argparse.Namespace:
         "merges with each threshold. Writes {output}_mt{i}.{ext} per threshold.",
     )
     parser.add_argument(
+        "--ws-merge-function",
+        type=str,
+        default=None,
+        help=(
+            "Edge scoring function for region graph construction. "
+            "'max' (default), 'mean', or 'pNN' for Nth percentile "
+            "(e.g. 'p75', 'p90'). Percentile scoring is more robust "
+            "than max against noisy boundary voxels."
+        ),
+    )
+    parser.add_argument(
         "--abiss-boundary-flags",
         default="1,1,1,1,1,1",
         help="Six boundary flags for ABISS param.txt as comma-separated ints.",
@@ -486,6 +503,8 @@ def main() -> int:
 
     output_path.parent.mkdir(parents=True, exist_ok=True)
 
+    ws_merge_function = args.ws_merge_function
+
     if batch_merge_thresholds is not None and len(batch_merge_thresholds) > 1:
         # Batch mode: run watershed once, merge with each threshold
         result = _run_abiss_ws(
@@ -501,6 +520,7 @@ def main() -> int:
             workdir=Path(args.abiss_workdir).resolve() if args.abiss_workdir else None,
             keep_workdir=bool(args.keep_abiss_workdir),
             ws_merge_thresholds=batch_merge_thresholds,
+            ws_merge_function=ws_merge_function,
         )
         stem = output_path.stem
         ext = output_path.suffix
@@ -523,6 +543,7 @@ def main() -> int:
         workdir=Path(args.abiss_workdir).resolve() if args.abiss_workdir else None,
         keep_workdir=bool(args.keep_abiss_workdir),
         ws_merge_threshold=ws_merge,
+        ws_merge_function=ws_merge_function,
     )
 
     _write_array(output_path, segmentation, dataset=args.output_dataset)

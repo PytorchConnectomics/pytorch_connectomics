@@ -8,10 +8,13 @@ so the logic can be reused by both the Lightning module and TTA routines.
 from __future__ import annotations
 
 import logging
-from typing import Optional, Tuple, Union
+from typing import Optional, Sequence, Tuple, Union
 
 import torch
+import torch.nn.functional as F
+from monai.data.utils import dense_patch_slices
 from monai.inferers import SlidingWindowInferer
+from monai.inferers.utils import _get_scan_interval, compute_importance_map
 
 logger = logging.getLogger(__name__)
 
@@ -63,21 +66,7 @@ def resolve_inferer_overlap(cfg, roi_size: Tuple[int, ...]) -> Union[float, Tupl
     return 0.5
 
 
-def build_sliding_inferer(cfg) -> Optional[SlidingWindowInferer]:
-    """
-    Build a MONAI SlidingWindowInferer if configuration permits.
-
-    Returns:
-        SlidingWindowInferer or None.
-    """
-    roi_size = resolve_inferer_roi_size(cfg)
-    if roi_size is None:
-        logger.warning(
-            "Sliding-window inference disabled: unable to determine ROI size. "
-            "Set inference.window_size or model.output_size in the config."
-        )
-        return None
-
+def _resolve_sliding_window_runtime(cfg, roi_size: Tuple[int, ...]) -> dict:
     overlap = resolve_inferer_overlap(cfg, roi_size)
     data_cfg = getattr(cfg, "data", None)
     data_loader_cfg = getattr(data_cfg, "dataloader", None) if data_cfg else None
@@ -90,6 +79,7 @@ def build_sliding_inferer(cfg) -> Optional[SlidingWindowInferer]:
     mode = getattr(sliding_cfg, "blending", "gaussian") if sliding_cfg else "gaussian"
     sigma_scale = float(getattr(sliding_cfg, "sigma_scale", 0.125)) if sliding_cfg else 0.125
     padding_mode = getattr(sliding_cfg, "padding_mode", "constant") if sliding_cfg else "constant"
+    cval = float(getattr(sliding_cfg, "cval", 0.0)) if sliding_cfg else 0.0
     keep_input_on_cpu = (
         bool(getattr(sliding_cfg, "keep_input_on_cpu", False)) if sliding_cfg else False
     )
@@ -112,24 +102,104 @@ def build_sliding_inferer(cfg) -> Optional[SlidingWindowInferer]:
                 "and CUDA is unavailable. Sliding-window inference will run on CPU."
             )
 
+    return {
+        "overlap": overlap,
+        "sw_batch_size": sw_batch_size,
+        "mode": mode,
+        "sigma_scale": sigma_scale,
+        "padding_mode": padding_mode,
+        "cval": cval,
+        "keep_input_on_cpu": keep_input_on_cpu,
+        "sw_device": sw_device,
+        "output_device": output_device,
+    }
+
+
+def _extract_padded_patch_batch(
+    tensor: torch.Tensor,
+    patch_slices: Sequence[tuple[slice, ...]],
+    *,
+    roi_size: tuple[int, ...],
+    padding_mode: str,
+    cval: float,
+) -> tuple[torch.Tensor, list[tuple[int, ...]]]:
+    if tensor.shape[0] != 1:
+        raise ValueError(
+            "Patch-first sliding-window TTA currently expects singleton batches. "
+            f"Got batch size {tensor.shape[0]}."
+        )
+
+    spatial_dims = len(roi_size)
+    image_size = tuple(int(v) for v in tensor.shape[-spatial_dims:])
+    patches = []
+    locations: list[tuple[int, ...]] = []
+
+    for patch_slice in patch_slices:
+        location = tuple(int(s.start) for s in patch_slice)
+        end = tuple(location[axis] + int(roi_size[axis]) for axis in range(spatial_dims))
+
+        inner_start = tuple(max(0, location[axis]) for axis in range(spatial_dims))
+        inner_end = tuple(min(image_size[axis], end[axis]) for axis in range(spatial_dims))
+        inner_slices = [
+            slice(int(inner_start[axis]), int(inner_end[axis])) for axis in range(spatial_dims)
+        ]
+        inner = tensor[(slice(None), slice(None), *inner_slices)]
+
+        pad_pairs = []
+        for axis in range(spatial_dims):
+            pad_before = max(0, -location[axis])
+            pad_after = max(0, end[axis] - image_size[axis])
+            pad_pairs.append((pad_before, pad_after))
+
+        if any(before or after for before, after in pad_pairs):
+            pad = []
+            for before, after in reversed(pad_pairs):
+                pad.extend([before, after])
+            if padding_mode == "constant":
+                inner = F.pad(inner, tuple(pad), mode=padding_mode, value=cval)
+            else:
+                inner = F.pad(inner, tuple(pad), mode=padding_mode)
+
+        patches.append(inner)
+        locations.append(location)
+
+    return torch.cat(patches, dim=0), locations
+
+
+def build_sliding_inferer(cfg) -> Optional[SlidingWindowInferer]:
+    """
+    Build a MONAI SlidingWindowInferer if configuration permits.
+
+    Returns:
+        SlidingWindowInferer or None.
+    """
+    roi_size = resolve_inferer_roi_size(cfg)
+    if roi_size is None:
+        logger.warning(
+            "Sliding-window inference disabled: unable to determine ROI size. "
+            "Set inference.window_size or model.output_size in the config."
+        )
+        return None
+
+    runtime = _resolve_sliding_window_runtime(cfg, roi_size)
     inferer = SlidingWindowInferer(
         roi_size=roi_size,
-        sw_batch_size=sw_batch_size,
-        overlap=overlap,
-        mode=mode,
-        sigma_scale=sigma_scale,
-        padding_mode=padding_mode,
-        sw_device=sw_device,
-        device=output_device,
+        sw_batch_size=runtime["sw_batch_size"],
+        overlap=runtime["overlap"],
+        mode=runtime["mode"],
+        sigma_scale=runtime["sigma_scale"],
+        padding_mode=runtime["padding_mode"],
+        sw_device=runtime["sw_device"],
+        device=runtime["output_device"],
         progress=True,
     )
 
     logger.info(
         "Sliding-window inference configured: "
-        f"roi_size={roi_size}, overlap={overlap}, sw_batch={sw_batch_size}, "
-        f"mode={mode}, sigma_scale={sigma_scale}, padding={padding_mode}, "
-        f"keep_input_on_cpu={keep_input_on_cpu}, sw_device={sw_device}, "
-        f"output_device={output_device}"
+        f"roi_size={roi_size}, overlap={runtime['overlap']}, sw_batch={runtime['sw_batch_size']}, "
+        f"mode={runtime['mode']}, sigma_scale={runtime['sigma_scale']}, "
+        f"padding={runtime['padding_mode']}, keep_input_on_cpu={runtime['keep_input_on_cpu']}, "
+        f"sw_device={runtime['sw_device']}, output_device={runtime['output_device']}"
     )
 
     return inferer

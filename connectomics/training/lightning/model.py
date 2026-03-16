@@ -462,46 +462,68 @@ class ConnectomicsModule(pl.LightningModule):
             return None, False, cache_suffix
 
         output_dir = Path(output_dir_value)
-        existing_predictions = []
-        loaded_suffix = cache_suffix
-        all_exist = True
 
-        for filename in filenames:
-            pred_file = output_dir / f"{filename}{cache_suffix}"
-            if not pred_file.exists() and mode == "test" and not is_tta_cache_suffix(cache_suffix):
+        # Build ordered list of suffixes to try: final prediction first, then
+        # intermediate TTA, then glob fallback.
+        suffixes_to_try: list[str] = []
+        if is_tta_cache_suffix(cache_suffix):
+            # Prefer the final decoded file (e.g. _x16_prediction.h5) over
+            # the intermediate TTA file (e.g. _tta_x16_prediction.h5).
+            final_suffix = cache_suffix.replace("_tta_x", "_x")
+            suffixes_to_try.append(final_suffix)
+        suffixes_to_try.append(cache_suffix)
+
+        for try_suffix in suffixes_to_try:
+            existing_predictions = []
+            all_exist = True
+            for filename in filenames:
+                pred_file = output_dir / f"{filename}{try_suffix}"
+                if pred_file.exists():
+                    try:
+                        pred = read_volume(str(pred_file), dataset="main")
+                        existing_predictions.append(pred)
+                    except Exception as e:
+                        logger.warning(f"Failed to load {pred_file}: {e}, will re-run inference")
+                        all_exist = False
+                        break
+                else:
+                    all_exist = False
+                    break
+
+            if all_exist and len(existing_predictions) == len(filenames):
+                logger.info(
+                    "All prediction files exist (%s). Loading %d predictions and skipping inference.",
+                    try_suffix,
+                    len(existing_predictions),
+                )
+                if len(existing_predictions) == 1:
+                    predictions_np = existing_predictions[0]
+                    if predictions_np.ndim < 4:
+                        predictions_np = predictions_np[np.newaxis, ...]
+                else:
+                    predictions_np = np.stack(
+                        [p[np.newaxis, ...] if p.ndim < 4 else p for p in existing_predictions],
+                        axis=0,
+                    )
+                return predictions_np, True, try_suffix
+
+        # Glob fallback: look for any TTA intermediate file.
+        if mode == "test" and not is_tta_cache_suffix(cache_suffix):
+            for filename in filenames:
                 tta_matches = sorted(output_dir.glob(f"{filename}_tta_x*_prediction.h5"))
                 if tta_matches:
                     pred_file = tta_matches[-1]
                     loaded_suffix = pred_file.name[len(filename):]
+                    try:
+                        pred = read_volume(str(pred_file), dataset="main")
+                        if pred.ndim < 4:
+                            pred = pred[np.newaxis, ...]
+                        logger.info("Loaded fallback TTA prediction: %s", pred_file.name)
+                        return pred, True, loaded_suffix
+                    except Exception as e:
+                        logger.warning(f"Failed to load {pred_file}: {e}")
 
-            if pred_file.exists():
-                try:
-                    pred = read_volume(str(pred_file), dataset="main")
-                    existing_predictions.append(pred)
-                except Exception as e:
-                    logger.warning(f"Failed to load {pred_file}: {e}, will re-run inference")
-                    all_exist = False
-                    break
-            else:
-                all_exist = False
-                break
-
-        if all_exist and len(existing_predictions) == len(filenames):
-            logger.info(
-                "All prediction files exist. Loading %d predictions and skipping inference.",
-                len(existing_predictions),
-            )
-            if len(existing_predictions) == 1:
-                predictions_np = existing_predictions[0]
-                if predictions_np.ndim < 4:
-                    predictions_np = predictions_np[np.newaxis, ...]
-            else:
-                predictions_np = np.stack(
-                    [p[np.newaxis, ...] if p.ndim < 4 else p for p in existing_predictions], axis=0
-                )
-            return predictions_np, True, loaded_suffix
-
-        return None, False, loaded_suffix
+        return None, False, cache_suffix
 
     def _save_metrics_to_file(self, metrics_dict: Dict[str, Any]):
         """
@@ -529,10 +551,13 @@ class ConnectomicsModule(pl.LightningModule):
         output_dir = Path(output_path)
         output_dir.mkdir(parents=True, exist_ok=True)
 
-        # Create filename with volume name and timestamp
+        # Create filename with volume name and TTA pass tag
         volume_name = metrics_dict.get("volume_name", "unknown")
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        metrics_file = output_dir / f"evaluation_metrics_{volume_name}.txt"
+        cache_suffix = resolve_prediction_cache_suffix(self.cfg, mode=mode)
+        # Extract tag like "tta_x16" or "x1" from suffix "_tta_x16_prediction.h5"
+        tag = cache_suffix.lstrip("_").replace("_prediction.h5", "")
+        metrics_file = output_dir / f"evaluation_metrics_{volume_name}_{tag}.txt"
 
         # Write metrics to file
         try:

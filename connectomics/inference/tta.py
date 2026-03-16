@@ -14,8 +14,16 @@ from typing import Any, Optional
 import numpy as np
 import torch
 import torch.nn.functional as F
+from monai.data.utils import dense_patch_slices
+from monai.inferers.utils import _get_scan_interval, compute_importance_map
+
 from ..utils.channel_slices import resolve_channel_indices
-from .sliding import is_2d_inference_mode
+from .sliding import (
+    _extract_padded_patch_batch,
+    _resolve_sliding_window_runtime,
+    is_2d_inference_mode,
+    resolve_inferer_roi_size,
+)
 
 try:
     from omegaconf import ListConfig, OmegaConf
@@ -24,6 +32,11 @@ try:
 except ImportError:
     HAS_OMEGACONF = False
     ListConfig = list  # Fallback
+
+try:
+    from tqdm.auto import tqdm
+except ImportError:
+    tqdm = None
 
 logger = logging.getLogger(__name__)
 
@@ -61,9 +74,7 @@ def _normalize_spatial_axes(
     for raw_axis in axes:
         axis = int(raw_axis)
         if axis < 0 or axis >= spatial_dims:
-            raise ValueError(
-                f"{context} axis must be in [0, {spatial_dims - 1}], got {axis}."
-            )
+            raise ValueError(f"{context} axis must be in [0, {spatial_dims - 1}], got {axis}.")
         if axis in seen:
             continue
         normalized.append(axis)
@@ -381,17 +392,30 @@ class TTAPredictor:
                     activation_types[channel_idx] = act
 
                 channel_list = list(channels)
+                channel_indexer: slice | list[int]
+                if channel_list == list(range(channel_list[0], channel_list[-1] + 1)):
+                    channel_indexer = slice(channel_list[0], channel_list[-1] + 1)
+                else:
+                    channel_indexer = channel_list
+                channel_view = tensor[:, channel_indexer, ...]
                 if act == "sigmoid":
-                    tensor[:, channel_list, ...] = torch.sigmoid(tensor[:, channel_list, ...])
+                    if isinstance(channel_indexer, slice):
+                        channel_view.sigmoid_()
+                    else:
+                        tensor[:, channel_list, ...] = torch.sigmoid(channel_view)
                 elif act == "scale_sigmoid":
-                    tensor[:, channel_list, ...] = torch.sigmoid(0.2 * tensor[:, channel_list, ...])
+                    if isinstance(channel_indexer, slice):
+                        channel_view.mul_(0.2).sigmoid_()
+                    else:
+                        tensor[:, channel_list, ...] = torch.sigmoid(0.2 * channel_view)
                 elif act == "tanh":
-                    tensor[:, channel_list, ...] = torch.tanh(tensor[:, channel_list, ...])
+                    if isinstance(channel_indexer, slice):
+                        channel_view.tanh_()
+                    else:
+                        tensor[:, channel_list, ...] = torch.tanh(channel_view)
                 elif act == "softmax":
                     if len(channel_list) > 1:
-                        tensor[:, channel_list, ...] = torch.softmax(
-                            tensor[:, channel_list, ...], dim=1
-                        )
+                        tensor[:, channel_list, ...] = torch.softmax(channel_view, dim=1)
                     else:
                         logger.warning(
                             f"Softmax activation for single channel "
@@ -416,9 +440,9 @@ class TTAPredictor:
             if tta_act == "softmax":
                 tensor = torch.softmax(tensor, dim=1)
             elif tta_act == "sigmoid":
-                tensor = torch.sigmoid(tensor)
+                tensor = tensor.sigmoid_()
             elif tta_act == "tanh":
-                tensor = torch.tanh(tensor)
+                tensor = tensor.tanh_()
             elif tta_act is not None and tta_act.lower() != "none":
                 logger.warning(
                     f"Unknown TTA activation function '{tta_act}'. "
@@ -463,6 +487,20 @@ class TTAPredictor:
                     "or model output size)."
                 )
             return self._sliding_window_predict(images)
+
+    def _run_direct_network(self, images: torch.Tensor) -> torch.Tensor:
+        """Run the network directly on a tensor batch without whole-volume sliding."""
+        with torch.no_grad():
+            return self._sliding_window_predict(images)
+
+    def _is_patch_first_local_tta_enabled(self) -> bool:
+        tta_cfg = self._get_tta_cfg()
+        return bool(
+            tta_cfg is not None
+            and getattr(tta_cfg, "enabled", False)
+            and getattr(tta_cfg, "patch_first_local", False)
+            and self.sliding_inferer is not None
+        )
 
     def _sliding_window_predict(self, inputs: torch.Tensor) -> torch.Tensor:
         with torch.no_grad():
@@ -646,8 +684,69 @@ class TTAPredictor:
         ensemble_mode: str,
         empty_cache_interval: int,
         distributed_sharding: bool,
+        network_fn,
     ) -> tuple[torch.Tensor, int]:
         """Run TTA ensemble loop over augmentation combinations."""
+        local_combinations = self._resolve_local_augmentation_combinations(
+            augmentation_combinations,
+            distributed_sharding=distributed_sharding,
+        )
+
+        ensemble_result = None
+        num_predictions = 0
+
+        spatial_offset = 2  # batch + channel dims
+
+        for flip_axes, rotation_plane, k_rotations in local_combinations:
+            x_aug = images
+
+            if flip_axes:
+                flip_dims = [
+                    a + spatial_offset
+                    for a in (flip_axes if isinstance(flip_axes, list) else [flip_axes])
+                ]
+                x_aug = torch.flip(x_aug, dims=flip_dims)
+
+            if rotation_plane is not None and k_rotations > 0:
+                x_aug = torch.rot90(x_aug, k=k_rotations, dims=rotation_plane)
+
+            pred = network_fn(x_aug)
+
+            if rotation_plane is not None and k_rotations > 0:
+                pred = torch.rot90(pred, k=-k_rotations, dims=rotation_plane)
+
+            if flip_axes:
+                flip_dims = [
+                    a + spatial_offset
+                    for a in (flip_axes if isinstance(flip_axes, list) else [flip_axes])
+                ]
+                pred = torch.flip(pred, dims=flip_dims)
+
+            pred_processed = self.apply_preprocessing(pred)
+
+            ensemble_result, num_predictions = self._accumulate_ensemble_prediction(
+                ensemble_result,
+                pred_processed,
+                ensemble_mode=ensemble_mode,
+                num_predictions=num_predictions,
+                distributed_sharding=distributed_sharding,
+            )
+
+            if (
+                torch.cuda.is_available()
+                and empty_cache_interval > 0
+                and num_predictions % empty_cache_interval == 0
+            ):
+                torch.cuda.empty_cache()
+
+        return ensemble_result, num_predictions
+
+    def _resolve_local_augmentation_combinations(
+        self,
+        augmentation_combinations: list,
+        *,
+        distributed_sharding: bool,
+    ) -> list:
         is_dist, rank, world_size = self._distributed_context()
 
         local_combinations = augmentation_combinations
@@ -665,69 +764,387 @@ class TTAPredictor:
                     f"world_size={world_size}, "
                     f"passes/rank~={len(local_combinations)}"
                 )
+        return local_combinations
 
-        ensemble_result = None
-        num_predictions = 0
+    @staticmethod
+    def _accumulate_ensemble_prediction(
+        ensemble_result: Optional[torch.Tensor],
+        pred_processed: torch.Tensor,
+        *,
+        ensemble_mode: str,
+        num_predictions: int,
+        distributed_sharding: bool,
+    ) -> tuple[torch.Tensor, int]:
+        pred_float = pred_processed.to(dtype=torch.float32)
+        if ensemble_result is None:
+            return pred_float.clone(), 1
 
-        spatial_offset = 2  # batch + channel dims
+        if ensemble_mode == "mean":
+            if distributed_sharding:
+                ensemble_result += pred_float
+            else:
+                ensemble_result = ensemble_result + (pred_float - ensemble_result) / (
+                    num_predictions + 1
+                )
+        elif ensemble_mode == "min":
+            ensemble_result = torch.minimum(ensemble_result, pred_float)
+        elif ensemble_mode == "max":
+            ensemble_result = torch.maximum(ensemble_result, pred_float)
+        else:
+            raise ValueError(
+                f"Unknown TTA ensemble mode: {ensemble_mode}. " f"Use 'mean', 'min', or 'max'."
+            )
 
-        for flip_axes, rotation_plane, k_rotations in local_combinations:
-            x_aug = images
+        return ensemble_result, num_predictions + 1
 
-            if flip_axes:
-                flip_dims = [a + spatial_offset for a in
-                             (flip_axes if isinstance(flip_axes, list) else [flip_axes])]
-                x_aug = torch.flip(x_aug, dims=flip_dims)
+    def _predict_prepared_tensor(
+        self,
+        images: torch.Tensor,
+        mask: Optional[torch.Tensor],
+        mask_align_to_image: bool,
+        *,
+        use_sliding: bool,
+    ) -> torch.Tensor:
+        tta_cfg = self._get_tta_cfg()
+        tta_enabled = tta_cfg is not None and getattr(tta_cfg, "enabled", True)
+        network_fn = self._run_network if use_sliding else self._run_direct_network
 
-            if rotation_plane is not None and k_rotations > 0:
-                x_aug = torch.rot90(x_aug, k=k_rotations, dims=rotation_plane)
+        if not tta_enabled:
+            pred = network_fn(images)
+            ensemble_result = self.apply_preprocessing(pred)
+            return self._apply_mask_to_result(ensemble_result, mask, mask_align_to_image)
 
-            pred = self._run_network(x_aug)
+        augmentation_combinations = self._build_augmentation_combinations(tta_cfg, images.dim())
 
-            if rotation_plane is not None and k_rotations > 0:
-                pred = torch.rot90(pred, k=-k_rotations, dims=rotation_plane)
+        if len(augmentation_combinations) == 1 and augmentation_combinations[0] == ([], None, 0):
+            pred = network_fn(images)
+            ensemble_result = self.apply_preprocessing(pred)
+            return self._apply_mask_to_result(ensemble_result, mask, mask_align_to_image)
 
-            if flip_axes:
-                flip_dims = [a + spatial_offset for a in
-                             (flip_axes if isinstance(flip_axes, list) else [flip_axes])]
-                pred = torch.flip(pred, dims=flip_dims)
+        ensemble_mode = getattr(tta_cfg, "ensemble_mode", "mean")
+        empty_cache_interval = int(getattr(tta_cfg, "empty_cache_interval", 4))
+        distributed_sharding = self.is_distributed_sharding_enabled()
+        self._last_distributed_sharding_active = distributed_sharding
 
-            pred_processed = self.apply_preprocessing(pred)
+        ensemble_result, num_predictions = self._run_ensemble(
+            images,
+            augmentation_combinations,
+            ensemble_mode,
+            empty_cache_interval,
+            distributed_sharding,
+            network_fn,
+        )
+
+        if distributed_sharding:
+            reduction_device = (
+                images.device
+                if images.is_cuda
+                else (
+                    torch.device(f"cuda:{torch.cuda.current_device()}")
+                    if torch.cuda.is_available()
+                    else torch.device("cpu")
+                )
+            )
+
+            reduced = self._apply_distributed_reduction(
+                ensemble_result,
+                num_predictions,
+                ensemble_mode,
+                reduction_device,
+            )
+
+            _is_dist, rank, _world_size = self._distributed_context()
+            if rank != 0:
+                self._last_skip_postprocess_on_rank = True
+                return torch.empty(0, device=images.device if images.is_cuda else "cpu")
+            ensemble_result = reduced
+
+        return self._apply_mask_to_result(ensemble_result, mask, mask_align_to_image)
+
+    def _predict_patch_first_local(
+        self,
+        images: torch.Tensor,
+        mask: Optional[torch.Tensor],
+        mask_align_to_image: bool,
+    ) -> torch.Tensor:
+        tta_cfg = self._get_tta_cfg()
+        if tta_cfg is None:
+            raise ValueError("Patch-first local TTA requires test-time augmentation config.")
+
+        augmentation_combinations = self._build_augmentation_combinations(tta_cfg, images.dim())
+        if len(augmentation_combinations) == 1 and augmentation_combinations[0] == ([], None, 0):
+            return self._predict_prepared_tensor(
+                images,
+                mask,
+                mask_align_to_image,
+                use_sliding=True,
+            )
+
+        roi_size = resolve_inferer_roi_size(self.cfg)
+        if roi_size is None:
+            raise ValueError(
+                "Patch-first local TTA requires inference.sliding_window.window_size "
+                "or model.output_size to be configured."
+            )
+
+        runtime = _resolve_sliding_window_runtime(self.cfg, roi_size)
+        infer_device = (
+            torch.device(runtime["sw_device"])
+            if runtime["sw_device"] is not None
+            else images.device
+        )
+        accumulation_device = (
+            torch.device(runtime["output_device"])
+            if runtime["output_device"] is not None
+            else torch.device("cpu")
+        )
+        ensemble_mode = getattr(tta_cfg, "ensemble_mode", "mean")
+        empty_cache_interval = int(getattr(tta_cfg, "empty_cache_interval", 4))
+        distributed_sharding = self.is_distributed_sharding_enabled()
+        local_combinations = self._resolve_local_augmentation_combinations(
+            augmentation_combinations,
+            distributed_sharding=distributed_sharding,
+        )
+        self._last_distributed_sharding_active = distributed_sharding
+
+        logger.info(
+            "Patch-first local TTA enabled: each rank slides once over its shard and "
+            "evaluates its local TTA variants inside each ROI batch."
+        )
+        if runtime["output_device"] is None and images.device.type == "cuda":
+            logger.info(
+                "Patch-first local TTA is accumulating full-volume outputs on CPU by default "
+                "to avoid GPU OOM from per-augmentation buffers. Set "
+                "`inference.sliding_window.output_device` to override this."
+            )
+
+        outputs = []
+        spatial_dims = len(roi_size)
+        _is_dist, rank, _world_size = self._distributed_context()
+        for batch_idx in range(images.shape[0]):
+            sample = images[batch_idx : batch_idx + 1]
+            original_size = tuple(int(v) for v in sample.shape[-spatial_dims:])
+            self._validate_patch_first_local_supported(
+                local_combinations,
+                image_size=original_size,
+                roi_size=tuple(int(v) for v in roi_size),
+            )
+
+            padded_size = tuple(
+                max(original_size[axis], int(roi_size[axis])) for axis in range(spatial_dims)
+            )
+            scan_overlap = runtime["overlap"]
+            if not isinstance(scan_overlap, tuple):
+                scan_overlap = tuple(float(scan_overlap) for _ in range(spatial_dims))
+            scan_interval = _get_scan_interval(
+                padded_size,
+                roi_size,
+                num_spatial_dims=spatial_dims,
+                overlap=scan_overlap,
+            )
+            patch_slices = dense_patch_slices(
+                padded_size,
+                roi_size,
+                scan_interval,
+                return_slice=True,
+            )
+            num_patch_batches = max(
+                1,
+                (len(patch_slices) + runtime["sw_batch_size"] - 1) // runtime["sw_batch_size"],
+            )
+            importance_map = (
+                compute_importance_map(
+                    tuple(int(v) for v in roi_size),
+                    mode=runtime["mode"],
+                    sigma_scale=(
+                        runtime["overlap"]
+                        if runtime["mode"] == "constant"
+                        else runtime["sigma_scale"]
+                    ),
+                    device=accumulation_device,
+                    dtype=torch.float32,
+                )
+                .unsqueeze(0)
+                .unsqueeze(0)
+            )
+
+            raw_accumulators: list[Optional[torch.Tensor]] = [None] * len(local_combinations)
+            weight_accumulator = torch.zeros(
+                (1, 1, *padded_size),
+                device=accumulation_device,
+                dtype=torch.float32,
+            )
+            tta_forward_calls = 0
+            progress_bar = None
+            if tqdm is not None:
+                desc = f"Patch-first TTA x{len(local_combinations)}"
+                if distributed_sharding:
+                    desc += f" rank {rank}"
+                progress_bar = tqdm(total=num_patch_batches, desc=desc, leave=True)
+
+            try:
+                for batch_start in range(0, len(patch_slices), runtime["sw_batch_size"]):
+                    current_slices = patch_slices[
+                        batch_start : batch_start + runtime["sw_batch_size"]
+                    ]
+                    image_batch, locations = _extract_padded_patch_batch(
+                        sample,
+                        current_slices,
+                        roi_size=tuple(int(v) for v in roi_size),
+                        padding_mode=runtime["padding_mode"],
+                        cval=runtime["cval"],
+                    )
+                    image_batch = image_batch.to(device=infer_device, dtype=torch.float32)
+
+                    for aug_idx, (flip_axes, rotation_plane, k_rotations) in enumerate(
+                        local_combinations
+                    ):
+                        x_aug = image_batch
+                        flip_dims = None
+                        if flip_axes:
+                            flip_dims = [
+                                axis + 2
+                                for axis in (
+                                    flip_axes if isinstance(flip_axes, list) else [flip_axes]
+                                )
+                            ]
+                            x_aug = torch.flip(x_aug, dims=flip_dims)
+
+                        if rotation_plane is not None and k_rotations > 0:
+                            x_aug = torch.rot90(x_aug, k=k_rotations, dims=rotation_plane)
+
+                        pred = self._run_direct_network(x_aug)
+
+                        if rotation_plane is not None and k_rotations > 0:
+                            pred = torch.rot90(pred, k=-k_rotations, dims=rotation_plane)
+                        if flip_dims:
+                            pred = torch.flip(pred, dims=flip_dims)
+
+                        if tuple(int(v) for v in pred.shape[2:]) != tuple(int(v) for v in roi_size):
+                            raise RuntimeError(
+                                "Patch-first local TTA requires patch predictions to preserve "
+                                f"the ROI spatial shape. Got prediction.shape={tuple(pred.shape)} "
+                                f"and roi_size={roi_size}."
+                            )
+
+                        pred = pred.detach().to(device=accumulation_device, dtype=torch.float32)
+                        if raw_accumulators[aug_idx] is None:
+                            raw_accumulators[aug_idx] = torch.zeros(
+                                (1, int(pred.shape[1]), *padded_size),
+                                device=accumulation_device,
+                                dtype=torch.float32,
+                            )
+
+                        for patch_idx, location in enumerate(locations):
+                            slices = tuple(
+                                slice(
+                                    int(location[axis]),
+                                    int(location[axis]) + int(roi_size[axis]),
+                                )
+                                for axis in range(spatial_dims)
+                            )
+                            raw_accumulators[aug_idx][(slice(None), slice(None), *slices)] += (
+                                pred[patch_idx : patch_idx + 1] * importance_map
+                            )
+                            if aug_idx == 0:
+                                weight_accumulator[
+                                    (slice(None), slice(None), *slices)
+                                ] += importance_map
+
+                        tta_forward_calls += 1
+                        if (
+                            torch.cuda.is_available()
+                            and empty_cache_interval > 0
+                            and tta_forward_calls % empty_cache_interval == 0
+                        ):
+                            torch.cuda.empty_cache()
+
+                    if progress_bar is not None:
+                        progress_bar.update(1)
+            finally:
+                if progress_bar is not None:
+                    progress_bar.close()
+
+            crop_slices = tuple(slice(0, int(size)) for size in original_size)
+            ensemble_result = None
+            num_predictions = 0
+            for raw_accumulator in raw_accumulators:
+                if raw_accumulator is None:
+                    continue
+                raw_accumulator /= torch.clamp_min(weight_accumulator, 1.0e-6)
+                pred_processed = self.apply_preprocessing(
+                    raw_accumulator[(slice(None), slice(None), *crop_slices)]
+                )
+                ensemble_result, num_predictions = self._accumulate_ensemble_prediction(
+                    ensemble_result,
+                    pred_processed,
+                    ensemble_mode=ensemble_mode,
+                    num_predictions=num_predictions,
+                    distributed_sharding=distributed_sharding,
+                )
 
             if ensemble_result is None:
-                ensemble_result = pred_processed.clone().to(dtype=torch.float32)
-            else:
-                if ensemble_mode == "mean":
-                    if distributed_sharding:
-                        ensemble_result += pred_processed.to(dtype=torch.float32)
-                    else:
-                        ensemble_result = ensemble_result + (
-                            pred_processed.to(dtype=torch.float32) - ensemble_result
-                        ) / (num_predictions + 1)
-                elif ensemble_mode == "min":
-                    ensemble_result = torch.minimum(
-                        ensemble_result, pred_processed.to(dtype=torch.float32)
-                    )
-                elif ensemble_mode == "max":
-                    ensemble_result = torch.maximum(
-                        ensemble_result, pred_processed.to(dtype=torch.float32)
-                    )
-                else:
-                    raise ValueError(
-                        f"Unknown TTA ensemble mode: {ensemble_mode}. "
-                        f"Use 'mean', 'min', or 'max'."
-                    )
+                raise RuntimeError("Patch-first local TTA generated no predictions.")
 
-            num_predictions += 1
+            if distributed_sharding:
+                reduction_device = (
+                    images.device
+                    if images.is_cuda
+                    else (
+                        torch.device(f"cuda:{torch.cuda.current_device()}")
+                        if torch.cuda.is_available()
+                        else torch.device("cpu")
+                    )
+                )
+                reduced = self._apply_distributed_reduction(
+                    ensemble_result,
+                    num_predictions,
+                    ensemble_mode,
+                    reduction_device,
+                )
 
-            if (
-                torch.cuda.is_available()
-                and empty_cache_interval > 0
-                and num_predictions % empty_cache_interval == 0
-            ):
-                torch.cuda.empty_cache()
+                _is_dist, rank, _world_size = self._distributed_context()
+                if rank != 0:
+                    self._last_skip_postprocess_on_rank = True
+                    outputs.append(torch.empty(0, device=accumulation_device))
+                    continue
+                ensemble_result = reduced
 
-        return ensemble_result, num_predictions
+            outputs.append(ensemble_result)
+
+        if any(output.numel() == 0 for output in outputs):
+            return torch.empty(0, device=accumulation_device)
+
+        return self._apply_mask_to_result(
+            torch.cat(outputs, dim=0),
+            mask,
+            mask_align_to_image,
+        )
+
+    def _validate_patch_first_local_supported(
+        self,
+        augmentation_combinations: list,
+        *,
+        image_size: tuple[int, ...],
+        roi_size: tuple[int, ...],
+    ) -> None:
+        spatial_offset = 2
+        for _flip_axes, rotation_plane, k_rotations in augmentation_combinations:
+            if rotation_plane is None or k_rotations % 2 == 0:
+                continue
+
+            plane_axes = tuple(int(axis) - spatial_offset for axis in rotation_plane)
+            image_dims = tuple(int(image_size[axis]) for axis in plane_axes)
+            roi_dims = tuple(int(roi_size[axis]) for axis in plane_axes)
+            if len(set(image_dims)) != 1 or len(set(roi_dims)) != 1:
+                raise ValueError(
+                    "Patch-first local TTA only supports odd 90-degree rotations when the "
+                    "rotated axes have equal image and ROI sizes. "
+                    f"Got rotation_plane={rotation_plane}, image_size={image_size}, "
+                    f"roi_size={roi_size}. Use flip-only TTA, constrain rotations to equal-sized "
+                    "axes such as square XY inputs, or disable "
+                    "`inference.test_time_augmentation.patch_first_local`."
+                )
 
     def _apply_distributed_reduction(
         self,
@@ -895,58 +1312,11 @@ class TTAPredictor:
 
         self._last_distributed_sharding_active = False
         self._last_skip_postprocess_on_rank = False
-
-        tta_cfg = self._get_tta_cfg()
-        tta_enabled = tta_cfg is not None and getattr(tta_cfg, "enabled", True)
-
-        if not tta_enabled:
-            pred = self._run_network(images)
-            ensemble_result = self.apply_preprocessing(pred)
-            return self._apply_mask_to_result(ensemble_result, mask, mask_align_to_image)
-
-        augmentation_combinations = self._build_augmentation_combinations(tta_cfg, images.dim())
-
-        # If only the identity augmentation, run network once
-        if len(augmentation_combinations) == 1 and augmentation_combinations[0] == ([], None, 0):
-            pred = self._run_network(images)
-            ensemble_result = self.apply_preprocessing(pred)
-            return self._apply_mask_to_result(ensemble_result, mask, mask_align_to_image)
-
-        ensemble_mode = getattr(tta_cfg, "ensemble_mode", "mean")
-        empty_cache_interval = int(getattr(tta_cfg, "empty_cache_interval", 4))
-        distributed_sharding = self.is_distributed_sharding_enabled()
-        self._last_distributed_sharding_active = distributed_sharding
-
-        ensemble_result, num_predictions = self._run_ensemble(
+        if self._is_patch_first_local_tta_enabled():
+            return self._predict_patch_first_local(images, mask, mask_align_to_image)
+        return self._predict_prepared_tensor(
             images,
-            augmentation_combinations,
-            ensemble_mode,
-            empty_cache_interval,
-            distributed_sharding,
+            mask,
+            mask_align_to_image,
+            use_sliding=True,
         )
-
-        if distributed_sharding:
-            reduction_device = (
-                images.device
-                if images.is_cuda
-                else (
-                    torch.device(f"cuda:{torch.cuda.current_device()}")
-                    if torch.cuda.is_available()
-                    else torch.device("cpu")
-                )
-            )
-
-            reduced = self._apply_distributed_reduction(
-                ensemble_result,
-                num_predictions,
-                ensemble_mode,
-                reduction_device,
-            )
-
-            _is_dist, rank, _world_size = self._distributed_context()
-            if rank != 0:
-                self._last_skip_postprocess_on_rank = True
-                return torch.empty(0, device=images.device if images.is_cuda else "cpu")
-            ensemble_result = reduced
-
-        return self._apply_mask_to_result(ensemble_result, mask, mask_align_to_image)
