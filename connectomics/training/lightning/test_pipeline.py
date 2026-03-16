@@ -894,30 +894,8 @@ def run_test_step(module, batch: Dict[str, torch.Tensor], batch_idx: int) -> STE
         )
         if lazy_sample:
             labels = _maybe_load_lazy_labels(module, batch.get("label"), mode=mode)
-        predictions_np = _apply_prediction_crop_pad_if_needed(
-            module,
-            predictions_np,
-            reference_image_shape,
-            item_name="cached final predictions",
-        )
-        reference_spatial_shape = (
-            tuple(int(v) for v in labels.shape[-3:])
-            if labels is not None
-            else _resolve_reference_spatial_shape_after_crop_pad(module, reference_image_shape)
-        )
-        predictions_np = _apply_affinity_inference_crop_if_needed(
-            module,
-            predictions_np,
-            reference_spatial_shape=reference_spatial_shape,
-            item_name="cached final predictions",
-        )
-        if labels is not None:
-            labels = _apply_affinity_inference_crop_if_needed(
-                module,
-                labels,
-                reference_spatial_shape=reference_spatial_shape,
-                item_name="labels",
-            )
+        # Final predictions were saved after crop_pad and affinity crop were
+        # already applied, so skip both spatial crops — go straight to evaluation.
         _evaluate_decoded_predictions(
             module,
             predictions_np,

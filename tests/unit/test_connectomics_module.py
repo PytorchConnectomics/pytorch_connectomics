@@ -199,7 +199,7 @@ def test_save_metrics_to_file_uses_runtime_inference_output_path(tmp_path):
         },
     )
 
-    assert (tmp_path / "evaluation_metrics_vol0.txt").exists()
+    assert (tmp_path / "evaluation_metrics_vol0_x1.txt").exists()
 
 
 def test_load_cached_predictions_reads_existing_prediction_files(tmp_path, monkeypatch):

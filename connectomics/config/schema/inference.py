@@ -57,6 +57,7 @@ class TestTimeAugmentationConfig:
     flip_combinations: Optional[List[List[int]]] = None  # explicit list of axis subsets
     rotation90_axes: Any = None  # "all" | None | [[int, int], ...] spatial plane pairs
     rotate90_k: Optional[List[int]] = None  # subset of quarter-turns, defaults to [0,1,2,3]
+    patch_first_local: bool = False  # slide once, apply local TTA inside each ROI batch
     apply_mask: bool = True
     transforms: Optional[List[Dict[str, Any]]] = None  # advanced explicit transforms
 

@@ -25,10 +25,12 @@ default:
   inference:
     sliding_window:
       window_size: [16, 224, 224]
-      sw_batch_size: 4
-      keep_input_on_cpu: true
+      sw_batch_size: 1
+      keep_input_on_cpu: false
     test_time_augmentation:
-      enabled: true
+      enabled: false
+      #enabled: true
+      patch_first_local: true
       flip_axes: all
       rotation90_axes: [[1, 2]]
     postprocessing:
@@ -82,6 +84,7 @@ test:
     - profile: decoding_abiss
       kwargs:
         cli_args:
+          ws_merge_function: p75
           ws_size_threshold: 1300
           ws_dust_threshold: 900
           ws_high_threshold: 0.8

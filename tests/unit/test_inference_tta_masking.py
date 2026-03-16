@@ -1,7 +1,11 @@
+import copy
+
 import pytest
 import torch
 
+import connectomics.inference.tta as tta_module
 from connectomics.config import Config
+from connectomics.inference.sliding import build_sliding_inferer
 from connectomics.inference.tta import TTAPredictor
 from connectomics.training.lightning.utils import compute_tta_passes
 
@@ -23,6 +27,20 @@ def _forward_three_channel_logits(x: torch.Tensor) -> torch.Tensor:
     ch1 = torch.zeros(shape, device=x.device, dtype=x.dtype)
     ch2 = torch.full(shape, 2.0, device=x.device, dtype=x.dtype)
     return torch.cat([ch0, ch1, ch2], dim=1)
+
+
+def _forward_affine_logits(x: torch.Tensor) -> torch.Tensor:
+    return torch.cat([x + 0.5, x * 2.0 - 0.25], dim=1)
+
+
+class _TrackingSlidingInferer:
+    def __init__(self, inferer):
+        self.inferer = inferer
+        self.calls = 0
+
+    def __call__(self, *args, **kwargs):
+        self.calls += 1
+        return self.inferer(*args, **kwargs)
 
 
 def test_tta_applies_mask_to_predictions_by_default():
@@ -131,6 +149,26 @@ def test_tta_channel_activations_colon_applies_to_all_channels():
     assert torch.allclose(pred, expected)
 
 
+def test_tta_channel_activations_sigmoid_is_in_place_for_all_channels():
+    cfg = Config()
+    cfg.model.out_channels = 3
+    cfg.inference.test_time_augmentation.enabled = False
+    cfg.inference.test_time_augmentation.channel_activations = [
+        {"channels": ":", "activation": "sigmoid"}
+    ]
+
+    predictor = TTAPredictor(
+        cfg=cfg, sliding_inferer=None, forward_fn=_forward_three_channel_logits
+    )
+
+    tensor = _forward_three_channel_logits(torch.zeros((1, 1, 2, 2, 2), dtype=torch.float32))
+    original_ptr = tensor.data_ptr()
+    out = predictor.apply_preprocessing(tensor)
+
+    assert out.data_ptr() == original_ptr
+    assert torch.allclose(out, torch.sigmoid(_forward_three_channel_logits(tensor[:, :1])))
+
+
 def test_tta_channel_activations_follow_python_slice_semantics():
     cfg = Config()
     cfg.model.out_channels = 3
@@ -204,8 +242,117 @@ def test_tta_deduplicates_redundant_xy_flip_rotation_combinations():
         cfg.inference.test_time_augmentation,
         ndim=5,
     )
-    unique_combinations = {(tuple(flip_axes), rotation_plane, k) for flip_axes, rotation_plane, k in combinations}
+    unique_combinations = {
+        (tuple(flip_axes), rotation_plane, k) for flip_axes, rotation_plane, k in combinations
+    }
 
     assert len(combinations) == 16
     assert len(unique_combinations) == 16
     assert compute_tta_passes(cfg, spatial_dims=3) == 16
+
+
+def test_patch_first_local_tta_matches_standard_sliding_output():
+    cfg = Config()
+    cfg.inference.test_time_augmentation.enabled = True
+    cfg.inference.test_time_augmentation.flip_axes = [0]
+    cfg.inference.test_time_augmentation.rotation90_axes = [[1, 2]]
+    cfg.inference.test_time_augmentation.rotate90_k = [0, 1]
+    cfg.inference.sliding_window.window_size = [2, 2, 2]
+    cfg.inference.sliding_window.sw_batch_size = 2
+    cfg.inference.sliding_window.overlap = 0.5
+    cfg.inference.sliding_window.padding_mode = "constant"
+    cfg.inference.output_act = "sigmoid"
+
+    images = torch.arange(1, 1 + 4 * 4 * 4, dtype=torch.float32).reshape(1, 1, 4, 4, 4) / 64.0
+    mask = torch.ones((1, 1, 4, 4, 4), dtype=torch.float32)
+    mask[:, :, 0, :, :] = 0.0
+
+    standard_cfg = copy.deepcopy(cfg)
+    standard_inferer = _TrackingSlidingInferer(build_sliding_inferer(standard_cfg))
+    standard_predictor = TTAPredictor(
+        cfg=standard_cfg,
+        sliding_inferer=standard_inferer,
+        forward_fn=_forward_affine_logits,
+    )
+    standard_pred = standard_predictor.predict(images, mask=mask)
+
+    patch_cfg = copy.deepcopy(cfg)
+    patch_cfg.inference.test_time_augmentation.patch_first_local = True
+    patch_inferer = _TrackingSlidingInferer(build_sliding_inferer(patch_cfg))
+    patch_predictor = TTAPredictor(
+        cfg=patch_cfg,
+        sliding_inferer=patch_inferer,
+        forward_fn=_forward_affine_logits,
+    )
+    patch_pred = patch_predictor.predict(images, mask=mask)
+
+    assert standard_inferer.calls == compute_tta_passes(standard_cfg, spatial_dims=3)
+    assert patch_inferer.calls == 0
+    assert torch.allclose(patch_pred, standard_pred, atol=1e-6, rtol=1e-6)
+
+
+def test_patch_first_local_tta_rejects_odd_rotations_on_unequal_axes():
+    cfg = Config()
+    cfg.inference.test_time_augmentation.enabled = True
+    cfg.inference.test_time_augmentation.patch_first_local = True
+    cfg.inference.test_time_augmentation.flip_axes = None
+    cfg.inference.test_time_augmentation.rotation90_axes = [[0, 1]]
+    cfg.inference.test_time_augmentation.rotate90_k = [1]
+    cfg.inference.sliding_window.window_size = [2, 2, 2]
+
+    predictor = TTAPredictor(
+        cfg=cfg,
+        sliding_inferer=object(),
+        forward_fn=_forward_constant,
+    )
+
+    with pytest.raises(ValueError, match="equal image and ROI sizes"):
+        predictor.predict(torch.zeros((1, 1, 2, 3, 4), dtype=torch.float32))
+
+
+def test_patch_first_local_tta_reports_progress(monkeypatch):
+    progress_instances = []
+
+    class _FakeProgressBar:
+        def __init__(self, *, total, desc, leave):
+            self.total = total
+            self.desc = desc
+            self.leave = leave
+            self.updated = 0
+            self.closed = False
+
+        def update(self, n=1):
+            self.updated += n
+
+        def close(self):
+            self.closed = True
+
+    def _fake_tqdm(*, total, desc, leave):
+        bar = _FakeProgressBar(total=total, desc=desc, leave=leave)
+        progress_instances.append(bar)
+        return bar
+
+    monkeypatch.setattr(tta_module, "tqdm", _fake_tqdm)
+
+    cfg = Config()
+    cfg.inference.test_time_augmentation.enabled = True
+    cfg.inference.test_time_augmentation.patch_first_local = True
+    cfg.inference.test_time_augmentation.flip_axes = [0]
+    cfg.inference.test_time_augmentation.rotation90_axes = None
+    cfg.inference.sliding_window.window_size = [2, 2, 2]
+    cfg.inference.sliding_window.sw_batch_size = 2
+
+    predictor = TTAPredictor(
+        cfg=cfg,
+        sliding_inferer=object(),
+        forward_fn=_forward_constant,
+    )
+
+    pred = predictor.predict(torch.zeros((1, 1, 4, 4, 4), dtype=torch.float32))
+
+    assert pred.shape == (1, 2, 4, 4, 4)
+    assert len(progress_instances) == 1
+    assert progress_instances[0].total == 14
+    assert progress_instances[0].updated == 14
+    assert progress_instances[0].closed is True
+    assert progress_instances[0].desc == "Patch-first TTA x2"
