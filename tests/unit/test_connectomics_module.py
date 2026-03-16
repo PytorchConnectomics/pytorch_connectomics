@@ -210,7 +210,9 @@ def test_load_cached_predictions_reads_existing_prediction_files(tmp_path, monke
     pred_file.write_text("stub")
 
     expected = np.ones((1, 4, 4, 4), dtype=np.float32)
-    monkeypatch.setattr("connectomics.training.lightning.model.read_volume", lambda *_args, **_kwargs: expected)
+    monkeypatch.setattr(
+        "connectomics.training.lightning.model.read_volume", lambda *_args, **_kwargs: expected
+    )
 
     predictions, loaded, suffix = module._load_cached_predictions(
         str(tmp_path),
@@ -224,7 +226,7 @@ def test_load_cached_predictions_reads_existing_prediction_files(tmp_path, monke
     assert predictions.shape == (1, 4, 4, 4)
 
 
-def test_on_test_end_logs_aggregated_metrics_once():
+def test_on_test_epoch_end_logs_aggregated_metrics_once():
     cfg = _base_config()
     cfg.inference.evaluation.enabled = True
     cfg.inference.evaluation.metrics = ["accuracy"]
@@ -235,6 +237,70 @@ def test_on_test_end_logs_aggregated_metrics_once():
     module.test_accuracy = torchmetrics.Accuracy(task="binary")
     module.test_accuracy.update(torch.tensor([1, 0]), torch.tensor([1, 0]))
 
-    module.on_test_end()
+    module.on_test_epoch_end()
 
     assert logged_names == ["test_accuracy"]
+
+
+def test_log_test_epoch_metrics_uses_rank_zero_only_logging_for_distributed_tta_sharding(
+    monkeypatch,
+):
+    cfg = _base_config()
+    cfg.inference.evaluation.enabled = True
+    cfg.inference.evaluation.metrics = ["accuracy"]
+    cfg.inference.test_time_augmentation.enabled = True
+    cfg.inference.test_time_augmentation.distributed_sharding = True
+
+    module = ConnectomicsModule(cfg, model=SimpleModel())
+    calls: list[tuple[str, bool]] = []
+
+    def log_override(name, *_args, **kwargs):
+        calls.append((name, kwargs["sync_dist"]))
+        return None
+
+    module.log = log_override
+    module.test_accuracy = torchmetrics.Accuracy(task="binary")
+    module.test_accuracy.update(torch.tensor([1, 0]), torch.tensor([1, 0]))
+
+    monkeypatch.setattr(
+        "connectomics.training.lightning.test_pipeline._is_distributed_tta_sharding_active",
+        lambda _module: True,
+    )
+    monkeypatch.setattr(torch.distributed, "is_available", lambda: True)
+    monkeypatch.setattr(torch.distributed, "is_initialized", lambda: True)
+    monkeypatch.setattr(torch.distributed, "get_rank", lambda: 0)
+
+    log_test_epoch_metrics(module)
+
+    assert calls == [("test_accuracy", False)]
+
+
+def test_log_test_epoch_metrics_skips_nonzero_ranks_for_distributed_tta_sharding(monkeypatch):
+    cfg = _base_config()
+    cfg.inference.evaluation.enabled = True
+    cfg.inference.evaluation.metrics = ["accuracy"]
+    cfg.inference.test_time_augmentation.enabled = True
+    cfg.inference.test_time_augmentation.distributed_sharding = True
+
+    module = ConnectomicsModule(cfg, model=SimpleModel())
+    calls: list[str] = []
+
+    def log_override(name, *_args, **_kwargs):
+        calls.append(name)
+        return None
+
+    module.log = log_override
+    module.test_accuracy = torchmetrics.Accuracy(task="binary")
+    module.test_accuracy.update(torch.tensor([1, 0]), torch.tensor([1, 0]))
+
+    monkeypatch.setattr(
+        "connectomics.training.lightning.test_pipeline._is_distributed_tta_sharding_active",
+        lambda _module: True,
+    )
+    monkeypatch.setattr(torch.distributed, "is_available", lambda: True)
+    monkeypatch.setattr(torch.distributed, "is_initialized", lambda: True)
+    monkeypatch.setattr(torch.distributed, "get_rank", lambda: 1)
+
+    log_test_epoch_metrics(module)
+
+    assert calls == []

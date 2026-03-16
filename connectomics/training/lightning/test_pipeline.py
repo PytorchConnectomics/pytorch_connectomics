@@ -153,8 +153,10 @@ def _should_skip_postprocess_on_rank(module) -> bool:
 def _distributed_tta_barrier(module) -> None:
     if not _is_distributed_tta_sharding_active(module):
         return
-    if torch.distributed.is_available() and torch.distributed.is_initialized():
-        torch.distributed.barrier()
+    # Rank 0 may spend a long time in CPU-side decoding/evaluation after the
+    # distributed TTA reduction. Holding nonzero ranks in an NCCL barrier here
+    # can trip the watchdog during long ABISS runs, so treat this as a no-op.
+    return
 
 
 def _is_unstacked_test_batch(batch: Dict[str, Any]) -> bool:
@@ -580,7 +582,16 @@ def log_test_epoch_metrics(module) -> None:
     if not module._is_test_evaluation_enabled():
         return
 
-    if hasattr(module, "test_adapted_rand") and isinstance(module.test_adapted_rand, torchmetrics.Metric):
+    is_dist = torch.distributed.is_available() and torch.distributed.is_initialized()
+    rank = torch.distributed.get_rank() if is_dist else 0
+    distributed_tta_sharding = _is_distributed_tta_sharding_active(module)
+    if distributed_tta_sharding and rank != 0:
+        return
+    sync_dist = not distributed_tta_sharding
+
+    if hasattr(module, "test_adapted_rand") and isinstance(
+        module.test_adapted_rand, torchmetrics.Metric
+    ):
         epoch_stats = module.test_adapted_rand.compute()
         if isinstance(epoch_stats, dict):
             module.log(
@@ -590,7 +601,7 @@ def log_test_epoch_metrics(module) -> None:
                 on_epoch=True,
                 prog_bar=True,
                 logger=True,
-                sync_dist=True,
+                sync_dist=sync_dist,
             )
             module.log(
                 "test_adapted_rand_precision",
@@ -599,7 +610,7 @@ def log_test_epoch_metrics(module) -> None:
                 on_epoch=True,
                 prog_bar=True,
                 logger=True,
-                sync_dist=True,
+                sync_dist=sync_dist,
             )
             module.log(
                 "test_adapted_rand_recall",
@@ -608,7 +619,7 @@ def log_test_epoch_metrics(module) -> None:
                 on_epoch=True,
                 prog_bar=True,
                 logger=True,
-                sync_dist=True,
+                sync_dist=sync_dist,
             )
         else:
             module.log(
@@ -618,7 +629,7 @@ def log_test_epoch_metrics(module) -> None:
                 on_epoch=True,
                 prog_bar=True,
                 logger=True,
-                sync_dist=True,
+                sync_dist=sync_dist,
             )
 
     if hasattr(module, "test_voi") and isinstance(module.test_voi, torchmetrics.Metric):
@@ -629,7 +640,7 @@ def log_test_epoch_metrics(module) -> None:
             on_epoch=True,
             prog_bar=True,
             logger=True,
-            sync_dist=True,
+            sync_dist=sync_dist,
         )
         module.log(
             "test_voi_split",
@@ -638,7 +649,7 @@ def log_test_epoch_metrics(module) -> None:
             on_epoch=True,
             prog_bar=False,
             logger=True,
-            sync_dist=True,
+            sync_dist=sync_dist,
         )
         module.log(
             "test_voi_merge",
@@ -647,7 +658,7 @@ def log_test_epoch_metrics(module) -> None:
             on_epoch=True,
             prog_bar=False,
             logger=True,
-            sync_dist=True,
+            sync_dist=sync_dist,
         )
 
     if hasattr(module, "test_instance_accuracy") and isinstance(
@@ -660,7 +671,7 @@ def log_test_epoch_metrics(module) -> None:
             on_epoch=True,
             prog_bar=True,
             logger=True,
-            sync_dist=True,
+            sync_dist=sync_dist,
         )
 
     if hasattr(module, "test_instance_accuracy_detail") and isinstance(
@@ -673,7 +684,7 @@ def log_test_epoch_metrics(module) -> None:
             on_epoch=True,
             prog_bar=True,
             logger=True,
-            sync_dist=True,
+            sync_dist=sync_dist,
         )
         module.log(
             "test_instance_precision_detail",
@@ -682,7 +693,7 @@ def log_test_epoch_metrics(module) -> None:
             on_epoch=True,
             prog_bar=False,
             logger=True,
-            sync_dist=True,
+            sync_dist=sync_dist,
         )
         module.log(
             "test_instance_recall_detail",
@@ -691,7 +702,7 @@ def log_test_epoch_metrics(module) -> None:
             on_epoch=True,
             prog_bar=False,
             logger=True,
-            sync_dist=True,
+            sync_dist=sync_dist,
         )
         module.log(
             "test_instance_f1_detail",
@@ -700,7 +711,7 @@ def log_test_epoch_metrics(module) -> None:
             on_epoch=True,
             prog_bar=False,
             logger=True,
-            sync_dist=True,
+            sync_dist=sync_dist,
         )
 
     if hasattr(module, "test_jaccard") and module.test_jaccard is not None:
@@ -711,7 +722,7 @@ def log_test_epoch_metrics(module) -> None:
             on_epoch=True,
             prog_bar=True,
             logger=True,
-            sync_dist=True,
+            sync_dist=sync_dist,
         )
 
     if hasattr(module, "test_dice") and module.test_dice is not None:
@@ -722,7 +733,7 @@ def log_test_epoch_metrics(module) -> None:
             on_epoch=True,
             prog_bar=True,
             logger=True,
-            sync_dist=True,
+            sync_dist=sync_dist,
         )
 
     if hasattr(module, "test_accuracy") and module.test_accuracy is not None:
@@ -733,7 +744,7 @@ def log_test_epoch_metrics(module) -> None:
             on_epoch=True,
             prog_bar=True,
             logger=True,
-            sync_dist=True,
+            sync_dist=sync_dist,
         )
 
 
@@ -858,7 +869,9 @@ def run_test_step(module, batch: Dict[str, torch.Tensor], batch_idx: int) -> STE
 
     if lazy_sample:
         image_path = str(batch["image"])
-        mask_path = str(batch["mask"]) if isinstance(batch.get("mask"), (str, os.PathLike)) else None
+        mask_path = (
+            str(batch["mask"]) if isinstance(batch.get("mask"), (str, os.PathLike)) else None
+        )
         labels = None
         reference_image_shape = get_lazy_image_reference_shape(module.cfg, image_path, mode=mode)
         crop_pad = _resolve_postprocessing_crop_pad(module)
