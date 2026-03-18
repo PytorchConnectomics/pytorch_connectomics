@@ -188,9 +188,16 @@ def build_loss_weighter(
     if not hasattr(cfg, "model") or not hasattr(cfg.model, "loss"):
         return None
 
-    lb_cfg = getattr(cfg.model, "loss", None)
-    if lb_cfg is None:
+    loss_cfg = getattr(cfg.model, "loss", None)
+    if loss_cfg is None:
         return None
+
+    # Prefer the schema-defined nested loss_balancing block, but keep support
+    # for older flat configs that placed strategy fields directly under model.loss.
+    lb_cfg = getattr(loss_cfg, "loss_balancing", None)
+    if lb_cfg is None or getattr(lb_cfg, "strategy", None) is None:
+        lb_cfg = loss_cfg
+
     strategy = getattr(lb_cfg, "strategy", None)
     if strategy is None:
         return None
