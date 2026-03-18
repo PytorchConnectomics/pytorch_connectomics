@@ -11,6 +11,26 @@ label_profiles:
       - name: instance_edt
         kwargs:
           mode: "2d"
+  label_affinity_9:
+    erosion: 1
+    targets:
+      - name: affinity
+        kwargs:
+          offsets: ["0-0-1", "0-1-0", "1-0-0", "0-0-3", "0-3-0", "3-0-0", "0-0-9", "0-9-0", "9-0-0"]
+          deepem_crop: true
+  label_affinity_9_sdt:
+    erosion: 1
+    targets:
+      - name: affinity
+        kwargs:
+          offsets: ["0-0-1", "0-1-0", "1-0-0", "0-0-5", "0-5-0", "5-0-0", "0-0-17", "0-17-0", "17-0-0"]
+          deepem_crop: true
+      - name: skeleton_aware_edt
+        kwargs:
+          alpha: 0.8
+          bg_value: -1.0
+          relabel: true
+
   label_affinity_12:
     erosion: 1
     targets:

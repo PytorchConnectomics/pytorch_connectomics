@@ -7,7 +7,12 @@ import pytest
 
 from connectomics.config import Config
 from connectomics.config.schema.stages import TuneConfig
-from connectomics.decoding.tuning.optuna_tuner import run_tuning
+from connectomics.decoding.tuning.optuna_tuner import (
+    OptunaDecodingTuner,
+    TrialEvaluationTimeoutError,
+    load_and_apply_best_params,
+    run_tuning,
+)
 
 
 class _DummyModel:
@@ -38,6 +43,14 @@ class _DummyTrainer:
 class _FakeStudy:
     best_value = 0.1234
     best_params = {"binary_threshold": 0.5}
+
+
+class _DummyTrial:
+    def __init__(self):
+        self.user_attrs = {}
+
+    def set_user_attr(self, key, value):
+        self.user_attrs[key] = value
 
 
 def test_run_tuning_uses_intermediate_only_inference_overrides(monkeypatch, tmp_path):
@@ -213,7 +226,7 @@ def test_run_tuning_prints_existing_best_params_yaml(monkeypatch, tmp_path, caps
 
     tuning_dir = tmp_path / "tuning"
     tuning_dir.mkdir(parents=True, exist_ok=True)
-    best_params_file = tuning_dir / "best_params.yaml"
+    best_params_file = tuning_dir / "best_params_tta_x1_ckpt-checkpoint_prediction.yaml"
     best_params_file.write_text(
         "best_trial: 7\nbest_value: 0.1234\ndecoding_function: decode_waterz\n"
     )
@@ -231,3 +244,120 @@ def test_run_tuning_prints_existing_best_params_yaml(monkeypatch, tmp_path, caps
     assert "best_trial: 7" in stdout
     assert "decode_waterz" in stdout
     assert trainer.observed == {}
+
+
+def test_load_and_apply_best_params_prefers_checkpoint_aware_file(tmp_path):
+    cfg = Config()
+    cfg.inference.save_prediction.output_path = str(tmp_path / "results")
+    cfg.inference.decoding = [{"name": "decode_waterz", "kwargs": {"thresholds": 0.4}}]
+
+    tuning_dir = tmp_path / "tuning"
+    tuning_dir.mkdir(parents=True, exist_ok=True)
+    best_params_file = tuning_dir / "best_params_tta_x1_ckpt-checkpoint_prediction.yaml"
+    best_params_file.write_text(
+        "\n".join(
+            [
+                "best_trial: 1",
+                "best_value: 0.12",
+                "decoding_function: decode_waterz",
+                "decoding_params:",
+                "  thresholds: 0.5",
+                "  dust_merge: false",
+            ]
+        )
+    )
+
+    updated = load_and_apply_best_params(cfg, checkpoint_path="checkpoint.ckpt")
+
+    assert updated.inference.decoding[0]["kwargs"]["thresholds"] == 0.5
+    assert updated.inference.decoding[0]["kwargs"]["dust_merge"] is False
+
+
+def test_load_and_apply_best_params_falls_back_to_legacy_filename(tmp_path):
+    cfg = Config()
+    cfg.inference.save_prediction.output_path = str(tmp_path / "results")
+    cfg.inference.decoding = [{"name": "decode_waterz", "kwargs": {"thresholds": 0.4}}]
+
+    tuning_dir = tmp_path / "tuning"
+    tuning_dir.mkdir(parents=True, exist_ok=True)
+    legacy_file = tuning_dir / "best_params.yaml"
+    legacy_file.write_text(
+        "\n".join(
+            [
+                "best_trial: 2",
+                "best_value: 0.08",
+                "decoding_function: decode_waterz",
+                "decoding_params:",
+                "  thresholds: 0.6",
+            ]
+        )
+    )
+
+    updated = load_and_apply_best_params(cfg, checkpoint_path="checkpoint.ckpt")
+
+    assert updated.inference.decoding[0]["kwargs"]["thresholds"] == 0.6
+
+
+def test_objective_returns_bad_value_when_standard_trial_times_out(monkeypatch):
+    cfg = Config()
+    cfg.tune = TuneConfig()
+    cfg.tune.trial_timeout = 12
+    cfg.tune.parameter_space.decoding.function_name = "decode_instance_binary_contour_distance"
+
+    tuner = OptunaDecodingTuner(
+        cfg=cfg,
+        predictions=np.zeros((3, 4, 4, 4), dtype=np.float32),
+        ground_truth=np.zeros((4, 4, 4), dtype=np.uint16),
+    )
+
+    def _raise_timeout(_evaluation_kind, _payload):
+        raise TrialEvaluationTimeoutError("standard evaluation exceeded timeout")
+
+    monkeypatch.setattr(tuner, "_execute_evaluation", _raise_timeout)
+
+    trial = _DummyTrial()
+    result = tuner._objective(trial)
+
+    assert result == float("inf")
+    assert trial.user_attrs["timed_out"] is True
+    assert trial.user_attrs["timeout_stage"] == "standard"
+    assert trial.user_attrs["trial_timeout"] == 12.0
+
+
+def test_objective_returns_bad_value_when_waterz_batch_trial_times_out(monkeypatch):
+    cfg = Config()
+    cfg.tune = TuneConfig()
+    cfg.tune.trial_timeout = 30
+    cfg.tune.parameter_space.decoding.function_name = "decode_waterz"
+    cfg.tune.parameter_space.decoding.defaults = {
+        "thresholds": 0.4,
+        "merge_function": "aff85_his256",
+        "aff_threshold": [0.001, 0.999],
+    }
+    cfg.tune.parameter_space.decoding.parameters = {
+        "thresholds": {
+            "type": "float",
+            "range": [0.1, 0.2],
+            "step": 0.1,
+        }
+    }
+
+    tuner = OptunaDecodingTuner(
+        cfg=cfg,
+        predictions=np.zeros((3, 4, 4, 4), dtype=np.float32),
+        ground_truth=np.zeros((4, 4, 4), dtype=np.uint16),
+    )
+    assert tuner._waterz_batch_enabled is True
+
+    def _raise_timeout(_evaluation_kind, _payload):
+        raise TrialEvaluationTimeoutError("waterz batch exceeded timeout")
+
+    monkeypatch.setattr(tuner, "_execute_evaluation", _raise_timeout)
+
+    trial = _DummyTrial()
+    result = tuner._objective(trial)
+
+    assert result == float("inf")
+    assert trial.user_attrs["timed_out"] is True
+    assert trial.user_attrs["timeout_stage"] == "waterz_batch"
+    assert trial.user_attrs["trial_timeout"] == 30.0

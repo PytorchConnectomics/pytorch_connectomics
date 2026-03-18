@@ -61,8 +61,12 @@ class TestTimeAugmentationConfig:
     apply_mask: bool = True
     transforms: Optional[List[Dict[str, Any]]] = None  # advanced explicit transforms
 
-    # Aggregation
-    ensemble_mode: str = "mean"  # "mean", "max", "gmean"
+    # Aggregation — single mode or per-channel list.
+    # Single string: "mean", "min", "max" applied to all channels.
+    # Per-channel list: [["0:3", "min"], ["3:", "mean"]] where each entry is
+    # [channel_selector, mode].  Channel selectors use the same syntax as
+    # loss pred_slice / target_slice (e.g. "0:3", "-1:", "3").
+    ensemble_mode: Any = "mean"
     # CUDA cache cleanup cadence during TTA loop (0 disables cleanup).
     empty_cache_interval: int = 4
 

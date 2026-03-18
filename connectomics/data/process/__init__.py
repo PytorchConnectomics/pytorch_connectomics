@@ -1,6 +1,7 @@
 # Core processing functions
 from .bbox import bbox_ND, crop_ND, replace_ND
 from .bbox_processor import BBoxInstanceProcessor, BBoxProcessorConfig
+from .iou import seg_to_iou, segs_to_iou
 
 # Pipeline builder (primary entry point for label transforms)
 from .build import create_label_transform_pipeline
@@ -62,4 +63,7 @@ __all__ = [
     "NNUNetPreprocessd",
     # Pipelines
     "create_label_transform_pipeline",
+    # IoU
+    "seg_to_iou",
+    "segs_to_iou",
 ]

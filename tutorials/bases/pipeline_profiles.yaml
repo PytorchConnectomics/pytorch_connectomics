@@ -31,7 +31,8 @@ pipeline_profiles:
       label_transform:
         profile: label_affinity_12
     inference:
-      decoding_profile: decoding_abiss
+      decoding_profile: decoding_waterz
+      #decoding_profile: decoding_abiss
       test_time_augmentation:
         ensemble_mode: min
         select_channel: [0, 1, 2]

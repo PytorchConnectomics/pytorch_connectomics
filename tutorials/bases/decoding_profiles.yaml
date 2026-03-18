@@ -16,6 +16,7 @@ decoding_profiles:
           merge_function: aff85_his256
           aff_threshold: [0.001, 0.999]
           channel_order: xyz
+          dust_merge: true
           dust_merge_size: 100
           dust_merge_affinity: 0.0
           dust_remove_size: 50

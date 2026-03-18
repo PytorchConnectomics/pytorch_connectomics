@@ -16,6 +16,7 @@ Usage:
 from __future__ import annotations
 
 import logging
+import multiprocessing as mp
 import traceback
 import warnings
 from collections import defaultdict
@@ -38,14 +39,33 @@ except ImportError:
     OPTUNA_AVAILABLE = False
 
 from connectomics.metrics.metrics_seg import adapted_rand
-from connectomics.training.lightning.utils import tta_cache_suffix
+from connectomics.training.lightning.utils import (
+    tta_cache_suffix,
+    tuning_best_params_filename,
+    tuning_best_params_filename_candidates,
+    tuning_study_db_filename,
+)
 
 from ..registry import get_decoder
 from ..utils import remove_small_instances
 
 logger = logging.getLogger(__name__)
 
-__all__ = ["OptunaDecodingTuner", "run_tuning", "load_and_apply_best_params"]
+__all__ = [
+    "OptunaDecodingTuner",
+    "TrialEvaluationTimeoutError",
+    "run_tuning",
+    "load_and_apply_best_params",
+]
+
+
+class TrialEvaluationTimeoutError(TimeoutError):
+    """Raised when a single tuning trial exceeds the configured wall-clock limit."""
+
+
+def _bad_objective_value(direction: str) -> float:
+    """Return the worst possible objective value for the given direction."""
+    return float("inf") if direction == "minimize" else float("-inf")
 
 
 def _expand_tuning_paths(path_or_pattern: Any, *, field_name: str) -> list[str]:
@@ -84,7 +104,9 @@ def _resolve_tuning_prediction_files(
     if not image_files:
         raise FileNotFoundError(f"No image files found matching pattern: {tune_image_pattern}")
 
-    expected_files = [predictions_dir / f"{Path(str(path)).stem}{cache_suffix}" for path in image_files]
+    expected_files = [
+        predictions_dir / f"{Path(str(path)).stem}{cache_suffix}" for path in image_files
+    ]
     existing_files = [str(path) for path in expected_files if path.exists()]
     return existing_files, [str(path) for path in expected_files]
 
@@ -106,10 +128,268 @@ def _print_best_params_yaml(best_params_file: Path) -> None:
         print("[empty]")
 
 
+def _resolve_best_params_file(
+    cfg: Any,
+    output_dir: Path,
+    *,
+    checkpoint_path: str | Path | None = None,
+) -> Path:
+    """Return the primary best-params path for the current tuning context."""
+    return output_dir / tuning_best_params_filename(cfg, checkpoint_path=checkpoint_path)
+
+
+def _resolve_existing_best_params_file(
+    cfg: Any,
+    output_dir: Path,
+    *,
+    checkpoint_path: str | Path | None = None,
+) -> Path | None:
+    """Return the first matching best-params file, preferring the current exact name."""
+    for candidate in tuning_best_params_filename_candidates(cfg, checkpoint_path=checkpoint_path):
+        candidate_path = output_dir / candidate
+        if candidate_path.exists():
+            return candidate_path
+    return None
+
+
+def _compute_segmentation_metric(
+    segmentation: np.ndarray,
+    ground_truth: np.ndarray,
+    mask: np.ndarray | None,
+    metric_name: str,
+) -> tuple[float, float, float]:
+    """Compute a segmentation metric triplet for one volume."""
+    gt_masked = ground_truth * mask if mask is not None else ground_truth
+    seg_masked = segmentation * mask if mask is not None else segmentation
+
+    if metric_name == "adapted_rand":
+        are_val, prec_val, rec_val = adapted_rand(seg_masked, gt_masked, all_stats=True)
+        return float(are_val), float(prec_val), float(rec_val)
+
+    raise ValueError(f"Unknown metric: {metric_name}")
+
+
+def _evaluate_standard_trial_payload(
+    *,
+    decoder_fn,
+    predictions_list: list[np.ndarray],
+    ground_truth_list: list[np.ndarray],
+    mask_list: list[np.ndarray] | None,
+    decoding_params: Dict[str, Any],
+    postproc_params: Optional[Dict[str, Any]],
+    metric_name: str,
+) -> Dict[str, Any]:
+    """Run one standard decoding trial and return aggregate metrics."""
+    metric_values: list[float] = []
+    precision_values: list[float] = []
+    recall_values: list[float] = []
+
+    for vol_idx, pred_vol in enumerate(predictions_list):
+        gt_vol = ground_truth_list[vol_idx]
+        mask_vol = mask_list[vol_idx] if mask_list else None
+
+        try:
+            segmentation = decoder_fn(pred_vol, **decoding_params)
+        except Exception as exc:
+            raise RuntimeError(
+                f"Decoding failed for volume {vol_idx} with params={decoding_params!r}"
+            ) from exc
+
+        if postproc_params is not None:
+            try:
+                segmentation = remove_small_instances(segmentation, **postproc_params)
+            except Exception as exc:
+                raise RuntimeError(
+                    f"Post-processing failed for volume {vol_idx} "
+                    f"with params={postproc_params!r}"
+                ) from exc
+
+        try:
+            are_val, prec_val, rec_val = _compute_segmentation_metric(
+                segmentation,
+                gt_vol,
+                mask_vol,
+                metric_name,
+            )
+        except Exception as exc:
+            raise RuntimeError(
+                f"Metric computation failed for volume {vol_idx} "
+                f"(metric={metric_name}, seg_shape={segmentation.shape}, "
+                f"dtype={segmentation.dtype})"
+            ) from exc
+
+        metric_values.append(are_val)
+        precision_values.append(prec_val)
+        recall_values.append(rec_val)
+
+    return {
+        "avg_metric": float(np.mean(metric_values)),
+        "avg_precision": float(np.mean(precision_values)) if precision_values else 0.0,
+        "avg_recall": float(np.mean(recall_values)) if recall_values else 0.0,
+        "per_vol_are": metric_values,
+        "per_vol_precision": precision_values,
+        "per_vol_recall": recall_values,
+    }
+
+
+def _evaluate_batch_trial_payload(
+    *,
+    decoder_fn,
+    predictions_list: list[np.ndarray],
+    ground_truth_list: list[np.ndarray],
+    mask_list: list[np.ndarray] | None,
+    batch_params: Dict[str, Any],
+    postproc_params: Optional[Dict[str, Any]],
+    metric_name: str,
+    direction: str,
+    candidate_values: list[float],
+) -> Dict[str, Any]:
+    """Run one batch-decoder trial and return aggregate metrics."""
+    candidate_are: Dict[float, List[float]] = {val: [] for val in candidate_values}
+    candidate_prec: Dict[float, List[float]] = {val: [] for val in candidate_values}
+    candidate_rec: Dict[float, List[float]] = {val: [] for val in candidate_values}
+
+    for vol_idx, pred_vol in enumerate(predictions_list):
+        gt_vol = ground_truth_list[vol_idx]
+        mask_vol = mask_list[vol_idx] if mask_list else None
+
+        try:
+            results = decoder_fn(pred_vol, **batch_params)
+        except Exception as exc:
+            raise RuntimeError(
+                f"Batch decoding failed for volume {vol_idx} with params={batch_params!r}"
+            ) from exc
+
+        if not isinstance(results, dict):
+            raise TypeError("Decoder did not return a dict in batch mode")
+
+        for candidate in candidate_values:
+            seg = results.get(round(candidate, 10))
+            if seg is None:
+                continue
+
+            if postproc_params is not None:
+                try:
+                    seg = remove_small_instances(seg, **postproc_params)
+                except Exception:
+                    continue
+
+            are_val, prec_val, rec_val = _compute_segmentation_metric(
+                seg,
+                gt_vol,
+                mask_vol,
+                metric_name,
+            )
+            candidate_are[candidate].append(are_val)
+            candidate_prec[candidate].append(prec_val)
+            candidate_rec[candidate].append(rec_val)
+
+    best_candidate = candidate_values[0]
+    best_metric = _bad_objective_value(direction)
+    for candidate in candidate_values:
+        if not candidate_are[candidate]:
+            continue
+        avg_metric = float(np.mean(candidate_are[candidate]))
+        if (direction == "minimize" and avg_metric < best_metric) or (
+            direction == "maximize" and avg_metric > best_metric
+        ):
+            best_metric = avg_metric
+            best_candidate = candidate
+
+    return {
+        "best_metric": best_metric,
+        "best_candidate": best_candidate,
+        "avg_precision": float(np.mean(candidate_prec.get(best_candidate, [0.0]))),
+        "avg_recall": float(np.mean(candidate_rec.get(best_candidate, [0.0]))),
+        "per_vol_are": list(candidate_are.get(best_candidate, [])),
+        "per_vol_precision": list(candidate_prec.get(best_candidate, [])),
+        "per_vol_recall": list(candidate_rec.get(best_candidate, [])),
+        "per_candidate_metric": {
+            candidate: float(np.mean(values))
+            for candidate, values in candidate_are.items()
+            if values
+        },
+    }
+
+
+def _execute_trial_payload(evaluation_kind: str, payload: Dict[str, Any]) -> Dict[str, Any]:
+    """Execute one tuning trial payload in-process."""
+    if evaluation_kind == "standard":
+        return _evaluate_standard_trial_payload(**payload)
+    if evaluation_kind in {"abiss_batch", "waterz_batch"}:
+        return _evaluate_batch_trial_payload(**payload)
+    raise ValueError(f"Unknown evaluation kind: {evaluation_kind}")
+
+
+def _trial_evaluation_worker(send_conn, evaluation_kind: str, payload: Dict[str, Any]) -> None:
+    """Execute a trial payload in a child process and send back a small summary dict."""
+    try:
+        send_conn.send({"ok": True, "result": _execute_trial_payload(evaluation_kind, payload)})
+    except Exception:
+        try:
+            send_conn.send({"ok": False, "traceback": traceback.format_exc()})
+        except Exception:
+            pass
+    finally:
+        send_conn.close()
+
+
+def _get_trial_process_context() -> mp.context.BaseContext:
+    """Prefer fork to avoid copying large prediction arrays when available."""
+    for method in ("fork", "spawn"):
+        try:
+            return mp.get_context(method)
+        except ValueError:
+            continue
+    return mp.get_context()
+
+
+def _run_trial_payload_with_timeout(
+    evaluation_kind: str,
+    payload: Dict[str, Any],
+    *,
+    timeout_sec: float,
+) -> Dict[str, Any]:
+    """Execute a trial payload in a child process and abort it on timeout."""
+    ctx = _get_trial_process_context()
+    recv_conn, send_conn = ctx.Pipe(duplex=False)
+    process = ctx.Process(
+        target=_trial_evaluation_worker,
+        args=(send_conn, evaluation_kind, payload),
+    )
+    process.start()
+    send_conn.close()
+
+    try:
+        process.join(timeout_sec)
+        if process.is_alive():
+            process.terminate()
+            process.join(2.0)
+            if process.is_alive():
+                process.kill()
+                process.join()
+            raise TrialEvaluationTimeoutError(
+                f"{evaluation_kind} evaluation exceeded timeout of {timeout_sec:g}s"
+            )
+
+        if not recv_conn.poll(0.1):
+            raise RuntimeError(
+                f"Trial worker exited without returning a result (exitcode={process.exitcode})"
+            )
+
+        message = recv_conn.recv()
+    finally:
+        recv_conn.close()
+
+    if not isinstance(message, dict):
+        raise RuntimeError("Trial worker returned an invalid response")
+    if not message.get("ok", False):
+        raise RuntimeError(message.get("traceback", "Trial worker failed without traceback"))
+    return message["result"]
+
+
 @contextmanager
-def _temporary_tuning_inference_overrides(
-    *cfg_objects: Any, checkpoint_path: str | None = None
-):
+def _temporary_tuning_inference_overrides(*cfg_objects: Any, checkpoint_path: str | None = None):
     """Force the pre-Optuna inference pass to cache raw predictions only."""
     inference_cfgs = []
     seen_inference_cfgs: set[int] = set()
@@ -321,6 +601,52 @@ class OptunaDecodingTuner:
                     self._waterz_all_thresholds,
                 )
 
+    def _get_trial_timeout_seconds(self) -> float | None:
+        """Return the configured per-trial timeout in seconds, if enabled."""
+        timeout = getattr(self.tune_cfg, "trial_timeout", None)
+        if timeout is None:
+            return None
+
+        timeout_value = float(timeout)
+        if timeout_value <= 0:
+            return None
+        return timeout_value
+
+    def _execute_evaluation(self, evaluation_kind: str, payload: Dict[str, Any]) -> Dict[str, Any]:
+        """Run trial evaluation inline or in a timeout-capable child process."""
+        timeout_sec = self._get_trial_timeout_seconds()
+        if timeout_sec is None:
+            return _execute_trial_payload(evaluation_kind, payload)
+        return _run_trial_payload_with_timeout(
+            evaluation_kind,
+            payload,
+            timeout_sec=timeout_sec,
+        )
+
+    def _handle_timed_out_trial(
+        self,
+        trial: "optuna.Trial",
+        *,
+        evaluation_kind: str,
+        params: Dict[str, Any],
+        direction: str,
+    ) -> float:
+        """Record timeout metadata and return the worst objective value."""
+        timeout_sec = self._get_trial_timeout_seconds()
+        trial.set_user_attr("timed_out", True)
+        trial.set_user_attr("timeout_stage", evaluation_kind)
+        if timeout_sec is not None:
+            trial.set_user_attr("trial_timeout", timeout_sec)
+
+        logger.warning(
+            "Trial %d timed out after %.1fs during %s evaluation: params=%s",
+            self.trial_count,
+            timeout_sec or 0.0,
+            evaluation_kind,
+            params,
+        )
+        return _bad_objective_value(direction)
+
     def _load_data(self, data: np.ndarray | str | Path, name: str) -> np.ndarray:
         """Load data from array or HDF5 file."""
         if isinstance(data, np.ndarray):
@@ -433,7 +759,11 @@ class OptunaDecodingTuner:
         if not storage and getattr(self.tune_cfg.output, "save_study", False):
             output_dir = getattr(self.tune_cfg.output, "output_dir", None)
             if output_dir:
-                db_path = Path(output_dir) / f"{self.tune_cfg.study_name}.db"
+                db_path = Path(output_dir) / tuning_study_db_filename(
+                    self.cfg,
+                    self.tune_cfg.study_name,
+                    checkpoint_path=getattr(self, "_prediction_checkpoint_path", None),
+                )
                 storage = f"sqlite:///{db_path}"
                 logger.info("Auto-generated study storage: %s", storage)
         if storage and storage.startswith("sqlite:///"):
@@ -464,12 +794,15 @@ class OptunaDecodingTuner:
         timeout = self.tune_cfg.timeout
 
         metric = self.tune_cfg.optimization["single_objective"]["metric"]
+        trial_timeout = self._get_trial_timeout_seconds()
         logger.info(
-            "Starting Optuna optimization: %s | Trials: %s | Metric: %s | Direction: %s",
+            "Starting Optuna optimization: %s | Trials: %s | Metric: %s | "
+            "Direction: %s | Trial timeout: %s",
             self.tune_cfg.study_name,
             n_trials,
             metric,
             direction,
+            f"{trial_timeout:g}s" if trial_timeout is not None else "disabled",
         )
 
         study.optimize(
@@ -555,7 +888,7 @@ class OptunaDecodingTuner:
         """
         metric_name = self.tune_cfg.optimization["single_objective"]["metric"]
         direction = self._get_optimization_direction()
-        bad_value = float("inf") if direction == "minimize" else float("-inf")
+        bad_value = _bad_objective_value(direction)
 
         # Build batch decoding params: replace single merge threshold with list.
         batch_params: Dict[str, Any] = {}
@@ -566,89 +899,55 @@ class OptunaDecodingTuner:
         batch_cli["ws_merge_thresholds"] = self._abiss_all_merge_thresholds
         batch_params["cli_args"] = batch_cli
 
-        # per merge-threshold → per-volume metrics
-        mt_are: Dict[float, List[float]] = {mt: [] for mt in self._abiss_all_merge_thresholds}
-        mt_prec: Dict[float, List[float]] = {mt: [] for mt in self._abiss_all_merge_thresholds}
-        mt_rec: Dict[float, List[float]] = {mt: [] for mt in self._abiss_all_merge_thresholds}
+        payload = {
+            "decoder_fn": self.decoder_fn,
+            "predictions_list": self.predictions_list,
+            "ground_truth_list": self.ground_truth_list,
+            "mask_list": self.mask_list,
+            "batch_params": batch_params,
+            "postproc_params": postproc_params,
+            "metric_name": metric_name,
+            "direction": direction,
+            "candidate_values": self._abiss_all_merge_thresholds,
+        }
+        try:
+            result = self._execute_evaluation("abiss_batch", payload)
+        except TrialEvaluationTimeoutError:
+            return self._handle_timed_out_trial(
+                trial,
+                evaluation_kind="abiss_batch",
+                params=batch_params,
+                direction=direction,
+            )
+        except Exception:
+            logger.error(
+                "Trial %d ABISS batch failed: params=%s\n%s",
+                self.trial_count,
+                batch_params,
+                traceback.format_exc(),
+            )
+            return bad_value
 
-        for vol_idx in range(len(self.predictions_list)):
-            pred_vol = self.predictions_list[vol_idx]
-            gt_vol = self.ground_truth_list[vol_idx]
-            mask_vol = self.mask_list[vol_idx] if self.mask_list else None
-
-            try:
-                results = self.decoder_fn(pred_vol, **batch_params)
-            except Exception:
-                logger.error(
-                    "Trial %d ABISS batch failed (vol %d):\n%s",
-                    self.trial_count,
-                    vol_idx,
-                    traceback.format_exc(),
-                )
-                return bad_value
-
-            if not isinstance(results, dict):
-                logger.error(
-                    "Trial %d: decoder did not return dict in batch mode", self.trial_count
-                )
-                return bad_value
-
-            for mt_val in self._abiss_all_merge_thresholds:
-                mt_key = round(mt_val, 10)
-                seg = results.get(mt_key)
-                if seg is None:
-                    continue
-
-                if postproc_params is not None:
-                    try:
-                        seg = remove_small_instances(seg, **postproc_params)
-                    except Exception:
-                        continue
-
-                gt_m = gt_vol * mask_vol if mask_vol is not None else gt_vol
-                seg_m = seg * mask_vol if mask_vol is not None else seg
-
-                if metric_name == "adapted_rand":
-                    are_v, prec_v, rec_v = adapted_rand(seg_m, gt_m, all_stats=True)
-                    mt_are[mt_val].append(are_v)
-                    mt_prec[mt_val].append(prec_v)
-                    mt_rec[mt_val].append(rec_v)
-                else:
-                    raise ValueError(f"Unknown metric: {metric_name}")
-
-        # Pick the merge threshold with the best averaged metric.
-        best_mt = self._abiss_all_merge_thresholds[0]
-        best_avg = bad_value
-        for mt_val in self._abiss_all_merge_thresholds:
-            if not mt_are[mt_val]:
-                continue
-            avg = float(np.mean(mt_are[mt_val]))
-            if (direction == "minimize" and avg < best_avg) or (
-                direction == "maximize" and avg > best_avg
-            ):
-                best_avg = avg
-                best_mt = mt_val
-
-        avg_prec = float(np.mean(mt_prec.get(best_mt, [0.0])))
-        avg_rec = float(np.mean(mt_rec.get(best_mt, [0.0])))
+        best_mt = float(result["best_candidate"])
+        best_avg = float(result["best_metric"])
+        avg_prec = float(result["avg_precision"])
+        avg_rec = float(result["avg_recall"])
 
         trial.set_user_attr("precision", avg_prec)
         trial.set_user_attr("recall", avg_rec)
         trial.set_user_attr("best_ws_merge_threshold", best_mt)
-        trial.set_user_attr("per_vol_are", mt_are.get(best_mt, []))
-        trial.set_user_attr("per_vol_precision", mt_prec.get(best_mt, []))
-        trial.set_user_attr("per_vol_recall", mt_rec.get(best_mt, []))
+        trial.set_user_attr("per_vol_are", result["per_vol_are"])
+        trial.set_user_attr("per_vol_precision", result["per_vol_precision"])
+        trial.set_user_attr("per_vol_recall", result["per_vol_recall"])
 
         # Store per-threshold metrics for analysis.
-        for mt_val in self._abiss_all_merge_thresholds:
-            if mt_are[mt_val]:
-                trial.set_user_attr(f"are_mt_{mt_val}", float(np.mean(mt_are[mt_val])))
+        for mt_val, avg_metric in result["per_candidate_metric"].items():
+            trial.set_user_attr(f"are_mt_{mt_val}", float(avg_metric))
 
         if getattr(self.tune_cfg.logging, "verbose", True):
             mt_summary = " | ".join(
-                f"mt={mt:.2f}:{float(np.mean(mt_are[mt])):.4f}"
-                for mt in self._abiss_all_merge_thresholds
-                if mt_are[mt]
+                f"mt={mt:.2f}:{float(avg_metric):.4f}"
+                for mt, avg_metric in result["per_candidate_metric"].items()
             )
             print(
                 f"  Trial {self.trial_count:3d}: best ARE={best_avg:.4f} (mt={best_mt:.2f}) "
@@ -675,96 +974,62 @@ class OptunaDecodingTuner:
         """
         metric_name = self.tune_cfg.optimization["single_objective"]["metric"]
         direction = self._get_optimization_direction()
-        bad_value = float("inf") if direction == "minimize" else float("-inf")
+        bad_value = _bad_objective_value(direction)
 
         # Replace single threshold with full list + return_all_thresholds.
         batch_params = dict(decoding_params)
         batch_params["thresholds"] = self._waterz_all_thresholds
         batch_params["return_all_thresholds"] = True
 
-        # per threshold → per-volume metrics
-        thr_are: Dict[float, List[float]] = {t: [] for t in self._waterz_all_thresholds}
-        thr_prec: Dict[float, List[float]] = {t: [] for t in self._waterz_all_thresholds}
-        thr_rec: Dict[float, List[float]] = {t: [] for t in self._waterz_all_thresholds}
+        payload = {
+            "decoder_fn": self.decoder_fn,
+            "predictions_list": self.predictions_list,
+            "ground_truth_list": self.ground_truth_list,
+            "mask_list": self.mask_list,
+            "batch_params": batch_params,
+            "postproc_params": postproc_params,
+            "metric_name": metric_name,
+            "direction": direction,
+            "candidate_values": self._waterz_all_thresholds,
+        }
+        try:
+            result = self._execute_evaluation("waterz_batch", payload)
+        except TrialEvaluationTimeoutError:
+            return self._handle_timed_out_trial(
+                trial,
+                evaluation_kind="waterz_batch",
+                params=batch_params,
+                direction=direction,
+            )
+        except Exception:
+            logger.error(
+                "Trial %d waterz batch failed: params=%s\n%s",
+                self.trial_count,
+                batch_params,
+                traceback.format_exc(),
+            )
+            return bad_value
 
-        for vol_idx in range(len(self.predictions_list)):
-            pred_vol = self.predictions_list[vol_idx]
-            gt_vol = self.ground_truth_list[vol_idx]
-            mask_vol = self.mask_list[vol_idx] if self.mask_list else None
-
-            try:
-                results = self.decoder_fn(pred_vol, **batch_params)
-            except Exception:
-                logger.error(
-                    "Trial %d waterz batch failed (vol %d):\n%s",
-                    self.trial_count,
-                    vol_idx,
-                    traceback.format_exc(),
-                )
-                return bad_value
-
-            if not isinstance(results, dict):
-                logger.error(
-                    "Trial %d: decoder did not return dict in batch mode", self.trial_count
-                )
-                return bad_value
-
-            for thr_val in self._waterz_all_thresholds:
-                thr_key = round(thr_val, 10)
-                seg = results.get(thr_key)
-                if seg is None:
-                    continue
-
-                if postproc_params is not None:
-                    try:
-                        seg = remove_small_instances(seg, **postproc_params)
-                    except Exception:
-                        continue
-
-                gt_m = gt_vol * mask_vol if mask_vol is not None else gt_vol
-                seg_m = seg * mask_vol if mask_vol is not None else seg
-
-                if metric_name == "adapted_rand":
-                    are_v, prec_v, rec_v = adapted_rand(seg_m, gt_m, all_stats=True)
-                    thr_are[thr_val].append(are_v)
-                    thr_prec[thr_val].append(prec_v)
-                    thr_rec[thr_val].append(rec_v)
-                else:
-                    raise ValueError(f"Unknown metric: {metric_name}")
-
-        # Pick the threshold with the best averaged metric.
-        best_thr = self._waterz_all_thresholds[0]
-        best_avg = bad_value
-        for thr_val in self._waterz_all_thresholds:
-            if not thr_are[thr_val]:
-                continue
-            avg = float(np.mean(thr_are[thr_val]))
-            if (direction == "minimize" and avg < best_avg) or (
-                direction == "maximize" and avg > best_avg
-            ):
-                best_avg = avg
-                best_thr = thr_val
-
-        avg_prec = float(np.mean(thr_prec.get(best_thr, [0.0])))
-        avg_rec = float(np.mean(thr_rec.get(best_thr, [0.0])))
+        best_thr = float(result["best_candidate"])
+        best_avg = float(result["best_metric"])
+        avg_prec = float(result["avg_precision"])
+        avg_rec = float(result["avg_recall"])
 
         trial.set_user_attr("precision", avg_prec)
         trial.set_user_attr("recall", avg_rec)
         trial.set_user_attr("best_threshold", best_thr)
-        trial.set_user_attr("per_vol_are", thr_are.get(best_thr, []))
-        trial.set_user_attr("per_vol_precision", thr_prec.get(best_thr, []))
-        trial.set_user_attr("per_vol_recall", thr_rec.get(best_thr, []))
+        trial.set_user_attr("per_vol_are", result["per_vol_are"])
+        trial.set_user_attr("per_vol_precision", result["per_vol_precision"])
+        trial.set_user_attr("per_vol_recall", result["per_vol_recall"])
 
         # Store per-threshold metrics for analysis.
-        for thr_val in self._waterz_all_thresholds:
-            if thr_are[thr_val]:
-                trial.set_user_attr(f"are_thr_{thr_val}", float(np.mean(thr_are[thr_val])))
+        for thr_val, avg_metric in result["per_candidate_metric"].items():
+            trial.set_user_attr(f"are_thr_{thr_val}", float(avg_metric))
 
         if getattr(self.tune_cfg.logging, "verbose", True):
             thr_summary = " | ".join(
-                f"t={t:.2f}:{float(np.mean(thr_are[t])):.4f}"
-                for t in self._waterz_all_thresholds
-                if thr_are[t]
+                f"t={thr:.2f}:{float(avg_metric):.4f}"
+                for thr, avg_metric in result["per_candidate_metric"].items()
             )
             print(
                 f"  Trial {self.trial_count:3d}: best ARE={best_avg:.4f} (thr={best_thr:.2f}) "
@@ -812,96 +1077,46 @@ class OptunaDecodingTuner:
             return self._waterz_batch_objective(trial, decoding_params, postproc_params)
 
         metric_name = self.tune_cfg.optimization["single_objective"]["metric"]
-        metric_values = []
-        precision_values = []
-        recall_values = []
+        direction = self._get_optimization_direction()
+        bad_value = _bad_objective_value(direction)
 
-        # Evaluate each volume independently
-        for vol_idx in range(len(self.predictions_list)):
-            pred_vol = self.predictions_list[vol_idx]
-            gt_vol = self.ground_truth_list[vol_idx]
-            mask_vol = self.mask_list[vol_idx] if self.mask_list else None
+        payload = {
+            "decoder_fn": self.decoder_fn,
+            "predictions_list": self.predictions_list,
+            "ground_truth_list": self.ground_truth_list,
+            "mask_list": self.mask_list,
+            "decoding_params": decoding_params,
+            "postproc_params": postproc_params,
+            "metric_name": metric_name,
+        }
+        try:
+            result = self._execute_evaluation("standard", payload)
+        except TrialEvaluationTimeoutError:
+            return self._handle_timed_out_trial(
+                trial,
+                evaluation_kind="standard",
+                params=decoding_params,
+                direction=direction,
+            )
+        except Exception:
+            logger.error(
+                "Trial %d failed during evaluation: params=%s postproc=%s\n%s",
+                self.trial_count,
+                decoding_params,
+                postproc_params,
+                traceback.format_exc(),
+            )
+            return bad_value
 
-            # Decode predictions for this volume
-            try:
-                segmentation = self.decoder_fn(pred_vol, **decoding_params)
-            except Exception:
-                logger.error(
-                    "Trial %d failed during decoding (vol %d): params=%s\n%s",
-                    self.trial_count,
-                    vol_idx,
-                    decoding_params,
-                    traceback.format_exc(),
-                )
-                return (
-                    float("-inf")
-                    if self._get_optimization_direction() == "maximize"
-                    else float("inf")
-                )
-
-            # Apply post-processing if enabled
-            if postproc_params is not None:
-                try:
-                    segmentation = remove_small_instances(segmentation, **postproc_params)
-                except Exception:
-                    logger.error(
-                        "Trial %d failed during post-processing (vol %d): params=%s\n%s",
-                        self.trial_count,
-                        vol_idx,
-                        postproc_params,
-                        traceback.format_exc(),
-                    )
-                    return (
-                        float("-inf")
-                        if self._get_optimization_direction() == "maximize"
-                        else float("inf")
-                    )
-
-            # Compute metric for this volume
-            try:
-                if mask_vol is not None:
-                    gt_masked = gt_vol * mask_vol
-                    seg_masked = segmentation * mask_vol
-                else:
-                    gt_masked = gt_vol
-                    seg_masked = segmentation
-
-                if metric_name == "adapted_rand":
-                    are_val, prec_val, rec_val = adapted_rand(seg_masked, gt_masked, all_stats=True)
-                    metric_values.append(are_val)
-                    precision_values.append(prec_val)
-                    recall_values.append(rec_val)
-                else:
-                    raise ValueError(f"Unknown metric: {metric_name}")
-
-            except Exception:
-                logger.error(
-                    "Trial %d failed during metric computation (vol %d): "
-                    "metric=%s, seg shape=%s, dtype=%s, n_labels=%d\n%s",
-                    self.trial_count,
-                    vol_idx,
-                    metric_name,
-                    segmentation.shape,
-                    segmentation.dtype,
-                    len(np.unique(segmentation)),
-                    traceback.format_exc(),
-                )
-                return (
-                    float("-inf")
-                    if self._get_optimization_direction() == "maximize"
-                    else float("inf")
-                )
-
-        # Average metrics across volumes
-        avg_metric = float(np.mean(metric_values))
-        avg_precision = float(np.mean(precision_values)) if precision_values else 0.0
-        avg_recall = float(np.mean(recall_values)) if recall_values else 0.0
+        avg_metric = float(result["avg_metric"])
+        avg_precision = float(result["avg_precision"])
+        avg_recall = float(result["avg_recall"])
 
         # Log progress with precision and recall
         if getattr(self.tune_cfg.logging, "verbose", True):
-            per_vol_are = " ".join(f"{v:.3f}" for v in metric_values)
-            per_vol_prec = " ".join(f"{v:.3f}" for v in precision_values)
-            per_vol_rec = " ".join(f"{v:.3f}" for v in recall_values)
+            per_vol_are = " ".join(f"{v:.3f}" for v in result["per_vol_are"])
+            per_vol_prec = " ".join(f"{v:.3f}" for v in result["per_vol_precision"])
+            per_vol_rec = " ".join(f"{v:.3f}" for v in result["per_vol_recall"])
             logger.info(
                 "Trial %3d: ARE=%.4f Prec=%.4f Rec=%.4f "
                 "(per-vol ARE: [%s] Prec: [%s] Rec: [%s])",
@@ -917,9 +1132,9 @@ class OptunaDecodingTuner:
         # Store precision/recall as user attributes for later analysis
         trial.set_user_attr("precision", avg_precision)
         trial.set_user_attr("recall", avg_recall)
-        trial.set_user_attr("per_vol_are", metric_values)
-        trial.set_user_attr("per_vol_precision", precision_values)
-        trial.set_user_attr("per_vol_recall", recall_values)
+        trial.set_user_attr("per_vol_are", result["per_vol_are"])
+        trial.set_user_attr("per_vol_precision", result["per_vol_precision"])
+        trial.set_user_attr("per_vol_recall", result["per_vol_recall"])
 
         return avg_metric
 
@@ -1019,24 +1234,50 @@ class OptunaDecodingTuner:
         - direct: ``defaults.<name>``
         """
         # nested (e.g. cli_args.ws_high_threshold)
-        nest_under = pcfg.get("nest_under", None) if hasattr(pcfg, "get") else getattr(pcfg, "nest_under", None)
+        nest_under = (
+            pcfg.get("nest_under", None)
+            if hasattr(pcfg, "get")
+            else getattr(pcfg, "nest_under", None)
+        )
         if nest_under:
-            nested = getattr(defaults, nest_under, None) if not isinstance(defaults, dict) else defaults.get(nest_under)
+            nested = (
+                getattr(defaults, nest_under, None)
+                if not isinstance(defaults, dict)
+                else defaults.get(nest_under)
+            )
             if nested is not None:
-                val = nested.get(name, None) if isinstance(nested, dict) else getattr(nested, name, None)
+                val = (
+                    nested.get(name, None)
+                    if isinstance(nested, dict)
+                    else getattr(nested, name, None)
+                )
                 if val is not None:
                     return val
 
         # tuple param (e.g. binary_threshold[0])
-        param_group = pcfg.get("param_group", None) if hasattr(pcfg, "get") else getattr(pcfg, "param_group", None)
-        tuple_index = pcfg.get("tuple_index", None) if hasattr(pcfg, "get") else getattr(pcfg, "tuple_index", None)
+        param_group = (
+            pcfg.get("param_group", None)
+            if hasattr(pcfg, "get")
+            else getattr(pcfg, "param_group", None)
+        )
+        tuple_index = (
+            pcfg.get("tuple_index", None)
+            if hasattr(pcfg, "get")
+            else getattr(pcfg, "tuple_index", None)
+        )
         if param_group is not None and tuple_index is not None:
-            group_val = getattr(defaults, param_group, None) if not isinstance(defaults, dict) else defaults.get(param_group)
+            group_val = (
+                getattr(defaults, param_group, None)
+                if not isinstance(defaults, dict)
+                else defaults.get(param_group)
+            )
             if isinstance(group_val, (list, tuple)) and int(tuple_index) < len(group_val):
                 return group_val[int(tuple_index)]
 
         # direct
-        val = getattr(defaults, name, None) if not isinstance(defaults, dict) else defaults.get(name)
+        val = (
+            getattr(defaults, name, None) if not isinstance(defaults, dict) else defaults.get(name)
+        )
         return val
 
     def _reconstruct_decoding_params(self, sampled_params: Dict[str, Any]) -> Dict[str, Any]:
@@ -1194,7 +1435,11 @@ class OptunaDecodingTuner:
         output_dir.mkdir(parents=True, exist_ok=True)
 
         # Save best parameters
-        best_params_file = output_dir / "best_params.yaml"
+        best_params_file = _resolve_best_params_file(
+            self.cfg,
+            output_dir,
+            checkpoint_path=getattr(self, "_prediction_checkpoint_path", None),
+        )
         best_decoding_params = self._reconstruct_decoding_params(study.best_params)
         best_postproc_params = self._reconstruct_postproc_params(study.best_params)
 
@@ -1271,7 +1516,7 @@ def run_tuning(model, trainer, cfg, checkpoint_path=None):
         None (results are saved to disk)
 
     Workflow:
-        1. Check if best_params.yaml already exists (skip if it does)
+        1. Check if the current best-params file already exists (skip if it does)
         2. Run inference on tune dataset to get predictions
         3. Load ground truth labels for tuning
         4. Create OptunaDecodingTuner instance
@@ -1299,17 +1544,28 @@ def run_tuning(model, trainer, cfg, checkpoint_path=None):
     # Propagate the resolved output_dir into the tune config so that
     # OptunaDecodingTuner._save_results() can find it.
     cfg.tune.output.output_dir = str(output_dir)
-
-    best_params_file = output_dir / "best_params.yaml"
+    prediction_checkpoint_path = (
+        getattr(model, "_prediction_checkpoint_path", None) or checkpoint_path
+    )
+    best_params_file = _resolve_best_params_file(
+        cfg,
+        output_dir,
+        checkpoint_path=prediction_checkpoint_path,
+    )
+    existing_best_params_file = _resolve_existing_best_params_file(
+        cfg,
+        output_dir,
+        checkpoint_path=prediction_checkpoint_path,
+    )
 
     # Check if best parameters already exist
-    if best_params_file.exists():
+    if existing_best_params_file is not None:
         logger.info(
             "SKIPPING PARAMETER TUNING: best parameters already exist at %s. "
             "Delete this file to re-run tuning.",
-            best_params_file,
+            existing_best_params_file,
         )
-        _print_best_params_yaml(best_params_file)
+        _print_best_params_yaml(existing_best_params_file)
         return
 
     logger.info("STARTING PARAMETER TUNING | Output directory: %s", output_dir)
@@ -1321,12 +1577,13 @@ def run_tuning(model, trainer, cfg, checkpoint_path=None):
     logger.info("[1/4] Running inference on tuning dataset...")
 
     tune_data = cfg.data
-    prediction_checkpoint_path = getattr(model, "_prediction_checkpoint_path", None) or checkpoint_path
     cache_suffix = tta_cache_suffix(cfg, checkpoint_path=prediction_checkpoint_path)
 
     output_pred_dir = cfg.inference.save_prediction.output_path
     predictions_dir = Path(output_pred_dir)
-    pred_files, expected_pred_files = _resolve_tuning_prediction_files(cfg, predictions_dir, cache_suffix)
+    pred_files, expected_pred_files = _resolve_tuning_prediction_files(
+        cfg, predictions_dir, cache_suffix
+    )
 
     if len(pred_files) == len(expected_pred_files):
         logger.info(
@@ -1387,8 +1644,14 @@ def run_tuning(model, trainer, cfg, checkpoint_path=None):
     all_predictions = []
     for pred_file in pred_files:
         pred = read_volume(pred_file)
-        logger.info("Loaded %s: shape %s, dtype %s, range [%.4f, %.4f]",
-                     Path(pred_file).name, pred.shape, pred.dtype, pred.min(), pred.max())
+        logger.info(
+            "Loaded %s: shape %s, dtype %s, range [%.4f, %.4f]",
+            Path(pred_file).name,
+            pred.shape,
+            pred.dtype,
+            pred.min(),
+            pred.max(),
+        )
         all_predictions.append(pred)
 
     total_slices = sum(p.shape[1] for p in all_predictions)
@@ -1475,6 +1738,7 @@ def run_tuning(model, trainer, cfg, checkpoint_path=None):
     tuner = OptunaDecodingTuner(
         cfg=cfg, predictions=all_predictions, ground_truth=all_labels, mask=all_masks
     )
+    tuner._prediction_checkpoint_path = prediction_checkpoint_path
 
     logger.info("[5/5] Running optimization study...")
     study = tuner.optimize()
@@ -1489,11 +1753,11 @@ def run_tuning(model, trainer, cfg, checkpoint_path=None):
         _print_best_params_yaml(best_params_file)
 
 
-def load_and_apply_best_params(cfg):
+def load_and_apply_best_params(cfg, checkpoint_path=None):
     """
     Load best parameters from Optuna tuning and apply them to test config.
 
-    This function loads the best_params.yaml file generated by run_tuning()
+    This function loads the best-params file generated by run_tuning()
     and updates the test.decoding section of the config with optimized parameters.
 
     Args:
@@ -1511,11 +1775,19 @@ def load_and_apply_best_params(cfg):
     if not output_pred_dir:
         raise ValueError("Missing inference.save_prediction.output_path in configuration")
     output_dir = Path(output_pred_dir).parent / "tuning"
-    best_params_file = output_dir / "best_params.yaml"
+    best_params_file = _resolve_existing_best_params_file(
+        cfg,
+        output_dir,
+        checkpoint_path=checkpoint_path,
+    )
 
-    if not best_params_file.exists():
+    if best_params_file is None:
+        expected_names = ", ".join(
+            tuning_best_params_filename_candidates(cfg, checkpoint_path=checkpoint_path)
+        )
         raise FileNotFoundError(
-            f"Best parameters file not found: {best_params_file}\n"
+            f"Best parameters file not found in: {output_dir}\n"
+            f"Tried: {expected_names}\n"
             f"Run parameter tuning first with --mode tune"
         )
 

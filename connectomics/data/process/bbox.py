@@ -5,7 +5,6 @@ from collections import OrderedDict
 from typing import Optional, Tuple, Union
 
 import numpy as np
-from scipy.ndimage import find_objects
 
 __all__ = [
     "bbox_ND",
@@ -65,42 +64,13 @@ def adjust_bbox(low, high, sz):
     return low - diff, low - diff + sz
 
 
-def index2bbox(seg: np.ndarray, indices: list, relax: int = 0, iterative: bool = False) -> dict:
-    """Calculate the bounding boxes associated with the given mask indices.
-    For a small number of indices, the iterative approach may be preferred.
-
-    Note:
-        Since labels with value 0 are ignored in ``scipy.ndimage.find_objects``,
-        the first tuple in the output list is associated with label index 1.
-    """
+def index2bbox(seg: np.ndarray, indices: list, relax: int = 0, iterative: bool = True) -> dict:
+    """Calculate the bounding boxes associated with the given mask indices."""
     bbox_dict = OrderedDict()
-
-    if iterative:
-        # calculate the bounding boxes of each segment iteratively
-        for idx in indices:
-            temp = seg == idx  # binary mask of the current seg
-            bbox = bbox_ND(temp, relax=relax)
-            bbox_dict[idx] = bbox
-        return bbox_dict
-
-    # calculate the bounding boxes using scipy.ndimage.find_objects
-    loc = find_objects(seg)
-    seg_shape = seg.shape
-    for idx, item in enumerate(loc):
-        if item is None:
-            # For scipy.ndimage.find_objects, if a number is
-            # missing, None is returned instead of a slice.
-            continue
-
-        object_idx = idx + 1  # 0 is ignored in find_objects
-        if object_idx not in indices:
-            continue
-
-        bbox = []
-        for x in item:  # slice() object
-            bbox.append(x.start)
-            bbox.append(x.stop - 1)  # bbox is inclusive by definition
-        bbox_dict[object_idx] = bbox_relax(bbox, seg_shape, relax)
+    for idx in indices:
+        temp = seg == idx
+        bbox = bbox_ND(temp, relax=relax)
+        bbox_dict[idx] = bbox
     return bbox_dict
 
 
@@ -173,7 +143,8 @@ def compute_bbox_all(
 ) -> Optional[np.ndarray]:
     """Compute bounding boxes for all instances in a 2D or 3D segmentation.
 
-    Uses scipy.ndimage.find_objects for a single-pass C-level computation.
+    Scans along each axis to find min/max extents per segment ID.
+    Ported from em_util.
 
     Args:
         seg: 2D or 3D instance segmentation.
@@ -181,66 +152,113 @@ def compute_bbox_all(
         uid: Restrict to these instance IDs.
 
     Returns:
-        Array with columns [id, min0, max0, min1, max1, ...] (inclusive coords),
-        or None if no instances found.
+        2D: ``[id, ymin, ymax, xmin, xmax, (count)]``
+        3D: ``[id, zmin, zmax, ymin, ymax, xmin, xmax, (count)]``
+        None if no instances found.
     """
-    return _compute_bbox_all_find_objects(seg, do_count, uid)
+    if seg.ndim == 2:
+        return _compute_bbox_all_2d(seg, do_count, uid)
+    elif seg.ndim == 3:
+        return _compute_bbox_all_3d(seg, do_count, uid)
+    else:
+        raise ValueError(f"Expected 2D or 3D input, got {seg.ndim}D")
 
 
-def _compute_bbox_all_find_objects(
+def _compute_bbox_all_2d(
     seg: np.ndarray, do_count: bool = False, uid: Optional[np.ndarray] = None
 ) -> Optional[np.ndarray]:
-    """Compute bounding boxes for all instances using scipy.ndimage.find_objects.
-
-    Works for both 2D and 3D segmentation. Uses a single C-level pass over the
-    volume instead of iterating slices/rows/cols in Python.
-
-    Args:
-        seg: 2D or 3D instance segmentation (H, W) or (D, H, W).
-        do_count: Whether to include voxel counts.
-        uid: Restrict to these instance IDs. Default: all non-zero IDs.
-
-    Returns:
-        Array of shape (N, 2*ndim+1 [+1 if do_count]) where each row is:
-          2D: [id, ymin, ymax, xmin, xmax, (count)]
-          3D: [id, zmin, zmax, ymin, ymax, xmin, xmax, (count)]
-        Coordinates are inclusive. Returns None if no instances found.
-    """
-    ndim = seg.ndim
-    if ndim not in (2, 3):
-        raise ValueError(f"Expected 2D or 3D input, got {ndim}D")
-
+    """2D bounding boxes via row/column scan (from em_util)."""
+    H, W = seg.shape
     if uid is None:
         uid = np.unique(seg)
         uid = uid[uid > 0]
     if len(uid) == 0:
         return None
 
-    # find_objects returns list indexed by (label - 1)
-    loc = find_objects(seg)
+    uid_max = int(uid.max())
+    sid_dict = {int(u): i for i, u in enumerate(uid)}
+    ncols = 6 if do_count else 5
+    out = np.zeros((len(uid), ncols), dtype=np.int64)
+    out[:, 0] = uid
+    out[:, 1] = H
+    out[:, 3] = W
 
-    # Count voxels if requested (single pass)
-    counts_dict = {}
+    rids = np.where((seg > 0).any(axis=1))[0]
+    for rid in rids:
+        sid = np.unique(seg[rid])
+        sid = sid[(sid > 0) & (sid <= uid_max)]
+        sid_ind = [sid_dict[int(x)] for x in sid if int(x) in sid_dict]
+        out[sid_ind, 1] = np.minimum(out[sid_ind, 1], rid)
+        out[sid_ind, 2] = np.maximum(out[sid_ind, 2], rid)
+
+    cids = np.where((seg > 0).any(axis=0))[0]
+    for cid in cids:
+        sid = np.unique(seg[:, cid])
+        sid = sid[(sid > 0) & (sid <= uid_max)]
+        sid_ind = [sid_dict[int(x)] for x in sid if int(x) in sid_dict]
+        out[sid_ind, 3] = np.minimum(out[sid_ind, 3], cid)
+        out[sid_ind, 4] = np.maximum(out[sid_ind, 4], cid)
+
     if do_count:
         seg_ui, seg_uc = np.unique(seg, return_counts=True)
-        counts_dict = dict(zip(seg_ui, seg_uc))
+        for i, j in zip(seg_ui, seg_uc):
+            if int(i) in sid_dict:
+                out[sid_dict[int(i)], -1] = j
 
-    rows = []
-    for label_id in uid:
-        label_id = int(label_id)
-        idx = label_id - 1  # find_objects is 0-indexed
-        if idx < 0 or idx >= len(loc) or loc[idx] is None:
-            continue
-        slices = loc[idx]
-        row = [label_id]
-        for s in slices:
-            row.append(s.start)
-            row.append(s.stop - 1)  # inclusive
-        if do_count:
-            row.append(counts_dict.get(label_id, 0))
-        rows.append(row)
+    return out
 
-    if not rows:
+
+def _compute_bbox_all_3d(
+    seg: np.ndarray, do_count: bool = False, uid: Optional[np.ndarray] = None
+) -> Optional[np.ndarray]:
+    """3D bounding boxes via slice/row/column scan (from em_util)."""
+    D, H, W = seg.shape
+    if uid is None:
+        uid = np.unique(seg)
+        uid = uid[uid > 0]
+    if len(uid) == 0:
         return None
 
-    return np.array(rows, dtype=int)
+    uid_max = int(uid.max())
+    sid_dict = {int(u): i for i, u in enumerate(uid)}
+    ncols = 8 if do_count else 7
+    out = np.zeros((len(uid), ncols), dtype=np.int64)
+    out[:, 0] = uid
+    out[:, 1] = D
+    out[:, 2] = -1
+    out[:, 3] = H
+    out[:, 4] = -1
+    out[:, 5] = W
+    out[:, 6] = -1
+
+    zids = np.where((seg > 0).reshape(D, -1).any(axis=1))[0]
+    for zid in zids:
+        sid = np.unique(seg[zid])
+        sid = sid[(sid > 0) & (sid <= uid_max)]
+        sid_ind = [sid_dict[int(x)] for x in sid if int(x) in sid_dict]
+        out[sid_ind, 1] = np.minimum(out[sid_ind, 1], zid)
+        out[sid_ind, 2] = np.maximum(out[sid_ind, 2], zid)
+
+    rids = np.where((seg > 0).sum(axis=0).sum(axis=1) > 0)[0]
+    for rid in rids:
+        sid = np.unique(seg[:, rid])
+        sid = sid[(sid > 0) & (sid <= uid_max)]
+        sid_ind = [sid_dict[int(x)] for x in sid if int(x) in sid_dict]
+        out[sid_ind, 3] = np.minimum(out[sid_ind, 3], rid)
+        out[sid_ind, 4] = np.maximum(out[sid_ind, 4], rid)
+
+    cids = np.where((seg > 0).sum(axis=0).sum(axis=0) > 0)[0]
+    for cid in cids:
+        sid = np.unique(seg[:, :, cid])
+        sid = sid[(sid > 0) & (sid <= uid_max)]
+        sid_ind = [sid_dict[int(x)] for x in sid if int(x) in sid_dict]
+        out[sid_ind, 5] = np.minimum(out[sid_ind, 5], cid)
+        out[sid_ind, 6] = np.maximum(out[sid_ind, 6], cid)
+
+    if do_count:
+        seg_ui, seg_uc = np.unique(seg, return_counts=True)
+        for i, j in zip(seg_ui, seg_uc):
+            if int(i) in sid_dict:
+                out[sid_dict[int(i)], -1] = j
+
+    return out

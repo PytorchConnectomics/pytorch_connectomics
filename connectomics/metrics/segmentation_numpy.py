@@ -18,6 +18,128 @@ __all__ = [
 ]
 
 
+def adapted_rand_oracle(seg, gt, gt_ids=None):
+    """Efficiently compute per-GT-segment oracle ARE by incremental update.
+
+    For each GT segment, computes the ARE that would result from perfectly
+    predicting that segment (``pred[gt == g_id] = unique_id``) while
+    keeping everything else unchanged.
+
+    Builds the contingency table once, then for each GT segment updates
+    only the affected row — O(nnz_in_row) per GT instead of O(volume).
+
+    Parameters
+    ----------
+    seg : np.ndarray
+        Predicted segmentation.
+    gt : np.ndarray, same shape as seg
+        Ground-truth segmentation.
+    gt_ids : array-like, optional
+        GT segment IDs to evaluate.  If None, uses all non-zero GT IDs.
+
+    Returns
+    -------
+    list of (gt_id, are_oracle, delta_are)
+        Sorted by delta_are descending (most impactful first).
+        ``delta_are = are_baseline - are_oracle`` (positive = improvement).
+    """
+    segA = np.ravel(gt)
+    segB = np.ravel(seg)
+    n = segA.size
+
+    n_labels_A = int(np.amax(segA)) + 1
+    n_labels_B = int(np.amax(segB)) + 1
+
+    # Build contingency table: p_ij[gt_label, pred_label] = count
+    ones_data = np.ones(n, int)
+    p_ij = sparse.csr_matrix(
+        (ones_data, (segA, segB)), shape=(n_labels_A, n_labels_B)
+    )
+
+    # Baseline quantities (exclude GT background row 0)
+    a = p_ij[1:n_labels_A, :]           # all pred cols including bg
+    b = p_ij[1:n_labels_A, 1:n_labels_B]  # exclude pred bg col
+    c = np.asarray(p_ij[1:n_labels_A, 0].todense()).ravel()  # pred bg col
+
+    a_i = np.asarray(a.sum(1)).ravel()   # GT row sums
+    b_i = np.asarray(b.sum(0)).ravel()   # pred col sums (excl bg)
+
+    sum_c = np.sum(c)
+    sumA = np.sum(a_i * a_i)
+    sumB = np.sum(b_i * b_i) + sum_c / n
+    sumAB = np.sum(b.multiply(b)) + sum_c / n
+
+    prec_base = sumAB / sumB if sumB > 0 else 0
+    rec_base = sumAB / sumA if sumA > 0 else 0
+    f_base = 2.0 * prec_base * rec_base / (prec_base + rec_base) if (prec_base + rec_base) > 0 else 0
+    are_base = 1.0 - f_base
+
+    if gt_ids is None:
+        gt_ids = np.arange(1, n_labels_A)
+    else:
+        gt_ids = np.asarray(gt_ids)
+
+    # New pred label ID (beyond any existing)
+    new_label = n_labels_B  # 0-indexed in the b matrix → col index = new_label - 1
+
+    results = []
+    for g_id in gt_ids:
+        g_id = int(g_id)
+        if g_id < 1 or g_id >= n_labels_A:
+            continue
+        row_idx = g_id - 1  # index into a/b/c (which start from GT label 1)
+
+        # Current row entries in b (pred labels excl bg)
+        row = b.getrow(row_idx)
+        row_data = row.data.copy()  # nonzero values
+        row_cols = row.indices.copy()  # column indices
+
+        g_size = int(a_i[row_idx])  # total voxels in this GT segment
+        if g_size == 0:
+            continue
+
+        # Old contributions from this row to sumAB and sumB
+        old_pij_sq = np.sum(row_data * row_data)
+        old_c_val = c[row_idx]
+
+        # Old b_i contributions for affected pred columns
+        old_bi_affected = b_i[row_cols].copy()
+
+        # --- After oracle fix: row becomes [0, ..., 0, g_size] at new column ---
+        # sumA is unchanged (row sum = g_size, same as before)
+
+        # sumAB change:
+        #   remove old: sum(p_ij^2) for this row + old_c/n
+        #   add new: g_size^2 (single entry) + 0/n (no bg overlap)
+        new_sumAB = sumAB - old_pij_sq - old_c_val / n + g_size * g_size
+
+        # sumB change:
+        #   affected old columns: b_i[col] decreases by row_data[j]
+        #   new column: b_i[new] = g_size
+        #   remove old_c contribution, add 0 (oracle has no bg)
+        new_sumB = sumB - old_c_val / n
+        # Update affected columns
+        for j in range(len(row_cols)):
+            col = row_cols[j]
+            val = row_data[j]
+            old_sq = old_bi_affected[j] ** 2
+            new_bi = old_bi_affected[j] - val
+            new_sumB = new_sumB - old_sq + new_bi * new_bi
+        # Add new column
+        new_sumB = new_sumB + g_size * g_size
+
+        prec = new_sumAB / new_sumB if new_sumB > 0 else 0
+        rec = new_sumAB / sumA if sumA > 0 else 0
+        f = 2.0 * prec * rec / (prec + rec) if (prec + rec) > 0 else 0
+        are_oracle = 1.0 - f
+        delta = are_base - are_oracle
+
+        results.append((g_id, are_oracle, delta))
+
+    results.sort(key=lambda x: -x[2])
+    return results, are_base
+
+
 def adapted_rand(seg, gt, all_stats=False):
     """Compute Adapted Rand error as defined by the SNEMI3D contest [1]
 
