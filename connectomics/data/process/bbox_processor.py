@@ -71,6 +71,7 @@ class BBoxInstanceProcessor:
         self,
         label: np.ndarray,
         instance_fn: Callable[[np.ndarray, int, Tuple[slice, ...], Dict], Optional[np.ndarray]],
+        num_workers: int = 0,
         **kwargs,
     ) -> np.ndarray:
         """
@@ -89,6 +90,10 @@ class BBoxInstanceProcessor:
 
                 Returns:
                 - result_crop: Same shape as label_crop, or None to skip
+
+            num_workers: Number of threads for parallel instance processing.
+                0 = sequential (default). Scipy EDT releases the GIL, so
+                threads give real parallelism for the numeric heavy lifting.
 
             **kwargs: Additional arguments passed to instance_fn
 
@@ -113,30 +118,40 @@ class BBoxInstanceProcessor:
             distance = self._apply_bg_value(distance)
             return self._postprocess(distance, was_padded)
 
-        # 5. Process each instance within its bounding box
-        for i in range(bbox_array.shape[0]):
+        # 5. Prepare per-instance work items
+        n = bbox_array.shape[0]
+        work_items = []
+        for i in range(n):
             instance_id = int(bbox_array[i, 0])
             bbox = self._extract_bbox(bbox_array[i], label_shape, label.ndim)
-
-            # Extract instance crop
             label_crop = label[bbox]
+            work_items.append((label_crop, instance_id, bbox))
 
-            # Call user-provided instance processing function
-            try:
-                result_crop = instance_fn(label_crop, instance_id, bbox, kwargs)
-            except Exception as e:
-                # Skip instance on error
-                print(f"Warning: Failed to process instance {instance_id}: {e}")
-                continue
+        # 6. Process instances (parallel or sequential)
+        if num_workers > 0:
+            from concurrent.futures import ThreadPoolExecutor
 
-            # Skip if function returned None or empty result
-            if result_crop is None or not np.any(result_crop):
-                continue
+            def _run(item):
+                label_crop, instance_id, bbox = item
+                try:
+                    return bbox, instance_fn(label_crop, instance_id, bbox, kwargs)
+                except Exception:
+                    return bbox, None
 
-            # Aggregate result back to full volume
-            self._aggregate_result(distance, bbox, result_crop)
+            with ThreadPoolExecutor(max_workers=num_workers) as pool:
+                for bbox, result_crop in pool.map(_run, work_items):
+                    if result_crop is not None and np.any(result_crop):
+                        self._aggregate_result(distance, bbox, result_crop)
+        else:
+            for label_crop, instance_id, bbox in work_items:
+                try:
+                    result_crop = instance_fn(label_crop, instance_id, bbox, kwargs)
+                except Exception:
+                    continue
+                if result_crop is not None and np.any(result_crop):
+                    self._aggregate_result(distance, bbox, result_crop)
 
-        # 6. Postprocessing
+        # 7. Postprocessing
         distance = self._apply_bg_value(distance)
         return self._postprocess(distance, was_padded)
 

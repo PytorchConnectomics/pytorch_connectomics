@@ -214,6 +214,8 @@ class DataInputConfig:
     # Using Any to support both str and List[str] (OmegaConf doesn't support Union of containers)
     image: Any = None  # str, List[str], or None
     label: Any = None  # str, List[str], or None
+    label_aux: Any = None  # str, List[str], or None (auto-derived from label if null)
+    label_aux_type: str = "skeleton"  # "skeleton", "sdt", or "none"
     mask: Any = None  # str, List[str], or None (Valid region mask)
 
     # Paths - JSON/filename-based datasets

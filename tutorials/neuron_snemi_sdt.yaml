@@ -65,6 +65,8 @@ train:
     train:
       image: datasets/SNEMI/train-input.tif
       label: datasets/SNEMI/train-labels.tif
+      label_aux: datasets/SNEMI/train-labels_skeleton.h5
+      label_aux_type: skeleton
 
   optimization:
     profile: warmup_cosine_lr

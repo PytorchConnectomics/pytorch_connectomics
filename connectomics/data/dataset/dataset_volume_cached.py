@@ -102,6 +102,7 @@ class CachedVolumeDataset(PatchDataset):
         self,
         image_paths: List[str],
         label_paths: Optional[List[str]] = None,
+        label_aux_paths: Optional[List[str]] = None,
         mask_paths: Optional[List[str]] = None,
         patch_size: Tuple[int, ...] = (112, 112, 112),
         iter_num: int = 500,
@@ -130,19 +131,22 @@ class CachedVolumeDataset(PatchDataset):
         self.sample_nonzero_mask = sample_nonzero_mask
 
         label_paths = label_paths or [None] * len(image_paths)
+        label_aux_paths = label_aux_paths or [None] * len(image_paths)
         mask_paths = mask_paths or [None] * len(image_paths)
 
         # Load all volumes into memory
         logger.info("Loading %d volumes into memory...", len(image_paths))
         self.cached_images: List[np.ndarray] = []
         self.cached_labels: List[Optional[np.ndarray]] = []
+        self.cached_label_aux: List[Optional[np.ndarray]] = []
         self.cached_masks: List[Optional[np.ndarray]] = []
 
-        for i, (img_path, lbl_path, msk_path) in enumerate(
-            zip(image_paths, label_paths, mask_paths)
+        for i, (img_path, lbl_path, aux_path, msk_path) in enumerate(
+            zip(image_paths, label_paths, label_aux_paths, mask_paths)
         ):
             img = self._load_volume(img_path)
             lbl = self._load_volume(lbl_path) if lbl_path else None
+            aux = self._load_volume(aux_path) if aux_path else None
             msk = self._load_volume(msk_path) if msk_path else None
 
             # Apply one-time preprocessing before caching
@@ -150,20 +154,25 @@ class CachedVolumeDataset(PatchDataset):
                 sample = {"image": img}
                 if lbl is not None:
                     sample["label"] = lbl
+                if aux is not None:
+                    sample["label_aux"] = aux
                 if msk is not None:
                     sample["mask"] = msk
                 sample = pre_cache_transforms(sample)
                 img = sample["image"]
                 lbl = sample.get("label")
+                aux = sample.get("label_aux")
                 msk = sample.get("mask")
 
             # Pad and ensure minimum size
             img = self._prepare_volume(img)
             lbl = self._prepare_volume(lbl) if lbl is not None else None
+            aux = self._prepare_volume(aux) if aux is not None else None
             msk = self._prepare_volume(msk) if msk is not None else None
 
             self.cached_images.append(img)
             self.cached_labels.append(lbl)
+            self.cached_label_aux.append(aux)
             self.cached_masks.append(msk)
             logger.info("Volume %d/%d: %s", i + 1, len(image_paths), img.shape)
 
@@ -210,6 +219,7 @@ class CachedVolumeDataset(PatchDataset):
     def _crop_volumes(self, vol_idx: int, pos: Tuple[int, ...]) -> Dict[str, Any]:
         image = self.cached_images[vol_idx]
         label = self.cached_labels[vol_idx]
+        label_aux = self.cached_label_aux[vol_idx]
         mask = self.cached_masks[vol_idx]
 
         image_crop = crop_volume(image, self.patch_size, pos, pad_mode="reflect")
@@ -218,13 +228,23 @@ class CachedVolumeDataset(PatchDataset):
             if label is not None
             else None
         )
+        label_aux_crop = (
+            crop_volume(label_aux, self.patch_size, pos, pad_mode="constant")
+            if label_aux is not None
+            else None
+        )
         mask_crop = (
             crop_volume(mask, self.patch_size, pos, pad_mode="constant")
             if mask is not None
             else None
         )
 
-        return {"image": image_crop, "label": label_crop, "mask": mask_crop}
+        return {
+            "image": image_crop,
+            "label": label_crop,
+            "label_aux": label_aux_crop,
+            "mask": mask_crop,
+        }
 
     def _has_labels(self, vol_idx: int) -> bool:
         return self.cached_labels[vol_idx] is not None

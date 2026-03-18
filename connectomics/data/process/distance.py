@@ -292,6 +292,7 @@ def skeleton_aware_distance_transform(
     alpha: float = 0.8,
     smooth: bool = False,
     smooth_skeleton_only: bool = True,
+    max_parallel: int = 1,
 ):
     """Skeleton-based distance transform (SDT).
 
@@ -328,7 +329,8 @@ def skeleton_aware_distance_transform(
         label = cc3d.connected_components(label, connectivity=6)
 
     # 2. Batch skeletonize all instances in one call (parallel across instances).
-    skeleton_vertices = _batch_skeletonize(label, resolution)
+    skeleton_vertices = _batch_skeletonize(label, resolution, max_parallel=max_parallel)
+    print(f"  Skeletonization done: {len(skeleton_vertices)} skeletons extracted")
 
     # 3. Per-instance EDT using BBoxProcessor (skeletons already computed).
     #    Padding coordinate offset: if padding is enabled, the processor pads the
@@ -395,6 +397,7 @@ def skeleton_aware_distance_transform(
     return processor.process(
         label,
         compute_skeleton_edt,
+        num_workers=max_parallel,
         skeleton_vertices=skeleton_vertices,
         pad_offset=pad_offset,
         resolution=resolution,
@@ -404,26 +407,117 @@ def skeleton_aware_distance_transform(
     )
 
 
+def kimimaro_config(label: np.ndarray, resolution: Tuple[float, ...]) -> dict:
+    """Generate kimimaro skeletonization config from data statistics.
+
+    Derives TEASAR parameters, dust threshold, and flags from the label
+    volume and its voxel resolution.  Prints the chosen config.
+
+    The invalidation radius is ``r = scale * DBF + const`` (physical units).
+    Kimimaro defaults (scale=1.5, const=300 nm) assume 16 nm XY resolution.
+    We adapt ``const`` so it equals ~10 voxels at the coarsest axis, and
+    ``dust_threshold`` so it skips objects smaller than a 5³-voxel cube.
+
+    Args:
+        label: Multi-label instance segmentation volume.
+        resolution: Voxel resolution (z, y, x) in physical units (e.g. nm).
+
+    Returns:
+        Dict with keys ``teasar_params``, ``dust_threshold``, ``fix_branching``,
+        ``fix_borders``, ``anisotropy`` — ready to pass to ``kimimaro.skeletonize``.
+    """
+    max_res = float(max(resolution))
+    min_res = float(min(resolution))
+    aniso_ratio = max_res / min_res if min_res > 0 else 1.0
+    n_instances = len(np.unique(label)) - 1  # exclude background
+    voxel_vol = float(np.prod(resolution))  # physical volume per voxel
+
+    # --- TEASAR params ---
+    # const: minimum invalidation radius.  ~10 voxels at the coarsest axis
+    #   ensures small processes are still invalidated in one pass.
+    const = max(max_res * 10, 100.0)
+    # scale: multiplier on distance-from-boundary.  1.5 is robust across
+    #   neurite widths; values >2 over-invalidate thin processes.
+    scale = 1.5
+    # pdrf_exponent: power-of-2 → minor speedup.  4 is the sweet spot:
+    #   pushes paths toward medial axis without over-penalizing cavities.
+    pdrf_exponent = 4
+    # pdrf_scale: large value so penalty dominates geodesic distance.
+    pdrf_scale = 100000
+
+    teasar_params = {
+        "scale": scale,
+        "const": const,
+        "pdrf_scale": pdrf_scale,
+        "pdrf_exponent": pdrf_exponent,
+        # Disable soma detection (not needed for SDT).
+        "soma_acceptance_threshold": 1e9,
+        "soma_detection_threshold": 1e9,
+        "soma_invalidation_const": 0,
+        "soma_invalidation_scale": 0,
+    }
+
+    # --- dust threshold ---
+    # Skip instances smaller than a 5³-voxel cube.
+    dust_threshold = max(5 ** label.ndim, 5)
+
+    # --- flags ---
+    # fix_branching: improves branch-point accuracy but ~1.3x slower.
+    #   Not needed for SDT where approximate medial axis suffices.
+    # fix_borders: ensures deterministic skeleton endpoints at volume
+    #   boundaries for chunk stitching.  Not needed for SDT.
+    config = {
+        "teasar_params": teasar_params,
+        "dust_threshold": dust_threshold,
+        "fix_branching": False,
+        "fix_borders": False,
+        "anisotropy": tuple(float(r) for r in resolution),
+    }
+
+    print(
+        f"  kimimaro config: {n_instances} instances, "
+        f"anisotropy={config['anisotropy']} (ratio {aniso_ratio:.1f}x), "
+        f"const={const:.0f}, dust={dust_threshold}"
+    )
+
+    return config
+
+
 def _batch_skeletonize(
-    label: np.ndarray, resolution: Tuple[float, ...]
+    label: np.ndarray, resolution: Tuple[float, ...], max_parallel: int = 1
 ) -> Dict[int, np.ndarray]:
     """Skeletonize all instances in one kimimaro call.
+
+    Parameters are derived automatically from the label and resolution
+    via :func:`kimimaro_config`.
+
+    Args:
+        label: Multi-label volume (each non-zero value is an instance).
+        resolution: Voxel resolution (z, y, x).
+        max_parallel: Unused (kimimaro parallel>1 has a shared-memory bug).
+            EDT parallelism is handled via ThreadPoolExecutor in BBoxProcessor.
 
     Returns:
         Dict mapping instance_id → (N, ndim) int array of vertex coordinates
         in the input label's coordinate system.
     """
+    n_instances = int(label.max())
+    use_progress = n_instances > 50
+    config = kimimaro_config(label, resolution)
+
     try:
         skeletons = kimimaro.skeletonize(
             label.astype(np.uint32),
-            anisotropy=resolution,
-            fix_branching=False,
-            fix_borders=False,
-            dust_threshold=5,
-            parallel=0,  # auto-detect cores
-            progress=False,
+            teasar_params=config["teasar_params"],
+            anisotropy=config["anisotropy"],
+            dust_threshold=config["dust_threshold"],
+            fix_branching=config["fix_branching"],
+            fix_borders=config["fix_borders"],
+            parallel=1,
+            progress=use_progress,
         )
-    except Exception:
+    except Exception as e:
+        print(f"  kimimaro failed: {e}")
         return {}
 
     result = {}
@@ -493,36 +587,175 @@ def precompute_sdt_volume(
     Returns:
         The output_path (for chaining).
     """
-    import logging
+    import os as _os
     import time
 
     from ..io.io import read_volume, save_volume
 
-    logger = logging.getLogger(__name__)
-    logger.info(f"Precomputing SDT: {label_path} → {output_path}")
+    print(f"Precomputing SDT: {label_path} → {output_path}")
 
     label = read_volume(label_path)
-    logger.info(f"  Label shape: {label.shape}, unique instances: {len(np.unique(label)) - 1}")
+    n_inst = len(np.unique(label)) - 1
+    parallel = min(4, _os.cpu_count() or 1)
+    print(f"  Label shape: {label.shape}, instances: {n_inst}, parallel: {parallel}")
+    print(f"  One-time computation (may take minutes for large volumes)...", flush=True)
 
     t0 = time.time()
     sdt = skeleton_aware_distance_transform(
-        label, resolution=resolution, alpha=alpha, bg_value=bg_value
+        label, resolution=resolution, alpha=alpha, bg_value=bg_value,
+        max_parallel=parallel,
     )
     elapsed = time.time() - t0
-    logger.info(f"  SDT computed in {elapsed:.1f}s, range: [{sdt.min():.3f}, {sdt.max():.3f}]")
+    print(f"  SDT computed in {elapsed:.1f}s, range: [{sdt.min():.3f}, {sdt.max():.3f}]")
 
     save_volume(output_path, sdt)
-    logger.info(f"  Saved to {output_path}")
+    print(f"  Saved to {output_path}")
 
     return output_path
 
 
-def sdt_path_for_label(label_path: str) -> str:
-    """Derive the SDT cache path from a label file path.
+def precompute_skeleton_volume(
+    label_path: str,
+    output_path: str,
+    resolution: Tuple[float, ...] = (1.0, 1.0, 1.0),
+) -> str:
+    """Precompute kimimaro skeletons and rasterize into a label-like volume.
 
-    Example: ``datasets/SNEMI/train-labels.tif`` → ``datasets/SNEMI/train-labels_sdt.h5``
+    Each skeleton voxel stores its instance ID; background is 0.
+    This volume can be loaded as ``label_aux`` and flows through spatial
+    transforms with nearest-neighbor interpolation (preserving discrete IDs).
+    EDT is then computed cheaply per crop during training.
+
+    Args:
+        label_path: Path to the instance segmentation label volume.
+        output_path: Path to save the skeleton volume (HDF5).
+        resolution: Voxel resolution (z, y, x) in physical units.
+
+    Returns:
+        The output_path.
+    """
+    import time
+
+    from ..io.io import read_volume, save_volume
+
+    print(f"Precomputing skeleton volume: {label_path} → {output_path}")
+
+    label = read_volume(label_path)
+    n_inst = len(np.unique(label)) - 1
+    print(f"  Label shape: {label.shape}, instances: {n_inst}")
+    print(f"  One-time computation...", flush=True)
+
+    t0 = time.time()
+    skeleton_vertices = _batch_skeletonize(label.astype(np.uint32), resolution)
+    elapsed_skel = time.time() - t0
+    print(f"  Skeletonization done in {elapsed_skel:.1f}s: {len(skeleton_vertices)} skeletons")
+
+    # Rasterize: skeleton volume with instance IDs.
+    skel_vol = np.zeros(label.shape, dtype=label.dtype)
+    for inst_id, verts in skeleton_vertices.items():
+        valid = np.all((verts >= 0) & (verts < np.array(label.shape)), axis=1)
+        verts = verts[valid]
+        if len(verts) > 0:
+            if label.ndim == 3:
+                skel_vol[verts[:, 0], verts[:, 1], verts[:, 2]] = inst_id
+            else:
+                skel_vol[verts[:, 0], verts[:, 1]] = inst_id
+
+    n_skel_voxels = int((skel_vol > 0).sum())
+    print(f"  Skeleton volume: {n_skel_voxels} voxels ({n_skel_voxels / max(skel_vol.size, 1) * 100:.2f}%)")
+
+    save_volume(output_path, skel_vol)
+    print(f"  Saved to {output_path}")
+
+    return output_path
+
+
+def skeleton_aware_edt_from_skeleton_vol(
+    label: np.ndarray,
+    skeleton_vol: np.ndarray,
+    resolution: Tuple[float, ...] = (1.0, 1.0, 1.0),
+    alpha: float = 0.8,
+    bg_value: float = -1.0,
+) -> np.ndarray:
+    """Compute skeleton-aware EDT using a precomputed skeleton volume.
+
+    Skips kimimaro entirely — extracts per-instance skeleton masks from
+    ``skeleton_vol`` and computes EDT per instance.  Fast enough for
+    per-crop use during training.
+
+    Args:
+        label: Instance segmentation crop (D, H, W) or (H, W).
+        skeleton_vol: Skeleton volume crop (same shape), where each
+            skeleton voxel stores its instance ID, background is 0.
+        resolution: Voxel resolution for anisotropic EDT.
+        alpha: Skeleton influence exponent.
+        bg_value: Background fill value.
+
+    Returns:
+        Skeleton-aware distance map, same shape as label.
+    """
+    eps = 1e-6
+
+    if np.sum(label > 0) == 0:
+        return np.full(label.shape, bg_value, dtype=np.float32)
+
+    config = BBoxProcessorConfig(
+        bg_value=bg_value,
+        relabel=False,
+        padding=False,
+        pad_size=2,
+        bbox_relax=2,
+        combine_mode="max",
+    )
+
+    def compute_edt_with_skeleton(
+        label_crop: np.ndarray, instance_id: int, bbox: Tuple[slice, ...], context: Dict
+    ) -> Optional[np.ndarray]:
+        temp2 = remove_small_holes(label_crop == instance_id, 16, connectivity=1)
+        if not temp2.any():
+            return None
+
+        # Extract skeleton mask from precomputed skeleton volume crop.
+        skel_crop = context["skeleton_vol"][bbox]
+        skeleton_mask = skel_crop == instance_id
+
+        if not skeleton_mask.any():
+            # Fallback: regular EDT without skeleton.
+            boundary_edt = distance_transform_edt(temp2, context["resolution"])
+            edt_max = boundary_edt.max()
+            if edt_max > eps:
+                energy = (boundary_edt / (edt_max + eps)) ** context["alpha"]
+                return energy * temp2.astype(np.float32)
+            return None
+
+        skeleton_edt = distance_transform_edt(~skeleton_mask, context["resolution"])
+        boundary_edt = distance_transform_edt(temp2, context["resolution"])
+
+        energy = boundary_edt / (skeleton_edt + boundary_edt + eps)
+        energy = energy ** context["alpha"]
+        return energy * temp2.astype(np.float32)
+
+    processor = BBoxInstanceProcessor(config)
+    return processor.process(
+        label,
+        compute_edt_with_skeleton,
+        skeleton_vol=skeleton_vol,
+        resolution=resolution,
+        alpha=alpha,
+    )
+
+
+def sdt_path_for_label(label_path: str, mode: str = "sdt") -> str:
+    """Derive the precomputed cache path from a label file path.
+
+    Args:
+        mode: ``"sdt"`` for full SDT, ``"skeleton"`` for skeleton volume.
+
+    Examples:
+        ``train-labels.tif`` → ``train-labels_sdt.h5``
+        ``train-labels.tif`` → ``train-labels_skeleton.h5``
     """
     import os
 
     base, _ = os.path.splitext(label_path)
-    return base + "_sdt.h5"
+    return base + f"_{mode}.h5"

@@ -23,15 +23,25 @@ from .path_utils import expand_file_paths
 logger = logging.getLogger(__name__)
 
 
-def _maybe_precompute_sdt(cfg: Config, label_paths: Optional[List[str]]) -> Optional[dict]:
-    """If the label transform includes ``skeleton_aware_edt``, precompute SDT volumes.
+def _maybe_precompute_label_aux(
+    cfg: Config, label_paths: Optional[List[str]]
+) -> Optional[List[str]]:
+    """Auto-precompute label_aux if label_transform includes ``skeleton_aware_edt``.
 
-    Returns ``{"sdt": [path1, ...]}`` to add to data dicts, or None.
+    Reads ``data.train.label_aux_type`` to decide mode:
+    - ``"skeleton"`` (default): precompute skeleton volume; EDT computed per crop.
+    - ``"sdt"``: precompute full SDT volume (slower precompute, zero training cost).
+    - ``"none"``: no precompute, compute everything per crop.
+
+    Returns list of label_aux paths, or None.
     """
     if label_paths is None:
         return None
 
-    # Check if any label_transform target is skeleton_aware_edt
+    mode = getattr(cfg.data.train, "label_aux_type", "skeleton")
+    if mode == "none":
+        return None
+
     targets = getattr(cfg.data.label_transform, "targets", None)
     if not targets:
         return None
@@ -46,7 +56,6 @@ def _maybe_precompute_sdt(cfg: Config, label_paths: Optional[List[str]]) -> Opti
     if sdt_target is None:
         return None
 
-    # Extract kwargs for precomputation
     kwargs = sdt_target.get("kwargs", {}) if isinstance(sdt_target, dict) else {}
     resolution = kwargs.get("resolution") or getattr(cfg.data.label_transform, "resolution", None)
     if resolution is None:
@@ -55,20 +64,29 @@ def _maybe_precompute_sdt(cfg: Config, label_paths: Optional[List[str]]) -> Opti
     alpha = float(kwargs.get("alpha", 0.8))
     bg_value = float(kwargs.get("bg_value", -1.0))
 
-    from ...data.process.distance import precompute_sdt_volume, sdt_path_for_label
+    from ...data.process.distance import (
+        precompute_sdt_volume,
+        precompute_skeleton_volume,
+        sdt_path_for_label,
+    )
 
-    sdt_paths = []
+    print(f"label_aux_type={mode}: resolution={list(resolution)}, alpha={alpha}")
+
+    import os
+
+    paths = []
     for lp in label_paths:
-        sp = sdt_path_for_label(lp)
-        import os
-
+        sp = sdt_path_for_label(lp, mode=mode)
         if not os.path.exists(sp):
-            precompute_sdt_volume(lp, sp, resolution=resolution, alpha=alpha, bg_value=bg_value)
+            if mode == "sdt":
+                precompute_sdt_volume(lp, sp, resolution=resolution, alpha=alpha, bg_value=bg_value)
+            else:
+                precompute_skeleton_volume(lp, sp, resolution=resolution)
         else:
-            logger.info(f"Using cached SDT: {sp}")
-        sdt_paths.append(sp)
+            print(f"  Using cached {mode}: {sp}")
+        paths.append(sp)
 
-    return {"sdt": sdt_paths}
+    return paths
 
 
 def _maybe_prepare_random_data(cfg: Config, mode: str) -> None:
@@ -289,6 +307,14 @@ def create_datamodule(
         cfg.data.val, "dataset_type", None
     )
 
+    # Auto-precompute label_aux (skeleton/SDT) before building transforms,
+    # so build_train_transforms sees cfg.data.train.label_aux and includes it in keys.
+    if mode == "train" and not cfg.data.train.label_aux and cfg.data.train.label:
+        train_label_paths = expand_file_paths(cfg.data.train.label)
+        auto_aux = _maybe_precompute_label_aux(cfg, train_label_paths)
+        if auto_aux:
+            cfg.data.train.label_aux = auto_aux[0] if len(auto_aux) == 1 else auto_aux
+
     # Build transforms
     train_transforms = build_train_transforms(cfg)
     val_transforms = build_val_transforms(cfg)
@@ -450,14 +476,18 @@ def create_datamodule(
             if train_mask_paths:
                 logger.info(f"Training masks: {len(train_mask_paths)} files")
 
-            # Auto-precompute SDT volumes if label transform includes skeleton_aware_edt.
-            extra_paths = _maybe_precompute_sdt(cfg, train_label_paths)
+            # label_aux: already set by early precompute step or explicit config.
+            train_label_aux_paths = (
+                expand_file_paths(cfg.data.train.label_aux)
+                if cfg.data.train.label_aux
+                else None
+            )
 
             train_data_dicts = create_data_dicts_from_paths(
                 image_paths=train_image_paths,
                 label_paths=train_label_paths,
+                label_aux_paths=train_label_aux_paths,
                 mask_paths=train_mask_paths,
-                extra_paths=extra_paths,
             )
 
             val_data_dicts = None
@@ -678,6 +708,7 @@ def create_datamodule(
         train_dataset = CachedVolumeDataset(
             image_paths=[d["image"] for d in train_data_dicts],
             label_paths=[d.get("label") for d in train_data_dicts],
+            label_aux_paths=[d.get("label_aux") for d in train_data_dicts] if any(d.get("label_aux") for d in train_data_dicts) else None,
             mask_paths=[d.get("mask") for d in train_data_dicts],
             patch_size=tuple(cfg.data.dataloader.patch_size),
             iter_num=iter_num,
