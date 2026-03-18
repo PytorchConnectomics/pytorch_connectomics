@@ -106,6 +106,7 @@ test:
 tune:
   profile: tune_waterz
   n_trials: 25
+  trial_timeout: 300
   study_name: snemi_waterz_tuning
   data:
     val:
