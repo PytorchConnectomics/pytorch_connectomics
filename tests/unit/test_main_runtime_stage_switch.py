@@ -9,8 +9,8 @@ from connectomics.training.lightning.utils import setup_config
 from scripts.main import (
     _is_test_evaluation_enabled,
     has_assigned_test_shard,
-    maybe_limit_test_devices,
     maybe_enable_independent_test_sharding,
+    maybe_limit_test_devices,
     resolve_test_stage_runtime,
 )
 
@@ -32,6 +32,8 @@ def _make_args(config_path: Path, mode: str = "test"):
         params=None,
         param_source=None,
         tune_trials=None,
+        tune_timeout=None,
+        tune_trial_timeout=None,
         nnunet_preprocess=False,
         overrides=[],
         shard_id=None,
@@ -163,9 +165,7 @@ def test_maybe_enable_independent_test_sharding_uses_explicit_shard_args(tmp_pat
     assert cfg.system.num_gpus == (1 if torch.cuda.is_available() else 0)
 
 
-def test_maybe_enable_independent_test_sharding_skips_single_volume_tests(
-    tmp_path, monkeypatch
-):
+def test_maybe_enable_independent_test_sharding_skips_single_volume_tests(tmp_path, monkeypatch):
     cfg = Config()
     cfg.system.num_gpus = 4
     args = _make_args(tmp_path / "config.yaml")
@@ -182,9 +182,7 @@ def test_maybe_enable_independent_test_sharding_skips_single_volume_tests(
     assert cfg.system.num_gpus == 4
 
 
-def test_has_assigned_test_shard_returns_false_for_empty_slice(
-    tmp_path, monkeypatch
-):
+def test_has_assigned_test_shard_returns_false_for_empty_slice(tmp_path, monkeypatch):
     args = _make_args(tmp_path / "config.yaml")
     cfg = Config()
     args.shard_id = 3

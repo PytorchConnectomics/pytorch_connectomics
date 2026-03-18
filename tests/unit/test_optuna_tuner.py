@@ -10,6 +10,7 @@ from connectomics.config.schema.stages import TuneConfig
 from connectomics.decoding.tuning.optuna_tuner import (
     OptunaDecodingTuner,
     TrialEvaluationTimeoutError,
+    _get_trial_process_context,
     load_and_apply_best_params,
     run_tuning,
 )
@@ -361,3 +362,63 @@ def test_objective_returns_bad_value_when_waterz_batch_trial_times_out(monkeypat
     assert trial.user_attrs["timed_out"] is True
     assert trial.user_attrs["timeout_stage"] == "waterz_batch"
     assert trial.user_attrs["trial_timeout"] == 30.0
+
+
+def test_get_trial_process_context_prefers_spawn_after_cuda_init(monkeypatch):
+    observed = []
+
+    class _DummyContext:
+        pass
+
+    def _fake_get_context(method=None):
+        observed.append(method)
+        if method == "spawn":
+            return _DummyContext()
+        raise ValueError(f"unsupported: {method}")
+
+    monkeypatch.setattr(
+        "connectomics.decoding.tuning.optuna_tuner.torch.cuda.is_available",
+        lambda: True,
+    )
+    monkeypatch.setattr(
+        "connectomics.decoding.tuning.optuna_tuner.torch.cuda.is_initialized",
+        lambda: True,
+    )
+    monkeypatch.setattr(
+        "connectomics.decoding.tuning.optuna_tuner.mp.get_context", _fake_get_context
+    )
+
+    ctx = _get_trial_process_context()
+
+    assert isinstance(ctx, _DummyContext)
+    assert observed == ["spawn"]
+
+
+def test_get_trial_process_context_prefers_fork_without_cuda_init(monkeypatch):
+    observed = []
+
+    class _DummyContext:
+        pass
+
+    def _fake_get_context(method=None):
+        observed.append(method)
+        if method == "fork":
+            return _DummyContext()
+        raise ValueError(f"unsupported: {method}")
+
+    monkeypatch.setattr(
+        "connectomics.decoding.tuning.optuna_tuner.torch.cuda.is_available",
+        lambda: False,
+    )
+    monkeypatch.setattr(
+        "connectomics.decoding.tuning.optuna_tuner.torch.cuda.is_initialized",
+        lambda: False,
+    )
+    monkeypatch.setattr(
+        "connectomics.decoding.tuning.optuna_tuner.mp.get_context", _fake_get_context
+    )
+
+    ctx = _get_trial_process_context()
+
+    assert isinstance(ctx, _DummyContext)
+    assert observed == ["fork"]

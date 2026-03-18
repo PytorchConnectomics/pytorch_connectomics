@@ -59,3 +59,13 @@ def test_parse_args_demo_mode_requires_no_config(monkeypatch):
     args = _parse_with_argv(monkeypatch, ["--demo"])
     assert args.demo is True
     assert args.config is None
+
+
+def test_parse_args_accepts_tune_timeout_flags(monkeypatch):
+    args = _parse_with_argv(
+        monkeypatch,
+        ["--tune-timeout", "3600", "--tune-trial-timeout", "300"],
+    )
+
+    assert args.tune_timeout == 3600
+    assert args.tune_trial_timeout == 300
