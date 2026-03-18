@@ -325,6 +325,41 @@ def test_standard_loss_supports_affinity_deepem_crop():
     assert weight[0, 2, :, :, 1].sum() > 0  # x=1 valid for channel 2
 
 
+def test_standard_loss_supports_batched_affinity_deepem_crop_with_weighted_bce():
+    cfg = _cfg(
+        losses=[
+            {
+                "weight": 1.0,
+            },
+        ]
+    )
+    cfg.data.label_transform.targets = [
+        {
+            "name": "affinity",
+            "kwargs": {
+                "offsets": ["1-0-0", "0-1-0", "0-0-1"],
+                "deepem_crop": True,
+            },
+        }
+    ]
+    orchestrator = LossOrchestrator(
+        cfg=cfg,
+        loss_functions=nn.ModuleList([WeightedBCEWithLogitsLoss(reduction="mean")]),
+        loss_weights=[1.0],
+        enable_nan_detection=False,
+        debug_on_nan=False,
+    )
+
+    outputs = torch.zeros(4, 3, 5, 5, 5)
+    labels = torch.zeros(4, 3, 5, 5, 5)
+
+    total_loss, loss_dict = orchestrator.compute_standard_loss(outputs, labels, stage="train")
+
+    assert torch.isfinite(total_loss)
+    assert "train_loss_total" in loss_dict
+    assert torch.isclose(total_loss, torch.log(torch.tensor(2.0)))
+
+
 def test_standard_loss_rejects_invalid_runtime_negative_channel_slice():
     weighted_loss = WeightAwareSpyLoss()
     orchestrator = LossOrchestrator(
@@ -628,6 +663,18 @@ def test_weighted_bce_returns_zero_when_no_valid_weights():
     loss = loss_fn(pred, target, weight=weight)
 
     assert torch.isclose(loss, torch.tensor(0.0))
+
+
+def test_weighted_bce_mean_supports_broadcast_batchless_weight_mask():
+    loss_fn = WeightedBCEWithLogitsLoss(reduction="mean")
+    pred = torch.zeros(4, 1, 1, 1, 2)
+    target = torch.tensor([[[[[1.0, 0.0]]]]]).expand_as(pred)
+    weight = torch.tensor([[[[[2.0, 0.0]]]]])
+
+    loss = loss_fn(pred, target, weight=weight)
+
+    expected = 2.0 * torch.log(torch.tensor(2.0))
+    assert torch.isclose(loss, expected)
 
 
 def test_multitask_single_scale_routes_class_index_and_dense_targets():

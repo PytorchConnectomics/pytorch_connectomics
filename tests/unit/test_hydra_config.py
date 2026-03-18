@@ -30,6 +30,7 @@ from connectomics.config import (  # noqa: E402
 from connectomics.config.schema import TestConfig as HydraTestConfig  # noqa: E402
 from connectomics.config.schema import TuneConfig  # noqa: E402
 from connectomics.data.augment.build import build_test_transforms  # noqa: E402
+from connectomics.data.process import create_label_transform_pipeline  # noqa: E402
 
 
 def test_default_config_creation():
@@ -465,6 +466,35 @@ _base_: {base_yaml.name}
     assert cfg.data.augmentation.preset in {"none", "some", "all"}
     assert cfg.inference.decoding is None or isinstance(cfg.inference.decoding, list)
     print("[OK]YAML shared profile selectors work")
+
+
+def test_label_transform_profile_can_inherit_top_level_resolution(tmp_path):
+    repo_root = Path(__file__).resolve().parents[2]
+    base_profiles = repo_root / "tutorials" / "bases" / "all_profiles.yaml"
+    config_yaml = tmp_path / "config.yaml"
+    config_yaml.write_text(
+        f"""
+_base_:
+  - {base_profiles}
+
+default:
+  data:
+    label_transform:
+      profile: label_affinity_9_sdt
+      resolution: [30, 6, 6]
+""".strip()
+    )
+
+    cfg = load_config(config_yaml)
+
+    targets = cfg.default.data.label_transform.targets
+    assert len(targets) == 2
+    assert targets[0]["name"] == "affinity"
+    assert targets[1]["name"] == "skeleton_aware_edt"
+    assert cfg.default.data.label_transform.resolution == [30.0, 6.0, 6.0]
+
+    pipeline = create_label_transform_pipeline(cfg.default.data.label_transform)
+    assert pipeline.task_specs[1]["kwargs"]["resolution"] == [30.0, 6.0, 6.0]
 
 
 def test_arch_profile_rejects_non_model_sections(tmp_path):

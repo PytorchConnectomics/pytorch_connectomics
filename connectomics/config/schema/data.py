@@ -78,6 +78,7 @@ class LabelTransformConfig:
     allow_missing_keys: bool = False
     segment_id: Optional[List[int]] = None
     boundary_thickness: int = 1
+    resolution: Optional[List[float]] = None  # Forwarded into compatible label targets.
     targets: List[Any] = field(default_factory=list)
 
 

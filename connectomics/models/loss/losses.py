@@ -31,6 +31,14 @@ def _reduce_weighted_tensor(
         return loss_tensor.mean()
 
     valid = weight > 0
+    if valid.shape != loss_tensor.shape:
+        try:
+            valid = torch.broadcast_to(valid, loss_tensor.shape)
+        except RuntimeError as e:
+            raise ValueError(
+                "Weight mask shape is not broadcastable to loss tensor shape: "
+                f"weight={tuple(weight.shape)}, loss={tuple(loss_tensor.shape)}"
+            ) from e
     if not torch.any(valid):
         return loss_tensor.new_tensor(0.0)
     return loss_tensor[valid].mean()
