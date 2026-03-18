@@ -459,7 +459,11 @@ class SegErosionInstanced(MapTransform):
         d = dict(data)
         for key in self.key_iterator(d):
             if key in d:
-                d[key] = seg_erosion_instance(d[key].squeeze(), self.tsz_h)
+                label = d[key]
+                restore_channel_dim = label.ndim in (3, 4) and label.shape[0] == 1
+                label_for_erosion = label[0] if restore_channel_dim else label
+                eroded = seg_erosion_instance(label_for_erosion, self.tsz_h)
+                d[key] = eroded[None, ...] if restore_channel_dim else eroded
         return d
 
 
@@ -708,19 +712,61 @@ class MultiTaskLabelTransformd(MapTransform):
             raise ValueError("At least one task must be specified for MultiTaskLabelTransformd.")
         return specs
 
-    def _prepare_label(self, label: Any) -> Tuple[np.ndarray, bool]:
-        """Convert label to numpy without duplicating data where possible.
-
-        MONAI transforms expect channel-first format [C, D, H, W], not batch-first [B, C, D, H, W].
-        We should not remove the channel dimension.
-        """
+    def _prepare_label(self, label: Any) -> np.ndarray:
+        """Convert label to numpy without duplicating data where possible."""
         if isinstance(label, torch.Tensor):
             label_cpu = label.detach().cpu()
-            label_np = label_cpu.numpy()
-            return label_np, False
+            return label_cpu.numpy()
         if isinstance(label, np.ndarray):
-            return label, False
-        return np.asarray(label), False
+            return label
+        return np.asarray(label)
+
+    def _prepare_label_for_tasks(self, label_np: np.ndarray) -> Tuple[np.ndarray, int]:
+        """Normalize labels into task input layout and report spatial dimensionality."""
+        if label_np.ndim == 4 and label_np.shape[0] == 1:
+            return label_np[0], 3
+        if label_np.ndim == 3 and label_np.shape[0] == 1:
+            # Keep the singleton z-dimension for 2D helpers that expect [1, H, W].
+            return label_np, 2
+        if label_np.ndim == 3:
+            return label_np, 3
+        if label_np.ndim == 2:
+            return label_np[np.newaxis, ...], 2
+        raise ValueError(
+            "MultiTaskLabelTransformd expects label shape [H, W], [D, H, W], "
+            f"[1, H, W], or [1, D, H, W], got {tuple(label_np.shape)}"
+        )
+
+    def _normalize_output(self, result_arr: np.ndarray, spatial_ndim: int) -> np.ndarray:
+        """Normalize task outputs to channel-first [C, ...] tensors."""
+        if spatial_ndim == 2:
+            if result_arr.ndim == 4 and result_arr.shape[1] == 1:
+                result_arr = result_arr[:, 0, ...]
+            elif result_arr.ndim == 3 and result_arr.shape[0] == 1:
+                result_arr = result_arr[0]
+
+            if result_arr.ndim == 2:
+                result_arr = result_arr[np.newaxis, ...]
+
+            if result_arr.ndim != 3:
+                raise RuntimeError(
+                    "2D target output must normalize to [C, H, W], "
+                    f"got shape {tuple(result_arr.shape)}"
+                )
+            return result_arr
+
+        if spatial_ndim == 3:
+            if result_arr.ndim == 3:
+                result_arr = result_arr[np.newaxis, ...]
+
+            if result_arr.ndim != 4:
+                raise RuntimeError(
+                    "3D target output must normalize to [C, D, H, W], "
+                    f"got shape {tuple(result_arr.shape)}"
+                )
+            return result_arr
+
+        raise ValueError(f"Unsupported spatial dimensionality: {spatial_ndim}")
 
     def _to_tensor(self, array: np.ndarray, *, add_batch_dim: bool) -> torch.Tensor:
         # Ensure array is a proper numpy array (not a numpy scalar type like numpy.uint8)
@@ -748,20 +794,8 @@ class MultiTaskLabelTransformd(MapTransform):
                 continue
 
             label = d[key]
-            label_np, had_batch_dim = self._prepare_label(label)
-
-            # Determine if input is 2D or 3D based on original dimensions
-            # After EnsureChannelFirstd: 2D images are [1, H, W], 3D volumes are [1, D, H, W]
-            is_2d_input = label_np.ndim == 3 and label_np.shape[0] == 1
-            is_3d_input = label_np.ndim == 4 and label_np.shape[0] == 1
-
-            # Remove channel dimension (target functions don't expect it)
-            if is_3d_input:
-                label_np = label_np[0]  # [1, D, H, W] -> [D, H, W]
-            elif is_2d_input:
-                # For 2D, keep as [1, H, W] since some functions (boundary, edt) expect 3D input
-                # even in 2D mode (they treat first dim as Z=1)
-                pass  # Keep [1, H, W]
+            label_np = self._prepare_label(label)
+            label_np, spatial_ndim = self._prepare_label_for_tasks(label_np)
 
             outputs: List[np.ndarray] = []
             for spec in self.task_specs:
@@ -782,26 +816,7 @@ class MultiTaskLabelTransformd(MapTransform):
                 result_arr = np.asarray(
                     result, dtype=np.float32
                 )  # Convert to float32 (handles bool->float)
-
-                # Normalize output dimensions:
-                # For 2D images (input [1, H, W]): functions return [H, W] or [1, H, W]
-                # For 3D volumes (input [D, H, W]): functions return [D, H, W]
-                # Goal: Add channel dimension to get [1, H, W] for 2D or [1, D, H, W] for 3D
-
-                if is_2d_input:
-                    # 2D case: some functions return [H, W], others return [1, H, W]
-                    if result_arr.ndim == 3 and result_arr.shape[0] == 1:
-                        # Function returned [1, H, W], squeeze Z dimension
-                        result_arr = result_arr[0]  # [1, H, W] -> [H, W]
-                    # Now result_arr is [H, W], add channel dimension
-                    if result_arr.ndim == 2:
-                        result_arr = result_arr[np.newaxis, ...]  # [H, W] -> [1, H, W]
-                elif is_3d_input:
-                    # 3D case: functions return [D, H, W], add channel dimension
-                    if result_arr.ndim == 3:
-                        result_arr = result_arr[np.newaxis, ...]  # [D, H, W] -> [1, D, H, W]
-
-                outputs.append(result_arr)
+                outputs.append(self._normalize_output(result_arr, spatial_ndim))
 
             if self.stack_outputs:
                 # Concatenate outputs along channel dimension (axis=0 for [C, D, H, W] format)

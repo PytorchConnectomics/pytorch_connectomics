@@ -122,6 +122,7 @@ class TuneConfig:
 
     n_trials: int = 100
     timeout: Optional[int] = None
+    trial_timeout: Optional[int] = None
     study_name: str = "parameter_optimization"
     storage: Optional[str] = None
     load_if_exists: bool = True

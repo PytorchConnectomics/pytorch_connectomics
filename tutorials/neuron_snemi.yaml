@@ -25,14 +25,16 @@ default:
   inference:
     sliding_window:
       window_size: [16, 224, 224]
-      sw_batch_size: 1
+      sw_batch_size: 16
       keep_input_on_cpu: false
     test_time_augmentation:
-      #enabled: false
-      enabled: true
+      enabled: false
+      #enabled: true
       patch_first_local: true
       flip_axes: all
       rotation90_axes: [[1, 2]]
+      select_channel: [0, 1, 2] # aff=1
+      #select_channel: [6, 9, 4] # aff=3
     postprocessing:
       enabled: true
       # Crop the padded prediction so the later DeepEM affinity crop lands back
@@ -83,12 +85,20 @@ test:
     decoding:
     - profile: decoding_waterz
       kwargs:
-        thresholds: 0.4
+        thresholds: 0.5
         merge_function: aff85_his256
         aff_threshold: [0.1, 0.999]
+        dust_merge: false              # enable dust merge postprocessing
         dust_merge_size: 800
         dust_merge_affinity: 0.3
         dust_remove_size: 600
+        branch_merge: false              # enable branch merge
+        branch_iou_threshold: 0.5       # S1: full Jaccard IOU threshold
+        branch_best_buddy: true         # S2: mutual best-match merge
+        branch_one_sided_threshold: 0.8 # S3: one-sided IOU threshold (0 to disable)
+        branch_one_sided_min_size: 100  # S3: min segment size for one-sided merge
+        branch_affinity_threshold: 0.0  # min z-boundary affinity (0=no check)
+
       
 # ============================================================================
 # Parameter tuning for waterz agglomeration thresholds (--mode tune)
@@ -107,24 +117,24 @@ tune:
   parameter_space:
     decoding:
       defaults:
-        thresholds: 0.4
+        thresholds: 0.5
         merge_function: aff85_his256
-        aff_threshold: [0.001, 0.999]
+        aff_threshold: [0.1, 0.999]
       parameters:
         merge_function:
           type: categorical
-          choices: [aff85_his256, aff75_his256, aff50_his256]
+          choices: [aff85_his256, aff75_his256, aff50_his256, aff25_his256, aff15_his256]
           description: "Agglomeration scoring function (quantile via histogram)"
         thresholds:
           range: [0.1, 0.9]
           step: 0.1
         aff_threshold_low:
-          range: [0.001, 0.5]
+          range: [0, 0.5]
           step: 0.1
           param_group: aff_threshold
           tuple_index: 0
         aff_threshold_high:
-          range: [0.7, 0.9999]
+          range: [0.7, 1]
           step: 0.1
           param_group: aff_threshold
           tuple_index: 1

@@ -562,9 +562,7 @@ def shard_test_datamodule(datamodule, shard_id: int, num_shards: int):
         raise ValueError("No test_data_dicts to shard")
     n = len(data_dicts)
     if shard_id < 0 or shard_id >= num_shards:
-        raise ValueError(
-            f"shard_id={shard_id} out of range for num_shards={num_shards}"
-        )
+        raise ValueError(f"shard_id={shard_id} out of range for num_shards={num_shards}")
     if num_shards > n:
         print(
             f"  WARNING: num_shards={num_shards} > test volumes={n}; "
@@ -573,13 +571,10 @@ def shard_test_datamodule(datamodule, shard_id: int, num_shards: int):
 
     shard = data_dicts[shard_id::num_shards]
     if not shard:
-        raise ValueError(
-            f"Shard {shard_id}/{num_shards} is empty (only {n} test volumes)"
-        )
+        raise ValueError(f"Shard {shard_id}/{num_shards} is empty (only {n} test volumes)")
 
     print(
-        f"  Test sharding: shard {shard_id}/{num_shards}, "
-        f"processing {len(shard)}/{n} volumes"
+        f"  Test sharding: shard {shard_id}/{num_shards}, " f"processing {len(shard)}/{n} volumes"
     )
     datamodule.test_data_dicts = shard
     return datamodule
@@ -861,9 +856,7 @@ def main():
 
     # Keep cache lookup aligned with the current runtime mode and TTA plan.
     if args.mode in ["test", "tune", "tune-test"]:
-        cfg.inference.save_prediction.cache_suffix = resolve_prediction_cache_suffix(
-            cfg, args.mode
-        )
+        cfg.inference.save_prediction.cache_suffix = resolve_prediction_cache_suffix(cfg, args.mode)
 
     # Run preflight checks for training mode
     if args.mode == "train":
@@ -1006,9 +999,7 @@ def main():
 
             # Apply test volume sharding across machines
             if args.shard_id is not None and args.num_shards is not None:
-                datamodule = shard_test_datamodule(
-                    datamodule, args.shard_id, args.num_shards
-                )
+                datamodule = shard_test_datamodule(datamodule, args.shard_id, args.num_shards)
 
             if maybe_limit_test_devices(cfg, datamodule):
                 trainer = create_trainer(
@@ -1027,7 +1018,7 @@ def main():
                 print("=" * 80)
 
                 # Load and apply best parameters
-                cfg = load_and_apply_best_params(cfg)
+                cfg = load_and_apply_best_params(cfg, checkpoint_path=args.checkpoint)
                 cfg.inference.save_prediction.cache_suffix = resolve_prediction_cache_suffix(
                     cfg,
                     args.mode,

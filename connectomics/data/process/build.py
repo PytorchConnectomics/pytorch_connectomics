@@ -78,6 +78,14 @@ def create_label_transform_pipeline(cfg: Any = None, **kwargs: Any) -> MapTransf
     converted = to_plain(target_cfg)
     raw_tasks = list(converted) if isinstance(converted, (list, tuple)) else [converted]
 
+    # Top-level keys that are forwarded as default kwargs into targets that
+    # accept them (e.g. ``resolution``).  A target's explicit kwarg wins.
+    inheritable_kwargs = {}
+    for _ikey in ("resolution",):
+        _ival = cfg.get(_ikey)
+        if _ival is not None:
+            inheritable_kwargs[_ikey] = _ival
+
     # Normalize task entries
     tasks: List[Any] = []
     for entry in raw_tasks:
@@ -87,7 +95,13 @@ def create_label_transform_pipeline(cfg: Any = None, **kwargs: Any) -> MapTransf
             name = entry.get("name") or entry.get("task") or entry.get("type")
             if name is None:
                 raise ValueError(f"Task entry {entry} missing 'name'/'task'/'type'.")
-            processed: Dict[str, Any] = {"name": name, "kwargs": dict(entry.get("kwargs", {}))}
+            task_kwargs = dict(entry.get("kwargs", {}))
+            # Inherit top-level keys when the target's defaults include them.
+            task_defaults = MultiTaskLabelTransformd._TASK_DEFAULTS.get(name, {})
+            for ikey, ival in inheritable_kwargs.items():
+                if ikey in task_defaults and ikey not in task_kwargs:
+                    task_kwargs[ikey] = ival
+            processed: Dict[str, Any] = {"name": name, "kwargs": task_kwargs}
             if "output_key" in entry:
                 processed["output_key"] = entry["output_key"]
             tasks.append(processed)

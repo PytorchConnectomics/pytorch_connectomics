@@ -530,6 +530,51 @@ def tta_cache_suffix_candidates(
     return candidates
 
 
+def tuning_artifact_tag(
+    cfg: Config, spatial_dims: int = 3, checkpoint_path: Optional[str | Path] = None
+) -> str:
+    """Return the cache-style tuning tag without leading underscore or file extension."""
+    return Path(
+        tta_cache_suffix(cfg, spatial_dims=spatial_dims, checkpoint_path=checkpoint_path)
+    ).stem.lstrip("_")
+
+
+def tuning_best_params_filename(
+    cfg: Config, spatial_dims: int = 3, checkpoint_path: Optional[str | Path] = None
+) -> str:
+    """Return the checkpoint/channel-aware best-params filename for tune outputs."""
+    return f"best_params_{tuning_artifact_tag(cfg, spatial_dims=spatial_dims, checkpoint_path=checkpoint_path)}.yaml"
+
+
+def tuning_best_params_filename_candidates(
+    cfg: Config, spatial_dims: int = 3, checkpoint_path: Optional[str | Path] = None
+) -> list[str]:
+    """Return ordered candidate best-params filenames, including legacy fallback."""
+    candidates = [
+        tuning_best_params_filename(cfg, spatial_dims=spatial_dims, checkpoint_path=checkpoint_path)
+    ]
+    legacy_name = "best_params.yaml"
+    if legacy_name not in candidates:
+        candidates.append(legacy_name)
+    return candidates
+
+
+def tuning_study_db_filename(
+    cfg: Config,
+    study_name: str,
+    spatial_dims: int = 3,
+    checkpoint_path: Optional[str | Path] = None,
+) -> str:
+    """Return a checkpoint/channel-aware SQLite filename for saved Optuna studies."""
+    safe_study = re.sub(r"[^A-Za-z0-9._=-]+", "-", str(study_name)).strip("-")
+    if not safe_study:
+        safe_study = "parameter_optimization"
+    return (
+        f"{safe_study}_"
+        f"{tuning_artifact_tag(cfg, spatial_dims=spatial_dims, checkpoint_path=checkpoint_path)}.db"
+    )
+
+
 def resolve_prediction_cache_suffix(
     cfg: Config, mode: str, checkpoint_path: Optional[str | Path] = None
 ) -> str:
@@ -569,6 +614,10 @@ __all__ = [
     "final_prediction_output_tag",
     "tta_cache_suffix",
     "tta_cache_suffix_candidates",
+    "tuning_artifact_tag",
+    "tuning_best_params_filename",
+    "tuning_best_params_filename_candidates",
+    "tuning_study_db_filename",
     "resolve_prediction_cache_suffix",
     "is_tta_cache_suffix",
 ]

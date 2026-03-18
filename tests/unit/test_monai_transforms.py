@@ -20,6 +20,8 @@ from connectomics.config.schema import LabelTargetConfig, LabelTransformConfig  
 
 # Import the new MONAI transforms
 from connectomics.data.process import (  # noqa: E402
+    MultiTaskLabelTransformd,
+    SegErosionInstanced,
     SegToAffinityMapd,
     SegToBinaryMaskd,
     SegToFlowFieldd,
@@ -177,6 +179,7 @@ def test_compose_pipelines():
     instance_pipeline = create_label_transform_pipeline(instance_cfg)
     result = instance_pipeline(data)
     assert "label" in result, "Multi-task output not generated"
+    assert tuple(result["label"].shape) == (3, 32, 64, 64)
     print(f"   Multi-task output shape: {result['label'].shape}")  # Should be [3, D, H, W]
 
     print("[OK]All label transform pipelines passed!")
@@ -221,6 +224,35 @@ def test_label_transform_pipeline_accepts_structured_config_dataclass():
 
     assert "label" in result
     assert tuple(result["label"].shape) == (3, 32, 64, 64)
+
+
+def test_multitask_label_transform_raw_3d_input_stacks_channels_correctly():
+    label = np.zeros((6, 20, 20), dtype=np.int32)
+    label[1:5, 4:16, 4:16] = 1
+    label[2:6, 10:18, 10:18] = 2
+
+    transform = MultiTaskLabelTransformd(
+        keys=["label"],
+        tasks=[
+            {"name": "affinity", "kwargs": {"offsets": ["1-0-0", "0-1-0", "0-0-1"]}},
+            {"name": "instance_edt", "kwargs": {"mode": "3d"}},
+        ],
+    )
+
+    result = transform({"label": label})
+
+    assert tuple(result["label"].shape) == (4, 6, 20, 20)
+
+
+def test_seg_erosion_instanced_preserves_single_channel_layout():
+    label = np.zeros((1, 6, 20, 20), dtype=np.int32)
+    label[:, 1:5, 4:16, 4:16] = 1
+    label[:, 2:6, 10:18, 10:18] = 2
+
+    transform = SegErosionInstanced(keys=["label"], tsz_h=1)
+    result = transform({"label": label})
+
+    assert tuple(result["label"].shape) == (1, 6, 20, 20)
 
 
 def test_weight_computation():

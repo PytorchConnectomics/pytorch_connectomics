@@ -16,6 +16,8 @@ from connectomics.training.lightning.utils import (
     resolve_prediction_cache_suffix,
     setup_config,
     tta_cache_suffix_candidates,
+    tuning_best_params_filename,
+    tuning_best_params_filename_candidates,
 )
 
 
@@ -207,6 +209,26 @@ def test_tta_cache_suffix_candidates_do_not_fall_back_to_legacy_suffix_with_chec
     ) == ["_tta_x8_ckpt-epoch=4-step=99_prediction.h5"]
 
 
+def test_tuning_best_params_filename_matches_tta_prediction_identity():
+    cfg = Config()
+    cfg.inference.test_time_augmentation.select_channel = [4, 6, 9]
+
+    assert (
+        tuning_best_params_filename(
+            cfg,
+            checkpoint_path="/tmp/checkpoints/epoch=4-step=99.ckpt",
+        )
+        == "best_params_tta_x1_ch4-6-9_ckpt-epoch=4-step=99_prediction.yaml"
+    )
+    assert tuning_best_params_filename_candidates(
+        cfg,
+        checkpoint_path="/tmp/checkpoints/epoch=4-step=99.ckpt",
+    ) == [
+        "best_params_tta_x1_ch4-6-9_ckpt-epoch=4-step=99_prediction.yaml",
+        "best_params.yaml",
+    ]
+
+
 def test_format_decode_tag_includes_all_decoding_parameters():
     cfg = Config()
     cfg.inference.decoding = [
@@ -222,7 +244,4 @@ def test_format_decode_tag_includes_all_decoding_parameters():
         }
     ]
 
-    assert (
-        format_decode_tag(cfg)
-        == "_waterz_256-watershed-aff50_his256-true-0.1-0.2-0.4"
-    )
+    assert format_decode_tag(cfg) == "_waterz_256-watershed-aff50_his256-true-0.1-0.2-0.4"

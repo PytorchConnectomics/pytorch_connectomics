@@ -17,7 +17,7 @@ import torch.nn.functional as F
 from monai.data.utils import dense_patch_slices
 from monai.inferers.utils import _get_scan_interval, compute_importance_map
 
-from ..utils.channel_slices import resolve_channel_indices
+from ..utils.channel_slices import resolve_channel_indices, resolve_channel_range
 from .sliding import (
     _extract_padded_patch_batch,
     _resolve_sliding_window_runtime,
@@ -210,6 +210,65 @@ def resolve_tta_augmentation_combinations(
                 combinations_out.append((flip_axes, rotation_plane, k_rotations))
 
     return combinations_out
+
+
+def _resolve_ensemble_mode_map(
+    ensemble_mode: Any,
+    num_channels: int,
+) -> list[str]:
+    """Resolve ``ensemble_mode`` config to a per-channel mode list.
+
+    When *ensemble_mode* is a plain string (``"mean"``, ``"min"``, ``"max"``),
+    every channel gets the same mode.
+
+    When it is a list of ``[channel_selector, mode]`` pairs — e.g.
+    ``[["0:3", "min"], ["3:", "mean"]]`` — each channel is assigned the mode
+    from its matching entry.  Channel selectors use the same syntax as loss
+    ``pred_slice`` / ``target_slice`` (parsed via
+    :func:`~connectomics.utils.channel_slices.resolve_channel_range`).
+    """
+    if isinstance(ensemble_mode, str):
+        return [ensemble_mode] * num_channels
+
+    # Convert OmegaConf containers to plain Python.
+    raw_list = _to_plain_list(ensemble_mode)
+    if not isinstance(raw_list, list) or not raw_list:
+        raise ValueError(
+            f"ensemble_mode must be a string or a list of [channel_selector, mode] pairs, "
+            f"got {ensemble_mode!r}."
+        )
+
+    # If first element is a string (not a list), it's a single mode string
+    # that was wrapped in a ListConfig — treat it as a plain string.
+    if isinstance(raw_list[0], str) and len(raw_list) == 1:
+        return [raw_list[0]] * num_channels
+
+    modes: list[str | None] = [None] * num_channels
+    for entry in raw_list:
+        if not isinstance(entry, (list, tuple)) or len(entry) != 2:
+            raise ValueError(
+                f"Each ensemble_mode entry must be [channel_selector, mode], got {entry!r}."
+            )
+        selector, mode = entry
+        if mode not in ("mean", "min", "max"):
+            raise ValueError(
+                f"Unknown ensemble mode {mode!r} in per-channel spec. Use 'mean', 'min', or 'max'."
+            )
+        start, stop = resolve_channel_range(
+            str(selector),
+            num_channels=num_channels,
+            context="ensemble_mode channel selector",
+        )
+        for ch in range(start, stop):
+            modes[ch] = mode
+
+    unset = [i for i, m in enumerate(modes) if m is None]
+    if unset:
+        raise ValueError(
+            f"ensemble_mode does not cover channels {unset}. "
+            f"Every channel must be assigned a mode."
+        )
+    return modes  # type: ignore[return-value]
 
 
 class TTAPredictor:
@@ -681,7 +740,7 @@ class TTAPredictor:
         self,
         images: torch.Tensor,
         augmentation_combinations: list,
-        ensemble_mode: str,
+        ensemble_mode: Any,
         empty_cache_interval: int,
         distributed_sharding: bool,
         network_fn,
@@ -767,11 +826,40 @@ class TTAPredictor:
         return local_combinations
 
     @staticmethod
+    def _accumulate_single_mode(
+        ensemble_result: torch.Tensor,
+        pred_float: torch.Tensor,
+        mode: str,
+        num_predictions: int,
+        distributed_sharding: bool,
+        ch_slice: slice = slice(None),
+    ) -> None:
+        """Apply a single ensemble mode to a channel slice (in-place)."""
+        if mode == "mean":
+            if distributed_sharding:
+                ensemble_result[:, ch_slice] += pred_float[:, ch_slice]
+            else:
+                delta = pred_float[:, ch_slice] - ensemble_result[:, ch_slice]
+                ensemble_result[:, ch_slice] += delta / (num_predictions + 1)
+        elif mode == "min":
+            ensemble_result[:, ch_slice] = torch.minimum(
+                ensemble_result[:, ch_slice], pred_float[:, ch_slice]
+            )
+        elif mode == "max":
+            ensemble_result[:, ch_slice] = torch.maximum(
+                ensemble_result[:, ch_slice], pred_float[:, ch_slice]
+            )
+        else:
+            raise ValueError(
+                f"Unknown TTA ensemble mode: {mode!r}. Use 'mean', 'min', or 'max'."
+            )
+
+    @staticmethod
     def _accumulate_ensemble_prediction(
         ensemble_result: Optional[torch.Tensor],
         pred_processed: torch.Tensor,
         *,
-        ensemble_mode: str,
+        ensemble_mode: Any,
         num_predictions: int,
         distributed_sharding: bool,
     ) -> tuple[torch.Tensor, int]:
@@ -779,21 +867,21 @@ class TTAPredictor:
         if ensemble_result is None:
             return pred_float.clone(), 1
 
-        if ensemble_mode == "mean":
-            if distributed_sharding:
-                ensemble_result += pred_float
-            else:
-                ensemble_result = ensemble_result + (pred_float - ensemble_result) / (
-                    num_predictions + 1
-                )
-        elif ensemble_mode == "min":
-            ensemble_result = torch.minimum(ensemble_result, pred_float)
-        elif ensemble_mode == "max":
-            ensemble_result = torch.maximum(ensemble_result, pred_float)
-        else:
-            raise ValueError(
-                f"Unknown TTA ensemble mode: {ensemble_mode}. " f"Use 'mean', 'min', or 'max'."
+        num_channels = pred_float.shape[1]
+        mode_map = _resolve_ensemble_mode_map(ensemble_mode, num_channels)
+
+        # Group consecutive channels with the same mode for efficiency.
+        i = 0
+        while i < num_channels:
+            mode = mode_map[i]
+            j = i + 1
+            while j < num_channels and mode_map[j] == mode:
+                j += 1
+            TTAPredictor._accumulate_single_mode(
+                ensemble_result, pred_float, mode, num_predictions,
+                distributed_sharding, ch_slice=slice(i, j),
             )
+            i = j
 
         return ensemble_result, num_predictions + 1
 
@@ -1150,7 +1238,7 @@ class TTAPredictor:
         self,
         ensemble_result: torch.Tensor,
         num_predictions: int,
-        ensemble_mode: str,
+        ensemble_mode: Any,
         reduction_device: torch.device,
     ) -> Optional[torch.Tensor]:
         """Reduce ensemble results across DDP ranks. Returns None on non-zero ranks."""
@@ -1159,6 +1247,66 @@ class TTAPredictor:
             ensemble_result,
             reduction_device=reduction_device,
         )
+
+        num_channels = ensemble_result.shape[1]
+        mode_map = _resolve_ensemble_mode_map(ensemble_mode, num_channels)
+        unique_modes = set(mode_map)
+
+        # Fast path: all channels share the same mode.
+        if len(unique_modes) == 1:
+            return self._apply_distributed_reduction_single_mode(
+                ensemble_result, num_predictions, mode_map[0], reduction_device,
+            )
+
+        # Per-channel-group reduction: reduce once per unique mode via the
+        # appropriate op, then stitch the channel slices back together.
+        # We need SUM for mean channels, MIN for min channels, MAX for max.
+        op_map = {"mean": torch.distributed.ReduceOp.SUM,
+                  "min": torch.distributed.ReduceOp.MIN,
+                  "max": torch.distributed.ReduceOp.MAX}
+        reduced_by_op: dict[str, torch.Tensor | None] = {}
+        for mode in unique_modes:
+            reduced_by_op[mode] = self._reduce_cpu_tensor_to_rank_zero(
+                ensemble_result, op=op_map[mode], reduction_device=reduction_device,
+            )
+
+        total_predictions = None
+        if "mean" in unique_modes:
+            total_predictions = self._reduce_prediction_count_to_rank_zero(
+                num_predictions, reduction_device=reduction_device,
+            )
+
+        if rank == 0:
+            result = ensemble_result.clone()
+            i = 0
+            while i < num_channels:
+                mode = mode_map[i]
+                j = i + 1
+                while j < num_channels and mode_map[j] == mode:
+                    j += 1
+                ch = slice(i, j)
+                if mode == "mean":
+                    if total_predictions <= 0:
+                        raise RuntimeError(
+                            "Distributed TTA sharding reduced zero predictions on rank 0."
+                        )
+                    result[:, ch] = reduced_by_op["mean"][:, ch] / float(total_predictions)
+                else:
+                    result[:, ch] = reduced_by_op[mode][:, ch]
+                i = j
+            return result
+
+        return None  # non-zero ranks
+
+    def _apply_distributed_reduction_single_mode(
+        self,
+        ensemble_result: torch.Tensor,
+        num_predictions: int,
+        ensemble_mode: str,
+        reduction_device: torch.device,
+    ) -> Optional[torch.Tensor]:
+        """Reduce with a single mode for all channels (original fast path)."""
+        _is_dist, rank, _world_size = self._distributed_context()
 
         if ensemble_mode == "mean":
             reduced_sum = self._reduce_cpu_tensor_to_rank_zero(
