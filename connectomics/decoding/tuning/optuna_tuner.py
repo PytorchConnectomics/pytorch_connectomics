@@ -27,6 +27,7 @@ from typing import Any, Dict, List, Optional, Union
 
 import h5py
 import numpy as np
+import torch
 from omegaconf import DictConfig, OmegaConf
 
 try:
@@ -335,8 +336,14 @@ def _trial_evaluation_worker(send_conn, evaluation_kind: str, payload: Dict[str,
 
 
 def _get_trial_process_context() -> mp.context.BaseContext:
-    """Prefer fork to avoid copying large prediction arrays when available."""
-    for method in ("fork", "spawn"):
+    """Choose a multiprocessing start method for timeout-enforced trials."""
+    methods = ("fork", "spawn")
+    if torch.cuda.is_available() and torch.cuda.is_initialized():
+        # Tune mode runs inference before Optuna; once CUDA is initialized,
+        # forking the parent process is unsafe and can hang.
+        methods = ("spawn", "fork")
+
+    for method in methods:
         try:
             return mp.get_context(method)
         except ValueError:
@@ -795,6 +802,12 @@ class OptunaDecodingTuner:
 
         metric = self.tune_cfg.optimization["single_objective"]["metric"]
         trial_timeout = self._get_trial_timeout_seconds()
+        if timeout is not None and trial_timeout is None:
+            logger.warning(
+                "tune.timeout=%s limits the whole Optuna study, not one trial. "
+                "Long WaterZ runs will still block unless tune.trial_timeout is set.",
+                timeout,
+            )
         logger.info(
             "Starting Optuna optimization: %s | Trials: %s | Metric: %s | "
             "Direction: %s | Trial timeout: %s",

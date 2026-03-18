@@ -157,6 +157,18 @@ def parse_args():
         default=None,
         help="Number of Optuna trials (overrides config, use with --mode tune or tune-test)",
     )
+    tune_group.add_argument(
+        "--tune-timeout",
+        type=int,
+        default=None,
+        help="Whole-study Optuna timeout in seconds (overrides tune.timeout)",
+    )
+    tune_group.add_argument(
+        "--tune-trial-timeout",
+        type=int,
+        default=None,
+        help="Per-trial tuning timeout in seconds (overrides tune.trial_timeout)",
+    )
     parser.add_argument(
         "overrides",
         nargs="*",
@@ -216,6 +228,28 @@ def setup_config(args) -> Config:
 
     # Resolve data paths on merged runtime data section.
     cfg = resolve_data_paths(cfg)
+
+    if cfg.tune is not None:
+        if args.tune_trials is not None:
+            logger.info("Overriding tune.n_trials: %s -> %s", cfg.tune.n_trials, args.tune_trials)
+            cfg.tune.n_trials = args.tune_trials
+
+        if args.tune_timeout is not None:
+            logger.info("Overriding tune.timeout: %s -> %s", cfg.tune.timeout, args.tune_timeout)
+            cfg.tune.timeout = args.tune_timeout
+
+        if args.tune_trial_timeout is not None:
+            logger.info(
+                "Overriding tune.trial_timeout: %s -> %s",
+                cfg.tune.trial_timeout,
+                args.tune_trial_timeout,
+            )
+            cfg.tune.trial_timeout = args.tune_trial_timeout
+    elif any(
+        value is not None
+        for value in (args.tune_trials, args.tune_timeout, args.tune_trial_timeout)
+    ):
+        logger.warning("Ignoring --tune-* CLI overrides because the config has no tune section")
 
     # Override max_epochs if --reset-max-epochs is specified
     if args.reset_max_epochs is not None:

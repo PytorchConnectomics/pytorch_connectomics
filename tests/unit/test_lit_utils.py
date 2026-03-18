@@ -5,6 +5,7 @@ import numpy as np
 import pytest
 
 from connectomics.config import Config, save_config
+from connectomics.config.schema.stages import TuneConfig
 from connectomics.training.lightning.data_factory import _calculate_validation_steps_per_epoch
 from connectomics.training.lightning.path_utils import (
     expand_file_paths as canonical_expand_file_paths,
@@ -27,6 +28,9 @@ def _make_args(
     fast_dev_run: int = 0,
     mode: str = "train",
     nnunet_preprocess: bool = False,
+    tune_timeout: int | None = None,
+    tune_trial_timeout: int | None = None,
+    tune_trials: int | None = None,
 ):
     return argparse.Namespace(
         config=str(config_path),
@@ -42,7 +46,9 @@ def _make_args(
         external_prefix=None,
         params=None,
         param_source=None,
-        tune_trials=None,
+        tune_trials=tune_trials,
+        tune_timeout=tune_timeout,
+        tune_trial_timeout=tune_trial_timeout,
         nnunet_preprocess=nnunet_preprocess,
         overrides=overrides or [],
     )
@@ -82,6 +88,27 @@ def test_setup_config_enables_nnunet_preprocess_from_cli_switch(tmp_path):
     updated = setup_config(args)
 
     assert updated.data.nnunet_preprocessing.enabled is True
+
+
+def test_setup_config_applies_tune_timeout_cli_overrides(tmp_path):
+    cfg = Config()
+    cfg.tune = TuneConfig()
+
+    cfg_path = tmp_path / "config.yaml"
+    save_config(cfg, cfg_path)
+
+    args = _make_args(
+        cfg_path,
+        mode="tune",
+        tune_trials=17,
+        tune_timeout=3600,
+        tune_trial_timeout=300,
+    )
+    updated = setup_config(args)
+
+    assert updated.tune.n_trials == 17
+    assert updated.tune.timeout == 3600
+    assert updated.tune.trial_timeout == 300
 
 
 def test_expand_file_paths_handles_globs_and_lists(tmp_path):
