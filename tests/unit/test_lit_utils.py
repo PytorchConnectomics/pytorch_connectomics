@@ -272,3 +272,53 @@ def test_format_decode_tag_includes_all_decoding_parameters():
     ]
 
     assert format_decode_tag(cfg) == "_waterz_256-watershed-aff50_his256-true-0.1-0.2-0.4"
+
+
+def test_format_decode_tag_gates_dust_and_branch_parameter_groups():
+    cfg = Config()
+    cfg.inference.decoding = [
+        {
+            "name": "decode_waterz",
+            "kwargs": {
+                "branch_merge": True,
+                "branch_iou_threshold": 0.5,
+                "branch_best_buddy": True,
+                "branch_one_sided_threshold": 0.8,
+                "branch_one_sided_min_size": 100,
+                "branch_affinity_threshold": 0.0,
+                "dust_merge": True,
+                "dust_merge_size": 800,
+                "dust_merge_affinity": 0.3,
+                "dust_remove_size": 600,
+                "merge_function": "aff85_his256",
+                "thresholds": 0.5,
+            },
+        }
+    ]
+
+    assert format_decode_tag(cfg) == "_waterz_0.5-true-0.8-100-0-800-0.3-600-aff85_his256-0.5"
+
+
+def test_format_decode_tag_skips_disabled_dust_and_branch_parameter_groups():
+    cfg = Config()
+    cfg.inference.decoding = [
+        {
+            "name": "decode_waterz",
+            "kwargs": {
+                "branch_merge": False,
+                "branch_iou_threshold": 0.5,
+                "branch_best_buddy": True,
+                "branch_one_sided_threshold": 0.8,
+                "branch_one_sided_min_size": 100,
+                "branch_affinity_threshold": 0.0,
+                "dust_merge": False,
+                "dust_merge_size": 800,
+                "dust_merge_affinity": 0.3,
+                "dust_remove_size": 600,
+                "merge_function": "aff85_his256",
+                "thresholds": 0.5,
+            },
+        }
+    ]
+
+    assert format_decode_tag(cfg) == "_waterz_aff85_his256-0.5"

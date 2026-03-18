@@ -454,10 +454,39 @@ def format_decode_tag(cfg: Config) -> str:
         safe_text = re.sub(r"-{2,}", "-", safe_text)
         return safe_text.strip("-")
 
+    gated_value_groups = {
+        "branch_merge": [
+            "branch_iou_threshold",
+            "branch_best_buddy",
+            "branch_one_sided_threshold",
+            "branch_one_sided_min_size",
+            "branch_affinity_threshold",
+        ],
+        "dust_merge": [
+            "dust_merge_size",
+            "dust_merge_affinity",
+            "dust_remove_size",
+        ],
+    }
+
     def _flatten_decode_values(value) -> list[str]:
         if hasattr(value, "items"):
+            value_dict = dict(value)
+            gated_keys = set()
+            for gate_key, value_keys in gated_value_groups.items():
+                gate_value = value_dict.get(gate_key)
+                if isinstance(gate_value, bool):
+                    gated_keys.add(gate_key)
+                    gated_keys.update(k for k in value_keys if k in value_dict)
+
             result: list[str] = []
-            for _key, nested_value in sorted(dict(value).items()):
+            for key, nested_value in sorted(value_dict.items()):
+                if key in gated_keys:
+                    if key in gated_value_groups and nested_value is True:
+                        for grouped_key in gated_value_groups[key]:
+                            if grouped_key in value_dict:
+                                result.extend(_flatten_decode_values(value_dict[grouped_key]))
+                    continue
                 result.extend(_flatten_decode_values(nested_value))
             return result
         if isinstance(value, (list, tuple)):

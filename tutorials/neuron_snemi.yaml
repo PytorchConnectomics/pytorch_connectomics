@@ -88,7 +88,7 @@ test:
         thresholds: 0.5
         merge_function: aff85_his256
         aff_threshold: [0.1, 0.999]
-        dust_merge: false              # enable dust merge postprocessing
+        dust_merge: true              # enable dust merge postprocessing
         dust_merge_size: 800
         dust_merge_affinity: 0.3
         dust_remove_size: 600
