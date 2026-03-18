@@ -16,6 +16,7 @@ The implementation delegates to specialized modules:
 from __future__ import annotations
 
 import logging
+import os
 import warnings
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Union
@@ -44,7 +45,14 @@ from ...metrics.metrics_seg import (
 from ...models import build_model
 from ...models.loss import create_loss, get_loss_metadata_for_module
 from ..debugging import DebugManager
-from .utils import is_tta_cache_suffix, resolve_prediction_cache_suffix, tta_cache_suffix
+from .utils import (
+    final_prediction_output_tag,
+    format_checkpoint_name_tag,
+    is_tta_cache_suffix,
+    resolve_prediction_cache_suffix,
+    tta_cache_suffix,
+    tta_cache_suffix_candidates,
+)
 
 # Import training/inference components
 from ..loss import LossOrchestrator, build_loss_weighter, infer_num_loss_tasks_from_config
@@ -411,10 +419,35 @@ class ConnectomicsModule(pl.LightningModule):
         mode = "test"
         save_pred_cfg = self._get_runtime_inference_config().save_prediction
         output_dir_value = getattr(save_pred_cfg, "output_path", None)
-        cache_suffix = resolve_prediction_cache_suffix(self.cfg, mode=mode)
+        cache_suffix = resolve_prediction_cache_suffix(
+            self.cfg,
+            mode=mode,
+            checkpoint_path=self._get_prediction_checkpoint_path(),
+        )
 
         filenames = resolve_output_filenames(self.cfg, batch, global_step=self.global_step)
         return mode, output_dir_value, cache_suffix, filenames
+
+    def _get_prediction_checkpoint_path(self) -> str:
+        """Return the checkpoint/weights path whose stem should tag prediction caches."""
+        explicit_path = getattr(self, "_prediction_checkpoint_path", None)
+        if explicit_path is not None:
+            path_value = str(explicit_path).strip()
+            if path_value:
+                return path_value
+
+        trainer = getattr(self, "_trainer", None)
+        trainer_ckpt_path = getattr(trainer, "ckpt_path", None) if trainer is not None else None
+        if trainer_ckpt_path is not None:
+            path_value = str(trainer_ckpt_path).strip()
+            if path_value:
+                return path_value
+
+        external_weights_path = getattr(getattr(self.cfg, "model", None), "external_weights_path", None)
+        if isinstance(external_weights_path, str) and external_weights_path.strip():
+            return external_weights_path.strip()
+
+        return ""
 
     def _resolve_tta_result_path_override(self) -> str:
         """Return explicit intermediate prediction file from inference.tta_result_path."""
@@ -434,7 +467,7 @@ class ConnectomicsModule(pl.LightningModule):
             if not pred_file.is_absolute():
                 pred_file = Path.cwd() / pred_file
 
-            if pred_file.exists():
+            if os.path.exists(pred_file):
                 try:
                     logger.info(f"Using explicit inference.tta_result_path file: {pred_file}")
                     pred = read_volume(str(pred_file), dataset="main")
@@ -446,7 +479,14 @@ class ConnectomicsModule(pl.LightningModule):
                             f"{len(filenames)} filenames; decoding will use the explicit file only."
                         )
                     # Treat explicit file as intermediate prediction so decoding still runs.
-                    return pred, True, tta_cache_suffix(self.cfg)
+                    return (
+                        pred,
+                        True,
+                        tta_cache_suffix(
+                            self.cfg,
+                            checkpoint_path=self._get_prediction_checkpoint_path(),
+                        ),
+                    )
                 except Exception as e:
                     logger.warning(
                         f"Failed to load explicit inference.tta_result_path file {pred_file}: {e}. "
@@ -462,6 +502,7 @@ class ConnectomicsModule(pl.LightningModule):
             return None, False, cache_suffix
 
         output_dir = Path(output_dir_value)
+        checkpoint_tag = format_checkpoint_name_tag(self._get_prediction_checkpoint_path())
 
         # Build ordered list of suffixes to try: final prediction first, then
         # intermediate TTA, then glob fallback.
@@ -469,7 +510,14 @@ class ConnectomicsModule(pl.LightningModule):
         if is_tta_cache_suffix(cache_suffix):
             # Prefer the final decoded file (e.g. _x16_prediction.h5) over
             # the intermediate TTA file (e.g. _tta_x16_prediction.h5).
-            final_suffix = cache_suffix.replace("_tta_x", "_x")
+            final_suffix = (
+                "_"
+                + final_prediction_output_tag(
+                    self.cfg,
+                    checkpoint_path=self._get_prediction_checkpoint_path(),
+                )
+                + ".h5"
+            )
             suffixes_to_try.append(final_suffix)
         suffixes_to_try.append(cache_suffix)
 
@@ -478,7 +526,7 @@ class ConnectomicsModule(pl.LightningModule):
             all_exist = True
             for filename in filenames:
                 pred_file = output_dir / f"{filename}{try_suffix}"
-                if pred_file.exists():
+                if os.path.exists(pred_file):
                     try:
                         pred = read_volume(str(pred_file), dataset="main")
                         existing_predictions.append(pred)
@@ -507,21 +555,43 @@ class ConnectomicsModule(pl.LightningModule):
                     )
                 return predictions_np, True, try_suffix
 
-        # Glob fallback: look for any TTA intermediate file.
+        # Targeted fallback: look for the exact TTA intermediate cache suffix
+        # matching the current config rather than any arbitrary TTA file.
         if mode == "test" and not is_tta_cache_suffix(cache_suffix):
-            for filename in filenames:
-                tta_matches = sorted(output_dir.glob(f"{filename}_tta_x*_prediction.h5"))
-                if tta_matches:
-                    pred_file = tta_matches[-1]
-                    loaded_suffix = pred_file.name[len(filename):]
+            fallback_suffixes = tta_cache_suffix_candidates(
+                self.cfg,
+                checkpoint_path=self._get_prediction_checkpoint_path(),
+            )
+            for try_suffix in fallback_suffixes:
+                existing_predictions = []
+                all_exist = True
+                for filename in filenames:
+                    pred_file = output_dir / f"{filename}{try_suffix}"
+                    if not os.path.exists(pred_file):
+                        all_exist = False
+                        break
                     try:
                         pred = read_volume(str(pred_file), dataset="main")
-                        if pred.ndim < 4:
-                            pred = pred[np.newaxis, ...]
-                        logger.info("Loaded fallback TTA prediction: %s", pred_file.name)
-                        return pred, True, loaded_suffix
+                        existing_predictions.append(pred)
                     except Exception as e:
                         logger.warning(f"Failed to load {pred_file}: {e}")
+                        all_exist = False
+                        break
+                if all_exist and len(existing_predictions) == len(filenames):
+                    logger.info(
+                        "Loaded fallback TTA prediction(s) using exact suffix %s",
+                        try_suffix,
+                    )
+                    if len(existing_predictions) == 1:
+                        predictions_np = existing_predictions[0]
+                        if predictions_np.ndim < 4:
+                            predictions_np = predictions_np[np.newaxis, ...]
+                    else:
+                        predictions_np = np.stack(
+                            [p[np.newaxis, ...] if p.ndim < 4 else p for p in existing_predictions],
+                            axis=0,
+                        )
+                    return predictions_np, True, try_suffix
 
         return None, False, cache_suffix
 
@@ -554,9 +624,10 @@ class ConnectomicsModule(pl.LightningModule):
         # Create filename with volume name and TTA pass tag
         volume_name = metrics_dict.get("volume_name", "unknown")
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        cache_suffix = resolve_prediction_cache_suffix(self.cfg, mode=mode)
-        # Extract tag like "tta_x16" or "x1" from suffix "_tta_x16_prediction.h5"
-        tag = cache_suffix.lstrip("_").replace("_prediction.h5", "")
+        tag = final_prediction_output_tag(
+            self.cfg,
+            checkpoint_path=self._get_prediction_checkpoint_path(),
+        )
         metrics_file = output_dir / f"evaluation_metrics_{volume_name}_{tag}.txt"
 
         # Write metrics to file
@@ -663,11 +734,15 @@ class ConnectomicsModule(pl.LightningModule):
             decode_params["decoder"] = step.name
             decode_params.update(step.kwargs)
 
+        input_tta_prediction_name = (
+            f"{volume_name}{tta_cache_suffix(self.cfg, checkpoint_path=self._get_prediction_checkpoint_path())}"
+        )
+
         # Columns: timestamp, volume, decoder params..., metrics...
         # Use a fixed column order for readability
         param_keys = [
             "decoder", "thresholds", "merge_function", "aff_threshold",
-            "channel_order", "dust_merge_size", "dust_merge_affinity",
+            "channel_order", "dust_merge", "dust_merge_size", "dust_merge_affinity",
             "dust_remove_size",
         ]
         metric_keys = [
@@ -676,8 +751,8 @@ class ConnectomicsModule(pl.LightningModule):
             "instance_f1_detail",
         ]
 
-        header_cols = ["timestamp", "volume"] + param_keys + metric_keys
-        row_vals = [timestamp, volume_name]
+        header_cols = ["timestamp", "volume", "input_tta_prediction_name"] + param_keys + metric_keys
+        row_vals = [timestamp, volume_name, input_tta_prediction_name]
         for k in param_keys:
             row_vals.append(str(decode_params.get(k, "")))
         for k in metric_keys:

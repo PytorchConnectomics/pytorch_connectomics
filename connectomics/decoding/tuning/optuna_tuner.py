@@ -89,8 +89,27 @@ def _resolve_tuning_prediction_files(
     return existing_files, [str(path) for path in expected_files]
 
 
+def _print_best_params_yaml(best_params_file: Path) -> None:
+    """Print the current best-params YAML to stdout for interactive tune runs."""
+    try:
+        best_params = OmegaConf.load(best_params_file)
+        yaml_text = OmegaConf.to_yaml(best_params).rstrip()
+    except Exception:
+        yaml_text = best_params_file.read_text().rstrip()
+
+    print("\n" + "=" * 80)
+    print(f"BEST PARAMETERS | {best_params_file}")
+    print("=" * 80)
+    if yaml_text:
+        print(yaml_text)
+    else:
+        print("[empty]")
+
+
 @contextmanager
-def _temporary_tuning_inference_overrides(*cfg_objects: Any):
+def _temporary_tuning_inference_overrides(
+    *cfg_objects: Any, checkpoint_path: str | None = None
+):
     """Force the pre-Optuna inference pass to cache raw predictions only."""
     inference_cfgs = []
     seen_inference_cfgs: set[int] = set()
@@ -109,7 +128,11 @@ def _temporary_tuning_inference_overrides(*cfg_objects: Any):
     if not inference_cfgs:
         raise ValueError("Missing runtime cfg.inference configuration required for tuning")
 
-    suffix = tta_cache_suffix(primary_cfg) if primary_cfg is not None else "_tta_x1_prediction.h5"
+    suffix = (
+        tta_cache_suffix(primary_cfg, checkpoint_path=checkpoint_path)
+        if primary_cfg is not None
+        else "_tta_x1_prediction.h5"
+    )
 
     backups = []
     for inference_cfg in inference_cfgs:
@@ -1286,6 +1309,7 @@ def run_tuning(model, trainer, cfg, checkpoint_path=None):
             "Delete this file to re-run tuning.",
             best_params_file,
         )
+        _print_best_params_yaml(best_params_file)
         return
 
     logger.info("STARTING PARAMETER TUNING | Output directory: %s", output_dir)
@@ -1297,7 +1321,8 @@ def run_tuning(model, trainer, cfg, checkpoint_path=None):
     logger.info("[1/4] Running inference on tuning dataset...")
 
     tune_data = cfg.data
-    cache_suffix = tta_cache_suffix(cfg)
+    prediction_checkpoint_path = getattr(model, "_prediction_checkpoint_path", None) or checkpoint_path
+    cache_suffix = tta_cache_suffix(cfg, checkpoint_path=prediction_checkpoint_path)
 
     output_pred_dir = cfg.inference.save_prediction.output_path
     predictions_dir = Path(output_pred_dir)
@@ -1329,7 +1354,11 @@ def run_tuning(model, trainer, cfg, checkpoint_path=None):
         # Run test to populate/load raw prediction caches only. Optuna applies its own
         # decoding sweep afterward, so the tune inference pass must not decode with the
         # default config first.
-        with _temporary_tuning_inference_overrides(cfg, getattr(model, "cfg", None)) as cache_suffix:
+        with _temporary_tuning_inference_overrides(
+            cfg,
+            getattr(model, "cfg", None),
+            checkpoint_path=prediction_checkpoint_path,
+        ) as cache_suffix:
             model._tune_mode = True
             try:
                 results = trainer.test(model, datamodule=datamodule, ckpt_path=checkpoint_path)
@@ -1456,6 +1485,8 @@ def run_tuning(model, trainer, cfg, checkpoint_path=None):
         study.best_value,
         study.best_params,
     )
+    if best_params_file.exists():
+        _print_best_params_yaml(best_params_file)
 
 
 def load_and_apply_best_params(cfg):
