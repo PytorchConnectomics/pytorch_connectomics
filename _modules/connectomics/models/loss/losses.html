@@ -307,6 +307,14 @@
         <span class="k">return</span> <span class="n">loss_tensor</span><span class="o">.</span><span class="n">mean</span><span class="p">()</span>
 
     <span class="n">valid</span> <span class="o">=</span> <span class="n">weight</span> <span class="o">&gt;</span> <span class="mi">0</span>
+    <span class="k">if</span> <span class="n">valid</span><span class="o">.</span><span class="n">shape</span> <span class="o">!=</span> <span class="n">loss_tensor</span><span class="o">.</span><span class="n">shape</span><span class="p">:</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">valid</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">broadcast_to</span><span class="p">(</span><span class="n">valid</span><span class="p">,</span> <span class="n">loss_tensor</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span>
+        <span class="k">except</span> <span class="ne">RuntimeError</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                <span class="s2">&quot;Weight mask shape is not broadcastable to loss tensor shape: &quot;</span>
+                <span class="sa">f</span><span class="s2">&quot;weight=</span><span class="si">{</span><span class="nb">tuple</span><span class="p">(</span><span class="n">weight</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span><span class="si">}</span><span class="s2">, loss=</span><span class="si">{</span><span class="nb">tuple</span><span class="p">(</span><span class="n">loss_tensor</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span>
+            <span class="p">)</span> <span class="kn">from</span><span class="w"> </span><span class="nn">e</span>
     <span class="k">if</span> <span class="ow">not</span> <span class="n">torch</span><span class="o">.</span><span class="n">any</span><span class="p">(</span><span class="n">valid</span><span class="p">):</span>
         <span class="k">return</span> <span class="n">loss_tensor</span><span class="o">.</span><span class="n">new_tensor</span><span class="p">(</span><span class="mf">0.0</span><span class="p">)</span>
     <span class="k">return</span> <span class="n">loss_tensor</span><span class="p">[</span><span class="n">valid</span><span class="p">]</span><span class="o">.</span><span class="n">mean</span><span class="p">()</span>
