@@ -21,6 +21,7 @@ from .distance import (
     edt_semantic,
     signed_distance_transform,
     skeleton_aware_distance_transform,
+    skeleton_aware_edt_from_skeleton_vol,
 )
 from .quantize import decode_quantize, energy_quantize
 from .segment import seg_selection
@@ -630,6 +631,7 @@ class MultiTaskLabelTransformd(MapTransform):
     }
     _TASK_CONFIG_ONLY_KWARGS: Dict[str, set[str]] = {
         "affinity": {"deepem_crop"},
+        "skeleton_aware_edt": {"deepem_crop"},
     }
 
     def __init__(
@@ -799,13 +801,24 @@ class MultiTaskLabelTransformd(MapTransform):
 
             outputs: List[np.ndarray] = []
             for spec in self.task_specs:
-                # Use precomputed SDT from data dict if available.
-                if spec["name"] == "skeleton_aware_edt" and "sdt" in d:
-                    sdt_val = d["sdt"]
-                    result = np.asarray(sdt_val, dtype=np.float32)
+                # Use precomputed label_aux if available for skeleton_aware_edt.
+                if spec["name"] == "skeleton_aware_edt" and "label_aux" in d:
+                    aux = np.asarray(d["label_aux"])
                     # Strip leading channel dim added by LoadVolumed.
-                    if result.ndim == spatial_ndim + 1 and result.shape[0] == 1:
-                        result = result[0]
+                    if aux.ndim == spatial_ndim + 1 and aux.shape[0] == 1:
+                        aux = aux[0]
+
+                    # Auto-detect mode: SDT has negative floats, skeleton has integer IDs.
+                    is_sdt = aux.dtype.kind == "f" and float(aux.min()) < 0
+                    if is_sdt:
+                        result = aux.astype(np.float32)
+                    else:
+                        result = skeleton_aware_edt_from_skeleton_vol(
+                            label_np, aux,
+                            resolution=spec["kwargs"].get("resolution", (1.0, 1.0, 1.0)),
+                            alpha=spec["kwargs"].get("alpha", 0.8),
+                            bg_value=spec["kwargs"].get("bg_value", -1.0),
+                        )
                     outputs.append(self._normalize_output(result, spatial_ndim))
                     continue
 
@@ -846,8 +859,6 @@ class MultiTaskLabelTransformd(MapTransform):
                     )
                     d[out_key] = self._to_tensor(result, add_batch_dim=False)
 
-        # Remove consumed precomputed SDT from data dict.
-        d.pop("sdt", None)
         return d
 
 
