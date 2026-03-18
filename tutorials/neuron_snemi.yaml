@@ -28,8 +28,8 @@ default:
       sw_batch_size: 1
       keep_input_on_cpu: false
     test_time_augmentation:
-      enabled: false
-      #enabled: true
+      #enabled: false
+      enabled: true
       patch_first_local: true
       flip_axes: all
       rotation90_axes: [[1, 2]]
@@ -81,23 +81,22 @@ test:
       resolution: [30, 6, 6]
   inference:
     decoding:
-    - profile: decoding_abiss
+    - profile: decoding_waterz
       kwargs:
-        cli_args:
-          ws_merge_function: p75
-          ws_size_threshold: 1300
-          ws_dust_threshold: 900
-          ws_high_threshold: 0.8
-          ws_low_threshold: 0.01
-          ws_merge_threshold: 0.3
-
+        thresholds: 0.4
+        merge_function: aff85_his256
+        aff_threshold: [0.1, 0.999]
+        dust_merge_size: 800
+        dust_merge_affinity: 0.3
+        dust_remove_size: 600
+      
 # ============================================================================
-# Parameter tuning for ABISS watershed thresholds (--mode tune)
+# Parameter tuning for waterz agglomeration thresholds (--mode tune)
 # ============================================================================
 tune:
-  profile: tune_abiss
+  profile: tune_waterz
   n_trials: 25
-  study_name: snemi_abiss_tuning
+  study_name: snemi_waterz_tuning
   data:
     val:
       image: datasets/SNEMI/test-input.tif
@@ -108,25 +107,24 @@ tune:
   parameter_space:
     decoding:
       defaults:
-        cli_args:
-          ws_high_threshold: 0.80
-          ws_low_threshold: 0.01
-          ws_size_threshold: 1300
-          ws_dust_threshold: 900
-          ws_merge_threshold: 0.30
+        thresholds: 0.4
+        merge_function: aff85_his256
+        aff_threshold: [0.001, 0.999]
       parameters:
-        ws_high_threshold:
-          range: [0.5, 0.9]
+        merge_function:
+          type: categorical
+          choices: [aff85_his256, aff75_his256, aff50_his256]
+          description: "Agglomeration scoring function (quantile via histogram)"
+        thresholds:
+          range: [0.1, 0.9]
           step: 0.1
-        ws_low_threshold:
-          range: [0.01, 0.1]
-          step: 0.01
-        ws_merge_threshold:
-          range: [0.1, 0.5]
+        aff_threshold_low:
+          range: [0.001, 0.5]
           step: 0.1
-        ws_size_threshold:
-          range: [500, 2500]
-          step: 100
-        ws_dust_threshold:
-          range: [300, 1500]
-          step: 100
+          param_group: aff_threshold
+          tuple_index: 0
+        aff_threshold_high:
+          range: [0.7, 0.9999]
+          step: 0.1
+          param_group: aff_threshold
+          tuple_index: 1

@@ -8,6 +8,17 @@ decoding_profiles:
           distance_threshold: [0.5, -0.5]
           min_instance_size: 30
           min_seed_size: 5
+  decoding_waterz:
+    decoding:
+      - name: decode_waterz
+        kwargs:
+          thresholds: 0.4
+          merge_function: aff85_his256
+          aff_threshold: [0.001, 0.999]
+          channel_order: xyz
+          dust_merge_size: 100
+          dust_merge_affinity: 0.0
+          dust_remove_size: 50
   decoding_abiss:
     decoding:
       - name: decode_abiss
