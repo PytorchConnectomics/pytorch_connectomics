@@ -294,6 +294,128 @@
 <span class="p">]</span>
 
 
+<span class="k">def</span><span class="w"> </span><span class="nf">adapted_rand_oracle</span><span class="p">(</span><span class="n">seg</span><span class="p">,</span> <span class="n">gt</span><span class="p">,</span> <span class="n">gt_ids</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Efficiently compute per-GT-segment oracle ARE by incremental update.</span>
+
+<span class="sd">    For each GT segment, computes the ARE that would result from perfectly</span>
+<span class="sd">    predicting that segment (``pred[gt == g_id] = unique_id``) while</span>
+<span class="sd">    keeping everything else unchanged.</span>
+
+<span class="sd">    Builds the contingency table once, then for each GT segment updates</span>
+<span class="sd">    only the affected row — O(nnz_in_row) per GT instead of O(volume).</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    seg : np.ndarray</span>
+<span class="sd">        Predicted segmentation.</span>
+<span class="sd">    gt : np.ndarray, same shape as seg</span>
+<span class="sd">        Ground-truth segmentation.</span>
+<span class="sd">    gt_ids : array-like, optional</span>
+<span class="sd">        GT segment IDs to evaluate.  If None, uses all non-zero GT IDs.</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    list of (gt_id, are_oracle, delta_are)</span>
+<span class="sd">        Sorted by delta_are descending (most impactful first).</span>
+<span class="sd">        ``delta_are = are_baseline - are_oracle`` (positive = improvement).</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">segA</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">ravel</span><span class="p">(</span><span class="n">gt</span><span class="p">)</span>
+    <span class="n">segB</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">ravel</span><span class="p">(</span><span class="n">seg</span><span class="p">)</span>
+    <span class="n">n</span> <span class="o">=</span> <span class="n">segA</span><span class="o">.</span><span class="n">size</span>
+
+    <span class="n">n_labels_A</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">amax</span><span class="p">(</span><span class="n">segA</span><span class="p">))</span> <span class="o">+</span> <span class="mi">1</span>
+    <span class="n">n_labels_B</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">amax</span><span class="p">(</span><span class="n">segB</span><span class="p">))</span> <span class="o">+</span> <span class="mi">1</span>
+
+    <span class="c1"># Build contingency table: p_ij[gt_label, pred_label] = count</span>
+    <span class="n">ones_data</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">ones</span><span class="p">(</span><span class="n">n</span><span class="p">,</span> <span class="nb">int</span><span class="p">)</span>
+    <span class="n">p_ij</span> <span class="o">=</span> <span class="n">sparse</span><span class="o">.</span><span class="n">csr_matrix</span><span class="p">(</span>
+        <span class="p">(</span><span class="n">ones_data</span><span class="p">,</span> <span class="p">(</span><span class="n">segA</span><span class="p">,</span> <span class="n">segB</span><span class="p">)),</span> <span class="n">shape</span><span class="o">=</span><span class="p">(</span><span class="n">n_labels_A</span><span class="p">,</span> <span class="n">n_labels_B</span><span class="p">)</span>
+    <span class="p">)</span>
+
+    <span class="c1"># Baseline quantities (exclude GT background row 0)</span>
+    <span class="n">a</span> <span class="o">=</span> <span class="n">p_ij</span><span class="p">[</span><span class="mi">1</span><span class="p">:</span><span class="n">n_labels_A</span><span class="p">,</span> <span class="p">:]</span>           <span class="c1"># all pred cols including bg</span>
+    <span class="n">b</span> <span class="o">=</span> <span class="n">p_ij</span><span class="p">[</span><span class="mi">1</span><span class="p">:</span><span class="n">n_labels_A</span><span class="p">,</span> <span class="mi">1</span><span class="p">:</span><span class="n">n_labels_B</span><span class="p">]</span>  <span class="c1"># exclude pred bg col</span>
+    <span class="n">c</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">p_ij</span><span class="p">[</span><span class="mi">1</span><span class="p">:</span><span class="n">n_labels_A</span><span class="p">,</span> <span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">todense</span><span class="p">())</span><span class="o">.</span><span class="n">ravel</span><span class="p">()</span>  <span class="c1"># pred bg col</span>
+
+    <span class="n">a_i</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">a</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="mi">1</span><span class="p">))</span><span class="o">.</span><span class="n">ravel</span><span class="p">()</span>   <span class="c1"># GT row sums</span>
+    <span class="n">b_i</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">b</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="mi">0</span><span class="p">))</span><span class="o">.</span><span class="n">ravel</span><span class="p">()</span>   <span class="c1"># pred col sums (excl bg)</span>
+
+    <span class="n">sum_c</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">c</span><span class="p">)</span>
+    <span class="n">sumA</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">a_i</span> <span class="o">*</span> <span class="n">a_i</span><span class="p">)</span>
+    <span class="n">sumB</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">b_i</span> <span class="o">*</span> <span class="n">b_i</span><span class="p">)</span> <span class="o">+</span> <span class="n">sum_c</span> <span class="o">/</span> <span class="n">n</span>
+    <span class="n">sumAB</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">b</span><span class="o">.</span><span class="n">multiply</span><span class="p">(</span><span class="n">b</span><span class="p">))</span> <span class="o">+</span> <span class="n">sum_c</span> <span class="o">/</span> <span class="n">n</span>
+
+    <span class="n">prec_base</span> <span class="o">=</span> <span class="n">sumAB</span> <span class="o">/</span> <span class="n">sumB</span> <span class="k">if</span> <span class="n">sumB</span> <span class="o">&gt;</span> <span class="mi">0</span> <span class="k">else</span> <span class="mi">0</span>
+    <span class="n">rec_base</span> <span class="o">=</span> <span class="n">sumAB</span> <span class="o">/</span> <span class="n">sumA</span> <span class="k">if</span> <span class="n">sumA</span> <span class="o">&gt;</span> <span class="mi">0</span> <span class="k">else</span> <span class="mi">0</span>
+    <span class="n">f_base</span> <span class="o">=</span> <span class="mf">2.0</span> <span class="o">*</span> <span class="n">prec_base</span> <span class="o">*</span> <span class="n">rec_base</span> <span class="o">/</span> <span class="p">(</span><span class="n">prec_base</span> <span class="o">+</span> <span class="n">rec_base</span><span class="p">)</span> <span class="k">if</span> <span class="p">(</span><span class="n">prec_base</span> <span class="o">+</span> <span class="n">rec_base</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span> <span class="k">else</span> <span class="mi">0</span>
+    <span class="n">are_base</span> <span class="o">=</span> <span class="mf">1.0</span> <span class="o">-</span> <span class="n">f_base</span>
+
+    <span class="k">if</span> <span class="n">gt_ids</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">gt_ids</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="n">n_labels_A</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">gt_ids</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">gt_ids</span><span class="p">)</span>
+
+    <span class="c1"># New pred label ID (beyond any existing)</span>
+    <span class="n">new_label</span> <span class="o">=</span> <span class="n">n_labels_B</span>  <span class="c1"># 0-indexed in the b matrix → col index = new_label - 1</span>
+
+    <span class="n">results</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">g_id</span> <span class="ow">in</span> <span class="n">gt_ids</span><span class="p">:</span>
+        <span class="n">g_id</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">g_id</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">g_id</span> <span class="o">&lt;</span> <span class="mi">1</span> <span class="ow">or</span> <span class="n">g_id</span> <span class="o">&gt;=</span> <span class="n">n_labels_A</span><span class="p">:</span>
+            <span class="k">continue</span>
+        <span class="n">row_idx</span> <span class="o">=</span> <span class="n">g_id</span> <span class="o">-</span> <span class="mi">1</span>  <span class="c1"># index into a/b/c (which start from GT label 1)</span>
+
+        <span class="c1"># Current row entries in b (pred labels excl bg)</span>
+        <span class="n">row</span> <span class="o">=</span> <span class="n">b</span><span class="o">.</span><span class="n">getrow</span><span class="p">(</span><span class="n">row_idx</span><span class="p">)</span>
+        <span class="n">row_data</span> <span class="o">=</span> <span class="n">row</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>  <span class="c1"># nonzero values</span>
+        <span class="n">row_cols</span> <span class="o">=</span> <span class="n">row</span><span class="o">.</span><span class="n">indices</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>  <span class="c1"># column indices</span>
+
+        <span class="n">g_size</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">a_i</span><span class="p">[</span><span class="n">row_idx</span><span class="p">])</span>  <span class="c1"># total voxels in this GT segment</span>
+        <span class="k">if</span> <span class="n">g_size</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="k">continue</span>
+
+        <span class="c1"># Old contributions from this row to sumAB and sumB</span>
+        <span class="n">old_pij_sq</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">row_data</span> <span class="o">*</span> <span class="n">row_data</span><span class="p">)</span>
+        <span class="n">old_c_val</span> <span class="o">=</span> <span class="n">c</span><span class="p">[</span><span class="n">row_idx</span><span class="p">]</span>
+
+        <span class="c1"># Old b_i contributions for affected pred columns</span>
+        <span class="n">old_bi_affected</span> <span class="o">=</span> <span class="n">b_i</span><span class="p">[</span><span class="n">row_cols</span><span class="p">]</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+
+        <span class="c1"># --- After oracle fix: row becomes [0, ..., 0, g_size] at new column ---</span>
+        <span class="c1"># sumA is unchanged (row sum = g_size, same as before)</span>
+
+        <span class="c1"># sumAB change:</span>
+        <span class="c1">#   remove old: sum(p_ij^2) for this row + old_c/n</span>
+        <span class="c1">#   add new: g_size^2 (single entry) + 0/n (no bg overlap)</span>
+        <span class="n">new_sumAB</span> <span class="o">=</span> <span class="n">sumAB</span> <span class="o">-</span> <span class="n">old_pij_sq</span> <span class="o">-</span> <span class="n">old_c_val</span> <span class="o">/</span> <span class="n">n</span> <span class="o">+</span> <span class="n">g_size</span> <span class="o">*</span> <span class="n">g_size</span>
+
+        <span class="c1"># sumB change:</span>
+        <span class="c1">#   affected old columns: b_i[col] decreases by row_data[j]</span>
+        <span class="c1">#   new column: b_i[new] = g_size</span>
+        <span class="c1">#   remove old_c contribution, add 0 (oracle has no bg)</span>
+        <span class="n">new_sumB</span> <span class="o">=</span> <span class="n">sumB</span> <span class="o">-</span> <span class="n">old_c_val</span> <span class="o">/</span> <span class="n">n</span>
+        <span class="c1"># Update affected columns</span>
+        <span class="k">for</span> <span class="n">j</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">row_cols</span><span class="p">)):</span>
+            <span class="n">col</span> <span class="o">=</span> <span class="n">row_cols</span><span class="p">[</span><span class="n">j</span><span class="p">]</span>
+            <span class="n">val</span> <span class="o">=</span> <span class="n">row_data</span><span class="p">[</span><span class="n">j</span><span class="p">]</span>
+            <span class="n">old_sq</span> <span class="o">=</span> <span class="n">old_bi_affected</span><span class="p">[</span><span class="n">j</span><span class="p">]</span> <span class="o">**</span> <span class="mi">2</span>
+            <span class="n">new_bi</span> <span class="o">=</span> <span class="n">old_bi_affected</span><span class="p">[</span><span class="n">j</span><span class="p">]</span> <span class="o">-</span> <span class="n">val</span>
+            <span class="n">new_sumB</span> <span class="o">=</span> <span class="n">new_sumB</span> <span class="o">-</span> <span class="n">old_sq</span> <span class="o">+</span> <span class="n">new_bi</span> <span class="o">*</span> <span class="n">new_bi</span>
+        <span class="c1"># Add new column</span>
+        <span class="n">new_sumB</span> <span class="o">=</span> <span class="n">new_sumB</span> <span class="o">+</span> <span class="n">g_size</span> <span class="o">*</span> <span class="n">g_size</span>
+
+        <span class="n">prec</span> <span class="o">=</span> <span class="n">new_sumAB</span> <span class="o">/</span> <span class="n">new_sumB</span> <span class="k">if</span> <span class="n">new_sumB</span> <span class="o">&gt;</span> <span class="mi">0</span> <span class="k">else</span> <span class="mi">0</span>
+        <span class="n">rec</span> <span class="o">=</span> <span class="n">new_sumAB</span> <span class="o">/</span> <span class="n">sumA</span> <span class="k">if</span> <span class="n">sumA</span> <span class="o">&gt;</span> <span class="mi">0</span> <span class="k">else</span> <span class="mi">0</span>
+        <span class="n">f</span> <span class="o">=</span> <span class="mf">2.0</span> <span class="o">*</span> <span class="n">prec</span> <span class="o">*</span> <span class="n">rec</span> <span class="o">/</span> <span class="p">(</span><span class="n">prec</span> <span class="o">+</span> <span class="n">rec</span><span class="p">)</span> <span class="k">if</span> <span class="p">(</span><span class="n">prec</span> <span class="o">+</span> <span class="n">rec</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span> <span class="k">else</span> <span class="mi">0</span>
+        <span class="n">are_oracle</span> <span class="o">=</span> <span class="mf">1.0</span> <span class="o">-</span> <span class="n">f</span>
+        <span class="n">delta</span> <span class="o">=</span> <span class="n">are_base</span> <span class="o">-</span> <span class="n">are_oracle</span>
+
+        <span class="n">results</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="n">g_id</span><span class="p">,</span> <span class="n">are_oracle</span><span class="p">,</span> <span class="n">delta</span><span class="p">))</span>
+
+    <span class="n">results</span><span class="o">.</span><span class="n">sort</span><span class="p">(</span><span class="n">key</span><span class="o">=</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="o">-</span><span class="n">x</span><span class="p">[</span><span class="mi">2</span><span class="p">])</span>
+    <span class="k">return</span> <span class="n">results</span><span class="p">,</span> <span class="n">are_base</span>
+
+
 <div class="viewcode-block" id="adapted_rand">
 <a class="viewcode-back" href="../../../modules/metrics.html#connectomics.metrics.adapted_rand">[docs]</a>
 <span class="k">def</span><span class="w"> </span><span class="nf">adapted_rand</span><span class="p">(</span><span class="n">seg</span><span class="p">,</span> <span class="n">gt</span><span class="p">,</span> <span class="n">all_stats</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
