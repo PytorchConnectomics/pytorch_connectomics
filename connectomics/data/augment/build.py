@@ -51,6 +51,18 @@ from .transforms import (
 )
 
 
+def _has_precomputed_sdt(cfg: Config) -> bool:
+    """Check if the label transform includes skeleton_aware_edt (precomputed SDT)."""
+    targets = getattr(cfg.data.label_transform, "targets", None)
+    if not targets:
+        return False
+    for t in targets:
+        name = t.get("name") if isinstance(t, dict) else getattr(t, "name", None)
+        if name == "skeleton_aware_edt":
+            return True
+    return False
+
+
 def _strict_binarize_mask(mask, threshold: float = 0.0):
     """Binarize mask with strict greater-than semantics (mask > threshold)."""
     if torch.is_tensor(mask):
@@ -101,6 +113,9 @@ def build_train_transforms(
         keys = ["image", "label"]
         if cfg.data.train.mask is not None:
             keys.append("mask")
+        # Include precomputed SDT key if present (auto-detected from label_transform).
+        if _has_precomputed_sdt(cfg):
+            keys.append("sdt")
 
     transforms = []
 

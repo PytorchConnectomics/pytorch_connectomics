@@ -142,9 +142,9 @@ Files changed:
 - `connectomics/models/loss/metadata.py`: added metadata with `spatial_weight_arg="weight"`
 - `connectomics/training/loss/plan.py`: defaults `pos_weight` to `1.0` for this loss (prevents orchestrator from double-weighting; the loss handles class balancing internally)
 - `tutorials/bases/loss_profiles.yaml`: new `loss_per_channel` profile (single entry)
-- `tutorials/bases/pipeline_profiles.yaml`: `affinity-12` pipeline now uses `loss_per_channel` profile
+- `tutorials/bases/pipeline_profiles.yaml`: `aff12` pipeline now uses `loss_per_channel` profile
 
-Config (via `affinity-12` pipeline profile → `loss_per_channel` loss profile):
+Config (via `aff12` pipeline profile → `loss_per_channel` loss profile):
 ```yaml
 # loss_profiles.yaml
 loss_per_channel:
@@ -273,7 +273,7 @@ default:
       down_factors: [[1,2,2], [1,2,2], [1,2,2], [1,2,2]]
     input_size: [18, 160, 160]
     output_size: [18, 160, 160]
-    # Loss handled by affinity-12 pipeline profile → loss_per_channel → PerChannelBCEWithLogitsLoss
+    # Loss handled by aff12 pipeline profile → loss_per_channel → PerChannelBCEWithLogitsLoss
 ```
 
 ### Phase 3: Match Augmentation ✅
@@ -290,7 +290,7 @@ All three items implemented and tested (32/32 augmentation tests pass).
 3. **Contrast/brightness ±50%** — `contrast_range=[0.5, 1.5]`, `shift_intensity_offset=0.2` (matches DeepEM `MixedGrayscale2D`).
 
 All settings live in the `aug_em_neuron` profile (`tutorials/bases/augmentation_profiles.yaml`),
-which is applied automatically via the `affinity-12` pipeline profile in `tutorials/bases/pipeline_profiles.yaml`.
+which is applied automatically via the `aff12` pipeline profile in `tutorials/bases/pipeline_profiles.yaml`.
 No inline augmentation overrides are needed in `neuron_snemi.yaml`.
 
 ### Phase 4: Inference Improvements

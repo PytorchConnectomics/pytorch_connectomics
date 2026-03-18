@@ -23,6 +23,54 @@ from .path_utils import expand_file_paths
 logger = logging.getLogger(__name__)
 
 
+def _maybe_precompute_sdt(cfg: Config, label_paths: Optional[List[str]]) -> Optional[dict]:
+    """If the label transform includes ``skeleton_aware_edt``, precompute SDT volumes.
+
+    Returns ``{"sdt": [path1, ...]}`` to add to data dicts, or None.
+    """
+    if label_paths is None:
+        return None
+
+    # Check if any label_transform target is skeleton_aware_edt
+    targets = getattr(cfg.data.label_transform, "targets", None)
+    if not targets:
+        return None
+
+    sdt_target = None
+    for t in targets:
+        name = t.get("name") if isinstance(t, dict) else getattr(t, "name", None)
+        if name == "skeleton_aware_edt":
+            sdt_target = t
+            break
+
+    if sdt_target is None:
+        return None
+
+    # Extract kwargs for precomputation
+    kwargs = sdt_target.get("kwargs", {}) if isinstance(sdt_target, dict) else {}
+    resolution = kwargs.get("resolution") or getattr(cfg.data.label_transform, "resolution", None)
+    if resolution is None:
+        resolution = (1.0, 1.0, 1.0)
+    resolution = tuple(float(r) for r in resolution)
+    alpha = float(kwargs.get("alpha", 0.8))
+    bg_value = float(kwargs.get("bg_value", -1.0))
+
+    from ...data.process.distance import precompute_sdt_volume, sdt_path_for_label
+
+    sdt_paths = []
+    for lp in label_paths:
+        sp = sdt_path_for_label(lp)
+        import os
+
+        if not os.path.exists(sp):
+            precompute_sdt_volume(lp, sp, resolution=resolution, alpha=alpha, bg_value=bg_value)
+        else:
+            logger.info(f"Using cached SDT: {sp}")
+        sdt_paths.append(sp)
+
+    return {"sdt": sdt_paths}
+
+
 def _maybe_prepare_random_data(cfg: Config, mode: str) -> None:
     """Generate random train/val H5 data when config requests random://."""
     if mode != "train":
@@ -402,10 +450,14 @@ def create_datamodule(
             if train_mask_paths:
                 logger.info(f"Training masks: {len(train_mask_paths)} files")
 
+            # Auto-precompute SDT volumes if label transform includes skeleton_aware_edt.
+            extra_paths = _maybe_precompute_sdt(cfg, train_label_paths)
+
             train_data_dicts = create_data_dicts_from_paths(
                 image_paths=train_image_paths,
                 label_paths=train_label_paths,
                 mask_paths=train_mask_paths,
+                extra_paths=extra_paths,
             )
 
             val_data_dicts = None

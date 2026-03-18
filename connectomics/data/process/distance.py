@@ -13,6 +13,8 @@ from skimage.morphology import (
     remove_small_holes,
 )
 
+import cc3d
+
 from .bbox_processor import BBoxInstanceProcessor, BBoxProcessorConfig
 from .quantize import energy_quantize
 
@@ -21,6 +23,7 @@ __all__ = [
     "edt_instance",
     "distance_transform",
     "skeleton_aware_distance_transform",
+    "precompute_sdt_volume",
     "smooth_edge",
     "signed_distance_transform",
 ]
@@ -283,11 +286,11 @@ def signed_distance_transform(
 def skeleton_aware_distance_transform(
     label: np.ndarray,
     bg_value: float = -1.0,
-    relabel: bool = True,
+    relabel: bool = False,
     padding: bool = False,
     resolution: Tuple[float] = (1.0, 1.0, 1.0),
     alpha: float = 0.8,
-    smooth: bool = True,
+    smooth: bool = False,
     smooth_skeleton_only: bool = True,
 ):
     """Skeleton-based distance transform (SDT).
@@ -296,8 +299,9 @@ def skeleton_aware_distance_transform(
     Distance Transform." International Conference on Medical Image Computing and
     Computer-Assisted Intervention. Cham: Springer Nature Switzerland, 2023.
 
-    Refactored to use BBoxInstanceProcessor for cleaner code and consistency.
-    Uses kimimaro for fast skeletonization (10-100x faster than scikit-image).
+    Uses batch kimimaro skeletonization: all instances are skeletonized in a single
+    call with automatic parallelism, then per-instance EDT is computed via
+    BBoxInstanceProcessor.
 
     Args:
         label: Instance segmentation (H, W) or (D, H, W)
@@ -306,7 +310,8 @@ def skeleton_aware_distance_transform(
         padding: Whether to pad before computing distance
         resolution: Voxel resolution for anisotropic data (z, y, x)
         alpha: Skeleton influence exponent (higher = stronger skeleton influence)
-        smooth: Whether to smooth edges before skeletonization
+        smooth: Whether to smooth edges before skeletonization (default False;
+                adds ~20% overhead with marginal quality impact when using kimimaro)
         smooth_skeleton_only: Only smooth skeleton mask (not entire object)
 
     Returns:
@@ -318,24 +323,33 @@ def skeleton_aware_distance_transform(
     if np.sum(label > 0) == 0:
         return np.full(label.shape, bg_value, dtype=np.float32)
 
-    # Configure bbox processor
+    # 1. Relabel outside processor so we can batch-skeletonize.
+    if relabel:
+        label = cc3d.connected_components(label, connectivity=6)
+
+    # 2. Batch skeletonize all instances in one call (parallel across instances).
+    skeleton_vertices = _batch_skeletonize(label, resolution)
+
+    # 3. Per-instance EDT using BBoxProcessor (skeletons already computed).
+    #    Padding coordinate offset: if padding is enabled, the processor pads the
+    #    label internally, shifting coordinates by pad_size. We account for this
+    #    when translating skeleton vertices to bbox-local coordinates.
+    pad_offset = 2 if padding else 0
+
     config = BBoxProcessorConfig(
         bg_value=bg_value,
-        relabel=relabel,
+        relabel=False,  # already relabeled above
         padding=padding,
         pad_size=2,
         bbox_relax=2,
         combine_mode="max",
     )
 
-    # Define per-instance skeleton EDT computation
     def compute_skeleton_edt(
         label_crop: np.ndarray, instance_id: int, bbox: Tuple[slice, ...], context: Dict
     ) -> Optional[np.ndarray]:
         """Compute skeleton-aware EDT for a single instance within bbox."""
-        # Extract and clean mask
         temp2 = remove_small_holes(label_crop == instance_id, 16, connectivity=1)
-
         if not temp2.any():
             return None
 
@@ -351,10 +365,15 @@ def skeleton_aware_distance_transform(
                     binary = binary_smooth.astype(bool)
                     temp2 = binary
 
-        # Skeletonize using kimimaro
-        skeleton_mask = _skeletonize_instance(label_crop, instance_id, context["resolution"])
+        # Look up pre-computed skeleton and translate to bbox-local coordinates.
+        skeleton_mask = _skeleton_vertices_to_mask(
+            context["skeleton_vertices"].get(instance_id),
+            label_crop.shape,
+            bbox,
+            context["pad_offset"],
+        )
 
-        # Fallback to regular EDT if skeletonization fails
+        # Fallback to regular EDT if skeletonization failed for this instance.
         if skeleton_mask is None or not skeleton_mask.any():
             boundary_edt = distance_transform_edt(temp2, context["resolution"])
             edt_max = boundary_edt.max()
@@ -367,17 +386,17 @@ def skeleton_aware_distance_transform(
         skeleton_edt = distance_transform_edt(~skeleton_mask, context["resolution"])
         boundary_edt = distance_transform_edt(temp2, context["resolution"])
 
-        # Normalized energy
         energy = boundary_edt / (skeleton_edt + boundary_edt + eps)
         energy = energy ** context["alpha"]
 
         return energy * temp2.astype(np.float32)
 
-    # Process all instances
     processor = BBoxInstanceProcessor(config)
     return processor.process(
         label,
         compute_skeleton_edt,
+        skeleton_vertices=skeleton_vertices,
+        pad_offset=pad_offset,
         resolution=resolution,
         alpha=alpha,
         smooth=smooth,
@@ -385,52 +404,125 @@ def skeleton_aware_distance_transform(
     )
 
 
-def _skeletonize_instance(
-    label_crop: np.ndarray, instance_id: int, resolution: Tuple[float, ...]
-) -> Optional[np.ndarray]:
-    """Helper function to skeletonize a single instance using kimimaro.
-
-    Args:
-        label_crop: Cropped label array containing the instance
-        instance_id: ID of the instance to skeletonize
-        resolution: Voxel resolution for anisotropic data
+def _batch_skeletonize(
+    label: np.ndarray, resolution: Tuple[float, ...]
+) -> Dict[int, np.ndarray]:
+    """Skeletonize all instances in one kimimaro call.
 
     Returns:
-        Binary skeleton mask, or None if skeletonization fails
+        Dict mapping instance_id → (N, ndim) int array of vertex coordinates
+        in the input label's coordinate system.
     """
-    instance_label = np.where(label_crop == instance_id, 1, 0).astype(np.uint32)
-
     try:
         skeletons = kimimaro.skeletonize(
-            instance_label,
+            label.astype(np.uint32),
             anisotropy=resolution,
             fix_branching=False,
             fix_borders=False,
             dust_threshold=5,
-            parallel=1,
+            parallel=0,  # auto-detect cores
             progress=False,
         )
-
-        if 1 in skeletons and len(skeletons[1].vertices) > 0:
-            skeleton_mask = np.zeros(label_crop.shape, dtype=bool)
-            vertices = skeletons[1].vertices.astype(int)
-
-            # Filter valid vertices
-            valid_mask = np.all(
-                (vertices >= 0) & (vertices < np.array(skeleton_mask.shape)), axis=1
-            )
-            valid_vertices = vertices[valid_mask]
-
-            if len(valid_vertices) > 0:
-                if label_crop.ndim == 3:
-                    skeleton_mask[
-                        valid_vertices[:, 0], valid_vertices[:, 1], valid_vertices[:, 2]
-                    ] = True
-                else:
-                    skeleton_mask[valid_vertices[:, 0], valid_vertices[:, 1]] = True
-                return skeleton_mask
-
     except Exception:
-        pass
+        return {}
 
-    return None
+    result = {}
+    for inst_id, skel in skeletons.items():
+        if len(skel.vertices) > 0:
+            result[inst_id] = skel.vertices.astype(int)
+    return result
+
+
+def _skeleton_vertices_to_mask(
+    vertices: Optional[np.ndarray],
+    crop_shape: Tuple[int, ...],
+    bbox: Tuple[slice, ...],
+    pad_offset: int,
+) -> Optional[np.ndarray]:
+    """Convert skeleton vertices (full-volume coords) to a binary mask in bbox-local coords.
+
+    Args:
+        vertices: (N, ndim) vertex coordinates in the original (unpadded) label space,
+                  or None if this instance had no skeleton.
+        crop_shape: Shape of the bbox crop.
+        bbox: Tuple of slices defining the bbox in the (possibly padded) label.
+        pad_offset: Coordinate offset added by padding (0 if no padding).
+    """
+    if vertices is None or len(vertices) == 0:
+        return None
+
+    # Translate: original-label coords → padded-label coords → bbox-local coords.
+    bbox_origin = np.array([s.start for s in bbox])
+    local_verts = vertices + pad_offset - bbox_origin
+
+    # Filter to valid range.
+    valid = np.all((local_verts >= 0) & (local_verts < np.array(crop_shape)), axis=1)
+    local_verts = local_verts[valid]
+
+    if len(local_verts) == 0:
+        return None
+
+    mask = np.zeros(crop_shape, dtype=bool)
+    if len(crop_shape) == 3:
+        mask[local_verts[:, 0], local_verts[:, 1], local_verts[:, 2]] = True
+    else:
+        mask[local_verts[:, 0], local_verts[:, 1]] = True
+    return mask
+
+
+def precompute_sdt_volume(
+    label_path: str,
+    output_path: str,
+    resolution: Tuple[float, ...] = (1.0, 1.0, 1.0),
+    alpha: float = 0.8,
+    bg_value: float = -1.0,
+) -> str:
+    """Precompute skeleton-aware distance transform on a full label volume.
+
+    Computes the SDT once on the entire volume and saves to HDF5.
+    Subsequent training runs load the precomputed result, avoiding
+    the expensive per-crop skeletonization.
+
+    Args:
+        label_path: Path to the instance segmentation label volume.
+        output_path: Path to save the precomputed SDT (HDF5).
+        resolution: Voxel resolution (z, y, x) for anisotropic data.
+        alpha: Skeleton influence exponent.
+        bg_value: Background value for non-instance regions.
+
+    Returns:
+        The output_path (for chaining).
+    """
+    import logging
+    import time
+
+    from ..io.io import read_volume, save_volume
+
+    logger = logging.getLogger(__name__)
+    logger.info(f"Precomputing SDT: {label_path} → {output_path}")
+
+    label = read_volume(label_path)
+    logger.info(f"  Label shape: {label.shape}, unique instances: {len(np.unique(label)) - 1}")
+
+    t0 = time.time()
+    sdt = skeleton_aware_distance_transform(
+        label, resolution=resolution, alpha=alpha, bg_value=bg_value
+    )
+    elapsed = time.time() - t0
+    logger.info(f"  SDT computed in {elapsed:.1f}s, range: [{sdt.min():.3f}, {sdt.max():.3f}]")
+
+    save_volume(output_path, sdt)
+    logger.info(f"  Saved to {output_path}")
+
+    return output_path
+
+
+def sdt_path_for_label(label_path: str) -> str:
+    """Derive the SDT cache path from a label file path.
+
+    Example: ``datasets/SNEMI/train-labels.tif`` → ``datasets/SNEMI/train-labels_sdt.h5``
+    """
+    import os
+
+    base, _ = os.path.splitext(label_path)
+    return base + "_sdt.h5"
