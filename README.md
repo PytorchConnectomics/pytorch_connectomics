@@ -159,6 +159,12 @@ just test lucchi++ outputs/lucchi++/$EXPERIMENT_DATE/checkpoints/best.ckpt
 - **Efficient Data Loading:** Pre-loaded caching, MONAI transforms
 - **Gradient Accumulation:** Train with large effective batch sizes
 
+### 🧩 Decoding & Post-Processing
+- **Waterz Decoder:** Watershed + hierarchical agglomeration on affinity graphs with tunable scoring functions (`aff50_his256`, `aff85_his256`, etc.)
+- **Dust Merge:** Zwatershed-style size+affinity cleanup — merges small fragments into their best-affinity neighbor instead of dropping to background (C++/Cython)
+- **Optuna Tuning:** Batch threshold sweep in a single waterz call (watershed computed once) for efficient hyperparameter search
+- **Experiment Auto-Logging:** Every decode+eval run auto-appends parameters and metrics to `decode_experiments.tsv`
+
 ### 📊 Monitoring & Logging
 - **TensorBoard:** Training curves, images, metrics
 - **Weights & Biases:** Experiment tracking (optional)
@@ -218,6 +224,38 @@ Override from CLI:
 ```bash
 python scripts/main.py --config my_config.yaml data.dataloader.batch_size=4 optimization.max_epochs=200
 ```
+
+---
+
+## Example: Decode Predictions
+
+Configure instance segmentation decoding in your YAML config:
+
+```yaml
+inference:
+  decoding:
+    - name: decode_waterz
+      kwargs:
+        thresholds: 0.4                  # agglomeration threshold
+        merge_function: aff85_his256     # 85th percentile affinity scoring
+        aff_threshold: [0.1, 0.99]       # watershed low/high thresholds
+        channel_order: xyz               # affinity channel order (auto-transpose to zyx)
+        dust_merge_size: 100             # merge dust < 100 voxels into best neighbor
+        dust_merge_affinity: 0.0         # min affinity for dust merge
+        dust_remove_size: 50             # remove remaining orphans < 50 voxels
+```
+
+Run inference with decoding:
+```bash
+python scripts/main.py --config tutorials/neuron_snemi.yaml --mode test --checkpoint path/to/best.ckpt
+```
+
+Tune decode parameters with Optuna:
+```bash
+python scripts/main.py --config tutorials/neuron_snemi.yaml --mode tune --checkpoint path/to/best.ckpt
+```
+
+Results are auto-logged to `outputs/<experiment>/results/decode_experiments.tsv` with all parameters and metrics.
 
 ---
 
