@@ -612,11 +612,11 @@ class MultiTaskLabelTransformd(MapTransform):
         "instance_edt": {"mode": "2d", "quantize": False},
         "skeleton_aware_edt": {
             "bg_value": -1.0,
-            "relabel": True,
+            "relabel": False,
             "padding": False,
             "resolution": (1.0, 1.0, 1.0),
             "alpha": 0.8,
-            "smooth": True,
+            "smooth": False,
             "smooth_skeleton_only": True,
         },
         "semantic_edt": {"mode": "2d", "alpha_fore": 8.0, "alpha_back": 50.0, "resolution": None},
@@ -799,6 +799,16 @@ class MultiTaskLabelTransformd(MapTransform):
 
             outputs: List[np.ndarray] = []
             for spec in self.task_specs:
+                # Use precomputed SDT from data dict if available.
+                if spec["name"] == "skeleton_aware_edt" and "sdt" in d:
+                    sdt_val = d["sdt"]
+                    result = np.asarray(sdt_val, dtype=np.float32)
+                    # Strip leading channel dim added by LoadVolumed.
+                    if result.ndim == spatial_ndim + 1 and result.shape[0] == 1:
+                        result = result[0]
+                    outputs.append(self._normalize_output(result, spatial_ndim))
+                    continue
+
                 try:
                     result = spec["fn"](label_np, **spec["kwargs"])
                 except Exception as e:
@@ -835,6 +845,9 @@ class MultiTaskLabelTransformd(MapTransform):
                         key=key, task=spec["name"]
                     )
                     d[out_key] = self._to_tensor(result, add_batch_dim=False)
+
+        # Remove consumed precomputed SDT from data dict.
+        d.pop("sdt", None)
         return d
 
 
