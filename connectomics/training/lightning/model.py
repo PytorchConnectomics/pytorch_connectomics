@@ -632,6 +632,68 @@ class ConnectomicsModule(pl.LightningModule):
         except Exception as e:
             logger.warning(f"Failed to save metrics to file: {e}")
 
+        # Append to decode experiment log (TSV)
+        self._log_decode_experiment(output_dir, volume_name, timestamp, metrics_dict)
+
+    def _log_decode_experiment(
+        self,
+        output_dir: "Path",
+        volume_name: str,
+        timestamp: str,
+        metrics_dict: Dict[str, Any],
+    ) -> None:
+        """Append decode parameters + metrics to ``decode_experiments.tsv``.
+
+        Auto-logs every decode run with full parameters and metrics for
+        systematic experiment tracking (autoresearch-style).
+        """
+        from pathlib import Path
+        from ...decoding.pipeline import resolve_decode_modes_from_cfg, normalize_decode_modes
+
+        decode_modes = resolve_decode_modes_from_cfg(self.cfg)
+        if not decode_modes:
+            return
+
+        tsv_path = Path(output_dir) / "decode_experiments.tsv"
+
+        # Extract decode params from config
+        steps = normalize_decode_modes(decode_modes)
+        decode_params: Dict[str, Any] = {}
+        for step in steps:
+            decode_params["decoder"] = step.name
+            decode_params.update(step.kwargs)
+
+        # Columns: timestamp, volume, decoder params..., metrics...
+        # Use a fixed column order for readability
+        param_keys = [
+            "decoder", "thresholds", "merge_function", "aff_threshold",
+            "channel_order", "dust_merge_size", "dust_merge_affinity",
+            "dust_remove_size",
+        ]
+        metric_keys = [
+            "adapted_rand_error", "voi_split", "voi_merge", "voi_total",
+            "instance_precision_detail", "instance_recall_detail",
+            "instance_f1_detail",
+        ]
+
+        header_cols = ["timestamp", "volume"] + param_keys + metric_keys
+        row_vals = [timestamp, volume_name]
+        for k in param_keys:
+            row_vals.append(str(decode_params.get(k, "")))
+        for k in metric_keys:
+            v = metrics_dict.get(k)
+            row_vals.append(f"{v:.6f}" if isinstance(v, float) else str(v or ""))
+
+        try:
+            write_header = not tsv_path.exists()
+            with open(tsv_path, "a") as f:
+                if write_header:
+                    f.write("\t".join(header_cols) + "\n")
+                f.write("\t".join(row_vals) + "\n")
+            logger.info(f"Decode experiment logged to: {tsv_path}")
+        except Exception as e:
+            logger.warning(f"Failed to log decode experiment: {e}")
+
     def _compute_test_metrics(
         self, decoded_predictions: np.ndarray, labels: torch.Tensor, volume_name: str = None
     ):

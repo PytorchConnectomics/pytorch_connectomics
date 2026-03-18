@@ -239,13 +239,18 @@ class OptunaDecodingTuner:
         # Initialize trial counter
         self.trial_count = 0
 
-        # ABISS batch merge-threshold optimisation: when the decoder is
-        # decode_abiss and ws_merge_threshold is a tunable parameter, we
-        # can run the C++ binary once with *all* merge threshold candidates
-        # and cache the segmentations, avoiding redundant watershed + RG
-        # recomputation.
+        # Batch threshold optimisation: when the decoder supports multi-
+        # threshold evaluation in a single call (watershed + region-graph
+        # computed once), we enumerate all threshold candidates and sweep
+        # them in one decoder invocation per trial.
+        #
+        # Supported decoders:
+        #   - decode_abiss  (param: ws_merge_threshold → cli_args batch)
+        #   - decode_waterz (param: thresholds → return_all_thresholds)
         self._abiss_batch_enabled = False
         self._abiss_all_merge_thresholds: list[float] = []
+        self._waterz_batch_enabled = False
+        self._waterz_all_thresholds: list[float] = []
 
         if self.decoder_fn_name == "decode_abiss":
             mt_cfg = None
@@ -268,6 +273,29 @@ class OptunaDecodingTuner:
                     "ABISS batch mode: will sweep %d merge thresholds per ABISS call: %s",
                     len(self._abiss_all_merge_thresholds),
                     self._abiss_all_merge_thresholds,
+                )
+
+        if self.decoder_fn_name == "decode_waterz":
+            thr_cfg = None
+            if (
+                hasattr(self.param_space_cfg, "decoding")
+                and self.param_space_cfg.decoding.parameters
+            ):
+                thr_cfg = self.param_space_cfg.decoding.parameters.get("thresholds", None)
+            if thr_cfg is not None:
+                lo, hi = thr_cfg["range"]
+                step = thr_cfg.get("step", None)
+                if step:
+                    self._waterz_all_thresholds = [
+                        round(lo + i * step, 10) for i in range(int(round((hi - lo) / step)) + 1)
+                    ]
+                else:
+                    self._waterz_all_thresholds = [round(lo, 10), round(hi, 10)]
+                self._waterz_batch_enabled = True
+                logger.info(
+                    "Waterz batch mode: will sweep %d thresholds per waterz call: %s",
+                    len(self._waterz_all_thresholds),
+                    self._waterz_all_thresholds,
                 )
 
     def _load_data(self, data: np.ndarray | str | Path, name: str) -> np.ndarray:
@@ -606,6 +634,122 @@ class OptunaDecodingTuner:
 
         return best_avg
 
+    # ------------------------------------------------------------------
+    # Waterz batch threshold sweep
+    # ------------------------------------------------------------------
+
+    def _waterz_batch_objective(
+        self,
+        trial: "optuna.Trial",
+        decoding_params: Dict[str, Any],
+        postproc_params: Optional[Dict[str, Any]],
+    ) -> float:
+        """Sweep all threshold candidates in a single waterz call.
+
+        Waterz performs watershed + region-graph extraction once, then
+        incrementally merges for each threshold — so N thresholds are
+        nearly as fast as one.
+        """
+        metric_name = self.tune_cfg.optimization["single_objective"]["metric"]
+        direction = self._get_optimization_direction()
+        bad_value = float("inf") if direction == "minimize" else float("-inf")
+
+        # Replace single threshold with full list + return_all_thresholds.
+        batch_params = dict(decoding_params)
+        batch_params["thresholds"] = self._waterz_all_thresholds
+        batch_params["return_all_thresholds"] = True
+
+        # per threshold → per-volume metrics
+        thr_are: Dict[float, List[float]] = {t: [] for t in self._waterz_all_thresholds}
+        thr_prec: Dict[float, List[float]] = {t: [] for t in self._waterz_all_thresholds}
+        thr_rec: Dict[float, List[float]] = {t: [] for t in self._waterz_all_thresholds}
+
+        for vol_idx in range(len(self.predictions_list)):
+            pred_vol = self.predictions_list[vol_idx]
+            gt_vol = self.ground_truth_list[vol_idx]
+            mask_vol = self.mask_list[vol_idx] if self.mask_list else None
+
+            try:
+                results = self.decoder_fn(pred_vol, **batch_params)
+            except Exception:
+                logger.error(
+                    "Trial %d waterz batch failed (vol %d):\n%s",
+                    self.trial_count,
+                    vol_idx,
+                    traceback.format_exc(),
+                )
+                return bad_value
+
+            if not isinstance(results, dict):
+                logger.error(
+                    "Trial %d: decoder did not return dict in batch mode", self.trial_count
+                )
+                return bad_value
+
+            for thr_val in self._waterz_all_thresholds:
+                thr_key = round(thr_val, 10)
+                seg = results.get(thr_key)
+                if seg is None:
+                    continue
+
+                if postproc_params is not None:
+                    try:
+                        seg = remove_small_instances(seg, **postproc_params)
+                    except Exception:
+                        continue
+
+                gt_m = gt_vol * mask_vol if mask_vol is not None else gt_vol
+                seg_m = seg * mask_vol if mask_vol is not None else seg
+
+                if metric_name == "adapted_rand":
+                    are_v, prec_v, rec_v = adapted_rand(seg_m, gt_m, all_stats=True)
+                    thr_are[thr_val].append(are_v)
+                    thr_prec[thr_val].append(prec_v)
+                    thr_rec[thr_val].append(rec_v)
+                else:
+                    raise ValueError(f"Unknown metric: {metric_name}")
+
+        # Pick the threshold with the best averaged metric.
+        best_thr = self._waterz_all_thresholds[0]
+        best_avg = bad_value
+        for thr_val in self._waterz_all_thresholds:
+            if not thr_are[thr_val]:
+                continue
+            avg = float(np.mean(thr_are[thr_val]))
+            if (direction == "minimize" and avg < best_avg) or (
+                direction == "maximize" and avg > best_avg
+            ):
+                best_avg = avg
+                best_thr = thr_val
+
+        avg_prec = float(np.mean(thr_prec.get(best_thr, [0.0])))
+        avg_rec = float(np.mean(thr_rec.get(best_thr, [0.0])))
+
+        trial.set_user_attr("precision", avg_prec)
+        trial.set_user_attr("recall", avg_rec)
+        trial.set_user_attr("best_threshold", best_thr)
+        trial.set_user_attr("per_vol_are", thr_are.get(best_thr, []))
+        trial.set_user_attr("per_vol_precision", thr_prec.get(best_thr, []))
+        trial.set_user_attr("per_vol_recall", thr_rec.get(best_thr, []))
+
+        # Store per-threshold metrics for analysis.
+        for thr_val in self._waterz_all_thresholds:
+            if thr_are[thr_val]:
+                trial.set_user_attr(f"are_thr_{thr_val}", float(np.mean(thr_are[thr_val])))
+
+        if getattr(self.tune_cfg.logging, "verbose", True):
+            thr_summary = " | ".join(
+                f"t={t:.2f}:{float(np.mean(thr_are[t])):.4f}"
+                for t in self._waterz_all_thresholds
+                if thr_are[t]
+            )
+            print(
+                f"  Trial {self.trial_count:3d}: best ARE={best_avg:.4f} (thr={best_thr:.2f}) "
+                f"Prec={avg_prec:.4f} Rec={avg_rec:.4f} | {thr_summary}"
+            )
+
+        return best_avg
+
     def _objective(self, trial: optuna.Trial) -> float:
         """
         Objective function for Optuna optimization.
@@ -638,6 +782,11 @@ class OptunaDecodingTuner:
         # ABISS batch: sweep all merge thresholds in a single binary call.
         if self._abiss_batch_enabled:
             return self._abiss_batch_objective(trial, decoding_params, postproc_params)
+
+        # Waterz batch: sweep all thresholds in a single waterz call
+        # (watershed + region-graph computed once, incremental merging).
+        if self._waterz_batch_enabled:
+            return self._waterz_batch_objective(trial, decoding_params, postproc_params)
 
         metric_name = self.tune_cfg.optimization["single_objective"]["metric"]
         metric_values = []
@@ -772,7 +921,7 @@ class OptunaDecodingTuner:
                 log=cfg.get("log", False),
             )
         elif param_type == "categorical":
-            return trial.suggest_categorical(name, cfg.choices)
+            return trial.suggest_categorical(name, cfg["choices"])
         else:
             raise ValueError(f"Unknown parameter type: {param_type}")
 
@@ -783,9 +932,11 @@ class OptunaDecodingTuner:
         # Sample decoding parameters
         if hasattr(self.param_space_cfg, "decoding") and self.param_space_cfg.decoding.parameters:
             for name, cfg in self.param_space_cfg.decoding.parameters.items():
-                # When ABISS batch mode is active, ws_merge_threshold is
+                # When batch mode is active, the threshold parameter is
                 # swept internally (not sampled by Optuna).
                 if self._abiss_batch_enabled and name == "ws_merge_threshold":
+                    continue
+                if self._waterz_batch_enabled and name == "thresholds":
                     continue
                 params[name] = self._suggest_param(trial, name, cfg)
 
@@ -815,6 +966,8 @@ class OptunaDecodingTuner:
         if defaults and param_defs:
             for name, pcfg in param_defs.items():
                 if self._abiss_batch_enabled and name == "ws_merge_threshold":
+                    continue
+                if self._waterz_batch_enabled and name == "thresholds":
                     continue
                 val = self._lookup_default(defaults, name, pcfg)
                 if val is not None:

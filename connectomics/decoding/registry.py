@@ -67,6 +67,7 @@ def register_builtin_decoders() -> None:
         decode_instance_binary_contour_distance,
     )
     from .decoders.synapse import polarity2instance
+    from .decoders.waterz import decode_waterz
 
     register_decoder(
         "decode_instance_binary_contour_distance",
@@ -75,5 +76,6 @@ def register_builtin_decoders() -> None:
     )
     register_decoder("decode_affinity_cc", decode_affinity_cc, overwrite=True)
     register_decoder("decode_distance_watershed", decode_distance_watershed, overwrite=True)
+    register_decoder("decode_waterz", decode_waterz, overwrite=True)
     register_decoder("decode_abiss", decode_abiss, overwrite=True)
     register_decoder("polarity2instance", polarity2instance, overwrite=True)

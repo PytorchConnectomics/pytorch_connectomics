@@ -11,10 +11,12 @@ from .base import DecodeStep
 
 # --- Segmentation Decoders ---
 from .decoders import (
+    branch_merge,
     decode_abiss,
     decode_affinity_cc,
     decode_distance_watershed,
     decode_instance_binary_contour_distance,
+    decode_waterz,
     polarity2instance,
 )
 from .pipeline import (
@@ -77,6 +79,8 @@ __all__ = [
     "decode_instance_binary_contour_distance",
     "decode_affinity_cc",
     "decode_distance_watershed",
+    "decode_waterz",
+    "branch_merge",
     "decode_abiss",
     # Synapse decoding
     "polarity2instance",
