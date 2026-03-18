@@ -2,7 +2,7 @@ experiment_name: neuron_nisb_common_mednext_b_sdt
 description: NISB neuron instance segmentation (BANIS-style) with MedNeXt-B, affinity + SDT (40nm)
 
 _base_:
-  - bases/all_profiles.yaml
+  - ../configs/all_profiles.yaml
 
 default:
   system:
@@ -39,7 +39,8 @@ default:
       ensemble_mode: mean
     save_prediction:
       enabled: true
-    decoding_profile: decoding_abiss
+    decoding:
+      - template: decoding_abiss
     evaluation:
       enabled: true
       metrics:

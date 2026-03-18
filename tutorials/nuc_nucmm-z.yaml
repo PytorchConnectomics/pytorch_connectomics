@@ -4,7 +4,7 @@ default:
       profile: monai_unet
 
 _base_:
-  - bases/all_profiles.yaml
+  - ../configs/all_profiles.yaml
 experiment_name: nucmm_zebrafish_monai_unet
 description: Zebrafish nucleus segmentation on NucMM dataset using MONAI Residual UNet with multi-task learning
 model:

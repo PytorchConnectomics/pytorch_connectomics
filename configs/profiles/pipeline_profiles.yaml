@@ -17,23 +17,37 @@ pipeline_profiles:
       label_transform:
         profile: label_bcd
     inference:
-      decoding_profile: decoding_bcd
+      decoding:
+        - template: decoding_bcd
       test_time_augmentation:
         ensemble_mode: mean
         activation_profile: act_bcd
-
-  affinity-12:
+  aff12:
     model:
       out_channels: 12
       loss:
         profile: loss_per_channel
     data:
       label_transform:
-        profile: label_affinity_12
+        profile: label_aff12
     inference:
-      decoding_profile: decoding_waterz
-      #decoding_profile: decoding_abiss
+      decoding:
+        - template: decoding_waterz
       test_time_augmentation:
         ensemble_mode: min
         select_channel: [0, 1, 2]
         activation_profile: act_binary
+  aff9_sdt:
+    model:
+      out_channels: 10
+      loss:
+        profile: loss_bd
+    data:
+      label_transform:
+        profile: label_aff9_sdt
+    inference:
+      decoding:
+        - template: decoding_waterz
+      test_time_augmentation:
+        ensemble_mode: [["0:9", min], ["9:", mean]]
+        activation_profile: act_bd

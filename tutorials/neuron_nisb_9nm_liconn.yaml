@@ -3,7 +3,8 @@ default:
     arch:
       profile: mednext_b
 
-_base_: neuron_nisb_9nm_common.yaml
+_base_:
+  - neuron_nisb_9nm_common.yaml
 
 experiment_name: neuron_nisb_9nm_liconn_mednext_b_sdt
 description: NISB Liconn neuron instance segmentation (BANIS-style) with MedNeXt-B, affinity + SDT (9nm)

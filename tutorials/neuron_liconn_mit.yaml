@@ -59,12 +59,12 @@ description: >
 
 # ── Inherit all shared profile libraries ──────────────────────────────────────
 _base_:
-  - bases/all_profiles.yaml
+  - ../configs/all_profiles.yaml
 
 # ── Profile selectors ─────────────────────────────────────────────────────────
 default:
-  # Use 'binary' pipeline profile (not 'affinity-12') because:
-  # - affinity-12 injects model.loss.overrides which is not in LossConfig schema
+  # Use 'binary' pipeline profile (not 'aff12') because:
+  # - aff12 injects model.loss.overrides which is not in LossConfig schema
   # - We define our own losses list inline (FocalLoss + TverskyLoss per channel group)
   # - We override out_channels, label_transform, and augmentation ourselves below
   pipeline_profile: binary

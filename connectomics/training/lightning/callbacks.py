@@ -23,7 +23,9 @@ except ImportError:
 
 from ...data.process.affinity import (
     affinity_deepem_crop_enabled,
+    compute_affinity_valid_mask,
     crop_spatial_by_offsets,
+    resolve_affinity_channel_groups_from_cfg,
     resolve_affinity_offsets_for_channel_slice,
 )
 from .visualizer import Visualizer, get_visualization_mask
@@ -46,7 +48,14 @@ def _apply_affinity_visualization_crop_if_needed(
     pred: torch.Tensor,
     mask: Optional[torch.Tensor],
 ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, Optional[torch.Tensor]]:
-    """Mirror the full-affinity DeepEM crop in visualization for pure-affinity outputs."""
+    """Mirror training-time affinity target handling in TensorBoard visualization.
+
+    For mixed-task stacks (for example affinity + SDT), training applies a
+    per-channel affinity valid-region mask rather than a global crop. The
+    visualization path applies the same masking to labels and predictions so
+    invalid affinity borders are hidden. Pure-affinity tensors still receive
+    the common DeepEM crop for a cleaner spatial view.
+    """
     if cfg is None or not affinity_deepem_crop_enabled(cfg):
         return image, label, pred, mask
     if image.ndim < 5 or label.ndim < 5 or pred.ndim < 5:
@@ -55,6 +64,32 @@ def _apply_affinity_visualization_crop_if_needed(
     num_channels = int(label.shape[1])
     if num_channels != int(pred.shape[1]):
         return image, label, pred, mask
+
+    spatial_shape = tuple(int(v) for v in label.shape[-3:])
+    affinity_groups = resolve_affinity_channel_groups_from_cfg(cfg)
+    if affinity_groups:
+        label = label.clone()
+        pred = pred.clone()
+
+    for (start, end), offsets in affinity_groups:
+        start_idx = max(0, int(start))
+        end_idx = min(int(end), num_channels)
+        if start_idx >= end_idx:
+            continue
+
+        group_mask = compute_affinity_valid_mask(
+            list(offsets[: end_idx - start_idx]),
+            spatial_shape,
+            device=label.device,
+        ).unsqueeze(0)
+        label[:, start_idx:end_idx] = label[:, start_idx:end_idx] * group_mask.to(
+            device=label.device,
+            dtype=label.dtype,
+        )
+        pred[:, start_idx:end_idx] = pred[:, start_idx:end_idx] * group_mask.to(
+            device=pred.device,
+            dtype=pred.dtype,
+        )
 
     offsets = resolve_affinity_offsets_for_channel_slice(
         cfg,

@@ -343,19 +343,19 @@ class ReferenceProfileApplier(YamlProfileApplier):
             OmegaConf.update(yaml_conf, target_path, profiles[profile_name], force_add=True)
 
 
-class ListProfileReferenceApplier(YamlProfileApplier):
-    """Resolve list entries like `- profile: name` using profile registries."""
+class ListTemplateReferenceApplier(YamlProfileApplier):
+    """Resolve list entries like `- template: name` using template registries."""
 
     def __init__(
         self,
         profiles_key: str,
         target_paths: List[str],
-        profile_key: str = "profile",
+        template_key: str = "template",
         list_key: Optional[str] = None,
     ) -> None:
         self.profiles_key = profiles_key
         self.target_paths = target_paths
-        self.profile_key = profile_key
+        self.template_key = template_key
         self.list_key = list_key
         self.cleanup_keys = (profiles_key,)
 
@@ -373,42 +373,42 @@ class ListProfileReferenceApplier(YamlProfileApplier):
             changed = False
 
             for item in value:
-                if not isinstance(item, (DictConfig, dict)) or self.profile_key not in item:
+                if not isinstance(item, (DictConfig, dict)) or self.template_key not in item:
                     expanded_items.append(item)
                     continue
 
-                profile_name = item[self.profile_key]
-                if profile_name not in profiles:
+                template_name = item[self.template_key]
+                if template_name not in profiles:
                     available = ", ".join(sorted(str(k) for k in profiles.keys()))
                     raise ValueError(
-                        f"Unknown profile '{profile_name}' in {self.profiles_key}. "
-                        f"Available profiles: [{available}]"
+                        f"Unknown template '{template_name}' in {self.profiles_key}. "
+                        f"Available templates: [{available}]"
                     )
 
-                profile_payload = profiles[profile_name]
+                profile_payload = profiles[template_name]
 
-                # Extract nested list from dict-valued profiles.
+                # Extract nested list from dict-valued template payloads.
                 profile_list = profile_payload
                 if self.list_key and isinstance(profile_payload, (DictConfig, dict)):
                     profile_list = profile_payload.get(self.list_key, profile_payload)
 
-                overrides = {k: v for k, v in item.items() if k != self.profile_key}
+                overrides = {k: v for k, v in item.items() if k != self.template_key}
 
                 if not overrides:
-                    # Pure profile reference: expand entire profile list inline
+                    # Pure template reference: expand the full template list inline.
                     if not isinstance(profile_list, (ListConfig, list)):
                         raise ValueError(
-                            f"Profile '{profile_name}' in {self.profiles_key} "
+                            f"Template '{template_name}' in {self.profiles_key} "
                             "must resolve to a list "
                             f"for target '{target_path}', got {type(profile_list)}"
                         )
                     expanded_items.extend(list(profile_list))
                 else:
-                    # Profile + overrides: use first profile item as base, merge overrides on top
+                    # Template + overrides: use the first template item as base.
                     if isinstance(profile_list, (ListConfig, list)):
                         if not profile_list:
                             raise ValueError(
-                                f"Profile '{profile_name}' in {self.profiles_key} is empty."
+                                f"Template '{template_name}' in {self.profiles_key} is empty."
                             )
                         base = OmegaConf.create(
                             OmegaConf.to_container(profile_list[0], resolve=False)
@@ -417,7 +417,7 @@ class ListProfileReferenceApplier(YamlProfileApplier):
                         base = OmegaConf.create(OmegaConf.to_container(profile_list, resolve=False))
                     else:
                         raise ValueError(
-                            f"Profile '{profile_name}' in {self.profiles_key} "
+                            f"Template '{template_name}' in {self.profiles_key} "
                             "must be a list or dict, "
                             f"got {type(profile_list)}"
                         )
@@ -539,14 +539,6 @@ _VALUE_PROFILE_FAMILIES: List[Tuple[str, Tuple[str, ...], str, str, bool, Option
         None,
     ),
     (
-        "decoding_profiles",
-        (_STAGE_DEFAULT, _STAGE_TEST, _STAGE_TUNE),
-        "inference.decoding_profile",
-        "inference",
-        True,
-        "decoding",
-    ),
-    (
         "activation_profiles",
         (_STAGE_DEFAULT, _STAGE_TEST, _STAGE_TUNE),
         "inference.test_time_augmentation.activation_profile",
@@ -585,7 +577,6 @@ def _build_value_profile_specs() -> (
 _REFERENCE_PROFILE_FAMILIES: List[Tuple[str, Tuple[str, ...], str]] = [
     ("loss_profiles", (_STAGE_DEFAULT, _STAGE_TRAIN), "model.loss"),
     ("label_profiles", (_STAGE_DEFAULT, _STAGE_TRAIN), "data.label_transform"),
-    ("decoding_profiles", (_STAGE_DEFAULT, _STAGE_TEST, _STAGE_TUNE), "inference"),
     (
         "activation_profiles",
         (_STAGE_DEFAULT, _STAGE_TEST, _STAGE_TUNE),
@@ -611,10 +602,10 @@ def _build_reference_profile_specs() -> List[Tuple[str, List[str]]]:
 
 
 # Each tuple: (profiles_key, stages, target_rel, list_key)
-# ``list_key`` identifies the nested list within dict-valued profiles.
+# ``list_key`` identifies the nested list within dict-valued template payloads.
 _LIST_REFERENCE_FAMILIES: List[Tuple[str, Tuple[str, ...], str, str]] = [
     (
-        "decoding_profiles",
+        "decoding_templates",
         (_STAGE_DEFAULT, _STAGE_TUNE, _STAGE_TEST),
         "inference.decoding",
         "decoding",
@@ -668,7 +659,7 @@ def _build_profile_engine() -> YamlProfileEngine:
     The applier ordering is:
     1. ValueProfileAppliers (pipeline, system, arch, augmentation, ..., activation)
     2. ReferenceProfileAppliers
-    3. ListProfileReferenceAppliers
+    3. ListTemplateReferenceAppliers
     """
     appliers: List[YamlProfileApplier] = []
 
@@ -704,7 +695,7 @@ def _build_profile_engine() -> YamlProfileEngine:
     # 3) List profile reference appliers
     for profiles_key, target_paths, list_key in _LIST_REFERENCE_SPECS:
         appliers.append(
-            ListProfileReferenceApplier(
+            ListTemplateReferenceApplier(
                 profiles_key=profiles_key,
                 target_paths=target_paths,
                 list_key=list_key,

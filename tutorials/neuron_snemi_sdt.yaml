@@ -2,9 +2,10 @@ experiment_name: rsunet_snemi_lee2017_modern_sdt
 description: SNEMI3D neuron affinity + SDT learning (9-channel affinity + 1-channel SDT)
 
 _base_:
-  - bases/all_profiles.yaml
+  - ../configs/all_profiles.yaml
 
 default:
+  pipeline_profile: aff9_sdt
   system:
     profile: all-gpu-cpu
   model:
@@ -12,13 +13,21 @@ default:
       profile: rsunet
     input_size: [16, 224, 224]
     output_size: [16, 224, 224]
-    out_channels: 10
-    loss:
-      profile: loss_bd
   data:
     label_transform:
-      profile: label_affinity_9_sdt
       resolution: [30, 6, 6]
+      erosion: 1
+      targets:
+        - name: affinity
+          kwargs:
+            offsets: ["0-0-1", "0-1-0", "1-0-0", "0-0-5", "0-5-0", "5-0-0", "0-0-9", "0-9-0", "9-0-0"]
+            deepem_crop: true
+        - name: skeleton_aware_edt
+          kwargs:
+            alpha: 0.8
+            bg_value: -1.0
+            deepem_crop: true
+
     dataloader:
       profile: cached
       patch_size: [16, 224, 224]
@@ -38,9 +47,7 @@ default:
       patch_first_local: true
       flip_axes: all
       rotation90_axes: [[1, 2]]
-      activation_profile: act_bd
         #select_channel: [0, 1, 2, 9]
-      ensemble_mode: [["0:9", min], ["9:", mean]]
     postprocessing:
       enabled: true
       # crop_pad + affinity_crop[(17,0),(17,0),(17,0)] = pad_size [17,128,128]:
@@ -48,7 +55,6 @@ default:
       crop_pad: [0, 17, 111, 128, 111, 128]
     save_prediction:
       enabled: true
-    decoding_profile: decoding_waterz
     evaluation:
       enabled: true
       metrics: [adapted_rand]
@@ -93,7 +99,7 @@ test:
       resolution: [30, 6, 6]
   inference:
     decoding:
-    - profile: decoding_waterz
+    - template: decoding_waterz
       kwargs:
         thresholds: 0.4
         merge_function: aff85_his256

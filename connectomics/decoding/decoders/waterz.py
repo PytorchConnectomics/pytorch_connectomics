@@ -360,6 +360,14 @@ def decode_waterz(
                 weight_th=dust_merge_affinity,
                 dust_th=dust_remove_size,
             )
+            if not reused_region_graph:
+                waterz.merge_dust(
+                    seg,
+                    affs,
+                    dust_merge_size,
+                    dust_merge_affinity,
+                    dust_remove_size,
+                )
         # Branch merge: resolve false splits via z-slice IOU analysis
         if branch_merge:
             from .branch_merge import branch_merge as _branch_merge

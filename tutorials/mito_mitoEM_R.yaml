@@ -3,7 +3,8 @@ default:
     arch:
       profile: mednext_m
 
-_base_: mito_mitoEM_common.yaml
+_base_:
+  - mito_mitoEM_common.yaml
 
 experiment_name: mitoem30r_mednext_sdt
 data:

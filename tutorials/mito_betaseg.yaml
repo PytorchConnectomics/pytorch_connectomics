@@ -4,7 +4,7 @@ default:
       profile: mednext_s
 
 _base_:
-  - bases/all_profiles.yaml
+  - ../configs/all_profiles.yaml
 experiment_name: betaseg_mednext_s_sdt_affinity
 description: BetaSeg 3D mitochondria instance segmentation with MedNeXt using SDT+affinity (1+6 channels)
 

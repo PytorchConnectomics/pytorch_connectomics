@@ -1,4 +1,4 @@
-decoding_profiles:
+decoding_templates:
   decoding_bcd:
     decoding:
       - name: decode_instance_binary_contour_distance
