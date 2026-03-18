@@ -185,6 +185,31 @@ def test_resolve_test_output_config_uses_current_tta_suffix_when_tta_is_enabled(
     assert filenames == ["sample_a"]
 
 
+def test_resolve_test_output_config_includes_checkpoint_name_in_tta_suffix(monkeypatch):
+    cfg = _base_config()
+    cfg.inference.save_prediction.output_path = "/tmp/test_results"
+    cfg.inference.save_prediction.cache_suffix = "_x1_prediction.h5"
+    cfg.inference.test_time_augmentation.enabled = True
+    cfg.inference.test_time_augmentation.flip_axes = [0, 1, 2]
+    cfg.inference.test_time_augmentation.rotation90_axes = [[1, 2]]
+    module = ConnectomicsModule(cfg, model=SimpleModel())
+    module._prediction_checkpoint_path = "/tmp/checkpoints/best.ckpt"
+
+    monkeypatch.setattr(
+        "connectomics.training.lightning.model.resolve_output_filenames",
+        lambda _cfg, _batch, global_step=0: ["sample_a"],
+    )
+
+    mode, output_dir, cache_suffix, filenames = ConnectomicsModule._resolve_test_output_config(
+        module, batch={}
+    )
+
+    assert mode == "test"
+    assert output_dir == "/tmp/test_results"
+    assert cache_suffix == "_tta_x12_ckpt-best_prediction.h5"
+    assert filenames == ["sample_a"]
+
+
 def test_save_metrics_to_file_uses_runtime_inference_output_path(tmp_path):
     """Metrics should be written under cfg.inference.save_prediction.output_path."""
     cfg = _base_config()
@@ -199,7 +224,45 @@ def test_save_metrics_to_file_uses_runtime_inference_output_path(tmp_path):
         },
     )
 
-    assert (tmp_path / "evaluation_metrics_vol0_x1.txt").exists()
+    assert (tmp_path / "evaluation_metrics_vol0_x1_prediction.txt").exists()
+
+
+def test_save_metrics_to_file_matches_final_prediction_tag(tmp_path):
+    cfg = _base_config()
+    cfg.inference.save_prediction.output_path = str(tmp_path)
+    cfg.inference.output_channel = [0, 1, 2]
+    cfg.inference.decoding = [
+        {
+            "name": "decode_waterz",
+            "kwargs": {
+                "merge_function": "aff50_his256",
+                "thresholds": [0.4],
+            },
+        }
+    ]
+    module = ConnectomicsModule(cfg, model=SimpleModel())
+    module._prediction_checkpoint_path = "/tmp/checkpoints/best.ckpt"
+
+    ConnectomicsModule._save_metrics_to_file(
+        module,
+        {
+            "volume_name": "test-input",
+            "jaccard": 0.5,
+        },
+    )
+
+    assert (
+        tmp_path
+        / "evaluation_metrics_test-input_x1_ch0-1-2_ckpt-best_prediction_waterz_aff50_his256-0.4.txt"
+    ).exists()
+
+    tsv_path = tmp_path / "decode_experiments.tsv"
+    assert tsv_path.exists()
+    lines = tsv_path.read_text().strip().splitlines()
+    assert "input_tta_prediction_name" in lines[0]
+    assert (
+        "test-input_tta_x1_ch0-1-2_ckpt-best_prediction.h5" in lines[1]
+    )
 
 
 def test_load_cached_predictions_reads_existing_prediction_files(tmp_path, monkeypatch):
@@ -224,6 +287,88 @@ def test_load_cached_predictions_reads_existing_prediction_files(tmp_path, monke
     assert loaded is True
     assert suffix == "_x1_prediction.h5"
     assert predictions.shape == (1, 4, 4, 4)
+
+
+def test_load_cached_predictions_prefers_final_prediction_for_checkpoint_tagged_tta_cache(
+    tmp_path, monkeypatch
+):
+    cfg = _base_config()
+    cfg.inference.test_time_augmentation.enabled = True
+    cfg.inference.test_time_augmentation.flip_axes = [0, 1, 2]
+    cfg.inference.test_time_augmentation.rotation90_axes = [[1, 2]]
+    module = ConnectomicsModule(cfg, model=SimpleModel())
+    module._prediction_checkpoint_path = "/tmp/checkpoints/best.ckpt"
+    pred_file = tmp_path / "sample_x12_ckpt-best_prediction.h5"
+    pred_file.write_text("stub")
+
+    expected = np.ones((1, 4, 4, 4), dtype=np.float32)
+    monkeypatch.setattr(
+        "connectomics.training.lightning.model.read_volume", lambda *_args, **_kwargs: expected
+    )
+
+    predictions, loaded, suffix = module._load_cached_predictions(
+        str(tmp_path),
+        ["sample"],
+        "_tta_x12_ckpt-best_prediction.h5",
+        "test",
+    )
+
+    assert loaded is True
+    assert suffix == "_x12_ckpt-best_prediction.h5"
+    assert predictions.shape == (1, 4, 4, 4)
+
+
+def test_load_cached_predictions_does_not_pick_unrelated_tta_channel_cache(tmp_path, monkeypatch):
+    cfg = _base_config()
+    cfg.inference.save_prediction.cache_suffix = "_x1_ch4-6-9_prediction_waterz_t0.4.h5"
+    cfg.inference.output_channel = [4, 6, 9]
+    module = ConnectomicsModule(cfg, model=SimpleModel())
+    unrelated_tta_file = tmp_path / "sample_tta_x1_ch0-1-2_prediction.h5"
+    unrelated_tta_file.write_text("stub")
+
+    monkeypatch.setattr(
+        "connectomics.training.lightning.model.read_volume",
+        lambda *_args, **_kwargs: np.ones((1, 4, 4, 4), dtype=np.float32),
+    )
+
+    predictions, loaded, suffix = module._load_cached_predictions(
+        str(tmp_path),
+        ["sample"],
+        "_x1_ch4-6-9_prediction_waterz_t0.4.h5",
+        "test",
+    )
+
+    assert predictions is None
+    assert loaded is False
+    assert suffix == "_x1_ch4-6-9_prediction_waterz_t0.4.h5"
+
+
+def test_load_cached_predictions_does_not_pick_legacy_tta_cache_when_checkpoint_tag_is_expected(
+    tmp_path, monkeypatch
+):
+    cfg = _base_config()
+    cfg.inference.test_time_augmentation.enabled = True
+    module = ConnectomicsModule(cfg, model=SimpleModel())
+    module._prediction_checkpoint_path = "/tmp/checkpoints/epoch=074-train_loss_total_epoch=1.0462.ckpt"
+
+    legacy_tta_file = tmp_path / "sample_tta_x1_prediction.h5"
+    legacy_tta_file.write_text("stub")
+
+    monkeypatch.setattr(
+        "connectomics.training.lightning.model.read_volume",
+        lambda *_args, **_kwargs: np.ones((1, 4, 4, 4), dtype=np.float32),
+    )
+
+    predictions, loaded, suffix = module._load_cached_predictions(
+        str(tmp_path),
+        ["sample"],
+        "_x1_prediction.h5",
+        "test",
+    )
+
+    assert predictions is None
+    assert loaded is False
+    assert suffix == "_x1_prediction.h5"
 
 
 def test_on_test_epoch_end_logs_aggregated_metrics_once():

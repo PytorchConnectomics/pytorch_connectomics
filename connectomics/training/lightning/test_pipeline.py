@@ -28,7 +28,14 @@ from ...inference.lazy import (
 )
 from ...metrics.metrics_seg import AdaptedRandError
 from ...metrics.segmentation_numpy import instance_matching, instance_matching_simple, voi
-from .utils import compute_tta_passes, is_tta_cache_suffix
+from .utils import (
+    compute_tta_passes,
+    final_prediction_output_tag,
+    format_checkpoint_name_tag,
+    format_decode_tag,
+    format_select_channel_tag,
+    is_tta_cache_suffix,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -790,12 +797,14 @@ def _process_decoding_postprocessing(
     if save_final_predictions:
         logger.info("[STAGE: Saving Final Predictions]")
         save_start = time.time()
-        final_tta_passes = compute_tta_passes(module.cfg)
         write_outputs(
             module.cfg,
             postprocessed_predictions,
             filenames,
-            suffix=f"x{final_tta_passes}_prediction",
+            suffix=final_prediction_output_tag(
+                module.cfg,
+                checkpoint_path=module._get_prediction_checkpoint_path(),
+            ),
             mode=mode,
             batch_meta=batch_meta,
         )
@@ -1058,12 +1067,14 @@ def run_test_step(module, batch: Dict[str, torch.Tensor], batch_idx: int) -> STE
         logger.info("[STAGE: Saving Intermediate Predictions]")
         save_start = time.time()
         tta_passes = compute_tta_passes(module.cfg)
+        ch_tag = format_select_channel_tag(module.cfg)
+        checkpoint_tag = format_checkpoint_name_tag(module._get_prediction_checkpoint_path())
         predictions_to_save = apply_save_prediction_transform(module.cfg, predictions_np)
         write_outputs(
             module.cfg,
             predictions_to_save,
             filenames,
-            suffix=f"tta_x{tta_passes}_prediction",
+            suffix=f"tta_x{tta_passes}{ch_tag}{checkpoint_tag}_prediction",
             mode=mode,
             batch_meta=batch.get("image_meta_dict"),
         )

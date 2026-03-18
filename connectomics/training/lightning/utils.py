@@ -368,25 +368,183 @@ def compute_tta_passes(cfg: Config, spatial_dims: int = 3) -> int:
     )
 
 
-def tta_cache_suffix(cfg: Config, spatial_dims: int = 3) -> str:
-    """Return the TTA prediction cache suffix, e.g. ``_tta_x1_prediction.h5``."""
+def format_select_channel_tag(cfg: Config) -> str:
+    """Return a compact channel-selection tag for prediction filenames.
+
+    When ``select_channel`` is set in the TTA config, the tag disambiguates
+    cached predictions produced with different channel selections, e.g.
+    ``"_ch4-6-9"`` for ``select_channel: [4, 6, 9]``.
+
+    Returns an empty string when no channel selection is active (all channels
+    are kept).
+    """
+    inference_cfg = getattr(cfg, "inference", None)
+    if inference_cfg is None:
+        return ""
+    tta_cfg = getattr(inference_cfg, "test_time_augmentation", None)
+    if tta_cfg is None:
+        return ""
+
+    sel = getattr(tta_cfg, "select_channel", None)
+    if sel is None:
+        sel = getattr(inference_cfg, "output_channel", None)
+    if sel is None:
+        return ""
+
+    # Coerce to a list of ints when possible
+    if isinstance(sel, (list, tuple)):
+        indices = [int(x) for x in sel]
+    elif isinstance(sel, int):
+        indices = [sel]
+    elif isinstance(sel, str):
+        s = sel.strip()
+        if s == ":" or s == "":
+            return ""  # all channels
+        return f"_ch{s.replace(':', '-')}"
+    else:
+        return ""
+
+    return "_ch" + "-".join(str(i) for i in indices)
+
+
+def format_decode_tag(cfg: Config) -> str:
+    """Return a compact decoding-parameter tag for final prediction filenames.
+
+    Encodes every decode step and all decode-kwarg values so that different
+    decoding configurations produce distinct output files without repeating
+    verbose kwarg names. Returns an empty string when no decoding is configured.
+    """
+
+    def _sanitize_decode_component(text: str) -> str:
+        safe_text = re.sub(r"[^A-Za-z0-9._=]+", "-", text)
+        safe_text = re.sub(r"-{2,}", "-", safe_text)
+        return safe_text.strip("-")
+
+    def _flatten_decode_values(value) -> list[str]:
+        if hasattr(value, "items"):
+            result: list[str] = []
+            for _key, nested_value in sorted(dict(value).items()):
+                result.extend(_flatten_decode_values(nested_value))
+            return result
+        if isinstance(value, (list, tuple)):
+            result: list[str] = []
+            for nested_value in value:
+                result.extend(_flatten_decode_values(nested_value))
+            return result
+        if isinstance(value, bool):
+            return ["true" if value else "false"]
+        if value is None:
+            return ["none"]
+        if isinstance(value, float):
+            return [format(value, "g")]
+        return [str(value)]
+
+    inference_cfg = getattr(cfg, "inference", None)
+    if inference_cfg is None:
+        return ""
+    decoding = getattr(inference_cfg, "decoding", None)
+    if not decoding:
+        return ""
+
+    try:
+        steps = list(decoding)
+    except TypeError:
+        steps = [decoding]
+
+    parts = []
+    for step in steps:
+        name = getattr(step, "name", None) or (step.get("name") if isinstance(step, dict) else None)
+        if not name:
+            continue
+
+        short = name.replace("decode_", "")
+        kwargs = getattr(step, "kwargs", None)
+        if kwargs is None and isinstance(step, dict):
+            kwargs = step.get("kwargs", {})
+
+        value_tokens = _flatten_decode_values(kwargs) if kwargs is not None else []
+        if not value_tokens:
+            parts.append(short)
+            continue
+
+        kwargs_tag = _sanitize_decode_component("-".join(value_tokens))
+        parts.append(f"{short}_{kwargs_tag}" if kwargs_tag else short)
+
+    if not parts:
+        return ""
+    return "_" + "__".join(parts)
+
+
+def format_checkpoint_name_tag(checkpoint_path: Optional[str | Path]) -> str:
+    """Return a compact checkpoint tag for prediction cache filenames."""
+    if checkpoint_path is None:
+        return ""
+
+    path_value = str(checkpoint_path).strip()
+    if not path_value:
+        return ""
+
+    stem = Path(path_value).expanduser().stem.strip()
+    if not stem:
+        return ""
+
+    safe_stem = re.sub(r"[^A-Za-z0-9._=-]+", "-", stem).strip("-")
+    if not safe_stem:
+        return ""
+
+    return f"_ckpt-{safe_stem}"
+
+
+def final_prediction_output_tag(
+    cfg: Config, spatial_dims: int = 3, checkpoint_path: Optional[str | Path] = None
+) -> str:
+    """Return the final decoded prediction tag used in output filenames."""
     n = compute_tta_passes(cfg, spatial_dims=spatial_dims)
-    return f"_tta_x{n}_prediction.h5"
+    ch = format_select_channel_tag(cfg)
+    ckpt = format_checkpoint_name_tag(checkpoint_path)
+    dec = format_decode_tag(cfg)
+    return f"x{n}{ch}{ckpt}_prediction{dec}"
 
 
-def resolve_prediction_cache_suffix(cfg: Config, mode: str) -> str:
+def tta_cache_suffix(
+    cfg: Config, spatial_dims: int = 3, checkpoint_path: Optional[str | Path] = None
+) -> str:
+    """Return the TTA prediction cache suffix, e.g. ``_tta_x16_ch4-6-9_ckpt-last_prediction.h5``."""
+    n = compute_tta_passes(cfg, spatial_dims=spatial_dims)
+    ch = format_select_channel_tag(cfg)
+    ckpt = format_checkpoint_name_tag(checkpoint_path)
+    return f"_tta_x{n}{ch}{ckpt}_prediction.h5"
+
+
+def tta_cache_suffix_candidates(
+    cfg: Config, spatial_dims: int = 3, checkpoint_path: Optional[str | Path] = None
+) -> list[str]:
+    """Return exact TTA cache suffix candidates ordered from most to least specific."""
+    candidates = [tta_cache_suffix(cfg, spatial_dims=spatial_dims, checkpoint_path=checkpoint_path)]
+    if checkpoint_path is not None:
+        return candidates
+
+    legacy_suffix = tta_cache_suffix(cfg, spatial_dims=spatial_dims)
+    if legacy_suffix not in candidates:
+        candidates.append(legacy_suffix)
+    return candidates
+
+
+def resolve_prediction_cache_suffix(
+    cfg: Config, mode: str, checkpoint_path: Optional[str | Path] = None
+) -> str:
     """Return the expected prediction cache suffix for the current runtime mode."""
     inference_cfg = getattr(cfg, "inference", None)
     save_prediction_cfg = getattr(inference_cfg, "save_prediction", None)
     configured_suffix = getattr(save_prediction_cfg, "cache_suffix", "_x1_prediction.h5")
 
     if mode in ("tune", "tune-test"):
-        return tta_cache_suffix(cfg)
+        return tta_cache_suffix(cfg, checkpoint_path=checkpoint_path)
 
     if mode == "test":
         tta_cfg = getattr(inference_cfg, "test_time_augmentation", None)
         if tta_cfg is not None and bool(getattr(tta_cfg, "enabled", False)):
-            return tta_cache_suffix(cfg)
+            return tta_cache_suffix(cfg, checkpoint_path=checkpoint_path)
 
     return configured_suffix
 
@@ -405,7 +563,12 @@ __all__ = [
     "extract_best_score_from_checkpoint",
     "setup_seed_everything",
     "compute_tta_passes",
+    "format_select_channel_tag",
+    "format_decode_tag",
+    "format_checkpoint_name_tag",
+    "final_prediction_output_tag",
     "tta_cache_suffix",
+    "tta_cache_suffix_candidates",
     "resolve_prediction_cache_suffix",
     "is_tta_cache_suffix",
 ]

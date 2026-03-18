@@ -12,8 +12,10 @@ from connectomics.training.lightning.path_utils import (
 from connectomics.training.lightning.utils import (
     expand_file_paths,
     extract_best_score_from_checkpoint,
+    format_decode_tag,
     resolve_prediction_cache_suffix,
     setup_config,
+    tta_cache_suffix_candidates,
 )
 
 
@@ -174,3 +176,53 @@ def test_resolve_prediction_cache_suffix_preserves_non_tta_test_suffix_when_tta_
     cfg.inference.test_time_augmentation.enabled = False
 
     assert resolve_prediction_cache_suffix(cfg, mode="test") == "_x1_prediction.h5"
+
+
+def test_resolve_prediction_cache_suffix_includes_checkpoint_name_for_tta_test_mode():
+    cfg = Config()
+    cfg.inference.save_prediction.cache_suffix = "_x1_prediction.h5"
+    cfg.inference.test_time_augmentation.enabled = True
+    cfg.inference.test_time_augmentation.flip_axes = [1, 2]
+    cfg.inference.test_time_augmentation.rotation90_axes = [[1, 2]]
+
+    assert (
+        resolve_prediction_cache_suffix(
+            cfg,
+            mode="test",
+            checkpoint_path="/tmp/checkpoints/epoch=4-step=99.ckpt",
+        )
+        == "_tta_x8_ckpt-epoch=4-step=99_prediction.h5"
+    )
+
+
+def test_tta_cache_suffix_candidates_do_not_fall_back_to_legacy_suffix_with_checkpoint():
+    cfg = Config()
+    cfg.inference.test_time_augmentation.enabled = True
+    cfg.inference.test_time_augmentation.flip_axes = [1, 2]
+    cfg.inference.test_time_augmentation.rotation90_axes = [[1, 2]]
+
+    assert tta_cache_suffix_candidates(
+        cfg,
+        checkpoint_path="/tmp/checkpoints/epoch=4-step=99.ckpt",
+    ) == ["_tta_x8_ckpt-epoch=4-step=99_prediction.h5"]
+
+
+def test_format_decode_tag_includes_all_decoding_parameters():
+    cfg = Config()
+    cfg.inference.decoding = [
+        {
+            "name": "decode_waterz",
+            "kwargs": {
+                "discretize_queue": 256,
+                "fragments": "watershed",
+                "merge_function": "aff50_his256",
+                "return_seg": True,
+                "thresholds": [0.1, 0.2, 0.4],
+            },
+        }
+    ]
+
+    assert (
+        format_decode_tag(cfg)
+        == "_waterz_256-watershed-aff50_his256-true-0.1-0.2-0.4"
+    )

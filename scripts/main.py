@@ -83,6 +83,7 @@ from connectomics.training.lightning import (  # noqa: E402
     setup_run_directory,
     setup_seed_everything,
     tta_cache_suffix,
+    tta_cache_suffix_candidates,
 )
 
 # Setup seed_everything helper
@@ -203,36 +204,34 @@ def _resolve_cached_prediction_files(
     output_dir: Path,
     filenames: list[str],
     cache_suffix: str,
+    fallback_tta_suffixes: list[str] | None = None,
 ) -> tuple[bool, str | None, list[Path]]:
     """Resolve cached prediction files with optional TTA-suffix fallback."""
     if not filenames:
         return False, None, []
 
-    resolved_files: list[Path] = []
-    loaded_suffix = cache_suffix
+    suffixes_to_try = [cache_suffix]
+    if not is_tta_cache_suffix(cache_suffix) and fallback_tta_suffixes:
+        for try_suffix in fallback_tta_suffixes:
+            if try_suffix not in suffixes_to_try:
+                suffixes_to_try.append(try_suffix)
 
-    for filename in filenames:
-        pred_file = output_dir / f"{filename}{cache_suffix}"
-        current_suffix = cache_suffix
+    for try_suffix in suffixes_to_try:
+        resolved_files: list[Path] = []
+        all_exist = True
+        for filename in filenames:
+            pred_file = output_dir / f"{filename}{try_suffix}"
+            if not os.path.exists(pred_file):
+                all_exist = False
+                break
+            if not _is_valid_hdf5_prediction_file(pred_file):
+                all_exist = False
+                break
+            resolved_files.append(pred_file)
+        if all_exist and len(resolved_files) == len(filenames):
+            return True, try_suffix, resolved_files
 
-        # Fallback: search for any _tta_x*_prediction.h5 if exact suffix not found.
-        if not pred_file.exists() and not is_tta_cache_suffix(cache_suffix):
-            tta_matches = sorted(output_dir.glob(f"{filename}_tta_x*_prediction.h5"))
-            if tta_matches:
-                pred_file = tta_matches[-1]  # latest / highest augmentation count
-                current_suffix = pred_file.name[len(filename):]
-
-        if not pred_file.exists():
-            return False, None, []
-
-        if not _is_valid_hdf5_prediction_file(pred_file):
-            return False, None, []
-
-        if is_tta_cache_suffix(current_suffix):
-            loaded_suffix = current_suffix
-        resolved_files.append(pred_file)
-
-    return True, loaded_suffix, resolved_files
+    return False, None, []
 
 
 def _is_valid_hdf5_prediction_file(path: Path, dataset: str = "main") -> bool:
@@ -273,10 +272,12 @@ def _has_tta_prediction_file(cfg: Config) -> bool:
     pred_file = Path(tta_path).expanduser()
     if not pred_file.is_absolute():
         pred_file = Path.cwd() / pred_file
-    return pred_file.exists() and _is_valid_hdf5_prediction_file(pred_file)
+    return os.path.exists(pred_file) and _is_valid_hdf5_prediction_file(pred_file)
 
 
-def _has_cached_predictions_in_output_dir(cfg: Config, mode: str) -> bool:
+def _has_cached_predictions_in_output_dir(
+    cfg: Config, mode: str, checkpoint_path: str | None = None
+) -> bool:
     """Return True if all expected TTA prediction files exist in the output directory."""
     save_pred_cfg = getattr(cfg.inference, "save_prediction", None)
     if save_pred_cfg is None:
@@ -290,18 +291,20 @@ def _has_cached_predictions_in_output_dir(cfg: Config, mode: str) -> bool:
     if not test_image_paths:
         return False
 
-    suffix = tta_cache_suffix(cfg)
+    suffix = tta_cache_suffix(cfg, checkpoint_path=checkpoint_path)
     output_path = Path(output_dir)
     for image_path in test_image_paths:
         pred_file = output_path / f"{Path(image_path).stem}{suffix}"
-        if not pred_file.exists():
+        if not os.path.exists(pred_file):
             return False
         if not _is_valid_hdf5_prediction_file(pred_file):
             return False
     return True
 
 
-def preflight_test_cache_hit(cfg: Config, datamodule) -> tuple[bool, str | None, int]:
+def preflight_test_cache_hit(
+    cfg: Config, datamodule, checkpoint_path: str | None = None
+) -> tuple[bool, str | None, int]:
     """Check if test outputs already exist so inference (and ckpt restore) can be skipped."""
     save_pred_cfg = getattr(cfg.inference, "save_prediction", None)
     if save_pred_cfg is None:
@@ -314,8 +317,8 @@ def preflight_test_cache_hit(cfg: Config, datamodule) -> tuple[bool, str | None,
             pred_file = Path.cwd() / pred_file
 
         # If explicit intermediate prediction exists, skip TTA inference and ckpt restore.
-        if pred_file.exists() and _is_valid_hdf5_prediction_file(pred_file):
-            return True, tta_cache_suffix(cfg), 1
+        if os.path.exists(pred_file) and _is_valid_hdf5_prediction_file(pred_file):
+            return True, tta_cache_suffix(cfg, checkpoint_path=checkpoint_path), 1
 
         print(
             "  WARNING: inference.tta_result_path file missing or unreadable "
@@ -343,7 +346,8 @@ def preflight_test_cache_hit(cfg: Config, datamodule) -> tuple[bool, str | None,
     cache_hit, loaded_suffix, _resolved_files = _resolve_cached_prediction_files(
         Path(output_dir_value),
         filenames,
-        resolve_prediction_cache_suffix(cfg, mode="test"),
+        resolve_prediction_cache_suffix(cfg, mode="test", checkpoint_path=checkpoint_path),
+        fallback_tta_suffixes=tta_cache_suffix_candidates(cfg, checkpoint_path=checkpoint_path),
     )
     if not cache_hit:
         return False, None, len(filenames)
@@ -605,7 +609,11 @@ def _invert_save_prediction_transform(cfg: Config, data):
 
 
 def try_cache_only_test_execution(
-    cfg: Config, mode: str, shard_id: int = None, num_shards: int = None
+    cfg: Config,
+    mode: str,
+    shard_id: int = None,
+    num_shards: int = None,
+    checkpoint_path: str | None = None,
 ) -> bool:
     """Run cache-only test path before model/trainer/datamodule creation when possible.
 
@@ -646,13 +654,14 @@ def try_cache_only_test_execution(
             return True
 
     output_dir = Path(output_dir_value)
-    cache_suffix = resolve_prediction_cache_suffix(cfg, mode)
+    cache_suffix = resolve_prediction_cache_suffix(cfg, mode, checkpoint_path=checkpoint_path)
     filenames = [Path(str(p)).stem for p in test_image_paths]
 
     cache_hit, loaded_suffix, resolved_files = _resolve_cached_prediction_files(
         output_dir,
         filenames,
         cache_suffix,
+        fallback_tta_suffixes=tta_cache_suffix_candidates(cfg, checkpoint_path=checkpoint_path),
     )
     if not cache_hit:
         return False
@@ -742,7 +751,7 @@ def _configure_checkpoint_output_paths(args, cfg: Config) -> tuple[Path | None, 
 
         save_pred_cfg = cfg.inference.save_prediction
         save_pred_cfg.output_path = str(output_base / results_folder_name)
-        save_pred_cfg.cache_suffix = tta_cache_suffix(cfg)
+        save_pred_cfg.cache_suffix = tta_cache_suffix(cfg, checkpoint_path=args.checkpoint)
 
         if args.mode == "tune-test":
             print(f"Test output: {save_pred_cfg.output_path}")
@@ -878,14 +887,24 @@ def main():
             return
 
     # Cache-only preflight path for test mode (can skip model/trainer/dataloader entirely).
-    if try_cache_only_test_execution(cfg, args.mode, args.shard_id, args.num_shards):
+    if try_cache_only_test_execution(
+        cfg,
+        args.mode,
+        args.shard_id,
+        args.num_shards,
+        checkpoint_path=args.checkpoint,
+    ):
         return
 
     # Check for cached intermediate predictions early so we can skip both the
     # expensive model build and checkpoint restore for test/tune modes.
     tta_cached = args.mode in ("test", "tune", "tune-test") and (
         _has_tta_prediction_file(cfg)
-        or _has_cached_predictions_in_output_dir(cfg, mode=args.mode)
+        or _has_cached_predictions_in_output_dir(
+            cfg,
+            mode=args.mode,
+            checkpoint_path=args.checkpoint,
+        )
     )
 
     # Create model
@@ -918,6 +937,10 @@ def main():
             reset_epoch=args.reset_epoch,
             reset_early_stopping=args.reset_early_stopping,
         )
+
+    model._prediction_checkpoint_path = args.checkpoint or getattr(
+        getattr(cfg, "model", None), "external_weights_path", None
+    )
 
     # Create trainer (pass run_dir for checkpoints and logs, and checkpoint path for resume)
     trainer = create_trainer(
@@ -962,7 +985,9 @@ def main():
             # Re-resolve test-stage runtime overrides after tuning, including sentinels.
             cfg = resolve_test_stage_runtime(cfg)
             cfg.inference.save_prediction.cache_suffix = resolve_prediction_cache_suffix(
-                cfg, args.mode
+                cfg,
+                args.mode,
+                checkpoint_path=args.checkpoint,
             )
 
             if maybe_enable_independent_test_sharding(args, cfg):
@@ -1004,11 +1029,17 @@ def main():
                 # Load and apply best parameters
                 cfg = load_and_apply_best_params(cfg)
                 cfg.inference.save_prediction.cache_suffix = resolve_prediction_cache_suffix(
-                    cfg, args.mode
+                    cfg,
+                    args.mode,
+                    checkpoint_path=args.checkpoint,
                 )
 
             test_ckpt_path = ckpt_path
-            cache_hit, cached_suffix, cache_count = preflight_test_cache_hit(cfg, datamodule)
+            cache_hit, cached_suffix, cache_count = preflight_test_cache_hit(
+                cfg,
+                datamodule,
+                checkpoint_path=args.checkpoint,
+            )
             if cache_hit:
                 skip_test_loop, test_ckpt_path = _handle_test_cache_hit(
                     args,

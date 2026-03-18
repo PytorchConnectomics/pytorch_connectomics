@@ -57,7 +57,9 @@ def test_run_tuning_uses_intermediate_only_inference_overrides(monkeypatch, tmp_
     image_file.parent.mkdir(parents=True, exist_ok=True)
     image_file.touch()
 
-    prediction_file = str(tmp_path / "results" / "volume_0_input_tta_x1_prediction.h5")
+    prediction_file = str(
+        tmp_path / "results" / "volume_0_input_tta_x1_ckpt-checkpoint_prediction.h5"
+    )
     label_file = str(tmp_path / "labels" / "volume_0_label.h5")
     Path(label_file).parent.mkdir(parents=True, exist_ok=True)
     Path(label_file).touch()
@@ -96,7 +98,7 @@ def test_run_tuning_uses_intermediate_only_inference_overrides(monkeypatch, tmp_
     assert trainer.observed["datamodule"]["mode"] == "tune"
     assert trainer.observed["ckpt_path"] == "checkpoint.ckpt"
     assert trainer.observed["save_prediction_enabled"] is True
-    assert trainer.observed["cache_suffix"] == "_tta_x1_prediction.h5"
+    assert trainer.observed["cache_suffix"] == "_tta_x1_ckpt-checkpoint_prediction.h5"
     assert trainer.observed["decoding"] is None
     assert trainer.observed["evaluation_enabled"] is False
 
@@ -127,7 +129,9 @@ def test_run_tuning_ignores_stale_test_prediction_cache_when_tuning(monkeypatch,
     stale_prediction_file.parent.mkdir(parents=True, exist_ok=True)
     stale_prediction_file.touch()
 
-    expected_prediction_file = tmp_path / "results" / "train-input_tta_x1_prediction.h5"
+    expected_prediction_file = (
+        tmp_path / "results" / "train-input_tta_x1_ckpt-checkpoint_prediction.h5"
+    )
     label_file = tmp_path / "labels" / "train-labels.h5"
     label_file.parent.mkdir(parents=True, exist_ok=True)
     label_file.touch()
@@ -176,7 +180,9 @@ def test_run_tuning_requires_val_labels_in_tune_mode(monkeypatch, tmp_path):
     image_file = tmp_path / "images" / "val_input.h5"
     image_file.parent.mkdir(parents=True, exist_ok=True)
     image_file.touch()
-    expected_prediction_file = tmp_path / "results" / "val_input_tta_x1_prediction.h5"
+    expected_prediction_file = (
+        tmp_path / "results" / "val_input_tta_x1_ckpt-checkpoint_prediction.h5"
+    )
 
     model = _DummyModel(cfg)
     trainer = _DummyTrainer(
@@ -198,3 +204,30 @@ def test_run_tuning_requires_val_labels_in_tune_mode(monkeypatch, tmp_path):
 
     with pytest.raises(ValueError, match="Missing data.val.label in configuration"):
         run_tuning(model, trainer, cfg, checkpoint_path="checkpoint.ckpt")
+
+
+def test_run_tuning_prints_existing_best_params_yaml(monkeypatch, tmp_path, capsys):
+    cfg = Config()
+    cfg.tune = TuneConfig()
+    cfg.inference.save_prediction.output_path = str(tmp_path / "results")
+
+    tuning_dir = tmp_path / "tuning"
+    tuning_dir.mkdir(parents=True, exist_ok=True)
+    best_params_file = tuning_dir / "best_params.yaml"
+    best_params_file.write_text(
+        "best_trial: 7\nbest_value: 0.1234\ndecoding_function: decode_waterz\n"
+    )
+
+    model = _DummyModel(cfg)
+    trainer = _DummyTrainer()
+
+    monkeypatch.setattr("connectomics.decoding.tuning.optuna_tuner.OPTUNA_AVAILABLE", True)
+
+    run_tuning(model, trainer, cfg, checkpoint_path="checkpoint.ckpt")
+
+    stdout = capsys.readouterr().out
+    assert "BEST PARAMETERS" in stdout
+    assert str(best_params_file) in stdout
+    assert "best_trial: 7" in stdout
+    assert "decode_waterz" in stdout
+    assert trainer.observed == {}
