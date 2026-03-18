@@ -431,7 +431,7 @@ system_profiles:
   single-gpu-cpu:
     num_gpus: 1
     num_workers: 1
-decoding_profiles:
+decoding_templates:
   decode_unit:
     decoding:
       - name: decode_instance_binary_contour_distance
@@ -453,24 +453,26 @@ default:
     label_transform:
       profile: label_unit
   inference:
-    decoding_profile: decode_unit
+    decoding:
+      - template: decode_unit
   system:
     profile: single-gpu-cpu
 _base_: {base_yaml.name}
 """.strip())
 
     cfg = load_config(config_yaml)
-    # Profile selectors are validated and expanded in YAML pre-processing, but
-    # runtime typed defaults remain authoritative unless explicitly overridden.
-    assert cfg.model.arch.type == "monai_basic_unet3d"
+    cfg = resolve_default_profiles(cfg, mode="test")
+    assert cfg.model.arch.type == "mednext"
+    assert cfg.model.mednext.size == "S"
     assert cfg.data.augmentation.preset in {"none", "some", "all"}
-    assert cfg.inference.decoding is None or isinstance(cfg.inference.decoding, list)
+    assert cfg.inference.decoding is not None and len(cfg.inference.decoding) == 1
+    assert cfg.inference.decoding[0].kwargs["min_instance_size"] == 5
     print("[OK]YAML shared profile selectors work")
 
 
 def test_label_transform_profile_can_inherit_top_level_resolution(tmp_path):
     repo_root = Path(__file__).resolve().parents[2]
-    base_profiles = repo_root / "tutorials" / "bases" / "all_profiles.yaml"
+    base_profiles = repo_root / "configs" / "all_profiles.yaml"
     config_yaml = tmp_path / "config.yaml"
     config_yaml.write_text(
         f"""
@@ -480,7 +482,7 @@ _base_:
 default:
   data:
     label_transform:
-      profile: label_affinity_9_sdt
+      profile: label_aff9_sdt
       resolution: [30, 6, 6]
 """.strip()
     )
@@ -746,11 +748,11 @@ optimization:
     print("[OK]Enabled flags require explicit opt-in")
 
 
-def test_shared_inference_decoding_profile_list_ref(tmp_path):
-    """Allow list refs like `- profile: decoding_bcd` under default.inference.decoding."""
+def test_shared_inference_decoding_template_list_ref(tmp_path):
+    """Allow list refs like `- template: decoding_bcd` under default.inference.decoding."""
     base_yaml = tmp_path / "base.yaml"
     base_yaml.write_text("""
-decoding_profiles:
+decoding_templates:
   decoding_bcd:
     decoding:
       - name: decode_instance_binary_contour_distance
@@ -764,7 +766,7 @@ _base_: {base_yaml.name}
 default:
   inference:
     decoding:
-      - profile: decoding_bcd
+      - template: decoding_bcd
 """.strip())
 
     cfg = load_config(config_yaml)

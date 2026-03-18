@@ -281,14 +281,17 @@ scripts/                         # Entry points and utilities
     ├── compare_config.py        # Config comparison tool
     └── eval_curvilinear.py      # Curvilinear structure evaluation
 
-tutorials/                       # Example configurations
-├── bases/                       # Reusable profile bases (11 YAML files)
-│   ├── all_profiles.yaml        # Master profile index
+configs/                         # Canonical shared YAML registries
+├── all_profiles.yaml            # Master registry index used by tutorials
+├── profiles/                    # Section-level profile registries
 │   ├── arch_profiles.yaml       # Architecture presets
-│   ├── augmentation_profiles.yaml  # Augmentation presets
-│   ├── loss_profiles.yaml       # Loss function presets
-│   ├── optimizer_profiles.yaml  # Optimizer presets
-│   └── ...                      # system, dataloader, decoding, etc.
+│   ├── loss_profiles.yaml       # Loss presets
+│   ├── label_profiles.yaml      # Label-transform presets
+│   └── ...                      # system, dataloader, augmentation, pipeline, tune
+└── templates/                   # Explicit list-item templates
+    └── decoding_templates.yaml  # `inference.decoding` templates (`template: ...`)
+
+tutorials/                       # Example configurations
 ├── misc/                        # Miscellaneous experiments
 └── *.yaml                       # Dataset-specific configs (16 files)
     # mito_lucchi++, mito_mitoEM_*, mito_mitolab, mito_betaseg,
@@ -309,6 +312,20 @@ docker/                          # Docker containerization
 
 ### Hydra Configuration (Primary)
 The project uses **Hydra/OmegaConf** with dataclass-based configs for type safety and composability.
+
+Canonical YAML layout:
+
+- `configs/profiles/*.yaml`: section-level registries selected by `*.profile`
+- `configs/templates/*.yaml`: explicit list-item templates, currently for `inference.decoding`
+- `tutorials/*.yaml`: runnable experiments that `_base_` the shared registries
+
+Canonical merge semantics:
+
+- Profile payloads are merged into the target section as the base config.
+- Explicit keys override profile keys.
+- Explicit lists replace profile lists; list overrides are not additive.
+- Canonical decoding expansion is explicit `template:` inside `inference.decoding`.
+- Do not introduce `decoding_profile` or `- profile: decoding_*` usages.
 
 **Config File Example** (`tutorials/lucchi.yaml`):
 ```yaml

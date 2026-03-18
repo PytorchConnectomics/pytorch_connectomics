@@ -4,7 +4,7 @@ default:
       profile: rsunet
 
 _base_:
-  - bases/all_profiles.yaml
+  - ../configs/all_profiles.yaml
 experiment_name: rsunet_cremi_synapse_cleft
 description: CREMI synapse cleft detection (binary semantic segmentation with RSUNet, anisotropic)
 model:

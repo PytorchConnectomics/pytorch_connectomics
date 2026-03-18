@@ -6,7 +6,7 @@ from connectomics.config import load_config
 
 PRESET_CONFIGS = [
     pytest.param(
-        Path("tutorials/bases/augmentation_profiles.yaml"),
+        Path("configs/profiles/augmentation_profiles.yaml"),
         True,
         id="augmentation_profiles",
     ),

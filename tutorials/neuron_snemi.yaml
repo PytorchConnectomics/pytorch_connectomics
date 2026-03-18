@@ -2,10 +2,10 @@ experiment_name: rsunet_snemi_lee2017_modern
 description: SNEMI3D neuron affinity learning (2017-style short-range setup with modern optimization and stability tricks)
 
 _base_:
-  - bases/all_profiles.yaml
+  - ../configs/all_profiles.yaml
 
 default:
-  pipeline_profile: affinity-12
+  pipeline_profile: aff12
   system:
     profile: all-gpu-cpu
   model:
@@ -33,8 +33,8 @@ default:
       patch_first_local: true
       flip_axes: all
       rotation90_axes: [[1, 2]]
-      select_channel: [0, 1, 2] # aff=1
-      #select_channel: [6, 9, 4] # aff=3
+      #select_channel: [0, 1, 2] # aff=1
+      select_channel: [6, 9, 4] # aff=3
     postprocessing:
       enabled: true
       # Crop the padded prediction so the later DeepEM affinity crop lands back
@@ -83,7 +83,7 @@ test:
       resolution: [30, 6, 6]
   inference:
     decoding:
-    - profile: decoding_waterz
+    - template: decoding_waterz
       kwargs:
         thresholds: 0.5
         merge_function: aff85_his256

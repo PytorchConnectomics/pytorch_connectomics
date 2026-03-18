@@ -2,7 +2,7 @@ experiment_name: mito_lucchi++
 description: Binary mitochondria segmentation on Lucchi++ EM dataset
 
 _base_:
-  - bases/all_profiles.yaml
+  - ../configs/all_profiles.yaml
 
 default:
   pipeline_profile: binary

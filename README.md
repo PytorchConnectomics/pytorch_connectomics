@@ -182,6 +182,19 @@ just test lucchi++ outputs/lucchi++/$EXPERIMENT_DATE/checkpoints/best.ckpt
 - 🔧 **[Troubleshooting](TROUBLESHOOTING.md)** - Common issues and solutions
 - 👨‍💻 **[Developer Guide](.claude/CLAUDE.md)** - Contributing and architecture
 
+## Config Layout
+
+- `tutorials/*.yaml`: runnable experiment configs
+- `configs/profiles/*.yaml`: section-level registries selected by `*.profile`
+- `configs/templates/*.yaml`: explicit list-item templates, currently used for `inference.decoding`
+
+Merge rule:
+
+- Profile payloads are merged into the target section as the base config.
+- Explicit keys in the tutorial/config override profile keys.
+- Explicit lists replace profile lists; they are not additive.
+- Canonical decoding syntax is explicit list expansion, for example `inference.decoding: [{template: decoding_waterz}]`.
+
 ---
 
 ## Example: Train a Model

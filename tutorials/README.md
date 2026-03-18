@@ -23,16 +23,22 @@ python scripts/main.py --config tutorials/<config>.yaml
 
 Top-level configs now use inheritance via `_base_`:
 
-- `tutorials/bases/common.yaml`: Shared defaults across top-level tutorials.
-- `tutorials/bases/arch_profiles.yaml`: Architecture profile presets (`mednext_s`, `mednext_b`, `mednext_m`, `mednext_l`, `monai_unet`, `rsunet`).
-- `tutorials/bases/loss_profiles.yaml`: Reusable loss presets (for example `loss_bcd`).
-- Top-level tutorials should keep selector-only `shared` keys (for example `shared.arch_profile`, `shared.loss_profile`).
+- `configs/all_profiles.yaml`: Canonical registry index loaded by top-level tutorials.
+- `configs/profiles/*.yaml`: Section-level registries selected by `*.profile`.
+- `configs/templates/*.yaml`: Explicit list-item templates, currently used for `inference.decoding`.
 
 `_base_` supports:
 
-- A single file path (`_base_: bases/common.yaml`)
+- A single file path (`_base_: ../configs/all_profiles.yaml`)
 - A list of files (`_base_: [a.yaml, b.yaml]`) with left-to-right merge order
 - Relative paths resolved from the current config file
+
+Merge semantics:
+
+- Profile payloads are merged into the destination section first.
+- Explicit keys in the tutorial override profile keys.
+- Explicit lists replace profile lists; they are not additive.
+- Canonical decoding syntax is explicit list templating: `- template: decoding_waterz`.
 
 ## Validation
 

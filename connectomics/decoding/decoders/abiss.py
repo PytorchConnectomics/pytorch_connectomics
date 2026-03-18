@@ -224,7 +224,7 @@ def decode_abiss(
         temp_ctx = tempfile.TemporaryDirectory(prefix="decode_abiss_", dir=tempfile.gettempdir())
         workspace_path = Path(temp_ctx.name).resolve()
     launch_cwd = Path.cwd().resolve()
-    package_root = Path(__file__).resolve().parents[2]
+    repo_root = Path(__file__).resolve().parents[3]
 
     search_roots: List[Path] = []
     for root in (
@@ -235,7 +235,7 @@ def decode_abiss(
             if "HYDRA_ORIGINAL_CWD" in os.environ
             else None
         ),
-        package_root,
+        repo_root,
     ):
         if root is None:
             continue
