@@ -6,7 +6,7 @@ import numpy as np
 
 from connectomics.config import Config
 from connectomics.data.io import read_hdf5
-from connectomics.data.process.nnunet_preprocess import NNUNetPreprocessd
+from connectomics.data.processing.nnunet_preprocess import NNUNetPreprocessd
 from connectomics.inference.output import _restore_prediction_to_input_space, write_outputs
 
 

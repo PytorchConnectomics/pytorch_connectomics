@@ -79,6 +79,7 @@ class SavePredictionConfig:
     output_formats: List[str] = field(default_factory=lambda: ["h5"])  # Any of: h5, tiff, png
     output_path: Optional[str] = None
     cache_suffix: str = "_x1_prediction.h5"
+    save_all_heads: bool = False
 
     # Data scaling and output typing
     # -1 keeps native float probabilities/logits; >0 scales and casts to integer dtype if chosen.
@@ -189,6 +190,9 @@ class InferenceConfig:
     Note: stage-specific overrides are merged before runtime; consumers should read `cfg.inference`.
     """
 
+    # Named output head selection for multi-head models. When unset, falls back
+    # to model.primary_head or the sole configured head.
+    head: Optional[str] = None
     sliding_window: SlidingWindowConfig = field(default_factory=SlidingWindowConfig)
     test_time_augmentation: TestTimeAugmentationConfig = field(
         default_factory=TestTimeAugmentationConfig

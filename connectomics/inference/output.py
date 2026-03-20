@@ -51,11 +51,7 @@ def resolve_output_filenames(
         if isinstance(images, (str, os.PathLike)):
             filenames = [str(images)]
         elif isinstance(images, (list, tuple)):
-            filenames = [
-                str(image)
-                for image in images
-                if isinstance(image, (str, os.PathLike))
-            ]
+            filenames = [str(image) for image in images if isinstance(image, (str, os.PathLike))]
             if filenames:
                 batch_size = max(batch_size, len(filenames))
 
@@ -345,7 +341,7 @@ def apply_postprocessing(cfg: Config | DictConfig, data: np.ndarray) -> np.ndarr
 
     binary_config = getattr(postprocessing, "binary", None)
     if binary_config is not None and getattr(binary_config, "enabled", False):
-        from connectomics.decoding.postprocess.postprocess import apply_binary_postprocessing
+        from connectomics.decoding.postprocessing.postprocessing import apply_binary_postprocessing
 
         if data.ndim in (4, 5):
             batch_size = data.shape[0]

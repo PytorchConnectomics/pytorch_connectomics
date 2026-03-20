@@ -42,6 +42,23 @@ class SimpleModel(nn.Module):
         return output
 
 
+class SimpleMultiHeadModel(nn.Module):
+    """Tiny model that returns named task heads at the main output scale."""
+
+    def __init__(self):
+        super().__init__()
+        self.affinity = nn.Conv3d(1, 2, kernel_size=3, padding=1)
+        self.sdt = nn.Conv3d(1, 1, kernel_size=3, padding=1)
+
+    def forward(self, x: torch.Tensor):
+        return {
+            "output": {
+                "affinity": self.affinity(x),
+                "sdt": self.sdt(x),
+            }
+        }
+
+
 def _base_config() -> Config:
     cfg = Config()
     cfg.model.loss.losses = [
@@ -90,6 +107,137 @@ def test_training_step_uses_deep_supervision_branch():
 
     assert branch_called["used"]
     assert torch.isfinite(loss)
+
+
+def test_training_step_accepts_named_multi_head_outputs():
+    """Training should route named-head outputs through the standard loss path."""
+    cfg = Config()
+    cfg.model.out_channels = 3
+    cfg.model.primary_head = "affinity"
+    cfg.model.heads = {
+        "affinity": {"out_channels": 2, "num_blocks": 0},
+        "sdt": {"out_channels": 1, "num_blocks": 0},
+    }
+    cfg.model.loss.losses = [
+        {
+            "function": "DiceLoss",
+            "weight": 1.0,
+            "pred_head": "affinity",
+            "target_slice": "0:2",
+        },
+        {
+            "function": "WeightedMSELoss",
+            "weight": 1.0,
+            "pred_head": "sdt",
+            "target_slice": "2:3",
+        },
+    ]
+    module = ConnectomicsModule(cfg, model=SimpleMultiHeadModel())
+    _stub_logging(module)
+
+    batch = {
+        "image": torch.rand(2, 1, 8, 8, 8),
+        "label": torch.rand(2, 3, 8, 8, 8),
+    }
+
+    loss = module.training_step(batch, 0)
+
+    assert torch.isfinite(loss)
+    assert loss.requires_grad
+
+
+def test_validation_step_logs_metrics_for_named_head_output():
+    """Validation metrics should select the configured named head and target slice."""
+    cfg = Config()
+    cfg.model.out_channels = 3
+    cfg.model.primary_head = "affinity"
+    cfg.model.heads = {
+        "affinity": {"out_channels": 2, "num_blocks": 0},
+        "sdt": {"out_channels": 1, "num_blocks": 0},
+    }
+    cfg.inference.head = "sdt"
+    cfg.inference.evaluation.enabled = True
+    cfg.inference.evaluation.metrics = ["accuracy"]
+    cfg.model.loss.losses = [
+        {
+            "function": "DiceLoss",
+            "weight": 1.0,
+            "pred_head": "affinity",
+            "target_slice": "0:2",
+        },
+        {
+            "function": "WeightedMSELoss",
+            "weight": 1.0,
+            "pred_head": "sdt",
+            "target_slice": "2:3",
+        },
+    ]
+    module = ConnectomicsModule(cfg, model=SimpleMultiHeadModel())
+    logged_names: list[str] = []
+    _stub_logging(module, sink=logged_names)
+    module.on_validation_start()
+
+    batch = {
+        "image": torch.rand(1, 1, 6, 6, 6),
+        "label": torch.cat(
+            [
+                torch.rand(1, 2, 6, 6, 6),
+                torch.randint(0, 2, (1, 1, 6, 6, 6)).float(),
+            ],
+            dim=1,
+        ),
+    }
+
+    loss = module.validation_step(batch, 0)
+
+    assert torch.isfinite(loss)
+    assert "val_accuracy" in logged_names
+
+
+def test_validation_step_uses_head_target_slice_mapping_without_loss_target_slice():
+    """Validation should honor model.heads.*.target_slice for the selected head."""
+    cfg = Config()
+    cfg.model.out_channels = 3
+    cfg.model.primary_head = "affinity"
+    cfg.model.heads = {
+        "affinity": {"out_channels": 2, "num_blocks": 0, "target_slice": "0:2"},
+        "sdt": {"out_channels": 1, "num_blocks": 0, "target_slice": "2:3"},
+    }
+    cfg.inference.head = "sdt"
+    cfg.inference.evaluation.enabled = True
+    cfg.inference.evaluation.metrics = ["accuracy"]
+    cfg.model.loss.losses = [
+        {
+            "function": "DiceLoss",
+            "weight": 1.0,
+            "pred_head": "affinity",
+        },
+        {
+            "function": "WeightedMSELoss",
+            "weight": 1.0,
+            "pred_head": "sdt",
+        },
+    ]
+    module = ConnectomicsModule(cfg, model=SimpleMultiHeadModel())
+    logged_names: list[str] = []
+    _stub_logging(module, sink=logged_names)
+    module.on_validation_start()
+
+    batch = {
+        "image": torch.rand(1, 1, 6, 6, 6),
+        "label": torch.cat(
+            [
+                torch.rand(1, 2, 6, 6, 6),
+                torch.randint(0, 2, (1, 1, 6, 6, 6)).float(),
+            ],
+            dim=1,
+        ),
+    }
+
+    loss = module.validation_step(batch, 0)
+
+    assert torch.isfinite(loss)
+    assert "val_accuracy" in logged_names
 
 
 def test_validation_step_logs_metrics_when_enabled():
@@ -210,6 +358,37 @@ def test_resolve_test_output_config_includes_checkpoint_name_in_tta_suffix(monke
     assert filenames == ["sample_a"]
 
 
+def test_resolve_test_output_config_includes_output_head_in_tta_suffix(monkeypatch):
+    cfg = _base_config()
+    cfg.model.out_channels = 3
+    cfg.model.primary_head = "affinity"
+    cfg.model.heads = {
+        "affinity": {"out_channels": 2, "num_blocks": 0},
+        "sdt": {"out_channels": 1, "num_blocks": 0},
+    }
+    cfg.inference.head = "sdt"
+    cfg.inference.save_prediction.output_path = "/tmp/test_results"
+    cfg.inference.save_prediction.cache_suffix = "_x1_prediction.h5"
+    cfg.inference.test_time_augmentation.enabled = True
+    cfg.inference.test_time_augmentation.flip_axes = None
+    cfg.inference.test_time_augmentation.rotation90_axes = None
+    module = ConnectomicsModule(cfg, model=SimpleMultiHeadModel())
+
+    monkeypatch.setattr(
+        "connectomics.training.lightning.model.resolve_output_filenames",
+        lambda _cfg, _batch, global_step=0: ["sample_a"],
+    )
+
+    mode, output_dir, cache_suffix, filenames = ConnectomicsModule._resolve_test_output_config(
+        module, batch={}
+    )
+
+    assert mode == "test"
+    assert output_dir == "/tmp/test_results"
+    assert cache_suffix == "_tta_x1_head-sdt_prediction.h5"
+    assert filenames == ["sample_a"]
+
+
 def test_save_metrics_to_file_uses_runtime_inference_output_path(tmp_path):
     """Metrics should be written under cfg.inference.save_prediction.output_path."""
     cfg = _base_config()
@@ -260,9 +439,7 @@ def test_save_metrics_to_file_matches_final_prediction_tag(tmp_path):
     assert tsv_path.exists()
     lines = tsv_path.read_text().strip().splitlines()
     assert "input_tta_prediction_name" in lines[0]
-    assert (
-        "test-input_tta_x1_ch0-1-2_ckpt-best_prediction.h5" in lines[1]
-    )
+    assert "test-input_tta_x1_ch0-1-2_ckpt-best_prediction.h5" in lines[1]
 
 
 def test_load_cached_predictions_reads_existing_prediction_files(tmp_path, monkeypatch):
@@ -349,7 +526,9 @@ def test_load_cached_predictions_does_not_pick_legacy_tta_cache_when_checkpoint_
     cfg = _base_config()
     cfg.inference.test_time_augmentation.enabled = True
     module = ConnectomicsModule(cfg, model=SimpleModel())
-    module._prediction_checkpoint_path = "/tmp/checkpoints/epoch=074-train_loss_total_epoch=1.0462.ckpt"
+    module._prediction_checkpoint_path = (
+        "/tmp/checkpoints/epoch=074-train_loss_total_epoch=1.0462.ckpt"
+    )
 
     legacy_tta_file = tmp_path / "sample_tta_x1_prediction.h5"
     legacy_tta_file.write_text("stub")

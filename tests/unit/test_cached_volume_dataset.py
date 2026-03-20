@@ -1,6 +1,6 @@
 import numpy as np
 
-from connectomics.data.dataset.dataset_volume_cached import CachedVolumeDataset
+from connectomics.data.datasets.dataset_volume_cached import CachedVolumeDataset
 
 
 def test_cached_volume_dataset_uses_configured_pad_mode_for_label_and_mask(monkeypatch):
@@ -11,7 +11,7 @@ def test_cached_volume_dataset_uses_configured_pad_mode_for_label_and_mask(monke
     }
 
     monkeypatch.setattr(
-        "connectomics.data.dataset.dataset_volume_cached.read_volume",
+        "connectomics.data.datasets.dataset_volume_cached.read_volume",
         lambda path: arrays[path].copy(),
     )
 

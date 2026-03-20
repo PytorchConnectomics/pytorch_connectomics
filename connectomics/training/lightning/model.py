@@ -8,7 +8,7 @@ This module implements the Lightning interface with:
 - Automatic distributed training, mixed precision, checkpointing
 
 The implementation delegates to specialized modules:
-- connectomics.training.loss: Loss orchestration and weighting (PyTorch-only)
+- connectomics.training.losses: Loss orchestration and weighting (PyTorch-only)
 - connectomics.inference: Sliding window inference and test-time augmentation
 - connectomics.training.debugging: NaN detection and debugging utilities
 """
@@ -43,8 +43,20 @@ from ...metrics.metrics_seg import (
     VariationOfInformation,
 )
 from ...models import build_model
-from ...models.loss import create_loss, get_loss_metadata_for_module
+from ...models.losses import create_loss, get_loss_metadata_for_module
+from ...utils import (
+    resolve_channel_range,
+    resolve_configured_output_head,
+    resolve_head_target_slice,
+    select_output_tensor,
+)
 from ..debugging import DebugManager
+
+# Import training/inference components
+from ..losses import LossOrchestrator, build_loss_weighter, infer_num_loss_tasks_from_config
+from ..model_weights import load_external_weights
+from ..optimization import build_lr_scheduler, build_optimizer
+from .test_pipeline import compute_test_metrics, log_test_epoch_metrics, run_test_step
 from .utils import (
     final_prediction_output_tag,
     format_checkpoint_name_tag,
@@ -53,12 +65,6 @@ from .utils import (
     tta_cache_suffix,
     tta_cache_suffix_candidates,
 )
-
-# Import training/inference components
-from ..loss import LossOrchestrator, build_loss_weighter, infer_num_loss_tasks_from_config
-from ..model_weights import load_external_weights
-from ..optim import build_lr_scheduler, build_optimizer
-from .test_pipeline import compute_test_metrics, log_test_epoch_metrics, run_test_step
 
 logger = logging.getLogger(__name__)
 
@@ -258,6 +264,94 @@ class ConnectomicsModule(pl.LightningModule):
         ]
         return len(pred_target_terms) > 1
 
+    def _resolve_named_output_channels(self, *, purpose: str) -> Optional[int]:
+        model_heads = getattr(self.cfg.model, "heads", None) or {}
+        if not model_heads:
+            return None
+
+        selected_head = resolve_configured_output_head(
+            self.cfg,
+            purpose=purpose,
+            allow_none=True,
+        )
+        if selected_head is None or selected_head not in model_heads:
+            return None
+        return int(self._cfg_value(model_heads[selected_head], "out_channels", 0))
+
+    @staticmethod
+    def _slice_tensor_channels(
+        tensor: torch.Tensor,
+        channel_selector,
+        *,
+        context: str,
+    ) -> torch.Tensor:
+        start_idx, end_idx = resolve_channel_range(
+            channel_selector,
+            num_channels=int(tensor.shape[1]),
+            context=context,
+        )
+        return tensor[:, start_idx:end_idx, ...]
+
+    def _resolve_validation_target_slice(self, head_name: str):
+        """Infer the supervised label slice corresponding to a named output head."""
+        explicit_target_slice = resolve_head_target_slice(self.cfg, head_name)
+        if explicit_target_slice is not None:
+            return explicit_target_slice
+
+        primary_head = getattr(self.cfg.model, "primary_head", None)
+        matching_slices = []
+        for term in self.loss_orchestrator.loss_term_specs:
+            if term.call_kind != "pred_target":
+                continue
+            resolved_head = term.pred_head if term.pred_head is not None else primary_head
+            if resolved_head == head_name:
+                if term.target_slice not in matching_slices:
+                    matching_slices.append(term.target_slice)
+
+        if not matching_slices:
+            raise ValueError(
+                f"Validation metric computation could not find any pred_target loss term for "
+                f"head '{head_name}'."
+            )
+        if len(matching_slices) > 1:
+            raise ValueError(
+                f"Validation metric computation found multiple target slices for head "
+                f"'{head_name}': {matching_slices}. Configure a single supervised label slice "
+                "for the evaluated head."
+            )
+        return matching_slices[0]
+
+    @staticmethod
+    def _prepare_metric_predictions(
+        prediction: torch.Tensor,
+        target: torch.Tensor,
+        *,
+        prediction_threshold: float,
+    ) -> tuple[torch.Tensor, torch.Tensor]:
+        """Normalize prediction/target tensors for torchmetrics consumption."""
+        if int(prediction.shape[1]) == 1:
+            if int(target.shape[1]) != 1:
+                raise ValueError(
+                    "Binary metric computation expects a single target channel, got "
+                    f"{tuple(target.shape)}."
+                )
+            preds = (prediction.squeeze(1) > prediction_threshold).long()
+            targets = target.squeeze(1).long()
+            return preds, targets
+
+        preds = torch.argmax(prediction, dim=1)
+        if int(target.shape[1]) == 1:
+            targets = target.squeeze(1).long()
+        elif int(target.shape[1]) == int(prediction.shape[1]):
+            targets = torch.argmax(target, dim=1).long()
+        else:
+            raise ValueError(
+                "Multiclass metric computation requires either a single class-index target "
+                "channel or the same number of one-hot channels as the prediction. "
+                f"Got prediction.shape={tuple(prediction.shape)} and target.shape={tuple(target.shape)}."
+            )
+        return preds, targets
+
     def _create_metrics(
         self,
         prefix: str,
@@ -345,7 +439,15 @@ class ConnectomicsModule(pl.LightningModule):
                 inference_eval_defaults.instance_iou_threshold,
             )
         )
-        num_classes = self.cfg.model.out_channels if hasattr(self.cfg.model, "out_channels") else 2
+        named_output_channels = self._resolve_named_output_channels(
+            purpose="test metric setup",
+        )
+        if named_output_channels == 1:
+            num_classes = 1
+        else:
+            num_classes = (
+                self.cfg.model.out_channels if hasattr(self.cfg.model, "out_channels") else 2
+            )
         self._create_metrics(
             "test_", metrics, num_classes, num_classes == 1, instance_iou_threshold
         )
@@ -367,9 +469,18 @@ class ConnectomicsModule(pl.LightningModule):
             self._val_metrics_initialized = True
             return
 
-        is_multi_task = self._has_multiple_supervised_loss_tasks()
-        num_classes = self.cfg.model.out_channels if hasattr(self.cfg.model, "out_channels") else 2
-        use_binary = is_multi_task or num_classes == 1
+        named_output_channels = self._resolve_named_output_channels(
+            purpose="validation metric setup",
+        )
+        if named_output_channels is not None:
+            num_classes = named_output_channels
+            use_binary = num_classes == 1
+        else:
+            is_multi_task = self._has_multiple_supervised_loss_tasks()
+            num_classes = (
+                self.cfg.model.out_channels if hasattr(self.cfg.model, "out_channels") else 2
+            )
+            use_binary = is_multi_task or num_classes == 1
         self._create_metrics("val_", metrics, num_classes, use_binary)
         self._val_metrics_initialized = True
 
@@ -443,7 +554,9 @@ class ConnectomicsModule(pl.LightningModule):
             if path_value:
                 return path_value
 
-        external_weights_path = getattr(getattr(self.cfg, "model", None), "external_weights_path", None)
+        external_weights_path = getattr(
+            getattr(self.cfg, "model", None), "external_weights_path", None
+        )
         if isinstance(external_weights_path, str) and external_weights_path.strip():
             return external_weights_path.strip()
 
@@ -719,7 +832,8 @@ class ConnectomicsModule(pl.LightningModule):
         systematic experiment tracking (autoresearch-style).
         """
         from pathlib import Path
-        from ...decoding.pipeline import resolve_decode_modes_from_cfg, normalize_decode_modes
+
+        from ...decoding.pipeline import normalize_decode_modes, resolve_decode_modes_from_cfg
 
         decode_modes = resolve_decode_modes_from_cfg(self.cfg)
         if not decode_modes:
@@ -734,24 +848,34 @@ class ConnectomicsModule(pl.LightningModule):
             decode_params["decoder"] = step.name
             decode_params.update(step.kwargs)
 
-        input_tta_prediction_name = (
-            f"{volume_name}{tta_cache_suffix(self.cfg, checkpoint_path=self._get_prediction_checkpoint_path())}"
-        )
+        input_tta_prediction_name = f"{volume_name}{tta_cache_suffix(self.cfg, checkpoint_path=self._get_prediction_checkpoint_path())}"
 
         # Columns: timestamp, volume, decoder params..., metrics...
         # Use a fixed column order for readability
         param_keys = [
-            "decoder", "thresholds", "merge_function", "aff_threshold",
-            "channel_order", "dust_merge", "dust_merge_size", "dust_merge_affinity",
+            "decoder",
+            "thresholds",
+            "merge_function",
+            "aff_threshold",
+            "channel_order",
+            "dust_merge",
+            "dust_merge_size",
+            "dust_merge_affinity",
             "dust_remove_size",
         ]
         metric_keys = [
-            "adapted_rand_error", "voi_split", "voi_merge", "voi_total",
-            "instance_precision_detail", "instance_recall_detail",
+            "adapted_rand_error",
+            "voi_split",
+            "voi_merge",
+            "voi_total",
+            "instance_precision_detail",
+            "instance_recall_detail",
             "instance_f1_detail",
         ]
 
-        header_cols = ["timestamp", "volume", "input_tta_prediction_name"] + param_keys + metric_keys
+        header_cols = (
+            ["timestamp", "volume", "input_tta_prediction_name"] + param_keys + metric_keys
+        )
         row_vals = [timestamp, volume_name, input_tta_prediction_name]
         for k in param_keys:
             row_vals.append(str(decode_params.get(k, "")))
@@ -838,10 +962,17 @@ class ConnectomicsModule(pl.LightningModule):
         metrics = self._cfg_value(evaluation_cfg, "metrics", None)
 
         if evaluation_enabled and metrics is not None:
-            if isinstance(outputs, dict) and "output" in outputs:
-                main_output = outputs["output"]
-            else:
-                main_output = outputs
+            requested_head = resolve_configured_output_head(
+                self.cfg,
+                purpose="validation metric computation",
+                allow_none=True,
+            )
+            main_output, resolved_head = select_output_tensor(
+                outputs,
+                requested_head=requested_head,
+                primary_head=getattr(self.cfg.model, "primary_head", None),
+                purpose="validation metric computation",
+            )
 
             is_multi_task = self._has_multiple_supervised_loss_tasks()
             inference_eval_defaults = self._get_runtime_inference_config().evaluation
@@ -851,7 +982,23 @@ class ConnectomicsModule(pl.LightningModule):
                 inference_eval_defaults.prediction_threshold,
             )
 
-            if is_multi_task:
+            if resolved_head is not None:
+                target_slice = self._resolve_validation_target_slice(resolved_head)
+                target_tensor = (
+                    labels
+                    if target_slice is None
+                    else self._slice_tensor_channels(
+                        labels,
+                        target_slice,
+                        context=f"validation target slice for head '{resolved_head}'",
+                    )
+                )
+                preds, targets = self._prepare_metric_predictions(
+                    main_output,
+                    target_tensor,
+                    prediction_threshold=prediction_threshold,
+                )
+            elif is_multi_task:
                 binary_output = main_output[:, 0:1, ...]
                 binary_target = labels[:, 0:1, ...]
                 preds = (binary_output.squeeze(1) > prediction_threshold).long()

@@ -1,6 +1,6 @@
 """Post-processing utilities for segmentation refinement."""
 
-from .postprocess import (
+from .postprocessing import (
     add_masks,
     apply_binary_postprocessing,
     binarize_and_median,

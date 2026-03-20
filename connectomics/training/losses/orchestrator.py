@@ -8,7 +8,7 @@ including multi-task target routing and optional task weighting.
 from __future__ import annotations
 
 import logging
-from typing import Callable, Dict, List, Optional, Tuple
+from typing import Any, Callable, Dict, List, Mapping, Optional, Tuple
 
 import torch
 import torch.nn as nn
@@ -16,7 +16,7 @@ import torch.nn.functional as F
 from omegaconf import DictConfig
 
 from ...config import Config
-from ...models.loss import (
+from ...models.losses import (
     LossMetadata,
     get_loss_metadata_for_module,
 )
@@ -28,7 +28,7 @@ logger = logging.getLogger(__name__)
 
 def _default_affinity_deepem_crop_enabled(cfg) -> bool:
     """Lazy-import bridge to data.process.affinity."""
-    from ...data.process.affinity import affinity_deepem_crop_enabled
+    from ...data.processing.affinity import affinity_deepem_crop_enabled
 
     return affinity_deepem_crop_enabled(cfg)
 
@@ -37,7 +37,7 @@ def _default_crop_spatial_fn(
     tensor: torch.Tensor, offsets: list, *, item_name: str = ""
 ) -> torch.Tensor:
     """Lazy-import bridge to data.process.affinity."""
-    from ...data.process.affinity import crop_spatial_by_offsets
+    from ...data.processing.affinity import crop_spatial_by_offsets
 
     return crop_spatial_by_offsets(tensor, offsets, item_name=item_name)
 
@@ -48,14 +48,14 @@ def _default_compute_valid_mask(
     device: torch.device | None = None,
 ) -> torch.Tensor:
     """Lazy-import bridge to data.process.affinity."""
-    from ...data.process.affinity import compute_affinity_valid_mask
+    from ...data.processing.affinity import compute_affinity_valid_mask
 
     return compute_affinity_valid_mask(offsets, spatial_shape, device=device)
 
 
 def _default_resolve_affinity_offsets(cfg, *, num_channels: int, channel_slice):
     """Lazy-import bridge to data.process.affinity."""
-    from ...data.process.affinity import resolve_affinity_offsets_for_channel_slice
+    from ...data.processing.affinity import resolve_affinity_offsets_for_channel_slice
 
     return resolve_affinity_offsets_for_channel_slice(
         cfg,
@@ -287,6 +287,80 @@ class LossOrchestrator:
             context="channel slice",
         )
 
+    def _get_output_device(
+        self, output: Any, *, fallback: Optional[torch.device] = None
+    ) -> torch.device:
+        if isinstance(output, torch.Tensor):
+            return output.device
+        if isinstance(output, Mapping):
+            for value in output.values():
+                try:
+                    return self._get_output_device(value, fallback=fallback)
+                except TypeError:
+                    continue
+        if fallback is not None:
+            return fallback
+        raise TypeError(f"Could not infer output device from output type {type(output).__name__}.")
+
+    @staticmethod
+    def _unwrap_main_output(outputs: Any) -> Any:
+        """Normalize standard outputs to either a tensor or a named-head mapping."""
+        if isinstance(outputs, Mapping) and "output" in outputs:
+            return outputs["output"]
+        return outputs
+
+    def _select_prediction_tensor(
+        self,
+        outputs: Any,
+        *,
+        requested_head: Optional[str],
+        term_name: str,
+        role: str,
+    ) -> torch.Tensor:
+        normalized_output = self._unwrap_main_output(outputs)
+        if isinstance(normalized_output, torch.Tensor):
+            if requested_head is not None:
+                raise ValueError(
+                    f"Loss term '{term_name}' requested {role}_head='{requested_head}' but "
+                    "the model output is a single tensor."
+                )
+            return normalized_output
+
+        if not isinstance(normalized_output, Mapping):
+            raise TypeError(
+                f"Expected model output for loss computation to be a tensor or mapping, got "
+                f"{type(normalized_output).__name__}."
+            )
+        if not normalized_output:
+            raise ValueError("Named-head model output mapping is empty.")
+
+        resolved_head = requested_head
+        if resolved_head is None:
+            primary_head = getattr(self.cfg.model, "primary_head", None)
+            if primary_head is not None and primary_head in normalized_output:
+                resolved_head = primary_head
+            elif len(normalized_output) == 1:
+                resolved_head = next(iter(normalized_output.keys()))
+            else:
+                raise ValueError(
+                    f"Loss term '{term_name}' did not specify {role}_head and model.primary_head "
+                    f"is unset, but model output has multiple heads {sorted(normalized_output.keys())}."
+                )
+
+        if resolved_head not in normalized_output:
+            raise ValueError(
+                f"Loss term '{term_name}' requested {role}_head='{resolved_head}', but available "
+                f"output heads are {sorted(normalized_output.keys())}."
+            )
+
+        resolved_tensor = normalized_output[resolved_head]
+        if not isinstance(resolved_tensor, torch.Tensor):
+            raise TypeError(
+                f"Output head '{resolved_head}' for loss term '{term_name}' must be a tensor, got "
+                f"{type(resolved_tensor).__name__}."
+            )
+        return resolved_tensor
+
     def _slice_channels(
         self,
         tensor: torch.Tensor,
@@ -328,7 +402,7 @@ class LossOrchestrator:
 
     def _compute_explicit_terms_for_output(
         self,
-        output: torch.Tensor,
+        output: Any,
         labels: torch.Tensor,
         *,
         stage: str,
@@ -358,13 +432,30 @@ class LossOrchestrator:
                 is_main_scale=is_main_scale,
             )
 
+            pred_source = self._select_prediction_tensor(
+                output,
+                requested_head=term.pred_head,
+                term_name=term.name,
+                role="pred",
+            )
             pred = (
-                output if term.pred_slice is None else self._slice_channels(output, term.pred_slice)
+                pred_source
+                if term.pred_slice is None
+                else self._slice_channels(pred_source, term.pred_slice)
+            )
+            pred2_requested_head = (
+                term.pred2_head if term.pred2_head is not None else term.pred_head
+            )
+            pred2_source = self._select_prediction_tensor(
+                output,
+                requested_head=pred2_requested_head,
+                term_name=term.name,
+                role="pred2",
             )
             pred2 = (
-                output
+                pred2_source
                 if term.pred2_slice is None
-                else self._slice_channels(output, term.pred2_slice)
+                else self._slice_channels(pred2_source, term.pred2_slice)
             )
             if call_kind == "pred_target":
                 target = (
@@ -581,7 +672,13 @@ class LossOrchestrator:
             loss_dict[f"{term_prefix}_weighted"] = weighted_term_loss.item()
 
         if len(task_losses) == 0:
-            return torch.tensor(0.0, device=output.device), loss_dict
+            return (
+                torch.tensor(
+                    0.0,
+                    device=self._get_output_device(output, fallback=labels.device),
+                ),
+                loss_dict,
+            )
         total_loss, task_weights, weighting_logs = self._apply_task_weighting(
             task_losses, task_names_in_order, stage=stage
         )
@@ -598,7 +695,7 @@ class LossOrchestrator:
 
     def compute_loss_for_scale(
         self,
-        output: torch.Tensor,
+        output: Any,
         target: torch.Tensor,
         scale_idx: int,
         stage: str = "train",
@@ -621,7 +718,7 @@ class LossOrchestrator:
 
     def compute_deep_supervision_loss(
         self,
-        outputs: Dict[str, torch.Tensor],
+        outputs: Dict[str, Any],
         labels: torch.Tensor,
         stage: str = "train",
         mask: Optional[torch.Tensor] = None,
@@ -660,7 +757,7 @@ class LossOrchestrator:
 
     def compute_standard_loss(
         self,
-        outputs: torch.Tensor,
+        outputs: Any,
         labels: torch.Tensor,
         stage: str = "train",
         mask: Optional[torch.Tensor] = None,

@@ -52,13 +52,33 @@ class InferenceManager:
         images: torch.Tensor,
         mask: Optional[torch.Tensor] = None,
         mask_align_to_image: bool = False,
+        requested_head: Optional[str] = None,
     ) -> torch.Tensor:
         """Run prediction with optional TTA and sliding window."""
         return self.tta.predict(
             images,
             mask=mask,
             mask_align_to_image=mask_align_to_image,
+            requested_head=requested_head,
         )
+
+    def predict_named_heads_with_tta(
+        self,
+        images: torch.Tensor,
+        heads: list[str],
+        mask: Optional[torch.Tensor] = None,
+        mask_align_to_image: bool = False,
+    ) -> dict[str, torch.Tensor]:
+        """Run prediction once per requested head and return a mapping of tensors."""
+        predictions: dict[str, torch.Tensor] = {}
+        for head_name in heads:
+            predictions[head_name] = self.predict_with_tta(
+                images,
+                mask=mask,
+                mask_align_to_image=mask_align_to_image,
+                requested_head=head_name,
+            )
+        return predictions
 
     def is_distributed_tta_sharding_enabled(self) -> bool:
         """Return whether distributed TTA sharding is active for this process."""

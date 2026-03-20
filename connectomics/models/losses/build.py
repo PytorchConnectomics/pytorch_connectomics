@@ -4,7 +4,7 @@ MONAI-native loss functions for PyTorch Connectomics.
 This module provides loss function composition using MONAI's native losses,
 with additional connectomics-specific loss functions as needed.
 
-Design pattern inspired by transforms/augment/monai_compose.py.
+Design pattern aligned with the rest of the normalized package layout.
 """
 
 from __future__ import annotations

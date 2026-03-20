@@ -4,19 +4,19 @@ import pytest
 import torch
 import torch.nn as nn
 
-from connectomics.models.loss import LossMetadata, create_loss
-from connectomics.models.loss.losses import WeightedBCEWithLogitsLoss, WeightedMSELoss
-from connectomics.training.loss import LossOrchestrator
+from connectomics.models.losses import LossMetadata, create_loss
+from connectomics.models.losses.losses import WeightedBCEWithLogitsLoss, WeightedMSELoss
+from connectomics.training.losses import LossOrchestrator
 
 
-def _cfg(losses=None):
+def _cfg(losses=None, *, heads=None, primary_head=None):
     loss = SimpleNamespace(
         deep_supervision_clamp_min=-20.0,
         deep_supervision_clamp_max=20.0,
         deep_supervision_weights=None,
         losses=losses,
     )
-    model = SimpleNamespace(loss=loss)
+    model = SimpleNamespace(loss=loss, heads=heads or {}, primary_head=primary_head)
     data = SimpleNamespace(
         label_transform=SimpleNamespace(
             targets=[],
@@ -716,6 +716,205 @@ def test_multitask_single_scale_routes_class_index_and_dense_targets():
     assert ce_loss.target_shapes == [(1, 1, 4, 4, 4)]
     assert len(reg_loss.calls) == 1
     assert reg_loss.calls[0]["weight"] is not None
+
+
+def test_multitask_named_heads_route_pred_target_terms():
+    affinity_loss = WeightAwareSpyLoss()
+    sdt_loss = WeightAwareSpyLoss()
+    cfg = _cfg(
+        losses=[
+            {
+                "pred_head": "affinity",
+                "target_slice": "0:9",
+                "weight": 1.0,
+            },
+            {
+                "pred_head": "sdt",
+                "target_slice": "9:10",
+                "weight": 1.0,
+            },
+        ],
+        heads={
+            "affinity": SimpleNamespace(out_channels=9, num_blocks=1),
+            "sdt": SimpleNamespace(out_channels=1, num_blocks=0),
+        },
+        primary_head="affinity",
+    )
+    orchestrator = LossOrchestrator(
+        cfg=cfg,
+        loss_functions=nn.ModuleList([affinity_loss, sdt_loss]),
+        loss_weights=[1.0, 1.0],
+        enable_nan_detection=False,
+        debug_on_nan=False,
+    )
+
+    outputs = {
+        "output": {
+            "affinity": torch.randn(1, 9, 4, 4, 4),
+            "sdt": torch.randn(1, 1, 4, 4, 4),
+        }
+    }
+    labels = torch.randn(1, 10, 4, 4, 4)
+
+    total_loss, loss_dict = orchestrator.compute_standard_loss(outputs, labels, stage="train")
+
+    assert torch.isfinite(total_loss)
+    assert "train_loss_total" in loss_dict
+    assert affinity_loss.calls[0]["pred_shape"] == (1, 9, 4, 4, 4)
+    assert affinity_loss.calls[0]["target_shape"] == (1, 9, 4, 4, 4)
+    assert sdt_loss.calls[0]["pred_shape"] == (1, 1, 4, 4, 4)
+    assert sdt_loss.calls[0]["target_shape"] == (1, 1, 4, 4, 4)
+
+
+def test_multitask_named_heads_default_to_primary_head_when_pred_head_omitted():
+    primary_loss = WeightAwareSpyLoss()
+    cfg = _cfg(
+        losses=[
+            {
+                "target_slice": "9:10",
+                "weight": 1.0,
+            },
+        ],
+        heads={
+            "affinity": SimpleNamespace(out_channels=9, num_blocks=1),
+            "sdt": SimpleNamespace(out_channels=1, num_blocks=0),
+        },
+        primary_head="sdt",
+    )
+    orchestrator = LossOrchestrator(
+        cfg=cfg,
+        loss_functions=nn.ModuleList([primary_loss]),
+        loss_weights=[1.0],
+        enable_nan_detection=False,
+        debug_on_nan=False,
+    )
+
+    outputs = {
+        "output": {
+            "affinity": torch.randn(1, 9, 4, 4, 4),
+            "sdt": torch.randn(1, 1, 4, 4, 4),
+        }
+    }
+    labels = torch.randn(1, 10, 4, 4, 4)
+
+    total_loss, _ = orchestrator.compute_standard_loss(outputs, labels, stage="train")
+
+    assert torch.isfinite(total_loss)
+    assert primary_loss.calls[0]["pred_shape"] == (1, 1, 4, 4, 4)
+    assert primary_loss.calls[0]["target_shape"] == (1, 1, 4, 4, 4)
+
+
+def test_multitask_named_heads_default_target_slice_from_head_config():
+    sdt_loss = WeightAwareSpyLoss()
+    cfg = _cfg(
+        losses=[
+            {
+                "pred_head": "sdt",
+                "weight": 1.0,
+            },
+        ],
+        heads={
+            "affinity": SimpleNamespace(out_channels=9, num_blocks=1, target_slice="0:9"),
+            "sdt": SimpleNamespace(out_channels=1, num_blocks=0, target_slice="9:10"),
+        },
+        primary_head="affinity",
+    )
+    orchestrator = LossOrchestrator(
+        cfg=cfg,
+        loss_functions=nn.ModuleList([sdt_loss]),
+        loss_weights=[1.0],
+        enable_nan_detection=False,
+        debug_on_nan=False,
+    )
+
+    outputs = {
+        "output": {
+            "affinity": torch.randn(1, 9, 4, 4, 4),
+            "sdt": torch.randn(1, 1, 4, 4, 4),
+        }
+    }
+    labels = torch.randn(1, 10, 4, 4, 4)
+
+    total_loss, _ = orchestrator.compute_standard_loss(outputs, labels, stage="train")
+
+    assert torch.isfinite(total_loss)
+    assert sdt_loss.calls[0]["pred_shape"] == (1, 1, 4, 4, 4)
+    assert sdt_loss.calls[0]["target_shape"] == (1, 1, 4, 4, 4)
+
+
+def test_multitask_named_heads_support_pred_pred_across_heads():
+    pred_pred_loss = MaskPredPredSpyLoss()
+    pred_pred_loss._connectomics_loss_metadata = LossMetadata(
+        name="MaskPredPredSpy",
+        call_kind="pred_pred",
+        target_kind="none",
+        spatial_weight_arg="mask",
+    )
+    cfg = _cfg(
+        losses=[
+            {
+                "pred_head": "affinity",
+                "pred_slice": "0:1",
+                "pred2_head": "sdt",
+                "pred2_slice": "0:1",
+                "mask_slice": "0:1",
+                "weight": 1.0,
+            },
+        ],
+        heads={
+            "affinity": SimpleNamespace(out_channels=1, num_blocks=1),
+            "sdt": SimpleNamespace(out_channels=1, num_blocks=0),
+        },
+        primary_head="affinity",
+    )
+    orchestrator = LossOrchestrator(
+        cfg=cfg,
+        loss_functions=nn.ModuleList([pred_pred_loss]),
+        loss_weights=[1.0],
+        enable_nan_detection=False,
+        debug_on_nan=False,
+    )
+
+    outputs = {
+        "output": {
+            "affinity": torch.randn(1, 1, 4, 4, 4),
+            "sdt": torch.randn(1, 1, 4, 4, 4),
+        }
+    }
+    labels = torch.rand(1, 1, 4, 4, 4)
+
+    total_loss, _ = orchestrator.compute_standard_loss(outputs, labels, stage="train")
+
+    assert torch.isfinite(total_loss)
+    assert len(pred_pred_loss.calls) == 1
+    assert pred_pred_loss.calls[0]["pred1_shape"] == (1, 1, 4, 4, 4)
+    assert pred_pred_loss.calls[0]["pred2_shape"] == (1, 1, 4, 4, 4)
+    assert pred_pred_loss.calls[0]["mask_shape"] == (1, 1, 4, 4, 4)
+
+
+def test_multitask_named_heads_require_pred_head_or_primary_head():
+    weight_loss = WeightAwareSpyLoss()
+    cfg = _cfg(
+        losses=[
+            {
+                "target_slice": "0:1",
+                "weight": 1.0,
+            },
+        ],
+        heads={
+            "affinity": SimpleNamespace(out_channels=1, num_blocks=1),
+            "sdt": SimpleNamespace(out_channels=1, num_blocks=0),
+        },
+    )
+
+    with pytest.raises(ValueError, match="must define pred_head or model.primary_head"):
+        LossOrchestrator(
+            cfg=cfg,
+            loss_functions=nn.ModuleList([weight_loss]),
+            loss_weights=[1.0],
+            enable_nan_detection=False,
+            debug_on_nan=False,
+        )
 
 
 def test_deep_supervision_multitask_resizes_targets_per_task_and_applies_pos_weight():

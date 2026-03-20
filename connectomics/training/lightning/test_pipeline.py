@@ -13,13 +13,13 @@ import torch
 import torchmetrics
 from pytorch_lightning.utilities.types import STEP_OUTPUT
 
-from ...data.process.affinity import (
+from ...data.processing.affinity import (
     affinity_deepem_crop_enabled,
     compute_affinity_crop_pad,
     crop_spatial_by_pad,
     resolve_affinity_channel_groups_from_cfg,
 )
-from ...data.process.misc import get_padsize
+from ...data.processing.misc import get_padsize
 from ...inference import apply_postprocessing, apply_save_prediction_transform, write_outputs
 from ...inference.lazy import (
     get_lazy_image_reference_shape,
@@ -28,13 +28,12 @@ from ...inference.lazy import (
 )
 from ...metrics.metrics_seg import AdaptedRandError
 from ...metrics.segmentation_numpy import instance_matching, instance_matching_simple, voi
+from ...utils.model_outputs import get_model_head_names, resolve_output_head
 from .utils import (
-    compute_tta_passes,
     final_prediction_output_tag,
-    format_checkpoint_name_tag,
     format_decode_tag,
-    format_select_channel_tag,
     is_tta_cache_suffix,
+    tta_cache_suffix,
 )
 
 logger = logging.getLogger(__name__)
@@ -853,6 +852,84 @@ def _evaluate_decoded_predictions(
         logger.info("[STAGE: Evaluation] Skipped (evaluation disabled)")
 
 
+def _predict_output_head(
+    module,
+    *,
+    lazy_sample: bool,
+    images: Optional[torch.Tensor],
+    mask: Optional[torch.Tensor],
+    image_path: Optional[str],
+    mask_path: Optional[str],
+    mask_align_to_image: bool,
+    reference_image_shape: tuple[int, ...],
+    requested_head: Optional[str] = None,
+) -> tuple[np.ndarray, tuple[int, ...]]:
+    """Run inference for one selected head and apply the standard prediction crops."""
+    if lazy_sample:
+        if image_path is None:
+            raise ValueError("lazy_sample=True requires image_path to be provided.")
+        predictions = lazy_predict_volume(
+            module.cfg,
+            module.forward,
+            image_path,
+            mask_path=mask_path,
+            mask_align_to_image=mask_align_to_image,
+            device=module.device,
+            requested_head=requested_head,
+        )
+    else:
+        if images is None:
+            raise ValueError("lazy_sample=False requires images to be provided.")
+        predictions = module.inference_manager.predict_with_tta(
+            images,
+            mask=mask,
+            mask_align_to_image=mask_align_to_image,
+            requested_head=requested_head,
+        )
+
+    predictions_np = predictions.detach().cpu().float().numpy()
+    predictions_np = _apply_prediction_crop_pad_if_needed(
+        module,
+        predictions_np,
+        reference_image_shape,
+        item_name="predictions",
+    )
+    reference_spatial_shape = tuple(int(v) for v in predictions_np.shape[-3:])
+    predictions_np = _apply_affinity_inference_crop_if_needed(
+        module,
+        predictions_np,
+        reference_spatial_shape=reference_spatial_shape,
+        item_name="predictions",
+    )
+    return predictions_np, reference_spatial_shape
+
+
+def _save_intermediate_prediction_outputs(
+    module,
+    predictions_np: np.ndarray,
+    *,
+    filenames: list[str],
+    mode: str,
+    batch_meta: Any,
+    output_head: Optional[str] = None,
+) -> None:
+    """Persist one intermediate prediction tensor using the configured TTA suffix."""
+    cache_suffix = tta_cache_suffix(
+        module.cfg,
+        checkpoint_path=module._get_prediction_checkpoint_path(),
+        output_head=output_head,
+    )
+    predictions_to_save = apply_save_prediction_transform(module.cfg, predictions_np)
+    write_outputs(
+        module.cfg,
+        predictions_to_save,
+        filenames,
+        suffix=cache_suffix.removeprefix("_").removesuffix(".h5"),
+        mode=mode,
+        batch_meta=batch_meta,
+    )
+
+
 def run_test_step(module, batch: Dict[str, torch.Tensor], batch_idx: int) -> STEP_OUTPUT:
     """End-to-end test-step workflow with cache reuse and staged processing."""
     if _is_unstacked_test_batch(batch):
@@ -1014,45 +1091,32 @@ def run_test_step(module, batch: Dict[str, torch.Tensor], batch_idx: int) -> STE
     if mask_transform_cfg is not None:
         mask_align_to_image = bool(getattr(mask_transform_cfg, "align_to_image", False))
 
+    selected_output_head = resolve_output_head(
+        module.cfg,
+        purpose="test-time inference",
+        allow_none=True,
+    )
+    predictions_np, reference_spatial_shape = _predict_output_head(
+        module,
+        lazy_sample=lazy_sample,
+        images=images,
+        mask=mask,
+        image_path=image_path if lazy_sample else None,
+        mask_path=mask_path if lazy_sample else None,
+        mask_align_to_image=mask_align_to_image,
+        reference_image_shape=reference_image_shape,
+        requested_head=selected_output_head,
+    )
     if lazy_sample:
-        predictions = lazy_predict_volume(
-            module.cfg,
-            module.forward,
-            image_path,
-            mask_path=mask_path,
-            mask_align_to_image=mask_align_to_image,
-            device=module.device,
-        )
         labels = _maybe_load_lazy_labels(module, batch.get("label"), mode=mode)
-    else:
-        predictions = module.inference_manager.predict_with_tta(
-            images,
-            mask=mask,
-            mask_align_to_image=mask_align_to_image,
-        )
     if distributed_tta_sharding and _should_skip_postprocess_on_rank(module):
         logger.info("Completed local distributed TTA shard; waiting for rank 0 postprocessing.")
         _distributed_tta_barrier(module)
         return torch.tensor(0.0, device=module.device)
-    predictions_np = predictions.detach().cpu().float().numpy()
 
     inference_duration = time.time() - inference_start
     logger.info(
         f"Inference completed in {inference_duration / 60:.2f} minutes ({inference_duration:.1f}s)"
-    )
-
-    predictions_np = _apply_prediction_crop_pad_if_needed(
-        module,
-        predictions_np,
-        reference_image_shape,
-        item_name="predictions",
-    )
-    reference_spatial_shape = tuple(int(v) for v in predictions_np.shape[-3:])
-    predictions_np = _apply_affinity_inference_crop_if_needed(
-        module,
-        predictions_np,
-        reference_spatial_shape=reference_spatial_shape,
-        item_name="predictions",
     )
 
     logger.info("Prediction Summary:")
@@ -1066,18 +1130,42 @@ def run_test_step(module, batch: Dict[str, torch.Tensor], batch_idx: int) -> STE
     if save_intermediate:
         logger.info("[STAGE: Saving Intermediate Predictions]")
         save_start = time.time()
-        tta_passes = compute_tta_passes(module.cfg)
-        ch_tag = format_select_channel_tag(module.cfg)
-        checkpoint_tag = format_checkpoint_name_tag(module._get_prediction_checkpoint_path())
-        predictions_to_save = apply_save_prediction_transform(module.cfg, predictions_np)
-        write_outputs(
-            module.cfg,
-            predictions_to_save,
-            filenames,
-            suffix=f"tta_x{tta_passes}{ch_tag}{checkpoint_tag}_prediction",
+        _save_intermediate_prediction_outputs(
+            module,
+            predictions_np,
+            filenames=filenames,
             mode=mode,
             batch_meta=batch.get("image_meta_dict"),
+            output_head=selected_output_head,
         )
+
+        save_all_heads = bool(getattr(inference_cfg.save_prediction, "save_all_heads", False))
+        model_head_names = get_model_head_names(module.cfg)
+        extra_head_names = [
+            head_name for head_name in model_head_names if head_name != selected_output_head
+        ]
+        if save_all_heads and extra_head_names:
+            logger.info(f"Saving additional output heads: {', '.join(extra_head_names)}")
+            for head_name in extra_head_names:
+                extra_predictions_np, _ = _predict_output_head(
+                    module,
+                    lazy_sample=lazy_sample,
+                    images=images,
+                    mask=mask,
+                    image_path=image_path if lazy_sample else None,
+                    mask_path=mask_path if lazy_sample else None,
+                    mask_align_to_image=mask_align_to_image,
+                    reference_image_shape=reference_image_shape,
+                    requested_head=head_name,
+                )
+                _save_intermediate_prediction_outputs(
+                    module,
+                    extra_predictions_np,
+                    filenames=filenames,
+                    mode=mode,
+                    batch_meta=batch.get("image_meta_dict"),
+                    output_head=head_name,
+                )
         logger.info(f"Intermediate predictions saved ({time.time() - save_start:.1f}s)")
 
     # In tune mode, skip decoding — the Optuna tuner will handle it.

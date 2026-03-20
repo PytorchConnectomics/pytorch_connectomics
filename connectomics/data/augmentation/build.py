@@ -32,7 +32,7 @@ from monai.transforms import (
 
 # Import custom loader for HDF5/TIFF volumes
 from connectomics.data.io.transforms import LoadVolumed
-from connectomics.data.process.nnunet_preprocess import NNUNetPreprocessd
+from connectomics.data.processing.nnunet_preprocess import NNUNetPreprocessd
 
 from ...config.schema import AugmentationConfig, Config
 from .transforms import (
@@ -139,7 +139,7 @@ def build_train_transforms(
 
     # Apply volumetric split if enabled
     if cfg.data.split_enabled:
-        from connectomics.data.dataset.split import ApplyVolumetricSplitd
+        from connectomics.data.datasets.split import ApplyVolumetricSplitd
 
         transforms.append(ApplyVolumetricSplitd(keys=keys))
 
@@ -213,8 +213,8 @@ def build_train_transforms(
 
     # Label transformations (affinity, distance transform, etc.)
     if hasattr(cfg.data, "label_transform"):
-        from ..process.build import create_label_transform_pipeline
-        from ..process.transforms import SegErosionInstanced
+        from ..processing.build import create_label_transform_pipeline
+        from ..processing.transforms import SegErosionInstanced
 
         label_cfg = cfg.data.label_transform
 
@@ -337,7 +337,7 @@ def _build_eval_transforms_impl(
 
     # Apply volumetric split if enabled
     if data_cfg.split_enabled:
-        from connectomics.data.dataset.split import ApplyVolumetricSplitd
+        from connectomics.data.datasets.split import ApplyVolumetricSplitd
 
         transforms.append(ApplyVolumetricSplitd(keys=keys))
 
@@ -532,8 +532,8 @@ def _build_eval_transforms_impl(
 
         # Apply label transforms if configured
         if label_cfg is not None:
-            from ..process.build import create_label_transform_pipeline
-            from ..process.transforms import SegErosionInstanced
+            from ..processing.build import create_label_transform_pipeline
+            from ..processing.transforms import SegErosionInstanced
 
             # Apply instance erosion first if specified
             if hasattr(label_cfg, "erosion") and label_cfg.erosion > 0:

@@ -39,7 +39,7 @@ from .inference import (
     SlidingWindowConfig,
     TestTimeAugmentationConfig,
 )
-from .model import LossConfig, ModelArchConfig, ModelConfig
+from .model import LossConfig, ModelArchConfig, ModelConfig, ModelHeadConfig
 from .model_mednext import MedNeXtConfig
 from .model_monai import MonaiConfig, TransformerConfig
 from .model_nnunet import NNUNetConfig
@@ -80,6 +80,7 @@ __all__ = [
     # Model configuration
     "ModelConfig",
     "ModelArchConfig",
+    "ModelHeadConfig",
     "MonaiConfig",
     "TransformerConfig",
     "MedNeXtConfig",

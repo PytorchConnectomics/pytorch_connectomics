@@ -33,7 +33,7 @@ def test_connected_components():
 
 def test_weighted_concat_dataset():
     """Test weighted dataset concatenation."""
-    from connectomics.data.dataset import WeightedConcatDataset
+    from connectomics.data.datasets import WeightedConcatDataset
 
     # Create dummy datasets
     class DummyDataset(torch.utils.data.Dataset):

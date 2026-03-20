@@ -28,6 +28,7 @@ from ...config import (
     update_from_cli,
     validate_config,
 )
+from ...utils.model_outputs import resolve_output_head
 from .path_utils import expand_file_paths
 
 logger = logging.getLogger(__name__)
@@ -441,6 +442,23 @@ def format_select_channel_tag(cfg: Config) -> str:
     return "_ch" + "-".join(str(i) for i in indices)
 
 
+def format_output_head_tag(cfg: Config, *, output_head: Optional[str] = None) -> str:
+    """Return a compact head-selection tag for prediction filenames."""
+    head_name = resolve_output_head(
+        cfg,
+        requested_head=output_head,
+        purpose="prediction filename generation",
+        allow_none=True,
+    )
+    if not head_name:
+        return ""
+
+    safe_head = re.sub(r"[^A-Za-z0-9._=-]+", "-", str(head_name)).strip("-")
+    if not safe_head:
+        return ""
+    return f"_head-{safe_head}"
+
+
 def format_decode_tag(cfg: Config) -> str:
     """Return a compact decoding-parameter tag for final prediction filenames.
 
@@ -559,62 +577,102 @@ def format_checkpoint_name_tag(checkpoint_path: Optional[str | Path]) -> str:
 
 
 def final_prediction_output_tag(
-    cfg: Config, spatial_dims: int = 3, checkpoint_path: Optional[str | Path] = None
+    cfg: Config,
+    spatial_dims: int = 3,
+    checkpoint_path: Optional[str | Path] = None,
+    output_head: Optional[str] = None,
 ) -> str:
     """Return the final decoded prediction tag used in output filenames."""
     n = compute_tta_passes(cfg, spatial_dims=spatial_dims)
+    head = format_output_head_tag(cfg, output_head=output_head)
     ch = format_select_channel_tag(cfg)
     ckpt = format_checkpoint_name_tag(checkpoint_path)
     dec = format_decode_tag(cfg)
-    return f"x{n}{ch}{ckpt}_prediction{dec}"
+    return f"x{n}{head}{ch}{ckpt}_prediction{dec}"
 
 
 def tta_cache_suffix(
-    cfg: Config, spatial_dims: int = 3, checkpoint_path: Optional[str | Path] = None
+    cfg: Config,
+    spatial_dims: int = 3,
+    checkpoint_path: Optional[str | Path] = None,
+    output_head: Optional[str] = None,
 ) -> str:
     """Return the TTA prediction cache suffix, e.g. ``_tta_x16_ch4-6-9_ckpt-last_prediction.h5``."""
     n = compute_tta_passes(cfg, spatial_dims=spatial_dims)
+    head = format_output_head_tag(cfg, output_head=output_head)
     ch = format_select_channel_tag(cfg)
     ckpt = format_checkpoint_name_tag(checkpoint_path)
-    return f"_tta_x{n}{ch}{ckpt}_prediction.h5"
+    return f"_tta_x{n}{head}{ch}{ckpt}_prediction.h5"
 
 
 def tta_cache_suffix_candidates(
-    cfg: Config, spatial_dims: int = 3, checkpoint_path: Optional[str | Path] = None
+    cfg: Config,
+    spatial_dims: int = 3,
+    checkpoint_path: Optional[str | Path] = None,
+    output_head: Optional[str] = None,
 ) -> list[str]:
     """Return exact TTA cache suffix candidates ordered from most to least specific."""
-    candidates = [tta_cache_suffix(cfg, spatial_dims=spatial_dims, checkpoint_path=checkpoint_path)]
+    candidates = [
+        tta_cache_suffix(
+            cfg,
+            spatial_dims=spatial_dims,
+            checkpoint_path=checkpoint_path,
+            output_head=output_head,
+        )
+    ]
     if checkpoint_path is not None:
         return candidates
 
-    legacy_suffix = tta_cache_suffix(cfg, spatial_dims=spatial_dims)
+    legacy_suffix = tta_cache_suffix(cfg, spatial_dims=spatial_dims, output_head=output_head)
     if legacy_suffix not in candidates:
         candidates.append(legacy_suffix)
     return candidates
 
 
 def tuning_artifact_tag(
-    cfg: Config, spatial_dims: int = 3, checkpoint_path: Optional[str | Path] = None
+    cfg: Config,
+    spatial_dims: int = 3,
+    checkpoint_path: Optional[str | Path] = None,
+    output_head: Optional[str] = None,
 ) -> str:
     """Return the cache-style tuning tag without leading underscore or file extension."""
     return Path(
-        tta_cache_suffix(cfg, spatial_dims=spatial_dims, checkpoint_path=checkpoint_path)
+        tta_cache_suffix(
+            cfg,
+            spatial_dims=spatial_dims,
+            checkpoint_path=checkpoint_path,
+            output_head=output_head,
+        )
     ).stem.lstrip("_")
 
 
 def tuning_best_params_filename(
-    cfg: Config, spatial_dims: int = 3, checkpoint_path: Optional[str | Path] = None
+    cfg: Config,
+    spatial_dims: int = 3,
+    checkpoint_path: Optional[str | Path] = None,
+    output_head: Optional[str] = None,
 ) -> str:
     """Return the checkpoint/channel-aware best-params filename for tune outputs."""
-    return f"best_params_{tuning_artifact_tag(cfg, spatial_dims=spatial_dims, checkpoint_path=checkpoint_path)}.yaml"
+    return (
+        "best_params_"
+        f"{tuning_artifact_tag(cfg, spatial_dims=spatial_dims, checkpoint_path=checkpoint_path, output_head=output_head)}.yaml"
+    )
 
 
 def tuning_best_params_filename_candidates(
-    cfg: Config, spatial_dims: int = 3, checkpoint_path: Optional[str | Path] = None
+    cfg: Config,
+    spatial_dims: int = 3,
+    checkpoint_path: Optional[str | Path] = None,
+    output_head: Optional[str] = None,
 ) -> list[str]:
     """Return ordered candidate best-params filenames, including legacy fallback."""
     candidates = [
-        tuning_best_params_filename(cfg, spatial_dims=spatial_dims, checkpoint_path=checkpoint_path)
+        tuning_best_params_filename(
+            cfg,
+            spatial_dims=spatial_dims,
+            checkpoint_path=checkpoint_path,
+            output_head=output_head,
+        )
     ]
     legacy_name = "best_params.yaml"
     if legacy_name not in candidates:
@@ -627,6 +685,7 @@ def tuning_study_db_filename(
     study_name: str,
     spatial_dims: int = 3,
     checkpoint_path: Optional[str | Path] = None,
+    output_head: Optional[str] = None,
 ) -> str:
     """Return a checkpoint/channel-aware SQLite filename for saved Optuna studies."""
     safe_study = re.sub(r"[^A-Za-z0-9._=-]+", "-", str(study_name)).strip("-")
@@ -634,12 +693,15 @@ def tuning_study_db_filename(
         safe_study = "parameter_optimization"
     return (
         f"{safe_study}_"
-        f"{tuning_artifact_tag(cfg, spatial_dims=spatial_dims, checkpoint_path=checkpoint_path)}.db"
+        f"{tuning_artifact_tag(cfg, spatial_dims=spatial_dims, checkpoint_path=checkpoint_path, output_head=output_head)}.db"
     )
 
 
 def resolve_prediction_cache_suffix(
-    cfg: Config, mode: str, checkpoint_path: Optional[str | Path] = None
+    cfg: Config,
+    mode: str,
+    checkpoint_path: Optional[str | Path] = None,
+    output_head: Optional[str] = None,
 ) -> str:
     """Return the expected prediction cache suffix for the current runtime mode."""
     inference_cfg = getattr(cfg, "inference", None)
@@ -647,12 +709,12 @@ def resolve_prediction_cache_suffix(
     configured_suffix = getattr(save_prediction_cfg, "cache_suffix", "_x1_prediction.h5")
 
     if mode in ("tune", "tune-test"):
-        return tta_cache_suffix(cfg, checkpoint_path=checkpoint_path)
+        return tta_cache_suffix(cfg, checkpoint_path=checkpoint_path, output_head=output_head)
 
     if mode == "test":
         tta_cfg = getattr(inference_cfg, "test_time_augmentation", None)
         if tta_cfg is not None and bool(getattr(tta_cfg, "enabled", False)):
-            return tta_cache_suffix(cfg, checkpoint_path=checkpoint_path)
+            return tta_cache_suffix(cfg, checkpoint_path=checkpoint_path, output_head=output_head)
 
     return configured_suffix
 
@@ -671,6 +733,7 @@ __all__ = [
     "extract_best_score_from_checkpoint",
     "setup_seed_everything",
     "compute_tta_passes",
+    "format_output_head_tag",
     "format_select_channel_tag",
     "format_decode_tag",
     "format_checkpoint_name_tag",

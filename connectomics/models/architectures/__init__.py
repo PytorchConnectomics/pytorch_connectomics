@@ -8,7 +8,7 @@ Provides:
 - Future: MedNeXt model wrappers
 
 Usage:
-    from connectomics.models.arch import (
+    from connectomics.models.architectures import (
         register_architecture,
         list_architectures,
         ConnectomicsModel,

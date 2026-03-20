@@ -14,7 +14,7 @@ import torch
 
 def test_rsunet_basic():
     """Test basic RSUNet forward pass."""
-    from connectomics.models.arch.rsunet import RSUNet
+    from connectomics.models.architectures.rsunet import RSUNet
 
     model = RSUNet(
         in_channels=1,
@@ -31,7 +31,7 @@ def test_rsunet_basic():
 
 def test_rsunet_isotropic():
     """Test RSUNet with isotropic downsampling."""
-    from connectomics.models.arch.rsunet import RSUNet
+    from connectomics.models.architectures.rsunet import RSUNet
 
     model = RSUNet(
         in_channels=1,
@@ -49,7 +49,7 @@ def test_rsunet_isotropic():
 
 def test_rsunet_group_norm():
     """Test RSUNet with GroupNorm."""
-    from connectomics.models.arch.rsunet import RSUNet
+    from connectomics.models.architectures.rsunet import RSUNet
 
     model = RSUNet(
         in_channels=1,
@@ -68,7 +68,7 @@ def test_rsunet_group_norm():
 
 def test_rsunet_prelu():
     """Test RSUNet with PReLU activation."""
-    from connectomics.models.arch.rsunet import RSUNet
+    from connectomics.models.architectures.rsunet import RSUNet
 
     model = RSUNet(
         in_channels=1,
@@ -87,7 +87,7 @@ def test_rsunet_prelu():
 
 def test_rsunet_2d3d_hybrid():
     """Test RSUNet with 2D/3D hybrid convolutions."""
-    from connectomics.models.arch.rsunet import RSUNet
+    from connectomics.models.architectures.rsunet import RSUNet
 
     model = RSUNet(
         in_channels=1,
@@ -106,7 +106,7 @@ def test_rsunet_2d3d_hybrid():
 
 def test_rsunet_deep_supervision():
     """Test RSUNet with deep supervision."""
-    from connectomics.models.arch.rsunet import RSUNet
+    from connectomics.models.architectures.rsunet import RSUNet
 
     model = RSUNet(
         in_channels=1,
@@ -128,7 +128,7 @@ def test_rsunet_deep_supervision():
 
 def test_rsunet_model_info():
     """Test model info retrieval."""
-    from connectomics.models.arch.rsunet import RSUNet
+    from connectomics.models.architectures.rsunet import RSUNet
 
     model = RSUNet(
         in_channels=1,
@@ -146,7 +146,7 @@ def test_rsunet_model_info():
 
 def test_rsunet_registry():
     """Test that RSUNet is registered."""
-    from connectomics.models.arch import list_architectures
+    from connectomics.models.architectures import list_architectures
 
     archs = list_architectures()
 

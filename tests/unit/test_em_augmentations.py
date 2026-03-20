@@ -1,7 +1,7 @@
 """
 Tests for EM-specific augmentations.
 
-Tests all transforms in connectomics/data/augment/monai_transforms.py
+Tests all transforms in connectomics/data/augmentation/monai_transforms.py
 to ensure they work correctly with Lightning and MONAI.
 """
 
@@ -9,8 +9,8 @@ import pytest
 import torch
 
 from connectomics.config.schema.data import AugmentationConfig
-from connectomics.data.augment.build import _build_augmentations
-from connectomics.data.augment.transforms import (
+from connectomics.data.augmentation.build import _build_augmentations
+from connectomics.data.augmentation.transforms import (
     RandCopyPasted,
     RandCutBlurd,
     RandCutNoised,
