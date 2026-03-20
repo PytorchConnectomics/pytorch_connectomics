@@ -159,6 +159,9 @@ class VisualizationCallback(Callback):
         """Store first batch for epoch-end visualization."""
         if batch_idx == 0:
             self._last_train_batch = self._build_cached_batch(batch)
+            # Log image+label on the very first batch (no prediction) for data sanity check.
+            if trainer.current_epoch == 0 and trainer.logger is not None:
+                self._log_data_check(trainer, batch)
 
     def on_validation_batch_end(
         self,
@@ -323,6 +326,31 @@ class VisualizationCallback(Callback):
                 channel_mode=self.channel_mode,
                 selected_channels=self.selected_channels,
             )
+
+    def _log_data_check(self, trainer, batch: Dict[str, torch.Tensor]) -> None:
+        """Log image + label from the first training batch (no prediction).
+
+        Runs once at the start of training so the user can visually verify
+        data loading, augmentation, and label transforms before waiting for
+        the first epoch to finish.
+        """
+        try:
+            writer = trainer.logger.experiment
+            image = batch["image"].cpu()
+            label = batch["label"].cpu()
+
+            self._log_visualization(
+                image=image,
+                label=label,
+                mask=None,
+                pred=label,  # show label in the pred slot too (no model output yet)
+                writer=writer,
+                iteration=0,
+                prefix="data_check",
+            )
+            logger.info("Logged data check visualization (image + label, no prediction)")
+        except Exception as e:
+            logger.warning("Data check visualization failed: %s", e)
 
     @staticmethod
     def _to_tensor(pred):

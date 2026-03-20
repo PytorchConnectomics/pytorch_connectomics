@@ -16,7 +16,7 @@ from ...data.augmentation.build import (
     build_val_transforms,
 )
 from ...data.datasets import create_data_dicts_from_paths
-from ...data.io import get_vol_shape
+from ...data.io import get_vol_shape, volume_exists
 from .data import ConnectomicsDataModule, SimpleDataModule
 from .path_utils import expand_file_paths
 
@@ -76,12 +76,10 @@ def _maybe_precompute_label_aux(
 
     print(f"label_aux_type={mode} ({split_name}): " f"resolution={list(resolution)}, alpha={alpha}")
 
-    import os
-
     paths = []
     for lp in label_paths:
         sp = sdt_path_for_label(lp, mode=mode)
-        if not os.path.exists(sp):
+        if not volume_exists(sp):
             if mode == "sdt":
                 precompute_sdt_volume(lp, sp, resolution=resolution, alpha=alpha, bg_value=bg_value)
             else:
@@ -616,7 +614,7 @@ def create_datamodule(
             logger.info("Auto-computing iter_num from volume size...")
 
             from ...data.datasets.sampling import compute_total_samples
-            from ...data.io import get_vol_shape
+            from ...data.io import get_vol_shape, volume_exists
 
             # Get volume sizes
             volume_sizes = []
