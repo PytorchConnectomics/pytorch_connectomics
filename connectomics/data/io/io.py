@@ -388,7 +388,7 @@ def save_volume(
         filename: Output filename or directory path.
         volume: Volume data to save.
         dataset: Dataset name for HDF5 format.
-        file_format: 'h5', 'tiff', 'png', 'nii', 'nii.gz'.
+        file_format: Optional override. If omitted, inferred from ``filename``.
     """
     file_format = file_format or _detect_format(filename)
 
