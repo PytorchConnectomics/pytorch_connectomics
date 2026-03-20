@@ -185,8 +185,8 @@ just test lucchi++ outputs/lucchi++/$EXPERIMENT_DATE/checkpoints/best.ckpt
 ## Config Layout
 
 - `tutorials/*.yaml`: runnable experiment configs
-- `configs/profiles/*.yaml`: section-level registries selected by `*.profile`
-- `configs/templates/*.yaml`: explicit list-item templates, currently used for `inference.decoding`
+- `connectomics/config/profiles/*.yaml`: section-level registries selected by `*.profile`
+- `connectomics/config/templates/*.yaml`: explicit list-item templates, currently used for `inference.decoding`
 
 Merge rule:
 

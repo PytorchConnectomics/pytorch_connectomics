@@ -5,7 +5,7 @@ from __future__ import annotations
 import logging
 from glob import glob
 from pathlib import Path
-from typing import List, Optional
+from typing import Any, List, Optional
 
 from monai.transforms import Compose
 
@@ -24,11 +24,15 @@ logger = logging.getLogger(__name__)
 
 
 def _maybe_precompute_label_aux(
-    cfg: Config, label_paths: Optional[List[str]]
+    cfg: Config,
+    split_cfg: Any,
+    label_paths: Optional[List[str]],
+    *,
+    split_name: str,
 ) -> Optional[List[str]]:
     """Auto-precompute label_aux if label_transform includes ``skeleton_aware_edt``.
 
-    Reads ``data.train.label_aux_type`` to decide mode:
+    Reads ``data.<split>.label_aux_type`` to decide mode:
     - ``"skeleton"`` (default): precompute skeleton volume; EDT computed per crop.
     - ``"sdt"``: precompute full SDT volume (slower precompute, zero training cost).
     - ``"none"``: no precompute, compute everything per crop.
@@ -38,7 +42,7 @@ def _maybe_precompute_label_aux(
     if label_paths is None:
         return None
 
-    mode = getattr(cfg.data.train, "label_aux_type", "skeleton")
+    mode = getattr(split_cfg, "label_aux_type", "skeleton")
     if mode == "none":
         return None
 
@@ -70,7 +74,7 @@ def _maybe_precompute_label_aux(
         sdt_path_for_label,
     )
 
-    print(f"label_aux_type={mode}: resolution={list(resolution)}, alpha={alpha}")
+    print(f"label_aux_type={mode} ({split_name}): " f"resolution={list(resolution)}, alpha={alpha}")
 
     import os
 
@@ -87,6 +91,23 @@ def _maybe_precompute_label_aux(
         paths.append(sp)
 
     return paths
+
+
+def _populate_split_label_aux_if_needed(cfg: Config, split_name: str) -> None:
+    """Populate split label_aux via auto-precompute when applicable."""
+    split_cfg = getattr(cfg.data, split_name, None)
+    if split_cfg is None or split_cfg.label_aux or not split_cfg.label:
+        return
+
+    label_paths = expand_file_paths(split_cfg.label)
+    auto_aux = _maybe_precompute_label_aux(
+        cfg,
+        split_cfg,
+        label_paths,
+        split_name=split_name,
+    )
+    if auto_aux:
+        split_cfg.label_aux = auto_aux[0] if len(auto_aux) == 1 else auto_aux
 
 
 def _maybe_prepare_random_data(cfg: Config, mode: str) -> None:
@@ -307,13 +328,11 @@ def create_datamodule(
         cfg.data.val, "dataset_type", None
     )
 
-    # Auto-precompute label_aux (skeleton/SDT) before building transforms,
-    # so build_train_transforms sees cfg.data.train.label_aux and includes it in keys.
-    if mode == "train" and not cfg.data.train.label_aux and cfg.data.train.label:
-        train_label_paths = expand_file_paths(cfg.data.train.label)
-        auto_aux = _maybe_precompute_label_aux(cfg, train_label_paths)
-        if auto_aux:
-            cfg.data.train.label_aux = auto_aux[0] if len(auto_aux) == 1 else auto_aux
+    # Auto-precompute label_aux (skeleton/SDT) before building transforms so the
+    # active splits include label_aux in their load/crop pipeline.
+    if mode == "train":
+        _populate_split_label_aux_if_needed(cfg, "train")
+        _populate_split_label_aux_if_needed(cfg, "val")
 
     # Build transforms
     train_transforms = build_train_transforms(cfg)
@@ -381,9 +400,13 @@ def create_datamodule(
             logger.info(f"Val padding enabled: target size = {target_size}")
 
         # Create data dictionaries with split info
+        train_label_aux_paths = (
+            expand_file_paths(cfg.data.train.label_aux) if cfg.data.train.label_aux else None
+        )
         train_data_dicts = create_data_dicts_from_paths(
             image_paths=[cfg.data.train.image],
             label_paths=[cfg.data.train.label] if cfg.data.train.label else None,
+            label_aux_paths=train_label_aux_paths,
         )
 
         # Add split metadata to train dict
@@ -394,6 +417,7 @@ def create_datamodule(
         val_data_dicts = create_data_dicts_from_paths(
             image_paths=[cfg.data.train.image],
             label_paths=[cfg.data.train.label] if cfg.data.train.label else None,
+            label_aux_paths=train_label_aux_paths,
         )
 
         # Add split metadata to val dict
@@ -500,9 +524,14 @@ def create_datamodule(
                 if val_mask_paths:
                     logger.info(f"Validation masks: {len(val_mask_paths)} files")
 
+                val_label_aux_paths = (
+                    expand_file_paths(cfg.data.val.label_aux) if cfg.data.val.label_aux else None
+                )
+
                 val_data_dicts = create_data_dicts_from_paths(
                     image_paths=val_image_paths,
                     label_paths=val_label_paths,
+                    label_aux_paths=val_label_aux_paths,
                     mask_paths=val_mask_paths,
                 )
 
@@ -520,6 +549,7 @@ def create_datamodule(
         # Expand glob patterns for test data (same as train data)
         test_image_paths = expand_file_paths(split.image)
         test_label_paths = expand_file_paths(split.label) if split.label else None
+        test_label_aux_paths = expand_file_paths(split.label_aux) if split.label_aux else None
         test_mask_paths = expand_file_paths(split.mask) if split.mask else None
     elif mode == "tune":
         split = cfg.data.val
@@ -534,6 +564,7 @@ def create_datamodule(
         # Expand glob patterns for tune data
         test_image_paths = expand_file_paths(split.image)
         test_label_paths = expand_file_paths(split.label) if split.label else None
+        test_label_aux_paths = expand_file_paths(split.label_aux) if split.label_aux else None
         test_mask_paths = expand_file_paths(split.mask) if split.mask else None
 
     # Common printing and data dict creation for test and tune modes
@@ -554,6 +585,7 @@ def create_datamodule(
         test_data_dicts = create_data_dicts_from_paths(
             image_paths=test_image_paths,
             label_paths=test_label_paths,
+            label_aux_paths=test_label_aux_paths,
             mask_paths=test_mask_paths,
         )
         logger.info(f"{mode_label} dataset size: {len(test_data_dicts)}")
@@ -634,7 +666,7 @@ def create_datamodule(
 
     # Explicit preload settings (no legacy fallback).
     train_preload_cfg = cfg.data.dataloader.use_preloaded_cache_train
-    val_preload_cfg = cfg.data.dataloader.use_preloaded_cache_val
+    val_preload_cfg = cfg.data.dataloader.use_preloaded_cache_train
 
     # Use optimized pre-loaded cache for train dataset when iter_num > 0.
     use_preloaded = (
@@ -774,6 +806,11 @@ def create_datamodule(
                 val_dataset = CachedVolumeDataset(
                     image_paths=[d["image"] for d in val_data_dicts],
                     label_paths=[d.get("label") for d in val_data_dicts],
+                    label_aux_paths=(
+                        [d.get("label_aux") for d in val_data_dicts]
+                        if any(d.get("label_aux") for d in val_data_dicts)
+                        else None
+                    ),
                     mask_paths=[d.get("mask") for d in val_data_dicts],
                     patch_size=tuple(cfg.data.dataloader.patch_size),
                     iter_num=val_steps_per_epoch,
@@ -824,6 +861,7 @@ def create_datamodule(
         # Lazy zarr crop loading: keep zarr handles, read only sampled patches.
         train_images = [d["image"] for d in train_data_dicts]
         train_labels = [d.get("label") for d in train_data_dicts]
+        train_label_auxs = [d.get("label_aux") for d in train_data_dicts]
         train_masks = [d.get("mask") for d in train_data_dicts]
         zarr_like = all(".zarr" in str(p) for p in train_images)
         if not zarr_like:
@@ -842,6 +880,7 @@ def create_datamodule(
         train_dataset = LazyZarrVolumeDataset(
             image_paths=train_images,
             label_paths=None if all(p is None for p in train_labels) else train_labels,
+            label_aux_paths=None if all(p is None for p in train_label_auxs) else train_label_auxs,
             mask_paths=None if all(p is None for p in train_masks) else train_masks,
             patch_size=tuple(cfg.data.dataloader.patch_size),
             iter_num=iter_num,
@@ -871,6 +910,7 @@ def create_datamodule(
         if val_data_dicts and len(val_data_dicts) > 0:
             val_images = [d["image"] for d in val_data_dicts]
             val_labels = [d.get("label") for d in val_data_dicts]
+            val_label_aux = [d.get("label_aux") for d in val_data_dicts]
             val_masks = [d.get("mask") for d in val_data_dicts]
             if not all(".zarr" in str(p) for p in val_images):
                 raise ValueError(
@@ -892,6 +932,7 @@ def create_datamodule(
             val_dataset = LazyZarrVolumeDataset(
                 image_paths=val_images,
                 label_paths=None if all(p is None for p in val_labels) else val_labels,
+                label_aux_paths=None if all(p is None for p in val_label_aux) else val_label_aux,
                 mask_paths=None if all(p is None for p in val_masks) else val_masks,
                 patch_size=tuple(cfg.data.dataloader.patch_size),
                 iter_num=val_steps_per_epoch,

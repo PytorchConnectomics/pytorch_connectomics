@@ -7,7 +7,6 @@ Modern replacement for monai_compose.py that works with the new Hydra config sys
 from __future__ import annotations
 
 from functools import partial
-from typing import Optional
 
 import torch
 from monai.transforms import EnsureChannelFirstd  # Ensure channel-first format for 2D/3D images
@@ -203,7 +202,7 @@ def build_train_transforms(
         )
 
     # Add augmentations if enabled
-    if cfg.data.augmentation is not None and cfg.data.augmentation.preset != "none":
+    if cfg.data.augmentation is not None:
         # Pass do_2d flag to augmentation builder
         do_2d = bool(
             getattr(getattr(cfg.data, "train", None), "do_2d", False)
@@ -272,6 +271,10 @@ def _build_eval_transforms_impl(
         if mode == "val":
             # Validation: default to image+label
             keys = ["image", "label"]
+            if (getattr(getattr(data_cfg, "val", None), "label_aux", None) is not None) or (
+                getattr(getattr(data_cfg, "train", None), "label_aux", None) is not None
+            ):
+                keys.append("label_aux")
             # Add mask if val_mask or train_mask exists
             if (
                 hasattr(data_cfg, "val")
@@ -289,6 +292,8 @@ def _build_eval_transforms_impl(
             keys = ["image"]
             if eval_split.label is not None:
                 keys.append("label")
+            if eval_split.label_aux is not None:
+                keys.append("label_aux")
 
             if eval_split.mask is not None:
                 keys.append("mask")
@@ -606,29 +611,8 @@ def _build_augmentations(aug_cfg: AugmentationConfig, keys: list[str], do_2d: bo
     """
     transforms = []
 
-    # Get preset mode
-    preset = getattr(aug_cfg, "preset", "some")
-
-    # Validate preset choice
-    valid_presets = {"none", "some", "all"}
-    if preset not in valid_presets:
-        raise ValueError(
-            f"Invalid augmentation preset: '{preset}'. "
-            f"Valid choices are: {', '.join(sorted(valid_presets))}. "
-            f"Got: '{preset}'. Please use one of the valid options."
-        )
-
-    def should_augment(aug_name: str, aug_enabled: Optional[bool]) -> bool:
-        """Check if aug should apply: 'none'=off, 'some'=opt-in, 'all'=opt-out."""
-        if preset == "none":
-            return False
-        if preset == "all":
-            return aug_enabled is not False
-        # preset == "some"
-        return aug_enabled is True
-
     # Standard geometric augmentations
-    if should_augment("flip", aug_cfg.flip.enabled):
+    if aug_cfg.flip.enabled:
         spatial_axis = aug_cfg.flip.spatial_axis
         if isinstance(spatial_axis, (list, tuple)):
             # One RandFlipd per axis so each is flipped independently
@@ -639,7 +623,7 @@ def _build_augmentations(aug_cfg: AugmentationConfig, keys: list[str], do_2d: bo
                 RandFlipd(keys=keys, prob=aug_cfg.flip.prob, spatial_axis=spatial_axis)
             )
 
-    if should_augment("rotate", aug_cfg.rotate.enabled):
+    if aug_cfg.rotate.enabled:
         # Determine spatial_axes based on data dimensionality
         # MONAI transforms work on (C, *spatial) tensors (no batch dimension)
         # - 2D data: (C, H, W) → spatial_axes=(0, 1) rotates H-W plane
@@ -656,7 +640,7 @@ def _build_augmentations(aug_cfg: AugmentationConfig, keys: list[str], do_2d: bo
             )
         )
 
-    if should_augment("affine", aug_cfg.affine.enabled):
+    if aug_cfg.affine.enabled:
         # Adjust affine parameters for 2D vs 3D data
         # For 2D: use only the first element of each range
         # For 3D: use all three elements
@@ -684,7 +668,7 @@ def _build_augmentations(aug_cfg: AugmentationConfig, keys: list[str], do_2d: bo
             )
         )
 
-    if should_augment("elastic", aug_cfg.elastic.enabled):
+    if aug_cfg.elastic.enabled:
         # Unified elastic deformation that supports both 2D and 3D
         elastic_modes = ["bilinear" if k == "image" else "nearest" for k in keys]
         transforms.append(
@@ -699,7 +683,7 @@ def _build_augmentations(aug_cfg: AugmentationConfig, keys: list[str], do_2d: bo
         )
 
     # Intensity augmentations (only for images)
-    if should_augment("intensity", aug_cfg.intensity.enabled):
+    if aug_cfg.intensity.enabled:
         if aug_cfg.intensity.gaussian_noise_prob > 0:
             transforms.append(
                 RandGaussianNoised(
@@ -732,7 +716,7 @@ def _build_augmentations(aug_cfg: AugmentationConfig, keys: list[str], do_2d: bo
     # Blend(mutex) behaviour).  Otherwise they are applied independently.
     defect_transforms = []
 
-    if should_augment("misalignment", aug_cfg.misalignment.enabled):
+    if aug_cfg.misalignment.enabled:
         defect_transforms.append(
             RandMisAlignmentd(
                 keys=["image"],
@@ -742,7 +726,7 @@ def _build_augmentations(aug_cfg: AugmentationConfig, keys: list[str], do_2d: bo
             )
         )
 
-    if should_augment("missing_section", aug_cfg.missing_section.enabled):
+    if aug_cfg.missing_section.enabled:
         defect_transforms.append(
             RandMissingSectiond(
                 keys=["image"],
@@ -754,7 +738,7 @@ def _build_augmentations(aug_cfg: AugmentationConfig, keys: list[str], do_2d: bo
             )
         )
 
-    if should_augment("motion_blur", aug_cfg.motion_blur.enabled):
+    if aug_cfg.motion_blur.enabled:
         defect_transforms.append(
             RandMotionBlurd(
                 keys=["image"],
@@ -767,7 +751,7 @@ def _build_augmentations(aug_cfg: AugmentationConfig, keys: list[str], do_2d: bo
             )
         )
 
-    if should_augment("missing_parts", aug_cfg.missing_parts.enabled):
+    if aug_cfg.missing_parts.enabled:
         defect_transforms.append(
             RandMissingPartsd(
                 keys=["image"],
@@ -783,7 +767,7 @@ def _build_augmentations(aug_cfg: AugmentationConfig, keys: list[str], do_2d: bo
         else:
             transforms.extend(defect_transforms)
 
-    if should_augment("cut_noise", aug_cfg.cut_noise.enabled):
+    if aug_cfg.cut_noise.enabled:
         transforms.append(
             RandCutNoised(
                 keys=["image"],
@@ -793,7 +777,7 @@ def _build_augmentations(aug_cfg: AugmentationConfig, keys: list[str], do_2d: bo
             )
         )
 
-    if should_augment("cut_blur", aug_cfg.cut_blur.enabled):
+    if aug_cfg.cut_blur.enabled:
         transforms.append(
             RandCutBlurd(
                 keys=["image"],
@@ -804,7 +788,7 @@ def _build_augmentations(aug_cfg: AugmentationConfig, keys: list[str], do_2d: bo
             )
         )
 
-    if should_augment("stripe", aug_cfg.stripe.enabled):
+    if aug_cfg.stripe.enabled:
         transforms.append(
             RandStriped(
                 keys=["image"],
@@ -819,14 +803,14 @@ def _build_augmentations(aug_cfg: AugmentationConfig, keys: list[str], do_2d: bo
         )
 
     # Advanced augmentations
-    if should_augment("mixup", aug_cfg.mixup.enabled):
+    if aug_cfg.mixup.enabled:
         transforms.append(
             RandMixupd(
                 keys=["image"], prob=aug_cfg.mixup.prob, alpha_range=aug_cfg.mixup.alpha_range
             )
         )
 
-    if should_augment("copy_paste", aug_cfg.copy_paste.enabled):
+    if aug_cfg.copy_paste.enabled:
         transforms.append(
             RandCopyPasted(
                 keys=["image"],

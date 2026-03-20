@@ -1,266 +1,149 @@
+experiment_name: mednext_betaseg_sdt_multitask
+description: BetaSeg 3D mitochondria instance segmentation with MedNeXt multi-head (aff_r1 + aff_r5 + sdt)
+
+_base_:
+  - ../connectomics/config/all_profiles.yaml
+
 default:
+  pipeline_profile: aff9_sdt
+  system:
+    profile: all-gpu-cpu
   model:
     arch:
       profile: mednext_s
-
-_base_:
-  - ../configs/all_profiles.yaml
-experiment_name: betaseg_mednext_s_sdt_affinity
-description: BetaSeg 3D mitochondria instance segmentation with MedNeXt using SDT+affinity (1+6 channels)
-
-# System
-model:
-  # Input/output configuration
-  input_size: [128, 128, 128]          # Isotropic patches for isotropic data (16×16×16 nm)
-  output_size: [128, 128, 128]
-  in_channels: 1                      # Grayscale EM
-  out_channels: 7                     # 6 affinity + 1 
-
-  # MedNeXt architecture (optimized for instance segmentation)
-  loss:
-    deep_supervision: true
-    losses:
-    - function: WeightedBCEWithLogitsLoss  # for affinity channels
-      weight: 1.0
-      pred_slice: "0:6"
-      target_slice: "0:6"
-    - function: WeightedMSELoss            # for SDT channel
-      weight: 1.0
-      kwargs: {tanh: true}                 # tanh activation for [-1, 1] range
-      pred_slice: "6:7"
-      target_slice: "6:7"
-  mednext:
-    size: S                     #  S (~20-30M params) - small model for efficient training
-    kernel_size: 3              # Using kernel size 3 (from nnUNet/BANIS baseline). Larger kernels (5 or 7) may improve context but increase memory usage.
-    dim: "3d"                   # 3D convolutions
-data:
-  # Dataset configuration - BetaSeg training data
-  dataloader:
-    use_preloaded_cache_train: false                # Disabled to enable validation support
-    use_preloaded_cache_val: false
-    use_cache: true                                 # Use MONAI caching instead (still fast!)
-    cache_rate: 1.0                                 # Cache 100% of data
-    persistent_workers: true                        # Keep workers alive between epochs
-    patch_size: [128, 128, 128]
-
-  # Patch configuration (isotropic cubic patches for isotropic data)
-  image_transform:
-    normalize: "0-1"                                # Min-max normalization to [0, 1]
-    clip_percentile_low: 0.005                      # Clip bottom 0.5% outliers (reduces noise impact)
-    clip_percentile_high: 0.995                     # Clip top 0.5% outliers (reduces saturation artifacts)
-
-  # Multi-task label transformation
-  # This generates 7 channels from instance segmentation labels:
-  #   - 6 channels: affinity maps (short + long range)
-  #   - 1 channel: instance SDT
-  # Label transformation - Affinity maps + Signed Distance Transform for instance segmentation
-  label_transform:
-    targets:
-      # Target 1: Affinity maps (6 channels: 3 short-range + 3 long-range)
-    - name: affinity
-      kwargs:
-        offsets:
-            # Short-range affinities (offset = 1 voxel)
-        - "0-0-1"                  # x-direction, distance 1
-        - "0-1-0"                  # y-direction, distance 1
-        - "1-0-0"                  # z-direction, distance 1
-            # Long-range affinities (offset = 10 voxels, matching BANIS --long_range 10)
-        - "0-0-10"                 # x-direction, distance 10
-        - "0-10-0"                 # y-direction, distance 10
-        - "10-0-0"                 # z-direction, distance 10
-        # Total: 6 affinity channels (3 short + 3 long)
-      # Target 2: Signed Distance Transform (1 channel)
-    - name: skeleton_aware_edt      # [1][skeleton_aware_edt]New Version of SDT; [2][signed_distance] TRUE Signed Distance Transform (solves class imbalance!); [3][instance_edt] for edt only
-      kwargs:
-        resolution: [16, 16, 16]       # Physical voxel resolution (z, y, x)
-        alpha: 0.8                       # Affinity-based (alpha=1 for skeleton-aware distance)
-        bg_value: -1.0                 # Background value for distance map
-        relabel: true
-
-  # Augmentation - crucial for generalization
-  augmentation:
-    preset: "some" # some, none, all，new version of augmentation
-
-    affine:
-      enabled: true
-      prob: 0.5
-      rotate_range: [0.2, 0.2, 0.2]
-      scale_range: [0.2, 0.2, 0.2]
-      shear_range: [0.5, 0.5, 0.5]
-    intensity:
-      enabled: true
-      gaussian_noise_prob: 0.3
-      gaussian_noise_std: 0.5
-      shift_intensity_prob: 0.3
-      shift_intensity_offset: 0.1
-      contrast_prob: 0.3
-      contrast_range: [0.7, 1.4]
-
-    missing_section:
-      enabled: true
-      prob: 0.05
-      num_sections: 2
-
-    misalignment:
-      enabled: true
-      prob: 0.05
-      displacement: 10
-      rotate_ratio: 0.0
-
-    flip:
-      enabled: true
-      prob: 0.5
-
-    rotate:
-      enabled: true
-      prob: 0.5
-
-    elastic:
-      enabled: true
-      prob: 0.3
-
-# Optimizer - MedNeXt recommended settings
-  train:
-    path: /projects/weilab/liupeng/banis/data/mito_data/betaSeg
-    image:
-    - "high_c3_im.tiff"
-    label:
-    - "high_c3_mito.tiff"
-
-  val:
-    path: /projects/weilab/liupeng/banis/data/mito_data/betaSeg
-    image:
-    - "high_c1_im.tiff"
-    label:
-    - "high_c1_mito.tiff"
-  # Data loading optimization
-    resolution: [16, 16, 16]                          # 16nm x 16nm x 16nm isotropic
-  #  Validation: 1 volume (high_c1) - for monitoring generalization
-  data_transform:
-    pad_size: [16, 16, 16]                           # from resolution
-    pad_mode: reflect
-optimization:
-  max_steps: 1000000
-  n_steps_per_epoch: 50
-  gradient_clip_val: 1.0
-  accumulate_grad_batches: 1
-  precision: "16-mixed"                 # FP16 mixed precision (better GPU compatibility than bf16)，"16-mixed"   
-
-  optimizer:
-    name: AdamW
-    lr: 1e-3                           # MedNeXt recommended: 1e-3 (constant LR)
-    weight_decay: 1e-2
-    betas: [0.9, 0.999]
-    eps: 1.0e-4                      # 1.0e-8 -> 1.0e-4. 1e-8 cause nans in fp16
-
-  # Scheduler - Constant LR (MedNeXt recommendation)
-  scheduler:
-    name: constant                      # Constant LR works best for MedNeXt (per paper)
-
-monitor:
-  # Loss monitoring and validation frequency
-  detect_anomaly: false
-  logging:
-    # Scalar loss monitoring
-    scalar:
-      loss: [train_loss_total_epoch, val_loss_total_epoch, train_loss_affinity_total, train_loss_sdt_total]
-      loss_every_n_steps: 100            # Log every 50 steps
-      benchmark: true
-
-    # Visualization - SDT predictions (train + validation)
-    images:
-      enabled: true
-      max_images: 10                     # Show more samples for quality check
-      num_slices: 10                     # More slices for 3D visualization
-      log_every_n_epochs: 5             # Visualize every 5 epochs
-      channel_mode: all                 # Show SDT channel
-      selected_channels:
-
-  # Checkpointing -  Save best models based on validation loss
-  checkpoint:
-    monitor: val_loss_total             #  Monitor validation loss (prevents overfitting)
-    mode: min                           # Minimize validation loss
-    save_top_k: 10                       # Keep top 5 checkpoints
-    save_last: true
-    save_every_n_epochs: 5             # Save checkpoint every 5 epochs
-    dirpath: outputs/betaseg_mednext_affinity_sdt/checkpoints/
-    use_timestamp: true
-
-  # Early stopping -  Stop training when validation loss plateaus
-  early_stopping:
-    enabled: true
-    monitor: val_loss_total             #  Monitor validation loss (prevents overfitting)
-    patience: 150                       # More patience for SDT convergence
-    mode: min
-    min_delta: 1e-6                     # Small delta for precise SDT
-    check_finite: true
-    threshold: 0.01
-    divergence_threshold: 100.0
-
-# Inference - MONAI SlidingWindowInferer for BetaSeg
-test:
-  output_path: outputs/betaseg_mednext_affinity_sdt/results/
+    input_size: [128, 128, 128]
+    output_size: [128, 128, 128]
+    primary_head: aff_r1
+    heads:
+      aff_r1:
+        out_channels: 3
+        num_blocks: 1
+        target_slice: "0:3"
+      aff_r5:
+        out_channels: 3
+        num_blocks: 1
+        target_slice: "3:6"
+      sdt:
+        out_channels: 1
+        num_blocks: 1
+        target_slice: "6:7"
+    loss:
+      losses:
+        - function: PerChannelBCEWithLogitsLoss
+          weight: 1.0
+          pred_head: aff_r1
+          target_slice: "0:3"
+          kwargs: {auto_pos_weight: true}
+        - function: PerChannelBCEWithLogitsLoss
+          weight: 1.0
+          pred_head: aff_r5
+          target_slice: "3:6"
+          kwargs: {auto_pos_weight: true}
+        - function: SmoothL1Loss
+          weight: 1.0
+          pred_head: sdt
+          target_slice: "6:7"
+          kwargs: {tanh: true}
+      loss_balancing:
+        strategy: uncertainty
   data:
-    test:
-      image: /projects/weilab/liupeng/banis/data/mito_data/betaSeg/high_c2_im.tiff
-      label: /projects/weilab/liupeng/banis/data/mito_data/betaSeg/high_c2_mito.tiff
+    label_transform:
       resolution: [16, 16, 16]
-
-    #  Inference normalization (must match training normalization!)
+      targets:
+        - name: affinity
+          kwargs:
+            offsets: ["0-0-1", "0-1-0", "1-0-0", "0-0-5", "0-5-0", "5-0-0"]
+            deepem_crop: true
+        - name: skeleton_aware_edt
+          kwargs:
+            alpha: 0.8
+            bg_value: -1.0
+    dataloader:
+      patch_size: [128, 128, 128]
+      batch_size: 4
+      use_lazy_zarr: true
     image_transform:
-      normalize: "0-1"                              # Min-max normalization [0,1] (same as training)
-      clip_percentile_low: 0.005                    # Clip bottom 0.5% outliers (same as training)
-      clip_percentile_high: 0.995                   # Clip top 0.5% outliers (same as training)
-  # Decoding configuration (SDT → instances via watershed)
-  decoding:
-  - name: decode_distance_watershed    # ← Changed from decode_instance_binary_contour_distance
-    kwargs:
-      distance_channels: [6]              # Use SDT channel only for now
-      distance_threshold: [0.5, 0]         # Seeds: SDT>0.5, Foreground: SDT>0
-      min_seed_size: 100
-      min_instance_size: 50
-      use_fast_edt: true                   # Enable fast EDT (10-50x speedup)
-      edt_parallel: 8                      # Use 8 CPU cores
-      edt_downsample_factor: 1             # Full resolution (use 2 for large volumes)
+      normalize: "0-1"
+      clip_percentile_low: 0.005
+      clip_percentile_high: 0.995
+    augmentation:
+      profile: aug_em_neuron
+      rotate:
+        spatial_axes: [0, 1, 2]
+  inference:
+    head: aff_r1
+    sliding_window:
+      window_size: [128, 128, 128]
+      sw_batch_size: 1
+      keep_input_on_cpu: false
+    test_time_augmentation:
+      enabled: false
+      flip_axes: all
+      ensemble_mode: min
+      channel_activations:
+        - {channels: ":", activation: sigmoid}
+    postprocessing:
+      enabled: true
+      crop_pad: [59, 64, 59, 64, 59, 64]
+    save_prediction:
+      enabled: true
+    evaluation:
+      enabled: true
+      metrics: [adapted_rand]
 
-  # Evaluation
-  evaluation:
-    enabled: true
-    metrics: [adapted_rand, voi, instance_accuracy, instance_accuracy_detail]          # Adapted Rand Score + VOI + Accuracy for instance segmentation
-
-inference:
-  system:
-    num_gpus: 4
-    num_workers: 8
-  # MONAI SlidingWindowInferer parameters
-  sliding_window:
-    window_size: [128, 128, 128]         # Match training patch size
-    sw_batch_size: 4                    # Process multiple patches per batch
-    overlap: 0.5                        # 50% overlap for smooth blending
-    blending: gaussian                  # Gaussian weighting for smooth blending
-    sigma_scale: 0.25                   # Gaussian sigma scale
-    padding_mode: replicate             # Replicate padding at volume boundaries
-
-  # Test-Time Augmentation (TTA) for SDT
-  test_time_augmentation:
-    flip_axes:                          # Use all 8 flip augmentations (2^3 for xyz)
-    rotation90_axes:                    # No 90-degree rotations
-    channel_activations:
-      - {channels: "0:-1", activation: sigmoid}  # Affinity channels: sigmoid activation
-      - {channels: "-1:", activation: tanh}
-    select_channel: ":"
-    ensemble_mode: mean                 # Average predictions across augmentations
-    apply_mask: false                   # No mask for BetaSeg
-
-  # Save intermediate predictions
-  save_prediction:
-    enabled: true                       # Save SDT predictions before decoding
-    intensity_scale: -1                 # Keep original scale (no rescaling)
-    intensity_dtype: float32            # Keep as float32 for SDT
-    output_formats: [h5]
 
 train:
-  system:
-    num_gpus: 4
-    num_workers: 8
-    seed: 0
+  data:
+    root_path: /projects/weilab/liupeng/projects/banis/data/mito_data/betaSeg
+    train:
+      path: train
+      image: [high_c3/data.zarr/img, low_c1/data.zarr/img, low_c2/data.zarr/img]
+      label: [high_c3/data.zarr/seg, low_c1/data.zarr/seg, low_c2/data.zarr/seg]
+      label_aux_type: skeleton
+    val:
+      path: val
+      image: high_c1/data.zarr/img
+      label: high_c1/data.zarr/seg
+      label_aux_type: skeleton
+
+  optimization:
+    profile: warmup_cosine_lr
+    max_epochs: 200
+    n_steps_per_epoch: 1000
+  monitor:
+    logging:
+      scalar:
+        loss: [train_loss_total_epoch, train_loss_term_0_weighted, train_loss_term_1_weighted, train_loss_term_2_weighted]
+        loss_every_n_steps: 50
+      images:
+        head: aff_r1
+        log_every_n_epochs: 10
+        max_images: 8
+        num_slices: 2
+        channel_mode: all
+    checkpoint:
+      save_top_k: 3
+      monitor: val_loss_total_epoch
+      mode: min
+
+test:
+  data:
+    test:
+      path: test
+      image: high_c2/data.zarr/img
+      label: high_c2/data.zarr/seg
+      label_aux_type: skeleton
+      resolution: [16, 16, 16]
+    data_transform:
+      pad_size: [64, 64, 64]
+  inference:
+    head: aff_r1
+    decoding:
+      - name: decode_distance_watershed
+        kwargs:
+          distance_channels: [6]
+          distance_threshold: [0.5, 0]
+          min_seed_size: 100
+          min_instance_size: 50
+          use_fast_edt: true
+          edt_parallel: 8

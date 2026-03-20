@@ -315,8 +315,8 @@ The project uses **Hydra/OmegaConf** with dataclass-based configs for type safet
 
 Canonical YAML layout:
 
-- `configs/profiles/*.yaml`: section-level registries selected by `*.profile`
-- `configs/templates/*.yaml`: explicit list-item templates, currently for `inference.decoding`
+- `connectomics/config/profiles/*.yaml`: section-level registries selected by `*.profile`
+- `connectomics/config/templates/*.yaml`: explicit list-item templates, currently for `inference.decoding`
 - `tutorials/*.yaml`: runnable experiments that `_base_` the shared registries
 
 Canonical merge semantics:

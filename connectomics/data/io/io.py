@@ -343,6 +343,20 @@ def read_volume(
     elif fmt == "nifti":
         data = _read_nifti(filename)
 
+    elif fmt == "zarr":
+        import zarr
+
+        # Path may be "dir.zarr/subkey" — split at .zarr boundary.
+        zarr_idx = filename.index(".zarr")
+        zarr_path = filename[: zarr_idx + 5]
+        sub_key = filename[zarr_idx + 5 :].strip("/") or None
+        store = zarr.open(zarr_path, mode="r")
+        arr = store[sub_key] if sub_key else store
+        data = np.asarray(arr)
+        # Drop trailing singleton channel dim (e.g. img shape (D,H,W,1)).
+        if data.ndim == 4 and data.shape[-1] == 1:
+            data = data[..., 0]
+
     else:
         raise ValueError(f"Unsupported format: {fmt}")
 

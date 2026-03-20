@@ -4,7 +4,7 @@ default:
       profile: mednext_m
 
 _base_:
-  - ../configs/all_profiles.yaml
+  - ../../connectomics/config/all_profiles.yaml
 
 description: MitoEM 3D mitochondria instance segmentation with MedNeXt using SDT + affinity (multi-target loss)
 model:
@@ -63,7 +63,7 @@ data:
         bg_value: -1.0
         relabel: true
   augmentation:
-    preset: some
+
     flip:
       enabled: true
     rotate:

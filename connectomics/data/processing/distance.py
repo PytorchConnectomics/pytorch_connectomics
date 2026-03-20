@@ -520,10 +520,13 @@ def _batch_skeletonize(
         print(f"  kimimaro failed: {e}")
         return {}
 
+    # kimimaro returns vertices in physical coordinates (scaled by anisotropy).
+    # Convert back to voxel indices by dividing by resolution.
+    anisotropy = np.array(config["anisotropy"], dtype=np.float64)
     result = {}
     for inst_id, skel in skeletons.items():
         if len(skel.vertices) > 0:
-            result[inst_id] = skel.vertices.astype(int)
+            result[inst_id] = (skel.vertices / anisotropy).astype(int)
     return result
 
 

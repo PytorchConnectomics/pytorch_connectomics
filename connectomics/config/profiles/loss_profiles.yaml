@@ -42,17 +42,15 @@ loss_profiles:
         kwargs: {auto_pos_weight: true}
   loss_bd:
     losses:
-      - function: WeightedBCEWithLogitsLoss
+      - function: PerChannelBCEWithLogitsLoss
         weight: 1.0
         pred_slice: "0:-1"
         target_slice: "0:-1"
-      - function: DiceLoss
+        kwargs: {auto_pos_weight: true}
+      - function: SmoothL1Loss
         weight: 1.0
-        kwargs: {sigmoid: true, smooth_nr: 1e-5, smooth_dr: 1e-5}
-        pred_slice: "0:-1"
-        target_slice: "0:-1"
-      - function: WeightedMSELoss
-        weight: 2.0
         kwargs: {tanh: true}
         pred_slice: "-1:"
         target_slice: "-1:"
+    loss_balancing:
+      strategy: uncertainty

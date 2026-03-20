@@ -108,7 +108,7 @@ def profile_dataloader(config_path: str, num_batches: int = 10):
 
 
 if __name__ == "__main__":
-    config_path = "tutorials/mito_mitoEM_common.yaml"
+    config_path = "tutorials/mitoEM/common.yaml"
     if len(sys.argv) > 1:
         config_path = sys.argv[1]
 
