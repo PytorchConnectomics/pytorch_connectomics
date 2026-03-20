@@ -38,4 +38,4 @@ def test_augmentation_presets_load(config_path: Path, should_load: bool) -> None
 
     assert cfg.data.dataloader.batch_size > 0
     assert cfg.system.num_workers >= 0
-    assert cfg.data.augmentation.preset in {"none", "some", "all"}
+    assert cfg.data.augmentation is not None

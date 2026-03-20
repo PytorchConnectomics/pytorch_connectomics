@@ -2,7 +2,7 @@ experiment_name: vesicle_xm_mednext_bcd
 description: Vesicle segmentation with MedNeXt and multi-task learning (Binary + Contour + DT)
 
 _base_:
-  - ../configs/all_profiles.yaml
+  - ../connectomics/config/all_profiles.yaml
 
 default:
   pipeline_profile: bcd

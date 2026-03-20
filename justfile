@@ -108,7 +108,7 @@ tensorboard-run experiment timestamp port='6006':
 
 # Launch a command on SLURM (command is run exactly as provided).
 # Examples:
-#   just slurm long 8 4 "just train mito_mitoEM_H" vr40g
+#   just slurm long 8 4 "just train mitoEM/H" vr40g
 #   just slurm short 8 4 "python scripts/main.py --config tutorials/lucchi.yaml"
 #   just slurm short 8 4 "just train lucchi++" "" "64G"    # override memory
 #   just slurm medium 8 2 "just train vesicle_xm" vr144g 128G gb001  # pin node

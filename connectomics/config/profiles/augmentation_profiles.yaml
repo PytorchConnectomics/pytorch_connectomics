@@ -21,7 +21,7 @@ augmentation_profiles:
   # Use for: quick experiments, clean datasets, fine-tuning pretrained models.
   # Overhead: minimal. No EM artifact simulation.
   aug_light:
-    preset: some
+
     flip:
       enabled: true
       prob: 0.5
@@ -44,7 +44,7 @@ augmentation_profiles:
   # Use for: most 3D EM segmentation tasks. Good balance of regularization
   # and training speed. Covers the augmentations used by ~80% of tutorials.
   aug_standard:
-    preset: some
+
     flip:
       enabled: true
       prob: 0.5
@@ -77,7 +77,7 @@ augmentation_profiles:
   # Adds affine, elastic, motion blur, missing parts, and cut noise.
   # Increase max_epochs ~50% when using this profile.
   aug_strong:
-    preset: some
+
     flip:
       enabled: true
       prob: 0.5
@@ -139,7 +139,7 @@ augmentation_profiles:
   #   - Aggressive ±50% contrast/brightness (DeepEM MixedGrayscale2D)
   # Tuned for small training volumes with long training schedules.
   aug_em_neuron:
-    preset: some
+
     defect_mutex: true           # DeepEM Blend(mutex): one defect per sample
     flip:
       enabled: true
@@ -192,7 +192,7 @@ augmentation_profiles:
   # Copy-paste creates synthetic training pairs; mixup regularizes small datasets.
   # Requires batch_size > 1 for mixup.
   aug_instance:
-    preset: some
+
     flip:
       enabled: true
       prob: 0.5
@@ -235,7 +235,7 @@ augmentation_profiles:
   # learning across resolution scales. CutBlur forces the model to handle
   # degraded (low-res) regions alongside high-res regions.
   aug_superres:
-    preset: some
+
     flip:
       enabled: true
       prob: 0.5

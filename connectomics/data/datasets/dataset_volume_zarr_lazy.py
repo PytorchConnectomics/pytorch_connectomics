@@ -47,6 +47,7 @@ class LazyZarrVolumeDataset(PatchDataset):
         self,
         image_paths: List[str],
         label_paths: Optional[List[str]] = None,
+        label_aux_paths: Optional[List[str]] = None,
         mask_paths: Optional[List[str]] = None,
         patch_size: Tuple[int, int, int] = (112, 112, 112),
         iter_num: int = 500,
@@ -69,21 +70,24 @@ class LazyZarrVolumeDataset(PatchDataset):
 
         self.image_paths = image_paths
         self.label_paths = label_paths if label_paths else [None] * len(image_paths)
+        self.label_aux_paths = label_aux_paths if label_aux_paths else [None] * len(image_paths)
         self.mask_paths = mask_paths if mask_paths else [None] * len(image_paths)
         self.transpose_axes = self._normalize_transpose_axes(transpose_axes)
         self.inverse_transpose_axes = self._invert_transpose_axes(self.transpose_axes)
 
         self.images = []
         self.labels = []
+        self.label_auxs = []
         self.masks = []
         self.image_channel_last = []
 
         logger.info("Opening %d zarr volumes (lazy, no preload)...", len(image_paths))
-        for i, (img_path, lbl_path, mask_path) in enumerate(
-            zip(self.image_paths, self.label_paths, self.mask_paths)
+        for i, (img_path, lbl_path, aux_path, mask_path) in enumerate(
+            zip(self.image_paths, self.label_paths, self.label_aux_paths, self.mask_paths)
         ):
             img_arr = self._open_array(img_path)
             lbl_arr = self._open_array(lbl_path) if lbl_path else None
+            aux_arr = self._open_array(aux_path) if aux_path else None
             mask_arr = self._open_array(mask_path) if mask_path else None
 
             img_channel_last = False
@@ -101,6 +105,10 @@ class LazyZarrVolumeDataset(PatchDataset):
                 lbl_raw = self._get_label_spatial_shape(lbl_arr)
                 if lbl_raw != spatial_raw:
                     raise ValueError(f"Image/label spatial mismatch: {spatial_raw} vs {lbl_raw}")
+            if aux_arr is not None:
+                aux_raw = self._get_label_spatial_shape(aux_arr)
+                if aux_raw != spatial_raw:
+                    raise ValueError(f"Image/label_aux spatial mismatch: {spatial_raw} vs {aux_raw}")
             if mask_arr is not None:
                 mask_raw = self._get_label_spatial_shape(mask_arr)
                 if mask_raw != spatial_raw:
@@ -108,6 +116,7 @@ class LazyZarrVolumeDataset(PatchDataset):
 
             self.images.append(img_arr)
             self.labels.append(lbl_arr)
+            self.label_auxs.append(aux_arr)
             self.masks.append(mask_arr)
             self.image_channel_last.append(img_channel_last)
             self.volume_sizes.append(spatial)
@@ -130,12 +139,22 @@ class LazyZarrVolumeDataset(PatchDataset):
             if self.labels[vol_idx] is not None
             else None
         )
+        label_aux_crop = (
+            self._crop_label_like(self.label_auxs[vol_idx], pos)
+            if self.label_auxs[vol_idx] is not None
+            else None
+        )
         mask_crop = (
             self._crop_label_like(self.masks[vol_idx], pos)
             if self.masks[vol_idx] is not None
             else None
         )
-        return {"image": image_crop, "label": label_crop, "mask": mask_crop}
+        return {
+            "image": image_crop,
+            "label": label_crop,
+            "label_aux": label_aux_crop,
+            "mask": mask_crop,
+        }
 
     def _has_labels(self, vol_idx: int) -> bool:
         return self.labels[vol_idx] is not None
@@ -146,7 +165,9 @@ class LazyZarrVolumeDataset(PatchDataset):
         if path is None:
             return None
         if ".zarr" not in str(path):
-            raise ValueError(f"LazyZarrVolumeDataset expects zarr paths (got: {path}).")
+            # Non-zarr files (e.g. precomputed skeleton .h5): load eagerly.
+            from ..io.io import read_volume
+            return read_volume(str(path))
         return self.zarr.open(str(path), mode="r")
 
     @staticmethod

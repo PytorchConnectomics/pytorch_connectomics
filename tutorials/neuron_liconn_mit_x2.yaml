@@ -59,7 +59,7 @@ description: >
 
 # ── Inherit all shared profile libraries ──────────────────────────────────────
 _base_:
-  - ../configs/all_profiles.yaml
+  - ../connectomics/config/all_profiles.yaml
 
 # ── Profile selectors ─────────────────────────────────────────────────────────
 default:
@@ -165,7 +165,7 @@ default:
     # ── Image normalization ───────────────────────────────────────────────────
     # Normalize uint8 [0,255] → float [0,1] before augmentation.
     # clip_percentile_low/high=0.0/1.0 means no clipping (use full range).
-    # Learned from neuron_nisb_9nm_liconn.yaml — missing this causes training instability.
+    # Learned from neuron_nisb/9nm_liconn.yaml — missing this causes training instability.
     image_transform:
       normalize: "0-1"
       clip_percentile_low: 0.0

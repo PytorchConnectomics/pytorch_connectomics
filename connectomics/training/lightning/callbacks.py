@@ -230,18 +230,30 @@ class VisualizationCallback(Callback):
                 if restore_train_mode:
                     pl_module.train()
 
-                image_cpu = image.cpu()
-                label_tensor, pred_tensor, _resolved_head = self._select_visualization_tensors(
-                    pl_module,
-                    cached_batch["label"],
-                    pred,
-                )
+            image_cpu = image.cpu()
+            mask_cpu = cached_batch.get("mask", None)
+            if mask_cpu is not None:
+                mask_cpu = mask_cpu.cpu()
+
+            # Determine which heads to visualize.
+            head_names = self._get_visualization_heads(pl_module, pred)
+
+            for head_name in head_names:
+                # Temporarily override output_head for this iteration.
+                saved_head = self.output_head
+                self.output_head = head_name
+                try:
+                    label_tensor, pred_tensor, resolved = self._select_visualization_tensors(
+                        pl_module,
+                        cached_batch["label"],
+                        pred,
+                    )
+                finally:
+                    self.output_head = saved_head
+
                 label_cpu = label_tensor.cpu()
                 pred_cpu = pred_tensor.cpu()
-                mask_cpu = cached_batch.get("mask", None)
-                if mask_cpu is not None:
-                    mask_cpu = mask_cpu.cpu()
-                image_cpu, label_cpu, pred_cpu, mask_cpu = (
+                img_viz, lbl_viz, pred_viz, mask_viz = (
                     _apply_affinity_visualization_crop_if_needed(
                         self.cfg,
                         image=image_cpu,
@@ -251,15 +263,16 @@ class VisualizationCallback(Callback):
                     )
                 )
 
-            self._log_visualization(
-                image=image_cpu,
-                label=label_cpu,
-                mask=mask_cpu,
-                pred=pred_cpu,
-                writer=writer,
-                iteration=trainer.current_epoch,
-                prefix=prefix,
-            )
+                head_prefix = f"{prefix}_{head_name}" if head_name else prefix
+                self._log_visualization(
+                    image=img_viz,
+                    label=lbl_viz,
+                    mask=mask_viz,
+                    pred=pred_viz,
+                    writer=writer,
+                    iteration=trainer.current_epoch,
+                    prefix=head_prefix,
+                )
             if prefix == "train":
                 logger.info("Saved visualization for epoch %s", trainer.current_epoch)
         except Exception as e:
@@ -324,6 +337,22 @@ class VisualizationCallback(Callback):
                 if isinstance(value, torch.Tensor):
                     return value
         raise TypeError(f"Unexpected prediction type for visualization: {type(pred)}")
+
+    def _get_visualization_heads(self, pl_module, pred) -> list:
+        """Return list of head names to visualize.
+
+        If ``head: all``, returns all head names from model config or pred dict.
+        Otherwise returns a single-element list with the configured head.
+        """
+        if isinstance(self.output_head, str) and self.output_head.strip().lower() == "all":
+            # Multi-head model: pred is a dict of head_name → tensor.
+            if isinstance(pred, dict):
+                return [k for k in pred if isinstance(pred[k], torch.Tensor)]
+            # Single-head or no heads config: fall back to default.
+            heads_cfg = getattr(getattr(pl_module, "cfg", self.cfg).model, "heads", None)
+            if heads_cfg:
+                return list(heads_cfg.keys()) if hasattr(heads_cfg, "keys") else []
+        return [self.output_head if isinstance(self.output_head, str) and self.output_head.strip() else None]
 
     def _resolve_requested_output_head(self) -> Optional[str]:
         if isinstance(self.output_head, str) and self.output_head.strip():

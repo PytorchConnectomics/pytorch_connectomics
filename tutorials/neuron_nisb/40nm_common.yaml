@@ -2,7 +2,7 @@ experiment_name: neuron_nisb_40nm_common_mednext_b_sdt
 description: NISB neuron instance segmentation (BANIS-style) with MedNeXt-B, affinity + SDT (40nm)
 
 _base_:
-  - neuron_nisb_common.yaml
+  - common.yaml
 
 default:
   model:

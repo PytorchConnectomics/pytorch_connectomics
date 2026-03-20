@@ -388,17 +388,9 @@ class AugmentationConfig:
     """Data augmentation configuration.
 
     Comprehensive augmentation pipeline for training data including geometric,
-    intensity, and artifact simulation augmentations. Controlled by presets
-    and individual component toggles.
-
-    Presets:
-    - "none": No augmentations
-    - "some": Basic augmentations (flip, rotate, intensity)
-    - "all": All available augmentations
+    intensity, and artifact simulation augmentations. Each augmentation is
+    individually controlled via its ``enabled`` flag.
     """
-
-    # Preset for controlling enabled groups: "none", "some", "all"
-    preset: str = "some"
 
     # Mutual exclusion: when True, at most one defect augmentation
     # (misalignment, missing_section, motion_blur, missing_parts) fires per sample.

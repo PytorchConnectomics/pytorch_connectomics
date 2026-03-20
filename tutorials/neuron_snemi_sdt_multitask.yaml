@@ -68,7 +68,6 @@ default:
           kwargs:
             alpha: 0.8
             bg_value: -1.0
-            deepem_crop: true
 
     dataloader:
       profile: cached
@@ -125,7 +124,7 @@ train:
         loss: [train_loss_total_epoch, train_loss_term_0_weighted, train_loss_term_1_weighted, train_loss_term_2_weighted, train_loss_term_3_weighted]
         loss_every_n_steps: 50
       images:
-        head: aff_r1
+        head: all
         log_every_n_epochs: 10
         max_images: 8
         num_slices: 2

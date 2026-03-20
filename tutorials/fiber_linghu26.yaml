@@ -4,7 +4,7 @@ default:
       profile: mednext_s
 
 _base_:
-  - ../configs/all_profiles.yaml
+  - ../connectomics/config/all_profiles.yaml
 experiment_name: fiber_mednext_bcs
 description: Fiber segmentation with MedNeXt and multi-task learning (Binary + Contour + SDT)
 model:
@@ -80,7 +80,6 @@ data:
         bg_value: -1.0
         relabel: true
   augmentation:
-    preset: some
     flip:
       enabled: true
     rotate:

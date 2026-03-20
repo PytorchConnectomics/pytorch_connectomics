@@ -4,7 +4,7 @@ default:
       profile: mednext_s
 
 _base_:
-  - ../configs/all_profiles.yaml
+  - ../connectomics/config/all_profiles.yaml
 experiment_name: cem-mitolab_mednext2d
 description: Mitochondria segmentation on CEM-MitoLab dataset using MedNeXt 2D
 model:
@@ -50,8 +50,7 @@ data:
       kwargs:
         mode: 2d
         quantize: false
-  augmentation:
-    preset: all
+
   train:
     dataset_type: filename
     json: datasets/cem-mitolab/files.json

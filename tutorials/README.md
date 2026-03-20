@@ -9,10 +9,9 @@ python scripts/main.py --config tutorials/<config>.yaml
 ## Active top-level configs
 
 - `tutorials/mito_lucchi++.yaml`: Lucchi++ mitochondria segmentation (MONAI UNet).
-- `tutorials/mito_mitoEM.yaml`: Backward-compatible alias to `mito_mitoEM_30h.yaml`.
-- `tutorials/mito_mitoEM_30h.yaml`: MitoEM-Human (EM30-H) instance segmentation (MedNeXt, SDT).
-- `tutorials/mito_mitoEM_30r.yaml`: MitoEM-Rat (EM30-R) instance segmentation (MedNeXt, SDT).
-- `tutorials/mito_mitoEM_30hr.yaml`: Joint EM30-H + EM30-R training (MedNeXt, SDT).
+- `tutorials/mitoEM/H.yaml`: MitoEM-Human (EM30-H) instance segmentation (MedNeXt, SDT).
+- `tutorials/mitoEM/R.yaml`: MitoEM-Rat (EM30-R) instance segmentation (MedNeXt, SDT).
+- `tutorials/mitoEM/HR.yaml`: Joint EM30-H + EM30-R training (MedNeXt, SDT).
 - `tutorials/mito_mitolab.yaml`: CEM-MitoLab 2D mitochondria segmentation (MedNeXt).
 - `tutorials/mito_betaseg.yaml`: BetaSeg mitochondria instance segmentation (MedNeXt, affinity+SDT).
 - `tutorials/neuron_snemi.yaml`: SNEMI3D neuron segmentation (RSUNet, affinities).
@@ -23,13 +22,13 @@ python scripts/main.py --config tutorials/<config>.yaml
 
 Top-level configs now use inheritance via `_base_`:
 
-- `configs/all_profiles.yaml`: Canonical registry index loaded by top-level tutorials.
-- `configs/profiles/*.yaml`: Section-level registries selected by `*.profile`.
-- `configs/templates/*.yaml`: Explicit list-item templates, currently used for `inference.decoding`.
+- `connectomics/config/all_profiles.yaml`: Canonical registry index loaded by top-level tutorials.
+- `connectomics/config/profiles/*.yaml`: Section-level registries selected by `*.profile`.
+- `connectomics/config/templates/*.yaml`: Explicit list-item templates, currently used for `inference.decoding`.
 
 `_base_` supports:
 
-- A single file path (`_base_: ../configs/all_profiles.yaml`)
+- A single file path (`_base_: ../connectomics/config/all_profiles.yaml`)
 - A list of files (`_base_: [a.yaml, b.yaml]`) with left-to-right merge order
 - Relative paths resolved from the current config file
 

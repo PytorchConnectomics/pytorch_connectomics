@@ -326,7 +326,7 @@ def validate_config(cfg: Config) -> None:
                 f"inference.head='{inference_head}' is not present in model.heads "
                 f"({sorted(model_heads.keys())})."
             )
-        if visualization_head is not None and visualization_head not in model_heads:
+        if visualization_head is not None and visualization_head != "all" and visualization_head not in model_heads:
             raise ValueError(
                 f"monitor.logging.images.head='{visualization_head}' is not present in "
                 f"model.heads ({sorted(model_heads.keys())})."

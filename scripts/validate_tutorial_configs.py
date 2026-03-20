@@ -21,7 +21,7 @@ LEGACY_PATTERNS: List[Tuple[Tuple[str, ...], str]] = [
     (("inference", "data"), "Use `test.data` instead of `inference.data`."),
     (
         ("data", "augmentation", "enabled"),
-        "Use augmentation `preset` + per-transform `enabled` flags.",
+        "Use per-transform `enabled` flags instead.",
     ),
     (
         ("inference", "test_time_augmentation", "act"),
