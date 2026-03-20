@@ -13,6 +13,7 @@ from __future__ import annotations
 import glob
 import logging
 import os
+from pathlib import Path
 from typing import List, Optional, Union
 
 import h5py
@@ -35,11 +36,9 @@ def _detect_format(filename: str) -> str:
     Returns canonical format string:
     'h5', 'tiff', 'png', 'nifti', 'zarr'.
     """
-    if ".zarr" in filename:
-        return "zarr"
     if filename.endswith(".nii.gz"):
         return "nifti"
-    suffix = filename.rsplit(".", 1)[-1].lower() if "." in filename else ""
+    suffix = Path(filename).suffix.lower().lstrip(".")
     _SUFFIX_MAP = {
         "h5": "h5",
         "hdf5": "h5",
@@ -49,12 +48,22 @@ def _detect_format(filename: str) -> str:
         "nii": "nifti",
     }
     fmt = _SUFFIX_MAP.get(suffix)
-    if fmt is None:
-        raise ValueError(
-            f"Unrecognizable file format for {filename}. "
-            f"Expected: h5, hdf5, tif, tiff, png, nii, nii.gz"
-        )
-    return fmt
+    if fmt is not None:
+        return fmt
+    if ".zarr" in filename:
+        return "zarr"
+    raise ValueError(
+        f"Unrecognizable file format for {filename}. "
+        f"Expected: h5, hdf5, tif, tiff, png, nii, nii.gz, zarr"
+    )
+
+
+def _split_zarr_path(filename: str) -> tuple[str, Optional[str]]:
+    """Split a zarr path into store path and optional subkey."""
+    zarr_idx = filename.index(".zarr")
+    zarr_path = filename[: zarr_idx + 5]
+    sub_key = filename[zarr_idx + 5 :].strip("/") or None
+    return zarr_path, sub_key
 
 
 # =============================================================================
@@ -346,10 +355,7 @@ def read_volume(
     elif fmt == "zarr":
         import zarr
 
-        # Path may be "dir.zarr/subkey" — split at .zarr boundary.
-        zarr_idx = filename.index(".zarr")
-        zarr_path = filename[: zarr_idx + 5]
-        sub_key = filename[zarr_idx + 5 :].strip("/") or None
+        zarr_path, sub_key = _split_zarr_path(filename)
         store = zarr.open(zarr_path, mode="r")
         arr = store[sub_key] if sub_key else store
         data = np.asarray(arr)
@@ -374,7 +380,7 @@ def save_volume(
     filename: str,
     volume: np.ndarray,
     dataset: str = "main",
-    file_format: str = "h5",
+    file_format: Optional[str] = None,
 ) -> None:
     """Save volumetric data in specified format.
 
@@ -384,8 +390,26 @@ def save_volume(
         dataset: Dataset name for HDF5 format.
         file_format: 'h5', 'tiff', 'png', 'nii', 'nii.gz'.
     """
+    file_format = file_format or _detect_format(filename)
+
     if file_format == "h5":
         write_hdf5(filename, volume, dataset=dataset)
+
+    elif file_format == "zarr":
+        import zarr
+
+        zarr_path, sub_key = _split_zarr_path(filename)
+        if sub_key:
+            group = zarr.open_group(zarr_path, mode="a")
+            group.create_dataset(sub_key, data=volume, overwrite=True)
+        else:
+            array = zarr.open(
+                zarr_path,
+                mode="w",
+                shape=volume.shape,
+                dtype=volume.dtype,
+            )
+            array[...] = volume
 
     elif file_format in ("tif", "tiff"):
         import tifffile
@@ -410,7 +434,7 @@ def save_volume(
 
     else:
         raise ValueError(
-            f"Unsupported format: {file_format}. " f"Expected: h5, tiff, png, nii, nii.gz"
+            f"Unsupported format: {file_format}. " f"Expected: h5, zarr, tiff, png, nii, nii.gz"
         )
 
 
@@ -436,9 +460,6 @@ def get_vol_shape(
     Returns shape consistent with what read_volume would
     produce: (D, H, W) or (C, D, H, W).
     """
-    if not os.path.exists(filename):
-        raise FileNotFoundError(f"File not found: {filename}")
-
     fmt = _detect_format(filename)
 
     if fmt == "zarr":
@@ -446,7 +467,12 @@ def get_vol_shape(
             import zarr
         except ModuleNotFoundError as exc:
             raise ModuleNotFoundError("zarr required. pip install zarr") from exc
-        obj = zarr.open(filename, mode="r")
+        zarr_path, sub_key = _split_zarr_path(filename)
+        if not os.path.exists(zarr_path):
+            raise FileNotFoundError(f"File not found: {zarr_path}")
+        obj = zarr.open(zarr_path, mode="r")
+        if sub_key:
+            return tuple(obj[sub_key].shape)
         if hasattr(obj, "shape"):
             return tuple(obj.shape)
         if dataset is not None:
@@ -455,6 +481,9 @@ def get_vol_shape(
         if not keys:
             raise ValueError(f"No arrays in zarr group: {filename}")
         return tuple(obj[keys[0]].shape)
+
+    if not os.path.exists(filename):
+        raise FileNotFoundError(f"File not found: {filename}")
 
     if fmt == "h5":
         with h5py.File(filename, "r") as f:
@@ -483,3 +512,15 @@ def get_vol_shape(
         return _get_nifti_shape(filename)
 
     raise ValueError(f"Unsupported format: {fmt}")
+
+
+def volume_exists(
+    filename: str,
+    dataset: Optional[str] = None,
+) -> bool:
+    """Return True when a volume path can be opened by this IO layer."""
+    try:
+        get_vol_shape(filename, dataset=dataset)
+    except (FileNotFoundError, KeyError, ValueError, OSError):
+        return False
+    return True

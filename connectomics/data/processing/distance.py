@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from typing import Dict, Optional, Tuple
 
+import cc3d
 import kimimaro
 import numpy as np
 from scipy.ndimage import binary_fill_holes, distance_transform_edt
@@ -12,8 +13,6 @@ from skimage.morphology import (
     disk,
     remove_small_holes,
 )
-
-import cc3d
 
 from .bbox_processor import BBoxInstanceProcessor, BBoxProcessorConfig
 from .quantize import energy_quantize
@@ -459,7 +458,7 @@ def kimimaro_config(label: np.ndarray, resolution: Tuple[float, ...]) -> dict:
 
     # --- dust threshold ---
     # Skip instances smaller than a 5³-voxel cube.
-    dust_threshold = max(5 ** label.ndim, 5)
+    dust_threshold = max(5**label.ndim, 5)
 
     # --- flags ---
     # fix_branching: improves branch-point accuracy but ~1.3x slower.
@@ -605,7 +604,10 @@ def precompute_sdt_volume(
 
     t0 = time.time()
     sdt = skeleton_aware_distance_transform(
-        label, resolution=resolution, alpha=alpha, bg_value=bg_value,
+        label,
+        resolution=resolution,
+        alpha=alpha,
+        bg_value=bg_value,
         max_parallel=parallel,
     )
     elapsed = time.time() - t0
@@ -665,7 +667,9 @@ def precompute_skeleton_volume(
                 skel_vol[verts[:, 0], verts[:, 1]] = inst_id
 
     n_skel_voxels = int((skel_vol > 0).sum())
-    print(f"  Skeleton volume: {n_skel_voxels} voxels ({n_skel_voxels / max(skel_vol.size, 1) * 100:.2f}%)")
+    print(
+        f"  Skeleton volume: {n_skel_voxels} voxels ({n_skel_voxels / max(skel_vol.size, 1) * 100:.2f}%)"
+    )
 
     save_volume(output_path, skel_vol)
     print(f"  Saved to {output_path}")
@@ -751,14 +755,24 @@ def skeleton_aware_edt_from_skeleton_vol(
 def sdt_path_for_label(label_path: str, mode: str = "sdt") -> str:
     """Derive the precomputed cache path from a label file path.
 
+    HDF5 labels produce sibling ``*.h5`` cache files. Zarr dataset paths such
+    as ``data.zarr/seg`` produce sibling arrays inside the same store, for
+    example ``data.zarr/seg_skeleton``. A bare ``data.zarr`` label path falls
+    back to a sibling store such as ``data_skeleton.zarr``.
+
     Args:
         mode: ``"sdt"`` for full SDT, ``"skeleton"`` for skeleton volume.
-
-    Examples:
-        ``train-labels.tif`` → ``train-labels_sdt.h5``
-        ``train-labels.tif`` → ``train-labels_skeleton.h5``
     """
     import os
+
+    if ".zarr" in label_path:
+        zarr_idx = label_path.index(".zarr")
+        zarr_path = label_path[: zarr_idx + 5]
+        sub_key = label_path[zarr_idx + 5 :].strip("/")
+        if sub_key:
+            return f"{zarr_path}/{sub_key}_{mode}"
+        base = zarr_path[: -len(".zarr")]
+        return f"{base}_{mode}.zarr"
 
     base, _ = os.path.splitext(label_path)
     return base + f"_{mode}.h5"

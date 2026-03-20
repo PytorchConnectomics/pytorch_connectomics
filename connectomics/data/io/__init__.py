@@ -14,6 +14,7 @@ from .io import (
     read_images,
     read_volume,
     save_volume,
+    volume_exists,
     write_hdf5,
 )
 from .transforms import (
@@ -32,6 +33,7 @@ __all__ = [
     "read_volume",
     "save_volume",
     "get_vol_shape",
+    "volume_exists",
     "LoadVolumed",
     "SaveVolumed",
     "TileLoaderd",
