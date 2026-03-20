@@ -12,7 +12,7 @@ import pytest
 import torch
 import torch.nn as nn
 
-from connectomics.models.arch import (
+from connectomics.models.architectures import (
     ConnectomicsModel,
     get_architecture_builder,
     get_architecture_info,

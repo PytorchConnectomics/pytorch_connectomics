@@ -33,6 +33,12 @@ def _forward_affine_logits(x: torch.Tensor) -> torch.Tensor:
     return torch.cat([x + 0.5, x * 2.0 - 0.25], dim=1)
 
 
+def _forward_multi_head_logits(x: torch.Tensor):
+    affinity = torch.cat([x + 0.5, x * 2.0 - 0.25], dim=1)
+    sdt = x - 0.75
+    return {"output": {"affinity": affinity, "sdt": sdt}}
+
+
 class _TrackingSlidingInferer:
     def __init__(self, inferer):
         self.inferer = inferer
@@ -189,6 +195,53 @@ def test_tta_channel_activations_follow_python_slice_semantics():
     expected = _forward_three_channel_logits(images)
     expected[:, 0:2, ...] = torch.sigmoid(expected[:, 0:2, ...])
     expected[:, 2:3, ...] = torch.tanh(expected[:, 2:3, ...])
+    assert torch.allclose(pred, expected)
+
+
+def test_tta_selects_named_output_head_before_channel_preprocessing():
+    cfg = Config()
+    cfg.model.out_channels = 3
+    cfg.model.primary_head = "affinity"
+    cfg.model.heads = {
+        "affinity": {"out_channels": 2, "num_blocks": 0},
+        "sdt": {"out_channels": 1, "num_blocks": 0},
+    }
+    cfg.inference.head = "affinity"
+    cfg.inference.test_time_augmentation.enabled = False
+    cfg.inference.test_time_augmentation.channel_activations = [
+        {"channels": ":", "activation": "sigmoid"}
+    ]
+    cfg.inference.test_time_augmentation.select_channel = 1
+
+    predictor = TTAPredictor(cfg=cfg, sliding_inferer=None, forward_fn=_forward_multi_head_logits)
+
+    images = torch.zeros((1, 1, 2, 2, 2), dtype=torch.float32)
+    pred = predictor.predict(images)
+
+    assert pred.shape == (1, 1, 2, 2, 2)
+    expected_affinity = _forward_multi_head_logits(images)["output"]["affinity"]
+    expected = torch.sigmoid(expected_affinity[:, 1:2, ...])
+    assert torch.allclose(pred, expected)
+
+
+def test_tta_requested_head_override_selects_alternate_named_head():
+    cfg = Config()
+    cfg.model.out_channels = 3
+    cfg.model.primary_head = "affinity"
+    cfg.model.heads = {
+        "affinity": {"out_channels": 2, "num_blocks": 0},
+        "sdt": {"out_channels": 1, "num_blocks": 0},
+    }
+    cfg.inference.head = "affinity"
+    cfg.inference.test_time_augmentation.enabled = False
+
+    predictor = TTAPredictor(cfg=cfg, sliding_inferer=None, forward_fn=_forward_multi_head_logits)
+
+    images = torch.zeros((1, 1, 2, 2, 2), dtype=torch.float32)
+    pred = predictor.predict(images, requested_head="sdt")
+
+    assert pred.shape == (1, 1, 2, 2, 2)
+    expected = _forward_multi_head_logits(images)["output"]["sdt"]
     assert torch.allclose(pred, expected)
 
 

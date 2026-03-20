@@ -10,12 +10,12 @@ from typing import List, Optional
 from monai.transforms import Compose
 
 from ...config import Config
-from ...data.augment.build import (
+from ...data.augmentation.build import (
     build_test_transforms,
     build_train_transforms,
     build_val_transforms,
 )
-from ...data.dataset import create_data_dicts_from_paths
+from ...data.datasets import create_data_dicts_from_paths
 from ...data.io import get_vol_shape
 from .data import ConnectomicsDataModule, SimpleDataModule
 from .path_utils import expand_file_paths
@@ -64,7 +64,7 @@ def _maybe_precompute_label_aux(
     alpha = float(kwargs.get("alpha", 0.8))
     bg_value = float(kwargs.get("bg_value", -1.0))
 
-    from ...data.process.distance import (
+    from ...data.processing.distance import (
         precompute_sdt_volume,
         precompute_skeleton_volume,
         sdt_path_for_label,
@@ -349,7 +349,7 @@ def create_datamodule(
     elif cfg.data.split_enabled and not cfg.data.val.image:
         logger.info("Using automatic train/val split (DeepEM-style)")
 
-        from ...data.dataset.split import split_volume_train_val
+        from ...data.datasets.split import split_volume_train_val
 
         train_path = Path(cfg.data.train.image)
         volume_shape = get_vol_shape(str(train_path))
@@ -478,9 +478,7 @@ def create_datamodule(
 
             # label_aux: already set by early precompute step or explicit config.
             train_label_aux_paths = (
-                expand_file_paths(cfg.data.train.label_aux)
-                if cfg.data.train.label_aux
-                else None
+                expand_file_paths(cfg.data.train.label_aux) if cfg.data.train.label_aux else None
             )
 
             train_data_dicts = create_data_dicts_from_paths(
@@ -585,7 +583,7 @@ def create_datamodule(
             # For filename datasets, iter_num is determined by the number of files
             logger.info("Auto-computing iter_num from volume size...")
 
-            from ...data.dataset.sampling import compute_total_samples
+            from ...data.datasets.sampling import compute_total_samples
             from ...data.io import get_vol_shape
 
             # Get volume sizes
@@ -658,8 +656,8 @@ def create_datamodule(
         logger.info("Using pre-loaded volume cache (loads once, crops in memory)")
         from torch.utils.data import DataLoader
 
-        from ...data.dataset.dataset_volume_cached import CachedVolumeDataset
-        from ...data.process.nnunet_preprocess import NNUNetPreprocessd
+        from ...data.datasets.dataset_volume_cached import CachedVolumeDataset
+        from ...data.processing.nnunet_preprocess import NNUNetPreprocessd
 
         def _build_preloaded_nnunet_preprocess(split: str):
             nnunet_pre_cfg = getattr(cfg.data, "nnunet_preprocessing", None)
@@ -708,7 +706,11 @@ def create_datamodule(
         train_dataset = CachedVolumeDataset(
             image_paths=[d["image"] for d in train_data_dicts],
             label_paths=[d.get("label") for d in train_data_dicts],
-            label_aux_paths=[d.get("label_aux") for d in train_data_dicts] if any(d.get("label_aux") for d in train_data_dicts) else None,
+            label_aux_paths=(
+                [d.get("label_aux") for d in train_data_dicts]
+                if any(d.get("label_aux") for d in train_data_dicts)
+                else None
+            ),
             mask_paths=[d.get("mask") for d in train_data_dicts],
             patch_size=tuple(cfg.data.dataloader.patch_size),
             iter_num=iter_num,
@@ -833,7 +835,7 @@ def create_datamodule(
         logger.info("Using lazy zarr volume loading (crop-on-read, no full preload)")
         from torch.utils.data import DataLoader
 
-        from ...data.dataset.dataset_volume_zarr_lazy import LazyZarrVolumeDataset
+        from ...data.datasets.dataset_volume_zarr_lazy import LazyZarrVolumeDataset
 
         train_transforms_lazy = build_train_transforms(cfg, skip_loading=True)
 
@@ -920,7 +922,7 @@ def create_datamodule(
         logger.info("Creating filename-based datamodule...")
         from torch.utils.data import DataLoader
 
-        from ...data.dataset.dataset_filename import create_filename_datasets
+        from ...data.datasets.dataset_filename import create_filename_datasets
 
         # Create train and val datasets from JSON
         train_dataset, val_dataset = create_filename_datasets(

@@ -25,7 +25,7 @@ import mahotas
 from scipy import ndimage
 from skimage.feature import peak_local_max
 
-from connectomics.data.process import bbox_ND, crop_ND, replace_ND
+from connectomics.data.processing import bbox_ND, crop_ND, replace_ND
 from connectomics.utils.label_overlap import compute_label_overlap
 
 __all__ = [

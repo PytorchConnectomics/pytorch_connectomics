@@ -127,7 +127,7 @@ Then open http://127.0.0.1:8000 in your browser.
    - Add new modules:
      - `connectomics.training.lightning` (LightningModule, LightningDataModule, Trainer)
      - `connectomics.config` (Hydra configs)
-     - `connectomics.models.architectures` (Architecture registry)
+     - `connectomics.models.architecturesitectures` (Architecture registry)
    - Mark legacy modules (engine) as deprecated
 
 ### New Documentation Needed

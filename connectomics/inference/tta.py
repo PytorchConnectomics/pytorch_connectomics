@@ -18,6 +18,11 @@ from monai.data.utils import dense_patch_slices
 from monai.inferers.utils import _get_scan_interval, compute_importance_map
 
 from ..utils.channel_slices import resolve_channel_indices, resolve_channel_range
+from ..utils.model_outputs import (
+    resolve_output_channels,
+    resolve_output_head,
+    select_output_tensor,
+)
 from .sliding import (
     _extract_padded_patch_batch,
     _resolve_sliding_window_runtime,
@@ -280,9 +285,23 @@ class TTAPredictor:
         self.forward_fn = forward_fn
         # Track activation types per channel for proper masking
         self.channel_activation_types = None
+        self._requested_output_head_override: Optional[str] = None
         self._last_distributed_sharding_active = False
         self._last_skip_postprocess_on_rank = False
         self._parse_channel_activations()
+
+    def _resolve_requested_output_head(
+        self,
+        *,
+        purpose: str,
+        allow_none: bool = True,
+    ) -> Optional[str]:
+        return resolve_output_head(
+            self.cfg,
+            requested_head=self._requested_output_head_override,
+            purpose=purpose,
+            allow_none=allow_none,
+        )
 
     def _resolve_channel_activation_specs(
         self,
@@ -335,7 +354,16 @@ class TTAPredictor:
         )
 
         if channel_activations is not None:
-            channel_count_hint = int(getattr(getattr(self.cfg, "model", None), "out_channels", 0))
+            channel_count_hint = resolve_output_channels(
+                self.cfg,
+                requested_head=self._requested_output_head_override,
+                purpose="TTA channel activation parsing",
+                allow_ambiguous=True,
+            )
+            if channel_count_hint is None:
+                channel_count_hint = int(
+                    getattr(getattr(self.cfg, "model", None), "out_channels", 0)
+                )
             if channel_count_hint <= 0:
                 self.channel_activation_types = None
                 return
@@ -564,11 +592,18 @@ class TTAPredictor:
     def _sliding_window_predict(self, inputs: torch.Tensor) -> torch.Tensor:
         with torch.no_grad():
             outputs = self.forward_fn(inputs)
-            if isinstance(outputs, dict):
-                if "output" not in outputs:
-                    raise KeyError("Expected key 'output' in model outputs for deep supervision.")
-                return outputs["output"]
-            return outputs
+            requested_head = self._resolve_requested_output_head(
+                purpose="inference output selection",
+                allow_none=True,
+            )
+            primary_head = getattr(getattr(self.cfg, "model", None), "primary_head", None)
+            selected_output, _ = select_output_tensor(
+                outputs,
+                requested_head=requested_head,
+                primary_head=primary_head,
+                purpose="inference output selection",
+            )
+            return selected_output
 
     def _validate_and_prepare_mask(
         self,
@@ -850,9 +885,7 @@ class TTAPredictor:
                 ensemble_result[:, ch_slice], pred_float[:, ch_slice]
             )
         else:
-            raise ValueError(
-                f"Unknown TTA ensemble mode: {mode!r}. Use 'mean', 'min', or 'max'."
-            )
+            raise ValueError(f"Unknown TTA ensemble mode: {mode!r}. Use 'mean', 'min', or 'max'.")
 
     @staticmethod
     def _accumulate_ensemble_prediction(
@@ -878,8 +911,12 @@ class TTAPredictor:
             while j < num_channels and mode_map[j] == mode:
                 j += 1
             TTAPredictor._accumulate_single_mode(
-                ensemble_result, pred_float, mode, num_predictions,
-                distributed_sharding, ch_slice=slice(i, j),
+                ensemble_result,
+                pred_float,
+                mode,
+                num_predictions,
+                distributed_sharding,
+                ch_slice=slice(i, j),
             )
             i = j
 
@@ -1255,25 +1292,33 @@ class TTAPredictor:
         # Fast path: all channels share the same mode.
         if len(unique_modes) == 1:
             return self._apply_distributed_reduction_single_mode(
-                ensemble_result, num_predictions, mode_map[0], reduction_device,
+                ensemble_result,
+                num_predictions,
+                mode_map[0],
+                reduction_device,
             )
 
         # Per-channel-group reduction: reduce once per unique mode via the
         # appropriate op, then stitch the channel slices back together.
         # We need SUM for mean channels, MIN for min channels, MAX for max.
-        op_map = {"mean": torch.distributed.ReduceOp.SUM,
-                  "min": torch.distributed.ReduceOp.MIN,
-                  "max": torch.distributed.ReduceOp.MAX}
+        op_map = {
+            "mean": torch.distributed.ReduceOp.SUM,
+            "min": torch.distributed.ReduceOp.MIN,
+            "max": torch.distributed.ReduceOp.MAX,
+        }
         reduced_by_op: dict[str, torch.Tensor | None] = {}
         for mode in unique_modes:
             reduced_by_op[mode] = self._reduce_cpu_tensor_to_rank_zero(
-                ensemble_result, op=op_map[mode], reduction_device=reduction_device,
+                ensemble_result,
+                op=op_map[mode],
+                reduction_device=reduction_device,
             )
 
         total_predictions = None
         if "mean" in unique_modes:
             total_predictions = self._reduce_prediction_count_to_rank_zero(
-                num_predictions, reduction_device=reduction_device,
+                num_predictions,
+                reduction_device=reduction_device,
             )
 
         if rank == 0:
@@ -1446,6 +1491,7 @@ class TTAPredictor:
         images: torch.Tensor,
         mask: Optional[torch.Tensor] = None,
         mask_align_to_image: bool = False,
+        requested_head: Optional[str] = None,
     ) -> torch.Tensor:
         """
         Perform test-time augmentation using flips, rotations, and ensemble predictions.
@@ -1455,16 +1501,36 @@ class TTAPredictor:
             mask: Optional mask to multiply with predictions after ensemble
             mask_align_to_image: If True, allow minor center pad/crop of mask
                 to match prediction shape.
+            requested_head: Optional named output head override for this inference call.
         """
-        images = self._normalize_input(images)
+        previous_head_override = self._requested_output_head_override
+        override_changed = requested_head != previous_head_override
+        if requested_head is not None:
+            resolve_output_head(
+                self.cfg,
+                requested_head=requested_head,
+                purpose="inference output selection",
+                allow_none=False,
+            )
 
-        self._last_distributed_sharding_active = False
-        self._last_skip_postprocess_on_rank = False
-        if self._is_patch_first_local_tta_enabled():
-            return self._predict_patch_first_local(images, mask, mask_align_to_image)
-        return self._predict_prepared_tensor(
-            images,
-            mask,
-            mask_align_to_image,
-            use_sliding=True,
-        )
+        self._requested_output_head_override = requested_head
+        if override_changed:
+            self._parse_channel_activations()
+
+        try:
+            images = self._normalize_input(images)
+
+            self._last_distributed_sharding_active = False
+            self._last_skip_postprocess_on_rank = False
+            if self._is_patch_first_local_tta_enabled():
+                return self._predict_patch_first_local(images, mask, mask_align_to_image)
+            return self._predict_prepared_tensor(
+                images,
+                mask,
+                mask_align_to_image,
+                use_sliding=True,
+            )
+        finally:
+            self._requested_output_head_override = previous_head_override
+            if override_changed:
+                self._parse_channel_activations()

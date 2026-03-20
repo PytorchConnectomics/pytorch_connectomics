@@ -4,7 +4,7 @@ import numpy as np
 import torch
 
 from connectomics.config import Config
-from connectomics.data.augment.build import build_test_transforms
+from connectomics.data.augmentation.build import build_test_transforms
 from connectomics.data.io import write_hdf5
 from connectomics.inference import InferenceManager
 from connectomics.inference.lazy import lazy_predict_volume

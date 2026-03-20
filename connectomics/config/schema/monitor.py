@@ -58,6 +58,7 @@ class ImageLoggingConfig:
     channels: Optional[Tuple[int, ...]] = None
     channel_mode: str = "all"  # "argmax", "all", or "selected"
     selected_channels: Optional[List[int]] = None
+    head: Optional[str] = None
 
 
 @dataclass

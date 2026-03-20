@@ -2,7 +2,7 @@ import numpy as np
 import torch
 from monai.data import MetaTensor
 
-from connectomics.data.process.segment import seg_erosion_instance
+from connectomics.data.processing.segment import seg_erosion_instance
 
 
 def _sample_seg_3d():

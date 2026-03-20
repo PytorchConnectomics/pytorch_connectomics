@@ -3,7 +3,7 @@ import unittest
 import numpy as np
 import torch
 
-from connectomics.data.augment.transforms import RandCopyPasted, RandMixupd
+from connectomics.data.augmentation.transforms import RandCopyPasted, RandMixupd
 
 
 class TestModelBlock(unittest.TestCase):

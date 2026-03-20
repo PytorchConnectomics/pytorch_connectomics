@@ -17,8 +17,10 @@ from typing import Any, Dict, List, Optional, Tuple, Union
 
 from omegaconf import DictConfig, ListConfig, OmegaConf
 
-from ...models.arch.registry import get_architecture_info
+from ...data.processing.build import count_stacked_label_transform_channels
+from ...models.architectures.registry import get_architecture_info
 from ...utils.channel_slices import infer_min_required_channels
+from ...utils.model_outputs import resolve_configured_output_head
 from ..schema import Config
 from ..schema.root import MergeContext
 from .profile_engine import _YAML_PROFILE_ENGINE
@@ -286,6 +288,53 @@ def validate_config(cfg: Config) -> None:
         raise ValueError("model.in_channels must be positive")
     if cfg.model.out_channels <= 0:
         raise ValueError("model.out_channels must be positive")
+    model_heads = getattr(cfg.model, "heads", None) or {}
+    inference_cfg = getattr(cfg, "inference", None)
+    inference_head = getattr(inference_cfg, "head", None) if inference_cfg is not None else None
+    images_cfg = getattr(getattr(getattr(cfg, "monitor", None), "logging", None), "images", None)
+    visualization_head = getattr(images_cfg, "head", None) if images_cfg is not None else None
+    if model_heads:
+        arch_type = getattr(cfg.model.arch, "type", "")
+        if arch_type not in {"mednext", "mednext_custom"}:
+            raise ValueError(
+                "model.heads is currently only supported for architecture "
+                f"'mednext' or 'mednext_custom' (got '{arch_type}')."
+            )
+
+        for head_name, head_cfg in model_heads.items():
+            head_out_channels = int(getattr(head_cfg, "out_channels", 0))
+            head_num_blocks = int(getattr(head_cfg, "num_blocks", 0))
+            if head_out_channels <= 0:
+                raise ValueError(
+                    f"model.heads.{head_name}.out_channels must be positive "
+                    f"(got {head_out_channels})"
+                )
+            if head_num_blocks < 0:
+                raise ValueError(
+                    f"model.heads.{head_name}.num_blocks must be non-negative "
+                    f"(got {head_num_blocks})"
+                )
+
+        primary_head = getattr(cfg.model, "primary_head", None)
+        if primary_head is not None and primary_head not in model_heads:
+            raise ValueError(
+                f"model.primary_head='{primary_head}' is not present in model.heads "
+                f"({sorted(model_heads.keys())})."
+            )
+        if inference_head is not None and inference_head not in model_heads:
+            raise ValueError(
+                f"inference.head='{inference_head}' is not present in model.heads "
+                f"({sorted(model_heads.keys())})."
+            )
+        if visualization_head is not None and visualization_head not in model_heads:
+            raise ValueError(
+                f"monitor.logging.images.head='{visualization_head}' is not present in "
+                f"model.heads ({sorted(model_heads.keys())})."
+            )
+    elif inference_head is not None:
+        raise ValueError("inference.head requires model.heads to be configured")
+    elif visualization_head is not None:
+        raise ValueError("monitor.logging.images.head requires model.heads to be configured")
     if len(cfg.model.input_size) not in [2, 3]:
         raise ValueError(
             f"model.input_size must be 2D or 3D (got length {len(cfg.model.input_size)})"
@@ -331,6 +380,15 @@ def validate_config(cfg: Config) -> None:
 
     # Loss validation
     model_loss_cfg = getattr(cfg.model, "loss", None)
+    if (
+        model_heads
+        and model_loss_cfg is not None
+        and getattr(model_loss_cfg, "deep_supervision", False)
+    ):
+        raise ValueError(
+            "model.heads is not yet compatible with model.loss.deep_supervision=True. "
+            "Disable deep supervision for MedNeXt multi-head models."
+        )
     losses_cfg = getattr(model_loss_cfg, "losses", None)
     if losses_cfg is not None:
         for i, entry in enumerate(losses_cfg):
@@ -341,6 +399,32 @@ def validate_config(cfg: Config) -> None:
             w = entry.get("weight", 1.0)
             if w < 0:
                 raise ValueError(f"model.loss.losses[{i}].weight must be non-negative")
+            for head_key in ("pred_head", "pred2_head"):
+                head_name = entry.get(head_key)
+                if head_name is None:
+                    continue
+                if not isinstance(head_name, str) or not head_name.strip():
+                    raise ValueError(
+                        f"model.loss.losses[{i}].{head_key} must be a non-empty string"
+                    )
+                if not model_heads:
+                    raise ValueError(
+                        f"model.loss.losses[{i}].{head_key} requires model.heads to be configured"
+                    )
+                if head_name not in model_heads:
+                    raise ValueError(
+                        f"model.loss.losses[{i}].{head_key}='{head_name}' is not present in "
+                        f"model.heads ({sorted(model_heads.keys())})"
+                    )
+            if model_heads and len(model_heads) > 1:
+                resolved_pred_head = entry.get(
+                    "pred_head", getattr(cfg.model, "primary_head", None)
+                )
+                if resolved_pred_head is None:
+                    raise ValueError(
+                        f"model.loss.losses[{i}] must define pred_head or model.primary_head "
+                        f"when model.heads has multiple entries ({sorted(model_heads.keys())})"
+                    )
 
     # --- Cross-section coherence validation (UX 2.4 #3) ---
     _validate_cross_section_coherence(cfg)
@@ -368,9 +452,64 @@ def _validate_cross_section_coherence(cfg: Config) -> None:
             f"{model_input} must match data.dataloader.patch_size {patch_size}."
         )
 
-    # 2) out_channels coherence vs loss/label/decoding/activation channel usage
+    # 2) output-channel coherence vs loss/label/decoding/activation channel usage
     out_channels = cfg.model.out_channels
-    required_channels: List[tuple[str, int]] = []
+    model_heads = getattr(cfg.model, "heads", None) or {}
+    primary_head = getattr(cfg.model, "primary_head", None)
+    sole_head = next(iter(model_heads.keys())) if len(model_heads) == 1 else None
+    required_output_channels: List[tuple[str, int]] = []
+
+    label_cfg = getattr(cfg.data, "label_transform", None)
+    stacked_label_channels = (
+        count_stacked_label_transform_channels(label_cfg) if label_cfg is not None else None
+    )
+
+    def _resolve_selector_head(entry: Any, *, selector_key: str) -> Optional[str]:
+        if selector_key == "pred2_slice":
+            selector_head = entry.get("pred2_head", entry.get("pred_head", None))
+        else:
+            selector_head = entry.get("pred_head", None)
+
+        if selector_head is None:
+            selector_head = primary_head or sole_head
+        return selector_head
+
+    def _validate_head_channel_capacity(
+        *,
+        selector_key: str,
+        selector_head: str,
+        min_channels: int,
+        loss_idx: int,
+    ) -> bool:
+        if selector_head not in model_heads:
+            return False
+
+        head_channels = int(getattr(model_heads[selector_head], "out_channels", 0))
+        if min_channels > head_channels:
+            raise ValueError(
+                "Cross-section validation failed: "
+                f"model.loss.losses[{loss_idx}].{selector_key} requires at least "
+                f"{min_channels} channels in head '{selector_head}', but "
+                f"model.heads.{selector_head}.out_channels is {head_channels}."
+            )
+        return True
+
+    def _validate_label_channel_capacity(selector_value: Any, *, path: str) -> None:
+        min_channels = infer_min_required_channels(selector_value, context=path)
+        if min_channels is None:
+            return
+
+        if stacked_label_channels is not None:
+            if min_channels > stacked_label_channels:
+                raise ValueError(
+                    "Cross-section validation failed: "
+                    f"{path} requires at least {min_channels} stacked label channels, but "
+                    f"data.label_transform.targets produces {stacked_label_channels}."
+                )
+            return
+
+        if not model_heads:
+            required_output_channels.append((path, min_channels))
 
     # 2a) Loss channel selectors
     model_loss_cfg = getattr(cfg.model, "loss", None)
@@ -379,29 +518,76 @@ def _validate_cross_section_coherence(cfg: Config) -> None:
         for i, entry in enumerate(losses_cfg):
             if not isinstance(entry, dict):
                 continue
-            for selector_key in ("pred_slice", "target_slice", "mask_slice"):
+            selector_keys = ("pred_slice", "target_slice", "mask_slice", "pred2_slice")
+            for selector_key in selector_keys:
                 min_channels = infer_min_required_channels(
                     entry.get(selector_key),
                     context=f"model.loss.losses[{i}].{selector_key}",
                 )
                 if min_channels is not None:
-                    required_channels.append(
-                        (f"model.loss.losses[{i}].{selector_key}", min_channels)
-                    )
+                    path = f"model.loss.losses[{i}].{selector_key}"
+                    if selector_key in {"pred_slice", "pred2_slice"} and model_heads:
+                        selector_head = _resolve_selector_head(entry, selector_key=selector_key)
+                        if selector_head is not None and _validate_head_channel_capacity(
+                            selector_key=selector_key,
+                            selector_head=selector_head,
+                            min_channels=min_channels,
+                            loss_idx=i,
+                        ):
+                            continue
+                    if selector_key in {"target_slice", "mask_slice"}:
+                        _validate_label_channel_capacity(entry.get(selector_key), path=path)
+                        continue
+                    required_output_channels.append((path, min_channels))
 
-    # 2b) Label transform targets (lower-bound expectation)
-    label_cfg = getattr(cfg.data, "label_transform", None)
-    if label_cfg is not None:
-        label_targets = getattr(label_cfg, "targets", None)
-        stack_outputs = getattr(label_cfg, "stack_outputs", True)
-        if isinstance(label_targets, list) and stack_outputs:
-            if len(label_targets) > 0:
-                # Each target contributes at least one channel.
-                required_channels.append(("data.label_transform.targets", len(label_targets)))
+    # 2b) Label transform targets (legacy lower-bound expectation for flat outputs)
+    if not model_heads and stacked_label_channels:
+        required_output_channels.append(("data.label_transform.targets", stacked_label_channels))
 
-    # 2c) Decoding kwargs channel selectors (*_channels)
+    # 2c) Explicit head-to-label routing
+    if model_heads:
+        for head_name, head_cfg in model_heads.items():
+            target_slice = getattr(head_cfg, "target_slice", None)
+            if target_slice is None:
+                continue
+            _validate_label_channel_capacity(
+                target_slice,
+                path=f"model.heads.{head_name}.target_slice",
+            )
+
+    # 2d) Decoding kwargs channel selectors (*_channels)
     decoding_cfg = getattr(cfg.inference, "decoding", None)
+    decode_has_channel_selection = False
+    decode_output_head = None
+    decode_available_channels = out_channels
+    decode_channel_scope = "model output"
     if isinstance(decoding_cfg, list):
+        for i, decode_step in enumerate(decoding_cfg):
+            kwargs = getattr(decode_step, "kwargs", None)
+            if not isinstance(kwargs, dict):
+                continue
+            if any(key.endswith("_channels") for key in kwargs):
+                decode_has_channel_selection = True
+                break
+
+        if model_heads and decode_has_channel_selection:
+            decode_output_head = resolve_configured_output_head(
+                cfg,
+                purpose="decode channel selection",
+                allow_none=True,
+            )
+            if len(model_heads) > 1 and decode_output_head is None:
+                raise ValueError(
+                    "Cross-section validation failed: decode channel selectors require "
+                    "inference.head or model.primary_head when model.heads has multiple "
+                    f"entries ({sorted(model_heads.keys())})."
+                )
+            if decode_output_head in model_heads:
+                decode_available_channels = int(
+                    getattr(model_heads[decode_output_head], "out_channels", out_channels)
+                )
+                decode_channel_scope = f"head '{decode_output_head}'"
+
         for i, decode_step in enumerate(decoding_cfg):
             kwargs = getattr(decode_step, "kwargs", None)
             if not isinstance(kwargs, dict):
@@ -414,13 +600,66 @@ def _validate_cross_section_coherence(cfg: Config) -> None:
                     context=f"inference.decoding[{i}].kwargs.{key}",
                 )
                 if min_channels is not None:
-                    required_channels.append(
-                        (f"inference.decoding[{i}].kwargs.{key}", min_channels)
-                    )
+                    path = f"inference.decoding[{i}].kwargs.{key}"
+                    if model_heads and decode_has_channel_selection:
+                        if min_channels > decode_available_channels:
+                            raise ValueError(
+                                "Cross-section validation failed: "
+                                f"{path} requires at least {min_channels} channels in "
+                                f"{decode_channel_scope}, but only "
+                                f"{decode_available_channels} are available."
+                            )
+                        continue
+                    required_output_channels.append((path, min_channels))
 
-    # 2d) TTA channel selectors
+    # 2e) TTA channel selectors
     tta_cfg = getattr(cfg.inference, "test_time_augmentation", None)
     channel_activations = getattr(tta_cfg, "channel_activations", None) if tta_cfg else None
+    select_channel = getattr(tta_cfg, "select_channel", None) if tta_cfg else None
+    tta_has_channel_selection = bool(channel_activations) or select_channel is not None
+    tta_output_head = (
+        resolve_configured_output_head(
+            cfg,
+            purpose="TTA channel selection",
+            allow_none=True,
+        )
+        if model_heads
+        else None
+    )
+    if (
+        model_heads
+        and len(model_heads) > 1
+        and tta_has_channel_selection
+        and tta_output_head is None
+    ):
+        raise ValueError(
+            "Cross-section validation failed: TTA channel selectors require inference.head "
+            "or model.primary_head when model.heads has multiple entries "
+            f"({sorted(model_heads.keys())})."
+        )
+    tta_available_channels = (
+        int(getattr(model_heads[tta_output_head], "out_channels", out_channels))
+        if tta_output_head in model_heads
+        else out_channels
+    )
+    tta_channel_scope = (
+        f"head '{tta_output_head}'" if tta_output_head in model_heads else "model output"
+    )
+
+    def _validate_tta_channel_capacity(selector_value: Any, *, path: str) -> None:
+        min_selector_channels = infer_min_required_channels(
+            selector_value,
+            context=path,
+        )
+        if min_selector_channels is None:
+            return
+        if min_selector_channels > tta_available_channels:
+            raise ValueError(
+                "Cross-section validation failed: "
+                f"{path} requires at least {min_selector_channels} channels in {tta_channel_scope}, "
+                f"but only {tta_available_channels} are available."
+            )
+
     if isinstance(channel_activations, list):
         for i, spec in enumerate(channel_activations):
             if not isinstance(spec, dict):
@@ -435,31 +674,21 @@ def _validate_cross_section_coherence(cfg: Config) -> None:
                     f"inference.test_time_augmentation.channel_activations[{i}] "
                     "must define both 'channels' and 'activation'."
                 )
-            min_channels = infer_min_required_channels(
+            _validate_tta_channel_capacity(
                 spec["channels"],
-                context=f"inference.test_time_augmentation.channel_activations[{i}].channels",
+                path=f"inference.test_time_augmentation.channel_activations[{i}].channels",
             )
-            if min_channels is not None:
-                required_channels.append(
-                    (
-                        f"inference.test_time_augmentation.channel_activations[{i}].channels",
-                        min_channels,
-                    )
-                )
-    select_channel = getattr(tta_cfg, "select_channel", None) if tta_cfg else None
-    min_channels = infer_min_required_channels(
+    _validate_tta_channel_capacity(
         select_channel,
-        context="inference.test_time_augmentation.select_channel",
+        path="inference.test_time_augmentation.select_channel",
     )
-    if min_channels is not None:
-        required_channels.append(("inference.test_time_augmentation.select_channel", min_channels))
 
-    if required_channels:
-        required_max = max(req for _, req in required_channels)
+    if required_output_channels:
+        required_max = max(req for _, req in required_output_channels)
         if required_max > out_channels:
             details = ", ".join(
                 f"{path} needs >= {req}"
-                for path, req in sorted(required_channels, key=lambda x: x[1], reverse=True)
+                for path, req in sorted(required_output_channels, key=lambda x: x[1], reverse=True)
             )
             raise ValueError(
                 "Cross-section validation failed: model.out_channels is "
@@ -640,6 +869,19 @@ def resolve_data_paths(cfg: Config) -> Config:
                 return file_path
 
         return file_path
+
+    # Prepend root_path to each split's path when the split path is relative
+    root_path = getattr(cfg.data, "root_path", "") or ""
+    if root_path:
+        for split_attr in ("train", "val", "test"):
+            split_cfg = getattr(cfg.data, split_attr, None)
+            if split_cfg is None:
+                continue
+            sp = getattr(split_cfg, "path", "") or ""
+            if not sp:
+                split_cfg.path = root_path
+            elif not os.path.isabs(sp):
+                split_cfg.path = os.path.join(root_path, sp)
 
     # Resolve training paths (always expand globs, use train_path as base if available)
     train_base = cfg.data.train.path if cfg.data.train.path else ""

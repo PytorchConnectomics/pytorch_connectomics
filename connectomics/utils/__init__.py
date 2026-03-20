@@ -16,6 +16,17 @@ from .channel_slices import (
     resolve_channel_range,
 )
 from .label_overlap import compute_label_overlap
+from .model_outputs import (
+    get_model_head_names,
+    get_total_model_head_channels,
+    resolve_configured_output_channels,
+    resolve_configured_output_head,
+    resolve_head_target_slice,
+    resolve_output_channels,
+    resolve_output_head,
+    select_output_tensor,
+    unwrap_main_output,
+)
 
 __all__ = [
     "infer_min_required_channels",
@@ -25,4 +36,13 @@ __all__ = [
     "resolve_channel_indices",
     "resolve_channel_range",
     "compute_label_overlap",
+    "get_model_head_names",
+    "get_total_model_head_channels",
+    "resolve_configured_output_channels",
+    "resolve_configured_output_head",
+    "resolve_head_target_slice",
+    "resolve_output_channels",
+    "resolve_output_head",
+    "select_output_tensor",
+    "unwrap_main_output",
 ]

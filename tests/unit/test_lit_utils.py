@@ -16,6 +16,7 @@ from connectomics.training.lightning.utils import (
     format_decode_tag,
     resolve_prediction_cache_suffix,
     setup_config,
+    tta_cache_suffix,
     tta_cache_suffix_candidates,
     tuning_best_params_filename,
     tuning_best_params_filename_candidates,
@@ -224,6 +225,42 @@ def test_resolve_prediction_cache_suffix_includes_checkpoint_name_for_tta_test_m
     )
 
 
+def test_resolve_prediction_cache_suffix_includes_output_head_for_multi_head_tta():
+    cfg = Config()
+    cfg.model.out_channels = 3
+    cfg.model.primary_head = "affinity"
+    cfg.model.heads = {
+        "affinity": {"out_channels": 2, "num_blocks": 0},
+        "sdt": {"out_channels": 1, "num_blocks": 0},
+    }
+    cfg.inference.head = "sdt"
+    cfg.inference.test_time_augmentation.enabled = True
+    cfg.inference.test_time_augmentation.flip_axes = None
+    cfg.inference.test_time_augmentation.rotation90_axes = None
+
+    assert resolve_prediction_cache_suffix(cfg, mode="test") == "_tta_x1_head-sdt_prediction.h5"
+
+
+def test_tta_cache_suffix_accepts_explicit_output_head_override():
+    cfg = Config()
+    cfg.model.out_channels = 3
+    cfg.model.primary_head = "affinity"
+    cfg.model.heads = {
+        "affinity": {"out_channels": 2, "num_blocks": 0},
+        "sdt": {"out_channels": 1, "num_blocks": 0},
+    }
+    cfg.inference.head = "affinity"
+    cfg.inference.test_time_augmentation.enabled = True
+    cfg.inference.test_time_augmentation.flip_axes = None
+    cfg.inference.test_time_augmentation.rotation90_axes = None
+
+    assert tta_cache_suffix(cfg, output_head="sdt") == "_tta_x1_head-sdt_prediction.h5"
+    assert (
+        resolve_prediction_cache_suffix(cfg, mode="test", output_head="sdt")
+        == "_tta_x1_head-sdt_prediction.h5"
+    )
+
+
 def test_tta_cache_suffix_candidates_do_not_fall_back_to_legacy_suffix_with_checkpoint():
     cfg = Config()
     cfg.inference.test_time_augmentation.enabled = True
@@ -254,6 +291,25 @@ def test_tuning_best_params_filename_matches_tta_prediction_identity():
         "best_params_tta_x1_ch4-6-9_ckpt-epoch=4-step=99_prediction.yaml",
         "best_params.yaml",
     ]
+
+
+def test_tuning_best_params_filename_includes_output_head_identity():
+    cfg = Config()
+    cfg.model.out_channels = 3
+    cfg.model.primary_head = "affinity"
+    cfg.model.heads = {
+        "affinity": {"out_channels": 2, "num_blocks": 0},
+        "sdt": {"out_channels": 1, "num_blocks": 0},
+    }
+    cfg.inference.head = "sdt"
+
+    assert (
+        tuning_best_params_filename(
+            cfg,
+            checkpoint_path="/tmp/checkpoints/epoch=4-step=99.ckpt",
+        )
+        == "best_params_tta_x1_head-sdt_ckpt-epoch=4-step=99_prediction.yaml"
+    )
 
 
 def test_format_decode_tag_includes_all_decoding_parameters():

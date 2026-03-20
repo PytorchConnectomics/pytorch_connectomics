@@ -19,7 +19,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 from connectomics.config.schema import LabelTargetConfig, LabelTransformConfig  # noqa: E402
 
 # Import the new MONAI transforms
-from connectomics.data.process import (  # noqa: E402
+from connectomics.data.processing import (  # noqa: E402
     MultiTaskLabelTransformd,
     SegErosionInstanced,
     SegToAffinityMapd,

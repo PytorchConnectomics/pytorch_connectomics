@@ -34,7 +34,7 @@ class WeightedConcatDataset(Dataset):
         length: Total number of samples per epoch. Default: minimum dataset length
 
     Example:
-        >>> from connectomics.data.dataset import WeightedConcatDataset
+        >>> from connectomics.data.datasets import WeightedConcatDataset
         >>> synthetic_data = SyntheticDataset(size=10000)
         >>> real_data = RealDataset(size=1000)
         >>> # 80% synthetic, 20% real (regardless of actual sizes)
@@ -98,7 +98,7 @@ class StratifiedConcatDataset(Dataset):
         length: Total number of samples per epoch. Default: sum of dataset lengths
 
     Example:
-        >>> from connectomics.data.dataset import StratifiedConcatDataset
+        >>> from connectomics.data.datasets import StratifiedConcatDataset
         >>> dataset1 = Dataset1(size=100)
         >>> dataset2 = Dataset2(size=200)
         >>> stratified = StratifiedConcatDataset([dataset1, dataset2])
@@ -152,7 +152,7 @@ class UniformConcatDataset(Dataset):
         length: Total number of samples per epoch. Default: sum of dataset lengths
 
     Example:
-        >>> from connectomics.data.dataset import UniformConcatDataset
+        >>> from connectomics.data.datasets import UniformConcatDataset
         >>> dataset1 = Dataset1(size=100)
         >>> dataset2 = Dataset2(size=200)
         >>> uniform = UniformConcatDataset([dataset1, dataset2])

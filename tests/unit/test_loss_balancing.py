@@ -2,7 +2,7 @@ from types import SimpleNamespace
 
 import torch.nn as nn
 
-from connectomics.training.loss import (
+from connectomics.training.losses import (
     GradNormLossWeighter,
     UncertaintyLossWeighter,
     build_loss_weighter,

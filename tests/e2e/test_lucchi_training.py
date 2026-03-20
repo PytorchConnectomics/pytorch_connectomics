@@ -13,7 +13,7 @@ import numpy as np
 import pytest
 from monai.transforms import Compose
 
-from connectomics.data.dataset import create_data_dicts_from_paths
+from connectomics.data.datasets import create_data_dicts_from_paths
 from connectomics.data.io.transforms import LoadVolumed
 from connectomics.training.lightning.data import ConnectomicsDataModule
 

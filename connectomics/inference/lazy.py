@@ -11,9 +11,9 @@ import torch.nn.functional as F
 from monai.data.utils import dense_patch_slices
 from monai.inferers.utils import _get_scan_interval, compute_importance_map
 
-from ..data.augment.augment_ops import smart_normalize
+from ..data.augmentation.augment_ops import smart_normalize
 from ..data.io.io import _detect_format, _get_tiff_volume_shape, _tiff_series_are_stackable
-from ..data.process.misc import get_padsize
+from ..data.processing.misc import get_padsize
 from .sliding import resolve_inferer_overlap, resolve_inferer_roi_size
 from .tta import TTAPredictor
 
@@ -306,9 +306,7 @@ class LazyVolumeAccessor:
         self, logical_start: Sequence[int], logical_end: Sequence[int]
     ) -> tuple[slice, slice, slice]:
         if not self.transpose_axes:
-            return tuple(
-                slice(int(logical_start[idx]), int(logical_end[idx])) for idx in range(3)
-            )
+            return tuple(slice(int(logical_start[idx]), int(logical_end[idx])) for idx in range(3))
 
         raw_slices = []
         for raw_axis in range(3):
@@ -351,7 +349,11 @@ class LazyVolumeAccessor:
         if data.ndim == 2:
             data = data[np.newaxis, ...]
         if data.ndim >= 3:
-            data = data[..., y_slice, x_slice] if data.ndim == 4 and self.layout == "channel_first" else data
+            data = (
+                data[..., y_slice, x_slice]
+                if data.ndim == 4 and self.layout == "channel_first"
+                else data
+            )
         if self.layout == "no_channel":
             return data[:, y_slice, x_slice]
         if self.layout == "channel_last":
@@ -429,7 +431,8 @@ class LazyVolumeAccessor:
             return gathered.astype(np.float32, copy=False)
 
         grid_axes = [
-            _normalize_grid_axis(local_coords[idx], int(raw_crop.shape[idx + 1])) for idx in range(3)
+            _normalize_grid_axis(local_coords[idx], int(raw_crop.shape[idx + 1]))
+            for idx in range(3)
         ]
         zz, yy, xx = np.meshgrid(grid_axes[0], grid_axes[1], grid_axes[2], indexing="ij")
         grid = np.stack([xx, yy, zz], axis=-1)
@@ -623,7 +626,11 @@ def get_lazy_image_reference_shape(cfg, image_path: str, *, mode: str = "test") 
                 f"Got transformed_shape={accessor.transformed_spatial_shape}, "
                 f"patch_size={tuple(int(v) for v in patch_size_cfg)}."
             )
-        return (1, int(accessor.channel_count), *tuple(int(v) for v in accessor.padded_spatial_shape))
+        return (
+            1,
+            int(accessor.channel_count),
+            *tuple(int(v) for v in accessor.padded_spatial_shape),
+        )
 
 
 def load_lazy_volume(cfg, path: str, *, kind: str, mode: str = "test") -> np.ndarray:
@@ -639,6 +646,7 @@ def lazy_predict_volume(
     mask_path: Optional[str] = None,
     mask_align_to_image: bool = False,
     device: torch.device | str = "cpu",
+    requested_head: Optional[str] = None,
 ) -> torch.Tensor:
     """Run lazy sliding-window inference directly from disk-backed volumes."""
     roi_size = resolve_inferer_roi_size(cfg)
@@ -649,7 +657,9 @@ def lazy_predict_volume(
         )
 
     if len(roi_size) != 3:
-        raise ValueError(f"Lazy sliding-window inference currently supports 3D only, got {roi_size}.")
+        raise ValueError(
+            f"Lazy sliding-window inference currently supports 3D only, got {roi_size}."
+        )
 
     overlap = _coerce_overlap(resolve_inferer_overlap(cfg, roi_size), spatial_dims=3)
     sliding_cfg = getattr(getattr(cfg, "inference", None), "sliding_window", None)
@@ -677,7 +687,8 @@ def lazy_predict_volume(
     with _build_accessor(cfg, image_path, kind="image", mode="test") as image_accessor:
         patch_size_cfg = getattr(cfg.data.dataloader, "patch_size", None)
         if patch_size_cfg and any(
-            image_accessor.transformed_spatial_shape[idx] < int(patch_size_cfg[idx]) for idx in range(3)
+            image_accessor.transformed_spatial_shape[idx] < int(patch_size_cfg[idx])
+            for idx in range(3)
         ):
             raise ValueError(
                 "Lazy sliding-window inference currently requires the transformed test volume "
@@ -687,22 +698,34 @@ def lazy_predict_volume(
             )
 
         mask_accessor = (
-            _build_accessor(cfg, mask_path, kind="mask", mode="test") if mask_path is not None else None
+            _build_accessor(cfg, mask_path, kind="mask", mode="test")
+            if mask_path is not None
+            else None
         )
         try:
             image_size = tuple(int(v) for v in image_accessor.padded_spatial_shape)
-            scan_interval = _get_scan_interval(image_size, roi_size, num_spatial_dims=3, overlap=overlap)
-            patch_slices = dense_patch_slices(image_size, roi_size, scan_interval, return_slice=True)
-            importance_map = compute_importance_map(
-                tuple(int(v) for v in roi_size),
-                mode=blend_mode,
-                sigma_scale=overlap if blend_mode == "constant" else sigma_scale,
-                device=accumulation_device,
-                dtype=torch.float32,
-            ).unsqueeze(0).unsqueeze(0)
+            scan_interval = _get_scan_interval(
+                image_size, roi_size, num_spatial_dims=3, overlap=overlap
+            )
+            patch_slices = dense_patch_slices(
+                image_size, roi_size, scan_interval, return_slice=True
+            )
+            importance_map = (
+                compute_importance_map(
+                    tuple(int(v) for v in roi_size),
+                    mode=blend_mode,
+                    sigma_scale=overlap if blend_mode == "constant" else sigma_scale,
+                    device=accumulation_device,
+                    dtype=torch.float32,
+                )
+                .unsqueeze(0)
+                .unsqueeze(0)
+            )
 
             value_accumulator = None
-            weight_accumulator = torch.zeros((1, 1, *image_size), device=accumulation_device, dtype=torch.float32)
+            weight_accumulator = torch.zeros(
+                (1, 1, *image_size), device=accumulation_device, dtype=torch.float32
+            )
 
             for batch_start in range(0, len(patch_slices), sw_batch_size):
                 current_slices = patch_slices[batch_start : batch_start + sw_batch_size]
@@ -744,6 +767,7 @@ def lazy_predict_volume(
                     image_tensor,
                     mask=mask_tensor,
                     mask_align_to_image=mask_align_to_image,
+                    requested_head=requested_head,
                 )
                 if prediction.shape[2:] != tuple(int(v) for v in roi_size):
                     raise RuntimeError(
@@ -762,7 +786,8 @@ def lazy_predict_volume(
 
                 for patch_idx, location in enumerate(locations):
                     slices = tuple(
-                        slice(location[axis], location[axis] + int(roi_size[axis])) for axis in range(3)
+                        slice(location[axis], location[axis] + int(roi_size[axis]))
+                        for axis in range(3)
                     )
                     value_accumulator[(slice(None), slice(None), *slices)] += (
                         prediction[patch_idx : patch_idx + 1] * importance_map
@@ -770,7 +795,9 @@ def lazy_predict_volume(
                     weight_accumulator[(slice(None), slice(None), *slices)] += importance_map
 
             if value_accumulator is None:
-                raise RuntimeError(f"No lazy sliding-window patches were generated for {image_path}.")
+                raise RuntimeError(
+                    f"No lazy sliding-window patches were generated for {image_path}."
+                )
 
             value_accumulator /= torch.clamp_min(weight_accumulator, 1.0e-6)
             return value_accumulator.cpu()

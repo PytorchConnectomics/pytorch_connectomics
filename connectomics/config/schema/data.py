@@ -442,6 +442,9 @@ class DataConfig:
     - 2D data support with do_2d parameter
     """
 
+    # Root path prepended to train/val/test split paths (empty = no prefix)
+    root_path: str = ""
+
     # Train/Val Split (inspired by DeepEM)
     split_enabled: bool = False  # Enable automatic train/val split (default: False)
     split_train_range: List[float] = field(default_factory=lambda: [0.0, 0.8])  # Train: 0-80%

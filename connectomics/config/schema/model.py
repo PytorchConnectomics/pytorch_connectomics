@@ -65,6 +65,16 @@ class ModelArchConfig:
 
 
 @dataclass
+class ModelHeadConfig:
+    """Named task head configuration for MedNeXt multi-head models."""
+
+    out_channels: int = 1
+    num_blocks: int = 0
+    hidden_channels: Optional[int] = None
+    target_slice: Optional[Any] = None
+
+
+@dataclass
 class ModelConfig:
     """Model architecture configuration.
 
@@ -87,7 +97,12 @@ class ModelConfig:
     input_size: List[int] = field(default_factory=lambda: [128, 128, 128])
     output_size: List[int] = field(default_factory=lambda: [128, 128, 128])
     in_channels: int = 1
+    # Legacy global output width used by single-tensor models and some fallback
+    # code paths. Multi-head MedNeXt models should define per-head widths in
+    # model.heads and should not rely on this to mirror the sum of all heads.
     out_channels: int = 1
+    primary_head: Optional[str] = None
+    heads: Dict[str, ModelHeadConfig] = field(default_factory=dict)
 
     # Architecture-specific nested blocks
     monai: MonaiConfig = field(default_factory=MonaiConfig)

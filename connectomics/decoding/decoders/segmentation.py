@@ -24,7 +24,7 @@ import numpy as np
 from scipy import ndimage
 from skimage.segmentation import watershed
 
-from connectomics.data.process.distance import edt_semantic as seg_to_semantic_edt
+from connectomics.data.processing.distance import edt_semantic as seg_to_semantic_edt
 
 from ..utils import cast2dtype
 

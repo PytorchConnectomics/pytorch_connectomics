@@ -33,12 +33,12 @@ Baseline conclusion: current environment is missing runtime/dev dependencies req
 - Current public imports from:
   - `connectomics.config`
   - `connectomics.training.lightning`
-  - `connectomics.data.dataset`
+  - `connectomics.data.datasets`
 - Current run/checkpoint directory behavior and config save behavior for train/test/tune/tune-test modes.
 
 ## PHASE 0 Findings (Coupling / Duplication / Boundaries / Config Sprawl)
 - Tight coupling / circular import:
-  - Static import graph found one cycle: `connectomics.data.dataset.build <-> connectomics.data.dataset.dataset_volume`.
+  - Static import graph found one cycle: `connectomics.data.datasets.build <-> connectomics.data.datasets.dataset_volume`.
   - `dataset_volume.py` imports `create_data_dicts_from_paths` from `build.py`, while `build.py` lazily imports volume datasets.
 - Duplicated utilities:
   - `expand_file_paths` exists in both `connectomics/training/lightning/config.py` and `connectomics/training/lightning/utils.py`.
@@ -60,7 +60,7 @@ Baseline conclusion: current environment is missing runtime/dev dependencies req
   - Run directory lifecycle and checkpoint state mutation only.
 - `connectomics/training/lightning/utils.py`
   - Small pure helpers only (no orchestration).
-- `connectomics/data/dataset/data_dicts.py`
+- `connectomics/data/datasets/data_dicts.py`
   - Shared data-dict constructors used by both builders and datasets (break cycle).
 - Compatibility policy:
   - Keep old import locations (`lit/config.py`, `dataset/build.py`) as facades that re-export moved functions.
@@ -118,10 +118,10 @@ Verification commands:
 
 ### Milestone 4: Break Dataset Import Cycle + Factory Hygiene
 Files touched (planned):
-- `connectomics/data/dataset/build.py`
-- `connectomics/data/dataset/dataset_volume.py`
-- `connectomics/data/dataset/data_dicts.py` (new)
-- `connectomics/data/dataset/__init__.py`
+- `connectomics/data/datasets/build.py`
+- `connectomics/data/datasets/dataset_volume.py`
+- `connectomics/data/datasets/data_dicts.py` (new)
+- `connectomics/data/datasets/__init__.py`
 - `tests/unit/test_monai_transforms.py`
 - `tests/integration/test_dataset_multi.py`
 

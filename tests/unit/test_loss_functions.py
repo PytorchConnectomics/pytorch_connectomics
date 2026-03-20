@@ -4,7 +4,7 @@ import unittest
 
 import torch
 
-from connectomics.models.loss import create_loss
+from connectomics.models.losses import create_loss
 
 
 class TestLossFunctions(unittest.TestCase):

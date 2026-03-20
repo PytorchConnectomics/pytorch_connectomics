@@ -8,13 +8,14 @@ from typing import Any, List, Optional, Sequence, Union
 import torch.nn as nn
 
 from ...config.pipeline.dict_utils import cfg_get as _cfg_get
-from ...models.loss.metadata import (
+from ...models.losses.metadata import (
     LossCallKind,
     LossMetadata,
     TargetKind,
     get_loss_metadata_for_module,
 )
 from ...utils.channel_slices import ChannelRangeSelector, normalize_channel_range_selector
+from ...utils.model_outputs import resolve_head_target_slice
 
 
 @dataclass(frozen=True)
@@ -26,7 +27,9 @@ class LossTermSpec:
     coefficient: float
     call_kind: LossCallKind
     target_kind: TargetKind
+    pred_head: Optional[str] = None
     pred_slice: Optional[ChannelRangeSelector] = None
+    pred2_head: Optional[str] = None
     target_slice: Optional[ChannelRangeSelector] = None
     pred2_slice: Optional[ChannelRangeSelector] = None
     mask_slice: Optional[ChannelRangeSelector] = None
@@ -40,6 +43,17 @@ def _coerce_channel_range_selector(
     field_name: str,
 ) -> Optional[ChannelRangeSelector]:
     return normalize_channel_range_selector(value, context=field_name)
+
+
+def _coerce_head_name(value: Any, field_name: str) -> Optional[str]:
+    if value is None:
+        return None
+    if not isinstance(value, str):
+        raise TypeError(f"{field_name} must be a string head name, got {type(value).__name__}.")
+    normalized = value.strip()
+    if not normalized:
+        raise ValueError(f"{field_name} must not be empty.")
+    return normalized
 
 
 def compile_loss_terms_from_config(
@@ -57,6 +71,11 @@ def compile_loss_terms_from_config(
     model_cfg = _cfg_get(cfg, "model", None)
     loss_cfg = _cfg_get(model_cfg, "loss", None)
     losses_cfg = _cfg_get(loss_cfg, "losses", None)
+    model_heads = _cfg_get(model_cfg, "heads", None) or {}
+    available_head_names = set(model_heads.keys()) if hasattr(model_heads, "keys") else set()
+    primary_head = _coerce_head_name(
+        _cfg_get(model_cfg, "primary_head", None), "model.primary_head"
+    )
     metas = (
         list(loss_metadata)
         if loss_metadata is not None
@@ -115,8 +134,10 @@ def compile_loss_terms_from_config(
             "pred",
             "target_slice",
             "target",
+            "pred_head",
             "pred2_slice",
             "pred2",
+            "pred2_head",
             "mask_slice",
             "mask",
             "call_kind",
@@ -144,10 +165,12 @@ def compile_loss_terms_from_config(
             _cfg_get(term_cfg, "pred_slice", _cfg_get(term_cfg, "pred", None)),
             "pred_slice",
         )
+        pred_head = _coerce_head_name(_cfg_get(term_cfg, "pred_head", None), "pred_head")
         target_slice = _coerce_channel_range_selector(
             _cfg_get(term_cfg, "target_slice", _cfg_get(term_cfg, "target", None)),
             "target_slice",
         )
+        pred2_head = _coerce_head_name(_cfg_get(term_cfg, "pred2_head", None), "pred2_head")
         pred2_slice = _coerce_channel_range_selector(
             _cfg_get(term_cfg, "pred2_slice", _cfg_get(term_cfg, "pred2", None)),
             "pred2_slice",
@@ -156,6 +179,17 @@ def compile_loss_terms_from_config(
             _cfg_get(term_cfg, "mask_slice", _cfg_get(term_cfg, "mask", None)),
             "mask_slice",
         )
+        resolved_pred_head = pred_head
+        if resolved_pred_head is None:
+            if primary_head is not None:
+                resolved_pred_head = primary_head
+            elif len(available_head_names) == 1:
+                resolved_pred_head = next(iter(available_head_names))
+        if call_kind == "pred_target" and target_slice is None and resolved_pred_head is not None:
+            target_slice = _coerce_channel_range_selector(
+                resolve_head_target_slice(cfg, resolved_pred_head),
+                f"model.heads.{resolved_pred_head}.target_slice",
+            )
 
         if call_kind == "unsupported":
             raise ValueError(
@@ -164,6 +198,27 @@ def compile_loss_terms_from_config(
             )
         if call_kind not in {"pred_target", "pred_only", "pred_pred"}:
             raise ValueError(f"Unsupported call_kind {call_kind!r} in losses[{term_idx}]")
+
+        if available_head_names:
+            if pred_head is not None and pred_head not in available_head_names:
+                raise ValueError(
+                    f"losses[{term_idx}] pred_head={pred_head!r} is not one of the configured "
+                    f"model.heads {sorted(available_head_names)}"
+                )
+            if pred2_head is not None and pred2_head not in available_head_names:
+                raise ValueError(
+                    f"losses[{term_idx}] pred2_head={pred2_head!r} is not one of the configured "
+                    f"model.heads {sorted(available_head_names)}"
+                )
+            if pred_head is None and primary_head is None and len(available_head_names) > 1:
+                raise ValueError(
+                    f"losses[{term_idx}] must define pred_head or model.primary_head when "
+                    f"model.heads has multiple entries {sorted(available_head_names)}"
+                )
+        elif pred_head is not None or pred2_head is not None:
+            raise ValueError(
+                f"losses[{term_idx}] uses pred_head/pred2_head but model.heads is not configured."
+            )
 
         if call_kind == "pred_target":
             # pred_slice/target_slice default to full-channel routing when omitted.
@@ -208,7 +263,9 @@ def compile_loss_terms_from_config(
                 coefficient=coefficient,
                 call_kind=call_kind,
                 target_kind=target_kind,
+                pred_head=pred_head,
                 pred_slice=pred_slice,
+                pred2_head=pred2_head,
                 target_slice=target_slice,
                 pred2_slice=pred2_slice,
                 mask_slice=mask_slice,

@@ -272,11 +272,11 @@ def run_demo():
 
     # Create datamodule
     print("\nCreating data loaders...")
-    from connectomics.data.augment.build import (
+    from connectomics.data.augmentation.build import (
         build_train_transforms,
         build_val_transforms,
     )
-    from connectomics.data.dataset import create_data_dicts_from_paths
+    from connectomics.data.datasets import create_data_dicts_from_paths
     from connectomics.training.lightning import ConnectomicsDataModule
 
     train_transforms = build_train_transforms(cfg)

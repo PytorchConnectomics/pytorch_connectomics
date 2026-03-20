@@ -4,7 +4,7 @@ MONAI-native loss functions for PyTorch Connectomics.
 This module provides a clean interface for loss function creation using MONAI's
 native implementations, with additional connectomics-specific losses.
 
-Design pattern follows transforms/augment/ for consistency.
+Design pattern follows the same package structure used across data processing and augmentation.
 """
 
 # Main factory functions (recommended interface)

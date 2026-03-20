@@ -11,7 +11,13 @@ from connectomics.training.lightning.test_pipeline import run_test_step
 
 
 class _DummyInferenceManager:
-    def predict_with_tta(self, images, mask=None, mask_align_to_image=False):
+    def predict_with_tta(
+        self,
+        images,
+        mask=None,
+        mask_align_to_image=False,
+        requested_head=None,
+    ):
         return torch.ones_like(images)
 
     def is_distributed_tta_sharding_enabled(self):
@@ -400,7 +406,13 @@ def test_run_test_step_handles_unstacked_list_batches(monkeypatch):
 
 
 class _MaskCheckingInferenceManager(_DummyInferenceManager):
-    def predict_with_tta(self, images, mask=None, mask_align_to_image=False):
+    def predict_with_tta(
+        self,
+        images,
+        mask=None,
+        mask_align_to_image=False,
+        requested_head=None,
+    ):
         assert torch.is_tensor(mask)
         assert mask.ndim in (images.ndim - 1, images.ndim)
         return torch.ones_like(images)
@@ -431,3 +443,97 @@ def test_run_test_step_coerces_singleton_list_masks(monkeypatch):
 
     out = run_test_step(module, batch, batch_idx=0)
     assert isinstance(out, torch.Tensor)
+
+
+class _SaveAllHeadsInferenceManager:
+    def __init__(self):
+        self.requested_heads = []
+
+    def predict_with_tta(
+        self,
+        images,
+        mask=None,
+        mask_align_to_image=False,
+        requested_head=None,
+    ):
+        self.requested_heads.append(requested_head)
+        if requested_head == "sdt":
+            return torch.full((images.shape[0], 1, *images.shape[2:]), 7.0, dtype=images.dtype)
+        return torch.full((images.shape[0], 2, *images.shape[2:]), 3.0, dtype=images.dtype)
+
+    def is_distributed_tta_sharding_enabled(self):
+        return False
+
+    def should_skip_postprocess_on_rank(self):
+        return False
+
+
+class _SaveAllHeadsModule:
+    def __init__(self):
+        self.device = torch.device("cpu")
+        self.cfg = Config()
+        self.cfg.model.out_channels = 3
+        self.cfg.model.primary_head = "affinity"
+        self.cfg.model.heads = {
+            "affinity": {"out_channels": 2, "num_blocks": 0},
+            "sdt": {"out_channels": 1, "num_blocks": 0},
+        }
+        self.cfg.inference.head = "affinity"
+        self.cfg.inference.save_prediction.enabled = True
+        self.cfg.inference.save_prediction.save_all_heads = True
+        self.inference_manager = _SaveAllHeadsInferenceManager()
+
+    def _get_runtime_inference_config(self):
+        return self.cfg.inference
+
+    def _get_test_evaluation_config(self):
+        return None
+
+    def _resolve_test_output_config(self, _batch):
+        return "test", "/tmp/results", "_x1_prediction.h5", ["sample"]
+
+    def _load_cached_predictions(self, _output_dir, _filenames, _cache_suffix, _mode):
+        return None, False, ""
+
+    def _summarize_tta_plan(self, _image_ndim):
+        return "disabled"
+
+    def _is_test_evaluation_enabled(self):
+        return False
+
+    def _get_prediction_checkpoint_path(self):
+        return None
+
+
+def test_run_test_step_saves_all_named_output_heads(monkeypatch):
+    module = _SaveAllHeadsModule()
+    batch = {
+        "image": torch.zeros((1, 1, 4, 4, 4), dtype=torch.float32),
+    }
+
+    saved = []
+
+    def _fake_write_outputs(_cfg, predictions_np, filenames, *, suffix, mode, batch_meta):
+        saved.append((tuple(predictions_np.shape), tuple(filenames), suffix, mode))
+
+    monkeypatch.setattr(
+        "connectomics.training.lightning.test_pipeline.write_outputs",
+        _fake_write_outputs,
+    )
+    monkeypatch.setattr(
+        "connectomics.training.lightning.test_pipeline._process_decoding_postprocessing",
+        lambda _module, predictions_np, **kwargs: predictions_np,
+    )
+    monkeypatch.setattr(
+        "connectomics.training.lightning.test_pipeline._evaluate_decoded_predictions",
+        lambda *_args, **_kwargs: None,
+    )
+
+    out = run_test_step(module, batch, batch_idx=0)
+
+    assert isinstance(out, torch.Tensor)
+    assert module.inference_manager.requested_heads == ["affinity", "sdt"]
+    assert saved == [
+        ((1, 2, 4, 4, 4), ("sample",), "tta_x1_head-affinity_prediction", "test"),
+        ((1, 1, 4, 4, 4), ("sample",), "tta_x1_head-sdt_prediction", "test"),
+    ]

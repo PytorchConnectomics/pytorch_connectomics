@@ -13,7 +13,7 @@ The approach:
 import numpy as np
 import torch
 
-from connectomics.data.dataset.split import (
+from connectomics.data.datasets.split import (
     create_split_masks,
     pad_volume_to_size,
     save_split_masks_h5,
@@ -235,7 +235,7 @@ def example_practical_use_case():
     """)
 
     code = """
-    from connectomics.data.dataset.split import split_and_pad_volume
+    from connectomics.data.datasets.split import split_and_pad_volume
     from connectomics.data.io import read_volume
 
     # Load volume

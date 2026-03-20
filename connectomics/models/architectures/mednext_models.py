@@ -17,13 +17,14 @@ See .claude/MEDNEXT.md for detailed documentation.
 
 from __future__ import annotations
 
-from typing import Dict, Union
+from typing import Any, Dict, Mapping, Union
 
 import torch
 import torch.nn as nn
 
 try:
     from nnunet_mednext import MedNeXt as MedNeXtBase
+    from nnunet_mednext import MedNeXtBlock
     from nnunet_mednext import create_mednext_v1
 
     MEDNEXT_AVAILABLE = True
@@ -31,6 +32,7 @@ except ImportError:
     MEDNEXT_AVAILABLE = False
     create_mednext_v1 = None
     MedNeXtBase = None
+    MedNeXtBlock = None
 
 from .base import ConnectomicsModel
 from .registry import register_architecture
@@ -88,6 +90,185 @@ class MedNeXtWrapper(ConnectomicsModel):
             }
         else:
             return outputs
+
+
+def _cfg_value(cfg: Any, key: str, default: Any = None) -> Any:
+    """Read a config value from either a mapping or an attribute-based object."""
+    if isinstance(cfg, Mapping):
+        return cfg.get(key, default)
+    return getattr(cfg, key, default)
+
+
+def _infer_mednext_head_block_kwargs(model: nn.Module) -> dict[str, Any]:
+    """Infer head block parameters from the final decoder block of a MedNeXt trunk."""
+    if not hasattr(model, "dec_block_0") or len(model.dec_block_0) == 0:
+        raise ValueError("MedNeXt trunk must expose a non-empty dec_block_0 to build task heads.")
+
+    ref_block = model.dec_block_0[0]
+    if not isinstance(ref_block, MedNeXtBlock):
+        raise TypeError(
+            "Expected MedNeXt dec_block_0 to contain MedNeXtBlock instances for multi-head reuse."
+        )
+
+    kernel_size = ref_block.conv1.kernel_size
+    if isinstance(kernel_size, tuple):
+        kernel_size = kernel_size[0]
+
+    if isinstance(ref_block.norm, nn.GroupNorm):
+        norm_type = "group"
+    else:
+        norm_type = "layer"
+
+    return {
+        "exp_r": ref_block.conv2.out_channels // ref_block.conv2.in_channels,
+        "kernel_size": int(kernel_size),
+        "do_res": ref_block.do_res,
+        "norm_type": norm_type,
+        "dim": ref_block.dim,
+        "grn": ref_block.grn,
+    }
+
+
+class MedNeXtTaskHead(nn.Module):
+    """A task-specific MedNeXt head on top of the shared full-resolution feature map."""
+
+    def __init__(
+        self,
+        in_channels: int,
+        out_channels: int,
+        num_blocks: int,
+        *,
+        exp_r: int,
+        kernel_size: int,
+        do_res: bool,
+        norm_type: str,
+        dim: str,
+        grn: bool,
+    ):
+        super().__init__()
+        if num_blocks < 0:
+            raise ValueError(f"MedNeXt task head num_blocks must be >= 0, got {num_blocks}")
+        if out_channels <= 0:
+            raise ValueError(f"MedNeXt task head out_channels must be positive, got {out_channels}")
+        if dim == "2d":
+            conv = nn.Conv2d
+        elif dim == "3d":
+            conv = nn.Conv3d
+        else:
+            raise ValueError(f"MedNeXt task head dim must be '2d' or '3d', got {dim}")
+
+        blocks = [
+            MedNeXtBlock(
+                in_channels=in_channels,
+                out_channels=in_channels,
+                exp_r=exp_r,
+                kernel_size=kernel_size,
+                do_res=do_res,
+                norm_type=norm_type,
+                dim=dim,
+                grn=grn,
+            )
+            for _ in range(num_blocks)
+        ]
+        self.blocks = nn.Sequential(*blocks) if blocks else nn.Identity()
+        self.projection = conv(in_channels, out_channels, kernel_size=1)
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        x = self.blocks(x)
+        return self.projection(x)
+
+
+class MedNeXtMultiHeadWrapper(ConnectomicsModel):
+    """
+    MedNeXt wrapper with multiple named task heads at the final resolution.
+
+    Output contract:
+        {"output": {"head_name": tensor, ...}}
+
+    Deep supervision is intentionally unsupported here in v1.
+    """
+
+    def __init__(
+        self,
+        model: nn.Module,
+        heads: Mapping[str, Any],
+        *,
+        primary_head: str | None = None,
+    ):
+        super().__init__()
+        if getattr(model, "do_ds", False):
+            raise ValueError(
+                "MedNeXtMultiHeadWrapper does not support deep supervision yet. "
+                "Disable deep supervision for the trunk first."
+            )
+        if not hasattr(model, "forward_features"):
+            raise ValueError(
+                "MedNeXt trunk must expose forward_features() before using MedNeXtMultiHeadWrapper."
+            )
+        if not heads:
+            raise ValueError("MedNeXtMultiHeadWrapper requires at least one named task head.")
+
+        self.model = model
+        self.supports_deep_supervision = False
+        self.output_scales = 1
+        self.feature_channels = int(self.model.stem.out_channels)
+        self.head_block_kwargs = _infer_mednext_head_block_kwargs(model)
+
+        task_heads = {}
+        head_specs = {}
+        for head_name, head_cfg in heads.items():
+            out_channels = int(_cfg_value(head_cfg, "out_channels", head_cfg))
+            num_blocks = int(_cfg_value(head_cfg, "num_blocks", 0))
+            task_heads[head_name] = MedNeXtTaskHead(
+                in_channels=self.feature_channels,
+                out_channels=out_channels,
+                num_blocks=num_blocks,
+                **self.head_block_kwargs,
+            )
+            head_specs[head_name] = {
+                "out_channels": out_channels,
+                "num_blocks": num_blocks,
+            }
+
+        self.heads = nn.ModuleDict(task_heads)
+        self.head_specs = head_specs
+        resolved_primary_head = primary_head or next(iter(self.heads.keys()))
+        if resolved_primary_head not in self.heads:
+            raise ValueError(
+                f"primary_head '{resolved_primary_head}' is not one of the configured heads: "
+                f"{sorted(self.heads.keys())}"
+            )
+        self.primary_head = resolved_primary_head
+
+    def forward_features(self, x: torch.Tensor) -> torch.Tensor:
+        """Expose the shared MedNeXt feature map for downstream head logic."""
+        return self.model.forward_features(x)
+
+    def forward_heads(self, features: torch.Tensor) -> Dict[str, torch.Tensor]:
+        """Apply all named task heads to a shared feature map."""
+        return {head_name: head(features) for head_name, head in self.heads.items()}
+
+    def forward(self, x: torch.Tensor) -> Dict[str, Dict[str, torch.Tensor]]:
+        features = self.forward_features(x)
+        return {"output": self.forward_heads(features)}
+
+
+def _get_mednext_heads_cfg(cfg) -> tuple[dict[str, Any], str | None]:
+    """Extract named MedNeXt head configuration from cfg.model."""
+    raw_heads = getattr(cfg.model, "heads", None)
+    if not raw_heads:
+        return {}, None
+    return dict(raw_heads), getattr(cfg.model, "primary_head", None)
+
+
+def _resolve_mednext_num_classes(cfg, head_cfg: Mapping[str, Any]) -> int:
+    """Choose the vendored MedNeXt projection width."""
+    if head_cfg:
+        total_head_channels = 0
+        for spec in head_cfg.values():
+            total_head_channels += int(_cfg_value(spec, "out_channels", 0))
+        return max(1, total_head_channels)
+    return int(cfg.model.out_channels)
 
 
 def _check_mednext_available():
@@ -150,11 +331,12 @@ def build_mednext(cfg) -> ConnectomicsModel:
 
     # Extract config from Hydra/OmegaConf
     in_channels = cfg.model.in_channels
-    out_channels = cfg.model.out_channels
     model_size = getattr(cfg.model.mednext, "size", "S")
     kernel_size = getattr(cfg.model.mednext, "kernel_size", 3)
     loss_cfg = getattr(cfg.model, "loss", None)
     deep_supervision = getattr(loss_cfg, "deep_supervision", False)
+    head_cfg, primary_head = _get_mednext_heads_cfg(cfg)
+    out_channels = _resolve_mednext_num_classes(cfg, head_cfg)
 
     # Validate model size
     if model_size not in ["S", "B", "M", "L"]:
@@ -183,6 +365,8 @@ def build_mednext(cfg) -> ConnectomicsModel:
         deep_supervision=deep_supervision,
     )
 
+    if head_cfg:
+        return MedNeXtMultiHeadWrapper(model, head_cfg, primary_head=primary_head)
     return MedNeXtWrapper(model, deep_supervision=deep_supervision)
 
 
@@ -234,12 +418,13 @@ def build_mednext_custom(cfg) -> ConnectomicsModel:
     See .claude/MEDNEXT.md for complete parameter documentation.
     """
     _check_mednext_available()
+    head_cfg, primary_head = _get_mednext_heads_cfg(cfg)
 
     # Extract all custom parameters (Hydra only)
     params = {
         "in_channels": cfg.model.in_channels,
         "n_channels": getattr(cfg.model.mednext, "base_channels", 32),
-        "n_classes": cfg.model.out_channels,
+        "n_classes": _resolve_mednext_num_classes(cfg, head_cfg),
         "exp_r": getattr(cfg.model.mednext, "exp_r", 4),
         "kernel_size": getattr(cfg.model.mednext, "kernel_size", 7),
         "deep_supervision": getattr(cfg.model.loss, "deep_supervision", False),
@@ -268,6 +453,8 @@ def build_mednext_custom(cfg) -> ConnectomicsModel:
     # Build custom model
     model = MedNeXtBase(**params)
 
+    if head_cfg:
+        return MedNeXtMultiHeadWrapper(model, head_cfg, primary_head=primary_head)
     return MedNeXtWrapper(model, deep_supervision=params["deep_supervision"])
 
 
@@ -326,6 +513,8 @@ def upkern_load_weights(
 
 
 __all__ = [
+    "MedNeXtMultiHeadWrapper",
+    "MedNeXtTaskHead",
     "MedNeXtWrapper",
     "build_mednext",
     "build_mednext_custom",

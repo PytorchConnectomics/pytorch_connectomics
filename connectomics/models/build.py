@@ -16,7 +16,7 @@ from __future__ import annotations
 
 import logging
 
-from .arch import get_architecture_builder
+from .architectures import get_architecture_builder
 
 logger = logging.getLogger(__name__)
 
@@ -47,7 +47,7 @@ def build_model(cfg):
         model = build_model(cfg)
 
     To see all available architectures:
-        from connectomics.models.arch import print_available_architectures
+        from connectomics.models.architectures import print_available_architectures
         print_available_architectures()
     """
     # Get architecture name

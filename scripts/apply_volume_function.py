@@ -7,14 +7,14 @@ Examples:
     python scripts/apply_volume_function.py \
         --input seg.h5 \
         --output seg_eroded.h5 \
-        --function connectomics.data.process.segment:seg_erosion_instance \
+        --function connectomics.data.processing.segment:seg_erosion_instance \
         --kwargs-json '{"tsz_h": 1}'
 
     # Using a repo-relative file path callable spec
     python scripts/apply_volume_function.py \
         --input seg.npy \
         --output seg_eroded.npy \
-        --function connectomics/data/process/segment.py:seg_erosion_instance \
+        --function connectomics/data/processing/segment.py:seg_erosion_instance \
         --kwargs-json '{"tsz_h": 2}'
 """
 

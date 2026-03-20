@@ -21,13 +21,14 @@ try:
 except ImportError:
     _HAS_CHAIN_DATASET = False
 
-from ...data.process.affinity import (
+from ...data.processing.affinity import (
     affinity_deepem_crop_enabled,
     compute_affinity_valid_mask,
     crop_spatial_by_offsets,
     resolve_affinity_channel_groups_from_cfg,
     resolve_affinity_offsets_for_channel_slice,
 )
+from ...utils import resolve_configured_output_head, select_output_tensor
 from .visualizer import Visualizer, get_visualization_mask
 
 logger = logging.getLogger(__name__)
@@ -75,6 +76,8 @@ def _apply_affinity_visualization_crop_if_needed(
         start_idx = max(0, int(start))
         end_idx = min(int(end), num_channels)
         if start_idx >= end_idx:
+            continue
+        if end_idx - start_idx != len(offsets):
             continue
 
         group_mask = compute_affinity_valid_mask(
@@ -139,6 +142,7 @@ class VisualizationCallback(Callback):
         images_cfg = cfg.monitor.logging.images
         self.channel_mode = getattr(images_cfg, "channel_mode", "all") or "all"
         self.selected_channels = getattr(images_cfg, "selected_channels", None)
+        self.output_head = getattr(images_cfg, "head", None)
 
         # Store batch for end-of-epoch visualization
         self._last_train_batch = None
@@ -227,8 +231,13 @@ class VisualizationCallback(Callback):
                     pl_module.train()
 
                 image_cpu = image.cpu()
-                label_cpu = cached_batch["label"].cpu()
-                pred_cpu = self._to_tensor(pred).cpu()
+                label_tensor, pred_tensor, _resolved_head = self._select_visualization_tensors(
+                    pl_module,
+                    cached_batch["label"],
+                    pred,
+                )
+                label_cpu = label_tensor.cpu()
+                pred_cpu = pred_tensor.cpu()
                 mask_cpu = cached_batch.get("mask", None)
                 if mask_cpu is not None:
                     mask_cpu = mask_cpu.cpu()
@@ -315,6 +324,51 @@ class VisualizationCallback(Callback):
                 if isinstance(value, torch.Tensor):
                     return value
         raise TypeError(f"Unexpected prediction type for visualization: {type(pred)}")
+
+    def _resolve_requested_output_head(self) -> Optional[str]:
+        if isinstance(self.output_head, str) and self.output_head.strip():
+            return self.output_head.strip()
+        return resolve_configured_output_head(
+            self.cfg,
+            purpose="visualization selection",
+            allow_none=True,
+        )
+
+    def _select_visualization_tensors(
+        self,
+        pl_module,
+        label: torch.Tensor,
+        pred,
+    ) -> tuple[torch.Tensor, torch.Tensor, Optional[str]]:
+        requested_head = self._resolve_requested_output_head()
+        primary_head = getattr(getattr(pl_module, "cfg", self.cfg).model, "primary_head", None)
+
+        try:
+            pred_tensor, resolved_head = select_output_tensor(
+                pred,
+                requested_head=requested_head,
+                primary_head=primary_head,
+                purpose="visualization selection",
+            )
+        except (TypeError, ValueError):
+            if requested_head is not None:
+                raise
+            return label, self._to_tensor(pred), None
+
+        if resolved_head is None:
+            return label, pred_tensor, None
+
+        target_slice = pl_module._resolve_validation_target_slice(resolved_head)
+        label_tensor = (
+            label
+            if target_slice is None
+            else pl_module._slice_tensor_channels(
+                label,
+                target_slice,
+                context=f"visualization target slice for head '{resolved_head}'",
+            )
+        )
+        return label_tensor, pred_tensor, resolved_head
 
 
 class NaNDetectionCallback(Callback):

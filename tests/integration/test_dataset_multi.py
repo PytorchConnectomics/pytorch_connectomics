@@ -11,7 +11,7 @@ Tests cover:
 import pytest
 from torch.utils.data import Dataset
 
-from connectomics.data.dataset import (
+from connectomics.data.datasets import (
     StratifiedConcatDataset,
     UniformConcatDataset,
     WeightedConcatDataset,

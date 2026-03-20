@@ -6,8 +6,8 @@ import pytest
 from monai.transforms import Resized
 
 from connectomics.config import Config
-from connectomics.data.augment.build import build_test_transforms, build_val_transforms
-from connectomics.data.augment.transforms import ResizeByFactord
+from connectomics.data.augmentation.build import build_test_transforms, build_val_transforms
+from connectomics.data.augmentation.transforms import ResizeByFactord
 from connectomics.training.lightning.data_factory import create_datamodule
 
 

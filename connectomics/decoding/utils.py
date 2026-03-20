@@ -13,7 +13,7 @@ from __future__ import annotations
 import numpy as np
 from skimage.morphology import dilation, remove_small_objects
 
-from connectomics.data.process import bbox_ND, crop_ND, get_seg_type
+from connectomics.data.processing import bbox_ND, crop_ND, get_seg_type
 
 __all__ = [
     "cast2dtype",

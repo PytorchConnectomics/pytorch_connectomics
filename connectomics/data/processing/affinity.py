@@ -284,7 +284,6 @@ def compute_affinity_valid_mask(
 
     return mask
 
-
 def seg_to_affinity(
     seg: np.ndarray,
     offsets: List[str] = None,
