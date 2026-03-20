@@ -11,6 +11,7 @@ from typing import Any, Dict, List, Optional
 
 import pytorch_lightning as pl
 import torch
+import torchvision.utils as vutils
 from pytorch_lightning import Callback
 from torch.utils.data import ConcatDataset, DataLoader, Dataset, Subset
 
@@ -332,23 +333,37 @@ class VisualizationCallback(Callback):
 
         Runs once at the start of training so the user can visually verify
         data loading, augmentation, and label transforms before waiting for
-        the first epoch to finish.
+        the first epoch to finish.  Only label channels are shown (no output).
         """
         try:
             writer = trainer.logger.experiment
-            image = batch["image"].cpu()
-            label = batch["label"].cpu()
+            image = self.visualizer._prepare_volume(batch["image"].cpu())
+            label = self.visualizer._prepare_volume(batch["label"].cpu())
 
-            self._log_visualization(
-                image=image,
-                label=label,
-                mask=None,
-                pred=label,  # show label in the pred slot too (no model output yet)
-                writer=writer,
-                iteration=0,
-                prefix="data_check",
+            image = self.visualizer._normalize(image)
+            label = self.visualizer._normalize(label)
+
+            # Limit samples
+            image = image[: self.visualizer.max_images]
+            label = label[: self.visualizer.max_images]
+
+            # Log input image
+            writer.add_image(
+                "data_check/input",
+                vutils.make_grid(image, nrow=min(8, self.visualizer.max_images), normalize=True, scale_each=True),
+                0,
             )
-            logger.info("Logged data check visualization (image + label, no prediction)")
+
+            # Log each label channel
+            for i in range(min(label.shape[1], self.visualizer.max_channels)):
+                ch = label[:, i : i + 1].repeat(1, 3, 1, 1)
+                writer.add_image(
+                    f"data_check/label_channel_{i}",
+                    vutils.make_grid(ch, nrow=min(8, self.visualizer.max_images), normalize=True, scale_each=True),
+                    0,
+                )
+
+            logger.info("Logged data check visualization (image + %d label channels)", label.shape[1])
         except Exception as e:
             logger.warning("Data check visualization failed: %s", e)
 
