@@ -21,11 +21,9 @@ class _FakeWaterzModule:
         seg[:, :, :2] = 1
         seg[:, :, 2:] = 2
         if kwargs.get("return_region_graph", False):
-            # rgToArr format: (rg_id (N,2) uint32, rg_sc (N,) uint8)
-            # score=51 → affinity = (255-51)/255 ≈ 0.8
-            rg_id = np.array([[1, 2]], dtype=np.uint32)
-            rg_sc = np.array([51], dtype=np.uint8)
-            return [(seg.copy(), (rg_id.copy(), rg_sc.copy())) for _ in thresholds]
+            # ScoredEdge dicts: score=0.2 → affinity = 1.0 - 0.2 = 0.8
+            rg = [{"u": 1, "v": 2, "score": 0.2}]
+            return [(seg.copy(), list(rg)) for _ in thresholds]
         return [seg.copy() for _ in thresholds]
 
     def merge_dust(self, seg, affs, size_th, weight_th, dust_th):

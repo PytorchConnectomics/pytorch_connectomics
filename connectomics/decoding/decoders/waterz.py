@@ -306,18 +306,30 @@ def decode_waterz(
     processed: List[np.ndarray] = []
     for waterz_result in seg_list:
         if do_dust_merge:
-            seg, (rg_id, rg_sc) = waterz_result
+            seg, region_graph = waterz_result
         else:
             seg = waterz_result
 
         # Size+affinity dust merge reusing the agglomeration's region graph.
-        # rg_sc is uint8 sorted ascending (low score = high affinity).
-        # Invert OneMinus/One255Minus scores to raw affinities in [0, 1].
+        # region_graph is a list of ScoredEdge dicts {u, v, score}.
+        # Scores use OneMinus/One255Minus: low score = high affinity.
+        # Invert to raw affinities and sort descending for merge_segments.
         if do_dust_merge:
             seg = seg.astype(np.uint64, copy=False)
-            rg_affs = (255.0 - rg_sc.astype(np.float32)) / 255.0
-            id1 = rg_id[:, 0].astype(np.uint64)
-            id2 = rg_id[:, 1].astype(np.uint64)
+            n_edges = len(region_graph)
+            rg_affs = np.empty(n_edges, dtype=np.float32)
+            id1 = np.empty(n_edges, dtype=np.uint64)
+            id2 = np.empty(n_edges, dtype=np.uint64)
+            for idx, edge in enumerate(region_graph):
+                rg_affs[idx] = 1.0 - float(edge["score"])
+                id1[idx] = int(edge["u"])
+                id2[idx] = int(edge["v"])
+            if n_edges:
+                np.clip(rg_affs, 0.0, 1.0, out=rg_affs)
+                order = np.argsort(rg_affs)[::-1]
+                rg_affs = np.ascontiguousarray(rg_affs[order])
+                id1 = np.ascontiguousarray(id1[order])
+                id2 = np.ascontiguousarray(id2[order])
             ids, cnts = np.unique(seg, return_counts=True)
             max_id = int(ids.max()) if len(ids) else 0
             counts = np.zeros(max_id + 1, dtype=np.uint64)
