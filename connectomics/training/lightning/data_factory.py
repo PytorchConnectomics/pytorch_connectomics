@@ -537,15 +537,23 @@ def create_datamodule(
     test_data_dicts = None
     if mode == "test":
         split = cfg.data.test
-        if not split.image:
+        # Skip image validation when using saved_prediction_path (decode-only)
+        _saved = getattr(getattr(cfg, "inference", None), "saved_prediction_path", "")
+        if not split.image and not _saved:
             raise ValueError(
                 "Test mode requires data.test.image to be set.\n"
                 f"Current resolved image = {split.image}"
             )
-        logger.info(f"Creating test dataset from: {split.image}")
+        if split.image:
+            logger.info(f"Creating test dataset from: {split.image}")
+            test_image_paths = expand_file_paths(split.image)
+        else:
+            # Decode-only: derive filename from saved_prediction_path
+            from pathlib import Path
+            pred_stem = Path(_saved).stem if _saved else "decoded"
+            test_image_paths = [pred_stem]
+            logger.info(f"Decode-only mode: using filename from saved_prediction_path: {pred_stem}")
 
-        # Expand glob patterns for test data (same as train data)
-        test_image_paths = expand_file_paths(split.image)
         test_label_paths = expand_file_paths(split.label) if split.label else None
         test_label_aux_paths = expand_file_paths(split.label_aux) if split.label_aux else None
         test_mask_paths = expand_file_paths(split.mask) if split.mask else None
