@@ -21,8 +21,11 @@ class _FakeWaterzModule:
         seg[:, :, :2] = 1
         seg[:, :, 2:] = 2
         if kwargs.get("return_region_graph", False):
-            rg = [{"u": 1, "v": 2, "score": 0.2}]
-            return [(seg.copy(), rg.copy()) for _ in thresholds]
+            # rgToArr format: (rg_id (N,2) uint32, rg_sc (N,) uint8)
+            # score=51 → affinity = (255-51)/255 ≈ 0.8
+            rg_id = np.array([[1, 2]], dtype=np.uint32)
+            rg_sc = np.array([51], dtype=np.uint8)
+            return [(seg.copy(), (rg_id.copy(), rg_sc.copy())) for _ in thresholds]
         return [seg.copy() for _ in thresholds]
 
     def merge_dust(self, seg, affs, size_th, weight_th, dust_th):
@@ -131,9 +134,10 @@ def test_decode_waterz_reuses_region_graph_for_dust_when_scores_are_compatible(
     ]
 
 
-def test_decode_waterz_falls_back_to_merge_dust_for_incompatible_scores(
+def test_decode_waterz_reuses_region_graph_for_any_scoring_function(
     monkeypatch,
 ):
+    """Region graph reuse works for any scoring function, not just OneMinus."""
     fake_waterz = _FakeWaterzModule()
     monkeypatch.setattr(waterz_decoder, "waterz", fake_waterz)
     monkeypatch.setattr(waterz_decoder, "WATERZ_AVAILABLE", True)
@@ -159,13 +163,10 @@ def test_decode_waterz_falls_back_to_merge_dust_for_incompatible_scores(
             "return_region_graph": True,
         }
     ]
-    assert fake_waterz.merge_segments_calls == []
-    assert fake_waterz.merge_dust_calls == [
-        {
-            "seg_shape": (4, 4, 4),
-            "aff_shape": (3, 4, 4, 4),
-            "size_th": 100,
-            "weight_th": 0.3,
-            "dust_th": 50,
-        }
-    ]
+    assert fake_waterz.merge_dust_calls == []
+    assert len(fake_waterz.merge_segments_calls) == 1
+    call = fake_waterz.merge_segments_calls[0]
+    assert call["seg_shape"] == (4, 4, 4)
+    assert call["size_th"] == 100
+    assert call["weight_th"] == 0.3
+    assert call["dust_th"] == 50
