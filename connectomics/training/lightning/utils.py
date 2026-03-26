@@ -485,6 +485,12 @@ def format_decode_tag(cfg: Config) -> str:
             "dust_merge_affinity",
             "dust_remove_size",
         ],
+        "use_uint8": [],  # gate only: shows "uint8" when true, omitted when false
+    }
+
+    # Custom labels for boolean gates (instead of showing "true")
+    gate_labels = {
+        "use_uint8": "uint8",
     }
 
     def _flatten_decode_values(value) -> list[str]:
@@ -501,6 +507,9 @@ def format_decode_tag(cfg: Config) -> str:
             for key, nested_value in sorted(value_dict.items()):
                 if key in gated_keys:
                     if key in gated_value_groups and nested_value is True:
+                        # Use custom label if defined, otherwise expand children
+                        if key in gate_labels:
+                            result.append(gate_labels[key])
                         for grouped_key in gated_value_groups[key]:
                             if grouped_key in value_dict:
                                 result.extend(_flatten_decode_values(value_dict[grouped_key]))
@@ -716,6 +725,12 @@ def resolve_prediction_cache_suffix(
         if tta_cfg is not None and bool(getattr(tta_cfg, "enabled", False)):
             return tta_cache_suffix(cfg, checkpoint_path=checkpoint_path, output_head=output_head)
 
+    # Include head + checkpoint tags in the suffix so different heads don't
+    # collide (e.g. _x1_head-aff_r1_ckpt-last_prediction.h5).
+    head = format_output_head_tag(cfg, output_head=output_head)
+    ckpt = format_checkpoint_name_tag(checkpoint_path)
+    if head or ckpt:
+        return f"_x1{head}{ckpt}_prediction.h5"
     return configured_suffix
 
 
