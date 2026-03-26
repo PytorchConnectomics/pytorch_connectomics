@@ -148,7 +148,7 @@ test:
       label: test-labels.h5
       resolution: [30, 6, 6]
   inference:
-    head: aff_r5
+    head: aff_r1
     decoding:
       - template: decoding_waterz
         kwargs:
@@ -160,6 +160,11 @@ test:
           dust_merge_size: 800
           dust_merge_affinity: 0.3
           dust_remove_size: 600
+          branch_merge: true
+          branch_iou_threshold: 0.5
+          branch_best_buddy: true
+          branch_one_sided_threshold: 0.8
+          branch_one_sided_min_size: 100
 
 # ============================================================================
 # Parameter tuning for waterz agglomeration thresholds (--mode tune)

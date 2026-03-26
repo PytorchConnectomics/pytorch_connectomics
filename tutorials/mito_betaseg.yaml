@@ -18,14 +18,17 @@ default:
       aff_r1:
         out_channels: 3
         num_blocks: 1
+        hidden_channels: 8
         target_slice: "0:3"
       aff_r5:
         out_channels: 3
         num_blocks: 1
+        hidden_channels: 8
         target_slice: "3:6"
       sdt:
         out_channels: 1
         num_blocks: 1
+        hidden_channels: 8
         target_slice: "6:7"
     loss:
       losses:
@@ -60,12 +63,10 @@ default:
             bg_value: -1.0
     dataloader:
       patch_size: [128, 128, 128]
-      batch_size: 4
+      batch_size: 2
       use_lazy_zarr: true
     image_transform:
-      normalize: "0-1"
-      clip_percentile_low: 0.005
-      clip_percentile_high: 0.995
+      normalize: "divide-255"
     augmentation:
       profile: aug_em_neuron
       rotate:
@@ -123,7 +124,7 @@ train:
         channel_mode: all
     checkpoint:
       save_top_k: 3
-      monitor: val_loss_total_epoch
+      monitor: val_loss_total
       mode: min
 
 test:

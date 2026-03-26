@@ -304,6 +304,9 @@ def validate_config(cfg: Config) -> None:
         for head_name, head_cfg in model_heads.items():
             head_out_channels = int(getattr(head_cfg, "out_channels", 0))
             head_num_blocks = int(getattr(head_cfg, "num_blocks", 0))
+            head_hidden_channels = getattr(head_cfg, "hidden_channels", None)
+            if head_hidden_channels is not None:
+                head_hidden_channels = int(head_hidden_channels)
             if head_out_channels <= 0:
                 raise ValueError(
                     f"model.heads.{head_name}.out_channels must be positive "
@@ -313,6 +316,11 @@ def validate_config(cfg: Config) -> None:
                 raise ValueError(
                     f"model.heads.{head_name}.num_blocks must be non-negative "
                     f"(got {head_num_blocks})"
+                )
+            if head_hidden_channels is not None and head_hidden_channels <= 0:
+                raise ValueError(
+                    f"model.heads.{head_name}.hidden_channels must be positive "
+                    f"(got {head_hidden_channels})"
                 )
 
         primary_head = getattr(cfg.model, "primary_head", None)
@@ -326,7 +334,11 @@ def validate_config(cfg: Config) -> None:
                 f"inference.head='{inference_head}' is not present in model.heads "
                 f"({sorted(model_heads.keys())})."
             )
-        if visualization_head is not None and visualization_head != "all" and visualization_head not in model_heads:
+        if (
+            visualization_head is not None
+            and visualization_head != "all"
+            and visualization_head not in model_heads
+        ):
             raise ValueError(
                 f"monitor.logging.images.head='{visualization_head}' is not present in "
                 f"model.heads ({sorted(model_heads.keys())})."

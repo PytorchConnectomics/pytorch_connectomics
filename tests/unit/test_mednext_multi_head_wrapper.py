@@ -1,10 +1,9 @@
 import pytest
 import torch
 
-from connectomics.config import from_dict
-from connectomics.models.build import build_model
+from connectomics.config import from_dict, validate_config
 from connectomics.models.architectures.mednext_models import MedNeXtMultiHeadWrapper
-
+from connectomics.models.build import build_model
 
 nnunet_mednext = pytest.importorskip("nnunet_mednext")
 from nnunet_mednext import MedNeXt  # noqa: E402
@@ -32,7 +31,7 @@ def test_mednext_multi_head_wrapper_returns_named_outputs():
     model = MedNeXtMultiHeadWrapper(
         trunk,
         {
-            "affinity": {"out_channels": 9, "num_blocks": 1},
+            "affinity": {"out_channels": 9, "num_blocks": 1, "hidden_channels": 2},
             "sdt": {"out_channels": 1, "num_blocks": 0},
         },
     )
@@ -51,7 +50,21 @@ def test_mednext_multi_head_wrapper_returns_named_outputs():
     assert outputs["output"]["affinity"].shape == (1, 9, 32, 32, 32)
     assert outputs["output"]["sdt"].shape == (1, 1, 32, 32, 32)
     assert model.head_specs["affinity"]["num_blocks"] == 1
+    assert model.head_specs["affinity"]["hidden_channels"] == 2
+    assert isinstance(model.heads["affinity"].input_projection, torch.nn.Conv3d)
+    assert model.heads["affinity"].projection.in_channels == 2
     assert model.head_specs["sdt"]["num_blocks"] == 0
+    assert model.head_specs["sdt"]["hidden_channels"] == 4
+
+
+def test_mednext_multi_head_wrapper_rejects_hidden_channels_above_trunk_width():
+    trunk = _build_tiny_mednext(deep_supervision=False)
+
+    with pytest.raises(ValueError, match="must not exceed the shared feature width"):
+        MedNeXtMultiHeadWrapper(
+            trunk,
+            {"affinity": {"out_channels": 9, "num_blocks": 1, "hidden_channels": 8}},
+        )
 
 
 def test_mednext_multi_head_wrapper_rejects_deep_supervision_trunk():
@@ -70,7 +83,7 @@ def test_build_model_creates_mednext_multi_head_wrapper_from_config():
                 "out_channels": 10,
                 "primary_head": "affinity",
                 "heads": {
-                    "affinity": {"out_channels": 9, "num_blocks": 1},
+                    "affinity": {"out_channels": 9, "num_blocks": 1, "hidden_channels": 2},
                     "sdt": {"out_channels": 1, "num_blocks": 0},
                 },
                 "mednext": {
@@ -91,6 +104,7 @@ def test_build_model_creates_mednext_multi_head_wrapper_from_config():
     model = build_model(cfg)
     assert isinstance(model, MedNeXtMultiHeadWrapper)
     assert model.primary_head == "affinity"
+    assert model.head_specs["affinity"]["hidden_channels"] == 2
 
     x = torch.randn(1, 1, 32, 32, 32)
     with torch.no_grad():
@@ -98,3 +112,17 @@ def test_build_model_creates_mednext_multi_head_wrapper_from_config():
 
     assert outputs["output"]["affinity"].shape == (1, 9, 32, 32, 32)
     assert outputs["output"]["sdt"].shape == (1, 1, 32, 32, 32)
+
+
+def test_validate_config_rejects_nonpositive_head_hidden_channels():
+    cfg = from_dict(
+        {
+            "model": {
+                "arch": {"type": "mednext_custom"},
+                "heads": {"affinity": {"out_channels": 3, "num_blocks": 0, "hidden_channels": 0}},
+            }
+        }
+    )
+
+    with pytest.raises(ValueError, match="model.heads.affinity.hidden_channels must be positive"):
+        validate_config(cfg)
