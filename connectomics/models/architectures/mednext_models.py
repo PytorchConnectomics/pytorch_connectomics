@@ -24,8 +24,7 @@ import torch.nn as nn
 
 try:
     from nnunet_mednext import MedNeXt as MedNeXtBase
-    from nnunet_mednext import MedNeXtBlock
-    from nnunet_mednext import create_mednext_v1
+    from nnunet_mednext import MedNeXtBlock, create_mednext_v1
 
     MEDNEXT_AVAILABLE = True
 except ImportError:
@@ -137,6 +136,7 @@ class MedNeXtTaskHead(nn.Module):
         in_channels: int,
         out_channels: int,
         num_blocks: int,
+        hidden_channels: int | None = None,
         *,
         exp_r: int,
         kernel_size: int,
@@ -150,6 +150,17 @@ class MedNeXtTaskHead(nn.Module):
             raise ValueError(f"MedNeXt task head num_blocks must be >= 0, got {num_blocks}")
         if out_channels <= 0:
             raise ValueError(f"MedNeXt task head out_channels must be positive, got {out_channels}")
+        if hidden_channels is None:
+            hidden_channels = in_channels
+        if hidden_channels <= 0:
+            raise ValueError(
+                f"MedNeXt task head hidden_channels must be positive, got {hidden_channels}"
+            )
+        if hidden_channels > in_channels:
+            raise ValueError(
+                "MedNeXt task head hidden_channels must not exceed the shared feature width "
+                f"({hidden_channels} > {in_channels})"
+            )
         if dim == "2d":
             conv = nn.Conv2d
         elif dim == "3d":
@@ -157,10 +168,15 @@ class MedNeXtTaskHead(nn.Module):
         else:
             raise ValueError(f"MedNeXt task head dim must be '2d' or '3d', got {dim}")
 
+        self.input_projection = (
+            conv(in_channels, hidden_channels, kernel_size=1)
+            if hidden_channels != in_channels
+            else nn.Identity()
+        )
         blocks = [
             MedNeXtBlock(
-                in_channels=in_channels,
-                out_channels=in_channels,
+                in_channels=hidden_channels,
+                out_channels=hidden_channels,
                 exp_r=exp_r,
                 kernel_size=kernel_size,
                 do_res=do_res,
@@ -171,9 +187,11 @@ class MedNeXtTaskHead(nn.Module):
             for _ in range(num_blocks)
         ]
         self.blocks = nn.Sequential(*blocks) if blocks else nn.Identity()
-        self.projection = conv(in_channels, out_channels, kernel_size=1)
+        self.projection = conv(hidden_channels, out_channels, kernel_size=1)
+        self.hidden_channels = hidden_channels
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
+        x = self.input_projection(x)
         x = self.blocks(x)
         return self.projection(x)
 
@@ -219,15 +237,19 @@ class MedNeXtMultiHeadWrapper(ConnectomicsModel):
         for head_name, head_cfg in heads.items():
             out_channels = int(_cfg_value(head_cfg, "out_channels", head_cfg))
             num_blocks = int(_cfg_value(head_cfg, "num_blocks", 0))
+            hidden_channels = _cfg_value(head_cfg, "hidden_channels", None)
+            hidden_channels = int(hidden_channels) if hidden_channels is not None else None
             task_heads[head_name] = MedNeXtTaskHead(
                 in_channels=self.feature_channels,
                 out_channels=out_channels,
                 num_blocks=num_blocks,
+                hidden_channels=hidden_channels,
                 **self.head_block_kwargs,
             )
             head_specs[head_name] = {
                 "out_channels": out_channels,
                 "num_blocks": num_blocks,
+                "hidden_channels": hidden_channels or self.feature_channels,
             }
 
         self.heads = nn.ModuleDict(task_heads)
