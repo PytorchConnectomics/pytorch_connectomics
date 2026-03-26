@@ -200,6 +200,11 @@ class InferenceConfig:
     # Optional explicit intermediate TTA prediction file (.h5). If set in test
     # mode, pipeline loads this file directly and proceeds to decoding.
     tta_result_path: str = ""
+    # Path to pre-computed affinity prediction HDF5 (dataset "main").
+    # When set, skips model inference — loads and decodes directly.
+    saved_prediction_path: str = ""
+    # Path to save decoded instance segmentation (separate from raw prediction).
+    decoding_path: str = ""
     save_prediction: SavePredictionConfig = field(default_factory=SavePredictionConfig)
     decoding: Optional[List[DecodeModeConfig]] = None  # List of decode modes to apply sequentially
     postprocessing: PostprocessingConfig = field(default_factory=PostprocessingConfig)
