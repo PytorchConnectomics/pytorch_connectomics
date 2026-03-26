@@ -423,6 +423,10 @@ def branch_merge(
             z_affs[z] = z_ch[z + 1]
         has_aff = True
 
+    # Segment sizes for min_segment_size filter
+    seg_ids, seg_counts = np.unique(seg, return_counts=True)
+    seg_sizes = dict(zip(seg_ids.tolist(), seg_counts.tolist()))
+
     # Compute slice overlaps and bbox-touch masks
     logger.info("Computing slice overlaps for %d boundaries...", n_slices - 1)
     all_overlaps = []
@@ -431,8 +435,8 @@ def branch_merge(
     for z in range(n_slices - 1):
         ovl = _slice_overlaps(seg[z], seg[z + 1], z_affs[z])
         all_overlaps.append(ovl)
-        bbox_masks_strict.append(_bbox_touch_mask(ovl, z, z_first, z_last, strict=True))
-        bbox_masks_relaxed.append(_bbox_touch_mask(ovl, z, z_first, z_last, strict=False))
+        bbox_masks_strict.append(_bbox_touch_mask(ovl, z, z_first, z_last, seg_sizes, 0, strict=True))
+        bbox_masks_relaxed.append(_bbox_touch_mask(ovl, z, z_first, z_last, seg_sizes, 0, strict=False))
 
     uf = _UnionFind()
 
