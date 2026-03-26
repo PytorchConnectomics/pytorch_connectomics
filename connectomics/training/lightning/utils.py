@@ -591,13 +591,17 @@ def final_prediction_output_tag(
     checkpoint_path: Optional[str | Path] = None,
     output_head: Optional[str] = None,
 ) -> str:
-    """Return the final decoded prediction tag used in output filenames."""
+    """Return the final decoded prediction tag used in output filenames.
+
+    Uses ``_decoding`` when decoding is configured, ``_prediction`` otherwise.
+    """
     n = compute_tta_passes(cfg, spatial_dims=spatial_dims)
     head = format_output_head_tag(cfg, output_head=output_head)
     ch = format_select_channel_tag(cfg)
     ckpt = format_checkpoint_name_tag(checkpoint_path)
     dec = format_decode_tag(cfg)
-    return f"x{n}{head}{ch}{ckpt}_prediction{dec}"
+    label = "_decoding" if dec else "_prediction"
+    return f"x{n}{head}{ch}{ckpt}{label}{dec}"
 
 
 def tta_cache_suffix(
