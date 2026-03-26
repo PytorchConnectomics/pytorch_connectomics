@@ -904,7 +904,13 @@ def main():
     )
 
     # Create model
-    if tta_cached:
+    if has_saved_prediction:
+        print(f"  Decode-only mode: loading predictions from {_saved_pred}")
+        print(f"  Skipping model build entirely.")
+        model = ConnectomicsModule(cfg, model=torch.nn.Identity(), skip_loss=True)
+        model._skip_inference = True
+        ckpt_path = None
+    elif tta_cached:
         print(
             f"  Cached intermediate predictions found; "
             f"creating lightweight module (skipping {cfg.model.arch.type} build)."

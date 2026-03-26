@@ -90,6 +90,7 @@ class ConnectomicsModule(pl.LightningModule):
         self,
         cfg: Union[Config, DictConfig],
         model: Optional[nn.Module] = None,
+        skip_loss: bool = False,
     ):
         super().__init__()
         self.cfg = cfg
@@ -97,6 +98,17 @@ class ConnectomicsModule(pl.LightningModule):
 
         # Build model
         self.model = model if model is not None else self._build_model(cfg)
+
+        # Skip loss/optimizer setup for decode-only mode
+        if skip_loss:
+            self.loss_functions = []
+            self.loss_weights = []
+            self.loss_metadata = []
+            self.loss_weighter = None
+            self.enable_nan_detection = False
+            self.debug_on_nan = False
+            self.loss_orchestrator = None
+            return
 
         # Build loss functions
         self.loss_functions = self._build_losses(cfg)
