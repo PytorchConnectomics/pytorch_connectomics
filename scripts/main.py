@@ -889,10 +889,13 @@ def main():
     ):
         return
 
-    # Check for cached intermediate predictions early so we can skip both the
+    # Check for cached/external predictions early so we can skip both the
     # expensive model build and checkpoint restore for test/tune modes.
+    _saved_pred = getattr(getattr(cfg, "inference", None), "saved_prediction_path", "")
+    has_saved_prediction = bool(_saved_pred and isinstance(_saved_pred, str) and _saved_pred.strip())
     tta_cached = args.mode in ("test", "tune", "tune-test") and (
-        _has_tta_prediction_file(cfg)
+        has_saved_prediction
+        or _has_tta_prediction_file(cfg)
         or _has_cached_predictions_in_output_dir(
             cfg,
             mode=args.mode,
