@@ -147,11 +147,11 @@ def decode_waterz(
         min_instance_size: Minimum instance size in voxels. Instances smaller
             than this are removed (set to background). Set to 0 to disable.
             Default: 0
-        dust_merge: Enable dust postprocessing. When WaterZ returns a
-            reusable region graph, dust merging uses it directly via
-            ``waterz.merge_segments``; otherwise it falls back to
-            ``waterz.merge_dust``. When False, the dust merge and dust
-            removal thresholds below are ignored. Default: True
+        dust_merge: Enable dust postprocessing.  Reuses the agglomeration's
+            region graph (returned by waterz) and calls
+            ``waterz.merge_segments`` directly — no redundant graph rebuild.
+            When False, the dust merge and dust removal thresholds below
+            are ignored. Default: True
         dust_merge_size: Size+affinity dust merge (zwatershed-style).
             Segments with fewer voxels than this are merged into their
             highest-affinity neighbor.  Unlike *min_instance_size* which
@@ -296,6 +296,7 @@ def decode_waterz(
         waterz_kwargs["fragments"] = fragments.astype(np.uint64, copy=False)
 
     do_dust_merge = bool(dust_merge) and dust_merge_size > 0
+    waterz_kwargs["return_region_graph"] = do_dust_merge
 
     # waterz.waterz() runs watershed + region-graph once, then incrementally
     # merges for each threshold.  Returns all segmentations (copied).
@@ -303,12 +304,26 @@ def decode_waterz(
 
     # Post-process each result
     processed: List[np.ndarray] = []
-    for seg in seg_list:
-        # Size+affinity dust merge via buildRegionGraphOnly (fast path)
+    for waterz_result in seg_list:
+        if do_dust_merge:
+            seg, (rg_id, rg_sc) = waterz_result
+        else:
+            seg = waterz_result
+
+        # Size+affinity dust merge reusing the agglomeration's region graph.
+        # rg_sc is uint8 sorted ascending (low score = high affinity).
+        # Invert OneMinus/One255Minus scores to raw affinities in [0, 1].
         if do_dust_merge:
             seg = seg.astype(np.uint64, copy=False)
-            waterz.merge_dust(
-                seg, affs,
+            rg_affs = (255.0 - rg_sc.astype(np.float32)) / 255.0
+            id1 = rg_id[:, 0].astype(np.uint64)
+            id2 = rg_id[:, 1].astype(np.uint64)
+            ids, cnts = np.unique(seg, return_counts=True)
+            max_id = int(ids.max()) if len(ids) else 0
+            counts = np.zeros(max_id + 1, dtype=np.uint64)
+            counts[ids] = cnts
+            waterz.merge_segments(
+                seg, rg_affs, id1, id2, counts,
                 size_th=dust_merge_size,
                 weight_th=dust_merge_affinity,
                 dust_th=dust_remove_size,
