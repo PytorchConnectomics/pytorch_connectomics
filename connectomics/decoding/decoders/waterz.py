@@ -320,8 +320,10 @@ def decode_waterz(
             rg_affs = np.empty(n_edges, dtype=np.float32)
             id1 = np.empty(n_edges, dtype=np.uint64)
             id2 = np.empty(n_edges, dtype=np.uint64)
+            # uint8 scores are in [0, 255] (One255Minus); float in [0, 1] (OneMinus).
+            score_max = 255.0 if is_uint8 else 1.0
             for idx, edge in enumerate(region_graph):
-                rg_affs[idx] = 1.0 - float(edge["score"])
+                rg_affs[idx] = score_max - float(edge["score"])
                 id1[idx] = int(edge["u"])
                 id2[idx] = int(edge["v"])
             if n_edges:
