@@ -47,6 +47,9 @@ class TestConfig:
 
     output_path: Optional[str] = None
     cache_suffix: str = "_x1_prediction.h5"
+    # Path to a pre-computed affinity prediction HDF5 file.
+    # When set, skips model inference entirely — loads and decodes directly.
+    saved_prediction_path: str = ""
 
 
 @dataclass

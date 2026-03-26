@@ -1,0 +1,37 @@
+experiment_name: waterz_decode_only
+description: >
+  Decode-only: load a pre-computed affinity HDF5 and run waterz decoding.
+  No model, no inference, no TTA.
+
+  Usage:
+    python scripts/main.py --config tutorials/waterz_decoding.yaml --mode test \
+      test.saved_prediction_path=path/to/affinity.h5 \
+      test.data.test.label=path/to/gt.h5
+
+_base_:
+  - ../connectomics/config/all_profiles.yaml
+
+test:
+  saved_prediction_path: ""   # SET THIS: path to affinity HDF5
+
+  data:
+    test:
+      resolution: [25, 18, 18]
+
+  inference:
+    evaluation:
+      enabled: true
+      metrics: [adapted_rand]
+    save_prediction:
+      enabled: true
+    decoding:
+      - template: decoding_waterz
+        kwargs:
+          thresholds: 0.5
+          merge_function: aff85_his256
+          aff_threshold: [0.1, 0.999]
+          channel_order: xyz
+          dust_merge: true
+          dust_merge_size: 800
+          dust_merge_affinity: 0.3
+          dust_remove_size: 600

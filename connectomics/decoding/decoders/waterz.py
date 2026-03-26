@@ -73,69 +73,6 @@ def _merge_function_to_scoring(shorthand: str) -> str:
     )
 
 
-def _can_reuse_region_graph_for_dust(scoring_function: str) -> bool:
-    """Return whether waterz region-graph scores can be mapped to affinities."""
-    return scoring_function.startswith("OneMinus<")
-
-
-def _build_segment_counts(seg: np.ndarray) -> np.ndarray:
-    """Build a dense counts array indexed by segment id."""
-    ids, cnts = np.unique(seg, return_counts=True)
-    max_id = int(ids.max()) if len(ids) else 0
-    counts = np.zeros(max_id + 1, dtype=np.uint64)
-    counts[ids] = cnts
-    return counts
-
-
-def _merge_dust_with_region_graph(
-    seg: np.ndarray,
-    region_graph: Sequence[Dict[str, Any]],
-    *,
-    scoring_function: str,
-    size_th: int,
-    weight_th: float,
-    dust_th: int,
-) -> bool:
-    """Reuse waterz's returned region graph for dust postprocessing.
-
-    Returns True when the existing region graph could be reused directly.
-    When False, callers should fall back to ``waterz.merge_dust(...)``.
-    """
-    if not _can_reuse_region_graph_for_dust(scoring_function):
-        return False
-
-    num_edges = len(region_graph)
-    rg_affs = np.empty(num_edges, dtype=np.float32)
-    id1 = np.empty(num_edges, dtype=np.uint64)
-    id2 = np.empty(num_edges, dtype=np.uint64)
-
-    for idx, edge in enumerate(region_graph):
-        # OneMinus<T> stores complement scores, so invert them back to the
-        # underlying affinity-like merge weight before dust merging.
-        rg_affs[idx] = 1.0 - float(edge["score"])
-        id1[idx] = int(edge["u"])
-        id2[idx] = int(edge["v"])
-
-    if num_edges:
-        np.clip(rg_affs, 0.0, 1.0, out=rg_affs)
-        order = np.argsort(rg_affs)[::-1]
-        rg_affs = np.ascontiguousarray(rg_affs[order])
-        id1 = np.ascontiguousarray(id1[order])
-        id2 = np.ascontiguousarray(id2[order])
-
-    counts = _build_segment_counts(seg)
-    waterz.merge_segments(
-        seg,
-        rg_affs,
-        id1,
-        id2,
-        counts,
-        size_th,
-        weight_th,
-        dust_th,
-    )
-    return True
-
 
 def decode_waterz(
     predictions: np.ndarray,
@@ -143,6 +80,7 @@ def decode_waterz(
     merge_function: str = "aff50_his256",
     aff_threshold: Tuple[float, float] = (0.0001, 0.9999),
     channel_order: str = "xyz",
+    use_uint8: bool = False,
     fragments: Optional[np.ndarray] = None,
     min_instance_size: int = 0,
     dust_merge: bool = True,
@@ -172,12 +110,13 @@ def decode_waterz(
     Args:
         predictions: Affinity predictions of shape :math:`(C, Z, Y, X)` where
             ``C >= 3``. The first 3 channels are short-range affinities.
-            Values should be float32 in [0, 1].
+            Supports **float32** [0, 1] or **uint8** [0, 255].  When uint8,
+            the entire pipeline runs in integer arithmetic (4x less memory).
+            Parameters (thresholds, aff_threshold) can be specified in float
+            [0, 1] range — they are auto-scaled to [0, 255] for uint8.
         thresholds: Agglomeration threshold(s). Regions with merge score below
-            the threshold are merged. Can be a single float or a list of
-            floats. When multiple thresholds are provided, either the last
-            result is returned (default) or all results as a dict (see
-            *return_all_thresholds*). Default: 0.3
+            the threshold are merged. Specify in [0, 1] float range
+            regardless of input dtype (auto-scaled for uint8). Default: 0.3
         merge_function: Scoring function for agglomeration. Common options:
 
             - ``"aff50_his256"``: Median affinity via 256-bin histogram (default, recommended)
@@ -197,6 +136,11 @@ def decode_waterz(
             (e.g. offsets ``["0-0-1", "0-1-0", "1-0-0"]``), set this to
             ``"xyz"`` and the channels will be transposed automatically.
             Default: ``"xyz"``
+        use_uint8: Convert float affinities to uint8 before waterz.
+            Saves 4x memory and runs the entire C++ pipeline in integer
+            arithmetic.  Lossless for ``HistogramQuantileAffinity`` with
+            256 bins.  If input is already uint8, this is a no-op.
+            Default: False
         fragments: Pre-computed over-segmentation (fragment IDs). If provided,
             the watershed step is skipped and agglomeration runs directly on
             these fragments. Shape :math:`(Z, Y, X)`, dtype uint64.
@@ -283,7 +227,19 @@ def decode_waterz(
         raise ValueError(f"Expected >= 3 affinity channels, got {predictions.shape[0]}.")
 
     # Use first 3 channels (short-range affinities)
-    affs = predictions[:3].astype(np.float32, copy=False)
+    affs = predictions[:3]
+
+    # Convert float → uint8 on the fly if requested (4x memory savings).
+    # If already uint8, this is a no-op.
+    if use_uint8 and affs.dtype != np.uint8:
+        affs = np.clip(affs, 0, 1)
+        affs = (affs * 255).astype(np.uint8)
+
+    # Detect uint8 affinities — pass through to waterz uint8 path directly.
+    # For float dtypes, convert to float32.  Never convert uint8 to float.
+    is_uint8 = affs.dtype == np.uint8
+    if not is_uint8:
+        affs = affs.astype(np.float32, copy=False)
 
     # Transpose channels to zyx order expected by waterz C++.
     # Waterz expects: channel 0=z, 1=y, 2=x.
@@ -300,25 +256,34 @@ def decode_waterz(
     if not affs.flags["C_CONTIGUOUS"]:
         affs = np.ascontiguousarray(affs)
 
+    # Scale parameters for uint8: user specifies float [0,1], we map to [0,255].
+    if is_uint8:
+        _to_u8 = lambda v: int(round(v * 255)) if isinstance(v, float) and v <= 1.0 else int(v)
+    else:
+        _to_u8 = None  # unused
+
     # Normalize thresholds to sorted list (waterz requires ascending order)
     if isinstance(thresholds, (int, float)):
         thresholds_list = [float(thresholds)]
     else:
         thresholds_list = sorted(float(t) for t in thresholds)
+    if is_uint8:
+        thresholds_list = [_to_u8(t) for t in thresholds_list]
 
     # Convert shorthand merge function to C++ scoring function string
     scoring_function = _merge_function_to_scoring(merge_function)
 
-    aff_low = float(aff_threshold[0])
-    aff_high = float(aff_threshold[1])
+    aff_low = _to_u8(aff_threshold[0]) if is_uint8 else float(aff_threshold[0])
+    aff_high = _to_u8(aff_threshold[1]) if is_uint8 else float(aff_threshold[1])
 
     logger.info(
-        "Running waterz: %d thresholds=%s, scoring_function=%s, aff_threshold=(%.4f, %.4f)",
+        "Running waterz: %d thresholds=%s, scoring_function=%s, aff_threshold=(%s, %s)%s",
         len(thresholds_list),
         thresholds_list,
         scoring_function,
         aff_low,
         aff_high,
+        " [uint8]" if is_uint8 else "",
     )
 
     # Build kwargs for waterz.waterz()
@@ -330,12 +295,7 @@ def decode_waterz(
     if fragments is not None:
         waterz_kwargs["fragments"] = fragments.astype(np.uint64, copy=False)
 
-    # Dust postprocessing can request the current post-agglomeration region
-    # graph from waterz.waterz().  When the score type is compatible, we reuse
-    # that graph directly; otherwise we fall back to merge_dust() to rebuild an
-    # affinity-weighted graph from the final segmentation.
     do_dust_merge = bool(dust_merge) and dust_merge_size > 0
-    waterz_kwargs["return_region_graph"] = do_dust_merge
 
     # waterz.waterz() runs watershed + region-graph once, then incrementally
     # merges for each threshold.  Returns all segmentations (copied).
@@ -343,31 +303,16 @@ def decode_waterz(
 
     # Post-process each result
     processed: List[np.ndarray] = []
-    for waterz_result in seg_list:
-        if do_dust_merge:
-            seg, _region_graph = waterz_result
-        else:
-            seg = waterz_result
-
-        # Size+affinity dust merge (zwatershed-style)
+    for seg in seg_list:
+        # Size+affinity dust merge via buildRegionGraphOnly (fast path)
         if do_dust_merge:
             seg = seg.astype(np.uint64, copy=False)
-            reused_region_graph = _merge_dust_with_region_graph(
-                seg,
-                _region_graph,
-                scoring_function=scoring_function,
+            waterz.merge_dust(
+                seg, affs,
                 size_th=dust_merge_size,
                 weight_th=dust_merge_affinity,
                 dust_th=dust_remove_size,
             )
-            if not reused_region_graph:
-                waterz.merge_dust(
-                    seg,
-                    affs,
-                    dust_merge_size,
-                    dust_merge_affinity,
-                    dust_remove_size,
-                )
         # Branch merge: resolve false splits via z-slice IOU analysis
         if branch_merge:
             from .branch_merge import branch_merge as _branch_merge
