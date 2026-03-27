@@ -977,8 +977,13 @@ def run_test_step(module, batch: Dict[str, torch.Tensor], batch_idx: int) -> STE
         mode,
     )
 
-    loaded_final_predictions = loaded_from_file and not is_tta_cache_suffix(loaded_suffix)
-    loaded_intermediate_predictions = loaded_from_file and is_tta_cache_suffix(loaded_suffix)
+    # *_decoding*.h5 = already decoded (skip decoding)
+    # *_prediction*.h5 with TTA suffix = intermediate (run decoding)
+    _is_decoding_file = loaded_from_file and "_decoding" in (loaded_suffix or "")
+    loaded_final_predictions = loaded_from_file and (
+        _is_decoding_file or not is_tta_cache_suffix(loaded_suffix)
+    )
+    loaded_intermediate_predictions = loaded_from_file and not loaded_final_predictions
     volume_name = filenames[0] if filenames else f"volume_{batch_idx}"
     is_global_zero = bool(getattr(getattr(module, "trainer", None), "is_global_zero", True))
     distributed_tta_sharding = _is_distributed_tta_sharding_active(module)
