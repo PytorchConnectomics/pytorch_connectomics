@@ -259,6 +259,13 @@ def _resolve_mode_configs(
         if stage_cfg is not None:
             output_dir_value = getattr(stage_cfg, "output_path", None)
 
+    # For decode-only mode: output to same folder as the input prediction
+    if not output_dir_value and inference_cfg is not None:
+        saved_pred = getattr(inference_cfg, "saved_prediction_path", "")
+        if saved_pred:
+            from pathlib import Path
+            output_dir_value = str(Path(saved_pred).expanduser().parent)
+
     return inference_cfg, data_cfg, output_dir_value
 
 
