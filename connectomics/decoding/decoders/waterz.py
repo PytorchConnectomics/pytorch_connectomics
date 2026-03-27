@@ -348,6 +348,8 @@ def decode_waterz(
         if branch_merge:
             from .branch_merge import branch_merge as _branch_merge
 
+            n_before = len(np.unique(seg)) - (1 if 0 in seg else 0)
+            print(f"branch_merge: starting on {n_before} segments")
             seg = _branch_merge(
                 seg,
                 affinities=affs,
@@ -358,6 +360,8 @@ def decode_waterz(
                 affinity_threshold=branch_affinity_threshold,
                 channel_order="zyx",  # already converted above
             )
+            n_after = len(np.unique(seg)) - (1 if 0 in seg else 0)
+            print(f"branch_merge: {n_before} -> {n_after} segments")
 
         if min_instance_size > 0:
             from ..utils import remove_small_instances
