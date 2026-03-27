@@ -604,7 +604,9 @@ class ConnectomicsModule(pl.LightningModule):
                 pred = read_volume(str(pred_file), dataset="main")
                 if pred.ndim < 4:
                     pred = pred[np.newaxis, ...]
-                return pred, True, cache_suffix
+                # Return a TTA-like suffix so the pipeline treats this as
+                # intermediate predictions (runs decoding), not final.
+                return pred, True, "_tta_x1_prediction.h5"
             else:
                 raise FileNotFoundError(
                     f"inference.saved_prediction_path not found: {pred_file}"
