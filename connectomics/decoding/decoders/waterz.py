@@ -73,18 +73,6 @@ def _merge_function_to_scoring(shorthand: str) -> str:
     )
 
 
-def _strip_oneminus(scoring_function: str) -> str:
-    """Strip ``OneMinus<...>`` or ``One255Minus<...>`` wrapper.
-
-    ``merge_dust`` / ``buildRegionGraphOnly`` expects the raw scoring
-    function (high score = strong connection), not the inverted wrapper
-    used by the agglomeration priority queue.
-    """
-    for prefix in ("OneMinus<", "One255Minus<"):
-        if scoring_function.startswith(prefix) and scoring_function.endswith(">"):
-            return scoring_function[len(prefix):-1]
-    return scoring_function
-
 
 def decode_waterz(
     predictions: np.ndarray,
@@ -159,11 +147,11 @@ def decode_waterz(
         min_instance_size: Minimum instance size in voxels. Instances smaller
             than this are removed (set to background). Set to 0 to disable.
             Default: 0
-        dust_merge: Enable dust postprocessing.  Rebuilds the region graph
-            via ``waterz.merge_dust`` using the same scoring function as
-            agglomeration (e.g. p85 histogram quantile), ensuring consistent
-            edge weights.  When False, the dust merge and dust removal
-            thresholds below are ignored. Default: True
+        dust_merge: Enable dust postprocessing.  Reuses the agglomeration's
+            full region graph (with accumulated scoring statistics) via
+            ``waterz.merge_segments`` — no graph rebuild needed.
+            When False, the dust merge and dust removal thresholds below
+            are ignored. Default: True
         dust_merge_size: Size+affinity dust merge (zwatershed-style).
             Segments with fewer voxels than this are merged into their
             highest-affinity neighbor.  Unlike *min_instance_size* which
@@ -308,11 +296,7 @@ def decode_waterz(
         waterz_kwargs["fragments"] = fragments.astype(np.uint64, copy=False)
 
     do_dust_merge = bool(dust_merge) and dust_merge_size > 0
-
-    # For dust merge, strip OneMinus/One255Minus so buildRegionGraphOnly
-    # uses the same scoring function as agglomeration (e.g. p85 histogram)
-    # but returns raw affinities (high = strong) instead of inverted scores.
-    dust_scoring = _strip_oneminus(scoring_function) if do_dust_merge else ""
+    waterz_kwargs["return_region_graph"] = do_dust_merge
 
     # waterz.waterz() runs watershed + region-graph once, then incrementally
     # merges for each threshold.  Returns all segmentations (copied).
@@ -320,17 +304,42 @@ def decode_waterz(
 
     # Post-process each result
     processed: List[np.ndarray] = []
-    for seg in seg_list:
-        # Size+affinity dust merge via buildRegionGraphOnly with the same
-        # scoring function as agglomeration (not MeanAffinity default).
+    for waterz_result in seg_list:
+        if do_dust_merge:
+            seg, region_graph = waterz_result
+        else:
+            seg = waterz_result
+
+        # Size+affinity dust merge reusing the agglomeration's full region
+        # graph (extractRegionGraph returns all non-deleted edges with
+        # accumulated scores from the agglomeration process).
         if do_dust_merge:
             seg = seg.astype(np.uint64, copy=False)
-            waterz.merge_dust(
-                seg, affs,
+            n_edges = len(region_graph)
+            rg_affs = np.empty(n_edges, dtype=np.float32)
+            id1 = np.empty(n_edges, dtype=np.uint64)
+            id2 = np.empty(n_edges, dtype=np.uint64)
+            # Invert OneMinus/One255Minus scores to raw affinities.
+            score_max = 255.0 if is_uint8 else 1.0
+            for idx, edge in enumerate(region_graph):
+                rg_affs[idx] = score_max - float(edge["score"])
+                id1[idx] = int(edge["u"])
+                id2[idx] = int(edge["v"])
+            if n_edges:
+                np.clip(rg_affs, 0.0, score_max, out=rg_affs)
+                order = np.argsort(rg_affs)[::-1]
+                rg_affs = np.ascontiguousarray(rg_affs[order])
+                id1 = np.ascontiguousarray(id1[order])
+                id2 = np.ascontiguousarray(id2[order])
+            ids, cnts = np.unique(seg, return_counts=True)
+            max_id = int(ids.max()) if len(ids) else 0
+            counts = np.zeros(max_id + 1, dtype=np.uint64)
+            counts[ids] = cnts
+            waterz.merge_segments(
+                seg, rg_affs, id1, id2, counts,
                 size_th=dust_merge_size,
                 weight_th=dust_merge_affinity,
                 dust_th=dust_remove_size,
-                scoring_function=dust_scoring,
             )
         # Branch merge: resolve false splits via z-slice IOU analysis
         if branch_merge:
