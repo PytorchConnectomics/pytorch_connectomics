@@ -108,8 +108,35 @@ class ConnectomicsModule(pl.LightningModule):
             self.enable_nan_detection = False
             self.debug_on_nan = False
             self.loss_orchestrator = None
-            return
+        else:
+            self._init_losses(cfg)
 
+        self.inference_manager = InferenceManager(
+            cfg=cfg,
+            model=self.model,
+            forward_fn=self.forward,
+        )
+
+        self.debug_manager = DebugManager(model=self.model)
+
+        # Test metrics (initialized lazily during test mode if specified in config)
+        self.test_jaccard = None
+        self.test_dice = None
+        self.test_accuracy = None
+        self.test_adapted_rand = None
+        self.test_voi = None
+        self.test_instance_accuracy = None
+        self.test_instance_accuracy_detail = None
+        self.val_jaccard = None
+        self.val_dice = None
+        self.val_accuracy = None
+        self._val_metrics_initialized = False
+
+        # Prediction saving state
+        self._prediction_save_counter = 0
+
+    def _init_losses(self, cfg):
+        """Initialize loss functions, weights, and orchestrator."""
         # Build loss functions
         self.loss_functions = self._build_losses(cfg)
         self.loss_weights = self._extract_loss_weights(cfg)
@@ -136,27 +163,6 @@ class ConnectomicsModule(pl.LightningModule):
             loss_weighter=self.loss_weighter,
             loss_metadata=self.loss_metadata,
         )
-
-        self.inference_manager = InferenceManager(
-            cfg=cfg,
-            model=self.model,
-            forward_fn=self.forward,
-        )
-
-        self.debug_manager = DebugManager(model=self.model)
-
-        # Test metrics (initialized lazily during test mode if specified in config)
-        self.test_jaccard = None
-        self.test_dice = None
-        self.test_accuracy = None
-        self.test_adapted_rand = None  # Adapted Rand error (instance segmentation metric)
-        self.val_jaccard = None
-        self.val_dice = None
-        self.val_accuracy = None
-        self._val_metrics_initialized = False
-
-        # Prediction saving state
-        self._prediction_save_counter = 0  # Track number of samples saved
 
     def _build_model(self, cfg) -> nn.Module:
         """Build model from configuration."""
