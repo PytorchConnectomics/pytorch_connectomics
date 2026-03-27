@@ -275,6 +275,35 @@ def _has_tta_prediction_file(cfg: Config) -> bool:
     return os.path.exists(pred_file) and _is_valid_hdf5_prediction_file(pred_file)
 
 
+def _create_decode_only_datamodule(cfg, saved_prediction_path: str):
+    """Create a minimal datamodule for decode-only mode.
+
+    Yields a single dummy batch so that trainer.test() triggers test_step
+    once.  The actual prediction is loaded from saved_prediction_path inside
+    _load_cached_predictions.
+    """
+    from pathlib import Path
+
+    import pytorch_lightning as pl
+    from torch.utils.data import DataLoader, Dataset
+
+    pred_stem = Path(saved_prediction_path).stem
+
+    class _DummyDataset(Dataset):
+        def __len__(self):
+            return 1
+
+        def __getitem__(self, idx):
+            # Return minimal dict that test_step expects
+            return {"image": torch.zeros(1, 1, 1, 1), "filename": pred_stem}
+
+    class _DummyDataModule(pl.LightningDataModule):
+        def test_dataloader(self):
+            return DataLoader(_DummyDataset(), batch_size=1)
+
+    return _DummyDataModule()
+
+
 def _has_cached_predictions_in_output_dir(
     cfg: Config, mode: str, checkpoint_path: str | None = None
 ) -> bool:
@@ -1003,8 +1032,11 @@ def main():
             if not has_assigned_test_shard(cfg, args):
                 return
 
-            # Create datamodule
-            datamodule = create_datamodule(cfg, mode="test")
+            # Create datamodule (or dummy for decode-only mode)
+            if has_saved_prediction:
+                datamodule = _create_decode_only_datamodule(cfg, _saved_pred)
+            else:
+                datamodule = create_datamodule(cfg, mode="test")
 
             # Apply test volume sharding across machines
             if args.shard_id is not None and args.num_shards is not None:
