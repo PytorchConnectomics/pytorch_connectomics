@@ -29,6 +29,8 @@ def main():
     parser.add_argument("--worker", action="store_true", help="Run as a worker (claim tasks)")
     parser.add_argument("--wait", action="store_true", help="Wait for all tasks to complete")
     parser.add_argument("--assemble", action="store_true", help="Assemble final output volume")
+    parser.add_argument("--parallel", type=int, default=None,
+                        help="Run N worker processes on this machine (e.g. --parallel 8)")
     parser.add_argument("--max-tasks", type=int, default=None, help="Max tasks per worker")
     parser.add_argument("--idle-timeout", type=float, default=60.0, help="Worker idle timeout (seconds)")
     parser.add_argument("--worker-id", type=str, default=None, help="Worker identifier")
@@ -133,10 +135,33 @@ def main():
             print(f"Output: {runner.config.resolved_output_path}")
         return
 
-    # Default: run serial (all stages in one process)
-    print("Running serial decode...")
-    n = runner.run_serial()
-    print(f"Completed {n} tasks.")
+    if args.parallel and args.parallel > 1:
+        # Multi-process on one machine
+        import multiprocessing as mp
+
+        n_workers = args.parallel
+        print(f"Running parallel decode with {n_workers} workers...")
+
+        def _worker_fn(worker_idx):
+            os.environ["CCACHE_DISABLE"] = "1"
+            # Each process loads its own runner from disk
+            from waterz import LargeDecodeRunner as _LDR
+            w = _LDR.load(large_cfg["workflow_root"])
+            return w.run_worker(
+                worker_id=f"local-{worker_idx}",
+                idle_timeout=args.idle_timeout or 120,
+                max_tasks=args.max_tasks,
+            )
+
+        with mp.Pool(n_workers) as pool:
+            counts = pool.map(_worker_fn, range(n_workers))
+        n = sum(counts)
+        print(f"Completed {n} tasks across {n_workers} workers.")
+    else:
+        # Default: run serial (all stages in one process)
+        print("Running serial decode...")
+        n = runner.run_serial()
+        print(f"Completed {n} tasks.")
 
     status = runner.orchestrator.stage_counts()
     for stage, counts in sorted(status.items()):
