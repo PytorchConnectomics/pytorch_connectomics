@@ -40,12 +40,12 @@ large_decode:
   aff_threshold_high: 0.999
   channel_order: xyz
 
-  # Border stitching parameters (same algorithm as branch_merge)
-  border_min_overlap: 10          # min overlap pixels to consider a pair
-  border_iou_threshold: 0.0       # full Jaccard IOU threshold (0=disabled)
-  border_one_sided_threshold: 0.9 # overlap/min_size for small-into-large merge
-  border_one_sided_min_size: 0    # min segment size in face for one-sided merge
-  border_affinity_threshold: 0.0  # min boundary affinity (0=disabled)
+  # Border stitching parameters (same as face_merge_pairs / branch_merge)
+  min_overlap: 10                  # min overlap pixels to consider a pair
+  iou_threshold: 0.0              # full Jaccard IOU threshold (0=disabled)
+  one_sided_threshold: 0.9        # overlap/min_size for small-into-large merge
+  one_sided_min_size: 0           # min segment size in face for one-sided merge
+  affinity_threshold: 0.0         # min boundary affinity (0=disabled)
 
   # Output
   write_output: true             # assemble final volume
