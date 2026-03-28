@@ -23,28 +23,29 @@ description: >
 # ── Chunked decoding config ──────────────────────────────────────────────────
 large_decode:
   # Input affinity file (HDF5, dataset "main", shape (C,Z,Y,X))
-  affinity_path: ""       # SET THIS
+  affinity_path: "/projects/weilab/dataset/liconn/mansour/DL288B_251222S_cond5_40x_12tiles_round1_fused_488_crop512x1024x1024_ffn_sharp_tta_x8_prediction_uint8.h5"       # SET THIS
 
   # Workflow directory (shared filesystem for parallel workers)
-  workflow_root: ""       # SET THIS: e.g. /scratch/waterz_workflow/
+  workflow_root: "/projects/weilab/weidf/lib/pytorch_connectomics/outputs/neuron_liconn_mit/DL228B/"       # SET THIS: e.g. /scratch/waterz_workflow/
 
   # Chunk size in voxels (Z, Y, X). Each chunk is decoded independently.
   # Smaller chunks = less memory per worker but more border stitching.
   # Rule of thumb: ~256^3 for 16 GB RAM, ~512^3 for 64 GB RAM.
-  chunk_shape: [256, 512, 512]
+  chunk_shape: [80, 2066, 2066]
 
   # Waterz agglomeration parameters (same as decode_waterz kwargs)
   thresholds: [0.5]
   merge_function: aff85_his256
-  aff_threshold_low: 0.1
+  aff_threshold_low: 0.001
   aff_threshold_high: 0.999
   channel_order: xyz
 
-  # Border stitching parameters
-  border_min_overlap: 1          # min overlap pixels to consider a pair
-  border_one_sided_threshold: 0.9  # IOU for small-into-large merge at borders
-  border_iou_threshold: 0.0     # full Jaccard IOU threshold (0=disabled)
-  border_affinity_threshold: 0.0 # min boundary affinity (0=disabled)
+  # Border stitching parameters (same algorithm as branch_merge)
+  border_min_overlap: 10          # min overlap pixels to consider a pair
+  border_iou_threshold: 0.0       # full Jaccard IOU threshold (0=disabled)
+  border_one_sided_threshold: 0.9 # overlap/min_size for small-into-large merge
+  border_one_sided_min_size: 0    # min segment size in face for one-sided merge
+  border_affinity_threshold: 0.0  # min boundary affinity (0=disabled)
 
   # Output
   write_output: true             # assemble final volume
