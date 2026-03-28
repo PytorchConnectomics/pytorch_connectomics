@@ -88,8 +88,12 @@ def decode_waterz(
     merge_function: str = "aff50_his256",
     aff_threshold: Tuple[float, float] = (0.0001, 0.9999),
     channel_order: str = "xyz",
-    use_uint8: bool = False,
+    use_aff_uint8: bool = False,
+    use_seg_uint32: bool = False,
+    compute_fragments: bool = False,
+    seed_method: str = "maxima_distance",
     fragments: Optional[np.ndarray] = None,
+    border_threshold: float = 0.0,
     min_instance_size: int = 0,
     dust_merge: bool = True,
     dust_merge_size: int = 0,
@@ -144,7 +148,7 @@ def decode_waterz(
             (e.g. offsets ``["0-0-1", "0-1-0", "1-0-0"]``), set this to
             ``"xyz"`` and the channels will be transposed automatically.
             Default: ``"xyz"``
-        use_uint8: Convert float affinities to uint8 before waterz.
+        use_aff_uint8: Convert float affinities to uint8 before waterz.
             Saves 4x memory and runs the entire C++ pipeline in integer
             arithmetic.  Lossless for ``HistogramQuantileAffinity`` with
             256 bins.  If input is already uint8, this is a no-op.
@@ -238,7 +242,7 @@ def decode_waterz(
 
     # Convert float → uint8 on the fly if requested (4x memory savings).
     # If already uint8, this is a no-op.
-    if use_uint8 and affs.dtype != np.uint8:
+    if use_aff_uint8 and affs.dtype != np.uint8:
         affs = np.clip(affs, 0, 1)
         affs = (affs * 255).astype(np.uint8)
 
@@ -298,9 +302,13 @@ def decode_waterz(
         scoring_function=scoring_function,
         aff_threshold_low=aff_low,
         aff_threshold_high=aff_high,
+        seg_dtype="uint32" if use_seg_uint32 else "uint64",
     )
     if fragments is not None:
         waterz_kwargs["fragments"] = fragments.astype(np.uint64, copy=False)
+    elif compute_fragments:
+        waterz_kwargs["compute_fragments"] = True
+        waterz_kwargs["seed_method"] = seed_method
 
     do_dust_merge = bool(dust_merge) and dust_merge_size > 0
     waterz_kwargs["return_region_graph"] = do_dust_merge
@@ -316,6 +324,17 @@ def decode_waterz(
             seg, region_graph = waterz_result
         else:
             seg = waterz_result
+
+        # Zero out voxels where mean xy affinity is below threshold,
+        # creating gaps at weak boundaries to separate segments.
+        if border_threshold > 0:
+            xy_mean = affs[1:3].astype(np.float32, copy=False).mean(axis=0)
+            if is_uint8:
+                xy_mean /= 255.0
+            border_mask = xy_mean < border_threshold
+            n_removed = int(border_mask.sum())
+            seg[border_mask] = 0
+            print(f"border_threshold={border_threshold}: zeroed {n_removed} voxels")
 
         # Size+affinity dust merge reusing the agglomeration's region graph
         # (accumulated histogram statistics, properly root-mapped IDs).

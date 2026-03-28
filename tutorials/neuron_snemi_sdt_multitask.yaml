@@ -152,15 +152,21 @@ test:
     decoding:
       - template: decoding_waterz
         kwargs:
-          #use_uint8: true           # convert float→uint8 on the fly (4x less memory)
+          # Fragment initialization: false=waterz built-in C++ watershed
+          compute_fragments: true
+          seed_method: maxima_distance-0.3 # maxima_distance, minima, or grid
+          #seed_method: minima # maxima_distance, minima, or grid
+          #use_aff_uint8: true       # convert float→uint8 affinities (4x less aff memory)
+          #use_seg_uint32: true      # uint32 segment IDs (2x less seg memory)
           thresholds: 0.4
           merge_function: aff85_his256
-          aff_threshold: [0.001, 0.999]
+          aff_threshold: [0.1, 0.999]
+          border_threshold: 0
           dust_merge: true
           dust_merge_size: 800
           dust_merge_affinity: 0.3
           dust_remove_size: 600
-          branch_merge: true
+          branch_merge: false
           branch_iou_threshold: 0.5
           branch_best_buddy: true
           branch_one_sided_threshold: 0.8
