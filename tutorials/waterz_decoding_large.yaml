@@ -1,0 +1,53 @@
+experiment_name: waterz_decode_large
+description: >
+  Large-volume parallel waterz decoding using the file-backed orchestrator.
+  Splits the affinity volume into chunks, decodes each independently,
+  then merges borders via IOU matching.
+
+  Supports serial mode (single process) or parallel mode (multiple workers
+  on shared filesystem, e.g. SLURM array jobs).
+
+  Usage (serial):
+    python scripts/decode_large.py --config tutorials/waterz_decoding_large.yaml
+
+  Usage (parallel — launch N workers on SLURM):
+    # Step 1: Initialize workflow (creates tasks on disk)
+    python scripts/decode_large.py --config tutorials/waterz_decoding_large.yaml --init-only
+
+    # Step 2: Launch workers (each claims and executes tasks)
+    sbatch --array=0-7 scripts/decode_large_worker.sh tutorials/waterz_decoding_large.yaml
+
+    # Step 3: Wait for completion + assemble
+    python scripts/decode_large.py --config tutorials/waterz_decoding_large.yaml --wait --assemble
+
+# ── Chunked decoding config ──────────────────────────────────────────────────
+large_decode:
+  # Input affinity file (HDF5, dataset "main", shape (C,Z,Y,X))
+  affinity_path: ""       # SET THIS
+
+  # Workflow directory (shared filesystem for parallel workers)
+  workflow_root: ""       # SET THIS: e.g. /scratch/waterz_workflow/
+
+  # Chunk size in voxels (Z, Y, X). Each chunk is decoded independently.
+  # Smaller chunks = less memory per worker but more border stitching.
+  # Rule of thumb: ~256^3 for 16 GB RAM, ~512^3 for 64 GB RAM.
+  chunk_shape: [256, 512, 512]
+
+  # Waterz agglomeration parameters (same as decode_waterz kwargs)
+  thresholds: [0.5]
+  merge_function: aff85_his256
+  aff_threshold_low: 0.1
+  aff_threshold_high: 0.999
+  channel_order: xyz
+
+  # Border stitching parameters
+  border_min_overlap: 1          # min overlap pixels to consider a pair
+  border_one_sided_threshold: 0.9  # IOU for small-into-large merge at borders
+  border_iou_threshold: 0.0     # full Jaccard IOU threshold (0=disabled)
+  border_affinity_threshold: 0.0 # min boundary affinity (0=disabled)
+
+  # Output
+  write_output: true             # assemble final volume
+  output_path: ""                # default: workflow_root/assembled.h5
+  compression: gzip
+  compression_level: 4
