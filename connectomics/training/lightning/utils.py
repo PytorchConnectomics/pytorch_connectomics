@@ -485,12 +485,14 @@ def format_decode_tag(cfg: Config) -> str:
             "dust_merge_affinity",
             "dust_remove_size",
         ],
-        "use_uint8": [],  # gate only: shows "uint8" when true, omitted when false
+        "use_aff_uint8": [],  # gate only: shows "aff8" when true, omitted when false
+        "use_seg_uint32": [],  # gate only: shows "seg32" when true, omitted when false
     }
 
     # Custom labels for boolean gates (instead of showing "true")
     gate_labels = {
-        "use_uint8": "uint8",
+        "use_aff_uint8": "aff8",
+        "use_seg_uint32": "seg32",
     }
 
     def _flatten_decode_values(value) -> list[str]:

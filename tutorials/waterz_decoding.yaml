@@ -16,18 +16,17 @@ test:
     test:
       resolution: [25, 18, 18]
   inference:
-    saved_prediction_path: ""   # SET THIS: path to affinity HDF5
+    saved_prediction_path: "/projects/weilab/dataset/liconn/mansour/DL288B_251222S_cond5_40x_12tiles_round1_fused_488_crop512x1024x1024_ffn_sharp_tta_x8_prediction_uint8.h5"   # SET THIS: path to affinity HDF5
     decoding:
       - template: decoding_waterz
         kwargs:
+          use_aff_uint8: true
+          use_seg_uint32: true
           thresholds: 0.4
           merge_function: aff85_his256
           aff_threshold: [0.1, 0.999]
           channel_order: xyz
-          use_uint8: true
           dust_merge: true
-          dust_merge_size: 800
+          dust_merge_size: 400
           dust_merge_affinity: 0.3
-          dust_remove_size: 600
-
-
+          dust_remove_size: 200

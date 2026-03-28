@@ -526,18 +526,22 @@ class ConnectomicsModule(pl.LightningModule):
         # Get the scale and dtype that were used for saving
         intensity_scale = getattr(save_pred_cfg, "intensity_scale", None)
 
-        # Convert to float first
-        data = data.astype(np.float32)
-
-        # Invert the scaling if it was applied
-        # Note: intensity_scale < 0 means scaling was disabled, so no inversion needed
+        # Only promote to float when an actual inverse scaling step is required.
+        # This preserves uint8 decode-only affinity volumes and avoids a 4x
+        # expansion before memory-heavy instance decoding.
         if intensity_scale is not None and intensity_scale > 0 and intensity_scale != 1.0:
+            data = data.astype(np.float32, copy=False)
             data = data / float(intensity_scale)
             logger.info(f"Inverted intensity scaling by {intensity_scale}")
-        elif intensity_scale is not None and intensity_scale < 0:
+            return data
+
+        if intensity_scale is not None and intensity_scale < 0:
             logger.info(
-                f"Intensity scaling was disabled (scale={intensity_scale}), no inversion needed"
+                f"Intensity scaling was disabled (scale={intensity_scale}), keeping dtype "
+                f"{data.dtype}"
             )
+        else:
+            logger.info(f"No inverse scaling needed, keeping dtype {data.dtype}")
 
         return data
 
@@ -886,19 +890,33 @@ class ConnectomicsModule(pl.LightningModule):
 
         input_tta_prediction_name = f"{volume_name}{tta_cache_suffix(self.cfg, checkpoint_path=self._get_prediction_checkpoint_path())}"
 
-        # Columns: timestamp, volume, decoder params..., metrics...
-        # Use a fixed column order for readability
+        # Core columns always present; optional feature columns appended
+        # only when the feature is enabled.
         param_keys = [
             "decoder",
             "thresholds",
             "merge_function",
             "aff_threshold",
             "channel_order",
-            "dust_merge",
-            "dust_merge_size",
-            "dust_merge_affinity",
-            "dust_remove_size",
         ]
+        if decode_params.get("use_aff_uint8"):
+            param_keys.append("use_aff_uint8")
+        if decode_params.get("use_seg_uint32"):
+            param_keys.append("use_seg_uint32")
+        if decode_params.get("compute_fragments"):
+            param_keys += ["compute_fragments", "seed_method"]
+        if decode_params.get("border_threshold", 0) > 0:
+            param_keys.append("border_threshold")
+        if decode_params.get("dust_merge") and decode_params.get("dust_merge_size", 0) > 0:
+            param_keys += ["dust_merge_size", "dust_merge_affinity", "dust_remove_size"]
+        if decode_params.get("branch_merge"):
+            param_keys += [
+                "branch_merge",
+                "branch_iou_threshold",
+                "branch_best_buddy",
+                "branch_one_sided_threshold",
+                "branch_one_sided_min_size",
+            ]
         metric_keys = [
             "adapted_rand_error",
             "voi_split",
@@ -920,11 +938,34 @@ class ConnectomicsModule(pl.LightningModule):
             row_vals.append(f"{v:.6f}" if isinstance(v, float) else str(v or ""))
 
         try:
-            write_header = not tsv_path.exists()
-            with open(tsv_path, "a") as f:
-                if write_header:
+            if tsv_path.exists():
+                # Read existing header and merge new columns into it
+                with open(tsv_path) as f:
+                    existing_header = f.readline().rstrip("\n").split("\t")
+                # Build a superset: existing columns + any new ones at the end
+                col_set = set(existing_header)
+                merged_header = list(existing_header)
+                for c in header_cols:
+                    if c not in col_set:
+                        merged_header.append(c)
+                # Rebuild row aligned to merged header
+                row_dict = dict(zip(header_cols, row_vals))
+                aligned_row = [row_dict.get(c, "") for c in merged_header]
+                # Rewrite header only if new columns were added
+                if len(merged_header) > len(existing_header):
+                    content = open(tsv_path).read()
+                    lines = content.split("\n")
+                    lines[0] = "\t".join(merged_header)
+                    with open(tsv_path, "w") as f:
+                        f.write("\n".join(lines))
+                        if not content.endswith("\n"):
+                            f.write("\n")
+                with open(tsv_path, "a") as f:
+                    f.write("\t".join(aligned_row) + "\n")
+            else:
+                with open(tsv_path, "w") as f:
                     f.write("\t".join(header_cols) + "\n")
-                f.write("\t".join(row_vals) + "\n")
+                    f.write("\t".join(row_vals) + "\n")
             logger.info(f"Decode experiment logged to: {tsv_path}")
         except Exception as e:
             logger.warning(f"Failed to log decode experiment: {e}")
