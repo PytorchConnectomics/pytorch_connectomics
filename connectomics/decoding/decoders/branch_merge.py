@@ -102,54 +102,10 @@ def _compute_z_extents(seg: np.ndarray) -> Tuple[Dict[int, int], Dict[int, int]]
 
 
 # ---------------------------------------------------------------------------
-# Slice overlap computation
+# Slice overlap computation — delegates to waterz.face_merge.slice_overlaps
 # ---------------------------------------------------------------------------
 
-
-def _slice_overlaps(
-    s0: np.ndarray,
-    s1: np.ndarray,
-    z_aff: Optional[np.ndarray] = None,
-) -> np.ndarray:
-    """Overlap statistics between two consecutive 2D label maps.
-
-    Returns (N, K) float64 array where each row is::
-
-        [id0, id1, size0, size1, overlap, mean_z_affinity?]
-    """
-    fg = (s0 > 0) & (s1 > 0)
-    ncols = 6 if z_aff is not None else 5
-    if not fg.any():
-        return np.empty((0, ncols), dtype=np.float64)
-
-    a = s0[fg].astype(np.int64)
-    b = s1[fg].astype(np.int64)
-
-    u0, c0 = np.unique(s0[s0 > 0], return_counts=True)
-    u1, c1 = np.unique(s1[s1 > 0], return_counts=True)
-    size0_map = dict(zip(u0.tolist(), c0.tolist()))
-    size1_map = dict(zip(u1.tolist(), c1.tolist()))
-
-    pairs = np.stack([a, b], axis=1)
-    unique_pairs, inverse, counts = np.unique(
-        pairs, axis=0, return_inverse=True, return_counts=True,
-    )
-
-    n = len(unique_pairs)
-    result = np.zeros((n, ncols), dtype=np.float64)
-    result[:, 0] = unique_pairs[:, 0]
-    result[:, 1] = unique_pairs[:, 1]
-    result[:, 2] = np.array([size0_map[int(i)] for i in unique_pairs[:, 0]])
-    result[:, 3] = np.array([size1_map[int(i)] for i in unique_pairs[:, 1]])
-    result[:, 4] = counts
-
-    if z_aff is not None:
-        aff_vals = z_aff[fg].astype(np.float64)
-        aff_sums = np.zeros(n, dtype=np.float64)
-        np.add.at(aff_sums, inverse, aff_vals)
-        result[:, 5] = aff_sums / counts
-
-    return result
+from waterz.face_merge import slice_overlaps as _slice_overlaps
 
 
 # ---------------------------------------------------------------------------
