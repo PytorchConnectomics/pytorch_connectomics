@@ -39,7 +39,7 @@ def decode_waterz(
     compute_fragments: bool = False,
     seed_method: str = "maxima_distance",
     fragments: Optional[np.ndarray] = None,
-    border_threshold: float = 0.0,
+    boundary_threshold: float = 0.0,
     min_instance_size: int = 0,
     dust_merge: bool = True,
     dust_merge_size: int = 0,
@@ -270,9 +270,9 @@ def decode_waterz(
             seg = waterz_result
 
         # Strip weak-boundary voxels so dust merge sees true core sizes.
-        if border_threshold > 0:
-            n_removed = waterz.strip_border(seg, affs, threshold=border_threshold, channels="xy")
-            logger.info("border_threshold=%s: zeroed %d voxels", border_threshold, n_removed)
+        if boundary_threshold > 0:
+            n_removed = waterz.strip_boundary(seg, affs, threshold=boundary_threshold, channels="xy")
+            logger.info("boundary_threshold=%s: zeroed %d voxels", boundary_threshold, n_removed)
 
         # Size+affinity dust merge reusing the agglomeration's region graph
         # (accumulated histogram statistics, properly root-mapped IDs).
