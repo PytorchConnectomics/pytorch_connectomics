@@ -46,11 +46,11 @@ def decode_waterz(
     dust_merge_affinity: float = 0.0,
     dust_remove_size: int = 0,
     branch_merge: bool = False,
-    branch_iou_threshold: float = 0.5,
-    branch_best_buddy: bool = True,
-    branch_one_sided_threshold: float = 0.8,
-    branch_one_sided_min_size: int = 100,
-    branch_affinity_threshold: float = 0.0,
+    iou_threshold: float = 0.5,
+    best_buddy: bool = True,
+    one_sided_threshold: float = 0.8,
+    one_sided_min_size: int = 100,
+    affinity_threshold: float = 0.0,
     return_all_thresholds: bool = False,
     **kwargs: Any,
 ) -> "np.ndarray | Dict[float, np.ndarray]":
@@ -123,18 +123,16 @@ def decode_waterz(
         branch_merge: Enable branch merge postprocessing.  Resolves false
             splits by analyzing segment continuity across z-slices using
             IOU overlap, best-buddy matching, and one-sided IOU.
-            Inspired by em_pipeline branch resolution.  Default: False
-        branch_iou_threshold: Stage 1 threshold for full Jaccard IOU
-            merge between consecutive z-slices.  Default: 0.5
-        branch_best_buddy: Enable Stage 2 mutual best-match merge.
-            Default: True
-        branch_one_sided_threshold: Stage 3 one-sided IOU threshold.
-            Merge if ``overlap / min(size0, size1)`` exceeds this.
-            Set to 0 to disable.  Default: 0.8
-        branch_one_sided_min_size: Stage 3 minimum segment size in the
-            slice to be considered for one-sided merge.  Default: 100
-        branch_affinity_threshold: Minimum mean z-boundary affinity for
-            a branch merge to be accepted.  0 to disable.  Default: 0.0
+            Default: False
+        iou_threshold: Full Jaccard IOU threshold for branch merge.
+            Default: 0.5
+        best_buddy: Enable mutual best-match merge.  Default: True
+        one_sided_threshold: One-sided IOU threshold
+            (``overlap / min(size0, size1)``).  0 to disable.  Default: 0.8
+        one_sided_min_size: Minimum segment size in slice for one-sided
+            merge.  Default: 100
+        affinity_threshold: Minimum mean z-boundary affinity for a merge.
+            0 to disable.  Default: 0.0
         return_all_thresholds: If True and multiple thresholds are given,
             return a dict mapping each threshold to its segmentation.
             Otherwise return only the last threshold's result. Default: False
@@ -302,11 +300,11 @@ def decode_waterz(
             seg = _branch_merge(
                 seg,
                 affinities=affs,
-                iou_threshold=branch_iou_threshold,
-                best_buddy=branch_best_buddy,
-                one_sided_threshold=branch_one_sided_threshold,
-                one_sided_min_size=branch_one_sided_min_size,
-                affinity_threshold=branch_affinity_threshold,
+                iou_threshold=iou_threshold,
+                best_buddy=best_buddy,
+                one_sided_threshold=one_sided_threshold,
+                one_sided_min_size=one_sided_min_size,
+                affinity_threshold=affinity_threshold,
                 channel_order="zyx",  # already converted above
             )
             n_after = len(np.unique(seg)) - (1 if 0 in seg else 0)

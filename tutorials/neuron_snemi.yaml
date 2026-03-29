@@ -92,12 +92,12 @@ test:
         dust_merge_size: 800
         dust_merge_affinity: 0.3
         dust_remove_size: 600
-        branch_merge: false              # enable branch merge
-        branch_iou_threshold: 0.5       # S1: full Jaccard IOU threshold
-        branch_best_buddy: true         # S2: mutual best-match merge
-        branch_one_sided_threshold: 0.8 # S3: one-sided IOU threshold (0 to disable)
-        branch_one_sided_min_size: 100  # S3: min segment size for one-sided merge
-        branch_affinity_threshold: 0.0  # min z-boundary affinity (0=no check)
+        branch_merge: false
+        iou_threshold: 0.5
+        best_buddy: true
+        one_sided_threshold: 0.8
+        one_sided_min_size: 100
+        affinity_threshold: 0.0
 
       
 # ============================================================================

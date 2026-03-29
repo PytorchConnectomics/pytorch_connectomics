@@ -160,17 +160,17 @@ test:
           #use_seg_uint32: true      # uint32 segment IDs (2x less seg memory)
           thresholds: 0.4
           merge_function: aff85_his256
-          aff_threshold: [0.1, 0.999]
+          aff_threshold: [0.1, 0.9]
           border_threshold: 0
           dust_merge: true
           dust_merge_size: 800
           dust_merge_affinity: 0.3
           dust_remove_size: 600
           branch_merge: false
-          branch_iou_threshold: 0.5
-          branch_best_buddy: true
-          branch_one_sided_threshold: 0.8
-          branch_one_sided_min_size: 100
+          iou_threshold: 0.5
+          best_buddy: true
+          one_sided_threshold: 0.8
+          one_sided_min_size: 100
 
 # ============================================================================
 # Parameter tuning for waterz agglomeration thresholds (--mode tune)
