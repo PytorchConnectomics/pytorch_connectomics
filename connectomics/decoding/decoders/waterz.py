@@ -21,65 +21,11 @@ logger = logging.getLogger(__name__)
 
 try:
     import waterz
+    from waterz import merge_function_to_scoring, dust_merge_from_region_graph
 
     WATERZ_AVAILABLE = True
 except ImportError:
     WATERZ_AVAILABLE = False
-
-
-# ---------------------------------------------------------------------------
-# Shorthand -> C++ scoring function conversion
-# ---------------------------------------------------------------------------
-
-_RG = "RegionGraphType"
-_SV = "ScoreValue"
-
-
-def _merge_function_to_scoring(shorthand: str) -> str:
-    """Convert a shorthand merge function name to a C++ scoring type string.
-
-    Supported shorthands (examples):
-        aff50_his256  -> OneMinus<HistogramQuantileAffinity<RG, 50, SV, 256>>
-        aff85_his256  -> OneMinus<HistogramQuantileAffinity<RG, 85, SV, 256>>
-        aff50_his0    -> OneMinus<QuantileAffinity<RG, 50, SV>>
-        max10         -> OneMinus<MeanMaxKAffinity<RG, 10, SV>>
-        *_ran255      -> One255Minus<...> instead of OneMinus<...>
-    """
-    parts = {tok[:3]: tok[3:] for tok in shorthand.split("_")}
-    use_255 = parts.get("ran") == "255"
-    wrapper = "One255Minus" if use_255 else "OneMinus"
-
-    if "aff" in parts:
-        quantile = parts["aff"]
-        his_bins = parts.get("his", "0")
-        if his_bins and his_bins != "0":
-            inner = f"HistogramQuantileAffinity<{_RG}, {quantile}, {_SV}, {his_bins}>"
-        else:
-            inner = f"QuantileAffinity<{_RG}, {quantile}, {_SV}>"
-        return f"{wrapper}<{inner}>"
-
-    if "max" in parts:
-        k = parts["max"]
-        inner = f"MeanMaxKAffinity<{_RG}, {k}, {_SV}>"
-        return f"{wrapper}<{inner}>"
-
-    # If it already looks like a C++ type string, pass through
-    if "<" in shorthand:
-        return shorthand
-
-    raise ValueError(
-        f"Unknown merge_function shorthand: '{shorthand}'. "
-        "Expected format like 'aff50_his256', 'aff85_his256', 'max10', etc."
-    )
-
-
-def _build_segment_counts(seg: np.ndarray) -> np.ndarray:
-    """Build a dense counts array indexed by segment id."""
-    ids, cnts = np.unique(seg, return_counts=True)
-    max_id = int(ids.max()) if len(ids) else 0
-    counts = np.zeros(max_id + 1, dtype=np.uint64)
-    counts[ids] = cnts
-    return counts
 
 
 def decode_waterz(
@@ -282,7 +228,7 @@ def decode_waterz(
         thresholds_list = [_to_u8(t) for t in thresholds_list]
 
     # Convert shorthand merge function to C++ scoring function string
-    scoring_function = _merge_function_to_scoring(merge_function)
+    scoring_function = merge_function_to_scoring(merge_function)
 
     aff_low = _to_u8(aff_threshold[0]) if is_uint8 else float(aff_threshold[0])
     aff_high = _to_u8(aff_threshold[1]) if is_uint8 else float(aff_threshold[1])
@@ -334,31 +280,15 @@ def decode_waterz(
             border_mask = xy_mean < border_threshold
             n_removed = int(border_mask.sum())
             seg[border_mask] = 0
-            print(f"border_threshold={border_threshold}: zeroed {n_removed} voxels")
+            logger.info("border_threshold=%s: zeroed %d voxels", border_threshold, n_removed)
 
         # Size+affinity dust merge reusing the agglomeration's region graph
         # (accumulated histogram statistics, properly root-mapped IDs).
-        # Invert OneMinus/One255Minus scores to raw affinities.
         if do_dust_merge:
             seg = seg.astype(np.uint64, copy=False)
-            n_edges = len(region_graph)
-            rg_affs = np.empty(n_edges, dtype=np.float32)
-            id1 = np.empty(n_edges, dtype=np.uint64)
-            id2 = np.empty(n_edges, dtype=np.uint64)
-            score_max = 255.0 if is_uint8 else 1.0
-            for idx, edge in enumerate(region_graph):
-                rg_affs[idx] = score_max - float(edge["score"])
-                id1[idx] = int(edge["u"])
-                id2[idx] = int(edge["v"])
-            if n_edges:
-                np.clip(rg_affs, 0.0, score_max, out=rg_affs)
-                order = np.argsort(rg_affs)[::-1]
-                rg_affs = np.ascontiguousarray(rg_affs[order])
-                id1 = np.ascontiguousarray(id1[order])
-                id2 = np.ascontiguousarray(id2[order])
-            counts = _build_segment_counts(seg)
-            waterz.merge_segments(
-                seg, rg_affs, id1, id2, counts,
+            dust_merge_from_region_graph(
+                seg, region_graph,
+                is_uint8=is_uint8,
                 size_th=dust_merge_size,
                 weight_th=dust_merge_affinity,
                 dust_th=dust_remove_size,
@@ -368,7 +298,7 @@ def decode_waterz(
             from .branch_merge import branch_merge as _branch_merge
 
             n_before = len(np.unique(seg)) - (1 if 0 in seg else 0)
-            print(f"branch_merge: starting on {n_before} segments")
+            logger.info("branch_merge: starting on %d segments", n_before)
             seg = _branch_merge(
                 seg,
                 affinities=affs,
@@ -380,7 +310,7 @@ def decode_waterz(
                 channel_order="zyx",  # already converted above
             )
             n_after = len(np.unique(seg)) - (1 if 0 in seg else 0)
-            print(f"branch_merge: {n_before} -> {n_after} segments")
+            logger.info("branch_merge: %d -> %d segments", n_before, n_after)
 
         if min_instance_size > 0:
             from ..utils import remove_small_instances
