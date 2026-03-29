@@ -269,15 +269,9 @@ def decode_waterz(
         else:
             seg = waterz_result
 
-        # Zero out voxels where mean xy affinity is below threshold,
-        # creating gaps at weak boundaries to separate segments.
+        # Strip weak-boundary voxels so dust merge sees true core sizes.
         if border_threshold > 0:
-            xy_mean = affs[1:3].astype(np.float32, copy=False).mean(axis=0)
-            if is_uint8:
-                xy_mean /= 255.0
-            border_mask = xy_mean < border_threshold
-            n_removed = int(border_mask.sum())
-            seg[border_mask] = 0
+            n_removed = waterz.strip_border(seg, affs, threshold=border_threshold, channels="xy")
             logger.info("border_threshold=%s: zeroed %d voxels", border_threshold, n_removed)
 
         # Size+affinity dust merge reusing the agglomeration's region graph
