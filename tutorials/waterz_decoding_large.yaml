@@ -1,11 +1,10 @@
 experiment_name: waterz_decode_large
 description: >
   Large-volume parallel waterz decoding using the file-backed orchestrator.
-  Splits the affinity volume into chunks, decodes each independently,
-  then merges borders via IOU matching.
 
-  Supports serial mode (single process) or parallel mode (multiple workers
-  on shared filesystem, e.g. SLURM array jobs).
+  Two modes:
+    - overlap=[0,0,0] (default): non-overlapping chunks, single-face IOU stitching
+    - overlap=[N,N,N]: overlapping chunks, fragment consensus + region graph merge
 
   Usage (serial):
     python scripts/decode_large.py --config tutorials/waterz_decoding_large.yaml
@@ -26,23 +25,22 @@ large_decode:
   affinity_path: "/projects/weilab/dataset/liconn/mansour/DL288B_251222S_cond5_40x_12tiles_round1_fused_488_crop512x1024x1024_ffn_sharp_tta_x8_prediction_uint8.h5"       # SET THIS
 
   # Workflow directory (shared filesystem for parallel workers)
-  workflow_root: "/projects/weilab/weidf/lib/pytorch_connectomics/outputs/neuron_liconn_mit/DL228B/"       # SET THIS: e.g. /scratch/waterz_workflow/
+  workflow_root: "/projects/weilab/weidf/lib/pytorch_connectomics/outputs/neuron_liconn_mit/DL228B/"       # SET THIS
 
-  # Chunk size in voxels (Z, Y, X). Each chunk is decoded independently.
-  # Smaller chunks = less memory per worker but more border stitching.
-  # Rule of thumb: ~256^3 for 16 GB RAM, ~512^3 for 64 GB RAM.
-  chunk_shape: [80, 2066, 2066]
+  # Chunk layout
+  chunk_shape: [80, 2066, 2066]   # voxels per chunk (Z, Y, X)
+  overlap: [0, 0, 0]              # overlap per axis; [8,8,8] for overlap pipeline
 
-  # Waterz agglomeration parameters (same as decode_waterz kwargs)
+  # Waterz agglomeration parameters
   thresholds: [0.4]
   merge_function: aff85_his256
-  aff_threshold_low: 0.1
-  aff_threshold_high: 0.999
+  aff_threshold_low: 0
+  aff_threshold_high: 1
   channel_order: xyz
   #use_aff_uint8: true            # uint8 affinities (4x less aff memory)
   #use_seg_uint32: true           # uint32 segment IDs (2x less seg memory)
 
-  # Fragment initialization (per chunk)
+  # Fragment initialization (per chunk, overlap pipeline only)
   #compute_fragments: true        # 2D slice-by-slice mahotas watershed
   #seed_method: maxima_distance   # maxima_distance[-T], minima[-T], grid[-N]
 
@@ -52,7 +50,7 @@ large_decode:
   dust_merge_affinity: 0.3
   dust_remove_size: 200
 
-  # Border stitching (same params as face_merge_pairs / branch_merge)
+  # Border stitching / overlap merge (same params as face_merge_pairs)
   min_overlap: 10                  # min overlap pixels to consider a pair
   iou_threshold: 0.0              # full Jaccard IOU threshold (0=disabled)
   one_sided_threshold: 0.9        # overlap/min_size for small-into-large merge
