@@ -273,8 +273,45 @@ visualize-files image='' label='' port='9999' *ARGS='':
     python -i scripts/visualize_neuroglancer.py $args {{ARGS}}
 
 # Visualize multiple volumes with custom names (e.g., just visualize-volumes image:path/img.tif label:path/lbl.h5)
+# Override the default port with `port=8080` or `--port 8080`.
 visualize-volumes +volumes:
-    python -i scripts/visualize_neuroglancer.py --volumes {{volumes}}
+    #!/usr/bin/env bash
+    set -euo pipefail
+    port=9999
+    args=({{volumes}})
+    volume_args=()
+
+    i=0
+    while [ $i -lt ${#args[@]} ]; do
+        arg="${args[$i]}"
+        case "$arg" in
+            port=*)
+                port="${arg#port=}"
+                ;;
+            --port=*)
+                port="${arg#--port=}"
+                ;;
+            --port)
+                i=$((i + 1))
+                if [ $i -ge ${#args[@]} ]; then
+                    echo "ERROR: --port requires a value" >&2
+                    exit 1
+                fi
+                port="${args[$i]}"
+                ;;
+            *)
+                volume_args+=("$arg")
+                ;;
+        esac
+        i=$((i + 1))
+    done
+
+    if [ ${#volume_args[@]} -eq 0 ]; then
+        echo "ERROR: At least one volume spec is required" >&2
+        exit 1
+    fi
+
+    python -i scripts/visualize_neuroglancer.py --port "$port" --volumes "${volume_args[@]}"
 
 # Visualize with remote access (use 0.0.0.0 for public IP, e.g., just visualize-remote 8080 tutorials/monai_lucchi.yaml)
 visualize-remote port config *ARGS='':

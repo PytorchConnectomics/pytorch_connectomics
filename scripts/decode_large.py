@@ -4,7 +4,10 @@ Usage:
     # Serial (single process, all stages)
     python scripts/decode_large.py --config tutorials/waterz_decoding_large.yaml
 
-    # Initialize workflow only (for parallel launch)
+    # Parallel (N workers on one machine)
+    python scripts/decode_large.py --config tutorials/waterz_decoding_large.yaml --parallel 4
+
+    # Initialize workflow only (for SLURM parallel launch)
     python scripts/decode_large.py --config tutorials/waterz_decoding_large.yaml --init-only
 
     # Run as a worker (claims tasks from shared workflow dir)
@@ -17,7 +20,6 @@ Usage:
 import argparse
 import os
 import sys
-from pathlib import Path
 
 import yaml
 
@@ -30,16 +32,14 @@ def main():
     parser.add_argument("--wait", action="store_true", help="Wait for all tasks to complete")
     parser.add_argument("--assemble", action="store_true", help="Assemble final output volume")
     parser.add_argument("--parallel", type=int, default=None,
-                        help="Run N worker processes on this machine (e.g. --parallel 8)")
+                        help="Run N worker processes on this machine")
     parser.add_argument("--max-tasks", type=int, default=None, help="Max tasks per worker")
     parser.add_argument("--idle-timeout", type=float, default=60.0, help="Worker idle timeout (seconds)")
     parser.add_argument("--worker-id", type=str, default=None, help="Worker identifier")
     parser.add_argument("--job-id", type=str, default=None, help="SLURM job ID")
-    # Allow CLI overrides in key=value format
     parser.add_argument("overrides", nargs="*", help="Config overrides (key=value)")
     args = parser.parse_args()
 
-    # Load config
     with open(args.config) as f:
         cfg = yaml.safe_load(f)
 
@@ -51,7 +51,6 @@ def main():
             print(f"Warning: skipping invalid override '{override}' (expected key=value)")
             continue
         key, value = override.split("=", 1)
-        # Try numeric conversion
         try:
             value = int(value)
         except ValueError:
@@ -70,44 +69,21 @@ def main():
 
     os.environ.setdefault("CCACHE_DISABLE", "1")
 
-    from waterz import LargeDecodeRunner
+    from waterz import LargeDecodeConfig, LargeDecodeRunner
 
-    # Parse config
-    chunk_shape = large_cfg.get("chunk_shape", [256, 512, 512])
-    if isinstance(chunk_shape, list):
-        chunk_shape = tuple(chunk_shape)
-
-    thresholds = large_cfg.get("thresholds", [0.5])
-    if isinstance(thresholds, (int, float)):
-        thresholds = [thresholds]
-
-    runner = LargeDecodeRunner.create(
-        affinity_path=large_cfg["affinity_path"],
-        workflow_root=large_cfg["workflow_root"],
-        chunk_shape=chunk_shape,
-        thresholds=thresholds,
-        merge_function=large_cfg.get("merge_function", "aff85_his256"),
-        aff_threshold_low=float(large_cfg.get("aff_threshold_low", 0.1)),
-        aff_threshold_high=float(large_cfg.get("aff_threshold_high", 0.999)),
-        channel_order=large_cfg.get("channel_order", "xyz"),
-        write_output=bool(large_cfg.get("write_output", True)),
-        output_path=large_cfg.get("output_path") or None,
-        min_overlap=int(large_cfg.get("min_overlap", 1)),
-        iou_threshold=float(large_cfg.get("iou_threshold", 0.0)),
-        one_sided_threshold=float(large_cfg.get("one_sided_threshold", 0.9)),
-        one_sided_min_size=int(large_cfg.get("one_sided_min_size", 0)),
-        affinity_threshold=float(large_cfg.get("affinity_threshold", 0.0)),
-        compression=large_cfg.get("compression", "gzip"),
-        compression_level=int(large_cfg.get("compression_level", 4)),
-    )
+    # Build config from yaml dict — from_dict handles all field mapping
+    config = LargeDecodeConfig.from_dict(large_cfg)
+    runner = LargeDecodeRunner(config)
+    runner.initialize()
 
     chunks = runner.chunks
     borders = runner.borders
-    print(f"Volume shape: {runner.config.volume_shape}")
-    print(f"Chunk shape:  {runner.config.chunk_shape}")
+    print(f"Volume shape: {config.volume_shape}")
+    print(f"Chunk shape:  {config.chunk_shape}")
+    print(f"Overlap:      {config.overlap}")
     print(f"Chunks:       {len(chunks)}")
     print(f"Borders:      {len(borders)}")
-    print(f"Workflow:     {runner.config.workflow_root}")
+    print(f"Workflow:     {config.workflow_root}")
 
     if args.init_only:
         print("Workflow initialized. Launch workers to execute tasks.")
@@ -130,14 +106,13 @@ def main():
         print("Waiting for all tasks to complete...")
         runner.wait(timeout=None)
         print("All tasks completed.")
-        if args.assemble and runner.config.write_output:
+        if args.assemble and config.write_output:
             print("Assembling output...")
             runner.handle_assemble_output(None)
-            print(f"Output: {runner.config.resolved_output_path}")
+            print(f"Output: {config.resolved_output_path}")
         return
 
     if args.parallel and args.parallel > 1:
-        # Multi-process on one machine
         import multiprocessing as mp
 
         n_workers = args.parallel
@@ -145,7 +120,6 @@ def main():
 
         def _worker_fn(worker_idx):
             os.environ["CCACHE_DISABLE"] = "1"
-            # Each process loads its own runner from disk
             from waterz import LargeDecodeRunner as _LDR
             w = _LDR.load(large_cfg["workflow_root"])
             return w.run_worker(
@@ -159,7 +133,6 @@ def main():
         n = sum(counts)
         print(f"Completed {n} tasks across {n_workers} workers.")
     else:
-        # Default: run serial (all stages in one process)
         print("Running serial decode...")
         n = runner.run_serial()
         print(f"Completed {n} tasks.")

@@ -620,14 +620,19 @@ def _invert_save_prediction_transform(cfg: Config, data):
     save_pred_cfg = inference_cfg.save_prediction
     intensity_scale = getattr(save_pred_cfg, "intensity_scale", None)
 
-    data = data.astype(np.float32)
     if intensity_scale is not None and intensity_scale > 0 and intensity_scale != 1.0:
+        data = data.astype(np.float32, copy=False)
         data = data / float(intensity_scale)
         print(f"  Inverted intensity scaling by {intensity_scale}")
-    elif intensity_scale is not None and intensity_scale < 0:
+        return data
+
+    if intensity_scale is not None and intensity_scale < 0:
         print(
-            f"  INFO: Intensity scaling was disabled (scale={intensity_scale}), no inversion needed"
+            f"  INFO: Intensity scaling was disabled (scale={intensity_scale}), keeping dtype "
+            f"{data.dtype}"
         )
+    else:
+        print(f"  INFO: No intensity inversion needed, keeping dtype {data.dtype}")
 
     return data
 

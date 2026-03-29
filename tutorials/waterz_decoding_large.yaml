@@ -36,6 +36,7 @@ large_decode:
   merge_function: aff85_his256
   aff_threshold_low: 0
   aff_threshold_high: 1
+  border_threshold: 0.3
   channel_order: xyz
   #use_aff_uint8: true            # uint8 affinities (4x less aff memory)
   #use_seg_uint32: true           # uint32 segment IDs (2x less seg memory)
