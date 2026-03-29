@@ -34,13 +34,25 @@ large_decode:
   chunk_shape: [80, 2066, 2066]
 
   # Waterz agglomeration parameters (same as decode_waterz kwargs)
-  thresholds: [0.5]
+  thresholds: [0.4]
   merge_function: aff85_his256
-  aff_threshold_low: 0.001
+  aff_threshold_low: 0.1
   aff_threshold_high: 0.999
   channel_order: xyz
+  #use_aff_uint8: true            # uint8 affinities (4x less aff memory)
+  #use_seg_uint32: true           # uint32 segment IDs (2x less seg memory)
 
-  # Border stitching parameters (same as face_merge_pairs / branch_merge)
+  # Fragment initialization (per chunk)
+  #compute_fragments: true        # 2D slice-by-slice mahotas watershed
+  #seed_method: maxima_distance   # maxima_distance[-T], minima[-T], grid[-N]
+
+  # Dust merge (per chunk, after agglomeration)
+  dust_merge: true
+  dust_merge_size: 400
+  dust_merge_affinity: 0.3
+  dust_remove_size: 200
+
+  # Border stitching (same params as face_merge_pairs / branch_merge)
   min_overlap: 10                  # min overlap pixels to consider a pair
   iou_threshold: 0.0              # full Jaccard IOU threshold (0=disabled)
   one_sided_threshold: 0.9        # overlap/min_size for small-into-large merge
@@ -48,7 +60,7 @@ large_decode:
   affinity_threshold: 0.0         # min boundary affinity (0=disabled)
 
   # Output
-  write_output: true             # assemble final volume
-  output_path: ""                # default: workflow_root/assembled.h5
+  write_output: true
+  output_path: ""                  # default: workflow_root/assembled.h5
   compression: gzip
   compression_level: 4
