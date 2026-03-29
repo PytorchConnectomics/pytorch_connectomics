@@ -791,7 +791,15 @@ def _process_decoding_postprocessing(
     logger.info(f"    Min:        {decoded_predictions.min()}")
     logger.info(f"    Max:        {decoded_predictions.max()}")
     logger.info(f"    Instances:  {decoded_predictions.max()} (max label)")
-    logger.info(f"    Unique IDs: {len(np.unique(decoded_predictions))}")
+    max_summary_voxels = 100_000_000
+    if decoded_predictions.size <= max_summary_voxels:
+        logger.info(f"    Unique IDs: {len(np.unique(decoded_predictions))}")
+    else:
+        logger.info(
+            "    Unique IDs: skipped for large volume (%d voxels > %d)",
+            decoded_predictions.size,
+            max_summary_voxels,
+        )
 
     if save_final_predictions:
         logger.info("[STAGE: Saving Final Predictions]")
