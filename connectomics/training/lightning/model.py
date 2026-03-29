@@ -912,10 +912,10 @@ class ConnectomicsModule(pl.LightningModule):
         if decode_params.get("branch_merge"):
             param_keys += [
                 "branch_merge",
-                "branch_iou_threshold",
-                "branch_best_buddy",
-                "branch_one_sided_threshold",
-                "branch_one_sided_min_size",
+                "iou_threshold",
+                "best_buddy",
+                "one_sided_threshold",
+                "one_sided_min_size",
             ]
         metric_keys = [
             "adapted_rand_error",

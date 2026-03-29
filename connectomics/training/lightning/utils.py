@@ -474,11 +474,11 @@ def format_decode_tag(cfg: Config) -> str:
 
     gated_value_groups = {
         "branch_merge": [
-            "branch_iou_threshold",
-            "branch_best_buddy",
-            "branch_one_sided_threshold",
-            "branch_one_sided_min_size",
-            "branch_affinity_threshold",
+            "iou_threshold",
+            "best_buddy",
+            "one_sided_threshold",
+            "one_sided_min_size",
+            "affinity_threshold",
         ],
         "dust_merge": [
             "dust_merge_size",
