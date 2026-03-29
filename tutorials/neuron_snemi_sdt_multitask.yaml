@@ -161,7 +161,7 @@ test:
           thresholds: 0.4
           merge_function: aff85_his256
           aff_threshold: [0.1, 0.9]
-          border_threshold: 0
+          boundary_threshold: 0
           dust_merge: true
           dust_merge_size: 800
           dust_merge_affinity: 0.3

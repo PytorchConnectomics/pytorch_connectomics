@@ -905,8 +905,8 @@ class ConnectomicsModule(pl.LightningModule):
             param_keys.append("use_seg_uint32")
         if decode_params.get("compute_fragments"):
             param_keys += ["compute_fragments", "seed_method"]
-        if decode_params.get("border_threshold", 0) > 0:
-            param_keys.append("border_threshold")
+        if decode_params.get("boundary_threshold", 0) > 0:
+            param_keys.append("boundary_threshold")
         if decode_params.get("dust_merge") and decode_params.get("dust_merge_size", 0) > 0:
             param_keys += ["dust_merge_size", "dust_merge_affinity", "dust_remove_size"]
         if decode_params.get("branch_merge"):
