@@ -138,7 +138,7 @@ def main():
             chunk = chunks[idx]
             print(f"Decoding chunk {idx}/{len(chunks)}: {chunk.key}")
             from waterz.orchestrator import TaskRecord, TaskSpec
-            record = TaskRecord(spec=TaskSpec(stage="decode", key=chunk.key))
+            record = TaskRecord(spec=TaskSpec(name=f"decode_{chunk.key}", stage="decode", key=chunk.key))
             result = runner.handle_decode_chunk(record)
             print(f"  Done: {result}")
         return
@@ -157,9 +157,41 @@ def main():
         return
 
     if args.wait:
+        import time as _time
+
         print("Waiting for all tasks to complete...")
-        runner.wait(timeout=None)
+        last_print = 0
+        while True:
+            counts = runner.orchestrator.stage_counts()
+            now = _time.monotonic()
+            if now - last_print >= 10:
+                parts = []
+                for stage, sc in sorted(counts.items()):
+                    done = sc.get("succeeded", 0)
+                    total = sum(sc.values())
+                    running = sc.get("running", 0)
+                    status = f"{stage}: {done}/{total}"
+                    if running:
+                        status += f" ({running} running)"
+                    parts.append(status)
+                print(f"  Progress: {' | '.join(parts)}", flush=True)
+                last_print = now
+
+            all_terminal = all(
+                all(k in ("succeeded", "failed") for k in sc)
+                for sc in counts.values()
+            )
+            if counts and all_terminal:
+                break
+            _time.sleep(1)
+
         print("All tasks completed.")
+        # Check for failures
+        for stage, sc in sorted(counts.items()):
+            failed = sc.get("failed", 0)
+            if failed:
+                print(f"  WARNING: {stage} has {failed} failed tasks")
+
         if args.assemble and config.write_output:
             print("Assembling output...")
             runner.handle_assemble_output(None)
@@ -186,8 +218,32 @@ def main():
         n = sum(counts)
         print(f"Completed {n} tasks across {n_workers} workers.")
     else:
-        print("Running serial decode...")
-        n = runner.run_serial()
+        import threading
+
+        total_tasks = len(runner.orchestrator.list_records())
+        stop_progress = threading.Event()
+
+        def _progress_loop():
+            while not stop_progress.wait(10):
+                counts = runner.orchestrator.stage_counts()
+                parts = []
+                for stage, sc in sorted(counts.items()):
+                    done = sc.get("succeeded", 0)
+                    total = sum(sc.values())
+                    running = sc.get("running", 0)
+                    status = f"{stage}: {done}/{total}"
+                    if running:
+                        status += f" ({running} running)"
+                    parts.append(status)
+                print(f"  Progress: {' | '.join(parts)}", flush=True)
+
+        t = threading.Thread(target=_progress_loop, daemon=True)
+        t.start()
+        try:
+            n = runner.run_serial()
+        finally:
+            stop_progress.set()
+            t.join()
         print(f"Completed {n} tasks.")
 
     status = runner.orchestrator.stage_counts()
