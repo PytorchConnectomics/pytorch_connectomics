@@ -181,55 +181,19 @@ def decode_waterz(
     if predictions.shape[0] < 3:
         raise ValueError(f"Expected >= 3 affinity channels, got {predictions.shape[0]}.")
 
-    # Use first 3 channels (short-range affinities)
-    affs = predictions[:3]
+    from waterz._uint8 import prepare_affinities, scale_aff_threshold, scale_thresholds
 
-    # Convert float → uint8 on the fly if requested (4x memory savings).
-    # If already uint8, this is a no-op.
-    if use_aff_uint8 and affs.dtype != np.uint8:
-        affs = np.clip(affs, 0, 1)
-        affs = (affs * 255).astype(np.uint8)
+    # Prepare affinities: dtype normalisation, channel reorder, contiguous
+    affs, is_uint8 = prepare_affinities(
+        predictions, channel_order=channel_order, use_aff_uint8=use_aff_uint8,
+    )
 
-    # Detect uint8 affinities — pass through to waterz uint8 path directly.
-    # For float dtypes, convert to float32.  Never convert uint8 to float.
-    is_uint8 = affs.dtype == np.uint8
-    if not is_uint8:
-        affs = affs.astype(np.float32, copy=False)
-
-    # Transpose channels to zyx order expected by waterz C++.
-    # Waterz expects: channel 0=z, 1=y, 2=x.
-    channel_order = channel_order.lower()
-    if channel_order == "xyz":
-        # Model outputs x,y,z → reverse to z,y,x
-        affs = affs[[2, 1, 0]]
-    elif channel_order == "zyx":
-        pass  # Already in waterz order
-    else:
-        raise ValueError(f"Unknown channel_order '{channel_order}'. Expected 'xyz' or 'zyx'.")
-
-    # Ensure C-contiguous for waterz
-    if not affs.flags["C_CONTIGUOUS"]:
-        affs = np.ascontiguousarray(affs)
-
-    # Scale parameters for uint8: user specifies float [0,1], we map to [0,255].
-    if is_uint8:
-        _to_u8 = lambda v: int(round(v * 255)) if isinstance(v, float) and v <= 1.0 else int(v)
-    else:
-        _to_u8 = None  # unused
-
-    # Normalize thresholds to sorted list (waterz requires ascending order)
-    if isinstance(thresholds, (int, float)):
-        thresholds_list = [float(thresholds)]
-    else:
-        thresholds_list = sorted(float(t) for t in thresholds)
-    if is_uint8:
-        thresholds_list = [_to_u8(t) for t in thresholds_list]
+    # Scale float [0,1] parameters to [0,255] for uint8
+    thresholds_list = scale_thresholds(thresholds, is_uint8)
+    aff_low, aff_high = scale_aff_threshold(aff_threshold, is_uint8)
 
     # Convert shorthand merge function to C++ scoring function string
     scoring_function = merge_function_to_scoring(merge_function)
-
-    aff_low = _to_u8(aff_threshold[0]) if is_uint8 else float(aff_threshold[0])
-    aff_high = _to_u8(aff_threshold[1]) if is_uint8 else float(aff_threshold[1])
 
     logger.info(
         "Running waterz: %d thresholds=%s, scoring_function=%s, aff_threshold=(%s, %s)%s",
@@ -256,6 +220,7 @@ def decode_waterz(
 
     do_dust_merge = bool(dust_merge) and dust_merge_size > 0
     waterz_kwargs["return_region_graph"] = do_dust_merge
+    waterz_kwargs["rescore_region_graph"] = False  # fast: use cached scores for dust merge
 
     # waterz.waterz() runs watershed + region-graph once, then incrementally
     # merges for each threshold.  Returns all segmentations (copied).
