@@ -23,6 +23,21 @@ import sys
 
 import yaml
 
+def _worker_fn(args_tuple):
+    """Worker function for parallel decode (takes all args as tuple for spawn compatibility)."""
+    worker_idx, workflow_root, idle_timeout, max_tasks = args_tuple
+    os.environ["CCACHE_DISABLE"] = "1"
+    os.environ["OMP_NUM_THREADS"] = "1"
+    os.environ["OPENBLAS_NUM_THREADS"] = "1"
+    os.environ["MKL_NUM_THREADS"] = "1"
+    from waterz import LargeDecodeRunner as _LDR
+    w = _LDR.load(workflow_root)
+    return w.run_worker(
+        worker_id=f"local-{worker_idx}",
+        idle_timeout=idle_timeout,
+        max_tasks=max_tasks,
+    )
+
 
 def main():
     parser = argparse.ArgumentParser(description="Large-volume waterz decoding")
@@ -37,6 +52,10 @@ def main():
     parser.add_argument("--idle-timeout", type=float, default=60.0, help="Worker idle timeout (seconds)")
     parser.add_argument("--worker-id", type=str, default=None, help="Worker identifier")
     parser.add_argument("--job-id", type=str, default=None, help="SLURM job ID")
+    parser.add_argument("--stale-timeout", type=float, default=600,
+                        help="Reset RUNNING tasks older than this many seconds (default: 600)")
+    parser.add_argument("--no-reset-stale", action="store_true",
+                        help="Skip resetting stale RUNNING tasks")
     parser.add_argument("overrides", nargs="*", help="Config overrides (key=value)")
     args = parser.parse_args()
 
@@ -75,6 +94,13 @@ def main():
     config = LargeDecodeConfig.from_dict(large_cfg)
     runner = LargeDecodeRunner(config)
     runner.initialize()
+
+    # Reset stale/failed tasks so re-runs recover from crashed workers
+    if not args.no_reset_stale:
+        n_stale = runner.orchestrator.reset_stale_tasks(max_age_seconds=args.stale_timeout)
+        runner.orchestrator.reset_failed_tasks()
+        if n_stale:
+            print(f"Reset {n_stale} stale RUNNING tasks (older than {args.stale_timeout}s).")
 
     chunks = runner.chunks
     borders = runner.borders
@@ -115,21 +141,20 @@ def main():
     if args.parallel and args.parallel > 1:
         import multiprocessing as mp
 
+        workflow_root = large_cfg["workflow_root"]
+        idle_timeout = args.idle_timeout or 120
+        max_tasks = args.max_tasks
+
         n_workers = args.parallel
         print(f"Running parallel decode with {n_workers} workers...")
 
-        def _worker_fn(worker_idx):
-            os.environ["CCACHE_DISABLE"] = "1"
-            from waterz import LargeDecodeRunner as _LDR
-            w = _LDR.load(large_cfg["workflow_root"])
-            return w.run_worker(
-                worker_id=f"local-{worker_idx}",
-                idle_timeout=args.idle_timeout or 120,
-                max_tasks=args.max_tasks,
-            )
-
-        with mp.Pool(n_workers) as pool:
-            counts = pool.map(_worker_fn, range(n_workers))
+        worker_args = [
+            (i, workflow_root, idle_timeout, max_tasks)
+            for i in range(n_workers)
+        ]
+        ctx = mp.get_context("spawn")
+        with ctx.Pool(n_workers) as pool:
+            counts = pool.map(_worker_fn, worker_args)
         n = sum(counts)
         print(f"Completed {n} tasks across {n_workers} workers.")
     else:
