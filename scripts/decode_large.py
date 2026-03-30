@@ -44,6 +44,10 @@ def main():
     parser.add_argument("--config", required=True, help="YAML config file")
     parser.add_argument("--init-only", action="store_true", help="Initialize workflow and exit")
     parser.add_argument("--worker", action="store_true", help="Run as a worker (claim tasks)")
+    parser.add_argument("--chunk-index", type=int, default=None,
+                        help="Decode a specific chunk by index (for sbatch --array)")
+    parser.add_argument("--chunk-range", type=str, default=None,
+                        help="Decode chunk range 'start-end' (inclusive)")
     parser.add_argument("--wait", action="store_true", help="Wait for all tasks to complete")
     parser.add_argument("--assemble", action="store_true", help="Assemble final output volume")
     parser.add_argument("--parallel", type=int, default=None,
@@ -113,6 +117,30 @@ def main():
 
     if args.init_only:
         print("Workflow initialized. Launch workers to execute tasks.")
+        return
+
+    # Direct chunk assignment (no orchestrator competition)
+    chunk_index = args.chunk_index
+    if chunk_index is None and os.environ.get("SLURM_ARRAY_TASK_ID"):
+        # Auto-detect from SLURM array index
+        chunk_index = int(os.environ["SLURM_ARRAY_TASK_ID"])
+
+    if chunk_index is not None or args.chunk_range is not None:
+        if args.chunk_range:
+            start, end = args.chunk_range.split("-")
+            indices = list(range(int(start), int(end) + 1))
+        else:
+            indices = [chunk_index]
+        for idx in indices:
+            if idx >= len(chunks):
+                print(f"Chunk index {idx} out of range (0-{len(chunks)-1}), skipping")
+                continue
+            chunk = chunks[idx]
+            print(f"Decoding chunk {idx}/{len(chunks)}: {chunk.key}")
+            from waterz.orchestrator import TaskRecord, TaskSpec
+            record = TaskRecord(spec=TaskSpec(stage="decode", key=chunk.key))
+            result = runner.handle_decode_chunk(record)
+            print(f"  Done: {result}")
         return
 
     if args.worker:
