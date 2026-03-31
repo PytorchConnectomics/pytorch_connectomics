@@ -14,7 +14,7 @@ description: >
     python scripts/decode_large.py --config tutorials/waterz_decoding_large.yaml --init-only
 
     # Step 2: Launch workers (each claims and executes tasks)
-    sbatch --array=0-7 scripts/decode_large_worker.sh tutorials/waterz_decoding_large.yaml
+    sbatch --array=0-25 scripts/decode_large_worker.sh tutorials/waterz_decoding_large.yaml
 
     # Step 3: Wait for completion + assemble
     python scripts/decode_large.py --config tutorials/waterz_decoding_large.yaml --wait --assemble
@@ -28,18 +28,18 @@ large_decode:
   workflow_root: "/projects/weilab/weidf/lib/pytorch_connectomics/outputs/neuron_liconn_mit/DL228B/"       # SET THIS
 
   # Chunk layout
-  chunk_shape: [80, 2066, 2066]   # voxels per chunk (Z, Y, X)
+  chunk_shape: [40, 2066, 2066]   # voxels per chunk (Z, Y, X)
   overlap: [0, 0, 0]              # overlap per axis; [8,8,8] for overlap pipeline
 
   # Waterz agglomeration parameters
   thresholds: [0.4]
   merge_function: aff85_his256
-  aff_threshold_low: 0
-  aff_threshold_high: 1
+  aff_threshold_low: 0.1
+  aff_threshold_high: 0.9
   border_threshold: 0.3
   channel_order: xyz
-  #use_aff_uint8: true            # uint8 affinities (4x less aff memory)
-  #use_seg_uint32: true           # uint32 segment IDs (2x less seg memory)
+  use_aff_uint8: true            # uint8 affinities (4x less aff memory)
+  use_seg_uint32: true           # uint32 segment IDs (2x less seg memory)
 
   # Fragment initialization (per chunk, overlap pipeline only)
   #compute_fragments: true        # 2D slice-by-slice mahotas watershed
@@ -47,9 +47,9 @@ large_decode:
 
   # Dust merge (per chunk, after agglomeration)
   dust_merge: true
-  dust_merge_size: 400
-  dust_merge_affinity: 0.3
-  dust_remove_size: 200
+  dust_merge_size: 1500
+  dust_merge_affinity: 0.1
+  dust_remove_size: 600
 
   # Border stitching / overlap merge (same params as face_merge_pairs)
   min_overlap: 10                  # min overlap pixels to consider a pair
@@ -57,6 +57,15 @@ large_decode:
   one_sided_threshold: 0.9        # overlap/min_size for small-into-large merge
   one_sided_min_size: 0           # min segment size in face for one-sided merge
   affinity_threshold: 0.0         # min boundary affinity (0=disabled)
+
+  # Execution
+  backend: multiprocess            # "multiprocess" or "slurm"
+  num_workers: 1                   # local parallel workers (--parallel default)
+  slurm:
+    partition: short
+    mem: 64G
+    cpus_per_task: 1
+    time: "12:00:00"
 
   # Output
   write_output: true

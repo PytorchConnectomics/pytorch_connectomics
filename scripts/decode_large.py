@@ -23,6 +23,27 @@ import sys
 
 import yaml
 
+_STAGE_ORDER = ["decode", "fragment", "offsets", "stitch", "connect",
+                "build_rg", "merge_rg", "agglomerate", "relabel", "apply", "assemble"]
+
+
+def _format_progress(counts):
+    """Format stage_counts() in pipeline order."""
+    order = {s: i for i, s in enumerate(_STAGE_ORDER)}
+    stages = sorted(counts.keys(), key=lambda s: (order.get(s, 999), s))
+    parts = []
+    for stage in stages:
+        sc = counts[stage]
+        done = sc.get("succeeded", 0)
+        total = sum(sc.values())
+        running = sc.get("running", 0)
+        status = f"{stage}: {done}/{total}"
+        if running:
+            status += f" ({running} running)"
+        parts.append(status)
+    return f"  Progress: {' | '.join(parts)}"
+
+
 def _worker_fn(args_tuple):
     """Worker function for parallel decode (takes all args as tuple for spawn compatibility)."""
     worker_idx, workflow_root, idle_timeout, max_tasks = args_tuple
@@ -52,6 +73,10 @@ def main():
     parser.add_argument("--assemble", action="store_true", help="Assemble final output volume")
     parser.add_argument("--parallel", type=int, default=None,
                         help="Run N worker processes on this machine")
+    parser.add_argument("--sbatch", action="store_true",
+                        help="Force SLURM submission (overrides backend config)")
+    parser.add_argument("--local", action="store_true",
+                        help="Force local multiprocess (overrides backend config)")
     parser.add_argument("--max-tasks", type=int, default=None, help="Max tasks per worker")
     parser.add_argument("--idle-timeout", type=float, default=60.0, help="Worker idle timeout (seconds)")
     parser.add_argument("--worker-id", type=str, default=None, help="Worker identifier")
@@ -106,6 +131,28 @@ def main():
         if n_stale:
             print(f"Reset {n_stale} stale RUNNING tasks (older than {args.stale_timeout}s).")
 
+    # Recover decode tasks that completed outside the orchestrator (e.g. --chunk-index)
+    n_recovered = 0
+    for chunk in runner.chunks:
+        output_path = runner._raw_chunk_path(chunk.key)
+        if not output_path.exists():
+            continue
+        task_id = f"decode:{chunk.key}"
+        try:
+            record = runner.orchestrator.get_record(task_id)
+            if record.state.value == "succeeded":
+                continue
+            max_id = runner._read_chunk_max(output_path)
+            runner.orchestrator.force_complete(
+                task_id, result={"chunk_path": str(output_path), "max_id": max_id},
+            )
+            n_recovered += 1
+        except Exception as e:
+            print(f"  Warning: {chunk.key}: corrupt output ({e}), deleting")
+            output_path.unlink(missing_ok=True)
+    if n_recovered:
+        print(f"Recovered {n_recovered} decode tasks from existing chunk files.")
+
     chunks = runner.chunks
     borders = runner.borders
     print(f"Volume shape: {config.volume_shape}")
@@ -117,6 +164,63 @@ def main():
 
     if args.init_only:
         print("Workflow initialized. Launch workers to execute tasks.")
+        return
+
+    # Determine execution backend: CLI flags override YAML config
+    if args.sbatch:
+        backend = "slurm"
+    elif args.local:
+        backend = "multiprocess"
+    else:
+        backend = large_cfg.get("backend", "multiprocess")
+
+    if backend == "slurm":
+        import subprocess, tempfile, textwrap
+
+        slurm_cfg = large_cfg.get("slurm", {})
+        partition = slurm_cfg.get("partition", "weilab")
+        mem = slurm_cfg.get("mem", "64G")
+        cpus = slurm_cfg.get("cpus_per_task", 2)
+        time_limit = slurm_cfg.get("time", "12:00:00")
+        n_chunks = len(chunks)
+
+        script_path = os.path.abspath(sys.argv[0])
+        config_path = os.path.abspath(args.config)
+        work_dir = os.getcwd()
+        output_dir = os.path.join(work_dir, "slurm_outputs")
+        os.makedirs(output_dir, exist_ok=True)
+
+        sbatch_script = textwrap.dedent(f"""\
+            #!/bin/bash
+            #SBATCH --job-name=waterz_worker
+            #SBATCH --partition={partition}
+            #SBATCH --mem={mem}
+            #SBATCH --cpus-per-task={cpus}
+            #SBATCH --time={time_limit}
+            #SBATCH --array=0-{n_chunks - 1}
+            #SBATCH --output={output_dir}/waterz_worker_%A_%a.out
+            #SBATCH --error={output_dir}/waterz_worker_%A_%a.err
+
+            source /projects/weilab/weidf/lib/miniconda3/bin/activate pytc
+            cd {work_dir}
+            export CCACHE_DISABLE=1
+            export OMP_NUM_THREADS=1
+            export OPENBLAS_NUM_THREADS=1
+            export MKL_NUM_THREADS=1
+
+            python {script_path} --config {config_path} --worker --no-reset-stale
+        """)
+
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".sh", delete=False) as f:
+            f.write(sbatch_script)
+            tmp_path = f.name
+
+        result = subprocess.run(["sbatch", tmp_path], capture_output=True, text=True)
+        os.unlink(tmp_path)
+        print(result.stdout.strip())
+        if result.returncode != 0:
+            print(result.stderr.strip(), file=sys.stderr)
+            sys.exit(result.returncode)
         return
 
     # Direct chunk assignment (no orchestrator competition)
@@ -136,6 +240,10 @@ def main():
                 print(f"Chunk index {idx} out of range (0-{len(chunks)-1}), skipping")
                 continue
             chunk = chunks[idx]
+            output_path = runner._raw_chunk_path(chunk.key)
+            if output_path.exists():
+                print(f"Chunk {idx}/{len(chunks)} ({chunk.key}): already exists, skipping")
+                continue
             print(f"Decoding chunk {idx}/{len(chunks)}: {chunk.key}")
             from waterz.orchestrator import TaskRecord, TaskSpec
             record = TaskRecord(spec=TaskSpec(name=f"decode_{chunk.key}", stage="decode", key=chunk.key))
@@ -165,16 +273,7 @@ def main():
             counts = runner.orchestrator.stage_counts()
             now = _time.monotonic()
             if now - last_print >= 10:
-                parts = []
-                for stage, sc in sorted(counts.items()):
-                    done = sc.get("succeeded", 0)
-                    total = sum(sc.values())
-                    running = sc.get("running", 0)
-                    status = f"{stage}: {done}/{total}"
-                    if running:
-                        status += f" ({running} running)"
-                    parts.append(status)
-                print(f"  Progress: {' | '.join(parts)}", flush=True)
+                print(_format_progress(counts), flush=True)
                 last_print = now
 
             all_terminal = all(
@@ -198,14 +297,15 @@ def main():
             print(f"Output: {config.resolved_output_path}")
         return
 
-    if args.parallel and args.parallel > 1:
+    n_parallel = args.parallel or large_cfg.get("num_workers", 1)
+    if n_parallel > 1:
         import multiprocessing as mp
 
         workflow_root = large_cfg["workflow_root"]
         idle_timeout = args.idle_timeout or 120
         max_tasks = args.max_tasks
 
-        n_workers = args.parallel
+        n_workers = n_parallel
         print(f"Running parallel decode with {n_workers} workers...")
 
         worker_args = [
@@ -226,16 +326,7 @@ def main():
         def _progress_loop():
             while not stop_progress.wait(10):
                 counts = runner.orchestrator.stage_counts()
-                parts = []
-                for stage, sc in sorted(counts.items()):
-                    done = sc.get("succeeded", 0)
-                    total = sum(sc.values())
-                    running = sc.get("running", 0)
-                    status = f"{stage}: {done}/{total}"
-                    if running:
-                        status += f" ({running} running)"
-                    parts.append(status)
-                print(f"  Progress: {' | '.join(parts)}", flush=True)
+                print(_format_progress(counts), flush=True)
 
         t = threading.Thread(target=_progress_loop, daemon=True)
         t.start()

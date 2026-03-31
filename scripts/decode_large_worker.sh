@@ -1,6 +1,6 @@
 #!/bin/bash
 #SBATCH --job-name=waterz_worker
-#SBATCH --mem=64G
+#SBATCH --mem=150G
 #SBATCH --cpus-per-task=2
 #SBATCH --time=12:00:00
 #SBATCH --output=slurm_outputs/waterz_worker_%A_%a.out
@@ -17,6 +17,9 @@ source /projects/weilab/weidf/lib/miniconda3/bin/activate pytc
 cd /projects/weilab/weidf/lib/pytorch_connectomics
 
 export CCACHE_DISABLE=1
+
+# Force NFS cache refresh so all nodes see the latest witty .so files
+ls -la ~/.cache/witty/ > /dev/null 2>&1
 
 echo "Worker ${SLURM_ARRAY_TASK_ID} of ${SLURM_ARRAY_TASK_COUNT} on $(hostname)"
 echo "Config: ${CONFIG}"
