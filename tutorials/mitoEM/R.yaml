@@ -1,33 +1,25 @@
-default:
-  model:
-    arch:
-      profile: mednext_m
-
 _base_:
   - common.yaml
 
-experiment_name: mitoem30r_mednext_sdt
-data:
-  train:
-    image:
-    - EM30-R/im_train.h5
-    label:
-    - EM30-R/mito_train-v2.h5
-
-  val:
-    image:
-    - EM30-R/im_val.h5
-    label:
-    - EM30-R/mito_val-v2.h5
-monitor:
-  checkpoint:
-    dirpath: outputs/mitoem30r_mednext_sdt/checkpoints/
-test:
-  output_path: outputs/mitoem30r_mednext_sdt/results/
-  data:
-    test:
-      image: /projects/weilab/dataset/mito/mitoEM/EM30-R/im_test.h5
-      label: /projects/weilab/dataset/mito/mitoEM/EM30-R/mito_test-v2.h5
+experiment_name: mitoem30r_mednext_sdt_multitask
 
 train:
-  system:
+  monitor:
+    checkpoint:
+      dirpath: outputs/mitoem30r_mednext_sdt_multitask/checkpoints/
+  data:
+    train:
+      image: [EM30-R/im_train.h5]
+      label: [EM30-R/mito_train-v2.h5]
+      label_aux_type: skeleton
+    val:
+      image: [EM30-R/im_val.h5]
+      label: [EM30-R/mito_val-v2.h5]
+      label_aux_type: skeleton
+
+test:
+  output_path: outputs/mitoem30r_mednext_sdt_multitask/results/
+  data:
+    test:
+      image: EM30-R/im_test.h5
+      label: EM30-R/mito_test-v2.h5

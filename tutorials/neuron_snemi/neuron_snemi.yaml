@@ -42,6 +42,22 @@ default:
       crop_pad: [4, 8, 101, 128, 101, 128]
     save_prediction:
       enabled: true
+    decoding:
+    - template: decoding_waterz
+      kwargs:
+        thresholds: 0.5
+        merge_function: aff85_his256
+        aff_threshold: [0.1, 0.999]
+        dust_merge: true              # enable dust merge postprocessing
+        dust_merge_size: 800
+        dust_merge_affinity: 0.3
+        dust_remove_size: 600
+        branch_merge: false
+        iou_threshold: 0.5
+        best_buddy: true
+        one_sided_threshold: 0.8
+        one_sided_min_size: 100
+        affinity_threshold: 0.0
     evaluation:
       enabled: true
       metrics: [adapted_rand]
@@ -81,23 +97,6 @@ test:
       image: test-input.tif
       label: test-labels.h5
       resolution: [30, 6, 6]
-  inference:
-    decoding:
-    - template: decoding_waterz
-      kwargs:
-        thresholds: 0.5
-        merge_function: aff85_his256
-        aff_threshold: [0.1, 0.999]
-        dust_merge: true              # enable dust merge postprocessing
-        dust_merge_size: 800
-        dust_merge_affinity: 0.3
-        dust_remove_size: 600
-        branch_merge: false
-        iou_threshold: 0.5
-        best_buddy: true
-        one_sided_threshold: 0.8
-        one_sided_min_size: 100
-        affinity_threshold: 0.0
 
       
 # ============================================================================

@@ -1,184 +1,147 @@
-default:
-  model:
-    arch:
-      profile: mednext_m
-
 _base_:
   - ../../connectomics/config/all_profiles.yaml
 
-description: MitoEM 3D mitochondria instance segmentation with MedNeXt using SDT + affinity (multi-target loss)
-model:
-  input_size:
-  - 32
-  - 256
-  - 256
-  output_size:
-  - 32
-  - 256
-  - 256
-  out_channels: 7
-  loss:
-    deep_supervision: false
-    losses:
-    - function: WeightedBCEWithLogitsLoss
-      weight: 1.0
-      pred_slice: "0:6"
-      target_slice: "0:6"
-    - function: WeightedMSELoss
-      weight: 1.0
-      kwargs: {tanh: true}
-      pred_slice: "6:7"
-      target_slice: "6:7"
-  mednext:
-    size: M
-    kernel_size: 7
-    dim: 3d
-    checkpoint_style: outside_block
-data:
-  dataloader:
-    use_preloaded_cache_train: true
-    use_preloaded_cache_val: true
-    cached_sampling_foreground_threshold: 0
-    use_cache: false  # keep false so every batch gets fresh random crop + augmentation
-    persistent_workers: true
-    patch_size:
-      - 32
-      - 256
-      - 256
-  image_transform:
-    clip_percentile_low: 0.005
-    clip_percentile_high: 0.995
-  label_transform:
-    targets:
-    - name: affinity
-      kwargs:
-        long_range: 5
-    - name: skeleton_aware_edt
-      kwargs:
-        resolution:
-        - 30
-        - 8
-        - 8
-        alpha: 1
-        bg_value: -1.0
-        relabel: true
-  augmentation:
+description: MitoEM 3D mitochondria instance segmentation with MedNeXt multi-head (aff_r1 + aff_r5 + sdt)
 
-    flip:
-      enabled: true
-    rotate:
-      enabled: true
-    elastic:
-      enabled: true
-    intensity:
-      enabled: true
-  train:
-    path: /projects/weilab/dataset/mito/mitoEM/
-    resolution:
-    - 30
-    - 8
-    - 8
-
-  val:
-    path: /projects/weilab/dataset/mito/mitoEM/
-    resolution:
-    - 30
-    - 8
-    - 8
-optimization:
-  max_epochs: 500
-  n_steps_per_epoch: 200
-  accumulate_grad_batches: 1
-  val_check_interval: 5
-  num_sanity_val_steps: 0
-  precision: bf16-mixed
-  deterministic: false
-  benchmark: true
-  optimizer:
-    lr: 0.0003
-    weight_decay: 1e-4
-    eps: 1.0e-08
-  scheduler:
-    name: WarmupCosineLR
-    warmup_epochs: 20
-    warmup_start_lr: 3.0e-05
-    min_lr: 1.0e-06
-    interval: epoch
-    frequency: 1
-  ema:
-    enabled: true
-    decay: 0.999
-    warmup_steps: 500
-    validate_with_ema: true
-monitor:
-  logging:
-    scalar:
-      loss:
-      - train_loss_total_epoch
-      - val_loss_total
-      - train_loss_affinity_total
-      - train_loss_sdt_total
-      loss_every_n_steps: 100
-    images:
-      max_images: 4
-      num_slices: 8
-      log_every_n_epochs: 10
-  checkpoint:
-    monitor: val_loss_total
-    save_top_k: 5
-    save_every_n_epochs: 10
-  early_stopping:
-    enabled: false
-test:
-  data:
-    test:
-      resolution:
-      - 30
-      - 8
-      - 8
-inference:
-  system:
-    num_gpus: 1
-    num_workers: 2
-  sliding_window:
-    window_size:
-    - 32
-    - 256
-    - 256
-    sw_batch_size: 4
-    overlap: 0.5
-    blending: gaussian
-    sigma_scale: 0.25
-    padding_mode: replicate
-  test_time_augmentation:
-    enabled: true
-    rotation90_axes:
-    channel_activations:
-      - {channels: "0:-1", activation: sigmoid}
-      - {channels: "-1:", activation: tanh}
-    select_channel: ":"
-    apply_mask: false
-  save_prediction:
-    enabled: true
-    intensity_scale: -1
-    intensity_dtype: float32
-  decoding:
-  - name: decode_distance_watershed
-    kwargs:
-      distance_threshold:
-      - 0.5
-      - 0
-      min_instance_size: 100
-      min_seed_size: 50
-      prediction_scale: 1
-  evaluation:
-    enabled: true
-    metrics:
-    - adapted_rand
-    - voi
-
-train:
+default:
   system:
     num_gpus: -1
     num_workers: -1
+  model:
+    arch:
+      type: mednext
+    mednext:
+      size: M
+      kernel_size: 3
+      checkpoint_style: outside_block
+    input_size: [32, 256, 256]
+    output_size: [32, 256, 256]
+    out_channels: 7
+    primary_head: aff_r1
+    heads:
+      aff_r1:
+        out_channels: 3
+        num_blocks: 1
+        hidden_channels: 8
+        target_slice: "0:3"
+      aff_r5:
+        out_channels: 3
+        num_blocks: 1
+        hidden_channels: 8
+        target_slice: "3:6"
+      sdt:
+        out_channels: 1
+        num_blocks: 1
+        hidden_channels: 8
+        target_slice: "6:7"
+    loss:
+      losses:
+        - function: PerChannelBCEWithLogitsLoss
+          weight: 1.0
+          pred_head: aff_r1
+          target_slice: "0:3"
+          kwargs: {auto_pos_weight: true}
+        - function: PerChannelBCEWithLogitsLoss
+          weight: 1.0
+          pred_head: aff_r5
+          target_slice: "3:6"
+          kwargs: {auto_pos_weight: true}
+        - function: SmoothL1Loss
+          weight: 10.0
+          pred_head: sdt
+          target_slice: "6:7"
+          kwargs: {tanh: true}
+      loss_balancing:
+        strategy: uncertainty
+  data:
+    image_transform:
+      normalize: "divide-255"
+    label_transform:
+      resolution: [30, 8, 8]
+      erosion: 1
+      # Keep precomputed skeleton caches beside each label file.
+      # EM30-H and EM30-R share basenames, so a single shared cache_dir would collide.
+      targets:
+        - name: affinity
+          kwargs:
+            offsets: ["0-0-1", "0-1-0", "1-0-0", "0-0-5", "0-5-0", "5-0-0"]
+            deepem_crop: true
+        - name: skeleton_aware_edt
+          kwargs:
+            alpha: 0.8
+            bg_value: -1.0
+    dataloader:
+      patch_size: [32, 256, 256]
+      batch_size: 1
+      cached_sampling_foreground_threshold: 0.02
+      cached_sampling_max_attempts: 50
+    augmentation:
+      profile: aug_em_neuron_fast
+      rotate:
+        enabled: true
+        spatial_axes: [0, 1, 2]
+  inference:
+    head: aff_r1
+    sliding_window:
+      window_size: [32, 256, 256]
+      sw_batch_size: 1
+      overlap: 0.5
+      blending: gaussian
+      sigma_scale: 0.25
+      padding_mode: replicate
+      keep_input_on_cpu: false
+    test_time_augmentation:
+      enabled: false
+      flip_axes: all
+      ensemble_mode: min
+      channel_activations:
+        - {channels: ":", activation: sigmoid}
+    save_prediction:
+      enabled: true
+      intensity_scale: -1
+      intensity_dtype: float32
+    decoding:
+      - name: decode_distance_watershed
+        kwargs:
+          distance_channels: [6]
+          distance_threshold: [0.5, 0]
+          min_seed_size: 100
+          min_instance_size: 50
+          use_fast_edt: true
+          edt_parallel: 8
+    evaluation:
+      enabled: true
+      metrics: [adapted_rand, voi]
+
+train:
+  system:
     seed: 42
+  optimization:
+    profile: warmup_cosine_lr
+    max_epochs: 200
+    n_steps_per_epoch: 1000
+    accumulate_grad_batches: 4
+    precision: "bf16-mixed"
+  monitor:
+    logging:
+      scalar:
+        loss: [train_loss_total_epoch, val_loss_total, train_loss_term_0_weighted, train_loss_term_1_weighted, train_loss_term_2_weighted]
+        loss_every_n_steps: 50
+      images:
+        head: aff_r1
+        log_every_n_epochs: 10
+        max_images: 8
+        num_slices: 2
+        channel_mode: all
+    checkpoint:
+      save_top_k: 3
+      monitor: val_loss_total
+      mode: min
+  data:
+    root_path: /projects/weilab/dataset/mito/mitoEM
+
+test:
+  data:
+    root_path: /projects/weilab/dataset/mito/mitoEM
+    test:
+      resolution: [30, 8, 8]

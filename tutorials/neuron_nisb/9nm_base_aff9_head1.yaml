@@ -1,0 +1,186 @@
+_base_:
+  - ../../connectomics/config/all_profiles.yaml
+
+experiment_name: neuron_nisb_base_9nm_mednext_b_aff9_head1
+description: NISB base neuron instance segmentation (BANIS-style) with MedNeXt-B, affinity (9nm)
+
+default:
+  system:
+    profile: all-gpu-cpu
+  model:
+    arch:
+      profile: mednext_l
+    input_size: [32, 256, 256]
+    output_size: [32, 256, 256]
+    out_channels: 9
+    loss:
+      deep_supervision: false
+      losses:
+        - function: PerChannelBCEWithLogitsLoss
+          weight: 1.0
+          kwargs: {auto_pos_weight: true}
+    mednext:
+      size: L
+      kernel_size: 5
+      dim: 3d
+      checkpoint_style: outside_block
+  data:
+    dataloader:
+      profile: lazy
+      patch_size: [32, 256, 256]
+      batch_size: 1
+      use_cache: false
+    image_transform:
+      normalize: "0-1"
+      clip_percentile_low: 0.0
+      clip_percentile_high: 1.0
+    augmentation:
+      profile: aug_em_neuron_fast
+    label_transform:
+      erosion: 2
+      targets:
+        - name: affinity
+          kwargs:
+            offsets: ["1-0-0", "0-1-0", "0-0-1", "5-0-0", "0-5-0", "0-0-5", "11-0-0", "0-11-0", "0-0-11"]
+            deepem_crop: true
+    data_transform:
+      train_transpose: [2, 1, 0]
+      val_transpose: [2, 1, 0]
+
+  inference:
+    sliding_window:
+      keep_input_on_cpu: true
+      sw_device: cuda
+      output_device: cpu
+      window_size: [32, 256, 256]
+      sw_batch_size: 1
+    test_time_augmentation:
+      enabled: true
+      activation_profile: act_binary
+      ensemble_mode: mean
+    save_prediction:
+      enabled: true
+    decoding:
+      - template: decoding_abiss
+    evaluation:
+      enabled: true
+      metrics:
+        - adapted_rand
+
+train:
+  optimization:
+    profile: warmup_cosine_lr
+    max_epochs: 500
+    n_steps_per_epoch: 1000
+    accumulate_grad_batches: 2
+    val_check_interval: 10
+    val_steps_per_epoch: 100
+    ema:
+      enabled: true
+      decay: 0.999
+      warmup_steps: 500
+      validate_with_ema: true
+  data:
+    train:
+      path: /projects/weilab/dataset/nisb/base/train
+      image: seed*/data.zarr/img
+      label: seed*/data.zarr/seg
+      resolution: [20, 9, 9]
+    val:
+      path: /projects/weilab/dataset/nisb/base/val
+      image: seed*/data.zarr/img
+      label: seed*/data.zarr/seg
+      resolution: [20, 9, 9]
+  monitor:
+    logging:
+      scalar:
+        loss: [train_loss_total_epoch, val_loss_total]
+        loss_every_n_steps: 100
+      images:
+        max_images: 8
+        num_slices: 2
+        log_every_n_epochs: 10
+        channel_mode: all
+    checkpoint:
+      monitor: val_loss_total
+      mode: min
+      save_top_k: 10
+      save_last: true
+      dirpath: outputs/neuron_nisb_base_9nm_mednext_b_aff9_head1/checkpoints/
+
+test:
+  data:
+    test:
+      path: /projects/weilab/dataset/nisb/base/test/
+      image: seed*/data.zarr/img
+      label: seed*/data.zarr/seg
+      resolution: [20, 9, 9]
+    data_transform:
+      val_transpose: [2, 1, 0]
+
+tune:
+  enabled: true
+  n_trials: 50
+  study_name: nisb_abiss_tuning_9nm_head1
+  load_if_exists: true
+
+  sampler:
+    name: TPE
+    kwargs:
+      n_startup_trials: 10
+
+  optimization:
+    mode: single
+    single_objective:
+      metric: adapted_rand
+      direction: minimize
+
+  output:
+    save_study: true
+
+  logging:
+    verbose: true
+    show_progress_bar: true
+
+  parameter_space:
+    decoding:
+      function_name: decode_abiss
+      defaults:
+        command: "{python_exe} scripts/run_abiss_single.py --input {input_h5} --output {output_h5}"
+        cli_args:
+          ws_high_threshold: 0.80
+          ws_low_threshold: 0.01
+          ws_size_threshold: 800
+          ws_dust_threshold: 600
+          ws_merge_threshold: 0.20
+      parameters:
+        ws_high_threshold:
+          type: float
+          range: [0.5, 0.99]
+          step: 0.01
+          nest_under: cli_args
+          description: "ABISS Tmax: high watershed threshold"
+        ws_low_threshold:
+          type: float
+          range: [0.001, 0.2]
+          step: 0.001
+          nest_under: cli_args
+          description: "ABISS Tmin: low watershed threshold"
+        ws_merge_threshold:
+          type: float
+          range: [0.01, 0.5]
+          step: 0.01
+          nest_under: cli_args
+          description: "ABISS Tmerge: affinity threshold for size-based merging"
+        ws_size_threshold:
+          type: int
+          range: [100, 2000]
+          step: 100
+          nest_under: cli_args
+          description: "ABISS Tsize: minimum segment size"
+        ws_dust_threshold:
+          type: int
+          range: [100, 1500]
+          step: 100
+          nest_under: cli_args
+          description: "ABISS Tdust: dust removal threshold"
