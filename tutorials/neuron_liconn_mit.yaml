@@ -88,6 +88,12 @@ default:
       crop_pad: [23, 32, 119, 128, 119, 128]
     save_prediction:
       enabled: true
+    decoding:
+      - template: decoding_waterz
+        kwargs:
+          thresholds: 0.4
+          merge_function: aff85_his256
+          aff_threshold: [0.001, 0.999]
     evaluation:
       enabled: true
       metrics: [adapted_rand]
@@ -146,11 +152,5 @@ test:
   inference:
     sliding_window:
       window_size: [32, 256, 256]
-    decoding:
-      - template: decoding_waterz
-        kwargs:
-          thresholds: 0.4
-          merge_function: aff85_his256
-          aff_threshold: [0.001, 0.999]
     evaluation:
       enabled: false

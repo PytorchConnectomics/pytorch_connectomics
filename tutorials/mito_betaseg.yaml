@@ -1,18 +1,24 @@
-experiment_name: mednext_betaseg_sdt_multitask
-description: BetaSeg 3D mitochondria instance segmentation with MedNeXt multi-head (aff_r1 + aff_r5 + sdt)
-
 _base_:
   - ../connectomics/config/all_profiles.yaml
 
+experiment_name: mednext_betaseg_sdt_multitask
+description: BetaSeg 3D mitochondria instance segmentation with MedNeXt multi-head (aff_r1 + aff_r5 + sdt)
+
 default:
-  pipeline_profile: aff9_sdt
   system:
-    profile: all-gpu-cpu
+    num_gpus: -1
+    num_workers: -1
   model:
     arch:
-      profile: mednext_s
-    input_size: [128, 128, 128]
-    output_size: [128, 128, 128]
+      type: mednext
+    mednext:
+      size: S
+      kernel_size: 3
+      checkpoint_style: outside_block
+
+    input_size: [192, 192, 192]
+    output_size: [192, 192, 192]
+    out_channels: 7
     primary_head: aff_r1
     heads:
       aff_r1:
@@ -43,15 +49,19 @@ default:
           target_slice: "3:6"
           kwargs: {auto_pos_weight: true}
         - function: SmoothL1Loss
-          weight: 1.0
+          weight: 10.0
           pred_head: sdt
           target_slice: "6:7"
           kwargs: {tanh: true}
       loss_balancing:
         strategy: uncertainty
   data:
+    image_transform:
+      normalize: "divide-255"
     label_transform:
       resolution: [16, 16, 16]
+      erosion: 1
+      cache_dir: datasets/betaSeg
       targets:
         - name: affinity
           kwargs:
@@ -62,19 +72,19 @@ default:
             alpha: 0.8
             bg_value: -1.0
     dataloader:
-      patch_size: [128, 128, 128]
-      batch_size: 2
-      use_lazy_zarr: true
-    image_transform:
-      normalize: "divide-255"
+      patch_size: [192, 192, 192]
+      batch_size: 1
+      cached_sampling_foreground_threshold: 0.02
+      cached_sampling_max_attempts: 50
     augmentation:
-      profile: aug_em_neuron
+      profile: aug_em_neuron_fast
       rotate:
+        enabled: true
         spatial_axes: [0, 1, 2]
   inference:
     head: aff_r1
     sliding_window:
-      window_size: [128, 128, 128]
+      window_size: [192, 192, 192]
       sw_batch_size: 1
       keep_input_on_cpu: false
     test_time_augmentation:
@@ -86,31 +96,28 @@ default:
     postprocessing:
       enabled: true
       crop_pad: [59, 64, 59, 64, 59, 64]
+    decoding:
+      - name: decode_distance_watershed
+        kwargs:
+          distance_channels: [6]
+          distance_threshold: [0.5, 0]
+          min_seed_size: 100
+          min_instance_size: 50
+          use_fast_edt: true
+          edt_parallel: 8
     save_prediction:
       enabled: true
     evaluation:
       enabled: true
       metrics: [adapted_rand]
 
-
 train:
-  data:
-    root_path: /projects/weilab/liupeng/projects/banis/data/mito_data/betaSeg
-    train:
-      path: train
-      image: [high_c3/data.zarr/img, low_c1/data.zarr/img, low_c2/data.zarr/img]
-      label: [high_c3/data.zarr/seg, low_c1/data.zarr/seg, low_c2/data.zarr/seg]
-      label_aux_type: skeleton
-    val:
-      path: val
-      image: high_c1/data.zarr/img
-      label: high_c1/data.zarr/seg
-      label_aux_type: skeleton
-
   optimization:
     profile: warmup_cosine_lr
     max_epochs: 200
     n_steps_per_epoch: 1000
+    accumulate_grad_batches: 4
+    precision: "bf16-mixed"
   monitor:
     logging:
       scalar:
@@ -126,25 +133,28 @@ train:
       save_top_k: 3
       monitor: val_loss_total
       mode: min
+  data:
+    root_path: /projects/weilab/liupeng/data/raw/mito/betaSeg
+    train:
+      image: [high_c3_im.tiff, low_c1_im.tiff, low_c2_im.tiff]
+      label: [high_c3_mito.tiff, low_c1_mito.tiff, low_c2_mito.tiff]
+      label_aux_type: skeleton
+    val:
+      image: [high_c1_im.tiff]
+      label: [high_c1_mito.tiff]
+      label_aux_type: skeleton
 
 test:
   data:
+    root_path: /projects/weilab/liupeng/data/raw/mito/betaSeg
     test:
-      path: test
-      image: high_c2/data.zarr/img
-      label: high_c2/data.zarr/seg
+      path: ""
+      image: high_c2_im.tiff
+      label: high_c2_mito.tiff
+      # Matches sdt_path_for_label(..., mode="skeleton", cache_dir="datasets/betaSeg")
+      # so pure test mode can consume the precomputed skeleton cache directly.
+      label_aux: datasets/betaSeg/high_c2_mito_skeleton.h5
       label_aux_type: skeleton
       resolution: [16, 16, 16]
     data_transform:
       pad_size: [64, 64, 64]
-  inference:
-    head: aff_r1
-    decoding:
-      - name: decode_distance_watershed
-        kwargs:
-          distance_channels: [6]
-          distance_threshold: [0.5, 0]
-          min_seed_size: 100
-          min_instance_size: 50
-          use_fast_edt: true
-          edt_parallel: 8

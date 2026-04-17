@@ -1,0 +1,74 @@
+experiment_name: waterz_decode_large_abiss
+
+description: >
+  Large-volume chunked decoding using the vendored ABISS pipeline.
+
+  Usage:
+    - Prepare local precomputed affinity + WS/SEG outputs only:
+      python scripts/run_abiss_large.py --config tutorials/waterz_decoding_large_abiss.yaml --prepare-only
+    - Run the full ABISS flow:
+      python scripts/run_abiss_large.py --config tutorials/waterz_decoding_large_abiss.yaml
+    - Run selected stages after prepare:
+      python scripts/run_abiss_large.py --config tutorials/waterz_decoding_large_abiss.yaml --skip-prepare --stages watershed remap_watershed
+
+  This workflow does not use scripts/decode_large.py. ABISS already manages its own
+  chunk hierarchy and chunked watershed / agglomeration.
+
+abiss_large:
+  abiss_home: /projects/weilab/weidf/lib/pytorch_connectomics/lib/abiss
+  workdir: /projects/weilab/weidf/lib/pytorch_connectomics/outputs/waterz_decode_large_abiss/run
+  secrets_dir: /projects/weilab/weidf/lib/pytorch_connectomics/outputs/waterz_decode_large_abiss/secrets
+  param_path: /projects/weilab/weidf/lib/pytorch_connectomics/outputs/waterz_decode_large_abiss/secrets/param
+
+  source_affinity_h5: /projects/weilab/dataset/liconn/mansour/DL288B_251222S_cond5_40x_12tiles_round1_fused_488_crop512x1024x1024_ffn_sharp_tta_x8_prediction_uint8.h5
+  source_dataset: main
+
+  # H5 -> precomputed conversion settings. These are storage chunks, not ABISS logical chunks.
+  copy_block_shape_xyz: [512, 512, 64]
+  aff_chunk_size_xyz: [512, 512, 64]
+  seg_chunk_size_xyz: [512, 512, 80]
+  resolution_xyz: [1, 1, 1]
+
+  # ABISS runtime settings.
+  root_tag: "4_0_0_0"
+  top_mip: 4
+  overlap_mode: 0
+  meta_dirs: []
+
+  param:
+    NAME: DL288B_251222S_cond5_abiss_large
+
+    # All ABISS paths are CloudFiles / CloudVolume paths. Use file:// for local runs.
+    AFF_PATH: file:///projects/weilab/weidf/lib/pytorch_connectomics/outputs/waterz_decode_large_abiss/precomputed/affinity
+    WS_PATH: file:///projects/weilab/weidf/lib/pytorch_connectomics/outputs/waterz_decode_large_abiss/precomputed/ws
+    SEG_PATH: file:///projects/weilab/weidf/lib/pytorch_connectomics/outputs/waterz_decode_large_abiss/precomputed/seg
+    SCRATCH_PATH: file:///projects/weilab/weidf/lib/pytorch_connectomics/outputs/waterz_decode_large_abiss/scratch
+    CHUNKMAP_OUTPUT: file:///projects/weilab/weidf/lib/pytorch_connectomics/outputs/waterz_decode_large_abiss/chunkmap
+    AFF_RESOLUTION: 0
+
+    # Current full volume in XYZ coordinates.
+    BBOX: [0, 0, 0, 2066, 2066, 1040]
+
+    # ABISS logical chunk size in XYZ. This is intentionally large in XY to reduce
+    # cross-face stitching while keeping Z chunking for memory.
+    CHUNK_SIZE: [2066, 2066, 80]
+
+    # Conservative watershed first; chunked agglomeration handles later reconnection.
+    WS_HIGH_THRESHOLD: 0.9
+    WS_LOW_THRESHOLD: 0.1
+    WS_SIZE_THRESHOLD: 400
+    WS_DUST_THRESHOLD: 200
+
+    # Mean-edge agglomeration threshold.
+    AGG_THRESHOLD: 0.20
+
+    PARANOID: false
+    CHUNKED_AGG_OUTPUT: false
+
+notes:
+  - "If you only want chunked watershed fragments, stop after remap_watershed."
+  - "AFF_PATH, WS_PATH, and SEG_PATH are local precomputed volumes prepared by scripts/run_abiss_large.py."
+  - "CHUNK_SIZE is the ABISS chunking grid; aff_chunk_size_xyz and seg_chunk_size_xyz are the on-disk precomputed storage chunks."
+  - "seg_chunk_size_xyz must align with every internal CHUNK_SIZE boundary on axes that have multiple chunks; for this config the Z chunk size must be 80, not 64."
+  - "With the upstream chunk_iterator package, root_tag should point at the top-level chunk. For this config that is 4_0_0_0."
+  - "With BBOX=[0,0,0,2066,2066,1040] and CHUNK_SIZE=[2066,2066,80], the chunk grid is 1 x 1 x 13, so top_mip=4."

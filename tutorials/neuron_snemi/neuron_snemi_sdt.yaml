@@ -1,5 +1,5 @@
-experiment_name: mednext_snemi_sdt_multitask
-description: SNEMI3D neuron affinity + SDT learning with MedNeXt multi-head outputs (aff_r1 + aff_r5 + aff_r9 + sdt)
+experiment_name: mednext_snemi_sdt
+description: SNEMI3D neuron affinity + SDT learning (MedNeXt-S, 9-channel affinity + 1-channel SDT)
 
 _base_:
   - ../connectomics/config/all_profiles.yaml
@@ -13,48 +13,6 @@ default:
       profile: mednext_s
     input_size: [32, 160, 160]
     output_size: [32, 160, 160]
-    primary_head: aff_r1
-    heads:
-      aff_r1:
-        out_channels: 3
-        num_blocks: 1
-        target_slice: "0:3"
-      aff_r5:
-        out_channels: 3
-        num_blocks: 1
-        target_slice: "3:6"
-      aff_r9:
-        out_channels: 3
-        num_blocks: 1
-        target_slice: "6:9"
-      sdt:
-        out_channels: 1
-        num_blocks: 1
-        target_slice: "9:10"
-    loss:
-      losses:
-        - function: PerChannelBCEWithLogitsLoss
-          weight: 1.0
-          pred_head: aff_r1
-          target_slice: "0:3"
-          kwargs: {auto_pos_weight: true}
-        - function: PerChannelBCEWithLogitsLoss
-          weight: 1.0
-          pred_head: aff_r5
-          target_slice: "3:6"
-          kwargs: {auto_pos_weight: true}
-        - function: PerChannelBCEWithLogitsLoss
-          weight: 1.0
-          pred_head: aff_r9
-          target_slice: "6:9"
-          kwargs: {auto_pos_weight: true}
-        - function: SmoothL1Loss
-          weight: 1.0
-          pred_head: sdt
-          target_slice: "9:10"
-          kwargs: {tanh: true}
-      loss_balancing:
-        strategy: uncertainty
   data:
     label_transform:
       resolution: [30, 6, 6]
@@ -68,41 +26,40 @@ default:
           kwargs:
             alpha: 0.8
             bg_value: -1.0
+            deepem_crop: true
 
     dataloader:
       profile: cached
       patch_size: [32, 160, 160]
-      batch_size: 4
     data_transform:
       # Keep symmetric full-volume context padding on the inference input.
       pad_size: [16, 80, 80]
     augmentation:
       profile: aug_em_neuron
-  monitor:
-    logging:
-      images:
-        head: all
   inference:
-    head: aff_r1
     sliding_window:
       window_size: [32, 160, 160]
-      sw_batch_size: 4
+      sw_batch_size: 1
       keep_input_on_cpu: false
     test_time_augmentation:
       enabled: false
-      # enabled: true
+      #enabled: true
       patch_first_local: true
       flip_axes: all
       rotation90_axes: [[1, 2]]
-      ensemble_mode: min
-      channel_activations:
-        - {channels: ":", activation: sigmoid}
+        #select_channel: [0, 1, 2, 9]
     postprocessing:
       enabled: true
       # crop_pad + affinity_crop[(9,0),(9,0),(9,0)] = pad_size [16,80,80]
       crop_pad: [7, 16, 71, 80, 71, 80]
     save_prediction:
       enabled: true
+    decoding:
+    - template: decoding_waterz
+      kwargs:
+        thresholds: 0.4
+        merge_function: aff85_his256
+        aff_threshold: [0.001, 0.999]
     evaluation:
       enabled: true
       metrics: [adapted_rand]
@@ -119,11 +76,11 @@ train:
   optimization:
     profile: warmup_cosine_lr
     max_epochs: 200
-    n_steps_per_epoch: 1000
+    n_steps_per_epoch: 1000    
   monitor:
     logging:
       scalar:
-        loss: [train_loss_total_epoch, train_loss_term_0_weighted, train_loss_term_1_weighted, train_loss_term_2_weighted, train_loss_term_3_weighted]
+        loss: [train_loss_total_epoch, train_loss_affinity_total, train_loss_sdt_total]
         loss_every_n_steps: 50
       images:
         log_every_n_epochs: 10
@@ -141,52 +98,26 @@ test:
       path: datasets/SNEMI/
       # image: [train-input.tif, test-input_z29.h5]
       # label: [train-labels.tif, test-labels.h5]
-      # image: train-input.tif
-      # label: train-labels.tif
-      # image: test-input_z29.h5
+      #image: train-input.tif
+      #label: train-labels.tif
+      #image: test-input_z29.h5
       image: test-input.tif
       label: test-labels.h5
       resolution: [30, 6, 6]
-  inference:
-    head: aff_r1
-    decoding:
-      - template: decoding_waterz
-        kwargs:
-          # Fragment initialization: false=waterz built-in C++ watershed
-          compute_fragments: true
-          seed_method: maxima_distance-0.3 # maxima_distance, minima, or grid
-          #seed_method: minima # maxima_distance, minima, or grid
-          #use_aff_uint8: true       # convert float→uint8 affinities (4x less aff memory)
-          #use_seg_uint32: true      # uint32 segment IDs (2x less seg memory)
-          thresholds: 0.4
-          merge_function: aff85_his256
-          aff_threshold: [0.1, 0.9]
-          boundary_threshold: 0
-          dust_merge: true
-          dust_merge_size: 800
-          dust_merge_affinity: 0.3
-          dust_remove_size: 600
-          branch_merge: false
-          iou_threshold: 0.5
-          best_buddy: true
-          one_sided_threshold: 0.8
-          one_sided_min_size: 100
-
+      
 # ============================================================================
 # Parameter tuning for waterz agglomeration thresholds (--mode tune)
 # ============================================================================
 tune:
   profile: tune_waterz
   n_trials: 25
-  study_name: snemi_waterz_tuning_multitask
+  study_name: snemi_waterz_tuning
   data:
     val:
       image: datasets/SNEMI/test-input.tif
       label: datasets/SNEMI/test-labels.h5
-      # image: datasets/SNEMI/train-input.tif
-      # label: datasets/SNEMI/train-labels.tif
-  inference:
-    head: aff_r1
+      #image: datasets/SNEMI/train-input.tif
+      #label: datasets/SNEMI/train-labels.tif
   # Override profile defaults for SNEMI-specific search ranges
   parameter_space:
     decoding:

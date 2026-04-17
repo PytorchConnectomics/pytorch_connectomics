@@ -1,109 +1,131 @@
+_base_:
+  - ../connectomics/config/all_profiles.yaml
+
+experiment_name: nucmm_zebrafish_monai_unet
+description: Zebrafish nucleus segmentation on NucMM dataset using MONAI Residual UNet with multi-task learning
+
 default:
   model:
     arch:
       profile: monai_unet
+    input_size:
+    - 64
+    - 64
+    - 64
+    output_size:
+    - 64
+    - 64
+    - 64
+    out_channels: 3
+    loss:
+      losses:
+      - function: DiceLoss
+        weight: 1.0
+        kwargs: {sigmoid: true, smooth_nr: 1e-5, smooth_dr: 1e-5}
+        pred_slice: "0:1"
+        target_slice: "0:1"
+      - function: BCEWithLogitsLoss
+        weight: 0.5
+        pred_slice: "0:1"
+        target_slice: "0:1"
+      - function: DiceLoss
+        weight: 1.0
+        kwargs: {sigmoid: true, smooth_nr: 1e-5, smooth_dr: 1e-5}
+        pred_slice: "1:2"
+        target_slice: "1:2"
+      - function: BCEWithLogitsLoss
+        weight: 0.5
+        pred_slice: "1:2"
+        target_slice: "1:2"
+      - function: WeightedMSELoss
+        weight: 2.0
+        kwargs: {tanh: true}
+        pred_slice: "2:3"
+        target_slice: "2:3"
+    monai:
+      strides: [2, 2, 2]
+      num_res_units: 2
+      kernel_size: 3
+      norm: batch
+      dropout: 0.0
+  data:
+    image_transform:
+      clip_percentile_low: 0.0
+      clip_percentile_high: 1.0
+    dataloader:
+      cache_rate: 1.0
+      persistent_workers: true
+      patch_size:
+      - 64
+      - 64
+      - 64
+    label_transform:
+      targets:
+      - name: binary
+      - name: instance_boundary
+        kwargs:
+          thickness: 5
+          edge_mode: seg-no-bg
+          mode: 3d
+      - name: instance_edt
+        kwargs:
+          mode: 3d
+          quantize: false
+    data_transform:
+      pad_size:
+      - 16
+      - 16
+      - 16
+      pad_mode: reflect
+  inference:
+    system:
+      num_workers: 4
+    sliding_window:
+      window_size:
+      - 64
+      - 64
+      - 64
+      sw_batch_size: 8
+      overlap: 0.5
+      padding_mode: reflect
+    test_time_augmentation:
+      flip_axes:
+      channel_activations:
+        - {channels: "0:2", activation: sigmoid}
+        - {channels: "2:3", activation: tanh}
 
-_base_:
-  - ../connectomics/config/all_profiles.yaml
-experiment_name: nucmm_zebrafish_monai_unet
-description: Zebrafish nucleus segmentation on NucMM dataset using MONAI Residual UNet with multi-task learning
-model:
-  input_size:
-  - 64
-  - 64
-  - 64
-  output_size:
-  - 64
-  - 64
-  - 64
-  out_channels: 3
-  loss:
-    losses:
-    - function: DiceLoss
-      weight: 1.0
-      kwargs: {sigmoid: true, smooth_nr: 1e-5, smooth_dr: 1e-5}
-      pred_slice: "0:1"
-      target_slice: "0:1"
-    - function: BCEWithLogitsLoss
-      weight: 0.5
-      pred_slice: "0:1"
-      target_slice: "0:1"
-    - function: DiceLoss
-      weight: 1.0
-      kwargs: {sigmoid: true, smooth_nr: 1e-5, smooth_dr: 1e-5}
-      pred_slice: "1:2"
-      target_slice: "1:2"
-    - function: BCEWithLogitsLoss
-      weight: 0.5
-      pred_slice: "1:2"
-      target_slice: "1:2"
-    - function: WeightedMSELoss
-      weight: 2.0
-      kwargs: {tanh: true}
-      pred_slice: "2:3"
-      target_slice: "2:3"
-  monai:
-    strides: [2, 2, 2]
-    num_res_units: 2
-    kernel_size: 3
-    norm: batch
-    dropout: 0.0
-data:
-  dataloader:
-    cache_rate: 1.0
-    persistent_workers: true
-    patch_size:
-      - 64
-      - 64
-      - 64
-  label_transform:
-    targets:
-    - name: binary
-    - name: instance_boundary
-      kwargs:
-        thickness: 5
-        edge_mode: seg-no-bg
-        mode: 3d
-    - name: instance_edt
-      kwargs:
-        mode: 3d
-        quantize: false
+train:
+  optimization:
+    gradient_clip_val: 1.0
+    optimizer:
+      name: AdamW
+      weight_decay: 0.01
+    scheduler:
+      name: CosineAnnealingLR
+      warmup_epochs: 5
+      warmup_start_lr: 1.0e-05
+      params:
+        t_max: 995
+  monitor:
+    logging:
+      images:
+        max_images: 2
+        num_slices: 4
+        channel_mode: all
+    early_stopping:
+      patience: 300
+      min_delta: 1.0e-05
+      threshold: 0.01
+      divergence_threshold: 100.0
+  data:
+    train:
+      image: datasets/NucMM-Z/Image/train/img_*.h5
+      label: datasets/NucMM-Z/Label/train/seg_*.h5
+      resolution:
+      - 1.0
+      - 1.0
+      - 1.0
 
-  train:
-    image: datasets/NucMM-Z/Image/train/img_*.h5
-    label: datasets/NucMM-Z/Label/train/seg_*.h5
-    resolution:
-    - 1.0
-    - 1.0
-    - 1.0
-  data_transform:
-    pad_size:
-    - 16
-    - 16
-    - 16
-    pad_mode: reflect
-optimization:
-  gradient_clip_val: 1.0
-  optimizer:
-    name: AdamW
-    weight_decay: 0.01
-  scheduler:
-    name: CosineAnnealingLR
-    warmup_epochs: 5
-    warmup_start_lr: 1.0e-05
-    params:
-      t_max: 995
-monitor:
-  logging:
-    images:
-      max_images: 2
-      num_slices: 4
-      channel_mode: all
-  early_stopping:
-    patience: 300
-    min_delta: 1.0e-05
-    threshold: 0.01
-    divergence_threshold: 100.0
 test:
   data:
     test:
@@ -113,24 +135,13 @@ test:
       - 1.0
       - 1.0
       - 1.0
-inference:
-  system:
-    num_workers: 4
-  sliding_window:
-    window_size:
-    - 64
-    - 64
-    - 64
-    sw_batch_size: 8
-    overlap: 0.5
-    padding_mode: reflect
-  test_time_augmentation:
-    flip_axes:
-    channel_activations:
-      - {channels: "0:2", activation: sigmoid}
-      - {channels: "2:3", activation: tanh}
-  evaluation:
-    enabled: true
-    metrics:
-    - jaccard
-    - dice
+    image_transform:
+      normalize: "0-1"
+      clip_percentile_low: 0.0
+      clip_percentile_high: 1.0
+  inference:
+    evaluation:
+      enabled: true
+      metrics:
+      - jaccard
+      - dice

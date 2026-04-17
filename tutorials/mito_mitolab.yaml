@@ -1,112 +1,132 @@
+_base_:
+  - ../connectomics/config/all_profiles.yaml
+
+experiment_name: cem-mitolab_mednext2d
+description: Mitochondria segmentation on CEM-MitoLab dataset using MedNeXt 2D
+
 default:
   model:
     arch:
       profile: mednext_s
-
-_base_:
-  - ../connectomics/config/all_profiles.yaml
-experiment_name: cem-mitolab_mednext2d
-description: Mitochondria segmentation on CEM-MitoLab dataset using MedNeXt 2D
-model:
-  out_channels: 3
-  loss:
-    deep_supervision: true
-    losses:
-    - function: DiceLoss
-      weight: 1.0
-      kwargs: {include_background: false, sigmoid: true, smooth_nr: 1e-5, smooth_dr: 1e-5}
-      pred_slice: "0:1"
-      target_slice: "0:1"
-    - function: BCEWithLogitsLoss
-      weight: 0.5
-      pred_slice: "0:1"
-      target_slice: "0:1"
-    - function: BCEWithLogitsLoss
-      weight: 0.5
-      pred_slice: "1:2"
-      target_slice: "1:2"
-    - function: WeightedMSELoss
-      weight: 1.0
-      kwargs: {tanh: true}
-      pred_slice: "2:3"
-      target_slice: "2:3"
-  mednext:
-    size: S
-    kernel_size: 3
-    dim: 2d
-data:
-  image_transform:
-    clip_percentile_low: 0.0
-    clip_percentile_high: 1.0
-  label_transform:
-    targets:
-    - name: binary
-    - name: instance_boundary
-      kwargs:
-        thickness: 1
-        edge_mode: seg-all
-        mode: 2d
-    - name: instance_edt
-      kwargs:
-        mode: 2d
-        quantize: false
-
-  train:
-    dataset_type: filename
-    json: datasets/cem-mitolab/files.json
-    image_key: images
-    label_key: masks
-    split_ratio: 0.9
-    resolution:
-    - 0
-    - 5
-    - 5
-  data_transform:
-    pad_size:
-    - 0
-    - 0
-  dataloader:
-    use_preloaded_cache_train: false
-    use_preloaded_cache_val: false
-    patch_size:
+    out_channels: 3
+    loss:
+      deep_supervision: true
+      losses:
+      - function: DiceLoss
+        weight: 1.0
+        kwargs: {include_background: false, sigmoid: true, smooth_nr: 1e-5, smooth_dr: 1e-5}
+        pred_slice: "0:1"
+        target_slice: "0:1"
+      - function: BCEWithLogitsLoss
+        weight: 0.5
+        pred_slice: "0:1"
+        target_slice: "0:1"
+      - function: BCEWithLogitsLoss
+        weight: 0.5
+        pred_slice: "1:2"
+        target_slice: "1:2"
+      - function: WeightedMSELoss
+        weight: 1.0
+        kwargs: {tanh: true}
+        pred_slice: "2:3"
+        target_slice: "2:3"
+    mednext:
+      size: S
+      kernel_size: 3
+      dim: 2d
+  data:
+    image_transform:
+      clip_percentile_low: 0.0
+      clip_percentile_high: 1.0
+    label_transform:
+      targets:
+      - name: binary
+      - name: instance_boundary
+        kwargs:
+          thickness: 1
+          edge_mode: seg-all
+          mode: 2d
+      - name: instance_edt
+        kwargs:
+          mode: 2d
+          quantize: false
+    data_transform:
+      pad_size:
+      - 0
+      - 0
+    dataloader:
+      use_preloaded_cache_train: false
+      use_preloaded_cache_val: false
+      patch_size:
       - 224
       - 224
-optimization:
-  max_epochs: 100
-  n_steps_per_epoch: -1
-  accumulate_grad_batches: 1
-  precision: bf16-mixed
-  optimizer:
-    lr: 0.001
-    weight_decay: 0.01
-    eps: 1.0e-08
-  scheduler:
-    name: StepLR
-    params:
-      step_size: 100000
-      gamma: 1.0
-monitor:
-  logging:
-    scalar:
-      loss:
-      - train_loss_total_epoch
-      loss_every_n_steps: 50
-    images:
-      max_images: 16
-      num_slices: 1
-      log_every_n_epochs: 1
-  checkpoint:
-    monitor: val/loss
-    save_top_k: 3
-    save_every_n_epochs: 1
-    dirpath: outputs/cem-mitolab_mednext2d/checkpoints/
-    checkpoint_filename: epoch={epoch:03d}-val_loss={val/loss:.4f}
-  early_stopping:
-    monitor: in_loss_total_epoch
-    patience: 20
-    min_delta: 0.0001
-    threshold: 0.05
-    divergence_threshold: 2.0
+  inference:
+    system:
+      num_workers: 4
+    test_time_augmentation:
+      enabled: false
+      channel_activations:
+        - {channels: "0:2", activation: sigmoid}
+        - {channels: "2:3", activation: tanh}
+      select_channel:
+    save_prediction:
+      enabled: true
+      intensity_scale: 255
+      intensity_dtype: uint8
+
+train:
+  system:
+    num_gpus: 1
+    num_workers: 0
+    seed: 42
+  optimization:
+    max_epochs: 100
+    n_steps_per_epoch: -1
+    accumulate_grad_batches: 1
+    precision: bf16-mixed
+    optimizer:
+      lr: 0.001
+      weight_decay: 0.01
+      eps: 1.0e-08
+    scheduler:
+      name: StepLR
+      params:
+        step_size: 100000
+        gamma: 1.0
+  monitor:
+    logging:
+      scalar:
+        loss:
+        - train_loss_total_epoch
+        loss_every_n_steps: 50
+      images:
+        max_images: 16
+        num_slices: 1
+        log_every_n_epochs: 1
+    checkpoint:
+      monitor: val/loss
+      save_top_k: 3
+      save_every_n_epochs: 1
+      dirpath: outputs/cem-mitolab_mednext2d/checkpoints/
+      checkpoint_filename: epoch={epoch:03d}-val_loss={val/loss:.4f}
+    early_stopping:
+      monitor: in_loss_total_epoch
+      patience: 20
+      min_delta: 0.0001
+      threshold: 0.05
+      divergence_threshold: 2.0
+  data:
+    train:
+      dataset_type: filename
+      json: datasets/cem-mitolab/files.json
+      image_key: images
+      label_key: masks
+      split_ratio: 0.9
+      resolution:
+      - 0
+      - 5
+      - 5
+
 test:
   output_path: outputs/cem-mitolab_mednext2d/results/
   data:
@@ -117,25 +137,7 @@ test:
       - 0
       - 5
       - 5
-inference:
-  system:
-    num_workers: 4
-  test_time_augmentation:
-    enabled: false
-    channel_activations:
-      - {channels: "0:2", activation: sigmoid}
-      - {channels: "2:3", activation: tanh}
-    select_channel:
-  save_prediction:
-    enabled: true
-    intensity_scale: 255
-    intensity_dtype: uint8
-  evaluation:
-    enabled: false
-    metrics: []
-
-train:
-  system:
-    num_gpus: 1
-    num_workers: 0
-    seed: 42
+  inference:
+    evaluation:
+      enabled: false
+      metrics: []

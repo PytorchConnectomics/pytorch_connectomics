@@ -39,10 +39,12 @@ train:
     train:
       image: seed*/data.zarr/img
       label: seed*/data.zarr/seg
+      label_aux_type: sdt
       resolution: [20, 9, 9]
     val:
       image: seed*/data.zarr/img
       label: seed*/data.zarr/seg
+      label_aux_type: sdt
       resolution: [20, 9, 9]
   monitor:
     checkpoint:
@@ -53,4 +55,5 @@ test:
     test:
       image: seed101/data.zarr/img
       label: seed101/data.zarr/seg
+      label_aux_type: sdt
       resolution: [20, 9, 9]

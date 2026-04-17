@@ -1,152 +1,190 @@
+_base_:
+  - ../connectomics/config/all_profiles.yaml
+
+experiment_name: fiber_mednext_bcs
+description: Fiber segmentation with MedNeXt and multi-task learning (Binary + Contour + SDT)
+
 default:
+  system:
+    num_gpus: -1
+    num_workers: -1
+    seed: 42
   model:
     arch:
       profile: mednext_s
-
-_base_:
-  - ../connectomics/config/all_profiles.yaml
-experiment_name: fiber_mednext_bcs
-description: Fiber segmentation with MedNeXt and multi-task learning (Binary + Contour + SDT)
-model:
-  out_channels: 3
-  input_size:
-  - 32
-  - 128
-  - 128
-  output_size:
-  - 32
-  - 128
-  - 128
-  loss:
-    deep_supervision: false
-    losses:
-    - function: WeightedBCEWithLogitsLoss
-      weight: 1.0
-      kwargs: {reduction: mean}
-      pred_slice: "0:1"
-      target_slice: "0:1"
-    - function: DiceLoss
-      weight: 0.5
-      kwargs: {sigmoid: true, smooth_nr: 1e-5, smooth_dr: 1e-5}
-      pred_slice: "0:1"
-      target_slice: "0:1"
-    - function: WeightedBCEWithLogitsLoss
-      weight: 1.0
-      kwargs: {reduction: mean}
-      pred_slice: "1:2"
-      target_slice: "1:2"
-    - function: DiceLoss
-      weight: 0.5
-      kwargs: {sigmoid: true, smooth_nr: 1e-5, smooth_dr: 1e-5}
-      pred_slice: "1:2"
-      target_slice: "1:2"
-    - function: WeightedMSELoss
-      weight: 4.0
-      kwargs: {tanh: true}
-      pred_slice: "2:3"
-      target_slice: "2:3"
-  mednext:
-    size: S
-    kernel_size: 3
-data:
-  dataloader:
-    use_preloaded_cache_train: true
-    persistent_workers: true
-    patch_size: [32, 128, 128]
-  nnunet_preprocessing:
-    enabled: true
-    crop_to_nonzero: true
-    normalization: zscore
-    normalization_use_nonzero_mask: true
-    clip_percentile_low: 0.005
-    clip_percentile_high: 0.995
-
-  label_transform:
-    targets:
-    - name: binary
-      kwargs: {}
-    - name: instance_boundary
+    out_channels: 3
+    input_size:
+    - 32
+    - 128
+    - 128
+    output_size:
+    - 32
+    - 128
+    - 128
+    loss:
+      deep_supervision: false
+      losses:
+      - function: WeightedBCEWithLogitsLoss
+        weight: 1.0
+        kwargs: {reduction: mean}
+        pred_slice: "0:1"
+        target_slice: "0:1"
+      - function: DiceLoss
+        weight: 0.5
+        kwargs: {sigmoid: true, smooth_nr: 1e-5, smooth_dr: 1e-5}
+        pred_slice: "0:1"
+        target_slice: "0:1"
+      - function: WeightedBCEWithLogitsLoss
+        weight: 1.0
+        kwargs: {reduction: mean}
+        pred_slice: "1:2"
+        target_slice: "1:2"
+      - function: DiceLoss
+        weight: 0.5
+        kwargs: {sigmoid: true, smooth_nr: 1e-5, smooth_dr: 1e-5}
+        pred_slice: "1:2"
+        target_slice: "1:2"
+      - function: WeightedMSELoss
+        weight: 4.0
+        kwargs: {tanh: true}
+        pred_slice: "2:3"
+        target_slice: "2:3"
+    mednext:
+      size: S
+      kernel_size: 3
+  data:
+    dataloader:
+      use_preloaded_cache_train: true
+      persistent_workers: true
+      patch_size: [32, 128, 128]
+    nnunet_preprocessing:
+      enabled: true
+      crop_to_nonzero: true
+      normalization: zscore
+      normalization_use_nonzero_mask: true
+      clip_percentile_low: 0.005
+      clip_percentile_high: 0.995
+    label_transform:
+      targets:
+      - name: binary
+        kwargs: {}
+      - name: instance_boundary
+        kwargs:
+          thickness: 1
+          edge_mode: all
+          mode: 2d
+      - name: skeleton_aware_edt
+        kwargs:
+          resolution:
+          - 40
+          - 16
+          - 16
+          alpha: 1
+          bg_value: -1.0
+          relabel: true
+    augmentation:
+      flip:
+        enabled: true
+      rotate:
+        enabled: true
+        spatial_axes:
+        - 1
+        - 2
+      intensity:
+        enabled: true
+        gaussian_noise_prob: 0
+        gaussian_noise_std: 0.5
+        shift_intensity_prob: 0.5
+        shift_intensity_offset: 0.1
+        contrast_prob: 0.5
+        contrast_range: [0.9, 1.1]
+  inference:
+    system:
+      num_workers: 1
+    sliding_window:
+      window_size:
+      - 32
+      - 128
+      - 128
+      overlap: 0.5
+      blending: gaussian
+      sigma_scale: 0.25
+      padding_mode: reflect
+    test_time_augmentation:
+      enabled: true
+      channel_activations:
+        - {channels: "0:2", activation: sigmoid}
+        - {channels: "2:3", activation: tanh}
+    decoding:
+    - name: decode_binary_contour_distance_watershed
       kwargs:
-        thickness: 1
-        edge_mode: all
-        mode: 2d
-    - name: skeleton_aware_edt
-      kwargs:
-        resolution:
-        - 40
-        - 16
-        - 16
-        alpha: 1
-        bg_value: -1.0
-        relabel: true
-  augmentation:
-    flip:
+        binary_threshold:
+        - 0.9
+        - 0.85
+        contour_threshold:
+        - 0.8
+        - 1.1
+        distance_threshold:
+        - 0.5
+        - -0.5
+        min_instance_size: 100
+        min_seed_size: 20
+        prediction_scale: 1
+
+train:
+  optimization:
+    max_epochs: 500
+    n_steps_per_epoch: 1000
+    gradient_clip_val: 0.5
+    accumulate_grad_batches: 1
+    precision: "16-mixed"
+    log_every_n_steps: 100
+    optimizer:
+      lr: 0.0003
+      weight_decay: 0.01
+      eps: 1.0e-08
+    scheduler:
+      name: WarmupCosineLR
+      warmup_epochs: 3
+      warmup_start_lr: 1.0e-05
+      min_lr: 1.0e-06
+    ema:
       enabled: true
-    rotate:
+      decay: 0.999
+      validate_with_ema: true
+  monitor:
+    nan_detection:
       enabled: true
-      spatial_axes:
-      - 1
-      - 2
-    intensity:
-      enabled: true
-      gaussian_noise_prob: 0
-      gaussian_noise_std: 0.5
-      shift_intensity_prob: 0.5
-      shift_intensity_offset: 0.1
-      contrast_prob: 0.5
-      contrast_range: [0.9, 1.1]
-  train:
-    path: /projects/weilab/dataset/barcode/2026/PT37_round2/
-    image:
-    - "*raw.tif"
-    label:
-    - "*mask.tif"
-    resolution:
-    - 40
-    - 16
-    - 16
-optimization:
-  max_epochs: 500
-  n_steps_per_epoch: 1000
-  gradient_clip_val: 0.5
-  accumulate_grad_batches: 1
-  precision: "16-mixed"
-  log_every_n_steps: 100
-  optimizer:
-    lr: 0.0003
-    weight_decay: 0.01
-    eps: 1.0e-08
-  scheduler:
-    name: WarmupCosineLR
-    warmup_epochs: 3
-    warmup_start_lr: 1.0e-05
-    min_lr: 1.0e-06
-  ema:
-    enabled: true
-    decay: 0.999
-    validate_with_ema: true
-monitor:
-  nan_detection:
-    enabled: true
-    debug_on_nan: false
-  logging:
-    scalar:
-      loss:
-      - train_loss_total_epoch
-      loss_every_n_steps: 10
-    images:
-      max_images: 2
-      num_slices: 4
-      log_every_n_epochs: 5
-  checkpoint:
-    save_top_k: 3
-    save_every_n_epochs: 5
-  early_stopping:
-    monitor: train_loss_total_epoch
-    patience: 100
-    min_delta: 1.0e-05
-    threshold: 0.01
-    divergence_threshold: 100.0
+      debug_on_nan: false
+    logging:
+      scalar:
+        loss:
+        - train_loss_total_epoch
+        loss_every_n_steps: 10
+      images:
+        max_images: 2
+        num_slices: 4
+        log_every_n_epochs: 5
+    checkpoint:
+      save_top_k: 3
+      save_every_n_epochs: 5
+    early_stopping:
+      monitor: train_loss_total_epoch
+      patience: 100
+      min_delta: 1.0e-05
+      threshold: 0.01
+      divergence_threshold: 100.0
+  data:
+    train:
+      path: /projects/weilab/dataset/barcode/2026/PT37_round2/
+      image:
+      - "*raw.tif"
+      label:
+      - "*mask.tif"
+      resolution:
+      - 40
+      - 16
+      - 16
 
 test:
   data:
@@ -160,45 +198,8 @@ test:
       - 40
       - 16
       - 16
-inference:
-  system:
-    num_workers: 1
-  sliding_window:
-    window_size:
-    - 32
-    - 128
-    - 128
-    overlap: 0.5
-    blending: gaussian
-    sigma_scale: 0.25
-    padding_mode: reflect
-  test_time_augmentation:
-    enabled: true
-    channel_activations:
-      - {channels: "0:2", activation: sigmoid}
-      - {channels: "2:3", activation: tanh}
-  decoding:
-  - name: decode_binary_contour_distance_watershed
-    kwargs:
-      binary_threshold:
-      - 0.9
-      - 0.85
-      contour_threshold:
-      - 0.8
-      - 1.1
-      distance_threshold:
-      - 0.5
-      - -0.5
-      min_instance_size: 100
-      min_seed_size: 20
-      prediction_scale: 1
-  evaluation:
-    enabled: true
-    metrics:
-    - adapted_rand
-
-train:
-  system:
-    num_gpus: -1
-    num_workers: -1
-    seed: 42
+  inference:
+    evaluation:
+      enabled: true
+      metrics:
+      - adapted_rand
