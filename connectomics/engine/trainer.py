@@ -367,14 +367,17 @@ class Trainer(TrainerBase):
             loss.backward()
             self.optimizer.step()
 
+    def _stateful_model(self, model=None):
+        target = self.model if model is None else model
+        return getattr(target, "module", target)
+
     def save_checkpoint(self, iteration: int, is_best: bool = False):
         r"""Save the model checkpoint.
         """
         if self.is_main_process:
             print("Save model checkpoint at iteration ", iteration)
             state = {'iteration': iteration + 1,
-                     # Saving DataParallel or DistributedDataParallel models
-                     'state_dict': self.model.module.state_dict(),
+                     'state_dict': self._stateful_model().state_dict(),
                      'optimizer': self.optimizer.state_dict(),
                      'lr_scheduler': self.lr_scheduler.state_dict()}
 
@@ -403,7 +406,7 @@ class Trainer(TrainerBase):
             pretrained_dict = checkpoint['state_dict']
             pretrained_dict = update_state_dict(
                 self.cfg, pretrained_dict, mode=self.mode)
-            model_dict = self.model.module.state_dict()  # nn.DataParallel
+            model_dict = self._stateful_model().state_dict()
 
             # show model keys that do not match pretrained_dict
             if not model_dict.keys() == pretrained_dict.keys():
@@ -424,7 +427,7 @@ class Trainer(TrainerBase):
                 if model_dict[param_tensor].size() == pretrained_dict[param_tensor].size():
                     model_dict[param_tensor] = pretrained_dict[param_tensor]
             # 3. load the new state dict
-            self.model.module.load_state_dict(model_dict)  # nn.DataParallel
+            self._stateful_model().load_state_dict(model_dict)
 
         if self.mode == 'train' and not self.cfg.SOLVER.ITERATION_RESTART:
             if hasattr(self, 'optimizer') and 'optimizer' in checkpoint.keys():
@@ -451,7 +454,7 @@ class Trainer(TrainerBase):
         # save swa model
         if self.is_main_process:
             print("Save SWA model checkpoint.")
-            state = {'state_dict': self.swa_model.module.state_dict()}
+            state = {'state_dict': self._stateful_model(self.swa_model).state_dict()}
             filename = 'checkpoint_swa.pth.tar'
             filename = os.path.join(self.output_dir, filename)
             torch.save(state, filename)

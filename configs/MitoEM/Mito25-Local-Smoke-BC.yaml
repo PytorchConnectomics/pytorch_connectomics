@@ -1,0 +1,102 @@
+# Local smoke-test mitochondria config.
+# Uses cropped direct H5 volumes so both training and inference finish on a laptop CPU.
+
+SYSTEM:
+  NUM_GPUS: 1
+  NUM_CPUS: 0
+  PARALLEL: single
+
+MODEL:
+  ARCHITECTURE: unet_plus_3d
+  BLOCK_TYPE: residual_se
+  INPUT_SIZE: [9, 129, 129]
+  OUTPUT_SIZE: [9, 129, 129]
+  IN_PLANES: 1
+  OUT_PLANES: 2
+  NORM_MODE: gn
+  FILTERS: [16, 24, 32, 48, 64]
+  TARGET_OPT: ["0", "4-1-1"]
+  LOSS_OPTION:
+    - - WeightedBCEWithLogitsLoss
+      - DiceLoss
+    - - WeightedBCEWithLogitsLoss
+      - DiceLoss
+  LOSS_WEIGHT: [[1.0, 0.5], [1.0, 0.5]]
+  WEIGHT_OPT: [["1", "0"], ["1", "0"]]
+  OUTPUT_ACT: [["none", "sigmoid"], ["none", "sigmoid"]]
+
+DATASET:
+  INPUT_PATH: ""
+  IMAGE_NAME: /Users/adamg/seg.bio/testing_data/mito25_smoke/image/512-768_8192-10240_11264-13312_im.h5
+  LABEL_NAME: /Users/adamg/seg.bio/testing_data/mito25_smoke/seg/512-768_8192-10240_11264-13312_seg.h5
+  OUTPUT_PATH: /Users/adamg/seg.bio/outputs/mito25_local_smoke_bc
+  PAD_SIZE: [4, 32, 32]
+  PAD_MODE: reflect
+  IMAGE_SCALE: [1.0, 1.0, 1.0]
+  LABEL_SCALE: [1.0, 1.0, 1.0]
+  DATA_SCALE: [1.0, 1.0, 1.0]
+  NORMALIZE_RANGE: True
+  MEAN: 0.5
+  STD: 0.5
+  MATCH_ACT: none
+  IS_ABSOLUTE_PATH: True
+  DISTRIBUTED: False
+  DO_2D: False
+  LOAD_2D: False
+  DO_CHUNK_TITLE: 0
+  DROP_CHANNEL: False
+  ENSURE_MIN_SIZE: False
+  LABEL_BINARY: False
+  LABEL_MAG: 0
+  LABEL_VAST: False
+  REDUCE_LABEL: True
+  VALID_RATIO: 0.5
+  VALID_MASK_NAME: None
+  VAL_IMAGE_NAME: None
+  VAL_LABEL_NAME: None
+  VAL_VALID_MASK_NAME: None
+  VAL_PAD_SIZE: [0, 0, 0]
+  REJECT_SAMPLING:
+    SIZE_THRES: -1
+    DIVERSITY: -1
+    NUM_TRIAL: 10
+    P: 0.95
+
+AUGMENTOR:
+  ENABLED: False
+
+SOLVER:
+  NAME: AdamW
+  LR_SCHEDULER_NAME: WarmupCosineLR
+  BASE_LR: 0.0003
+  BETAS: [0.9, 0.999]
+  WEIGHT_DECAY: 0.0001
+  ITERATION_STEP: 1
+  ITERATION_SAVE: 10
+  ITERATION_VAL: 1000000
+  ITERATION_TOTAL: 20
+  SAMPLES_PER_BATCH: 1
+  ITERATION_RESTART: False
+  WARMUP_FACTOR: 0.001
+  WARMUP_ITERS: 5
+  WARMUP_METHOD: linear
+
+MONITOR:
+  ITERATION_NUM: [5, 10]
+  LOG_OPT: [1, 1, 0]
+  VIS_OPT: [0, 16]
+
+INFERENCE:
+  INPUT_SIZE: [9, 129, 129]
+  OUTPUT_SIZE: [9, 129, 129]
+  IMAGE_NAME: /Users/adamg/seg.bio/testing_data/mito25_smoke/image/512-768_8192-10240_13312-15360_im.h5
+  OUTPUT_PATH: /Users/adamg/seg.bio/outputs/mito25_local_smoke_bc/test
+  OUTPUT_NAME: result.h5
+  OUTPUT_ACT: ["sigmoid", "sigmoid"]
+  PAD_SIZE: [4, 32, 32]
+  AUG_MODE: mean
+  AUG_NUM: 4
+  STRIDE: [8, 128, 128]
+  SAMPLES_PER_BATCH: 1
+  DO_EVAL: True
+  UNPAD: True
