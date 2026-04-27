@@ -470,6 +470,95 @@ class SegErosionInstanced(MapTransform):
         return d
 
 
+class RelabelConnectedComponentsd(MapTransform):
+    """Relabel disconnected components inside each crop while preserving unlabeled voxels."""
+
+    def __init__(
+        self,
+        keys: KeysCollection,
+        connectivity: int = 6,
+        allow_missing_keys: bool = False,
+    ) -> None:
+        super().__init__(keys, allow_missing_keys)
+        self.connectivity = int(connectivity)
+
+    def __call__(self, data: Dict[str, Any]) -> Dict[str, Any]:
+        try:
+            import cc3d
+        except ModuleNotFoundError as exc:  # pragma: no cover
+            raise ModuleNotFoundError(
+                "relabel_connected_components requires cc3d. Install connected-components-3d."
+            ) from exc
+
+        d = dict(data)
+        for key in self.key_iterator(d):
+            if key not in d:
+                continue
+
+            label = d[key]
+            label_np = label.detach().cpu().numpy() if isinstance(label, torch.Tensor) else label
+            label_np = np.asarray(label_np)
+            restore_channel_dim = label_np.ndim == 4 and label_np.shape[0] == 1
+            seg = label_np[0] if restore_channel_dim else label_np
+            if seg.ndim != 3:
+                raise ValueError(
+                    "RelabelConnectedComponentsd expects a 3D label crop "
+                    f"with optional singleton channel dim, got {tuple(label_np.shape)}"
+                )
+
+            invalid = seg == -1
+            relabeled = cc3d.connected_components(
+                seg,
+                connectivity=self.connectivity,
+                out_dtype=np.uint32,
+            ).astype(np.int32)
+            relabeled[invalid] = -1
+            d[key] = relabeled[None, ...] if restore_channel_dim else relabeled
+        return d
+
+
+class LeadingSpatialCropd:
+    """Crop arrays/tensors to ``roi_size`` from the low-index spatial corner."""
+
+    def __init__(
+        self,
+        roi_size: Sequence[int],
+        keys: Optional[Sequence[str]] = None,
+        allow_missing_keys: bool = True,
+    ) -> None:
+        self.roi_size = tuple(int(v) for v in roi_size)
+        self.keys = tuple(keys) if keys is not None else None
+        self.allow_missing_keys = allow_missing_keys
+
+    def __call__(self, data: Dict[str, Any]) -> Dict[str, Any]:
+        d = dict(data)
+        keys = self.keys if self.keys is not None else tuple(d.keys())
+        spatial_ndim = len(self.roi_size)
+
+        for key in keys:
+            if key not in d:
+                if not self.allow_missing_keys:
+                    raise KeyError(key)
+                continue
+
+            value = d[key]
+            ndim = getattr(value, "ndim", None)
+            if ndim is None or int(ndim) < spatial_ndim:
+                continue
+
+            spatial_shape = tuple(int(v) for v in value.shape[-spatial_ndim:])
+            if all(spatial_shape[i] == self.roi_size[i] for i in range(spatial_ndim)):
+                continue
+
+            slices = [slice(None)] * int(ndim)
+            first_spatial_axis = int(ndim) - spatial_ndim
+            for axis, size in enumerate(self.roi_size, start=first_spatial_axis):
+                slices[axis] = slice(0, size)
+            d[key] = value[tuple(slices)]
+
+        return d
+
+
 class EnergyQuantized(MapTransform):
     """Quantize continuous energy maps using MONAI MapTransform.
 
@@ -881,6 +970,8 @@ __all__ = [
     "SegErosiond",
     "SegDilationd",
     "SegErosionInstanced",
+    "RelabelConnectedComponentsd",
+    "LeadingSpatialCropd",
     "EnergyQuantized",
     "DecodeQuantized",
     "SegSelectiond",

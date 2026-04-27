@@ -370,6 +370,15 @@ def validate_config(cfg: Config) -> None:
             "data.dataloader.patch_size must be 2D or 3D "
             f"(got length {len(cfg.data.dataloader.patch_size)})"
         )
+    target_context = getattr(cfg.data.dataloader, "target_context", None) or []
+    if target_context:
+        if len(target_context) != len(cfg.data.dataloader.patch_size):
+            raise ValueError(
+                "data.dataloader.target_context must match patch_size dimensionality "
+                f"({len(target_context)} vs {len(cfg.data.dataloader.patch_size)})"
+            )
+        if any(int(v) < 0 for v in target_context):
+            raise ValueError("data.dataloader.target_context values must be non-negative")
     if cfg.data.dataloader.batch_size <= 0:
         raise ValueError("data.dataloader.batch_size must be positive")
 
@@ -417,6 +426,9 @@ def validate_config(cfg: Config) -> None:
 
     if cfg.optimization.gradient_clip_val < 0:
         raise ValueError("optimization.gradient_clip_val must be non-negative")
+    val_check_unit = str(getattr(cfg.optimization, "val_check_interval_unit", "epoch")).lower()
+    if val_check_unit not in {"epoch", "step"}:
+        raise ValueError("optimization.val_check_interval_unit must be 'epoch' or 'step'")
     if cfg.optimization.accumulate_grad_batches <= 0:
         raise ValueError("optimization.accumulate_grad_batches must be positive")
     if hasattr(cfg.optimization, "ema") and getattr(cfg.optimization.ema, "enabled", False):

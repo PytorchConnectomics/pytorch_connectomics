@@ -103,7 +103,7 @@ def create_trainer(
             save_last=cfg.monitor.checkpoint.save_last,
             every_n_epochs=cfg.monitor.checkpoint.save_every_n_epochs,
             verbose=False,
-            save_on_train_epoch_end=True,  # Save based on training metrics
+            save_on_train_epoch_end=cfg.monitor.checkpoint.save_on_train_epoch_end,
         )
         callbacks.append(checkpoint_callback)
 
@@ -274,25 +274,38 @@ def create_trainer(
         max_steps = -1  # -1 means unlimited steps
         training_mode = f"epoch-based ({max_epochs} epochs)"
 
-    # Treat optimization.val_check_interval as epoch interval.
-    # Accept values like 1.0 from existing YAMLs, but reject non-integer floats.
+    # Treat optimization.val_check_interval as epoch interval by default.
+    # BANIS-style reproduction can opt into true step-based validation.
     val_check_cfg = cfg.optimization.val_check_interval
     if isinstance(val_check_cfg, float):
         if not val_check_cfg.is_integer():
             raise ValueError(
-                "optimization.val_check_interval must be an integer number of epochs "
+                "optimization.val_check_interval must be an integer number of epochs/steps "
                 f"(got {val_check_cfg})."
             )
-        check_val_every_n_epoch = int(val_check_cfg)
+        val_check_interval = int(val_check_cfg)
     else:
-        check_val_every_n_epoch = int(val_check_cfg)
+        val_check_interval = int(val_check_cfg)
 
-    if check_val_every_n_epoch < 1:
+    if val_check_interval < 1:
         raise ValueError(
-            "optimization.val_check_interval must be >= 1 " f"(got {check_val_every_n_epoch})."
+            "optimization.val_check_interval must be >= 1 " f"(got {val_check_interval})."
         )
 
-    _log.info(f"  Validation: every {check_val_every_n_epoch} epoch(s)")
+    val_check_unit = str(getattr(cfg.optimization, "val_check_interval_unit", "epoch")).lower()
+    if val_check_unit not in {"epoch", "step"}:
+        raise ValueError(
+            "optimization.val_check_interval_unit must be 'epoch' or 'step' "
+            f"(got {val_check_unit!r})."
+        )
+    if val_check_unit == "step":
+        check_val_every_n_epoch = None
+        trainer_val_check_interval = val_check_interval
+        _log.info(f"  Validation: every {val_check_interval} train step(s)")
+    else:
+        check_val_every_n_epoch = val_check_interval
+        trainer_val_check_interval = 1.0
+        _log.info(f"  Validation: every {check_val_every_n_epoch} epoch(s)")
 
     # In Slurm jobs launched with ntasks=1, force local process spawning for multi-GPU
     # so Lightning uses world_size=devices instead of treating Slurm as externally launched DDP.
@@ -312,6 +325,7 @@ def create_trainer(
         gradient_clip_val=cfg.optimization.gradient_clip_val,
         accumulate_grad_batches=cfg.optimization.accumulate_grad_batches,
         check_val_every_n_epoch=check_val_every_n_epoch,
+        val_check_interval=trainer_val_check_interval,
         num_sanity_val_steps=cfg.optimization.num_sanity_val_steps,
         log_every_n_steps=cfg.optimization.log_every_n_steps,
         callbacks=callbacks,
