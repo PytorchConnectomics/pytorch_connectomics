@@ -86,6 +86,7 @@ default:
         - name: affinity
           kwargs:
             offsets: ["1-0-0", "0-1-0", "0-0-1", "5-0-0", "0-5-0", "0-0-5", "11-0-0", "0-11-0", "0-0-11"]
+            affinity_mode: banis
         - name: skeleton_aware_edt
           kwargs:
             alpha: 0.8
@@ -97,6 +98,7 @@ default:
       profile: aug_em_neuron_fast
   inference:
     head: aff_r1
+    select_channel: ":"
     system:
       num_gpus: 1
       num_workers: 8
@@ -113,7 +115,6 @@ default:
       rotation90_axes:
       channel_activations:
         - {channels: ":", activation: sigmoid}
-      select_channel: ":"
       ensemble_mode: mean
       apply_mask: false
     save_prediction:

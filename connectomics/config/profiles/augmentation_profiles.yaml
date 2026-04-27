@@ -60,12 +60,12 @@ augmentation_profiles:
       shift_intensity_offset: 0.1
       contrast_prob: 0.5
       contrast_range: [0.9, 1.1]
-    misalignment:
+    slice_shift_z:
       enabled: true
       prob: 0.4
       displacement: 10
       rotate_ratio: 0.0
-    missing_section:
+    slice_drop_z:
       enabled: true
       prob: 0.3
       num_sections: 2
@@ -105,12 +105,12 @@ augmentation_profiles:
       shift_intensity_offset: 0.2
       contrast_prob: 0.7
       contrast_range: [0.7, 1.4]
-    misalignment:
+    slice_shift_z:
       enabled: true
       prob: 0.5
       displacement: 16
       rotate_ratio: 0.3
-    missing_section:
+    slice_drop_z:
       enabled: true
       prob: 0.4
       num_sections: 3
@@ -134,7 +134,7 @@ augmentation_profiles:
   # ---------------------------------------------------------------------------
   # Use for: neuron affinity learning on anisotropic EM data (e.g. SNEMI3D).
   # Matches DeepEM (Lee et al. 2017) augmentation recipe:
-  #   - Defect mutex: only one of misalignment/missing_section/motion_blur per sample
+  #   - Defect mutex: only one of slice_shift_z/slice_drop_z/motion_blur per sample
   #   - Elastic deformation (DeepEM Warp)
   #   - Aggressive ±50% contrast/brightness (DeepEM MixedGrayscale2D)
   # Tuned for small training volumes with long training schedules.
@@ -160,12 +160,12 @@ augmentation_profiles:
       shift_intensity_offset: 0.2
       contrast_prob: 0.7
       contrast_range: [0.5, 1.5]   # DeepEM ±50%
-    misalignment:
+    slice_shift_z:
       enabled: true
       prob: 1.0                     # Always fires when selected by OneOf
       displacement: 17
       rotate_ratio: 0.0
-    missing_section:
+    slice_drop_z:
       enabled: true
       prob: 1.0
       num_sections: [0, 5]
@@ -180,6 +180,46 @@ augmentation_profiles:
       sigma_range: [1.0, 3.0]
       full_section_prob: 0.5
       partial_ratio_range: [0.25, 0.75]
+    missing_parts:
+      enabled: true
+      prob: 0.2
+      hole_range: [0.1, 0.25]
+
+  # ---------------------------------------------------------------------------
+  # aug_em_neuron_fast: Lighter DeepEM-style augmentation for faster loading
+  # ---------------------------------------------------------------------------
+  # Same overall intent as aug_em_neuron, but removes the most CPU-expensive
+  # transforms (elastic deformation and motion blur) to improve dataloader
+  # throughput while keeping defect simulation.
+  aug_em_neuron_fast:
+
+    defect_mutex: true
+    flip:
+      enabled: true
+      prob: 0.5
+    rotate:
+      enabled: true
+      prob: 0.5
+    intensity:
+      enabled: true
+      gaussian_noise_prob: 0.3
+      gaussian_noise_std: 0.05
+      shift_intensity_prob: 0.7
+      shift_intensity_offset: 0.2
+      contrast_prob: 0.7
+      contrast_range: [0.5, 1.5]
+    slice_shift_z:
+      enabled: true
+      prob: 1.0
+      displacement: 17
+      rotate_ratio: 0.0
+    slice_drop_z:
+      enabled: true
+      prob: 1.0
+      num_sections: [0, 5]
+      full_section_prob: 0.5
+      partial_ratio_range: [0.25, 0.75]
+      fill_value_range: [0.0, 1.0]
     missing_parts:
       enabled: true
       prob: 0.2
@@ -208,12 +248,12 @@ augmentation_profiles:
       shift_intensity_offset: 0.1
       contrast_prob: 0.5
       contrast_range: [0.9, 1.1]
-    misalignment:
+    slice_shift_z:
       enabled: true
       prob: 0.4
       displacement: 16
       rotate_ratio: 0.5
-    missing_section:
+    slice_drop_z:
       enabled: true
       prob: 0.3
       num_sections: 1

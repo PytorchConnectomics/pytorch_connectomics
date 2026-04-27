@@ -1,0 +1,193 @@
+_base_:
+  - ../../connectomics/config/all_profiles.yaml
+
+experiment_name: neuron_nisb_base_9nm_banis_erosion2_repro
+description: NISB base neuron instance segmentation, BANIS-style reproduction with erosion=2 (9nm, 6-channel affinity, MedNeXt-S)
+
+default:
+  system:
+    # Keep the effective batch literal to the BANIS CLI default:
+    # batch_size=8 means 8 patches per optimizer step on one GPU.
+    num_gpus: -1
+    num_workers: -1
+  model:
+    arch:
+      type: mednext
+    input_size: [128, 128, 128]
+    output_size: [128, 128, 128]
+    in_channels: 1
+    out_channels: 6
+    loss:
+      deep_supervision: false
+      losses:
+        - function: WeightedBCEWithLogitsLoss
+          weight: 1.0
+    mednext:
+      size: S
+      kernel_size: 3
+      dim: 3d
+      checkpoint_style: outside_block
+  data:
+    dataloader:
+      profile: lazy
+      patch_size: [128, 128, 128]
+      batch_size: 4
+      use_cache: false
+      use_preloaded_cache_train: false
+      use_preloaded_cache_val: false
+    image_transform:
+      normalize: "divide-255"
+    # Match BANIS target semantics:
+    # - 6 channels only: short-range + long-range@10
+    # - source zarr is XYZ, then transposed to ZYX below
+    # - decode_affinity_cc expects first 3 channels ordered as x, y, z
+    label_transform:
+      erosion: 2
+      targets:
+        - name: affinity
+          kwargs:
+            offsets:
+              ["0-0-1", "0-1-0", "1-0-0", "0-0-10", "0-10-0", "10-0-0"]
+            affinity_mode: banis
+    augmentation:
+      # Approximate the BANIS augmentation defaults:
+      # drop_slice_prob=0.05, shift_slice_prob=0.05, intensity_aug=true,
+      # noise_scale=0.5, affine=0.5
+      axis_permute:
+        enabled: true
+        prob: 1.0
+      rotate90_all:
+        enabled: true
+        prob: 1.0
+      flip:
+        enabled: true
+        prob: 0.5
+        spatial_axis: [0, 1, 2]
+      slice_drop:
+        enabled: true
+        prob: 0.5
+        slice_prob: 0.05
+        spatial_axis: [0, 1, 2]
+        fill_value: 0.0
+      slice_shift:
+        enabled: true
+        prob: 0.5
+        slice_prob: 0.05
+        shift_magnitude: 10
+        spatial_axis: [0, 1, 2]
+        wrap: true
+      affine:
+        enabled: true
+        prob: 0.5
+        rotate_range: [3.141592653589793, 3.141592653589793, 3.141592653589793]
+        scale_range: [0.2, 0.2, 0.2]
+        shear_range: [0.5, 0.5, 0.5]
+      intensity:
+        enabled: true
+        banis_style: true
+        mul_add_prob: 0.5
+        mul_range: [0.9, 1.1]
+        add_range: [-0.1, 0.1]
+        gaussian_noise_prob: 0.5
+        gaussian_noise_std: 0.5
+    data_transform:
+      # NISB zarr arrays are stored as XYZ; pipeline expects ZYX.
+      train_transpose: [2, 1, 0]
+      val_transpose: [2, 1, 0]
+
+  inference:
+    sliding_window:
+      keep_input_on_cpu: true
+      sw_device: cuda
+      output_device: cpu
+      window_size: [128, 128, 128]
+      sw_batch_size: 1
+      overlap: 0.5
+      blending: gaussian
+      sigma_scale: 0.25
+      padding_mode: replicate
+    test_time_augmentation:
+      enabled: false
+      channel_activations:
+        - {channels: ":", activation: sigmoid}
+    save_prediction:
+      enabled: true
+      intensity_scale: -1.0
+      intensity_dtype: float32
+      output_formats: [h5]
+    decoding:
+      - name: decode_affinity_cc
+        kwargs:
+          threshold: 0.5
+    evaluation:
+      enabled: true
+      metrics:
+        - adapted_rand
+
+train:
+  system:
+    seed: 0
+    num_gpus: 1
+    num_workers: 8
+  optimization:
+    optimizer:
+      name: AdamW
+      lr: 0.001
+      weight_decay: 0.01
+      betas: [0.9, 0.999]
+      eps: 1.0e-8
+    scheduler:
+      name: CosineAnnealingLR
+      interval: step
+      frequency: 1
+      min_lr: 0.0
+      params:
+        t_max: 500000
+    max_epochs: 1000
+    max_steps: 500000
+    n_steps_per_epoch: 1000
+    val_check_interval: 5
+    val_steps_per_epoch: 100
+    accumulate_grad_batches: 1
+    precision: "16-mixed"
+    log_every_n_steps: 100
+    num_sanity_val_steps: 0
+    ema:
+      enabled: false
+  data:
+    train:
+      path: /projects/weilab/dataset/nisb/base/train
+      image: seed*/data.zarr/img
+      label: seed*/data.zarr/seg
+      resolution: [20, 9, 9]
+    val:
+      path: /projects/weilab/dataset/nisb/base/val
+      image: seed100/data.zarr/img
+      label: seed100/data.zarr/seg
+      resolution: [20, 9, 9]
+  monitor:
+    logging:
+      scalar:
+        loss: [train_loss_total_epoch, val_loss_total]
+        loss_every_n_steps: 100
+      images:
+        max_images: 8
+        num_slices: 2
+        log_every_n_epochs: 10
+        channel_mode: all
+    checkpoint:
+      monitor: val_loss_total
+      mode: min
+      save_top_k: 10
+      save_last: true
+      dirpath: outputs/neuron_nisb_base_9nm_banis_erosion2_repro/checkpoints/
+
+test:
+  data:
+    test:
+      path: /projects/weilab/dataset/nisb/base/test/
+      image: seed*/data.zarr/img
+      label: seed*/data.zarr/seg
+      resolution: [20, 9, 9]
+    data_transform:
+      val_transpose: [2, 1, 0]

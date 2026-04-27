@@ -11,6 +11,7 @@ import torch
 from connectomics.config.schema.data import AugmentationConfig
 from connectomics.data.augmentation.build import _build_augmentations
 from connectomics.data.augmentation.transforms import (
+    RandAxisPermuted,
     RandCopyPasted,
     RandCutBlurd,
     RandCutNoised,
@@ -19,6 +20,11 @@ from connectomics.data.augmentation.transforms import (
     RandMissingSectiond,
     RandMixupd,
     RandMotionBlurd,
+    RandRotate90Alld,
+    RandSliceDropd,
+    RandSliceDropZd,
+    RandSliceShiftd,
+    RandSliceShiftZd,
 )
 
 
@@ -115,6 +121,108 @@ class TestRandMisAlignmentd:
 
         # Should be unchanged
         assert torch.equal(result["image"], sample_data_dict["image"])
+
+
+class TestRandAxisPermuted:
+    """Test BANIS-style random axis permutation."""
+
+    def test_basic_functionality(self):
+        image = torch.arange(1 * 4 * 4 * 4, dtype=torch.float32).reshape(1, 4, 4, 4)
+        label = torch.arange(4 * 4 * 4, dtype=torch.int64).reshape(4, 4, 4)
+        transform = RandAxisPermuted(
+            keys=["image", "label"],
+            prob=1.0,
+            include_identity=False,
+        )
+        transform.set_random_state(seed=0)
+
+        result = transform({"image": image.clone(), "label": label.clone()})
+
+        assert result["image"].shape == image.shape
+        assert result["label"].shape == label.shape
+        assert not torch.equal(result["image"], image)
+        assert not torch.equal(result["label"], label)
+
+
+class TestRandRotate90Alld:
+    """Test BANIS-style full 3D rotate90 augmentation."""
+
+    def test_basic_functionality(self):
+        image = torch.arange(1 * 4 * 4 * 4, dtype=torch.float32).reshape(1, 4, 4, 4)
+        label = torch.arange(4 * 4 * 4, dtype=torch.int64).reshape(4, 4, 4)
+        transform = RandRotate90Alld(
+            keys=["image", "label"],
+            prob=1.0,
+            include_identity=False,
+        )
+        transform.set_random_state(seed=0)
+
+        result = transform({"image": image.clone(), "label": label.clone()})
+
+        assert result["image"].shape == image.shape
+        assert result["label"].shape == label.shape
+        assert not torch.equal(result["image"], image)
+        assert not torch.equal(result["label"], label)
+
+
+class TestRandSliceDropd:
+    """Test BANIS-style slice dropping."""
+
+    def test_basic_functionality(self):
+        image = torch.ones(1, 8, 16, 16)
+        transform = RandSliceDropd(
+            keys=["image"],
+            prob=1.0,
+            slice_prob=1.0,
+            spatial_axis=0,
+            fill_value=0.0,
+        )
+
+        result = transform({"image": image.clone()})
+
+        assert result["image"].shape == image.shape
+        assert torch.count_nonzero(result["image"]) == 0
+
+    def test_preserve_boundaries(self):
+        image = torch.ones(1, 6, 8, 8)
+        transform = RandSliceDropd(
+            keys=["image"],
+            prob=1.0,
+            slice_prob=1.0,
+            spatial_axis=0,
+            preserve_boundaries=True,
+        )
+
+        result = transform({"image": image.clone()})
+
+        assert torch.equal(result["image"][:, 0], image[:, 0])
+        assert torch.equal(result["image"][:, -1], image[:, -1])
+        assert torch.count_nonzero(result["image"][:, 1:-1]) == 0
+
+
+class TestRandSliceShiftd:
+    """Test BANIS-style independent slice shifting."""
+
+    def test_basic_functionality(self):
+        image = torch.arange(1 * 8 * 16 * 16, dtype=torch.float32).reshape(1, 8, 16, 16)
+        transform = RandSliceShiftd(
+            keys=["image"],
+            prob=1.0,
+            slice_prob=1.0,
+            shift_magnitude=3,
+            spatial_axis=0,
+            wrap=True,
+        )
+        transform.set_random_state(seed=0)
+
+        result = transform({"image": image.clone()})
+
+        assert result["image"].shape == image.shape
+        assert not torch.equal(result["image"], image)
+        assert torch.equal(
+            torch.sort(result["image"].flatten()).values,
+            torch.sort(image.flatten()).values,
+        )
 
 
 class TestRandMissingSectiond:
@@ -305,6 +413,62 @@ def test_misalignment_builder_targets_image_only():
 
     assert len(misalignment) == 1
     assert misalignment[0].keys == ("image",)
+
+
+def test_slice_drop_builder_targets_image_only():
+    """BANIS slice-drop augmentation should not modify labels."""
+    cfg = AugmentationConfig()
+    cfg.slice_drop.enabled = True
+    cfg.slice_drop.prob = 1.0
+    cfg.slice_drop.slice_prob = 0.2
+
+    transforms = _build_augmentations(cfg, keys=["image", "label"])
+    slice_drop = [t for t in transforms if isinstance(t, RandSliceDropd)]
+
+    assert len(slice_drop) == 1
+    assert slice_drop[0].keys == ("image",)
+
+
+def test_slice_shift_builder_targets_image_only():
+    """BANIS slice-shift augmentation should not modify labels."""
+    cfg = AugmentationConfig()
+    cfg.slice_shift.enabled = True
+    cfg.slice_shift.prob = 1.0
+    cfg.slice_shift.slice_prob = 0.2
+
+    transforms = _build_augmentations(cfg, keys=["image", "label"])
+    slice_shift = [t for t in transforms if isinstance(t, RandSliceShiftd)]
+
+    assert len(slice_shift) == 1
+    assert slice_shift[0].keys == ("image",)
+
+
+def test_slice_drop_z_builder_targets_image_only():
+    """Legacy z-only slice-drop alias should target image only."""
+    cfg = AugmentationConfig()
+    cfg.slice_drop_z.enabled = True
+    cfg.slice_drop_z.prob = 1.0
+    cfg.slice_drop_z.num_sections = 2
+
+    transforms = _build_augmentations(cfg, keys=["image", "label"])
+    slice_drop_z = [t for t in transforms if isinstance(t, RandSliceDropZd)]
+
+    assert len(slice_drop_z) == 1
+    assert slice_drop_z[0].keys == ("image",)
+
+
+def test_slice_shift_z_builder_targets_image_only():
+    """Legacy z-only slice-shift alias should target image only."""
+    cfg = AugmentationConfig()
+    cfg.slice_shift_z.enabled = True
+    cfg.slice_shift_z.prob = 1.0
+    cfg.slice_shift_z.displacement = 8
+
+    transforms = _build_augmentations(cfg, keys=["image", "label"])
+    slice_shift_z = [t for t in transforms if isinstance(t, RandSliceShiftZd)]
+
+    assert len(slice_shift_z) == 1
+    assert slice_shift_z[0].keys == ("image",)
 
 
 class TestRandMotionBlurd:
@@ -564,6 +728,25 @@ def test_defect_mutex_false_keeps_independent():
     assert len(oneof) == 0
 
     individual = [t for t in transforms if isinstance(t, (RandMisAlignmentd, RandMissingSectiond))]
+    assert len(individual) == 2
+
+
+def test_banis_slice_defects_ignore_mutex():
+    """BANIS slice_drop/slice_shift stay independent even when defect_mutex=True."""
+    from monai.transforms import OneOf
+
+    cfg = AugmentationConfig()
+    cfg.defect_mutex = True
+    cfg.slice_drop.enabled = True
+    cfg.slice_drop.prob = 1.0
+    cfg.slice_shift.enabled = True
+    cfg.slice_shift.prob = 1.0
+
+    transforms = _build_augmentations(cfg, keys=["image", "label"])
+    oneof = [t for t in transforms if isinstance(t, OneOf)]
+    assert len(oneof) == 0
+
+    individual = [t for t in transforms if isinstance(t, (RandSliceDropd, RandSliceShiftd))]
     assert len(individual) == 2
 
 

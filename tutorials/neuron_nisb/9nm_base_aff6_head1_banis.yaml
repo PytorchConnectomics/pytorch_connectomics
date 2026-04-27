@@ -1,0 +1,227 @@
+_base_:
+  - ../../connectomics/config/all_profiles.yaml
+
+experiment_name: neuron_nisb_base_9nm_banis_v0
+description: BANIS train_base reproduction target (9nm, 6-channel affinity, MedNeXt-S/k3, 128-cube)
+
+default:
+  system:
+    num_gpus: -1
+    num_workers: -1
+  model:
+    arch:
+      type: mednext
+    input_size: [128, 128, 128]
+    output_size: [128, 128, 128]
+    in_channels: 1
+    out_channels: 6
+    loss:
+      deep_supervision: false
+      losses:
+        - function: WeightedBCEWithLogitsLoss
+          weight: 1.0
+    mednext:
+      size: S
+      kernel_size: 3
+      dim: 3d
+      checkpoint_style: outside_block
+  data:
+    dataloader:
+      profile: lazy
+      patch_size: [128, 128, 128]
+      batch_size: 4
+      use_cache: false
+      use_preloaded_cache_train: false
+      use_preloaded_cache_val: false
+    image_transform:
+      normalize: "divide-255"
+    # Match BANIS target semantics:
+    # - 6 channels only: short-range + long-range@10
+    # - source zarr is XYZ and stays XYZ, matching lib/banis
+    # - decode_affinity_cc expects the first 3 channels in axis0, axis1, axis2 order
+    label_transform:
+      erosion: 0
+      targets:
+        - name: affinity
+          kwargs:
+            offsets:
+              ["1-0-0", "0-1-0", "0-0-1", "10-0-0", "0-10-0", "0-0-10"]
+            affinity_mode: banis
+    augmentation:
+      # BANIS augmentation defaults:
+      # drop_slice_prob=0.05, shift_slice_prob=0.05, intensity_aug=true,
+      # noise_scale=0.5, affine=0.5
+      axis_permute:
+        enabled: true
+        prob: 1.0
+      rotate90_all:
+        enabled: true
+        prob: 1.0
+      flip:
+        enabled: true
+        prob: 0.5
+        spatial_axis: [0, 1, 2]
+      slice_drop:
+        enabled: true
+        prob: 0.5
+        slice_prob: 0.05
+        spatial_axis: [0, 1, 2]
+        fill_value: 0.0
+      slice_shift:
+        enabled: true
+        prob: 0.5
+        slice_prob: 0.05
+        shift_magnitude: 10
+        spatial_axis: [0, 1, 2]
+        wrap: true
+      affine:
+        enabled: true
+        prob: 0.5
+        rotate_range: [3.141592653589793, 3.141592653589793, 3.141592653589793]
+        scale_range: [0.2, 0.2, 0.2]
+        shear_range: [0.5, 0.5, 0.5]
+      intensity:
+        enabled: true
+        banis_style: true
+        mul_add_prob: 0.5
+        mul_range: [0.9, 1.1]
+        add_range: [-0.1, 0.1]
+        gaussian_noise_prob: 0.5
+        gaussian_noise_std: 0.5
+  inference:
+    strategy: whole_volume
+    # Keep only short-range affinities. In XYZ mode the first three channels
+    # already match decoder axis0, axis1, axis2 order.
+    select_channel: [0, 1, 2]
+    # Test-time pad_size [1,1,1] reflect (image only, labels unpadded) plus
+    # this asymmetric crop_pad strips the leading pad. The trailing pad is
+    # consumed by the affinity inference crop (banis short-range, trailing -1),
+    # leaving pred at the original 1024x1024x200 to match labels.
+    crop_pad: [1, 0, 1, 0, 1, 0]
+    sliding_window:
+      lazy_load: true
+      keep_input_on_cpu: true
+      sw_device: cuda
+      output_device: cpu
+      window_size: [128, 128, 128]
+      sw_batch_size: 6
+      overlap: 0.5
+      blending: gaussian
+      sigma_scale: 0.25
+      padding_mode: replicate
+    chunking:
+      enabled: false
+      # Model-axis chunking after test-time transforms. Use axes=all for
+      # no-transpose BANIS/XYZ data; axes=z means axis-0 slabs in model space.
+      chunk_size: [256, 256, 128]
+      halo: [32, 32, 32]
+      axes: all
+      temp_dir: ""
+      save_intermediate: false
+      stitching:
+        method: affinity_cc_boundary_union
+        threshold: 0.95
+        # affinity_mode=banis stores boundary edges at the source voxel.
+        edge_offset: 0
+        min_contact: 1
+    test_time_augmentation:
+      enabled: false
+      # BANIS-style scale_sigmoid: sigmoid(0.2 * x). Avoids fp16 saturation
+      # and gives sharper threshold-based decisions.
+      channel_activations:
+        - {channels: ":", activation: scale_sigmoid}
+    save_prediction:
+      enabled: true
+      intensity_scale: -1.0
+      intensity_dtype: float16
+      output_formats: [h5]
+    decoding:
+      - name: decode_affinity_cc
+        kwargs:
+          threshold: 0.73
+          backend: numba
+          # affinity_mode=banis stores edges at the source voxel.
+          edge_offset: 0
+    evaluation:
+      enabled: true
+      metrics:
+        - adapted_rand
+
+train:
+  system:
+    seed: 0
+    num_gpus: 4
+    num_workers: 8
+  optimization:
+    optimizer:
+      name: AdamW
+      lr: 0.001
+      weight_decay: 0.01
+      betas: [0.9, 0.999]
+      eps: 1.0e-8
+    scheduler:
+      name: CosineAnnealingLR
+      interval: step
+      frequency: 1
+      min_lr: 0.0
+      params:
+        t_max: 500000
+    max_epochs: 1000
+    max_steps: 500000
+    n_steps_per_epoch: 1000
+    val_check_interval: 5
+    val_steps_per_epoch: 100
+    accumulate_grad_batches: 1
+    precision: "16-mixed"
+    log_every_n_steps: 100
+    num_sanity_val_steps: 0
+    ema:
+      enabled: false
+  data:
+    train:
+      path: /projects/weilab/dataset/nisb/base/train
+      image: seed*/data.zarr/img
+      label: seed*/data.zarr/seg
+      resolution: [9, 9, 20]
+    val:
+      path: /projects/weilab/dataset/nisb/base/val
+      image: seed100/data.zarr/img
+      label: seed100/data.zarr/seg
+      resolution: [9, 9, 20]
+  monitor:
+    logging:
+      scalar:
+        loss: [train_loss_total_epoch, val_loss_total]
+        loss_every_n_steps: 100
+      images:
+        max_images: 8
+        num_slices: 2
+        log_every_n_epochs: 10
+        channel_mode: all
+    checkpoint:
+      monitor: val_loss_total
+      mode: min
+      save_top_k: 3
+      save_every_n_steps: 50000
+      save_last: true
+      dirpath: outputs/neuron_nisb_base_9nm_banis_v0/checkpoints/
+
+test:
+  data:
+    test:
+      path: dev/nisb/data/
+      image: img_crop_988-988-575_x1024_y1024_z200.h5
+      label: seg_crop_988-988-575_x1024_y1024_z200.h5
+      #path: /projects/weilab/dataset/nisb/base/test/
+      #image: seed*/data.zarr/img
+      #label: seed*/data.zarr/seg
+      resolution: [9, 9, 20]
+    data_transform:
+      pad_size: [1, 1, 1]
+      pad_mode: reflect
+  inference:
+    # whole_volume so adapted_rand evaluation runs end-to-end on the 1024^3 crop.
+    # Switch to strategy: chunked for the full 3000^3 (chunking auto-applies).
+    strategy: whole_volume
+    save_prediction:
+      output_path: outputs/neuron_nisb_base_9nm_banis_v0/test/

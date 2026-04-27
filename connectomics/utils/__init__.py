@@ -24,6 +24,7 @@ from .model_outputs import (
     resolve_head_target_slice,
     resolve_output_channels,
     resolve_output_head,
+    resolve_output_heads,
     select_output_tensor,
     unwrap_main_output,
 )
@@ -43,6 +44,7 @@ __all__ = [
     "resolve_head_target_slice",
     "resolve_output_channels",
     "resolve_output_head",
+    "resolve_output_heads",
     "select_output_tensor",
     "unwrap_main_output",
 ]

@@ -57,8 +57,6 @@ class LazyZarrVolumeDataset(PatchDataset):
         foreground_threshold: float = 0.0,
         transpose_axes: Optional[Sequence[int]] = None,
     ):
-        self.zarr = _require_zarr()
-
         super().__init__(
             patch_size=patch_size,
             iter_num=iter_num if iter_num > 0 else len(image_paths),
@@ -168,7 +166,8 @@ class LazyZarrVolumeDataset(PatchDataset):
             # Non-zarr files (e.g. precomputed skeleton .h5): load eagerly.
             from ..io.io import read_volume
             return read_volume(str(path))
-        return self.zarr.open(str(path), mode="r")
+        zarr = _require_zarr()
+        return zarr.open(str(path), mode="r")
 
     @staticmethod
     def _get_label_spatial_shape(arr) -> Tuple[int, int, int]:

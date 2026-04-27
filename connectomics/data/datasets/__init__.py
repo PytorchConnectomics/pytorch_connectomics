@@ -27,6 +27,7 @@ from .dataset_multi import (
 
 # Core datasets
 from .dataset_volume_cached import CachedVolumeDataset, crop_volume
+from .dataset_volume_h5_lazy import LazyH5VolumeDataset
 from .dataset_volume_zarr_lazy import LazyZarrVolumeDataset
 
 # Sampling and splitting utilities (moved from data/utils/)
@@ -37,6 +38,7 @@ __all__ = [
     "PatchDataset",
     "CachedVolumeDataset",
     "LazyZarrVolumeDataset",
+    "LazyH5VolumeDataset",
     "MonaiFilenameDataset",
     "WeightedConcatDataset",
     "StratifiedConcatDataset",

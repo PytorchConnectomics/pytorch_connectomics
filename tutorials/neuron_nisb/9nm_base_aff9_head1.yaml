@@ -42,7 +42,7 @@ default:
         - name: affinity
           kwargs:
             offsets: ["1-0-0", "0-1-0", "0-0-1", "5-0-0", "0-5-0", "0-0-5", "11-0-0", "0-11-0", "0-0-11"]
-            deepem_crop: true
+            affinity_mode: banis
     data_transform:
       train_transpose: [2, 1, 0]
       val_transpose: [2, 1, 0]

@@ -1,0 +1,211 @@
+_base_:
+  - ../connectomics/config/all_profiles.yaml
+
+experiment_name: mednext_betaseg_banis_v0_repro
+description: BetaSeg 3D mitochondria — faithful reproduction of BANIS mito branch (single-MedNeXt-S, k=3, aff_r1+aff_r10+sdt, plain BCE, MSE, no auto_pos_weight, no Dice, batch=8, 20k steps)
+
+default:
+  system:
+    num_gpus: -1
+    num_workers: -1
+  model:
+    arch:
+      type: mednext
+    mednext:
+      size: S
+      kernel_size: 3
+      checkpoint_style: outside_block
+
+    # BANIS uses create_mednext_v1(num_classes=7). The multi-head wrapper with
+    # num_blocks: 0 / hidden_channels: None is mathematically equivalent
+    # (three independent 1x1 projections vs one 32->7 conv).
+    input_size: [128, 128, 128]
+    output_size: [128, 128, 128]
+    out_channels: 7
+    primary_head: aff_r1
+    heads:
+      aff_r1:
+        out_channels: 3
+        num_blocks: 0
+        target_slice: "0:3"
+      aff_r10:
+        out_channels: 3
+        num_blocks: 0
+        target_slice: "3:6"
+      sdt:
+        out_channels: 1
+        num_blocks: 0
+        target_slice: "6:7"
+    loss:
+      losses:
+        # BANIS: single binary_cross_entropy_with_logits over all 6 affinity
+        # channels, no per-channel pos_weight, no Dice.
+        - function: BCEWithLogitsLoss
+          weight: 1.0
+          pred_head: aff_r1
+          target_slice: "0:3"
+        - function: BCEWithLogitsLoss
+          weight: 1.0
+          pred_head: aff_r10
+          target_slice: "3:6"
+        # BANIS: mse_loss(tanh(pred), sdt_target), weight = sdt_loss_weight = 1.0.
+        - function: WeightedMSELoss
+          weight: 1.0
+          pred_head: sdt
+          target_slice: "6:7"
+          kwargs: {tanh: true}
+  data:
+    image_transform:
+      normalize: "divide-255"
+    label_transform:
+      resolution: [16, 16, 16]
+      # BANIS comp_affinities runs on the raw segmentation (no erosion,
+      # source-index affinity_mode).
+      cache_dir: datasets/betaSeg
+      targets:
+        - name: affinity
+          kwargs:
+            offsets: ["0-0-1", "0-1-0", "1-0-0", "0-0-10", "0-10-0", "10-0-0"]
+            affinity_mode: banis
+        - name: skeleton_aware_edt
+          kwargs:
+            alpha: 0.8
+            bg_value: -1.0
+    dataloader:
+      patch_size: [128, 128, 128]
+      # BANIS-mito justfile uses --batch_size 8 --devices=1 (global batch = 8).
+      # On 4 GPUs (DDP), set per-GPU batch_size=2 to match the same global batch.
+      batch_size: 2
+      cached_sampling_foreground_threshold: 0.05
+      cached_sampling_max_attempts: 50
+      cached_sampling_sample_nonzero_mask: true
+    augmentation:
+      # BANIS-style augmentations: drop0.05 shift0.05 intTrue noise0.5 affine0.5
+      axis_permute:
+        enabled: true
+        prob: 1.0
+      rotate90_all:
+        enabled: true
+        prob: 1.0
+      flip:
+        enabled: true
+        prob: 0.5
+        spatial_axis: [0, 1, 2]
+      slice_drop:
+        enabled: true
+        prob: 0.5
+        slice_prob: 0.05
+        spatial_axis: [0, 1, 2]
+        fill_value: 0.0
+      slice_shift:
+        enabled: true
+        prob: 0.5
+        slice_prob: 0.05
+        shift_magnitude: 10
+        spatial_axis: [0, 1, 2]
+        wrap: true
+      affine:
+        enabled: true
+        prob: 0.5
+        rotate_range: [3.141592653589793, 3.141592653589793, 3.141592653589793]
+        scale_range: [0.2, 0.2, 0.2]
+        shear_range: [0.5, 0.5, 0.5]
+      intensity:
+        enabled: true
+        banis_style: true
+        mul_add_prob: 0.5
+        mul_range: [0.9, 1.1]
+        add_range: [-0.1, 0.1]
+        gaussian_noise_prob: 0.5
+        gaussian_noise_std: 0.5
+  inference:
+    head: "aff_r1,aff_r10,sdt"
+    sliding_window:
+      window_size: [128, 128, 128]
+      sw_batch_size: 1
+      keep_input_on_cpu: false
+    test_time_augmentation:
+      enabled: false
+      flip_axes: all
+      ensemble_mode: min
+      channel_activations:
+        - {channels: "0:6", activation: sigmoid}
+        - {channels: "6:7", activation: tanh}
+    crop_pad: [64, 54, 64, 54, 64, 54]
+    postprocessing:
+      enabled: true
+    decoding:
+      - name: decode_distance_watershed
+        kwargs:
+          distance_channels: [6]
+          distance_threshold: [0.5, 0]
+          min_seed_size: 100
+          min_instance_size: 50
+          use_fast_edt: true
+          edt_parallel: 8
+    save_prediction:
+      enabled: true
+    evaluation:
+      enabled: true
+      metrics: [adapted_rand]
+
+train:
+  system:
+    seed: 0
+  optimization:
+    optimizer:
+      name: AdamW
+      lr: 0.001
+      weight_decay: 0.01
+    scheduler:
+      name: CosineAnnealingLR
+      interval: step
+      min_lr: 0.0
+      params:
+        # BANIS-mito justfile (train_betaseg): n_steps = 50000, T_max = n_steps.
+        t_max: 50000
+    max_epochs: 200
+    max_steps: 50000
+    n_steps_per_epoch: 1000
+    val_check_interval: 5
+    accumulate_grad_batches: 1
+    # BANIS casts data to float16 manually; closest Lightning equivalent.
+    precision: "16-mixed"
+  monitor:
+    logging:
+      scalar:
+        loss: [train_loss_total_epoch, train_loss_term_0_weighted, train_loss_term_1_weighted, train_loss_term_2_weighted]
+        loss_every_n_steps: 100
+      images:
+        head: all
+        log_every_n_epochs: 5
+        max_images: 8
+        num_slices: 2
+        channel_mode: all
+    checkpoint:
+      save_top_k: 3
+      monitor: val_loss_total
+      mode: min
+  data:
+    root_path: /projects/weilab/liupeng/data/raw/mito/betaSeg
+    train:
+      image: [high_c3_im.tiff, low_c1_im.tiff, low_c2_im.tiff]
+      label: [high_c3_mito.tiff, low_c1_mito.tiff, low_c2_mito.tiff]
+      label_aux_type: skeleton
+    val:
+      image: [high_c1_im.tiff]
+      label: [high_c1_mito.tiff]
+      label_aux_type: skeleton
+
+test:
+  data:
+    root_path: /projects/weilab/liupeng/data/raw/mito/betaSeg
+    test:
+      path: ""
+      # BANIS-mito test split: high_c2, high_c4, low_c3.
+      image: [high_c2_im.tiff, high_c4_im.tiff, low_c3_im.tiff]
+      label: [high_c2_mito.tiff, high_c4_mito.tiff, low_c3_mito.tiff]
+      label_aux_type: skeleton
+      resolution: [16, 16, 16]
+    data_transform:
+      pad_size: [64, 64, 64]

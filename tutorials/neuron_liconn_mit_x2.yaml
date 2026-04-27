@@ -197,6 +197,8 @@ default:
       profile: aug_em_neuron
 
   inference:
+    # Only use short-range affinities for TTA ensemble (channels 0-2)
+    select_channel: [0, 1, 2]
     system:
       num_gpus: 1
       num_workers: 4
@@ -211,15 +213,13 @@ default:
       output_device: cpu
     test_time_augmentation:
       enabled: false
-      # Only use short-range affinities for TTA ensemble (channels 0-2)
-      select_channel: [0, 1, 2]
       ensemble_mode: min          # min-pooling is conservative for affinities
       # activation_profile is not in TestTimeAugmentationConfig — removed
+    # crop_pad + selected-channel affinity_crop[(1,0),(1,0),(1,0)] = pad_size [16,64,64]:
+    #   Z: 15+1=16, 16+0=16 | Y: 63+1=64, 64+0=64 | X: 63+1=64, 64+0=64
+    crop_pad: [15, 16, 63, 64, 63, 64]
     postprocessing:
       enabled: true
-      # crop_pad + affinity_crop[(9,0),(9,0),(9,0)] = pad_size [16,64,64]:
-      #   Z: 7+9=16, 16+0=16 | Y: 55+9=64, 64+0=64 | X: 55+9=64, 64+0=64
-      crop_pad: [7, 16, 55, 64, 55, 64]
     # ── Decoding ──────────────────────────────────────────────────────────────
     # Option A: ABISS external pipeline — best quality, requires ABISS built.
     #   Falls back to connected-components automatically if ABISS fails.
@@ -290,7 +290,7 @@ train:
               - "9-0-0"   # ch 6: z
               - "0-9-0"   # ch 7: y
               - "0-0-9"   # ch 8: x
-            deepem_crop: true
+            affinity_mode: deepem
 
     # ── Data paths ───────────────────────────────────────────────────────────
     # NOTE: split_enabled only works with HDF5/TIFF, not Zarr (raises ValueError).

@@ -551,7 +551,9 @@ def decode_distance_watershed(
 
 
 @jit(nopython=True, cache=True)
-def _connected_components_affinity_3d_numba(hard_aff: np.ndarray) -> np.ndarray:
+def _connected_components_affinity_3d_numba(
+    hard_aff: np.ndarray, edge_offset: int = 0
+) -> np.ndarray:
     """
     Numba-accelerated connected components from 3D affinities.
 
@@ -560,9 +562,12 @@ def _connected_components_affinity_3d_numba(hard_aff: np.ndarray) -> np.ndarray:
 
     Args:
         hard_aff: Boolean affinities, shape (3, D, H, W)
-                 - Channel 0: x-direction connections
-                 - Channel 1: y-direction connections
-                 - Channel 2: z-direction connections
+                 - Channel c gates motion along array axis c
+        edge_offset: Where along the axis the edge value is stored relative to
+            the source voxel of the move. ``0`` = source-index (BANIS convention):
+            edge from voxel ``v`` to ``v+1`` is at ``hard_aff[c, v]``. ``1`` =
+            destination-index (``affinity_mode=deepem``, also used by zwatershed
+            / abiss): same edge is at ``hard_aff[c, v+1]``.
 
     Returns:
         segmentation: Instance segmentation, shape (D, H, W)
@@ -607,11 +612,14 @@ def _connected_components_affinity_3d_numba(hard_aff: np.ndarray) -> np.ndarray:
 
                         seg[x, y, z] = cur_id
 
-                        # Check 6-connected neighbors
+                        # Check 6-connected neighbors.
+                        # Edge from voxel u to voxel u+1 is stored at index
+                        # ``u + edge_offset`` in the corresponding hard_aff
+                        # channel (0 = src-index / BANIS, 1 = dst-index / pytc).
                         # Positive x
                         if (
                             x + 1 < visited.shape[0]
-                            and hard_aff[0, x, y, z]
+                            and hard_aff[0, x + edge_offset, y, z]
                             and not visited[x + 1, y, z]
                         ):
                             stack_x[stack_size] = x + 1
@@ -623,7 +631,7 @@ def _connected_components_affinity_3d_numba(hard_aff: np.ndarray) -> np.ndarray:
                         # Positive y
                         if (
                             y + 1 < visited.shape[1]
-                            and hard_aff[1, x, y, z]
+                            and hard_aff[1, x, y + edge_offset, z]
                             and not visited[x, y + 1, z]
                         ):
                             stack_x[stack_size] = x
@@ -635,7 +643,7 @@ def _connected_components_affinity_3d_numba(hard_aff: np.ndarray) -> np.ndarray:
                         # Positive z
                         if (
                             z + 1 < visited.shape[2]
-                            and hard_aff[2, x, y, z]
+                            and hard_aff[2, x, y, z + edge_offset]
                             and not visited[x, y, z + 1]
                         ):
                             stack_x[stack_size] = x
@@ -645,7 +653,11 @@ def _connected_components_affinity_3d_numba(hard_aff: np.ndarray) -> np.ndarray:
                             visited[x, y, z + 1] = True
 
                         # Negative x
-                        if x - 1 >= 0 and hard_aff[0, x - 1, y, z] and not visited[x - 1, y, z]:
+                        if (
+                            x - 1 >= 0
+                            and hard_aff[0, x - 1 + edge_offset, y, z]
+                            and not visited[x - 1, y, z]
+                        ):
                             stack_x[stack_size] = x - 1
                             stack_y[stack_size] = y
                             stack_z[stack_size] = z
@@ -653,7 +665,11 @@ def _connected_components_affinity_3d_numba(hard_aff: np.ndarray) -> np.ndarray:
                             visited[x - 1, y, z] = True
 
                         # Negative y
-                        if y - 1 >= 0 and hard_aff[1, x, y - 1, z] and not visited[x, y - 1, z]:
+                        if (
+                            y - 1 >= 0
+                            and hard_aff[1, x, y - 1 + edge_offset, z]
+                            and not visited[x, y - 1, z]
+                        ):
                             stack_x[stack_size] = x
                             stack_y[stack_size] = y - 1
                             stack_z[stack_size] = z
@@ -661,7 +677,11 @@ def _connected_components_affinity_3d_numba(hard_aff: np.ndarray) -> np.ndarray:
                             visited[x, y - 1, z] = True
 
                         # Negative z
-                        if z - 1 >= 0 and hard_aff[2, x, y, z - 1] and not visited[x, y, z - 1]:
+                        if (
+                            z - 1 >= 0
+                            and hard_aff[2, x, y, z - 1 + edge_offset]
+                            and not visited[x, y, z - 1]
+                        ):
                             stack_x[stack_size] = x
                             stack_y[stack_size] = y
                             stack_z[stack_size] = z - 1
@@ -677,6 +697,7 @@ def decode_affinity_cc(
     affinities: np.ndarray,
     threshold: float = 0.5,
     backend: str = "cc3d",
+    edge_offset: int = 0,
 ) -> np.ndarray:
     r"""Convert affinity predictions to instance segmentation via connected components.
 
@@ -704,6 +725,11 @@ def decode_affinity_cc(
             - ``"numba"``: Uses the directed affinity flood-fill implementation (first call may
               incur JIT compile overhead).
             - ``"auto"``: Use Numba if available, else cc3d.
+        edge_offset (int): Index of the edge ``v ↔ v+1`` along each axis, relative
+            to source voxel ``v``. ``0`` = source-index (BANIS's ``comp_affinities``
+            stores the edge at ``v``). ``1`` = destination-index
+            (``affinity_mode=deepem``, zwatershed, abiss store the edge at ``v+1``).
+            Only used when ``backend="numba"``. Default: ``0``.
 
     Returns:
         numpy.ndarray: Instance segmentation mask of shape :math:`(Z, Y, X)` with
@@ -758,7 +784,9 @@ def decode_affinity_cc(
             segmentation = cc3d.connected_components(hard_aff.any(axis=0))
         else:
             # Numba implementation (directed affinity flood-fill; first call triggers JIT compile)
-            segmentation = _connected_components_affinity_3d_numba(hard_aff)
+            segmentation = _connected_components_affinity_3d_numba(
+                hard_aff, edge_offset=int(edge_offset)
+            )
     elif backend_normalized == "cc3d":
         # Fast fallback used historically when numba was unavailable.
         segmentation = cc3d.connected_components(hard_aff.any(axis=0))

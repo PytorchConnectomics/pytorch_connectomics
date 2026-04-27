@@ -22,6 +22,20 @@ pipeline_profiles:
       test_time_augmentation:
         ensemble_mode: mean
         activation_profile: act_bcd
+  aff9:
+    model:
+      out_channels: 9
+      loss:
+        profile: loss_per_channel
+    data:
+      label_transform:
+        profile: label_aff9
+    inference:
+      decoding:
+        - template: decoding_waterz
+      test_time_augmentation:
+        ensemble_mode: min
+        activation_profile: act_binary
   aff12:
     model:
       out_channels: 12
@@ -31,11 +45,11 @@ pipeline_profiles:
       label_transform:
         profile: label_aff12
     inference:
+      select_channel: [0, 1, 2]
       decoding:
         - template: decoding_waterz
       test_time_augmentation:
         ensemble_mode: min
-        select_channel: [0, 1, 2]
         activation_profile: act_binary
   aff9_sdt:
     model:

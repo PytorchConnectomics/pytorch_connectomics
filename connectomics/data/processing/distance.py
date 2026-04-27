@@ -591,10 +591,16 @@ def precompute_sdt_volume(
     """
     import os as _os
     import time
+    from pathlib import Path
 
     from ..io.io import read_volume, save_volume
 
     print(f"Precomputing SDT: {label_path} → {output_path}")
+    if ".zarr" in output_path:
+        zarr_idx = output_path.index(".zarr")
+        Path(output_path[: zarr_idx + 5]).parent.mkdir(parents=True, exist_ok=True)
+    else:
+        Path(output_path).parent.mkdir(parents=True, exist_ok=True)
 
     label = read_volume(label_path)
     n_inst = len(np.unique(label)) - 1
@@ -640,10 +646,16 @@ def precompute_skeleton_volume(
         The output_path.
     """
     import time
+    from pathlib import Path
 
     from ..io.io import read_volume, save_volume
 
     print(f"Precomputing skeleton volume: {label_path} → {output_path}")
+    if ".zarr" in output_path:
+        zarr_idx = output_path.index(".zarr")
+        Path(output_path[: zarr_idx + 5]).parent.mkdir(parents=True, exist_ok=True)
+    else:
+        Path(output_path).parent.mkdir(parents=True, exist_ok=True)
 
     label = read_volume(label_path)
     n_inst = len(np.unique(label)) - 1
@@ -752,7 +764,11 @@ def skeleton_aware_edt_from_skeleton_vol(
     )
 
 
-def sdt_path_for_label(label_path: str, mode: str = "sdt") -> str:
+def sdt_path_for_label(
+    label_path: str,
+    mode: str = "sdt",
+    cache_dir: Optional[str] = None,
+) -> str:
     """Derive the precomputed cache path from a label file path.
 
     HDF5 labels produce sibling ``*.h5`` cache files. Zarr dataset paths such
@@ -762,6 +778,9 @@ def sdt_path_for_label(label_path: str, mode: str = "sdt") -> str:
 
     Args:
         mode: ``"sdt"`` for full SDT, ``"skeleton"`` for skeleton volume.
+        cache_dir: Optional directory where cache files should be written.
+            When set, the cache filename is derived from the label basename
+            instead of being written beside the source label.
     """
     import os
 
@@ -769,10 +788,20 @@ def sdt_path_for_label(label_path: str, mode: str = "sdt") -> str:
         zarr_idx = label_path.index(".zarr")
         zarr_path = label_path[: zarr_idx + 5]
         sub_key = label_path[zarr_idx + 5 :].strip("/")
+        if cache_dir:
+            zarr_name = os.path.basename(zarr_path)
+            if sub_key:
+                return os.path.join(cache_dir, zarr_name, f"{sub_key}_{mode}")
+            base = os.path.splitext(zarr_name)[0]
+            return os.path.join(cache_dir, f"{base}_{mode}.zarr")
         if sub_key:
             return f"{zarr_path}/{sub_key}_{mode}"
         base = zarr_path[: -len(".zarr")]
         return f"{base}_{mode}.zarr"
+
+    if cache_dir:
+        base = os.path.splitext(os.path.basename(label_path))[0]
+        return os.path.join(cache_dir, f"{base}_{mode}.h5")
 
     base, _ = os.path.splitext(label_path)
     return base + f"_{mode}.h5"

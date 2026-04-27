@@ -72,10 +72,12 @@ class SegToAffinityMapd(MapTransform):
         self,
         keys: KeysCollection,
         offsets: List[str] = ["1-1-0", "1-0-0", "0-1-0", "0-0-1"],
+        affinity_mode: str = "deepem",
         allow_missing_keys: bool = False,
     ) -> None:
         super().__init__(keys, allow_missing_keys)
         self.offsets = offsets
+        self.affinity_mode = affinity_mode
 
     def __call__(self, data: Dict[str, Any]) -> Dict[str, Any]:
         d = dict(data)
@@ -91,7 +93,7 @@ class SegToAffinityMapd(MapTransform):
                 elif label.ndim == 3 and label.shape[0] == 1:
                     # 2D case: [1, H, W] -> keep as is for 2D affinity
                     pass
-                d[key] = seg_to_affinity(label, self.offsets)
+                d[key] = seg_to_affinity(label, self.offsets, affinity_mode=self.affinity_mode)
         return d
 
 
@@ -629,10 +631,7 @@ class MultiTaskLabelTransformd(MapTransform):
         "energy_quantize": {"levels": 10},
         "decode_quantize": {"mode": "max"},
     }
-    _TASK_CONFIG_ONLY_KWARGS: Dict[str, set[str]] = {
-        "affinity": {"deepem_crop"},
-        "skeleton_aware_edt": {"deepem_crop"},
-    }
+    _TASK_CONFIG_ONLY_KWARGS: Dict[str, set[str]] = {}
 
     def __init__(
         self,
@@ -696,6 +695,10 @@ class MultiTaskLabelTransformd(MapTransform):
             fn = self._TASK_REGISTRY[name]
             defaults = deepcopy(self._TASK_DEFAULTS.get(name, {}))
             config_kwargs = {**defaults, **kwargs}
+            if name == "affinity" and "affinity_mode" not in config_kwargs:
+                raise ValueError(
+                    "Affinity target requires kwargs.affinity_mode: 'deepem' or 'banis'."
+                )
             call_kwargs = {
                 key: value
                 for key, value in config_kwargs.items()
@@ -814,7 +817,8 @@ class MultiTaskLabelTransformd(MapTransform):
                         result = aux.astype(np.float32)
                     else:
                         result = skeleton_aware_edt_from_skeleton_vol(
-                            label_np, aux,
+                            label_np,
+                            aux,
                             resolution=spec["kwargs"].get("resolution", (1.0, 1.0, 1.0)),
                             alpha=spec["kwargs"].get("alpha", 0.8),
                             bg_value=spec["kwargs"].get("bg_value", -1.0),

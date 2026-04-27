@@ -29,8 +29,8 @@ from connectomics.config import (  # noqa: E402
 )
 from connectomics.config.schema import TestConfig as HydraTestConfig  # noqa: E402
 from connectomics.config.schema import TuneConfig  # noqa: E402
-from connectomics.data.augment.build import build_test_transforms  # noqa: E402
-from connectomics.data.process import create_label_transform_pipeline  # noqa: E402
+from connectomics.data.augmentation.build import build_test_transforms  # noqa: E402
+from connectomics.data.processing.build import create_label_transform_pipeline  # noqa: E402
 
 
 def test_default_config_creation():
@@ -294,13 +294,25 @@ def test_augmentation_config():
     """Test augmentation configuration."""
     cfg = Config()
 
-    # Enable EM-specific augmentations
+    # Enable BANIS-style and legacy EM augmentations
+    cfg.data.augmentation.axis_permute.enabled = True
+    cfg.data.augmentation.rotate90_all.enabled = True
+    cfg.data.augmentation.slice_shift.enabled = True
+    cfg.data.augmentation.slice_drop.enabled = True
+    cfg.data.augmentation.slice_shift_z.enabled = True
+    cfg.data.augmentation.slice_drop_z.enabled = True
     cfg.data.augmentation.misalignment.enabled = True
     cfg.data.augmentation.misalignment.prob = 0.7
     cfg.data.augmentation.missing_section.enabled = True
     cfg.data.augmentation.mixup.enabled = True
     cfg.data.augmentation.copy_paste.enabled = True
 
+    assert cfg.data.augmentation.axis_permute.enabled
+    assert cfg.data.augmentation.rotate90_all.enabled
+    assert cfg.data.augmentation.slice_shift.enabled
+    assert cfg.data.augmentation.slice_drop.enabled
+    assert cfg.data.augmentation.slice_shift_z.enabled
+    assert cfg.data.augmentation.slice_drop_z.enabled
     assert cfg.data.augmentation.misalignment.enabled
     assert cfg.data.augmentation.misalignment.prob == 0.7
     assert cfg.data.augmentation.missing_section.enabled

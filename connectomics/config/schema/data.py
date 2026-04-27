@@ -79,6 +79,7 @@ class LabelTransformConfig:
     segment_id: Optional[List[int]] = None
     boundary_thickness: int = 1
     resolution: Optional[List[float]] = None  # Forwarded into compatible label targets.
+    cache_dir: str = ""  # Optional output directory for auto-precomputed label_aux caches.
     targets: List[Any] = field(default_factory=list)
 
 
@@ -182,6 +183,7 @@ class DataloaderConfig:
     use_cache: bool = False
     cache_rate: float = 1.0
     use_lazy_zarr: bool = False  # Lazy crop-on-read for zarr volumes (no full preload)
+    use_lazy_h5: bool = False  # Lazy crop-on-read for HDF5 volumes (no full preload)
     cached_sampling_max_attempts: int = 10  # Retry attempts for foreground-aware sampling
     cached_sampling_foreground_threshold: float = (
         0.0  # Minimum (label > 0) fraction required for training crops.
@@ -232,7 +234,7 @@ class DataInputConfig:
 class FlipConfig:
     """Flip augmentation configuration."""
 
-    enabled: bool = True
+    enabled: bool = False
     prob: float = 0.5
     spatial_axis: Any = field(default_factory=lambda: [0, 1, 2])
 
@@ -252,9 +254,27 @@ class AffineConfig:
 class RotateConfig:
     """Rotation augmentation configuration."""
 
-    enabled: bool = True
+    enabled: bool = False
     prob: float = 0.5
     spatial_axes: Tuple[int, int] = (1, 2)
+
+
+@dataclass
+class AxisPermuteConfig:
+    """Random spatial-axis permutation augmentation."""
+
+    enabled: bool = False
+    prob: float = 1.0
+    include_identity: bool = True
+
+
+@dataclass
+class Rotate90AllConfig:
+    """Sequential quarter-turn rotations over all 3D spatial plane pairs."""
+
+    enabled: bool = False
+    prob: float = 1.0
+    include_identity: bool = True
 
 
 @dataclass
@@ -271,9 +291,13 @@ class ElasticConfig:
 class IntensityConfig:
     """Intensity augmentation configuration."""
 
-    enabled: bool = True
+    enabled: bool = False
     gaussian_noise_prob: float = 0.5
     gaussian_noise_std: float = 0.1
+    banis_style: bool = False
+    mul_add_prob: float = 0.0
+    mul_range: Tuple[float, float] = (0.9, 1.1)
+    add_range: Tuple[float, float] = (-0.1, 0.1)
     shift_intensity_prob: float = 0.5
     shift_intensity_offset: float = 0.1
     contrast_prob: float = 0.5
@@ -293,6 +317,52 @@ class MisalignmentConfig:
 @dataclass
 class MissingSectionConfig:
     """Missing section augmentation configuration."""
+
+    enabled: bool = False
+    prob: float = 0.0
+    num_sections: Any = 2
+    full_section_prob: float = 0.5
+    partial_ratio_range: Tuple[float, float] = (0.25, 0.75)
+    fill_value_range: Tuple[float, float] = (0.0, 1.0)
+
+
+@dataclass
+class SliceShiftConfig:
+    """BANIS-style independent per-slice shift augmentation."""
+
+    enabled: bool = False
+    prob: float = 0.0
+    slice_prob: float = 0.05
+    shift_magnitude: int = 10
+    spatial_axis: Any = field(default_factory=lambda: [0, 1, 2])
+    wrap: bool = True
+
+
+@dataclass
+class SliceDropConfig:
+    """BANIS-style independent per-slice drop augmentation."""
+
+    enabled: bool = False
+    prob: float = 0.0
+    slice_prob: float = 0.05
+    spatial_axis: Any = field(default_factory=lambda: [0, 1, 2])
+    fill_value: float = 0.0
+    preserve_boundaries: bool = False
+
+
+@dataclass
+class SliceShiftZConfig:
+    """Legacy z-only misalignment artifact with clearer naming."""
+
+    enabled: bool = False
+    prob: float = 0.0
+    displacement: int = 16
+    rotate_ratio: float = 0.0
+
+
+@dataclass
+class SliceDropZConfig:
+    """Legacy z-only missing-section artifact with clearer naming."""
 
     enabled: bool = False
     prob: float = 0.0
@@ -392,18 +462,27 @@ class AugmentationConfig:
     individually controlled via its ``enabled`` flag.
     """
 
-    # Mutual exclusion: when True, at most one defect augmentation
-    # (misalignment, missing_section, motion_blur, missing_parts) fires per sample.
+    # Mutual exclusion for the legacy/heavier defect family. BANIS-style
+    # slice_drop/slice_shift remain independent to match their original event
+    # model and are not included in this OneOf group.
     defect_mutex: bool = False
 
-    # Individual augmentation blocks (auto-enabled when keys are present)
+    # Individual augmentation blocks (disabled unless enabled: true is set)
     flip: FlipConfig = field(default_factory=FlipConfig)
+    axis_permute: AxisPermuteConfig = field(default_factory=AxisPermuteConfig)
+    rotate90_all: Rotate90AllConfig = field(default_factory=Rotate90AllConfig)
     affine: AffineConfig = field(default_factory=AffineConfig)
     rotate: RotateConfig = field(default_factory=RotateConfig)
     elastic: ElasticConfig = field(default_factory=ElasticConfig)
     intensity: IntensityConfig = field(default_factory=IntensityConfig)
 
     # Artifact simulation augmentations
+    slice_shift: SliceShiftConfig = field(default_factory=SliceShiftConfig)
+    slice_drop: SliceDropConfig = field(default_factory=SliceDropConfig)
+    slice_shift_z: SliceShiftZConfig = field(default_factory=SliceShiftZConfig)
+    slice_drop_z: SliceDropZConfig = field(default_factory=SliceDropZConfig)
+
+    # Backward-compatible aliases for legacy z-only artifact names.
     misalignment: MisalignmentConfig = field(default_factory=MisalignmentConfig)
     missing_section: MissingSectionConfig = field(default_factory=MissingSectionConfig)
     motion_blur: MotionBlurConfig = field(default_factory=MotionBlurConfig)

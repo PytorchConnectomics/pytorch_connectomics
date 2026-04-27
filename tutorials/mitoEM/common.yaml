@@ -65,7 +65,7 @@ default:
         - name: affinity
           kwargs:
             offsets: ["0-0-1", "0-1-0", "1-0-0", "0-0-5", "0-5-0", "5-0-0"]
-            deepem_crop: true
+            affinity_mode: deepem
         - name: skeleton_aware_edt
           kwargs:
             alpha: 0.8

@@ -22,30 +22,42 @@ def _coerce_kwargs(kwargs: Any) -> dict:
     raise TypeError(f"Decode kwargs must be a mapping, got {type(kwargs).__name__}")
 
 
+def _resolve_enabled(mode: Any) -> bool:
+    """Extract the ``enabled`` flag from a decode mode entry (default ``True``)."""
+    if isinstance(mode, dict):
+        return bool(mode.get("enabled", True))
+    return bool(getattr(mode, "enabled", True))
+
+
 def normalize_decode_modes(decode_modes: Iterable[Any]) -> List[DecodeStep]:
-    """Normalize decode configuration entries into DecodeStep objects."""
+    """Normalize decode configuration entries into DecodeStep objects.
+
+    Entries with ``enabled: false`` are silently skipped.
+    """
     steps: List[DecodeStep] = []
     for mode in decode_modes:
+        enabled = _resolve_enabled(mode)
+
         if isinstance(mode, DecodeStep):
-            steps.append(DecodeStep(name=mode.name, kwargs=_coerce_kwargs(mode.kwargs)))
+            steps.append(DecodeStep(enabled=enabled, name=mode.name, kwargs=_coerce_kwargs(mode.kwargs)))
             continue
 
         if hasattr(mode, "name"):
             name = mode.name
             kwargs = _coerce_kwargs(getattr(mode, "kwargs", {}))
-            steps.append(DecodeStep(name=name, kwargs=kwargs))
+            steps.append(DecodeStep(enabled=enabled, name=name, kwargs=kwargs))
             continue
 
         if isinstance(mode, dict):
             name = mode.get("name")
             kwargs = _coerce_kwargs(mode.get("kwargs", {}))
-            steps.append(DecodeStep(name=name, kwargs=kwargs))
+            steps.append(DecodeStep(enabled=enabled, name=name, kwargs=kwargs))
             continue
 
         raise TypeError(f"Unsupported decode mode type: {type(mode).__name__}")
 
     for step in steps:
-        if not step.name:
+        if step.enabled and not step.name:
             raise ValueError("Decode step is missing required field 'name'.")
 
     return steps
@@ -74,7 +86,9 @@ def apply_decode_pipeline(
         return data
 
     registry = registry or DEFAULT_DECODER_REGISTRY
-    steps = normalize_decode_modes(decode_modes)
+    steps = [s for s in normalize_decode_modes(decode_modes) if s.enabled]
+    if not steps:
+        return data
     batched, batch_size = _prepare_batched_input(data)
 
     results: List[np.ndarray] = []

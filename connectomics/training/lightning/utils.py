@@ -406,8 +406,8 @@ def compute_tta_passes(cfg: Config, spatial_dims: int = 3) -> int:
 def format_select_channel_tag(cfg: Config) -> str:
     """Return a compact channel-selection tag for prediction filenames.
 
-    When ``select_channel`` is set in the TTA config, the tag disambiguates
-    cached predictions produced with different channel selections, e.g.
+    When ``inference.select_channel`` is set, the tag disambiguates cached
+    predictions produced with different channel selections, e.g.
     ``"_ch4-6-9"`` for ``select_channel: [4, 6, 9]``.
 
     Returns an empty string when no channel selection is active (all channels
@@ -416,13 +416,7 @@ def format_select_channel_tag(cfg: Config) -> str:
     inference_cfg = getattr(cfg, "inference", None)
     if inference_cfg is None:
         return ""
-    tta_cfg = getattr(inference_cfg, "test_time_augmentation", None)
-    if tta_cfg is None:
-        return ""
-
-    sel = getattr(tta_cfg, "select_channel", None)
-    if sel is None:
-        sel = getattr(inference_cfg, "output_channel", None)
+    sel = getattr(inference_cfg, "select_channel", None)
     if sel is None:
         return ""
 
@@ -444,6 +438,11 @@ def format_select_channel_tag(cfg: Config) -> str:
 
 def format_output_head_tag(cfg: Config, *, output_head: Optional[str] = None) -> str:
     """Return a compact head-selection tag for prediction filenames."""
+    # Merged-heads sentinel (e.g. "aff_r1+aff_r5+sdt") skips the per-head resolver.
+    if isinstance(output_head, str) and "+" in output_head:
+        safe_head = re.sub(r"[^A-Za-z0-9._=-]+", "-", output_head).strip("-")
+        return f"_head-{safe_head}" if safe_head else ""
+
     head_name = resolve_output_head(
         cfg,
         requested_head=output_head,

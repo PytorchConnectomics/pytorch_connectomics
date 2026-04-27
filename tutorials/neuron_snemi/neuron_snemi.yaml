@@ -23,6 +23,8 @@ default:
     augmentation:
       profile: aug_em_neuron
   inference:
+    select_channel: [0, 1, 2] # aff=1
+    #select_channel: [6, 9, 4] # aff=3
     sliding_window:
       window_size: [16, 224, 224]
       sw_batch_size: 16
@@ -33,13 +35,11 @@ default:
       patch_first_local: true
       flip_axes: all
       rotation90_axes: [[1, 2]]
-      select_channel: [0, 1, 2] # aff=1
-      #select_channel: [6, 9, 4] # aff=3
+    # Crop the padded prediction so the later selected-channel affinity_mode=deepem
+    # crop lands back on the original image support instead of shrinking the saved volume.
+    crop_pad: [7, 8, 127, 128, 127, 128]
     postprocessing:
       enabled: true
-      # Crop the padded prediction so the later DeepEM affinity crop lands back
-      # on the original image support instead of shrinking the saved volume.
-      crop_pad: [4, 8, 101, 128, 101, 128]
     save_prediction:
       enabled: true
     decoding:

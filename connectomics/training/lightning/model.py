@@ -1264,7 +1264,9 @@ class ConnectomicsModule(pl.LightningModule):
 
     def configure_optimizers(self) -> Dict[str, Any]:
         """Configure optimizers and learning rate schedulers."""
-        optimizer = build_optimizer(self.cfg, self.model)
+        # Optimize the full Lightning module so trainable auxiliaries such as
+        # adaptive loss weighters are included alongside the base network.
+        optimizer = build_optimizer(self.cfg, self)
 
         # Build scheduler if configured (check both cfg.scheduler and cfg.optimization.scheduler)
         has_scheduler = (hasattr(self.cfg, "scheduler") and self.cfg.scheduler is not None) or (

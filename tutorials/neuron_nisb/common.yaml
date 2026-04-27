@@ -28,6 +28,7 @@ default:
       profile: aug_light
 
   inference:
+    select_channel: [0, 1, 2, 6]
     sliding_window:
       keep_input_on_cpu: true
       sw_device: cuda
@@ -35,7 +36,6 @@ default:
     test_time_augmentation:
       enabled: true
       activation_profile: act_bd
-      select_channel: [0, 1, 2, 6]
       ensemble_mode: mean
     save_prediction:
       enabled: true

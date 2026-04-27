@@ -9,7 +9,7 @@ import torch
 from monai.transforms import Compose, MapTransform
 from omegaconf import DictConfig, ListConfig, OmegaConf
 
-from .affinity import parse_affinity_offsets
+from .affinity import resolve_affinity_offsets_from_kwargs
 from .transforms import MultiTaskLabelTransformd
 
 
@@ -97,7 +97,7 @@ def _task_output_channels(task: Any) -> int:
     resolved_kwargs = {**defaults, **task_kwargs}
 
     if name == "affinity":
-        return len(parse_affinity_offsets(resolved_kwargs.get("offsets", [])))
+        return len(resolve_affinity_offsets_from_kwargs(resolved_kwargs))
     if name == "polarity":
         return 1 if bool(resolved_kwargs.get("exclusive", False)) else 3
     if name == "flow":

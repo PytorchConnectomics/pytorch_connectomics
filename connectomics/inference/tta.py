@@ -490,11 +490,24 @@ class TTAPredictor:
                         channel_view.sigmoid_()
                     else:
                         tensor[:, channel_list, ...] = torch.sigmoid(channel_view)
-                elif act == "scale_sigmoid":
+                elif isinstance(act, str) and (
+                    act == "scale_sigmoid" or act.startswith("scale_sigmoid:")
+                ):
+                    # `scale_sigmoid` defaults to BANIS' temperature 0.2.
+                    # Override via `scale_sigmoid:<float>` (e.g. `scale_sigmoid:0.5`).
+                    scale = 0.2
+                    if ":" in act:
+                        try:
+                            scale = float(act.split(":", 1)[1])
+                        except ValueError as exc:
+                            raise ValueError(
+                                f"Invalid scale_sigmoid scale in '{act}'. "
+                                "Expected 'scale_sigmoid:<float>'."
+                            ) from exc
                     if isinstance(channel_indexer, slice):
-                        channel_view.mul_(0.2).sigmoid_()
+                        channel_view.mul_(scale).sigmoid_()
                     else:
-                        tensor[:, channel_list, ...] = torch.sigmoid(0.2 * channel_view)
+                        tensor[:, channel_list, ...] = torch.sigmoid(scale * channel_view)
                 elif act == "tanh":
                     if isinstance(channel_indexer, slice):
                         channel_view.tanh_()
@@ -513,7 +526,8 @@ class TTAPredictor:
                 else:
                     raise ValueError(
                         f"Unknown activation '{act}' for channels {channel_list}. "
-                        f"Supported: 'sigmoid', 'scale_sigmoid', 'softmax', 'tanh', None"
+                        f"Supported: 'sigmoid', 'scale_sigmoid' (or 'scale_sigmoid:<float>'), "
+                        f"'softmax', 'tanh', None"
                     )
             self.channel_activation_types = (
                 activation_types if any(act is not None for act in activation_types) else None
@@ -536,13 +550,10 @@ class TTAPredictor:
                     f"Supported: 'softmax', 'sigmoid', 'tanh', None"
                 )
 
-        tta_channel = getattr(self.cfg.inference.test_time_augmentation, "select_channel", None)
-        if tta_channel is None:
-            tta_channel = getattr(self.cfg.inference, "output_channel", None)
-
-        if tta_channel is not None:
+        select_channel = getattr(self.cfg.inference, "select_channel", None)
+        if select_channel is not None:
             channel_list = resolve_channel_indices(
-                tta_channel,
+                select_channel,
                 num_channels=int(tensor.shape[1]),
                 context="select_channel",
             )

@@ -20,7 +20,7 @@ from omegaconf import DictConfig, ListConfig, OmegaConf
 from ...data.processing.build import count_stacked_label_transform_channels
 from ...models.architectures.registry import get_architecture_info
 from ...utils.channel_slices import infer_min_required_channels
-from ...utils.model_outputs import resolve_configured_output_head
+from ...utils.model_outputs import resolve_configured_output_head, resolve_output_heads
 from ..schema import Config
 from ..schema.root import MergeContext
 from .profile_engine import _YAML_PROFILE_ENGINE
@@ -329,11 +329,19 @@ def validate_config(cfg: Config) -> None:
                 f"model.primary_head='{primary_head}' is not present in model.heads "
                 f"({sorted(model_heads.keys())})."
             )
-        if inference_head is not None and inference_head not in model_heads:
-            raise ValueError(
-                f"inference.head='{inference_head}' is not present in model.heads "
-                f"({sorted(model_heads.keys())})."
+        if inference_head is not None:
+            # Accept comma-separated lists (merged-heads inference); each name must exist.
+            inference_head_names = (
+                [h.strip() for h in inference_head.split(",") if h.strip()]
+                if isinstance(inference_head, str) and "," in inference_head
+                else [inference_head]
             )
+            missing = [h for h in inference_head_names if h not in model_heads]
+            if missing:
+                raise ValueError(
+                    f"inference.head={inference_head_names} references unknown heads {missing}; "
+                    f"available: {sorted(model_heads.keys())}."
+                )
         if (
             visualization_head is not None
             and visualization_head != "all"
@@ -364,6 +372,33 @@ def validate_config(cfg: Config) -> None:
         )
     if cfg.data.dataloader.batch_size <= 0:
         raise ValueError("data.dataloader.batch_size must be positive")
+
+    strategy = str(getattr(cfg.inference, "strategy", "whole_volume")).lower()
+    if strategy not in {"whole_volume", "chunked"}:
+        raise ValueError("inference.strategy must be 'whole_volume' or 'chunked'")
+    chunking_cfg = getattr(cfg.inference, "chunking", None)
+    chunking_enabled = bool(getattr(chunking_cfg, "enabled", False)) or strategy == "chunked"
+    if chunking_enabled:
+        if len(cfg.data.dataloader.patch_size) != 3:
+            raise ValueError("inference.chunking requires 3D data.dataloader.patch_size")
+        axes = str(getattr(chunking_cfg, "axes", "all")).lower()
+        if axes not in {"all", "z"}:
+            raise ValueError("inference.chunking.axes must be 'all' or 'z'")
+        chunk_size = getattr(chunking_cfg, "chunk_size", None)
+        if not chunk_size or len(chunk_size) != 3:
+            raise ValueError("inference.chunking.chunk_size must be a length-3 ZYX list")
+        if any(int(v) <= 0 for v in chunk_size):
+            raise ValueError("inference.chunking.chunk_size values must be positive")
+        halo = getattr(chunking_cfg, "halo", None)
+        if halo is None or len(halo) != 3:
+            raise ValueError("inference.chunking.halo must be a length-3 ZYX list")
+        if any(int(v) < 0 for v in halo):
+            raise ValueError("inference.chunking.halo values must be non-negative")
+        stitching = getattr(chunking_cfg, "stitching", None)
+        if stitching is not None:
+            min_contact = int(getattr(stitching, "min_contact", 1))
+            if min_contact <= 0:
+                raise ValueError("inference.chunking.stitching.min_contact must be positive")
 
     # Optimizer validation
     if cfg.optimization.optimizer.lr <= 0:
@@ -583,22 +618,26 @@ def _validate_cross_section_coherence(cfg: Config) -> None:
                 break
 
         if model_heads and decode_has_channel_selection:
-            decode_output_head = resolve_configured_output_head(
-                cfg,
-                purpose="decode channel selection",
-                allow_none=True,
-            )
-            if len(model_heads) > 1 and decode_output_head is None:
+            decode_heads = resolve_output_heads(cfg, purpose="decode channel selection")
+            if len(model_heads) > 1 and not decode_heads:
                 raise ValueError(
                     "Cross-section validation failed: decode channel selectors require "
                     "inference.head or model.primary_head when model.heads has multiple "
                     f"entries ({sorted(model_heads.keys())})."
                 )
-            if decode_output_head in model_heads:
-                decode_available_channels = int(
-                    getattr(model_heads[decode_output_head], "out_channels", out_channels)
+            if len(decode_heads) > 1:
+                decode_available_channels = sum(
+                    int(getattr(model_heads[h], "out_channels", 0)) for h in decode_heads
                 )
-                decode_channel_scope = f"head '{decode_output_head}'"
+                decode_channel_scope = f"merged heads {decode_heads}"
+                decode_output_head = decode_heads[0]
+            elif decode_heads:
+                decode_output_head = decode_heads[0]
+                if decode_output_head in model_heads:
+                    decode_available_channels = int(
+                        getattr(model_heads[decode_output_head], "out_channels", out_channels)
+                    )
+                    decode_channel_scope = f"head '{decode_output_head}'"
 
         for i, decode_step in enumerate(decoding_cfg):
             kwargs = getattr(decode_step, "kwargs", None)
@@ -624,39 +663,35 @@ def _validate_cross_section_coherence(cfg: Config) -> None:
                         continue
                     required_output_channels.append((path, min_channels))
 
-    # 2e) TTA channel selectors
+    # 2e) Inference channel selectors
     tta_cfg = getattr(cfg.inference, "test_time_augmentation", None)
     channel_activations = getattr(tta_cfg, "channel_activations", None) if tta_cfg else None
-    select_channel = getattr(tta_cfg, "select_channel", None) if tta_cfg else None
-    tta_has_channel_selection = bool(channel_activations) or select_channel is not None
-    tta_output_head = (
-        resolve_configured_output_head(
-            cfg,
-            purpose="TTA channel selection",
-            allow_none=True,
-        )
-        if model_heads
-        else None
+    select_channel = getattr(cfg.inference, "select_channel", None)
+    inference_has_channel_selection = bool(channel_activations) or select_channel is not None
+    tta_heads = (
+        resolve_output_heads(cfg, purpose="inference channel selection") if model_heads else []
     )
-    if (
-        model_heads
-        and len(model_heads) > 1
-        and tta_has_channel_selection
-        and tta_output_head is None
-    ):
+    tta_output_head = tta_heads[0] if tta_heads else None
+    if model_heads and len(model_heads) > 1 and inference_has_channel_selection and not tta_heads:
         raise ValueError(
-            "Cross-section validation failed: TTA channel selectors require inference.head "
+            "Cross-section validation failed: inference channel selectors require inference.head "
             "or model.primary_head when model.heads has multiple entries "
             f"({sorted(model_heads.keys())})."
         )
-    tta_available_channels = (
-        int(getattr(model_heads[tta_output_head], "out_channels", out_channels))
-        if tta_output_head in model_heads
-        else out_channels
-    )
-    tta_channel_scope = (
-        f"head '{tta_output_head}'" if tta_output_head in model_heads else "model output"
-    )
+    if len(tta_heads) > 1:
+        tta_available_channels = sum(
+            int(getattr(model_heads[h], "out_channels", 0)) for h in tta_heads
+        )
+        tta_channel_scope = f"merged heads {tta_heads}"
+    else:
+        tta_available_channels = (
+            int(getattr(model_heads[tta_output_head], "out_channels", out_channels))
+            if tta_output_head in model_heads
+            else out_channels
+        )
+        tta_channel_scope = (
+            f"head '{tta_output_head}'" if tta_output_head in model_heads else "model output"
+        )
 
     def _validate_tta_channel_capacity(selector_value: Any, *, path: str) -> None:
         min_selector_channels = infer_min_required_channels(
@@ -692,7 +727,7 @@ def _validate_cross_section_coherence(cfg: Config) -> None:
             )
     _validate_tta_channel_capacity(
         select_channel,
-        path="inference.test_time_augmentation.select_channel",
+        path="inference.select_channel",
     )
 
     if required_output_channels:

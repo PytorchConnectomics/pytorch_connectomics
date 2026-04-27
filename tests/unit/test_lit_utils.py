@@ -275,7 +275,7 @@ def test_tta_cache_suffix_candidates_do_not_fall_back_to_legacy_suffix_with_chec
 
 def test_tuning_best_params_filename_matches_tta_prediction_identity():
     cfg = Config()
-    cfg.inference.test_time_augmentation.select_channel = [4, 6, 9]
+    cfg.inference.select_channel = [4, 6, 9]
 
     assert (
         tuning_best_params_filename(

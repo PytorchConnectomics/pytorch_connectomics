@@ -1,4 +1,4 @@
-"""Affinity target generation and DeepEM-style valid-region helpers."""
+"""Affinity target generation and valid-region helpers."""
 
 from __future__ import annotations
 
@@ -10,16 +10,32 @@ import torch
 from ...utils.channel_slices import resolve_channel_range
 
 __all__ = [
-    "affinity_deepem_crop_enabled",
+    "AFFINITY_MODES",
     "compute_affinity_crop_pad",
     "compute_affinity_valid_mask",
     "crop_spatial_by_offsets",
     "crop_spatial_by_pad",
+    "normalize_affinity_mode",
     "parse_affinity_offsets",
     "resolve_affinity_channel_groups_from_cfg",
+    "resolve_affinity_mode_from_cfg",
+    "resolve_affinity_offsets_from_kwargs",
     "resolve_affinity_offsets_for_channel_slice",
     "seg_to_affinity",
 ]
+
+AFFINITY_MODES = ("deepem", "banis")
+
+
+def normalize_affinity_mode(mode: Any) -> str:
+    """Validate and normalize the configured affinity target convention."""
+    if mode is None:
+        raise ValueError("Affinity targets require kwargs.affinity_mode: 'deepem' or 'banis'.")
+    normalized = str(mode).strip().lower()
+    if normalized not in AFFINITY_MODES:
+        allowed = ", ".join(AFFINITY_MODES)
+        raise ValueError(f"Unsupported affinity_mode {mode!r}. Expected one of: {allowed}.")
+    return normalized
 
 
 def _mapping_get(task: Any, key: str, default: Any = None) -> Any:
@@ -86,21 +102,48 @@ def parse_affinity_offsets(offsets: Sequence[Any]) -> list[tuple[int, int, int]]
     return parsed
 
 
-def affinity_deepem_crop_enabled(cfg: Any) -> bool:
-    """Return whether DeepEM-style affinity valid-region cropping is enabled."""
+def resolve_affinity_offsets_from_kwargs(kwargs: dict[str, Any]) -> list[tuple[int, int, int]]:
+    """Resolve configured affinity offsets, including the 6-channel long-range form."""
+    long_range = kwargs.get("long_range", None)
+    if long_range is not None:
+        long_range = int(long_range)
+        return [
+            (1, 0, 0),
+            (0, 1, 0),
+            (0, 0, 1),
+            (long_range, 0, 0),
+            (0, long_range, 0),
+            (0, 0, long_range),
+        ]
+
+    offsets = kwargs.get("offsets", None)
+    if offsets is None or len(offsets) == 0:
+        offsets = ["1-0-0", "0-1-0", "0-0-1"]
+    return parse_affinity_offsets(offsets)
+
+
+def resolve_affinity_mode_from_cfg(cfg: Any) -> Optional[str]:
+    """Return the configured affinity mode, or ``None`` when no affinity target exists."""
     data_cfg = getattr(cfg, "data", None)
     label_cfg = getattr(data_cfg, "label_transform", None) if data_cfg is not None else None
     if label_cfg is None:
-        return False
+        return None
 
-    explicit_values: list[bool] = []
+    modes: list[str] = []
     for task in _task_entries(getattr(label_cfg, "targets", None)):
         if _task_name(task) != "affinity":
             continue
         kwargs = _task_kwargs(task)
-        if "deepem_crop" in kwargs:
-            explicit_values.append(bool(kwargs["deepem_crop"]))
-    return any(explicit_values)
+        modes.append(normalize_affinity_mode(kwargs.get("affinity_mode")))
+
+    if not modes:
+        return None
+    unique_modes = sorted(set(modes))
+    if len(unique_modes) != 1:
+        raise ValueError(
+            f"Mixed affinity_mode values are not supported in one label stack: {unique_modes}"
+        )
+    return unique_modes[0]
 
 
 def resolve_affinity_channel_groups_from_cfg(
@@ -117,10 +160,7 @@ def resolve_affinity_channel_groups_from_cfg(
 
     def _task_channels(name: Optional[str], kwargs: dict[str, Any]) -> int:
         if name == "affinity":
-            offsets = kwargs.get("offsets", None)
-            if offsets is None or len(offsets) == 0:
-                offsets = ["1-0-0", "0-1-0", "0-0-1"]
-            return len(parse_affinity_offsets(offsets))
+            return len(resolve_affinity_offsets_from_kwargs(kwargs))
         if name == "polarity":
             return 1 if bool(kwargs.get("exclusive", False)) else 3
         return 1
@@ -139,10 +179,7 @@ def resolve_affinity_channel_groups_from_cfg(
         kwargs = _task_kwargs(task)
         num_channels = _task_channels(name, kwargs)
         if name == "affinity":
-            offsets_cfg = kwargs.get("offsets", None)
-            if offsets_cfg is None or len(offsets_cfg) == 0:
-                offsets_cfg = ["1-0-0", "0-1-0", "0-0-1"]
-            parsed_offsets = parse_affinity_offsets(offsets_cfg)
+            parsed_offsets = resolve_affinity_offsets_from_kwargs(kwargs)
             groups.append(((channel_start, channel_start + num_channels), parsed_offsets))
         channel_start += num_channels
 
@@ -183,11 +220,14 @@ def resolve_affinity_offsets_for_channel_slice(
 
 def compute_affinity_crop_pad(
     offsets: Sequence[tuple[int, int, int]],
+    *,
+    affinity_mode: str = "deepem",
 ) -> tuple[tuple[int, int], ...]:
     """Return asymmetric valid-region crop pads for the given offsets."""
     if not offsets:
         return tuple()
 
+    mode = normalize_affinity_mode(affinity_mode)
     ndim = len(offsets[0])
     leading = [0] * ndim
     trailing = [0] * ndim
@@ -195,8 +235,13 @@ def compute_affinity_crop_pad(
         if len(offset) != ndim:
             raise ValueError(f"Mixed affinity offset dimensions are not supported: {offsets!r}")
         for axis, value in enumerate(offset):
-            leading[axis] = max(leading[axis], max(int(value), 0))
-            trailing[axis] = max(trailing[axis], max(-int(value), 0))
+            value = int(value)
+            if mode == "deepem":
+                leading[axis] = max(leading[axis], max(value, 0))
+                trailing[axis] = max(trailing[axis], max(-value, 0))
+            else:
+                leading[axis] = max(leading[axis], max(-value, 0))
+                trailing[axis] = max(trailing[axis], max(value, 0))
     return tuple((leading[axis], trailing[axis]) for axis in range(ndim))
 
 
@@ -235,151 +280,129 @@ def crop_spatial_by_offsets(
     data: np.ndarray | torch.Tensor,
     offsets: Sequence[tuple[int, int, int]],
     *,
+    affinity_mode: str = "deepem",
     item_name: str = "data",
 ) -> np.ndarray | torch.Tensor:
     """Crop to the common valid spatial region across affinity offsets."""
-    crop_pad = compute_affinity_crop_pad(offsets)
+    crop_pad = compute_affinity_crop_pad(offsets, affinity_mode=affinity_mode)
     return crop_spatial_by_pad(data, crop_pad, item_name=item_name)
+
+
+def _source_destination_slices(
+    offset: Sequence[int],
+) -> tuple[tuple[slice, ...], tuple[slice, ...]]:
+    src_slice: list[slice] = []
+    dst_slice: list[slice] = []
+    for value in offset:
+        value = int(value)
+        if value > 0:
+            src_slice.append(slice(None, -value))
+            dst_slice.append(slice(value, None))
+        elif value < 0:
+            src_slice.append(slice(-value, None))
+            dst_slice.append(slice(None, value))
+        else:
+            src_slice.append(slice(None))
+            dst_slice.append(slice(None))
+    return tuple(src_slice), tuple(dst_slice)
+
+
+def _storage_slice_for_offset(offset: Sequence[int], affinity_mode: str) -> tuple[slice, ...]:
+    src_slice, dst_slice = _source_destination_slices(offset)
+    return dst_slice if normalize_affinity_mode(affinity_mode) == "deepem" else src_slice
 
 
 def compute_affinity_valid_mask(
     offsets: Sequence[tuple[int, int, int]],
     spatial_shape: Sequence[int],
+    *,
+    affinity_mode: str = "deepem",
     device: torch.device | None = None,
 ) -> torch.Tensor:
-    """Build per-channel valid mask for affinity offsets (DeepEM ``get_pair`` logic).
+    """Build per-channel valid mask for affinity offsets.
 
     For each channel *i* with offset ``(dz, dy, dx)``, the valid region is
-    where both source and destination voxels exist — i.e. the overlap region
-    that ``get_pair`` would produce.  Voxels outside this region are set to 0.
+    where both source and destination voxels exist.  ``deepem`` stores that
+    edge at the destination voxel; ``banis`` stores it at the source voxel.
+    Voxels outside the selected convention's valid region are set to 0.
 
     Args:
         offsets: Parsed offsets, each a 3-tuple ``(dz, dy, dx)``.
         spatial_shape: ``(D, H, W)`` of the prediction / target.
+        affinity_mode: ``deepem`` for destination-index targets or ``banis``
+            for source-index targets.
         device: Torch device for the returned tensor.
 
     Returns:
         Float tensor of shape ``(len(offsets), D, H, W)`` with 1 in valid
         positions and 0 elsewhere.
     """
+    mode = normalize_affinity_mode(affinity_mode)
     num_channels = len(offsets)
     mask = torch.zeros(num_channels, *spatial_shape, device=device)
 
     for i, offset in enumerate(offsets):
-        dz, dy, dx = int(offset[0]), int(offset[1]), int(offset[2])
-        if dz == 0 and dy == 0 and dx == 0:
+        if all(int(value) == 0 for value in offset):
             mask[i] = 1.0
             continue
 
-        # Build the valid-region slice identical to seg_to_affinity's dst_slice
-        slices: list[slice] = []
-        for d in (dz, dy, dx):
-            if d > 0:
-                slices.append(slice(d, None))
-            elif d < 0:
-                slices.append(slice(None, d))
-            else:
-                slices.append(slice(None))
-        mask[i][tuple(slices)] = 1.0
+        mask[i][_storage_slice_for_offset(offset, mode)] = 1.0
 
     return mask
+
 
 def seg_to_affinity(
     seg: np.ndarray,
     offsets: List[str] = None,
     long_range: int = None,
+    affinity_mode: str = "deepem",
 ) -> np.ndarray:
     """
     Compute affinity maps from segmentation.
 
-    Supports two modes:
-    1. DeepEM/SNEMI style: Provide `offsets` as list of strings (e.g., ["0-0-1", "0-1-0", "1-0-0"])
-    2. BANIS style: Provide `long_range` as int for 6-channel output (3 short + 3 long range)
+    ``deepem`` stores each edge at the destination voxel. ``banis`` stores
+    each edge at the source voxel and follows ``lib/banis`` target semantics:
+    edges outside the valid source/destination region, or touching ``seg == -1``
+    unlabeled voxels, are encoded as ``-1`` so the loss can skip them.
 
     Args:
         seg: The segmentation to compute affinities from. Shape: (z, y, x).
              0 indicates background.
         offsets: List of offset strings in "z-y-x" format (e.g., ["0-0-1", "0-1-0", "1-0-0"]).
                  Each string defines one affinity channel.
-        long_range: BANIS-style: offset for long-range affinities. Produces 6 channels:
+        long_range: Offset for 6-channel output:
                     - Channel 0-2: Short-range (offset 1) for z, y, x
                     - Channel 3-5: Long-range (offset long_range) for z, y, x
+        affinity_mode: ``deepem`` or ``banis``.
 
     Returns:
         The affinities. Shape: (num_channels, z, y, x).
     """
-    if long_range is not None:
-        affinities = np.zeros((6, *seg.shape), dtype=np.float32)
-
-        affinities[0, :-1] = (seg[:-1] == seg[1:]) & (seg[1:] > 0)
-        affinities[1, :, :-1] = (seg[:, :-1] == seg[:, 1:]) & (seg[:, 1:] > 0)
-        affinities[2, :, :, :-1] = (seg[:, :, :-1] == seg[:, :, 1:]) & (seg[:, :, 1:] > 0)
-
-        affinities[3, :-long_range] = (seg[:-long_range] == seg[long_range:]) & (
-            seg[long_range:] > 0
-        )
-        affinities[4, :, :-long_range] = (seg[:, :-long_range] == seg[:, long_range:]) & (
-            seg[:, long_range:] > 0
-        )
-        affinities[5, :, :, :-long_range] = (seg[:, :, :-long_range] == seg[:, :, long_range:]) & (
-            seg[:, :, long_range:] > 0
-        )
-
-        return affinities
-
-    if offsets is None:
-        offsets = ["1-0-0", "0-1-0", "0-0-1"]
-
-    parsed_offsets = []
-    for offset_str in offsets:
-        parts = offset_str.split("-")
-        if len(parts) == 3:
-            parsed_offsets.append([int(parts[0]), int(parts[1]), int(parts[2])])
-        else:
-            raise ValueError(f"Invalid offset format: {offset_str}. Expected 'z-y-x' format.")
-
+    mode = normalize_affinity_mode(affinity_mode)
+    parsed_offsets = resolve_affinity_offsets_from_kwargs(
+        {"offsets": offsets, "long_range": long_range}
+    )
     num_channels = len(parsed_offsets)
     affinities = np.zeros((num_channels, *seg.shape), dtype=np.float32)
+    banis_loss_mask = np.zeros_like(affinities, dtype=bool) if mode == "banis" else None
+    labeled_mask = seg != -1
 
-    for i, (dz, dy, dx) in enumerate(parsed_offsets):
-        if dz == 0 and dy == 0 and dx == 0:
+    for i, offset in enumerate(parsed_offsets):
+        if all(value == 0 for value in offset):
             affinities[i] = (seg > 0).astype(np.float32)
+            if banis_loss_mask is not None:
+                banis_loss_mask[i] = labeled_mask
             continue
 
-        if dz > 0:
-            z_src = slice(None, -dz)
-            z_dst = slice(dz, None)
-        elif dz < 0:
-            z_src = slice(-dz, None)
-            z_dst = slice(None, dz)
-        else:
-            z_src = slice(None)
-            z_dst = slice(None)
-
-        if dy > 0:
-            y_src = slice(None, -dy)
-            y_dst = slice(dy, None)
-        elif dy < 0:
-            y_src = slice(-dy, None)
-            y_dst = slice(None, dy)
-        else:
-            y_src = slice(None)
-            y_dst = slice(None)
-
-        if dx > 0:
-            x_src = slice(None, -dx)
-            x_dst = slice(dx, None)
-        elif dx < 0:
-            x_src = slice(-dx, None)
-            x_dst = slice(None, dx)
-        else:
-            x_src = slice(None)
-            x_dst = slice(None)
-
-        src_slice = (z_src, y_src, x_src)
-        dst_slice = (z_dst, y_dst, x_dst)
-        affinities[i][dst_slice] = (
-            (seg[src_slice] == seg[dst_slice]) & (seg[dst_slice] > 0)
+        src_slice, dst_slice = _source_destination_slices(offset)
+        storage_slice = dst_slice if mode == "deepem" else src_slice
+        affinities[i][storage_slice] = (
+            (seg[src_slice] == seg[dst_slice]) & (seg[storage_slice] > 0)
         ).astype(np.float32)
+        if banis_loss_mask is not None:
+            banis_loss_mask[i][storage_slice] = labeled_mask[src_slice] & labeled_mask[dst_slice]
+
+    if banis_loss_mask is not None:
+        affinities[~banis_loss_mask] = -1.0
 
     return affinities

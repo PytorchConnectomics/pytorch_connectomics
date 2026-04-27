@@ -157,7 +157,10 @@ def test_compose_pipelines():
         "targets": [
             {
                 "name": "affinity",
-                "kwargs": {"offsets": ["1-0-0", "0-1-0", "0-0-1"]},
+                "kwargs": {
+                    "offsets": ["1-0-0", "0-1-0", "0-0-1"],
+                    "affinity_mode": "deepem",
+                },
             }
         ],
     }
@@ -185,7 +188,7 @@ def test_compose_pipelines():
     print("[OK]All label transform pipelines passed!")
 
 
-def test_affinity_pipeline_ignores_deepem_crop_control_kwarg():
+def test_affinity_pipeline_accepts_affinity_mode_kwarg():
     data = create_test_data()
     affinity_cfg = {
         "keys": ["label"],
@@ -194,7 +197,7 @@ def test_affinity_pipeline_ignores_deepem_crop_control_kwarg():
                 "name": "affinity",
                 "kwargs": {
                     "offsets": ["1-0-0", "0-1-0", "0-0-1"],
-                    "deepem_crop": True,
+                    "affinity_mode": "deepem",
                 },
             }
         ],
@@ -214,7 +217,10 @@ def test_label_transform_pipeline_accepts_structured_config_dataclass():
         targets=[
             LabelTargetConfig(
                 name="affinity",
-                kwargs={"offsets": ["1-0-0", "0-1-0", "0-0-1"]},
+                kwargs={
+                    "offsets": ["1-0-0", "0-1-0", "0-0-1"],
+                    "affinity_mode": "deepem",
+                },
             )
         ],
     )
@@ -234,7 +240,13 @@ def test_multitask_label_transform_raw_3d_input_stacks_channels_correctly():
     transform = MultiTaskLabelTransformd(
         keys=["label"],
         tasks=[
-            {"name": "affinity", "kwargs": {"offsets": ["1-0-0", "0-1-0", "0-0-1"]}},
+            {
+                "name": "affinity",
+                "kwargs": {
+                    "offsets": ["1-0-0", "0-1-0", "0-0-1"],
+                    "affinity_mode": "deepem",
+                },
+            },
             {"name": "instance_edt", "kwargs": {"mode": "3d"}},
         ],
     )

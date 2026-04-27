@@ -211,7 +211,7 @@ def test_tta_selects_named_output_head_before_channel_preprocessing():
     cfg.inference.test_time_augmentation.channel_activations = [
         {"channels": ":", "activation": "sigmoid"}
     ]
-    cfg.inference.test_time_augmentation.select_channel = 1
+    cfg.inference.select_channel = 1
 
     predictor = TTAPredictor(cfg=cfg, sliding_inferer=None, forward_fn=_forward_multi_head_logits)
 
