@@ -63,7 +63,7 @@ All 12 issues across 4 priority levels have been resolved. 190/191 unit tests pa
 #### P3.2: Affinity decoupling in orchestrator.py
 - **File**: `training/loss/orchestrator.py`
 - **Issue**: Direct import of `data.process.affinity` created tight cross-package coupling
-- **Fix**: Dependency injection via constructor parameters (`affinity_crop_enabled_fn`, `crop_spatial_fn`, `resolve_affinity_offsets_fn`) with lazy-import bridge functions as defaults. No behavioral change
+- **Fix**: Dependency injection via constructor parameters (`resolve_affinity_mode_fn`, `resolve_affinity_offsets_fn`) with lazy-import bridge functions as defaults. Affinity target handling now routes through explicit `affinity_mode`.
 
 #### P3.3: Logging migration (print -> logging)
 - **Files**: All files in `training/` except `debugging.py`

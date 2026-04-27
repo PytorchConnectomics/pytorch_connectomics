@@ -1,0 +1,220 @@
+_base_:
+  - ../connectomics/config/all_profiles.yaml
+
+experiment_name: mednext_betaseg_banis_v2
+description: BetaSeg 3D mitochondria — v0 (faithful BANIS-mito) + improvements only. Same target geometry (r1+r10), no erosion, affinity_mode=banis, same 3-cube test split. Differs from v0 in loss formulation (auto_pos_weight BCE + Dice on aff, gradnorm balancing), precision (bf16-mixed), cosine min_lr floor, and lower gaussian noise std.
+
+default:
+  system:
+    num_gpus: -1
+    num_workers: -1
+  model:
+    arch:
+      type: mednext
+    mednext:
+      size: S
+      kernel_size: 3
+      checkpoint_style: outside_block
+
+    # BANIS-style reproduction, adapted for sparse mito labels.
+    # Heads kept at num_blocks: 0 for fair comparison with the previous
+    # nnU-Net (single-head) result.
+    input_size: [128, 128, 128]
+    output_size: [128, 128, 128]
+    out_channels: 7
+    primary_head: aff_r1
+    heads:
+      aff_r1:
+        out_channels: 3
+        num_blocks: 0
+        target_slice: "0:3"
+      aff_r10:
+        out_channels: 3
+        num_blocks: 0
+        target_slice: "3:6"
+      sdt:
+        out_channels: 1
+        num_blocks: 0
+        target_slice: "6:7"
+    loss:
+      losses:
+        - function: PerChannelBCEWithLogitsLoss
+          weight: 1.0
+          pred_head: aff_r1
+          target_slice: "0:3"
+          kwargs: {auto_pos_weight: true, max_pos_weight: 20.0}
+        - function: DiceLoss
+          weight: 1.0
+          pred_head: aff_r1
+          target_slice: "0:3"
+          kwargs: {sigmoid: true}
+        - function: PerChannelBCEWithLogitsLoss
+          weight: 1.0
+          pred_head: aff_r10
+          target_slice: "3:6"
+          kwargs: {auto_pos_weight: true, max_pos_weight: 40.0}
+        - function: DiceLoss
+          weight: 1.0
+          pred_head: aff_r10
+          target_slice: "3:6"
+          kwargs: {sigmoid: true}
+        - function: WeightedMSELoss
+          weight: 1.0
+          pred_head: sdt
+          target_slice: "6:7"
+          kwargs: {tanh: true}
+      loss_balancing:
+        strategy: gradnorm
+  data:
+    image_transform:
+      normalize: "divide-255"
+    label_transform:
+      resolution: [16, 16, 16]
+      cache_dir: datasets/betaSeg
+      targets:
+        - name: affinity
+          kwargs:
+            offsets: ["0-0-1", "0-1-0", "1-0-0", "0-0-10", "0-10-0", "10-0-0"]
+            affinity_mode: banis
+        - name: skeleton_aware_edt
+          kwargs:
+            alpha: 0.8
+            bg_value: -1.0
+    dataloader:
+      patch_size: [128, 128, 128]
+      batch_size: 2
+      cached_sampling_foreground_threshold: 0.05
+      cached_sampling_max_attempts: 50
+      cached_sampling_sample_nonzero_mask: true
+    augmentation:
+      # BANIS-style augmentations encoded in the filename:
+      # drop0.05 shift0.05 intTrue noise0.5 affine0.5
+      axis_permute:
+        enabled: true
+        prob: 1.0
+      rotate90_all:
+        enabled: true
+        prob: 1.0
+      flip:
+        enabled: true
+        prob: 0.5
+        spatial_axis: [0, 1, 2]
+      slice_drop:
+        enabled: true
+        prob: 0.5
+        slice_prob: 0.05
+        spatial_axis: [0, 1, 2]
+        fill_value: 0.0
+      slice_shift:
+        enabled: true
+        prob: 0.5
+        slice_prob: 0.05
+        shift_magnitude: 10
+        spatial_axis: [0, 1, 2]
+        wrap: true
+      affine:
+        enabled: true
+        prob: 0.5
+        rotate_range: [3.141592653589793, 3.141592653589793, 3.141592653589793]
+        scale_range: [0.2, 0.2, 0.2]
+        shear_range: [0.5, 0.5, 0.5]
+      intensity:
+        enabled: true
+        banis_style: true
+        mul_add_prob: 0.5
+        mul_range: [0.9, 1.1]
+        add_range: [-0.1, 0.1]
+        gaussian_noise_prob: 0.5
+        # BANIS uses 0.5 on [0,1] inputs; lowered for sparse mito where the
+        # signal-to-noise budget is tighter than dense neuron datasets.
+        gaussian_noise_std: 0.2
+  inference:
+    head: "aff_r1,aff_r10,sdt"
+    sliding_window:
+      window_size: [128, 128, 128]
+      sw_batch_size: 1
+      keep_input_on_cpu: false
+    test_time_augmentation:
+      enabled: false
+      flip_axes: all
+      ensemble_mode: min
+      channel_activations:
+        - {channels: "0:6", activation: sigmoid}
+        - {channels: "6:7", activation: tanh}
+    # pad_size [64, 64, 64] minus affinity crop [(0, 10), (0, 10), (0, 10)]
+    crop_pad: [64, 54, 64, 54, 64, 54]
+    postprocessing:
+      enabled: true
+    decoding:
+      - name: decode_distance_watershed
+        kwargs:
+          distance_channels: [6]
+          distance_threshold: [0.5, 0]
+          min_seed_size: 100
+          min_instance_size: 50
+          use_fast_edt: true
+          edt_parallel: 8
+    save_prediction:
+      enabled: true
+    evaluation:
+      enabled: true
+      metrics: [adapted_rand]
+
+train:
+  system:
+    seed: 0
+  optimization:
+    optimizer:
+      name: AdamW
+      lr: 0.001
+      weight_decay: 0.01
+    scheduler:
+      name: CosineAnnealingLR
+      interval: step
+      min_lr: 1.0e-5
+      params:
+        t_max: 50000
+    max_epochs: 200
+    max_steps: 50000
+    n_steps_per_epoch: 1000
+    val_check_interval: 5
+    accumulate_grad_batches: 1
+    precision: "bf16-mixed"
+  monitor:
+    logging:
+      scalar:
+        loss: [train_loss_total_epoch, train_loss_term_0_weighted, train_loss_term_1_weighted, train_loss_term_2_weighted, train_loss_term_3_weighted, train_loss_term_4_weighted]
+        loss_every_n_steps: 100
+      images:
+        head: all
+        log_every_n_epochs: 10
+        max_images: 8
+        num_slices: 2
+        channel_mode: all
+    checkpoint:
+      save_top_k: 3
+      monitor: val_loss_total
+      mode: min
+  data:
+    root_path: /projects/weilab/liupeng/data/raw/mito/betaSeg
+    train:
+      image: [high_c3_im.tiff, low_c1_im.tiff, low_c2_im.tiff]
+      label: [high_c3_mito.tiff, low_c1_mito.tiff, low_c2_mito.tiff]
+      label_aux_type: skeleton
+    val:
+      image: [high_c1_im.tiff]
+      label: [high_c1_mito.tiff]
+      label_aux_type: skeleton
+
+test:
+  data:
+    root_path: /projects/weilab/liupeng/data/raw/mito/betaSeg
+    test:
+      path: ""
+      # BANIS-mito test split: high_c2, high_c4, low_c3.
+      image: [high_c2_im.tiff, high_c4_im.tiff, low_c3_im.tiff]
+      label: [high_c2_mito.tiff, high_c4_mito.tiff, low_c3_mito.tiff]
+      label_aux_type: skeleton
+      resolution: [16, 16, 16]
+    data_transform:
+      pad_size: [64, 64, 64]

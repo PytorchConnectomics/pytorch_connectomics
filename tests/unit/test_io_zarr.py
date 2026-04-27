@@ -12,12 +12,28 @@ zarr = pytest.importorskip("zarr")
 def test_sdt_path_for_label_preserves_zarr_backend():
     assert sdt_path_for_label("/tmp/labels.h5", mode="skeleton") == "/tmp/labels_skeleton.h5"
     assert (
+        sdt_path_for_label("/tmp/labels.h5", mode="skeleton", cache_dir="/cache")
+        == "/cache/labels_skeleton.h5"
+    )
+    assert (
         sdt_path_for_label("/tmp/data.zarr/seg", mode="skeleton") == "/tmp/data.zarr/seg_skeleton"
+    )
+    assert (
+        sdt_path_for_label("/tmp/data.zarr/seg", mode="skeleton", cache_dir="/cache")
+        == "/cache/data.zarr/seg_skeleton"
     )
     assert (
         sdt_path_for_label("/tmp/data.zarr/group/seg", mode="sdt") == "/tmp/data.zarr/group/seg_sdt"
     )
+    assert (
+        sdt_path_for_label("/tmp/data.zarr/group/seg", mode="sdt", cache_dir="/cache")
+        == "/cache/data.zarr/group/seg_sdt"
+    )
     assert sdt_path_for_label("/tmp/data.zarr", mode="skeleton") == "/tmp/data_skeleton.zarr"
+    assert (
+        sdt_path_for_label("/tmp/data.zarr", mode="skeleton", cache_dir="/cache")
+        == "/cache/data_skeleton.zarr"
+    )
 
 
 def test_zarr_subkey_round_trip_and_shape(tmp_path: Path):

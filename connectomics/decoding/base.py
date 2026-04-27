@@ -18,5 +18,6 @@ class DecodeFunction(Protocol):
 class DecodeStep:
     """Single step in a decoding pipeline."""
 
-    name: str
+    enabled: bool = True
+    name: str = ""
     kwargs: Dict[str, Any] = field(default_factory=dict)

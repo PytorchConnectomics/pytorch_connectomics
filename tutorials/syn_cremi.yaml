@@ -121,7 +121,6 @@ default:
       ensemble_mode: mean
       channel_activations:
         - {channels: "0:1", activation: sigmoid}
-      select_channel:
     save_prediction:
       enabled: true
       intensity_scale: -1

@@ -12,6 +12,7 @@ from .build import (
     build_val_transforms,
 )
 from .transforms import (
+    RandAxisPermuted,
     RandCopyPasted,
     RandCutBlurd,
     RandCutNoised,
@@ -20,6 +21,11 @@ from .transforms import (
     RandMissingSectiond,
     RandMixupd,
     RandMotionBlurd,
+    RandRotate90Alld,
+    RandSliceDropd,
+    RandSliceDropZd,
+    RandSliceShiftd,
+    RandSliceShiftZd,
 )
 
 __all__ = [
@@ -28,6 +34,12 @@ __all__ = [
     "build_val_transforms",
     "build_test_transforms",
     # Connectomics-specific MONAI transforms (not in standard MONAI)
+    "RandAxisPermuted",
+    "RandRotate90Alld",
+    "RandSliceDropd",
+    "RandSliceShiftd",
+    "RandSliceShiftZd",
+    "RandSliceDropZd",
     "RandMisAlignmentd",
     "RandMissingSectiond",
     "RandMissingPartsd",

@@ -35,15 +35,22 @@ from connectomics.data.processing.nnunet_preprocess import NNUNetPreprocessd
 
 from ...config.schema import AugmentationConfig, Config
 from .transforms import (
+    RandAxisPermuted,
     RandCopyPasted,
     RandCutBlurd,
     RandCutNoised,
     RandElasticd,
     RandMisAlignmentd,
+    RandMulAddIntensityd,
     RandMissingPartsd,
     RandMissingSectiond,
     RandMixupd,
     RandMotionBlurd,
+    RandRotate90Alld,
+    RandSliceDropd,
+    RandSliceDropZd,
+    RandSliceShiftd,
+    RandSliceShiftZd,
     RandStriped,
     ResizeByFactord,
     SmartNormalizeIntensityd,
@@ -612,6 +619,24 @@ def _build_augmentations(aug_cfg: AugmentationConfig, keys: list[str], do_2d: bo
     transforms = []
 
     # Standard geometric augmentations
+    if aug_cfg.axis_permute.enabled and not do_2d:
+        transforms.append(
+            RandAxisPermuted(
+                keys=keys,
+                prob=aug_cfg.axis_permute.prob,
+                include_identity=aug_cfg.axis_permute.include_identity,
+            )
+        )
+
+    if aug_cfg.rotate90_all.enabled and not do_2d:
+        transforms.append(
+            RandRotate90Alld(
+                keys=keys,
+                prob=aug_cfg.rotate90_all.prob,
+                include_identity=aug_cfg.rotate90_all.include_identity,
+            )
+        )
+
     if aug_cfg.flip.enabled:
         spatial_axis = aug_cfg.flip.spatial_axis
         if isinstance(spatial_axis, (list, tuple)):
@@ -624,19 +649,43 @@ def _build_augmentations(aug_cfg: AugmentationConfig, keys: list[str], do_2d: bo
             )
 
     if aug_cfg.rotate.enabled:
-        # Determine spatial_axes based on data dimensionality
-        # MONAI transforms work on (C, *spatial) tensors (no batch dimension)
-        # - 2D data: (C, H, W) → spatial_axes=(0, 1) rotates H-W plane
-        # - 3D data: (C, D, H, W) → spatial_axes=(1, 2) rotates H-W plane
-
-        # Auto-detect based on do_2d flag (default behavior for 2D/3D)
-        spatial_axes = (0, 1) if do_2d else (1, 2)
+        spatial_axes_cfg = tuple(getattr(aug_cfg.rotate, "spatial_axes", ()) or ())
+        if spatial_axes_cfg:
+            spatial_axes = spatial_axes_cfg
+        else:
+            spatial_axes = (0, 1) if do_2d else (1, 2)
 
         transforms.append(
             RandRotate90d(
                 keys=keys,
                 prob=aug_cfg.rotate.prob,
                 spatial_axes=spatial_axes,
+            )
+        )
+
+    # BANIS-style sparse slice defects are independent augmentations applied to
+    # images only. They are separate from the legacy z-only defect family below.
+    if aug_cfg.slice_drop.enabled:
+        transforms.append(
+            RandSliceDropd(
+                keys=["image"],
+                prob=aug_cfg.slice_drop.prob,
+                slice_prob=aug_cfg.slice_drop.slice_prob,
+                spatial_axis=aug_cfg.slice_drop.spatial_axis,
+                fill_value=aug_cfg.slice_drop.fill_value,
+                preserve_boundaries=aug_cfg.slice_drop.preserve_boundaries,
+            )
+        )
+
+    if aug_cfg.slice_shift.enabled:
+        transforms.append(
+            RandSliceShiftd(
+                keys=["image"],
+                prob=aug_cfg.slice_shift.prob,
+                slice_prob=aug_cfg.slice_shift.slice_prob,
+                shift_magnitude=aug_cfg.slice_shift.shift_magnitude,
+                spatial_axis=aug_cfg.slice_shift.spatial_axis,
+                wrap=aug_cfg.slice_shift.wrap,
             )
         )
 
@@ -690,31 +739,63 @@ def _build_augmentations(aug_cfg: AugmentationConfig, keys: list[str], do_2d: bo
                     keys=["image"],
                     prob=aug_cfg.intensity.gaussian_noise_prob,
                     std=aug_cfg.intensity.gaussian_noise_std,
+                    sample_std=True,
                 )
             )
 
-        if aug_cfg.intensity.shift_intensity_prob > 0:
+        if getattr(aug_cfg.intensity, "banis_style", False):
             transforms.append(
-                RandShiftIntensityd(
+                RandMulAddIntensityd(
                     keys=["image"],
-                    prob=aug_cfg.intensity.shift_intensity_prob,
-                    offsets=aug_cfg.intensity.shift_intensity_offset,
+                    prob=aug_cfg.intensity.mul_add_prob,
+                    mul_range=aug_cfg.intensity.mul_range,
+                    add_range=aug_cfg.intensity.add_range,
                 )
             )
+        else:
+            if aug_cfg.intensity.shift_intensity_prob > 0:
+                transforms.append(
+                    RandShiftIntensityd(
+                        keys=["image"],
+                        prob=aug_cfg.intensity.shift_intensity_prob,
+                        offsets=aug_cfg.intensity.shift_intensity_offset,
+                    )
+                )
 
-        if aug_cfg.intensity.contrast_prob > 0:
-            transforms.append(
-                RandAdjustContrastd(
-                    keys=["image"],
-                    prob=aug_cfg.intensity.contrast_prob,
-                    gamma=aug_cfg.intensity.contrast_range,
+            if aug_cfg.intensity.contrast_prob > 0:
+                transforms.append(
+                    RandAdjustContrastd(
+                        keys=["image"],
+                        prob=aug_cfg.intensity.contrast_prob,
+                        gamma=aug_cfg.intensity.contrast_range,
+                    )
                 )
-            )
 
     # EM-specific defect augmentations.
-    # When defect_mutex is True, at most one defect fires per sample (DeepEM
-    # Blend(mutex) behaviour).  Otherwise they are applied independently.
+    # When defect_mutex is True, at most one defect fires per sample.
     defect_transforms = []
+
+    if aug_cfg.slice_shift_z.enabled:
+        defect_transforms.append(
+            RandSliceShiftZd(
+                keys=["image"],
+                prob=aug_cfg.slice_shift_z.prob,
+                displacement=aug_cfg.slice_shift_z.displacement,
+                rotate_ratio=aug_cfg.slice_shift_z.rotate_ratio,
+            )
+        )
+
+    if aug_cfg.slice_drop_z.enabled:
+        defect_transforms.append(
+            RandSliceDropZd(
+                keys=["image"],
+                prob=aug_cfg.slice_drop_z.prob,
+                num_sections=aug_cfg.slice_drop_z.num_sections,
+                full_section_prob=aug_cfg.slice_drop_z.full_section_prob,
+                partial_ratio_range=aug_cfg.slice_drop_z.partial_ratio_range,
+                fill_value_range=aug_cfg.slice_drop_z.fill_value_range,
+            )
+        )
 
     if aug_cfg.misalignment.enabled:
         defect_transforms.append(

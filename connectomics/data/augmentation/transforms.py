@@ -29,6 +29,8 @@ def _to_numpy(img: Union[np.ndarray, torch.Tensor]) -> Tuple[np.ndarray, bool, A
 def _from_numpy(img: np.ndarray, was_tensor: bool, device: Any) -> Union[np.ndarray, torch.Tensor]:
     """Convert back to tensor if input was tensor."""
     if was_tensor:
+        if not img.flags.c_contiguous:
+            img = np.ascontiguousarray(img)
         return torch.from_numpy(img).to(device)
     return img
 
@@ -38,6 +40,73 @@ def _infer_depth_axis(arr: np.ndarray) -> int:
     if arr.ndim >= 4 and arr.shape[0] <= 4:
         return 1
     return 0
+
+
+def _has_channel_axis(arr: np.ndarray) -> bool:
+    """Heuristic channel-first detection for image-like tensors."""
+    return arr.ndim >= 4 and arr.shape[0] <= 4
+
+
+def _infer_spatial_rank(arr: np.ndarray) -> int:
+    """Infer the number of spatial axes."""
+    return arr.ndim - 1 if _has_channel_axis(arr) else arr.ndim
+
+
+def _spatial_axis_to_array_axis(arr: np.ndarray, spatial_axis: int) -> int:
+    """Convert a spatial-axis index to an ndarray axis index."""
+    return spatial_axis + 1 if _has_channel_axis(arr) else spatial_axis
+
+
+def _sample_spatial_axis(
+    rng: np.random.RandomState,
+    spec: Union[int, str, Tuple[int, ...], List[int]],
+    spatial_rank: int,
+) -> int:
+    """Sample a spatial axis index from an int/list/random spec."""
+    if spatial_rank <= 0:
+        raise ValueError("spatial_rank must be positive")
+
+    if isinstance(spec, str):
+        if spec not in {"random", "all", "any"}:
+            raise ValueError(f"Unsupported spatial axis spec: {spec}")
+        choices = list(range(spatial_rank))
+    elif isinstance(spec, (tuple, list)):
+        choices = [int(a) for a in spec]
+    else:
+        choices = [int(spec)]
+
+    if not choices:
+        raise ValueError("spatial axis choices cannot be empty")
+    invalid = [ax for ax in choices if ax < 0 or ax >= spatial_rank]
+    if invalid:
+        raise ValueError(f"Spatial axis choices {invalid} out of range for rank {spatial_rank}")
+
+    if len(choices) == 1:
+        return choices[0]
+    return int(rng.choice(np.asarray(choices, dtype=np.int64)))
+
+
+def _sample_non_identity_permutation(
+    rng: np.random.RandomState,
+    spatial_rank: int,
+) -> np.ndarray:
+    """Sample a spatial permutation that is not the identity."""
+    identity = np.arange(spatial_rank, dtype=np.int64)
+    for _ in range(8):
+        permutation = rng.permutation(spatial_rank)
+        if not np.array_equal(permutation, identity):
+            return permutation.astype(np.int64)
+    return permutation.astype(np.int64)
+
+
+def _sample_non_identity_rotate_ks(rng: np.random.RandomState) -> Tuple[int, int, int]:
+    """Sample quarter-turn counts that are not all zero."""
+    rotate_ks = (0, 0, 0)
+    for _ in range(8):
+        rotate_ks = tuple(int(rng.randint(0, 4)) for _ in range(3))
+        if any(k != 0 for k in rotate_ks):
+            return rotate_ks
+    return rotate_ks
 
 
 def _sample_count(
@@ -60,6 +129,293 @@ def _sample_count(
     else:
         count = int(spec)
     return min(max(count, 0), max_count)
+
+
+class RandAxisPermuted(RandomizableTransform, MapTransform):
+    """Randomly permute the three spatial axes of a cubic 3D volume."""
+
+    def __init__(
+        self,
+        keys: KeysCollection,
+        prob: float = 1.0,
+        include_identity: bool = True,
+        allow_missing_keys: bool = False,
+    ) -> None:
+        MapTransform.__init__(self, keys, allow_missing_keys)
+        RandomizableTransform.__init__(self, prob)
+        self.include_identity = include_identity
+
+    def __call__(self, data: Dict[str, Any]) -> Dict[str, Any]:
+        if self.prob <= 0:
+            self._do_transform = False
+            return data
+
+        d = dict(data)
+        self.randomize(None)
+        if not self._do_transform:
+            return d
+
+        permutation: Optional[np.ndarray] = None
+        for key in self.key_iterator(d):
+            if key not in d:
+                continue
+            arr, was_tensor, device = _to_numpy(d[key])
+            if _infer_spatial_rank(arr) != 3 or len(set(arr.shape[-3:])) != 1:
+                continue
+            if permutation is None:
+                if self.include_identity:
+                    permutation = self.R.permutation(3).astype(np.int64)
+                else:
+                    permutation = _sample_non_identity_permutation(self.R, 3)
+            result = augment_ops.permute_spatial_axes(
+                arr,
+                permutation,
+                has_channel_axis=_has_channel_axis(arr),
+            )
+            d[key] = _from_numpy(result, was_tensor, device)
+        return d
+
+    def randomize(self, _: Any = None) -> None:
+        self._do_transform = self.R.rand() < self.prob
+
+
+class RandRotate90Alld(RandomizableTransform, MapTransform):
+    """Apply random quarter-turn rotations over all three 3D plane pairs."""
+
+    def __init__(
+        self,
+        keys: KeysCollection,
+        prob: float = 1.0,
+        include_identity: bool = True,
+        allow_missing_keys: bool = False,
+    ) -> None:
+        MapTransform.__init__(self, keys, allow_missing_keys)
+        RandomizableTransform.__init__(self, prob)
+        self.include_identity = include_identity
+
+    def __call__(self, data: Dict[str, Any]) -> Dict[str, Any]:
+        if self.prob <= 0:
+            self._do_transform = False
+            return data
+
+        d = dict(data)
+        self.randomize(None)
+        if not self._do_transform:
+            return d
+
+        rotate_ks: Optional[Tuple[int, int, int]] = None
+        for key in self.key_iterator(d):
+            if key not in d:
+                continue
+            arr, was_tensor, device = _to_numpy(d[key])
+            if _infer_spatial_rank(arr) != 3 or len(set(arr.shape[-3:])) != 1:
+                continue
+            if rotate_ks is None:
+                if self.include_identity:
+                    rotate_ks = tuple(int(self.R.randint(0, 4)) for _ in range(3))
+                else:
+                    rotate_ks = _sample_non_identity_rotate_ks(self.R)
+            result = augment_ops.apply_rotate90_all(arr, rotate_ks)
+            d[key] = _from_numpy(result, was_tensor, device)
+        return d
+
+    def randomize(self, _: Any = None) -> None:
+        self._do_transform = self.R.rand() < self.prob
+
+
+class RandSliceDropd(RandomizableTransform, MapTransform):
+    """BANIS-style per-slice dropping along one sampled spatial axis."""
+
+    def __init__(
+        self,
+        keys: KeysCollection,
+        prob: float = 0.5,
+        slice_prob: float = 0.05,
+        spatial_axis: Union[int, str, Tuple[int, ...], List[int]] = (0, 1, 2),
+        fill_value: float = 0.0,
+        preserve_boundaries: bool = False,
+        allow_missing_keys: bool = False,
+    ) -> None:
+        MapTransform.__init__(self, keys, allow_missing_keys)
+        RandomizableTransform.__init__(self, prob)
+        self.slice_prob = slice_prob
+        self.spatial_axis = spatial_axis
+        self.fill_value = fill_value
+        self.preserve_boundaries = preserve_boundaries
+
+    def __call__(self, data: Dict[str, Any]) -> Dict[str, Any]:
+        if self.prob <= 0 or self.slice_prob <= 0:
+            self._do_transform = False
+            return data
+
+        d = dict(data)
+        self.randomize(None)
+        if not self._do_transform:
+            return d
+
+        chosen_spatial_axis: Optional[int] = None
+        selected_indices: Optional[np.ndarray] = None
+        for key in self.key_iterator(d):
+            if key not in d:
+                continue
+            arr, was_tensor, device = _to_numpy(d[key])
+            spatial_rank = _infer_spatial_rank(arr)
+            if spatial_rank != 3:
+                continue
+
+            if chosen_spatial_axis is None:
+                chosen_spatial_axis = _sample_spatial_axis(self.R, self.spatial_axis, spatial_rank)
+
+            array_axis = _spatial_axis_to_array_axis(arr, chosen_spatial_axis)
+            if selected_indices is None:
+                depth = arr.shape[array_axis]
+                candidates = np.arange(depth, dtype=np.int64)
+                if self.preserve_boundaries and depth > 2:
+                    candidates = candidates[1:-1]
+                if candidates.size == 0:
+                    continue
+                selected = self.R.rand(candidates.size) < self.slice_prob
+                selected_indices = candidates[selected]
+
+            if selected_indices is None or selected_indices.size == 0:
+                continue
+
+            result = augment_ops.fill_sections(
+                arr,
+                selected_indices,
+                fill_value=float(self.fill_value),
+                depth_axis=array_axis,
+            )
+            d[key] = _from_numpy(result, was_tensor, device)
+        return d
+
+    def randomize(self, _: Any = None) -> None:
+        self._do_transform = self.R.rand() < self.prob
+
+
+class RandSliceShiftd(RandomizableTransform, MapTransform):
+    """BANIS-style independent per-slice in-plane shifts along one sampled axis."""
+
+    def __init__(
+        self,
+        keys: KeysCollection,
+        prob: float = 0.5,
+        slice_prob: float = 0.05,
+        shift_magnitude: int = 10,
+        spatial_axis: Union[int, str, Tuple[int, ...], List[int]] = (0, 1, 2),
+        wrap: bool = True,
+        allow_missing_keys: bool = False,
+    ) -> None:
+        MapTransform.__init__(self, keys, allow_missing_keys)
+        RandomizableTransform.__init__(self, prob)
+        self.slice_prob = slice_prob
+        self.shift_magnitude = shift_magnitude
+        self.spatial_axis = spatial_axis
+        self.wrap = wrap
+
+    def __call__(self, data: Dict[str, Any]) -> Dict[str, Any]:
+        if self.prob <= 0 or self.slice_prob <= 0 or self.shift_magnitude <= 0:
+            self._do_transform = False
+            return data
+
+        d = dict(data)
+        self.randomize(None)
+        if not self._do_transform:
+            return d
+
+        chosen_spatial_axis: Optional[int] = None
+        selected_indices: Optional[np.ndarray] = None
+        selected_shifts: Optional[List[Tuple[int, int]]] = None
+        for key in self.key_iterator(d):
+            if key not in d:
+                continue
+            arr, was_tensor, device = _to_numpy(d[key])
+            spatial_rank = _infer_spatial_rank(arr)
+            if spatial_rank != 3:
+                continue
+
+            if chosen_spatial_axis is None:
+                chosen_spatial_axis = _sample_spatial_axis(self.R, self.spatial_axis, spatial_rank)
+
+            array_axis = _spatial_axis_to_array_axis(arr, chosen_spatial_axis)
+            if selected_indices is None:
+                depth = arr.shape[array_axis]
+                candidates = np.arange(depth, dtype=np.int64)
+                if candidates.size == 0:
+                    continue
+                selected = self.R.rand(candidates.size) < self.slice_prob
+                selected_indices = candidates[selected]
+                selected_shifts = [
+                    (
+                        int(self.R.randint(-self.shift_magnitude, self.shift_magnitude + 1)),
+                        int(self.R.randint(-self.shift_magnitude, self.shift_magnitude + 1)),
+                    )
+                    for _ in range(selected_indices.size)
+                ]
+
+            if selected_indices is None or selected_indices.size == 0 or selected_shifts is None:
+                continue
+
+            result = augment_ops.apply_slice_roll_shifts(
+                arr,
+                slice_axis=array_axis,
+                indices=selected_indices,
+                shifts=selected_shifts,
+                wrap=self.wrap,
+            )
+            d[key] = _from_numpy(result, was_tensor, device)
+        return d
+
+    def randomize(self, _: Any = None) -> None:
+        self._do_transform = self.R.rand() < self.prob
+
+
+class RandMulAddIntensityd(RandomizableTransform, MapTransform):
+    """BANIS-style joint multiplicative and additive intensity jitter."""
+
+    def __init__(
+        self,
+        keys: KeysCollection,
+        prob: float = 0.5,
+        mul_range: Tuple[float, float] = (0.9, 1.1),
+        add_range: Tuple[float, float] = (-0.1, 0.1),
+        allow_missing_keys: bool = False,
+    ) -> None:
+        MapTransform.__init__(self, keys, allow_missing_keys)
+        RandomizableTransform.__init__(self, prob)
+        self.mul_range = tuple(float(v) for v in mul_range)
+        self.add_range = tuple(float(v) for v in add_range)
+
+    def __call__(self, data: Dict[str, Any]) -> Dict[str, Any]:
+        if self.prob <= 0:
+            self._do_transform = False
+            return data
+
+        d = dict(data)
+        self.randomize(None)
+        if not self._do_transform:
+            return d
+
+        mul_low, mul_high = self.mul_range
+        add_low, add_high = self.add_range
+        if mul_high < mul_low:
+            mul_low, mul_high = mul_high, mul_low
+        if add_high < add_low:
+            add_low, add_high = add_high, add_low
+
+        mul = float(self.R.uniform(mul_low, mul_high))
+        add = float(self.R.uniform(add_low, add_high))
+
+        for key in self.key_iterator(d):
+            if key not in d:
+                continue
+            arr, was_tensor, device = _to_numpy(d[key])
+            result = arr.astype(np.float32, copy=False) * mul + add
+            d[key] = _from_numpy(result, was_tensor, device)
+        return d
+
+    def randomize(self, _: Any = None) -> None:
+        self._do_transform = self.R.rand() < self.prob
 
 
 class RandMisAlignmentd(RandomizableTransform, MapTransform):
@@ -222,6 +578,14 @@ class RandMissingSectiond(RandomizableTransform, MapTransform):
 
     def randomize(self, _: Any = None) -> None:
         self._do_transform = self.R.rand() < self.prob
+
+
+class RandSliceShiftZd(RandMisAlignmentd):
+    """Clearer alias for the legacy z-only misalignment augmentation."""
+
+
+class RandSliceDropZd(RandMissingSectiond):
+    """Clearer alias for the legacy z-only missing-section augmentation."""
 
 
 class RandMissingPartsd(RandomizableTransform, MapTransform):

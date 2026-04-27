@@ -26,31 +26,29 @@ from .plan import LossTermSpec, compile_loss_terms_from_config
 logger = logging.getLogger(__name__)
 
 
-def _default_affinity_deepem_crop_enabled(cfg) -> bool:
+def _default_resolve_affinity_mode(cfg) -> Optional[str]:
     """Lazy-import bridge to data.process.affinity."""
-    from ...data.processing.affinity import affinity_deepem_crop_enabled
+    from ...data.processing.affinity import resolve_affinity_mode_from_cfg
 
-    return affinity_deepem_crop_enabled(cfg)
-
-
-def _default_crop_spatial_fn(
-    tensor: torch.Tensor, offsets: list, *, item_name: str = ""
-) -> torch.Tensor:
-    """Lazy-import bridge to data.process.affinity."""
-    from ...data.processing.affinity import crop_spatial_by_offsets
-
-    return crop_spatial_by_offsets(tensor, offsets, item_name=item_name)
+    return resolve_affinity_mode_from_cfg(cfg)
 
 
 def _default_compute_valid_mask(
     offsets: list,
     spatial_shape: tuple,
+    *,
+    affinity_mode: str,
     device: torch.device | None = None,
 ) -> torch.Tensor:
     """Lazy-import bridge to data.process.affinity."""
     from ...data.processing.affinity import compute_affinity_valid_mask
 
-    return compute_affinity_valid_mask(offsets, spatial_shape, device=device)
+    return compute_affinity_valid_mask(
+        offsets,
+        spatial_shape,
+        affinity_mode=affinity_mode,
+        device=device,
+    )
 
 
 def _default_resolve_affinity_offsets(cfg, *, num_channels: int, channel_slice):
@@ -77,8 +75,7 @@ class LossOrchestrator:
         loss_weighter: Optional[nn.Module] = None,
         loss_metadata: Optional[List[LossMetadata]] = None,
         *,
-        affinity_crop_enabled_fn: Optional[Callable] = None,
-        crop_spatial_fn: Optional[Callable] = None,
+        resolve_affinity_mode_fn: Optional[Callable] = None,
         resolve_affinity_offsets_fn: Optional[Callable] = None,
         compute_valid_mask_fn: Optional[Callable] = None,
     ):
@@ -96,10 +93,7 @@ class LossOrchestrator:
         self.loss_cfg = getattr(cfg.model, "loss", None)
 
         # Injected affinity functions (decoupled from data.process.affinity)
-        self._affinity_crop_enabled_fn = (
-            affinity_crop_enabled_fn or _default_affinity_deepem_crop_enabled
-        )
-        self._crop_spatial_fn = crop_spatial_fn or _default_crop_spatial_fn
+        self._resolve_affinity_mode_fn = resolve_affinity_mode_fn or _default_resolve_affinity_mode
         self._resolve_affinity_offsets_fn = (
             resolve_affinity_offsets_fn or _default_resolve_affinity_offsets
         )
@@ -109,7 +103,7 @@ class LossOrchestrator:
             raise ValueError("cfg.model.loss is required for loss orchestration")
         self.clamp_min = float(self.loss_cfg.deep_supervision_clamp_min)
         self.clamp_max = float(self.loss_cfg.deep_supervision_clamp_max)
-        self.affinity_deepem_crop = self._affinity_crop_enabled_fn(cfg)
+        self.affinity_mode = self._resolve_affinity_mode_fn(cfg)
         self.loss_term_specs = compile_loss_terms_from_config(
             cfg,
             self.loss_functions,
@@ -392,7 +386,7 @@ class LossOrchestrator:
         labels_num_channels: int,
         is_main_scale: bool,
     ) -> Optional[list[tuple[int, int, int]]]:
-        if not self.affinity_deepem_crop or not is_main_scale:
+        if self.affinity_mode is None or not is_main_scale:
             return None
         return self._resolve_affinity_offsets_fn(
             self.cfg,
@@ -478,6 +472,8 @@ class LossOrchestrator:
                 pred2 = torch.clamp(pred2, min=self.clamp_min, max=self.clamp_max)
 
             # Resize labels/masks per term for deep supervision scales.
+            affinity_valid_mask: Optional[torch.Tensor] = None
+            target_valid_mask: Optional[torch.Tensor] = None
             if pred is not None:
                 if target is not None:
                     target = self._resize_tensor_for_output(
@@ -497,28 +493,31 @@ class LossOrchestrator:
                         pred,
                         target_kind="class_index",
                     )
-                # DeepEM get_pair logic: per-channel valid mask instead of
-                # uniform spatial crop.  Each channel is masked to its own
-                # valid region so (a) border zeros don't train the model and
-                # (b) reflection-padding artifacts from augmentation are
-                # excluded for long-range channels.
-                affinity_valid_mask: Optional[torch.Tensor] = None
+                # Affinity targets only define edges where both endpoint
+                # voxels exist. Mask invalid borders per channel instead of
+                # training on convention-dependent zero padding.
                 if affinity_offsets:
                     spatial_shape = tuple(int(v) for v in pred.shape[2:])
                     affinity_valid_mask = self._compute_valid_mask_fn(
                         affinity_offsets,
                         spatial_shape,
+                        affinity_mode=self.affinity_mode,
                         device=pred.device,
                     )
                     # (C, D, H, W) -> (1, C, D, H, W); match pred dtype for AMP
                     affinity_valid_mask = affinity_valid_mask.unsqueeze(0).to(pred.dtype)
+                if affinity_offsets and target is not None:
+                    # BANIS encodes invalid affinity edges as -1 and trains
+                    # with aff >= 0. Mirror that mask here so unlabeled or
+                    # border edges do not become easy negatives.
+                    target_valid_mask = (target >= 0).to(dtype=pred.dtype)
 
             # Merge all masks into combined_mask_tensor (for masking invalid
             # regions in the loss).  The affinity valid mask is kept separate
             # from term_mask_tensor so that the pos_weight / class-balancing
             # computation below works correctly.
             combined_mask_tensor: Optional[torch.Tensor] = None
-            for m in (term_mask_tensor, batch_mask_tensor, affinity_valid_mask):
+            for m in (term_mask_tensor, batch_mask_tensor, affinity_valid_mask, target_valid_mask):
                 if m is not None:
                     combined_mask_tensor = (
                         m if combined_mask_tensor is None else combined_mask_tensor * m
@@ -551,9 +550,20 @@ class LossOrchestrator:
                         spatial_weight_tensor = affinity_valid_mask
                     else:
                         spatial_weight_tensor = spatial_weight_tensor * affinity_valid_mask
+                if target_valid_mask is not None:
+                    if spatial_weight_tensor is None:
+                        spatial_weight_tensor = target_valid_mask
+                    else:
+                        spatial_weight_tensor = spatial_weight_tensor * target_valid_mask
 
                 pred_for_loss = pred
                 target_for_loss = target
+                if target_valid_mask is not None:
+                    target_for_loss = torch.where(
+                        target_valid_mask > 0,
+                        target_for_loss,
+                        torch.zeros_like(target_for_loss),
+                    )
                 if spatial_weight_arg is None and combined_mask_tensor is not None:
                     valid = combined_mask_tensor > 0
                     if valid.shape != pred_for_loss.shape:

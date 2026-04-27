@@ -68,7 +68,6 @@ default:
       channel_activations:
         - {channels: "0:2", activation: sigmoid}
         - {channels: "2:3", activation: tanh}
-      select_channel:
     save_prediction:
       enabled: true
       intensity_scale: 255

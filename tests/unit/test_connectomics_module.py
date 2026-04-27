@@ -261,6 +261,76 @@ def test_validation_step_logs_metrics_when_enabled():
     assert any(name.startswith("val_") for name in logged_names)
 
 
+def test_configure_optimizers_includes_uncertainty_weighter_parameters():
+    """Adaptive loss-weighter parameters should be included in optimization."""
+    cfg = Config()
+    cfg.model.out_channels = 1
+    cfg.model.loss.losses = [
+        {"function": "DiceLoss", "weight": 1.0, "pred_slice": "0:1", "target_slice": "0:1"},
+        {
+            "function": "BCEWithLogitsLoss",
+            "weight": 1.0,
+            "pred_slice": "0:1",
+            "target_slice": "0:1",
+        },
+    ]
+    cfg.model.loss.loss_balancing.strategy = "uncertainty"
+
+    module = ConnectomicsModule(cfg, model=SimpleModel())
+    opt_config = module.configure_optimizers()
+    optimizer = opt_config["optimizer"]
+
+    optimized_param_ids = {
+        id(param) for group in optimizer.param_groups for param in group["params"]
+    }
+
+    assert module.loss_weighter is not None
+    assert id(module.loss_weighter.log_vars) in optimized_param_ids
+
+
+def test_uncertainty_weighter_log_vars_update_after_optimizer_step():
+    """Uncertainty log-variance parameters should receive gradients and update."""
+    torch.manual_seed(0)
+
+    cfg = Config()
+    cfg.model.out_channels = 1
+    cfg.optimization.optimizer.lr = 1e-2
+    cfg.model.loss.losses = [
+        {
+            "function": "BCEWithLogitsLoss",
+            "weight": 1.0,
+            "pred_slice": "0:1",
+            "target_slice": "0:1",
+        },
+        {"function": "MSELoss", "weight": 1.0, "pred_slice": "0:1", "target_slice": "0:1"},
+    ]
+    cfg.model.loss.loss_balancing.strategy = "uncertainty"
+
+    module = ConnectomicsModule(cfg, model=SimpleModel())
+    _stub_logging(module)
+
+    optimizer = module.configure_optimizers()["optimizer"]
+    batch = {
+        "image": torch.ones(2, 1, 6, 6, 6),
+        "label": torch.ones(2, 1, 6, 6, 6),
+    }
+
+    before = module.loss_weighter.log_vars.detach().clone()
+
+    optimizer.zero_grad(set_to_none=True)
+    loss = module.training_step(batch, 0)
+    loss.backward()
+
+    grad = module.loss_weighter.log_vars.grad
+    assert grad is not None
+    assert torch.any(torch.abs(grad) > 0)
+
+    optimizer.step()
+    after = module.loss_weighter.log_vars.detach().clone()
+
+    assert not torch.allclose(after, before)
+
+
 def test_load_state_dict_ignores_stale_loss_function_keys():
     """Strict loading should ignore obsolete loss-function-only checkpoint keys."""
     cfg = _base_config()
@@ -409,7 +479,7 @@ def test_save_metrics_to_file_uses_runtime_inference_output_path(tmp_path):
 def test_save_metrics_to_file_matches_final_prediction_tag(tmp_path):
     cfg = _base_config()
     cfg.inference.save_prediction.output_path = str(tmp_path)
-    cfg.inference.output_channel = [0, 1, 2]
+    cfg.inference.select_channel = [0, 1, 2]
     cfg.inference.decoding = [
         {
             "name": "decode_waterz",
@@ -498,7 +568,7 @@ def test_load_cached_predictions_prefers_final_prediction_for_checkpoint_tagged_
 def test_load_cached_predictions_does_not_pick_unrelated_tta_channel_cache(tmp_path, monkeypatch):
     cfg = _base_config()
     cfg.inference.save_prediction.cache_suffix = "_x1_ch4-6-9_prediction_waterz_t0.4.h5"
-    cfg.inference.output_channel = [4, 6, 9]
+    cfg.inference.select_channel = [4, 6, 9]
     module = ConnectomicsModule(cfg, model=SimpleModel())
     unrelated_tta_file = tmp_path / "sample_tta_x1_ch0-1-2_prediction.h5"
     unrelated_tta_file.write_text("stub")

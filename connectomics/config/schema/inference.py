@@ -37,6 +37,34 @@ class SlidingWindowConfig:
 
 
 @dataclass
+class ChunkStitchingConfig:
+    """Boundary stitching configuration for chunked decoded outputs."""
+
+    method: str = "affinity_cc_boundary_union"
+    threshold: Optional[float] = None
+    edge_offset: Optional[int] = None
+    min_contact: int = 1
+
+
+@dataclass
+class ChunkingConfig:
+    """Chunked inference+decoding for volumes too large to materialize at once.
+
+    Chunking is an inference execution strategy: data sections still describe
+    whole volumes, while this section controls how each volume is partitioned
+    and stitched.
+    """
+
+    enabled: bool = False
+    chunk_size: Optional[List[int]] = None  # ZYX after test-time val_transpose.
+    halo: List[int] = field(default_factory=lambda: [0, 0, 0])
+    axes: str = "all"  # "all" or "z"; "z" keeps full YX in each chunk.
+    temp_dir: str = ""
+    save_intermediate: bool = False
+    stitching: ChunkStitchingConfig = field(default_factory=ChunkStitchingConfig)
+
+
+@dataclass
 class TestTimeAugmentationConfig:
     """Test-time augmentation (TTA) configuration."""
 
@@ -49,15 +77,11 @@ class TestTimeAugmentationConfig:
     # Channel selectors follow Python/NumPy indexing rules:
     #   -1 means the last channel, ":" means all channels, ":-1" excludes the last.
     channel_activations: List[Dict[str, Any]] = field(default_factory=list)
-    # Optional channel selector applied after channel activations and before TTA transforms.
-    # Accepts: None (all channels), int, slice string like ":"/"0:3"/"-1:", or [int, ...].
-    select_channel: Optional[Any] = None
-
     flip_axes: Any = "all"  # "all" | "none" | list[int] (0-indexed spatial: 0=z, 1=y, 2=x)
     flip_combinations: Optional[List[List[int]]] = None  # explicit list of axis subsets
     rotation90_axes: Any = None  # "all" | None | [[int, int], ...] spatial plane pairs
     rotate90_k: Optional[List[int]] = None  # subset of quarter-turns, defaults to [0,1,2,3]
-    patch_first_local: bool = False  # slide once, apply local TTA inside each ROI batch
+    patch_first_local: bool = True  # slide once, apply local TTA inside each ROI batch
     apply_mask: bool = True
     transforms: Optional[List[Dict[str, Any]]] = None  # advanced explicit transforms
 
@@ -106,6 +130,7 @@ class DecodeBinaryContourDistanceWatershedConfig:
 class DecodeModeConfig:
     """Single decode mode configuration."""
 
+    enabled: bool = True
     name: str = "decode_semantic"
     kwargs: Dict[str, Any] = field(default_factory=dict)
 
@@ -159,7 +184,6 @@ class PostprocessingConfig:
     output_transpose: List[int] = field(
         default_factory=list
     )  # Axis permutation for output (e.g., [2,1,0] for zyx->xyz)
-    crop_pad: Optional[List[int]] = None  # Crop [D,H,W]/[H,W] sym or [Db,Da,Hb,Ha,Wb,Wa] asym.
 
 
 @dataclass
@@ -193,7 +217,15 @@ class InferenceConfig:
     # Named output head selection for multi-head models. When unset, falls back
     # to model.primary_head or the sole configured head.
     head: Optional[str] = None
+    # Optional channel selector applied after channel activations and before
+    # decoding/saving. Accepts None, int, slice string, or explicit index list.
+    select_channel: Optional[Any] = None
+    strategy: str = "whole_volume"  # "whole_volume" or "chunked"
+    # Crop context padding before decoding/saving predictions:
+    # [D,H,W]/[H,W] symmetric or [Db,Da,Hb,Ha,Wb,Wa] asymmetric.
+    crop_pad: Optional[List[int]] = None
     sliding_window: SlidingWindowConfig = field(default_factory=SlidingWindowConfig)
+    chunking: ChunkingConfig = field(default_factory=ChunkingConfig)
     test_time_augmentation: TestTimeAugmentationConfig = field(
         default_factory=TestTimeAugmentationConfig
     )

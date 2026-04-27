@@ -275,7 +275,7 @@ def test_standard_loss_supports_negative_channel_slice_bounds():
     assert aux_loss.calls[0]["target_shape"] == (1, 1, 2, 2, 2)
 
 
-def test_standard_loss_supports_affinity_deepem_crop():
+def test_standard_loss_supports_affinity_mode_deepem():
     weighted_loss = WeightAwareSpyLoss()
     cfg = _cfg(
         losses=[
@@ -289,7 +289,7 @@ def test_standard_loss_supports_affinity_deepem_crop():
             "name": "affinity",
             "kwargs": {
                 "offsets": ["1-0-0", "0-1-0", "0-0-1"],
-                "deepem_crop": True,
+                "affinity_mode": "deepem",
             },
         }
     ]
@@ -308,7 +308,7 @@ def test_standard_loss_supports_affinity_deepem_crop():
 
     assert torch.isfinite(total_loss)
     assert "train_loss_total" in loss_dict
-    # Per-channel valid masking (DeepEM get_pair): spatial dims are preserved,
+    # Per-channel valid masking (deepem mode): spatial dims are preserved,
     # but a per-channel weight mask zeros out invalid border voxels.
     assert weighted_loss.calls[0]["pred_shape"] == (1, 3, 5, 5, 5)
     assert weighted_loss.calls[0]["target_shape"] == (1, 3, 5, 5, 5)
@@ -325,7 +325,8 @@ def test_standard_loss_supports_affinity_deepem_crop():
     assert weight[0, 2, :, :, 1].sum() > 0  # x=1 valid for channel 2
 
 
-def test_standard_loss_supports_batched_affinity_deepem_crop_with_weighted_bce():
+def test_standard_loss_supports_affinity_mode_banis():
+    weighted_loss = WeightAwareSpyLoss()
     cfg = _cfg(
         losses=[
             {
@@ -338,7 +339,93 @@ def test_standard_loss_supports_batched_affinity_deepem_crop_with_weighted_bce()
             "name": "affinity",
             "kwargs": {
                 "offsets": ["1-0-0", "0-1-0", "0-0-1"],
-                "deepem_crop": True,
+                "affinity_mode": "banis",
+            },
+        }
+    ]
+    orchestrator = LossOrchestrator(
+        cfg=cfg,
+        loss_functions=nn.ModuleList([weighted_loss]),
+        loss_weights=[1.0],
+        enable_nan_detection=False,
+        debug_on_nan=False,
+    )
+
+    outputs = torch.zeros(1, 3, 5, 5, 5)
+    labels = torch.randn(1, 3, 5, 5, 5)
+
+    total_loss, loss_dict = orchestrator.compute_standard_loss(outputs, labels, stage="train")
+
+    assert torch.isfinite(total_loss)
+    assert "train_loss_total" in loss_dict
+    weight = weighted_loss.calls[0]["weight"]
+    assert weight is not None
+    # BANIS/source-index mode masks the trailing side for positive offsets.
+    assert weight[0, 0, -1, :, :].sum() == 0
+    assert weight[0, 0, -2, :, :].sum() > 0
+    assert weight[0, 1, :, -1, :].sum() == 0
+    assert weight[0, 1, :, -2, :].sum() > 0
+    assert weight[0, 2, :, :, -1].sum() == 0
+    assert weight[0, 2, :, :, -2].sum() > 0
+
+
+def test_banis_affinity_loss_skips_negative_one_targets():
+    weighted_loss = WeightAwareSpyLoss()
+    cfg = _cfg(
+        losses=[
+            {
+                "weight": 1.0,
+            },
+        ]
+    )
+    cfg.data.label_transform.targets = [
+        {
+            "name": "affinity",
+            "kwargs": {
+                "offsets": ["0-0-1"],
+                "affinity_mode": "banis",
+            },
+        }
+    ]
+    orchestrator = LossOrchestrator(
+        cfg=cfg,
+        loss_functions=nn.ModuleList([weighted_loss]),
+        loss_weights=[1.0],
+        enable_nan_detection=False,
+        debug_on_nan=False,
+    )
+
+    outputs = torch.zeros(1, 1, 1, 1, 5)
+    labels = torch.tensor([[[[[1.0, -1.0, -1.0, 0.0, -1.0]]]]])
+
+    total_loss, _ = orchestrator.compute_standard_loss(outputs, labels, stage="train")
+
+    assert torch.isfinite(total_loss)
+    received = weighted_loss.calls[0]
+    assert torch.equal(
+        received["weight"],
+        torch.tensor([[[[[1.0, 0.0, 0.0, 1.0, 0.0]]]]]),
+    )
+    assert torch.equal(
+        received["target"],
+        torch.tensor([[[[[1.0, 0.0, 0.0, 0.0, 0.0]]]]]),
+    )
+
+
+def test_standard_loss_supports_batched_affinity_mode_with_weighted_bce():
+    cfg = _cfg(
+        losses=[
+            {
+                "weight": 1.0,
+            },
+        ]
+    )
+    cfg.data.label_transform.targets = [
+        {
+            "name": "affinity",
+            "kwargs": {
+                "offsets": ["1-0-0", "0-1-0", "0-0-1"],
+                "affinity_mode": "deepem",
             },
         }
     ]

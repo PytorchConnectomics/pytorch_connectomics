@@ -7,7 +7,10 @@ import torch
 
 from connectomics.config import Config
 from connectomics.inference.output import resolve_output_filenames
-from connectomics.training.lightning.test_pipeline import run_test_step
+from connectomics.training.lightning.test_pipeline import (
+    _apply_predecode_prediction_crops,
+    run_test_step,
+)
 
 
 class _DummyInferenceManager:
@@ -76,7 +79,7 @@ class _CroppingModule:
     def __init__(self):
         self.device = torch.device("cpu")
         self.cfg = Config()
-        self.cfg.inference.postprocessing.crop_pad = [1, 2, 3]
+        self.cfg.inference.crop_pad = [1, 2, 3]
         self.inference_manager = _DummyInferenceManager()
 
     def _get_runtime_inference_config(self):
@@ -147,6 +150,23 @@ def test_run_test_step_crops_predictions_by_postprocessing_crop_pad(monkeypatch)
     assert captured["label_shape"] == (1, 1, 4, 4, 4)
 
 
+def test_predecode_crop_compacts_prediction_storage():
+    module = _CroppingModule()
+    predictions = np.arange(1 * 1 * 6 * 8 * 10, dtype=np.float32).reshape(1, 1, 6, 8, 10)
+
+    cropped, reference_shape = _apply_predecode_prediction_crops(
+        module,
+        predictions,
+        reference_image_shape=(1, 1, 6, 8, 10),
+        item_name="predictions",
+    )
+
+    assert tuple(cropped.shape) == (1, 1, 4, 4, 4)
+    assert reference_shape == (4, 4, 4)
+    assert not np.shares_memory(cropped, predictions)
+    assert cropped.flags.c_contiguous
+
+
 class _AffinityCroppingModule:
     def __init__(self):
         self.device = torch.device("cpu")
@@ -156,7 +176,7 @@ class _AffinityCroppingModule:
                 "name": "affinity",
                 "kwargs": {
                     "offsets": ["1-0-0", "0-1-0", "0-0-1"],
-                    "deepem_crop": True,
+                    "affinity_mode": "deepem",
                 },
             }
         ]
@@ -230,17 +250,86 @@ def test_run_test_step_crops_affinity_predictions_and_labels(monkeypatch):
     assert captured["label_shape"] == (1, 3, 4, 4, 4)
 
 
+class _SelectedBanisAffinityCroppingModule(_AffinityCroppingModule):
+    def __init__(self):
+        super().__init__()
+        self.cfg.inference.select_channel = [2, 1, 0]
+        self.cfg.data.label_transform.targets = [
+            {
+                "name": "affinity",
+                "kwargs": {
+                    "offsets": [
+                        "0-0-1",
+                        "0-1-0",
+                        "1-0-0",
+                        "0-0-10",
+                        "0-10-0",
+                        "10-0-0",
+                    ],
+                    "affinity_mode": "banis",
+                },
+            }
+        ]
+
+
+def test_run_test_step_affinity_crop_uses_selected_channels(monkeypatch):
+    module = _SelectedBanisAffinityCroppingModule()
+    batch = {
+        "image": torch.zeros((1, 3, 5, 5, 5), dtype=torch.float32),
+        "label": torch.zeros((1, 3, 5, 5, 5), dtype=torch.float32),
+    }
+
+    captured = {}
+
+    def _fake_process_decoding_postprocessing(
+        _module,
+        predictions_np,
+        *,
+        filenames,
+        mode,
+        batch_meta,
+        save_final_predictions,
+    ):
+        captured["predictions_shape"] = tuple(predictions_np.shape)
+        return predictions_np
+
+    def _fake_evaluate_decoded_predictions(
+        _module,
+        decoded_predictions,
+        labels,
+        *,
+        filenames,
+        batch_idx,
+    ):
+        captured["label_shape"] = tuple(labels.shape)
+
+    monkeypatch.setattr(
+        "connectomics.training.lightning.test_pipeline._process_decoding_postprocessing",
+        _fake_process_decoding_postprocessing,
+    )
+    monkeypatch.setattr(
+        "connectomics.training.lightning.test_pipeline._evaluate_decoded_predictions",
+        _fake_evaluate_decoded_predictions,
+    )
+
+    out = run_test_step(module, batch, batch_idx=0)
+
+    assert isinstance(out, torch.Tensor)
+    assert captured["predictions_shape"] == (1, 3, 4, 4, 4)
+    assert captured["label_shape"] == (1, 3, 4, 4, 4)
+
+
 class _AsymmetricPostprocessAffinityModule:
     def __init__(self):
         self.device = torch.device("cpu")
         self.cfg = Config()
-        self.cfg.inference.postprocessing.crop_pad = [0, 1, 1, 2, 1, 2]
+        self.cfg.inference.crop_pad = [0, 1, 1, 2, 1, 2]
         self.cfg.data.label_transform.targets = [
             {
                 "name": "affinity",
                 "kwargs": {
                     "offsets": ["1-0-0", "0-1-0", "0-0-1"],
-                    "deepem_crop": True,
+                    "affinity_mode": "deepem",
                 },
             }
         ]
@@ -312,6 +401,83 @@ def test_run_test_step_combines_asymmetric_crop_pad_with_affinity_crop(monkeypat
     assert captured["predictions_shape"] == (1, 3, 4, 4, 4)
     assert captured["decoded_shape"] == (1, 3, 4, 4, 4)
     assert captured["label_shape"] == (1, 3, 4, 4, 4)
+
+
+class _SavedPredictionPathCroppingModule:
+    def __init__(self):
+        self.device = torch.device("cpu")
+        self.cfg = Config()
+        self.cfg.inference.crop_pad = [1, 2, 3]
+        self.cfg.inference.saved_prediction_path = "/tmp/raw_affinity_prediction.h5"
+        self.inference_manager = _DummyInferenceManager()
+
+    def _get_runtime_inference_config(self):
+        return self.cfg.inference
+
+    def _get_test_evaluation_config(self):
+        return None
+
+    def _resolve_test_output_config(self, _batch):
+        return "test", "/tmp/results", "_x1_prediction.h5", ["sample"]
+
+    def _load_cached_predictions(self, _output_dir, _filenames, _cache_suffix, _mode):
+        pred = np.zeros((1, 1, 6, 8, 10), dtype=np.uint16)
+        return pred, True, "_prediction.h5"
+
+    def _invert_save_prediction_transform(self, data):
+        return data
+
+    def _is_test_evaluation_enabled(self):
+        return True
+
+
+def test_run_test_step_crops_saved_prediction_path_before_decode(monkeypatch):
+    module = _SavedPredictionPathCroppingModule()
+    batch = {
+        "image": torch.zeros((1, 1, 6, 8, 10), dtype=torch.float32),
+        "label": torch.zeros((1, 1, 4, 4, 4), dtype=torch.float32),
+    }
+
+    captured = {}
+
+    def _fake_process_decoding_postprocessing(
+        _module,
+        predictions_np,
+        *,
+        filenames,
+        mode,
+        batch_meta,
+        save_final_predictions,
+    ):
+        captured["predictions_shape"] = tuple(predictions_np.shape)
+        return predictions_np
+
+    def _fake_evaluate_decoded_predictions(
+        _module,
+        decoded_predictions,
+        labels,
+        *,
+        filenames,
+        batch_idx,
+    ):
+        captured["decoded_shape"] = tuple(decoded_predictions.shape)
+        captured["label_shape"] = tuple(labels.shape)
+
+    monkeypatch.setattr(
+        "connectomics.training.lightning.test_pipeline._process_decoding_postprocessing",
+        _fake_process_decoding_postprocessing,
+    )
+    monkeypatch.setattr(
+        "connectomics.training.lightning.test_pipeline._evaluate_decoded_predictions",
+        _fake_evaluate_decoded_predictions,
+    )
+
+    out = run_test_step(module, batch, batch_idx=0)
+
+    assert isinstance(out, torch.Tensor)
+    assert captured["predictions_shape"] == (1, 1, 4, 4, 4)
+    assert captured["decoded_shape"] == (1, 1, 4, 4, 4)
+    assert captured["label_shape"] == (1, 1, 4, 4, 4)
 
 
 class _ListBatchModule:

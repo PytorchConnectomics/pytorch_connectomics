@@ -21,7 +21,9 @@ def resolve_output_filenames(
     """Extract and resolve filenames from batch metadata."""
     images = batch.get("image")
     if images is not None:
-        if isinstance(images, (list, tuple)):
+        if isinstance(images, (str, os.PathLike)):
+            batch_size = 1
+        elif isinstance(images, (list, tuple)):
             batch_size = len(images)
         else:
             batch_size = images.shape[0]
@@ -264,6 +266,7 @@ def _resolve_mode_configs(
         saved_pred = getattr(inference_cfg, "saved_prediction_path", "")
         if saved_pred:
             from pathlib import Path
+
             output_dir_value = str(Path(saved_pred).expanduser().parent)
 
     return inference_cfg, data_cfg, output_dir_value
@@ -277,7 +280,7 @@ def apply_save_prediction_transform(cfg: Config | DictConfig, data: np.ndarray) 
         intensity_scale = getattr(save_pred_cfg, "intensity_scale", -1.0)
 
     if intensity_scale >= 0:
-        data = data.astype(np.float32)
+        data = data.astype(np.float32, copy=False)
         data_min = data.min()
         data_max = data.max()
 
@@ -332,7 +335,7 @@ def apply_save_prediction_transform(cfg: Config | DictConfig, data: np.ndarray) 
             data = np.clip(data, info.min, info.max)
             logger.info(f"Converting to {target_dtype_str} (clipped to [{info.min}, {info.max}])")
 
-        data = data.astype(target_dtype)
+        data = data.astype(target_dtype, copy=False)
 
     return data
 
@@ -500,7 +503,7 @@ def write_outputs(
                 write_hdf5(
                     out_path,
                     (
-                        sample.astype(np.float32)
+                        sample.astype(np.float32, copy=False)
                         if not np.issubdtype(sample.dtype, np.integer)
                         else sample
                     ),

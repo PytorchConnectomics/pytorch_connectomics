@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-import torch
 import pytest
+import torch
 
 from connectomics.config import Config
 from connectomics.inference.output import resolve_output_filenames
@@ -72,6 +72,13 @@ def test_resolve_output_filenames_supports_string_image_paths_without_meta():
     assert resolve_output_filenames(cfg, batch, global_step=7) == ["input_c", "input_d"]
 
 
+def test_resolve_output_filenames_supports_single_lazy_string_image_path():
+    cfg = Config()
+    batch = {"image": "/tmp/input_e.zarr/img"}
+
+    assert resolve_output_filenames(cfg, batch, global_step=9) == ["img"]
+
+
 def test_distributed_evaluation_sampler_partitions_without_duplicates():
     dataset = list(range(10))
 
@@ -128,5 +135,7 @@ def test_test_dataloader_rejects_multi_volume_distributed_tta_sharding(monkeypat
 
     datamodule.setup(stage="test")
 
-    with pytest.raises(RuntimeError, match="Distributed TTA sharding requires a single test sample"):
+    with pytest.raises(
+        RuntimeError, match="Distributed TTA sharding requires a single test sample"
+    ):
         datamodule.test_dataloader()

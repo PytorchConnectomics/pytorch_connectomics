@@ -16,6 +16,8 @@ class CheckpointConfig:
     filename: Optional[str] = None
     checkpoint_filename: str = "{epoch:03d}-{train_loss_total_epoch:.4f}"
     save_every_n_epochs: int = 1
+    save_every_n_steps: Optional[int] = None
+    step_checkpoint_filename: str = "step-{step:08d}"
     use_timestamp: bool = True
 
 

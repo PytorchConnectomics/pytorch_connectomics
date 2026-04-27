@@ -107,6 +107,26 @@ def create_trainer(
         )
         callbacks.append(checkpoint_callback)
 
+        save_every_n_steps = getattr(cfg.monitor.checkpoint, "save_every_n_steps", None)
+        if save_every_n_steps is not None and int(save_every_n_steps) > 0:
+            step_checkpoint_callback = ModelCheckpoint(
+                dirpath=str(checkpoint_dir),
+                filename=getattr(
+                    cfg.monitor.checkpoint,
+                    "step_checkpoint_filename",
+                    "step-{step:08d}",
+                ),
+                monitor=None,
+                save_top_k=-1,
+                save_last=False,
+                every_n_train_steps=int(save_every_n_steps),
+                every_n_epochs=0,
+                verbose=False,
+                save_on_train_epoch_end=False,
+            )
+            callbacks.append(step_checkpoint_callback)
+            _log.info("  Step checkpoints: every %d train steps", int(save_every_n_steps))
+
         # Early stopping (training only)
         if cfg.monitor.early_stopping.enabled:
             # Import here to avoid circular dependency
@@ -291,8 +311,8 @@ def create_trainer(
         precision=cfg.optimization.precision,
         gradient_clip_val=cfg.optimization.gradient_clip_val,
         accumulate_grad_batches=cfg.optimization.accumulate_grad_batches,
-        val_check_interval=1.0,
         check_val_every_n_epoch=check_val_every_n_epoch,
+        num_sanity_val_steps=cfg.optimization.num_sanity_val_steps,
         log_every_n_steps=cfg.optimization.log_every_n_steps,
         callbacks=callbacks,
         logger=logger,

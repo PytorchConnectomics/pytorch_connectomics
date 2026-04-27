@@ -23,13 +23,13 @@ except ImportError:
     _HAS_CHAIN_DATASET = False
 
 from ...data.processing.affinity import (
-    affinity_deepem_crop_enabled,
     compute_affinity_valid_mask,
     crop_spatial_by_offsets,
     resolve_affinity_channel_groups_from_cfg,
+    resolve_affinity_mode_from_cfg,
     resolve_affinity_offsets_for_channel_slice,
 )
-from ...utils import resolve_configured_output_head, select_output_tensor
+from ...utils import get_model_head_names, resolve_configured_output_head, select_output_tensor
 from .visualizer import Visualizer, get_visualization_mask
 
 logger = logging.getLogger(__name__)
@@ -56,9 +56,12 @@ def _apply_affinity_visualization_crop_if_needed(
     per-channel affinity valid-region mask rather than a global crop. The
     visualization path applies the same masking to labels and predictions so
     invalid affinity borders are hidden. Pure-affinity tensors still receive
-    the common DeepEM crop for a cleaner spatial view.
+    the common valid-region crop for a cleaner spatial view.
     """
-    if cfg is None or not affinity_deepem_crop_enabled(cfg):
+    if cfg is None:
+        return image, label, pred, mask
+    affinity_mode = resolve_affinity_mode_from_cfg(cfg)
+    if affinity_mode is None:
         return image, label, pred, mask
     if image.ndim < 5 or label.ndim < 5 or pred.ndim < 5:
         return image, label, pred, mask
@@ -84,13 +87,18 @@ def _apply_affinity_visualization_crop_if_needed(
         group_mask = compute_affinity_valid_mask(
             list(offsets[: end_idx - start_idx]),
             spatial_shape,
+            affinity_mode=affinity_mode,
             device=label.device,
         ).unsqueeze(0)
-        label[:, start_idx:end_idx] = label[:, start_idx:end_idx] * group_mask.to(
-            device=label.device,
-            dtype=label.dtype,
+        group_mask = group_mask.to(device=label.device, dtype=label.dtype)
+        target_valid = (label[:, start_idx:end_idx] >= 0).to(dtype=label.dtype)
+        group_valid = group_mask * target_valid
+        label[:, start_idx:end_idx] = torch.where(
+            group_valid > 0,
+            label[:, start_idx:end_idx],
+            torch.zeros_like(label[:, start_idx:end_idx]),
         )
-        pred[:, start_idx:end_idx] = pred[:, start_idx:end_idx] * group_mask.to(
+        pred[:, start_idx:end_idx] = pred[:, start_idx:end_idx] * group_valid.to(
             device=pred.device,
             dtype=pred.dtype,
         )
@@ -103,11 +111,31 @@ def _apply_affinity_visualization_crop_if_needed(
     if not offsets:
         return image, label, pred, mask
 
-    image = crop_spatial_by_offsets(image, offsets, item_name="visualization image")
-    label = crop_spatial_by_offsets(label, offsets, item_name="visualization label")
-    pred = crop_spatial_by_offsets(pred, offsets, item_name="visualization prediction")
+    image = crop_spatial_by_offsets(
+        image,
+        offsets,
+        affinity_mode=affinity_mode,
+        item_name="visualization image",
+    )
+    label = crop_spatial_by_offsets(
+        label,
+        offsets,
+        affinity_mode=affinity_mode,
+        item_name="visualization label",
+    )
+    pred = crop_spatial_by_offsets(
+        pred,
+        offsets,
+        affinity_mode=affinity_mode,
+        item_name="visualization prediction",
+    )
     if mask is not None:
-        mask = crop_spatial_by_offsets(mask, offsets, item_name="visualization mask")
+        mask = crop_spatial_by_offsets(
+            mask,
+            offsets,
+            affinity_mode=affinity_mode,
+            item_name="visualization mask",
+        )
     return image, label, pred, mask
 
 
@@ -148,6 +176,10 @@ class VisualizationCallback(Callback):
         # Store batch for end-of-epoch visualization
         self._last_train_batch = None
         self._last_val_batch = None
+        # Next epoch at which to log per prefix; advances by log_every_n_epochs
+        # after each log so val (which runs every val_check_interval epochs)
+        # still fires at the first val epoch >= each 10-epoch boundary.
+        self._next_log_epoch: Dict[str, int] = {"train": 0, "val": 0}
 
     def on_train_batch_end(
         self,
@@ -219,8 +251,15 @@ class VisualizationCallback(Callback):
         """Run inference on cached batch and log visualization images."""
         if cached_batch is None or trainer.logger is None:
             return
-        if trainer.current_epoch % self.log_every_n_epochs != 0:
+        if prefix == "val" and getattr(trainer, "sanity_checking", False):
             return
+        next_log = self._next_log_epoch.get(prefix, 0)
+        if trainer.current_epoch < next_log:
+            return
+        step = max(1, int(self.log_every_n_epochs))
+        while next_log <= trainer.current_epoch:
+            next_log += step
+        self._next_log_epoch[prefix] = next_log
 
         try:
             writer = trainer.logger.experiment
@@ -257,14 +296,12 @@ class VisualizationCallback(Callback):
 
                 label_cpu = label_tensor.cpu()
                 pred_cpu = pred_tensor.cpu()
-                img_viz, lbl_viz, pred_viz, mask_viz = (
-                    _apply_affinity_visualization_crop_if_needed(
-                        self.cfg,
-                        image=image_cpu,
-                        label=label_cpu,
-                        pred=pred_cpu,
-                        mask=mask_cpu,
-                    )
+                img_viz, lbl_viz, pred_viz, mask_viz = _apply_affinity_visualization_crop_if_needed(
+                    self.cfg,
+                    image=image_cpu,
+                    label=label_cpu,
+                    pred=pred_cpu,
+                    mask=mask_cpu,
                 )
 
                 head_prefix = f"{prefix}_{head_name}" if head_name else prefix
@@ -350,7 +387,9 @@ class VisualizationCallback(Callback):
             # Log input image
             writer.add_image(
                 "data_check/input",
-                vutils.make_grid(image, nrow=min(8, self.visualizer.max_images), normalize=True, scale_each=True),
+                vutils.make_grid(
+                    image, nrow=min(8, self.visualizer.max_images), normalize=True, scale_each=True
+                ),
                 0,
             )
 
@@ -359,11 +398,15 @@ class VisualizationCallback(Callback):
                 ch = label[:, i : i + 1].repeat(1, 3, 1, 1)
                 writer.add_image(
                     f"data_check/label_channel_{i}",
-                    vutils.make_grid(ch, nrow=min(8, self.visualizer.max_images), normalize=True, scale_each=True),
+                    vutils.make_grid(
+                        ch, nrow=min(8, self.visualizer.max_images), normalize=True, scale_each=True
+                    ),
                     0,
                 )
 
-            logger.info("Logged data check visualization (image + %d label channels)", label.shape[1])
+            logger.info(
+                "Logged data check visualization (image + %d label channels)", label.shape[1]
+            )
         except Exception as e:
             logger.warning("Data check visualization failed: %s", e)
 
@@ -384,18 +427,22 @@ class VisualizationCallback(Callback):
     def _get_visualization_heads(self, pl_module, pred) -> list:
         """Return list of head names to visualize.
 
-        If ``head: all``, returns all head names from model config or pred dict.
+        If ``head: all``, returns all head names from model config (same source
+        the inference/test pipeline uses for multi-head enumeration).
         Otherwise returns a single-element list with the configured head.
         """
         if isinstance(self.output_head, str) and self.output_head.strip().lower() == "all":
-            # Multi-head model: pred is a dict of head_name → tensor.
-            if isinstance(pred, dict):
-                return [k for k in pred if isinstance(pred[k], torch.Tensor)]
-            # Single-head or no heads config: fall back to default.
-            heads_cfg = getattr(getattr(pl_module, "cfg", self.cfg).model, "heads", None)
-            if heads_cfg:
-                return list(heads_cfg.keys()) if hasattr(heads_cfg, "keys") else []
-        return [self.output_head if isinstance(self.output_head, str) and self.output_head.strip() else None]
+            cfg = getattr(pl_module, "cfg", self.cfg)
+            head_names = get_model_head_names(cfg)
+            if head_names:
+                return head_names
+        return [
+            (
+                self.output_head
+                if isinstance(self.output_head, str) and self.output_head.strip()
+                else None
+            )
+        ]
 
     def _resolve_requested_output_head(self) -> Optional[str]:
         if isinstance(self.output_head, str) and self.output_head.strip():

@@ -20,6 +20,7 @@ default:
       - name: affinity
         kwargs:
           long_range: 3
+          affinity_mode: banis
       - name: skeleton_aware_edt
         kwargs:
           resolution: [36, 36, 40]

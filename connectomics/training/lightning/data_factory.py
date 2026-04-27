@@ -37,6 +37,12 @@ def _maybe_precompute_label_aux(
     - ``"sdt"``: precompute full SDT volume (slower precompute, zero training cost).
     - ``"none"``: no precompute, compute everything per crop.
 
+    If ``skeleton_aware_edt`` requests ``relabel: true``, the skeleton shortcut is
+    not semantics-preserving because the per-crop relabeling can no longer be
+    reconstructed from a globally precomputed skeleton volume. In that case we
+    transparently promote ``label_aux_type: skeleton`` to full ``sdt`` so the
+    loaded auxiliary target matches the configured transform exactly.
+
     Returns list of label_aux paths, or None.
     """
     if label_paths is None:
@@ -65,8 +71,20 @@ def _maybe_precompute_label_aux(
     if resolution is None:
         resolution = (1.0, 1.0, 1.0)
     resolution = tuple(float(r) for r in resolution)
+    cache_dir = getattr(cfg.data.label_transform, "cache_dir", "") or None
     alpha = float(kwargs.get("alpha", 0.8))
     bg_value = float(kwargs.get("bg_value", -1.0))
+    relabel = bool(kwargs.get("relabel", False))
+
+    effective_mode = mode
+    if mode == "skeleton" and relabel:
+        effective_mode = "sdt"
+        logger.warning(
+            "label_aux_type=skeleton requested for %s, but skeleton_aware_edt has "
+            "relabel=true. Promoting auxiliary target precompute to full SDT so the "
+            "cached target matches crop-time relabel semantics.",
+            split_name,
+        )
 
     from ...data.processing.distance import (
         precompute_sdt_volume,
@@ -74,18 +92,21 @@ def _maybe_precompute_label_aux(
         sdt_path_for_label,
     )
 
-    print(f"label_aux_type={mode} ({split_name}): " f"resolution={list(resolution)}, alpha={alpha}")
+    print(
+        f"label_aux_type={effective_mode} ({split_name}): "
+        f"resolution={list(resolution)}, alpha={alpha}"
+    )
 
     paths = []
     for lp in label_paths:
-        sp = sdt_path_for_label(lp, mode=mode)
+        sp = sdt_path_for_label(lp, mode=effective_mode, cache_dir=cache_dir)
         if not volume_exists(sp):
-            if mode == "sdt":
+            if effective_mode == "sdt":
                 precompute_sdt_volume(lp, sp, resolution=resolution, alpha=alpha, bg_value=bg_value)
             else:
                 precompute_skeleton_volume(lp, sp, resolution=resolution)
         else:
-            print(f"  Using cached {mode}: {sp}")
+            print(f"  Using cached {effective_mode}: {sp}")
         paths.append(sp)
 
     return paths
@@ -609,13 +630,19 @@ def create_datamodule(
         iter_num_cfg = cfg.optimization.n_steps_per_epoch
         if iter_num_cfg > 0:
             # Convert requested steps/epoch to per-epoch sample count expected by datasets.
-            # Account for per-device batch size and number of training devices.
+            # Account for per-device batch size, number of training devices, and
+            # gradient accumulation (each optimizer step consumes accumulate_grad_batches
+            # dataloader batches).
             num_devices = cfg.system.num_gpus if cfg.system.num_gpus > 0 else 1
-            iter_num = int(iter_num_cfg * cfg.data.dataloader.batch_size * num_devices)
+            accumulate = max(1, int(cfg.optimization.accumulate_grad_batches))
+            iter_num = int(
+                iter_num_cfg * cfg.data.dataloader.batch_size * num_devices * accumulate
+            )
             logger.info(
                 f"Requested n_steps_per_epoch={iter_num_cfg} steps -> "
                 f"dataset samples={iter_num} "
-                f"(batch_size={cfg.data.dataloader.batch_size}, devices={num_devices})"
+                f"(batch_size={cfg.data.dataloader.batch_size}, devices={num_devices}, "
+                f"accumulate_grad_batches={accumulate})"
             )
         elif iter_num_cfg == -1 and dataset_type != "filename":
             # For filename datasets, iter_num is determined by the number of files
@@ -647,10 +674,11 @@ def create_datamodule(
             logger.info(f"Stride: {cfg.data.data_transform.stride}")
             logger.info(f"Samples per volume: {samples_per_vol}")
             logger.info(f"Total possible samples (iter_num): {iter_num:,}")
-            # Approximate steps/epoch for informational logging.
+            # Approximate optimizer steps/epoch for informational logging.
             num_devices = cfg.system.num_gpus if cfg.system.num_gpus > 0 else 1
-            denom = max(1, cfg.data.dataloader.batch_size * num_devices)
-            logger.info(f"Approx steps per epoch: {iter_num // denom:,}")
+            accumulate = max(1, int(cfg.optimization.accumulate_grad_batches))
+            denom = max(1, cfg.data.dataloader.batch_size * num_devices * accumulate)
+            logger.info(f"Approx optimizer steps per epoch: {iter_num // denom:,}")
         elif iter_num_cfg == -1 and dataset_type == "filename":
             # For filename datasets, iter_num will be determined by dataset length
             logger.info("Filename dataset: iter_num will be determined by number of files in JSON")
@@ -689,6 +717,17 @@ def create_datamodule(
         and mode == "train"
         and dataset_type != "filename"
     )
+    use_lazy_h5 = (
+        cfg.data.dataloader.use_lazy_h5
+        and iter_num is not None
+        and iter_num > 0
+        and mode == "train"
+        and dataset_type != "filename"
+    )
+    if use_lazy_zarr and use_lazy_h5:
+        raise ValueError(
+            "data.dataloader.use_lazy_zarr and use_lazy_h5 are mutually exclusive."
+        )
 
     if use_preloaded:
         logger.info("Using pre-loaded volume cache (loads once, crops in memory)")
@@ -863,27 +902,46 @@ def create_datamodule(
             logger.info(f"Validation dataloader created with {val_steps_per_epoch} steps")
 
         datamodule = SimpleDataModule(train_loader, val_loader)
-    elif use_lazy_zarr:
-        # Lazy zarr crop loading: keep zarr handles, read only sampled patches.
+    elif use_lazy_zarr or use_lazy_h5:
+        # Lazy crop loading: keep volume handles open, read only sampled patches.
+        if use_lazy_h5:
+            from ...data.datasets.dataset_volume_h5_lazy import LazyH5VolumeDataset
+
+            LazyDatasetCls = LazyH5VolumeDataset
+            backend_name = "h5"
+            flag_name = "use_lazy_h5"
+
+            def _path_ok(p) -> bool:
+                s = str(p)
+                return ".h5" in s or ".hdf5" in s
+        else:
+            from ...data.datasets.dataset_volume_zarr_lazy import LazyZarrVolumeDataset
+
+            LazyDatasetCls = LazyZarrVolumeDataset
+            backend_name = "zarr"
+            flag_name = "use_lazy_zarr"
+
+            def _path_ok(p) -> bool:
+                return ".zarr" in str(p)
+
         train_images = [d["image"] for d in train_data_dicts]
         train_labels = [d.get("label") for d in train_data_dicts]
         train_label_auxs = [d.get("label_aux") for d in train_data_dicts]
         train_masks = [d.get("mask") for d in train_data_dicts]
-        zarr_like = all(".zarr" in str(p) for p in train_images)
-        if not zarr_like:
+        if not all(_path_ok(p) for p in train_images):
             raise ValueError(
-                "data.use_lazy_zarr=true requires zarr image paths (containing '.zarr'). "
+                f"data.{flag_name}=true requires {backend_name} image paths. "
                 f"Got: {train_images[:3]}"
             )
 
-        logger.info("Using lazy zarr volume loading (crop-on-read, no full preload)")
+        logger.info(
+            "Using lazy %s volume loading (crop-on-read, no full preload)", backend_name
+        )
         from torch.utils.data import DataLoader
-
-        from ...data.datasets.dataset_volume_zarr_lazy import LazyZarrVolumeDataset
 
         train_transforms_lazy = build_train_transforms(cfg, skip_loading=True)
 
-        train_dataset = LazyZarrVolumeDataset(
+        train_dataset = LazyDatasetCls(
             image_paths=train_images,
             label_paths=None if all(p is None for p in train_labels) else train_labels,
             label_aux_paths=None if all(p is None for p in train_label_auxs) else train_label_auxs,
@@ -918,9 +976,9 @@ def create_datamodule(
             val_labels = [d.get("label") for d in val_data_dicts]
             val_label_aux = [d.get("label_aux") for d in val_data_dicts]
             val_masks = [d.get("mask") for d in val_data_dicts]
-            if not all(".zarr" in str(p) for p in val_images):
+            if not all(_path_ok(p) for p in val_images):
                 raise ValueError(
-                    "data.use_lazy_zarr=true requires zarr val image paths " "(containing '.zarr')."
+                    f"data.{flag_name}=true requires {backend_name} val image paths."
                 )
 
             val_transforms_lazy = build_val_transforms(cfg, skip_loading=True)
@@ -935,7 +993,7 @@ def create_datamodule(
                 )
                 logger.info(f"Validation steps: {val_steps_per_epoch} (auto-calculated)")
 
-            val_dataset = LazyZarrVolumeDataset(
+            val_dataset = LazyDatasetCls(
                 image_paths=val_images,
                 label_paths=None if all(p is None for p in val_labels) else val_labels,
                 label_aux_paths=None if all(p is None for p in val_label_aux) else val_label_aux,

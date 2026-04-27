@@ -62,12 +62,18 @@ def resolve_output_head(
     inference_cfg = _cfg_value(cfg, "inference", None)
     configured_head = _cfg_value(inference_cfg, "head", None)
     if configured_head is not None:
-        return resolve_output_head(
-            cfg,
-            requested_head=configured_head,
-            purpose=purpose,
-            allow_none=allow_none,
-        )
+        if isinstance(configured_head, str) and "," in configured_head:
+            # Merged-inference spec: not a single-head selection. Fall through
+            # to primary_head so per-head callers (validation metrics,
+            # visualization) pick the training target, not the merged tag.
+            pass
+        else:
+            return resolve_output_head(
+                cfg,
+                requested_head=configured_head,
+                purpose=purpose,
+                allow_none=allow_none,
+            )
 
     primary_head = _cfg_value(model_cfg, "primary_head", None)
     if primary_head is not None:
@@ -108,6 +114,39 @@ def resolve_configured_output_head(
     )
 
 
+def resolve_output_heads(
+    cfg: Any,
+    *,
+    purpose: str = "output selection",
+) -> list[str]:
+    """Resolve one or more named output heads for merged-inference callers.
+
+    Accepts a single head name or a comma-separated list in `inference.head`
+    (e.g. "aff_r1,aff_r5,sdt"). Returns the heads in the order the user wrote
+    them so downstream concatenation is deterministic.
+    """
+    model_heads = _get_model_heads(cfg)
+    if not model_heads:
+        return []
+
+    inference_cfg = _cfg_value(cfg, "inference", None)
+    configured_head = _cfg_value(inference_cfg, "head", None)
+    if isinstance(configured_head, str) and "," in configured_head:
+        names = [h.strip() for h in configured_head.split(",") if h.strip()]
+        if not names:
+            raise ValueError(f"inference.head for {purpose} is an empty list.")
+        missing = [n for n in names if n not in model_heads]
+        if missing:
+            raise ValueError(
+                f"inference.head for {purpose} references unknown heads {missing}; "
+                f"available: {sorted(model_heads.keys())}."
+            )
+        return names
+
+    single = resolve_output_head(cfg, purpose=purpose, allow_none=True)
+    return [single] if single else []
+
+
 def resolve_output_channels(
     cfg: Any,
     *,
@@ -115,9 +154,28 @@ def resolve_output_channels(
     purpose: str = "output selection",
     allow_ambiguous: bool = True,
 ) -> Optional[int]:
-    """Resolve the number of channels produced by a selected output head."""
+    """Resolve the number of channels produced by a selected output head.
+
+    Accepts a comma-separated list of head names (merged inference) and
+    returns the sum of their channel counts.
+    """
     model_heads = _get_model_heads(cfg)
     if model_heads:
+        if isinstance(requested_head, str) and "," in requested_head:
+            names = [h.strip() for h in requested_head.split(",") if h.strip()]
+            missing = [n for n in names if n not in model_heads]
+            if missing:
+                raise ValueError(
+                    f"Requested output heads {missing} for {purpose} not in "
+                    f"model.heads ({sorted(model_heads.keys())})."
+                )
+            return sum(int(_cfg_value(model_heads[n], "out_channels", 0)) for n in names)
+
+        if requested_head is None:
+            merged = resolve_output_heads(cfg, purpose=purpose)
+            if len(merged) > 1:
+                return sum(int(_cfg_value(model_heads[n], "out_channels", 0)) for n in merged)
+
         selected_head = resolve_output_head(
             cfg,
             requested_head=requested_head,

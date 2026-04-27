@@ -2,10 +2,12 @@
 
 from __future__ import annotations
 
+import gc
 import logging
 import os
 import time
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 import numpy as np
@@ -14,13 +16,19 @@ import torchmetrics
 from pytorch_lightning.utilities.types import STEP_OUTPUT
 
 from ...data.processing.affinity import (
-    affinity_deepem_crop_enabled,
     compute_affinity_crop_pad,
     crop_spatial_by_pad,
     resolve_affinity_channel_groups_from_cfg,
+    resolve_affinity_mode_from_cfg,
 )
 from ...data.processing.misc import get_padsize
-from ...inference import apply_postprocessing, apply_save_prediction_transform, write_outputs
+from ...inference import (
+    apply_postprocessing,
+    apply_save_prediction_transform,
+    is_chunked_inference_enabled,
+    run_chunked_affinity_cc_inference,
+    write_outputs,
+)
 from ...inference.lazy import (
     get_lazy_image_reference_shape,
     lazy_predict_volume,
@@ -28,7 +36,11 @@ from ...inference.lazy import (
 )
 from ...metrics.metrics_seg import AdaptedRandError
 from ...metrics.segmentation_numpy import instance_matching, instance_matching_simple, voi
-from ...utils.model_outputs import get_model_head_names, resolve_output_head
+from ...utils.channel_slices import resolve_channel_indices, resolve_channel_range
+from ...utils.model_outputs import (
+    get_model_head_names,
+    resolve_output_heads,
+)
 from .utils import (
     final_prediction_output_tag,
     format_decode_tag,
@@ -103,7 +115,7 @@ class TestContext:
         )
 
 
-def _resolve_postprocessing_crop_pad(module) -> Optional[tuple[tuple[int, int], ...]]:
+def _resolve_inference_crop_pad(module) -> Optional[tuple[tuple[int, int], ...]]:
     """Return configured symmetric or asymmetric prediction crop, if any."""
     inference_cfg = None
     if hasattr(module, "_get_runtime_inference_config"):
@@ -113,11 +125,7 @@ def _resolve_postprocessing_crop_pad(module) -> Optional[tuple[tuple[int, int], 
     if inference_cfg is None:
         return None
 
-    postprocessing_cfg = getattr(inference_cfg, "postprocessing", None)
-    if postprocessing_cfg is None:
-        return None
-
-    crop_pad = getattr(postprocessing_cfg, "crop_pad", None)
+    crop_pad = getattr(inference_cfg, "crop_pad", None)
     if crop_pad is None:
         return None
 
@@ -125,9 +133,7 @@ def _resolve_postprocessing_crop_pad(module) -> Optional[tuple[tuple[int, int], 
     if not crop_pad_values or not any(crop_pad_values):
         return None
     if any(v < 0 for v in crop_pad_values):
-        raise ValueError(
-            f"inference.postprocessing.crop_pad must be non-negative, got {crop_pad_values}"
-        )
+        raise ValueError(f"inference.crop_pad must be non-negative, got {crop_pad_values}")
 
     if len(crop_pad_values) in (2, 4):
         spatial_rank = 2
@@ -135,7 +141,7 @@ def _resolve_postprocessing_crop_pad(module) -> Optional[tuple[tuple[int, int], 
         spatial_rank = 3
     else:
         raise ValueError(
-            "inference.postprocessing.crop_pad must have length 2/3 for symmetric cropping "
+            "inference.crop_pad must have length 2/3 for symmetric cropping "
             f"or 4/6 for asymmetric cropping, got {crop_pad_values}."
         )
 
@@ -231,6 +237,15 @@ def _maybe_load_lazy_labels(
     return torch.from_numpy(label_np[np.newaxis, ...])
 
 
+def _resolve_mask_align_to_image(module) -> bool:
+    mask_transform_cfg = getattr(module.cfg.data, "mask_transform", None) or getattr(
+        module.cfg.data, "data_transform", None
+    )
+    if mask_transform_cfg is None:
+        return False
+    return bool(getattr(mask_transform_cfg, "align_to_image", False))
+
+
 def _crop_spatial_border(
     data: np.ndarray | torch.Tensor,
     crop_pad: tuple[tuple[int, int], ...],
@@ -249,13 +264,13 @@ def _apply_prediction_crop_pad_if_needed(
     item_name: str,
 ) -> np.ndarray | torch.Tensor:
     """Crop prediction-like tensors back to the pre-context-pad spatial shape."""
-    crop_pad = _resolve_postprocessing_crop_pad(module)
+    crop_pad = _resolve_inference_crop_pad(module)
     if crop_pad is None:
         return data
 
     if len(reference_image_shape) < len(crop_pad):
         raise ValueError(
-            "reference_image_shape rank must be >= inference.postprocessing.crop_pad rank. "
+            "reference_image_shape rank must be >= inference.crop_pad rank. "
             f"Got reference_image_shape={reference_image_shape}, crop_pad={crop_pad}"
         )
 
@@ -266,7 +281,7 @@ def _apply_prediction_crop_pad_if_needed(
     )
     if any(size <= 0 for size in expected_cropped_shape):
         raise ValueError(
-            "inference.postprocessing.crop_pad is too large for the padded input shape. "
+            "inference.crop_pad is too large for the padded input shape. "
             f"crop_pad={crop_pad}, padded_shape={padded_spatial_shape}"
         )
 
@@ -275,7 +290,7 @@ def _apply_prediction_crop_pad_if_needed(
         return data
     if data_spatial_shape != padded_spatial_shape:
         raise ValueError(
-            "Cannot apply inference.postprocessing.crop_pad to "
+            "Cannot apply inference.crop_pad to "
             f"{item_name}: spatial shape {data_spatial_shape} matches neither "
             f"padded input {padded_spatial_shape} nor cropped shape "
             f"{expected_cropped_shape}."
@@ -290,7 +305,7 @@ def _resolve_reference_spatial_shape_after_crop_pad(
     module,
     reference_image_shape: tuple[int, ...],
 ) -> tuple[int, ...]:
-    crop_pad = _resolve_postprocessing_crop_pad(module)
+    crop_pad = _resolve_inference_crop_pad(module)
     spatial_rank = 3 if len(reference_image_shape) >= 3 else len(reference_image_shape)
     reference_spatial_shape = tuple(int(v) for v in reference_image_shape[-spatial_rank:])
     if crop_pad is None:
@@ -307,19 +322,84 @@ def _resolve_reference_spatial_shape_after_crop_pad(
     return unchanged_prefix + cropped_suffix
 
 
-def _resolve_affinity_inference_crop(module) -> Optional[tuple[tuple[int, int], ...]]:
+def _mapping_get(obj: Any, key: str, default: Any = None) -> Any:
+    if obj is None:
+        return default
+    if isinstance(obj, dict):
+        return obj.get(key, default)
+    if hasattr(obj, "get"):
+        try:
+            return obj.get(key, default)
+        except TypeError:
+            pass
+    return getattr(obj, key, default)
+
+
+def _resolve_output_head_target_slice(module, output_head: Optional[str]) -> Any:
+    if not output_head:
+        return None
+    heads = getattr(getattr(module.cfg, "model", None), "heads", None)
+    head_cfg = _mapping_get(heads, output_head, None)
+    return _mapping_get(head_cfg, "target_slice", None)
+
+
+def _resolve_affinity_offsets_for_inference_output(
+    module,
+    *,
+    output_head: Optional[str],
+) -> list[tuple[int, int, int]]:
     cfg = getattr(module, "cfg", None)
-    if cfg is None or not affinity_deepem_crop_enabled(cfg):
+    if cfg is None:
+        return []
+
+    affinity_groups = resolve_affinity_channel_groups_from_cfg(cfg)
+    if not affinity_groups:
+        return []
+
+    label_channels = max(end for (start, end), _offsets in affinity_groups)
+    channel_offsets: list[Optional[tuple[int, int, int]]] = [None] * label_channels
+    for (start, end), offsets in affinity_groups:
+        for channel, offset in zip(range(start, end), offsets):
+            channel_offsets[channel] = offset
+
+    target_slice = _resolve_output_head_target_slice(module, output_head)
+    if target_slice is not None:
+        start_idx, end_idx = resolve_channel_range(
+            target_slice,
+            num_channels=label_channels,
+            context=f"target_slice for output head {output_head!r}",
+        )
+        channel_offsets = channel_offsets[start_idx:end_idx]
+
+    select_channel = getattr(getattr(module.cfg, "inference", None), "select_channel", None)
+    if select_channel is not None:
+        selected_indices = resolve_channel_indices(
+            select_channel,
+            num_channels=len(channel_offsets),
+            context="inference.select_channel",
+        )
+        channel_offsets = [channel_offsets[idx] for idx in selected_indices]
+
+    return [offset for offset in channel_offsets if offset is not None]
+
+
+def _resolve_affinity_inference_crop(
+    module,
+    *,
+    output_head: Optional[str] = None,
+) -> Optional[tuple[tuple[int, int], ...]]:
+    cfg = getattr(module, "cfg", None)
+    if cfg is None:
+        return None
+    affinity_mode = resolve_affinity_mode_from_cfg(cfg)
+    if affinity_mode is None:
         return None
 
-    groups = resolve_affinity_channel_groups_from_cfg(cfg)
-    if not groups:
+    offsets = _resolve_affinity_offsets_for_inference_output(module, output_head=output_head)
+    if not offsets:
         return None
 
-    all_offsets = []
-    for _, offsets in groups:
-        all_offsets.extend(offsets)
-    crop_pad = compute_affinity_crop_pad(all_offsets)
+    crop_pad = compute_affinity_crop_pad(offsets, affinity_mode=affinity_mode)
     if not crop_pad or not any(before or after for before, after in crop_pad):
         return None
     return crop_pad
@@ -331,8 +411,9 @@ def _apply_affinity_inference_crop_if_needed(
     *,
     reference_spatial_shape: tuple[int, ...],
     item_name: str,
+    output_head: Optional[str] = None,
 ) -> np.ndarray | torch.Tensor:
-    crop_pad = _resolve_affinity_inference_crop(module)
+    crop_pad = _resolve_affinity_inference_crop(module, output_head=output_head)
     if crop_pad is None:
         return data
 
@@ -361,6 +442,44 @@ def _apply_affinity_inference_crop_if_needed(
     cropped = crop_spatial_by_pad(data, crop_pad, item_name=item_name)
     logger.info(f"Affinity-cropped {item_name}: {tuple(data.shape)} -> {tuple(cropped.shape)}")
     return cropped
+
+
+def _apply_predecode_prediction_crops(
+    module,
+    data: np.ndarray | torch.Tensor,
+    *,
+    reference_image_shape: tuple[int, ...],
+    item_name: str,
+    output_head: Optional[str] = None,
+) -> tuple[np.ndarray | torch.Tensor, tuple[int, ...]]:
+    """Apply prediction-space crops before decoding affinities into instances."""
+    original_shape = tuple(data.shape)
+    data = _apply_prediction_crop_pad_if_needed(
+        module,
+        data,
+        reference_image_shape,
+        item_name=item_name,
+    )
+    reference_spatial_shape = _resolve_reference_spatial_shape_after_crop_pad(
+        module, reference_image_shape
+    )
+    data = _apply_affinity_inference_crop_if_needed(
+        module,
+        data,
+        reference_spatial_shape=reference_spatial_shape,
+        item_name=item_name,
+        output_head=output_head,
+    )
+    if isinstance(data, np.ndarray) and tuple(data.shape) != original_shape:
+        data = np.array(data, copy=True, order="C")
+        logger.info(
+            "Compacted cropped %s storage to final shape %s (%.1f MiB)",
+            item_name,
+            tuple(data.shape),
+            data.nbytes / (1024**2),
+        )
+        gc.collect()
+    return data, reference_spatial_shape
 
 
 def _align_metric_tensors(
@@ -871,6 +990,7 @@ def _predict_output_head(
     mask_align_to_image: bool,
     reference_image_shape: tuple[int, ...],
     requested_head: Optional[str] = None,
+    affinity_crop_output_head: Optional[str] = None,
 ) -> tuple[np.ndarray, tuple[int, ...]]:
     """Run inference for one selected head and apply the standard prediction crops."""
     if lazy_sample:
@@ -896,18 +1016,24 @@ def _predict_output_head(
         )
 
     predictions_np = predictions.detach().cpu().float().numpy()
-    predictions_np = _apply_prediction_crop_pad_if_needed(
+    del predictions
+    if predictions_np.size == 0:
+        if _should_skip_postprocess_on_rank(module):
+            logger.info(
+                "Skipping prediction crop/postprocessing on this rank after distributed "
+                "TTA aggregation."
+            )
+            return predictions_np, ()
+        raise RuntimeError(
+            "Inference returned an empty prediction tensor unexpectedly. "
+            "This is only expected on nonzero ranks during distributed TTA sharding."
+        )
+    predictions_np, reference_spatial_shape = _apply_predecode_prediction_crops(
         module,
         predictions_np,
-        reference_image_shape,
+        reference_image_shape=reference_image_shape,
         item_name="predictions",
-    )
-    reference_spatial_shape = tuple(int(v) for v in predictions_np.shape[-3:])
-    predictions_np = _apply_affinity_inference_crop_if_needed(
-        module,
-        predictions_np,
-        reference_spatial_shape=reference_spatial_shape,
-        item_name="predictions",
+        output_head=affinity_crop_output_head,
     )
     return predictions_np, reference_spatial_shape
 
@@ -968,14 +1094,14 @@ def run_test_step(module, batch: Dict[str, torch.Tensor], batch_idx: int) -> STE
         )
         labels = None
         reference_image_shape = get_lazy_image_reference_shape(module.cfg, image_path, mode=mode)
-        crop_pad = _resolve_postprocessing_crop_pad(module)
+        crop_pad = _resolve_inference_crop_pad(module)
         images = None
         mask = None
     else:
         images = _coerce_singleton_batch_tensor(batch["image"])
         labels = _coerce_singleton_batch_tensor(batch.get("label"))
         mask = _coerce_singleton_batch_tensor(batch.get("mask"))
-        crop_pad = _resolve_postprocessing_crop_pad(module)
+        crop_pad = _resolve_inference_crop_pad(module)
         reference_image_shape = tuple(int(v) for v in images.shape)
 
     predictions_np, loaded_from_file, loaded_suffix = module._load_cached_predictions(
@@ -993,13 +1119,20 @@ def run_test_step(module, batch: Dict[str, torch.Tensor], batch_idx: int) -> STE
     _saved_pred = getattr(getattr(module.cfg, "inference", None), "saved_prediction_path", "")
     _from_saved_path = bool(loaded_from_file and _saved_pred)
     _is_decoding_file = loaded_from_file and "_decoding" in (loaded_suffix or "")
-    loaded_final_predictions = loaded_from_file and not _from_saved_path and (
-        _is_decoding_file or not is_tta_cache_suffix(loaded_suffix)
+    loaded_final_predictions = (
+        loaded_from_file
+        and not _from_saved_path
+        and (_is_decoding_file or not is_tta_cache_suffix(loaded_suffix))
     )
     loaded_intermediate_predictions = loaded_from_file and not loaded_final_predictions
     volume_name = filenames[0] if filenames else f"volume_{batch_idx}"
     is_global_zero = bool(getattr(getattr(module, "trainer", None), "is_global_zero", True))
     distributed_tta_sharding = _is_distributed_tta_sharding_active(module)
+    configured_heads = resolve_output_heads(module.cfg, purpose="test-time inference")
+    merge_heads = len(configured_heads) > 1
+    selected_output_head = (
+        None if merge_heads else (configured_heads[0] if configured_heads else None)
+    )
 
     if loaded_final_predictions:
         if distributed_tta_sharding and not is_global_zero:
@@ -1038,9 +1171,21 @@ def run_test_step(module, batch: Dict[str, torch.Tensor], batch_idx: int) -> STE
             return torch.tensor(0.0, device=module.device)
         _log_volume_header(volume_name, "PROCESSING VOLUME")
         predictions_np = module._invert_save_prediction_transform(predictions_np)
-        # NOTE: skip crop_pad and affinity_crop — intermediate predictions
-        # were saved after these crops, so their spatial shape already matches
-        # the original label volume.
+        if _from_saved_path:
+            logger.info("Applying pre-decode crop_pad/affinity_crop to saved_prediction_path data")
+            predictions_np, reference_spatial_shape = _apply_predecode_prediction_crops(
+                module,
+                predictions_np,
+                reference_image_shape=reference_image_shape,
+                item_name="saved predictions",
+                output_head=selected_output_head,
+            )
+        else:
+            logger.info(
+                "Skipping crop_pad/affinity_crop for cached intermediate predictions "
+                "(already saved after those crops)"
+            )
+            reference_spatial_shape = tuple(int(v) for v in predictions_np.shape[-3:])
         decoded_predictions = _process_decoding_postprocessing(
             module,
             predictions_np,
@@ -1052,7 +1197,17 @@ def run_test_step(module, batch: Dict[str, torch.Tensor], batch_idx: int) -> STE
         _evaluate_decoded_predictions(
             module,
             decoded_predictions,
-            labels,
+            (
+                _apply_affinity_inference_crop_if_needed(
+                    module,
+                    labels,
+                    reference_spatial_shape=reference_spatial_shape,
+                    item_name="labels",
+                    output_head=selected_output_head,
+                )
+                if labels is not None and _from_saved_path
+                else labels
+            ),
             filenames=filenames,
             batch_idx=batch_idx,
         )
@@ -1071,6 +1226,71 @@ def run_test_step(module, batch: Dict[str, torch.Tensor], batch_idx: int) -> STE
             "Re-run with the real model checkpoint to generate predictions first."
         )
 
+    mask_align_to_image = _resolve_mask_align_to_image(module)
+    if is_chunked_inference_enabled(module.cfg):
+        if not lazy_sample:
+            raise RuntimeError(
+                "inference.strategy=chunked requires lazy test data "
+                "(set data.dataloader.profile=lazy / sliding_window.lazy_load=true)."
+            )
+        if mode == "tune":
+            raise RuntimeError(
+                "Chunked inference+decoding is not integrated with tune mode yet; "
+                "run mode=test with fixed decoding parameters."
+            )
+        if merge_heads:
+            raise RuntimeError("Chunked inference does not support merged multi-head outputs yet.")
+        if torch.distributed.is_available() and torch.distributed.is_initialized():
+            world_size = torch.distributed.get_world_size()
+            if world_size > 1:
+                raise RuntimeError(
+                    "Chunked inference currently runs as a single-rank streaming job. "
+                    "Run test with one GPU/process for this mode."
+                )
+        if not output_dir_value:
+            raise RuntimeError(
+                "Chunked inference writes a streamed final volume and requires "
+                "inference.save_prediction.output_path."
+            )
+
+        _log_volume_header(volume_name, "CHUNKED INFERENCE PLAN")
+        logger.info(f"Input source:      {image_path}")
+        logger.info(f"Input shape:       {reference_image_shape}")
+        logger.info("Input device:      [lazy disk-backed volume]")
+        output_dir = Path(output_dir_value)
+        output_dir.mkdir(parents=True, exist_ok=True)
+        output_suffix = final_prediction_output_tag(
+            module.cfg,
+            checkpoint_path=module._get_prediction_checkpoint_path(),
+            output_head=selected_output_head,
+        )
+        output_path = output_dir / f"{filenames[0]}_{output_suffix}.h5"
+        inference_start = time.time()
+        run_chunked_affinity_cc_inference(
+            module.cfg,
+            module.forward,
+            image_path,
+            output_path=output_path,
+            device=module.device,
+            mask_path=mask_path,
+            mask_align_to_image=mask_align_to_image,
+            requested_head=selected_output_head,
+        )
+        inference_duration = time.time() - inference_start
+        logger.info(
+            "Chunked inference+decoding completed in %.2f minutes (%.1fs)",
+            inference_duration / 60.0,
+            inference_duration,
+        )
+        if module._is_test_evaluation_enabled():
+            logger.warning(
+                "Skipping evaluation for chunked inference; streaming metrics are not "
+                "implemented and loading the full label defeats this mode's memory goal."
+            )
+        _log_volume_header(volume_name, "VOLUME COMPLETE")
+        _distributed_tta_barrier(module)
+        return torch.tensor(0.0, device=module.device)
+
     _log_volume_header(volume_name, "INFERENCE PLAN")
     if lazy_sample:
         logger.info(f"Input source:      {image_path}")
@@ -1080,7 +1300,7 @@ def run_test_step(module, batch: Dict[str, torch.Tensor], batch_idx: int) -> STE
         logger.info(f"Input shape:       {tuple(images.shape)}")
         logger.info(f"Input device:      {images.device}")
     if crop_pad is not None:
-        logger.info(f"Postprocess crop:  {list(crop_pad)}")
+        logger.info(f"Inference crop:    {list(crop_pad)}")
 
     inference_cfg = module._get_runtime_inference_config()
     sw_cfg = getattr(inference_cfg, "sliding_window", None)
@@ -1102,29 +1322,43 @@ def run_test_step(module, batch: Dict[str, torch.Tensor], batch_idx: int) -> STE
     inference_start = time.time()
     logger.info("Starting sliding-window inference...")
 
-    mask_align_to_image = False
-    mask_transform_cfg = getattr(module.cfg.data, "mask_transform", None) or getattr(
-        module.cfg.data, "data_transform", None
-    )
-    if mask_transform_cfg is not None:
-        mask_align_to_image = bool(getattr(mask_transform_cfg, "align_to_image", False))
-
-    selected_output_head = resolve_output_head(
-        module.cfg,
-        purpose="test-time inference",
-        allow_none=True,
-    )
-    predictions_np, reference_spatial_shape = _predict_output_head(
-        module,
-        lazy_sample=lazy_sample,
-        images=images,
-        mask=mask,
-        image_path=image_path if lazy_sample else None,
-        mask_path=mask_path if lazy_sample else None,
-        mask_align_to_image=mask_align_to_image,
-        reference_image_shape=reference_image_shape,
-        requested_head=selected_output_head,
-    )
+    if merge_heads:
+        selected_output_head = "+".join(configured_heads)
+        per_head_preds: list[np.ndarray] = []
+        reference_spatial_shape: tuple[int, ...] = ()
+        for head_name in configured_heads:
+            head_pred_np, reference_spatial_shape = _predict_output_head(
+                module,
+                lazy_sample=lazy_sample,
+                images=images,
+                mask=mask,
+                image_path=image_path if lazy_sample else None,
+                mask_path=mask_path if lazy_sample else None,
+                mask_align_to_image=mask_align_to_image,
+                reference_image_shape=reference_image_shape,
+                requested_head=head_name,
+                affinity_crop_output_head=None,
+            )
+            per_head_preds.append(head_pred_np)
+        # Predictions are (B, C, ...) — concat along channel axis preserving head order.
+        predictions_np = np.concatenate(per_head_preds, axis=1)
+        logger.info(
+            f"Merged heads {configured_heads} along channel axis → shape {predictions_np.shape}"
+        )
+    else:
+        selected_output_head = configured_heads[0] if configured_heads else None
+        predictions_np, reference_spatial_shape = _predict_output_head(
+            module,
+            lazy_sample=lazy_sample,
+            images=images,
+            mask=mask,
+            image_path=image_path if lazy_sample else None,
+            mask_path=mask_path if lazy_sample else None,
+            mask_align_to_image=mask_align_to_image,
+            reference_image_shape=reference_image_shape,
+            requested_head=selected_output_head,
+            affinity_crop_output_head=selected_output_head,
+        )
     if lazy_sample:
         labels = _maybe_load_lazy_labels(module, batch.get("label"), mode=mode)
     if distributed_tta_sharding and _should_skip_postprocess_on_rank(module):
@@ -1159,9 +1393,13 @@ def run_test_step(module, batch: Dict[str, torch.Tensor], batch_idx: int) -> STE
 
         save_all_heads = bool(getattr(inference_cfg.save_prediction, "save_all_heads", False))
         model_head_names = get_model_head_names(module.cfg)
-        extra_head_names = [
-            head_name for head_name in model_head_names if head_name != selected_output_head
-        ]
+        # When heads are already merged into predictions_np, the single saved file
+        # covers every head — skip the redundant per-head re-prediction loop.
+        extra_head_names = (
+            []
+            if merge_heads
+            else [head_name for head_name in model_head_names if head_name != selected_output_head]
+        )
         if save_all_heads and extra_head_names:
             logger.info(f"Saving additional output heads: {', '.join(extra_head_names)}")
             for head_name in extra_head_names:
@@ -1209,6 +1447,7 @@ def run_test_step(module, batch: Dict[str, torch.Tensor], batch_idx: int) -> STE
                 labels,
                 reference_spatial_shape=reference_spatial_shape,
                 item_name="labels",
+                output_head=(None if merge_heads else selected_output_head),
             )
             if labels is not None
             else None

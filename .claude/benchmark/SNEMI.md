@@ -158,14 +158,14 @@ No per-tutorial loss config needed — the pipeline profile handles it.
 
 | | DeepEM | PyTC (before fix) | PyTC (after fix) |
 |---|---|---|---|
-| **Border handling** | Per-channel `get_pair` crop + mask | Uniform `deepem_crop` (max-offset spatial crop) | Per-channel valid mask ✅ |
+| **Border handling** | Per-channel `get_pair` crop + mask | Old uniform max-offset spatial crop | `affinity_mode=deepem` per-channel valid mask ✅ |
 | **Augment padding on labels** | Mask propagated through augmentation | `RandAffined` reflection padding on labels → false affinities | Per-channel mask excludes border artifacts ✅ |
 
 **Problem:** Two interacting issues caused border artifacts in affinity targets:
 
 1. **Reflection padding on labels during augmentation**: `RandAffined` and `RandElasticd` use `padding_mode="reflection"` for all keys including labels. When spatial transforms rotate/scale/shear a patch, border pixels are filled with reflected label values. Computing affinity from these reflected labels creates false affinities — especially visible for long-range channels like ch11 (offset `0-27-0`) where the reflected region spans 27 voxels.
 
-2. **Uniform spatial crop vs per-channel masking**: The old `deepem_crop` computed the **union** of all offsets' invalid borders and uniformly cropped all channels to this smallest valid region. For the SNEMI 12-channel offsets, this meant cropping (4, 27, 27) from all channels — even short-range channels that only need 1 voxel cropped. This wasted ~35% of training data for short-range channels.
+2. **Uniform spatial crop vs per-channel masking**: The old crop path computed the **union** of all offsets' invalid borders and uniformly cropped all channels to this smallest valid region. For the SNEMI 12-channel offsets, this meant cropping (4, 27, 27) from all channels — even short-range channels that only need 1 voxel cropped. This wasted ~35% of training data for short-range channels.
 
 **DeepEM's approach**: In DeepEM, `get_pair(arr, edge)` extracts two aligned crops per channel, computing affinity only in the overlap region. A separate mask (propagated through augmentation) excludes padded regions from the loss. Each channel has its own valid region.
 

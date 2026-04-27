@@ -23,18 +23,18 @@ default:
     heads:
       aff_r1:
         out_channels: 3
-        num_blocks: 1
-        hidden_channels: 8
+        num_blocks: 2
+        hidden_channels: 16
         target_slice: "0:3"
       aff_r5:
         out_channels: 3
-        num_blocks: 1
-        hidden_channels: 8
+        num_blocks: 2
+        hidden_channels: 16
         target_slice: "3:6"
       sdt:
         out_channels: 1
-        num_blocks: 1
-        hidden_channels: 8
+        num_blocks: 2
+        hidden_channels: 16
         target_slice: "6:7"
     loss:
       losses:
@@ -42,19 +42,29 @@ default:
           weight: 1.0
           pred_head: aff_r1
           target_slice: "0:3"
-          kwargs: {auto_pos_weight: true}
+          kwargs: {auto_pos_weight: true, max_pos_weight: 50.0}
+        - function: DiceLoss
+          weight: 1.0
+          pred_head: aff_r1
+          target_slice: "0:3"
+          kwargs: {sigmoid: true}
         - function: PerChannelBCEWithLogitsLoss
           weight: 1.0
           pred_head: aff_r5
           target_slice: "3:6"
-          kwargs: {auto_pos_weight: true}
+          kwargs: {auto_pos_weight: true, max_pos_weight: 100.0}
+        - function: DiceLoss
+          weight: 1.0
+          pred_head: aff_r5
+          target_slice: "3:6"
+          kwargs: {sigmoid: true}
         - function: SmoothL1Loss
           weight: 10.0
           pred_head: sdt
           target_slice: "6:7"
           kwargs: {tanh: true}
       loss_balancing:
-        strategy: uncertainty
+        strategy: gradnorm
   data:
     image_transform:
       normalize: "divide-255"
@@ -66,7 +76,7 @@ default:
         - name: affinity
           kwargs:
             offsets: ["0-0-1", "0-1-0", "1-0-0", "0-0-5", "0-5-0", "5-0-0"]
-            deepem_crop: true
+            affinity_mode: deepem
         - name: skeleton_aware_edt
           kwargs:
             alpha: 0.8
@@ -82,7 +92,7 @@ default:
         enabled: true
         spatial_axes: [0, 1, 2]
   inference:
-    head: aff_r1
+    head: "aff_r1,aff_r5,sdt"
     sliding_window:
       window_size: [192, 192, 192]
       sw_batch_size: 1
@@ -92,10 +102,11 @@ default:
       flip_axes: all
       ensemble_mode: min
       channel_activations:
-        - {channels: ":", activation: sigmoid}
+        - {channels: "0:6", activation: sigmoid}
+        - {channels: "6:7", activation: tanh}
+    crop_pad: [59, 64, 59, 64, 59, 64]
     postprocessing:
       enabled: true
-      crop_pad: [59, 64, 59, 64, 59, 64]
     decoding:
       - name: decode_distance_watershed
         kwargs:
@@ -124,7 +135,7 @@ train:
         loss: [train_loss_total_epoch, train_loss_term_0_weighted, train_loss_term_1_weighted, train_loss_term_2_weighted]
         loss_every_n_steps: 50
       images:
-        head: aff_r1
+        head: all
         log_every_n_epochs: 10
         max_images: 8
         num_slices: 2

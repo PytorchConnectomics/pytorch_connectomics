@@ -14,7 +14,7 @@ def test_affinity_visualization_crop_matches_full_affinity_training_crop():
             "name": "affinity",
             "kwargs": {
                 "offsets": ["0-0-1", "0-1-0", "1-0-0", "2-0-0", "3-0-0", "4-0-0"],
-                "deepem_crop": True,
+                "affinity_mode": "deepem",
             },
         }
     ]
@@ -56,7 +56,7 @@ def test_affinity_visualization_crop_skips_mixed_task_tensors():
                     "0-17-0",
                     "17-0-0",
                 ],
-                "deepem_crop": True,
+                "affinity_mode": "deepem",
             },
         },
         {
@@ -110,7 +110,7 @@ def test_affinity_visualization_crop_skips_partial_affinity_groups():
                     "0-17-0",
                     "17-0-0",
                 ],
-                "deepem_crop": True,
+                "affinity_mode": "deepem",
             },
         },
         {

@@ -32,6 +32,20 @@ def _restore_depth_axis(img: np.ndarray, depth_axis: int) -> np.ndarray:
     return np.moveaxis(img, 0, depth_axis)
 
 
+def _assign_along_axis(
+    img: np.ndarray,
+    axis: int,
+    indices: np.ndarray,
+    value,
+) -> np.ndarray:
+    """Assign a scalar or array value into slices selected along an axis."""
+    out = img.copy()
+    index = [slice(None)] * out.ndim
+    index[axis] = indices
+    out[tuple(index)] = value
+    return out
+
+
 def shift_2d(section: np.ndarray, dy: int, dx: int) -> np.ndarray:
     """Shift a 2D section by (dy, dx) pixels, filling with zeros."""
     h, w = section.shape[-2:]
@@ -160,12 +174,7 @@ def compute_misalignment_angle_range(displacement: int, height: int) -> float:
 
 def zero_out_sections(img: np.ndarray, indices: np.ndarray, depth_axis: int = 0) -> np.ndarray:
     """Zero out sections at given indices along depth_axis."""
-    img = img.copy()
-    if depth_axis == 0:
-        img[indices, ...] = 0
-    else:
-        img[:, indices, ...] = 0
-    return img
+    return _assign_along_axis(img, depth_axis, indices, 0)
 
 
 def fill_sections(
@@ -175,12 +184,48 @@ def fill_sections(
     depth_axis: int = 0,
 ) -> np.ndarray:
     """Fill entire sections with a constant value."""
-    img = img.copy()
-    if depth_axis == 0:
-        img[indices, ...] = fill_value
-    else:
-        img[:, indices, ...] = fill_value
-    return img
+    return _assign_along_axis(img, depth_axis, indices, fill_value)
+
+
+def permute_spatial_axes(
+    img: np.ndarray,
+    permutation: np.ndarray,
+    has_channel_axis: bool,
+) -> np.ndarray:
+    """Permute spatial axes while preserving a leading channel axis when present."""
+    perm = [int(p) for p in permutation]
+    if has_channel_axis:
+        return np.transpose(img, [0, *[p + 1 for p in perm]])
+    return np.transpose(img, perm)
+
+
+def apply_rotate90_all(
+    img: np.ndarray,
+    rotate_ks: Tuple[int, int, int],
+) -> np.ndarray:
+    """Apply sequential quarter-turn rotations over all 3D spatial plane pairs."""
+    result = img
+    for k, axes in zip(rotate_ks, [(-1, -2), (-1, -3), (-2, -3)]):
+        result = np.rot90(result, int(k), axes)
+    return result
+
+
+def apply_slice_roll_shifts(
+    img: np.ndarray,
+    slice_axis: int,
+    indices: np.ndarray,
+    shifts: List[Tuple[int, int]],
+    wrap: bool = True,
+) -> np.ndarray:
+    """Shift selected slices independently along their two in-plane axes."""
+    moved = np.moveaxis(img, slice_axis, 0).copy()
+    for idx, (dy, dx) in zip(indices, shifts):
+        if wrap:
+            shifted = np.roll(moved[idx], int(dy), axis=-2)
+            moved[idx] = np.roll(shifted, int(dx), axis=-1)
+        else:
+            moved[idx] = shift_2d(moved[idx], int(dy), int(dx))
+    return np.moveaxis(moved, 0, slice_axis)
 
 
 def create_missing_hole(

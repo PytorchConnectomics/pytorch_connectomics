@@ -1,5 +1,9 @@
 """Inference utilities package."""
 
+from .chunked import (
+    is_chunked_inference_enabled,
+    run_chunked_affinity_cc_inference,
+)
 from .manager import InferenceManager
 from .output import (
     apply_postprocessing,
@@ -17,6 +21,8 @@ from .tta import TTAPredictor
 
 __all__ = [
     "InferenceManager",
+    "is_chunked_inference_enabled",
+    "run_chunked_affinity_cc_inference",
     "apply_save_prediction_transform",
     "apply_postprocessing",
     "resolve_output_filenames",
