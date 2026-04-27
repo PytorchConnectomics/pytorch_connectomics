@@ -76,6 +76,8 @@ class LabelTransformConfig:
     output_dtype: Optional[str] = "float32"
     output_key_format: str = "{key}_{task}"
     allow_missing_keys: bool = False
+    relabel_connected_components: bool = False  # Relabel disconnected same-ID crop components.
+    relabel_connectivity: int = 6  # Connectivity for relabel_connected_components in 3D.
     segment_id: Optional[List[int]] = None
     boundary_thickness: int = 1
     resolution: Optional[List[float]] = None  # Forwarded into compatible label targets.
@@ -175,6 +177,9 @@ class DataloaderConfig:
 
     batch_size: int = 4
     patch_size: List[int] = field(default_factory=lambda: [128, 128, 128])
+    target_context: List[int] = field(
+        default_factory=lambda: [0, 0, 0]
+    )  # Extra positive-side crop context used for target generation, then cropped away.
     pin_memory: bool = True
     use_preloaded_cache_train: bool = True  # Preload training volumes into memory
     use_preloaded_cache_val: bool = True  # Preload validation volumes into memory
@@ -196,6 +201,7 @@ class DataloaderConfig:
         False  # Voxel approach: center crops on random nonzero mask voxels (stronger guarantee)
     )
     reject_sampling: Optional[Dict[str, Any]] = None  # Dict with 'size_thres' and 'p' keys
+    val_random_sampling: bool = False  # If true, validation samples random patches, not center crops.
 
 
 @dataclass

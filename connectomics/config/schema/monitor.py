@@ -18,6 +18,7 @@ class CheckpointConfig:
     save_every_n_epochs: int = 1
     save_every_n_steps: Optional[int] = None
     step_checkpoint_filename: str = "step-{step:08d}"
+    save_on_train_epoch_end: bool = True
     use_timestamp: bool = True
 
 

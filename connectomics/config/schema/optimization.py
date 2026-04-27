@@ -94,7 +94,8 @@ class OptimizationConfig:
     precision: str = "16-mixed"  # "32", "16-mixed", "bf16-mixed"
 
     # Validation scheduling
-    val_check_interval: Union[int, float] = 1.0  # Validate every N epochs
+    val_check_interval: Union[int, float] = 1.0  # Validate every N epochs or steps.
+    val_check_interval_unit: str = "epoch"  # "epoch" or "step"
 
     # Logging
     log_every_n_steps: int = 100

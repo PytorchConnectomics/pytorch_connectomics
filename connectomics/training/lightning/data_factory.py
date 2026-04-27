@@ -23,6 +23,28 @@ from .path_utils import expand_file_paths
 logger = logging.getLogger(__name__)
 
 
+def _target_context(cfg: Config) -> tuple[int, ...]:
+    context = getattr(cfg.data.dataloader, "target_context", None) or []
+    if not context:
+        return tuple(0 for _ in cfg.data.dataloader.patch_size)
+    return tuple(int(v) for v in context)
+
+
+def _effective_patch_size(cfg: Config) -> tuple[int, ...]:
+    patch_size = tuple(int(v) for v in cfg.data.dataloader.patch_size)
+    context = _target_context(cfg)
+    if len(context) != len(patch_size):
+        raise ValueError(
+            "data.dataloader.target_context must have the same length as patch_size: "
+            f"{context} vs {patch_size}"
+        )
+    return tuple(patch_size[i] + context[i] for i in range(len(patch_size)))
+
+
+def _validation_dataset_mode(cfg: Config) -> str:
+    return "train" if bool(getattr(cfg.data.dataloader, "val_random_sampling", False)) else "val"
+
+
 def _maybe_precompute_label_aux(
     cfg: Config,
     split_cfg: Any,
@@ -664,7 +686,7 @@ def create_datamodule(
             # Compute total possible samples
             total_samples, samples_per_vol = compute_total_samples(
                 volume_sizes=volume_sizes,
-                patch_size=tuple(cfg.data.dataloader.patch_size),
+                patch_size=_effective_patch_size(cfg),
                 stride=tuple(cfg.data.data_transform.stride),
             )
 
@@ -789,7 +811,7 @@ def create_datamodule(
                 else None
             ),
             mask_paths=[d.get("mask") for d in train_data_dicts],
-            patch_size=tuple(cfg.data.dataloader.patch_size),
+            patch_size=_effective_patch_size(cfg),
             iter_num=iter_num,
             transforms=augment_only_transforms,
             pre_cache_transforms=train_pre_cache_transforms,
@@ -837,7 +859,7 @@ def create_datamodule(
                 logger.info("Auto-calculating validation steps from volume size...")
                 val_steps_per_epoch = _calculate_validation_steps_per_epoch(
                     val_data_dicts=val_data_dicts,
-                    patch_size=tuple(cfg.data.dataloader.patch_size),
+                    patch_size=_effective_patch_size(cfg),
                     min_steps=1,
                     max_steps=None,
                     default_steps=100,
@@ -857,11 +879,11 @@ def create_datamodule(
                         else None
                     ),
                     mask_paths=[d.get("mask") for d in val_data_dicts],
-                    patch_size=tuple(cfg.data.dataloader.patch_size),
+                    patch_size=_effective_patch_size(cfg),
                     iter_num=val_steps_per_epoch,
                     transforms=val_only_transforms,
                     pre_cache_transforms=val_pre_cache_transforms,
-                    mode="val",
+                    mode=_validation_dataset_mode(cfg),
                     pad_size=tuple(pad_size) if pad_size else None,
                     pad_mode=pad_mode,
                     max_attempts=cfg.data.dataloader.cached_sampling_max_attempts,
@@ -946,7 +968,7 @@ def create_datamodule(
             label_paths=None if all(p is None for p in train_labels) else train_labels,
             label_aux_paths=None if all(p is None for p in train_label_auxs) else train_label_auxs,
             mask_paths=None if all(p is None for p in train_masks) else train_masks,
-            patch_size=tuple(cfg.data.dataloader.patch_size),
+            patch_size=_effective_patch_size(cfg),
             iter_num=iter_num,
             transforms=train_transforms_lazy,
             mode="train",
@@ -987,7 +1009,7 @@ def create_datamodule(
                 logger.info("Auto-calculating validation steps from volume size...")
                 val_steps_per_epoch = _calculate_validation_steps_per_epoch(
                     val_data_dicts=val_data_dicts,
-                    patch_size=tuple(cfg.data.dataloader.patch_size),
+                    patch_size=_effective_patch_size(cfg),
                     min_steps=50,
                     max_steps=200,
                 )
@@ -998,10 +1020,10 @@ def create_datamodule(
                 label_paths=None if all(p is None for p in val_labels) else val_labels,
                 label_aux_paths=None if all(p is None for p in val_label_aux) else val_label_aux,
                 mask_paths=None if all(p is None for p in val_masks) else val_masks,
-                patch_size=tuple(cfg.data.dataloader.patch_size),
+                patch_size=_effective_patch_size(cfg),
                 iter_num=val_steps_per_epoch,
                 transforms=val_transforms_lazy,
-                mode="val",
+                mode=_validation_dataset_mode(cfg),
                 max_attempts=cfg.data.dataloader.cached_sampling_max_attempts,
                 foreground_threshold=cfg.data.dataloader.cached_sampling_foreground_threshold,
                 transpose_axes=(
@@ -1090,7 +1112,7 @@ def create_datamodule(
             logger.info("Auto-calculating validation steps from volume size...")
             val_steps_per_epoch = _calculate_validation_steps_per_epoch(
                 val_data_dicts=val_data_dicts,
-                patch_size=tuple(cfg.data.dataloader.patch_size),
+                patch_size=_effective_patch_size(cfg),
                 min_steps=50,
                 max_steps=200,
             )
@@ -1115,7 +1137,7 @@ def create_datamodule(
             val_steps_per_epoch=val_steps_per_epoch,
             seed=cfg.system.seed,  # [FIX 1] Pass seed for validation reseeding
             distributed_tta_sharding=distributed_tta_sharding,
-            sample_size=tuple(cfg.data.dataloader.patch_size),
+            sample_size=_effective_patch_size(cfg),
             do_2d=bool(
                 getattr(cfg.data.train, "do_2d", False) or getattr(cfg.data.val, "do_2d", False)
             ),

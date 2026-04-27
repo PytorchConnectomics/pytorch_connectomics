@@ -64,6 +64,48 @@ def _strict_binarize_mask(mask, threshold: float = 0.0):
     return (mask > threshold).astype(mask.dtype, copy=False)
 
 
+def _target_context(cfg: Config) -> tuple[int, ...]:
+    context = getattr(cfg.data.dataloader, "target_context", None) or []
+    if not context:
+        return tuple(0 for _ in cfg.data.dataloader.patch_size)
+    return tuple(int(v) for v in context)
+
+
+def _effective_patch_size(cfg: Config) -> tuple[int, ...] | None:
+    patch_size = tuple(cfg.data.dataloader.patch_size) if cfg.data.dataloader.patch_size else None
+    if patch_size is None:
+        return None
+    context = _target_context(cfg)
+    if len(context) != len(patch_size):
+        raise ValueError(
+            "data.dataloader.target_context must have the same length as patch_size: "
+            f"{context} vs {patch_size}"
+        )
+    return tuple(int(patch_size[i]) + int(context[i]) for i in range(len(patch_size)))
+
+
+def _append_banis_pre_target_transforms(transforms: list, label_cfg) -> None:
+    if bool(getattr(label_cfg, "relabel_connected_components", False)):
+        from ..processing.transforms import RelabelConnectedComponentsd
+
+        transforms.append(
+            RelabelConnectedComponentsd(
+                keys=["label"],
+                connectivity=int(getattr(label_cfg, "relabel_connectivity", 6)),
+            )
+        )
+
+
+def _append_target_context_crop(transforms: list, cfg: Config) -> None:
+    context = _target_context(cfg)
+    if not context or not any(v > 0 for v in context):
+        return
+
+    from ..processing.transforms import LeadingSpatialCropd
+
+    transforms.append(LeadingSpatialCropd(roi_size=tuple(cfg.data.dataloader.patch_size)))
+
+
 def _build_nnunet_preprocess_transform(keys, nnunet_pre_cfg, source_spacing):
     """Build NNUNetPreprocessd transform from config."""
     source_spacing = getattr(nnunet_pre_cfg, "source_spacing", None) or source_spacing
@@ -176,9 +218,7 @@ def build_train_transforms(
 
     # Ensure target patch size is respected (unless using pre-cached dataset)
     if not skip_loading:
-        patch_size = (
-            tuple(cfg.data.dataloader.patch_size) if cfg.data.dataloader.patch_size else None
-        )
+        patch_size = _effective_patch_size(cfg)
         if patch_size and all(size > 0 for size in patch_size):
             # Pad smaller volumes so random crops always succeed
             transforms.append(
@@ -208,6 +248,10 @@ def build_train_transforms(
             )
         )
 
+    label_cfg = getattr(cfg.data, "label_transform", None)
+    if "label" in keys and label_cfg is not None:
+        _append_banis_pre_target_transforms(transforms, label_cfg)
+
     # Add augmentations if enabled
     if cfg.data.augmentation is not None:
         # Pass do_2d flag to augmentation builder
@@ -218,11 +262,9 @@ def build_train_transforms(
         transforms.extend(_build_augmentations(cfg.data.augmentation, keys, do_2d=do_2d))
 
     # Label transformations (affinity, distance transform, etc.)
-    if hasattr(cfg.data, "label_transform"):
+    if label_cfg is not None:
         from ..processing.build import create_label_transform_pipeline
         from ..processing.transforms import SegErosionInstanced
-
-        label_cfg = cfg.data.label_transform
 
         # Apply instance erosion first if specified
         if hasattr(label_cfg, "erosion") and label_cfg.erosion > 0:
@@ -234,6 +276,8 @@ def build_train_transforms(
             transforms.extend(label_transform.transforms)
         else:
             transforms.append(label_transform)
+
+    _append_target_context_crop(transforms, cfg)
 
     # NOTE: Do NOT squeeze labels here!
     # - DiceLoss needs (B, 1, H, W) with to_onehot_y=True
@@ -472,7 +516,13 @@ def _build_eval_transforms_impl(
             )
         )
 
-    patch_size = tuple(data_cfg.dataloader.patch_size) if data_cfg.dataloader.patch_size else None
+    patch_size = (
+        _effective_patch_size(cfg)
+        if mode == "val"
+        else tuple(data_cfg.dataloader.patch_size)
+        if data_cfg.dataloader.patch_size
+        else None
+    )
     if patch_size and all(size > 0 for size in patch_size):
         transforms.append(
             SpatialPadd(
@@ -510,12 +560,22 @@ def _build_eval_transforms_impl(
     # Test: Skip cropping to enable sliding window inference on full volumes
     if mode == "val":
         if patch_size and all(size > 0 for size in patch_size):
-            transforms.append(
-                CenterSpatialCropd(
-                    keys=keys,
-                    roi_size=patch_size,
+            if bool(getattr(data_cfg.dataloader, "val_random_sampling", False)):
+                transforms.append(
+                    RandSpatialCropd(
+                        keys=keys,
+                        roi_size=patch_size,
+                        random_center=True,
+                        random_size=False,
+                    )
                 )
-            )
+            else:
+                transforms.append(
+                    CenterSpatialCropd(
+                        keys=keys,
+                        roi_size=patch_size,
+                    )
+                )
     # else: mode == "test" -> no cropping for sliding window inference
 
     # Normalization - use smart normalization
@@ -529,6 +589,10 @@ def _build_eval_transforms_impl(
                 clip_percentile_high=getattr(image_transform, "clip_percentile_high", 1.0),
             )
         )
+
+    label_cfg = getattr(data_cfg, "label_transform", None)
+    if mode == "val" and "label" in keys and label_cfg is not None:
+        _append_banis_pre_target_transforms(transforms, label_cfg)
 
     # Only process labels if 'label' is in keys
     if "label" in keys:
@@ -557,6 +621,9 @@ def _build_eval_transforms_impl(
                 transforms.extend(label_transform.transforms)
             else:
                 transforms.append(label_transform)
+
+    if mode == "val":
+        _append_target_context_crop(transforms, cfg)
 
     # NOTE: Do NOT squeeze labels here!
     # - DiceLoss needs (B, 1, H, W) with to_onehot_y=True
@@ -733,16 +800,6 @@ def _build_augmentations(aug_cfg: AugmentationConfig, keys: list[str], do_2d: bo
 
     # Intensity augmentations (only for images)
     if aug_cfg.intensity.enabled:
-        if aug_cfg.intensity.gaussian_noise_prob > 0:
-            transforms.append(
-                RandGaussianNoised(
-                    keys=["image"],
-                    prob=aug_cfg.intensity.gaussian_noise_prob,
-                    std=aug_cfg.intensity.gaussian_noise_std,
-                    sample_std=True,
-                )
-            )
-
         if getattr(aug_cfg.intensity, "banis_style", False):
             transforms.append(
                 RandMulAddIntensityd(
@@ -752,7 +809,26 @@ def _build_augmentations(aug_cfg: AugmentationConfig, keys: list[str], do_2d: bo
                     add_range=aug_cfg.intensity.add_range,
                 )
             )
+            if aug_cfg.intensity.gaussian_noise_prob > 0:
+                transforms.append(
+                    RandGaussianNoised(
+                        keys=["image"],
+                        prob=aug_cfg.intensity.gaussian_noise_prob,
+                        std=aug_cfg.intensity.gaussian_noise_std,
+                        sample_std=True,
+                    )
+                )
         else:
+            if aug_cfg.intensity.gaussian_noise_prob > 0:
+                transforms.append(
+                    RandGaussianNoised(
+                        keys=["image"],
+                        prob=aug_cfg.intensity.gaussian_noise_prob,
+                        std=aug_cfg.intensity.gaussian_noise_std,
+                        sample_std=True,
+                    )
+                )
+
             if aug_cfg.intensity.shift_intensity_prob > 0:
                 transforms.append(
                     RandShiftIntensityd(
