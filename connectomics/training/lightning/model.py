@@ -850,6 +850,24 @@ class ConnectomicsModule(pl.LightningModule):
                         f.write(f"  Accuracy:                     {metrics_dict['accuracy']:.6f}\n")
                     f.write("\n")
 
+                if "nerl" in metrics_dict:
+                    f.write("Neurite ERL Metrics:\n")
+                    f.write("-" * 80 + "\n")
+                    f.write(f"  NERL:                         {metrics_dict['nerl']:.6f}\n")
+                    if "nerl_erl" in metrics_dict:
+                        f.write(f"  ERL:                          {metrics_dict['nerl_erl']:.6f}\n")
+                    if "nerl_max_erl" in metrics_dict:
+                        f.write(
+                            f"  Max ERL:                      {metrics_dict['nerl_max_erl']:.6f}\n"
+                        )
+                    if "nerl_num_skeletons" in metrics_dict:
+                        f.write(
+                            f"  Skeletons:                    {metrics_dict['nerl_num_skeletons']}\n"
+                        )
+                    if "nerl_graph" in metrics_dict:
+                        f.write(f"  Graph:                        {metrics_dict['nerl_graph']}\n")
+                    f.write("\n")
+
                 f.write("=" * 80 + "\n")
 
             logger.info(f"Metrics saved to: {metrics_file}")
@@ -925,6 +943,10 @@ class ConnectomicsModule(pl.LightningModule):
             "instance_precision_detail",
             "instance_recall_detail",
             "instance_f1_detail",
+            "nerl",
+            "nerl_erl",
+            "nerl_max_erl",
+            "nerl_num_skeletons",
         ]
 
         header_cols = (

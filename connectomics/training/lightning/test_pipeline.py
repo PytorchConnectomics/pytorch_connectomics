@@ -648,27 +648,352 @@ def _compute_binary_metrics(
         module.test_accuracy.update(pred_binary, labels_binary)
 
 
+def _module_cfg_value(module, cfg: Any, name: str, default: Any = None) -> Any:
+    if cfg is None:
+        return default
+    if hasattr(module, "_cfg_value"):
+        return module._cfg_value(cfg, name, default)
+    return getattr(cfg, name, default)
+
+
+def _get_effective_evaluation_config(module) -> Any:
+    evaluation_cfg = module._get_test_evaluation_config()
+    if evaluation_cfg is not None:
+        return evaluation_cfg
+    return getattr(module._get_runtime_inference_config(), "evaluation", None)
+
+
+def _configured_evaluation_metrics(module) -> set[str]:
+    evaluation_cfg = _get_effective_evaluation_config(module)
+    metrics = _module_cfg_value(module, evaluation_cfg, "metrics", None)
+    if metrics is None:
+        return set()
+    if isinstance(metrics, str):
+        return {metrics.lower()}
+    return {str(metric).lower() for metric in metrics}
+
+
+def _evaluation_metric_requested(module, metric_name: str) -> bool:
+    return metric_name.lower() in _configured_evaluation_metrics(module)
+
+
+def _select_volume_config_value(value: Any, volume_name: str | None) -> Any:
+    if value is None:
+        return None
+    if isinstance(value, (str, os.PathLike)):
+        return value
+    if isinstance(value, dict):
+        if volume_name and volume_name in value:
+            return value[volume_name]
+        if "default" in value:
+            return value["default"]
+        if len(value) == 1:
+            return next(iter(value.values()))
+        return None
+    if isinstance(value, (list, tuple)):
+        return value[0] if len(value) == 1 else None
+    return value
+
+
+def _import_em_erl():
+    try:
+        from em_erl import ERLGraph, compute_erl_score, compute_segment_lut
+
+        return ERLGraph, compute_erl_score, compute_segment_lut
+    except ModuleNotFoundError:
+        import sys
+
+        repo_root = Path(__file__).resolve().parents[3]
+        em_erl_root = repo_root / "lib" / "em_erl"
+        if em_erl_root.exists():
+            sys.path.insert(0, str(em_erl_root))
+        from em_erl import ERLGraph, compute_erl_score, compute_segment_lut
+
+        return ERLGraph, compute_erl_score, compute_segment_lut
+
+
+def _reorder_coordinate_axes(
+    coords: np.ndarray,
+    *,
+    source_order: str,
+    target_order: str | None,
+) -> np.ndarray:
+    source_order = str(source_order).lower()
+    target_order = source_order if target_order is None else str(target_order).lower()
+    valid_axes = {"x", "y", "z"}
+    if len(source_order) != 3 or set(source_order) != valid_axes:
+        raise ValueError(f"Invalid skeleton coordinate order: {source_order!r}")
+    if len(target_order) != 3 or set(target_order) != valid_axes:
+        raise ValueError(f"Invalid prediction coordinate order: {target_order!r}")
+    axis_indices = [source_order.index(axis) for axis in target_order]
+    return np.asarray(coords)[:, axis_indices]
+
+
+def _networkx_skeleton_to_erl_graph(skeleton: Any, evaluation_cfg: Any, module: Any):
+    ERLGraph, _, _ = _import_em_erl()
+
+    id_attr = _module_cfg_value(module, evaluation_cfg, "nerl_skeleton_id_attribute", "id")
+    pos_attr = _module_cfg_value(
+        module,
+        evaluation_cfg,
+        "nerl_skeleton_position_attribute",
+        "index_position",
+    )
+    edge_len_attr = _module_cfg_value(
+        module,
+        evaluation_cfg,
+        "nerl_skeleton_edge_length_attribute",
+        "edge_length",
+    )
+    source_order = _module_cfg_value(
+        module,
+        evaluation_cfg,
+        "nerl_skeleton_position_order",
+        "xyz",
+    )
+    target_order = _module_cfg_value(
+        module,
+        evaluation_cfg,
+        "nerl_prediction_position_order",
+        None,
+    )
+
+    node_ids = list(skeleton.nodes)
+    if not node_ids:
+        raise ValueError("NERL skeleton has no nodes")
+
+    raw_skeleton_ids = []
+    node_coords = []
+    for node_id in node_ids:
+        node_data = skeleton.nodes[node_id]
+        raw_skeleton_ids.append(node_data[id_attr])
+        node_coords.append(node_data[pos_attr])
+
+    skeleton_ids = list(dict.fromkeys(raw_skeleton_ids))
+    skeleton_index_by_id = {skeleton_id: i for i, skeleton_id in enumerate(skeleton_ids)}
+    node_index_by_id = {node_id: i for i, node_id in enumerate(node_ids)}
+    node_skeleton_index = np.asarray(
+        [skeleton_index_by_id[skeleton_id] for skeleton_id in raw_skeleton_ids],
+        dtype=np.uint32,
+    )
+    node_coords_arr = _reorder_coordinate_axes(
+        np.asarray(node_coords, dtype=np.float32),
+        source_order=source_order,
+        target_order=target_order,
+    )
+
+    edge_buckets: list[list[tuple[int, int, float]]] = [[] for _ in skeleton_ids]
+    skeleton_len = np.zeros(len(skeleton_ids), dtype=np.float64)
+    for u, v, edge_data in skeleton.edges(data=True):
+        if u not in node_index_by_id or v not in node_index_by_id:
+            continue
+        u_idx = node_index_by_id[u]
+        v_idx = node_index_by_id[v]
+        skel_idx = int(node_skeleton_index[u_idx])
+        if skel_idx != int(node_skeleton_index[v_idx]):
+            continue
+        if edge_len_attr in edge_data:
+            edge_len = float(edge_data[edge_len_attr])
+        else:
+            edge_len = float(np.linalg.norm(node_coords_arr[u_idx] - node_coords_arr[v_idx]))
+        edge_buckets[skel_idx].append((u_idx, v_idx, edge_len))
+        skeleton_len[skel_idx] += edge_len
+
+    edge_ptr = [0]
+    edge_u = []
+    edge_v = []
+    edge_len = []
+    for bucket in edge_buckets:
+        for u_idx, v_idx, length in bucket:
+            edge_u.append(u_idx)
+            edge_v.append(v_idx)
+            edge_len.append(length)
+        edge_ptr.append(len(edge_u))
+
+    return ERLGraph(
+        skeleton_id=np.asarray(skeleton_ids),
+        skeleton_len=skeleton_len,
+        node_skeleton_index=node_skeleton_index,
+        node_coords_zyx=node_coords_arr,
+        edge_u=np.asarray(edge_u, dtype=np.uint32),
+        edge_v=np.asarray(edge_v, dtype=np.uint32),
+        edge_len=np.asarray(edge_len, dtype=np.float32),
+        edge_ptr=np.asarray(edge_ptr, dtype=np.uint64),
+    )
+
+
+def _load_nerl_graph(graph_source: Any, evaluation_cfg: Any, module: Any):
+    ERLGraph, _, _ = _import_em_erl()
+    if isinstance(graph_source, ERLGraph):
+        return graph_source, False
+    if hasattr(graph_source, "node_coords_zyx") and hasattr(graph_source, "edge_ptr"):
+        return graph_source, False
+
+    graph_path = Path(graph_source)
+    suffix = graph_path.suffix.lower()
+    if suffix == ".npz":
+        return ERLGraph.from_npz(graph_path), False
+    if suffix in {".pkl", ".pickle"}:
+        import pickle
+
+        with open(graph_path, "rb") as f:
+            skeleton = pickle.load(f)
+        return _networkx_skeleton_to_erl_graph(skeleton, evaluation_cfg, module), True
+    raise ValueError(
+        "inference.evaluation.nerl_graph must be an ERLGraph .npz or "
+        f"NetworkX skeleton pickle, got {graph_path}"
+    )
+
+
+def _nerl_node_positions(module, graph: Any, voxel_coords: bool, evaluation_cfg: Any) -> np.ndarray:
+    if voxel_coords:
+        return np.asarray(graph.node_coords_zyx, dtype=np.int64)
+
+    resolution = _module_cfg_value(module, evaluation_cfg, "nerl_resolution", None)
+    if resolution is None:
+        data_cfg = getattr(getattr(module, "cfg", None), "data", None)
+        test_cfg = getattr(data_cfg, "test", None)
+        resolution = getattr(test_cfg, "resolution", None)
+    return graph.get_nodes_position(resolution)
+
+
+def _prepare_nerl_segmentation(decoded_predictions: np.ndarray) -> np.ndarray:
+    seg = np.asarray(decoded_predictions)
+    while seg.ndim > 3 and seg.shape[0] == 1:
+        seg = seg[0]
+    if seg.ndim > 3:
+        singleton_axes = tuple(i for i, size in enumerate(seg.shape) if size == 1)
+        if singleton_axes:
+            seg = np.squeeze(seg, axis=singleton_axes)
+    if seg.ndim != 3:
+        raise ValueError(f"NERL expects a 3D decoded instance volume, got shape {seg.shape}")
+    if not np.issubdtype(seg.dtype, np.integer):
+        seg = seg.astype(np.uint32, copy=False)
+    return seg
+
+
+def _compute_nerl_metrics(
+    module,
+    decoded_predictions: np.ndarray,
+    volume_prefix: str,
+    metrics_dict: Dict[str, Any],
+    volume_name: str | None,
+) -> None:
+    evaluation_cfg = _get_effective_evaluation_config(module)
+    graph_value = _select_volume_config_value(
+        _module_cfg_value(module, evaluation_cfg, "nerl_graph", None),
+        volume_name,
+    )
+    if graph_value is None:
+        logger.warning(
+            "%sSkipping NERL: set inference.evaluation.nerl_graph to an "
+            "ERLGraph .npz or BANIS/NISB skeleton.pkl",
+            volume_prefix,
+        )
+        return
+
+    mask_value = _select_volume_config_value(
+        _module_cfg_value(module, evaluation_cfg, "nerl_mask", None),
+        volume_name,
+    )
+    _, compute_erl_score, compute_segment_lut = _import_em_erl()
+    erl_graph, voxel_coords = _load_nerl_graph(graph_value, evaluation_cfg, module)
+    node_positions = _nerl_node_positions(module, erl_graph, voxel_coords, evaluation_cfg)
+    segment = _prepare_nerl_segmentation(decoded_predictions)
+
+    merge_threshold = int(_module_cfg_value(module, evaluation_cfg, "nerl_merge_threshold", 1))
+    chunk_num = int(_module_cfg_value(module, evaluation_cfg, "nerl_chunk_num", 1))
+    node_segment_lut, mask_segment_id = compute_segment_lut(
+        segment,
+        node_positions,
+        mask=mask_value,
+        chunk_num=chunk_num,
+        data_type=segment.dtype,
+    )
+
+    score = compute_erl_score(
+        erl_graph,
+        node_segment_lut,
+        mask_segment_id,
+        merge_threshold=merge_threshold,
+    )
+    score.compute_erl()
+
+    gt_lut = np.asarray(erl_graph.skeleton_id[erl_graph.node_skeleton_index], dtype=np.uint64)
+    max_score = compute_erl_score(
+        erl_graph,
+        gt_lut,
+        None,
+        merge_threshold=merge_threshold,
+    )
+    max_score.compute_erl()
+
+    erl = float(np.asarray(score.erl)[0])
+    max_erl = float(np.asarray(max_score.erl)[0])
+    nerl = erl / max_erl if max_erl > 0 else float("nan")
+    num_skeletons = int(np.asarray(score.erl)[2])
+
+    logger.info(f"{volume_prefix}NERL: {nerl:.6f}")
+    logger.info(f"{volume_prefix}  ERL: {erl:.6f}")
+    logger.info(f"{volume_prefix}  Max ERL: {max_erl:.6f}")
+    logger.info(f"{volume_prefix}  # Skeletons: {num_skeletons}")
+
+    metrics_dict["nerl"] = nerl
+    metrics_dict["nerl_erl"] = erl
+    metrics_dict["nerl_max_erl"] = max_erl
+    metrics_dict["nerl_num_skeletons"] = num_skeletons
+    metrics_dict["nerl_graph"] = str(graph_value)
+
+    if hasattr(module, "log"):
+        try:
+            module.log(
+                "test_nerl",
+                nerl,
+                on_step=False,
+                on_epoch=True,
+                prog_bar=True,
+                logger=True,
+            )
+        except Exception as exc:  # pragma: no cover - logging should never fail evaluation
+            logger.debug("Failed to log test_nerl metric: %s", exc)
+
+
 def compute_test_metrics(
     module,
     decoded_predictions: np.ndarray,
-    labels: torch.Tensor,
+    labels: Optional[torch.Tensor],
     volume_name: str | None = None,
 ) -> None:
     """Update configured metrics and save per-volume evaluation summaries."""
     if not module._is_test_evaluation_enabled():
         return
 
+    volume_prefix = f"[{volume_name}] " if volume_name else ""
+    metrics_dict: Dict[str, Any] = {"volume_name": volume_name if volume_name else "unknown"}
+    requested_metrics = _configured_evaluation_metrics(module)
+
+    if "nerl" in requested_metrics:
+        _compute_nerl_metrics(
+            module,
+            decoded_predictions,
+            volume_prefix,
+            metrics_dict,
+            volume_name,
+        )
+
+    if labels is None:
+        module._save_metrics_to_file(metrics_dict)
+        return
+
     pred_tensor = torch.from_numpy(decoded_predictions).float().to(module.device)
     labels_tensor = labels.float().to(pred_tensor.device)
     pred_tensor, labels_tensor = _align_metric_tensors(pred_tensor, labels_tensor)
     if pred_tensor is None or labels_tensor is None:
+        module._save_metrics_to_file(metrics_dict)
         return
 
-    volume_prefix = f"[{volume_name}] " if volume_name else ""
-    metrics_dict: Dict[str, Any] = {"volume_name": volume_name if volume_name else "unknown"}
-
     inference_eval_defaults = module._get_runtime_inference_config().evaluation
-    evaluation_cfg = module._get_test_evaluation_config()
+    evaluation_cfg = _get_effective_evaluation_config(module)
     prediction_threshold = module._cfg_float(
         evaluation_cfg,
         "prediction_threshold",
@@ -947,7 +1272,9 @@ def _evaluate_decoded_predictions(
     filenames: list[str],
     batch_idx: int,
 ) -> None:
-    if labels is not None and module._is_test_evaluation_enabled():
+    evaluation_enabled = module._is_test_evaluation_enabled()
+    nerl_requested = evaluation_enabled and _evaluation_metric_requested(module, "nerl")
+    if evaluation_enabled and (labels is not None or nerl_requested):
         logger.info("[STAGE: Computing Evaluation Metrics]")
         eval_start = time.time()
         volume_names = filenames if filenames else [f"volume_{batch_idx}"]
@@ -957,10 +1284,13 @@ def _evaluate_decoded_predictions(
         if len(volume_names) > 1:
             pred_arr = np.asarray(decoded_predictions)
             can_split_pred = pred_arr.ndim > 0 and pred_arr.shape[0] == len(volume_names)
-            can_split_label = labels.ndim > 0 and labels.shape[0] == len(volume_names)
-            if can_split_pred and can_split_label:
+            can_split_label = (
+                labels is not None and labels.ndim > 0 and labels.shape[0] == len(volume_names)
+            )
+            if can_split_pred and (labels is None or can_split_label):
                 for i, name in enumerate(volume_names):
-                    compute_test_metrics(module, pred_arr[i], labels[i], volume_name=name)
+                    label_i = None if labels is None else labels[i]
+                    compute_test_metrics(module, pred_arr[i], label_i, volume_name=name)
             else:
                 logger.warning(
                     "Could not split batched predictions/labels by volume; "
@@ -974,7 +1304,7 @@ def _evaluate_decoded_predictions(
         return
 
     if labels is None:
-        logger.info("[STAGE: Evaluation] Skipped (no ground truth labels)")
+        logger.info("[STAGE: Evaluation] Skipped (no ground truth labels or NERL graph metric)")
     else:
         logger.info("[STAGE: Evaluation] Skipped (evaluation disabled)")
 

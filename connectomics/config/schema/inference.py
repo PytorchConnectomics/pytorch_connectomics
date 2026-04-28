@@ -194,6 +194,18 @@ class EvaluationConfig:
     metrics: Optional[List[str]] = None  # e.g., ['dice', 'jaccard', 'accuracy']
     prediction_threshold: float = 0.5  # Probability/logit threshold for binary metrics
     instance_iou_threshold: float = 0.5  # IoU threshold for instance matching metrics
+    # Neurite ERL evaluation via lib/em_erl. nerl_graph accepts an ERLGraph
+    # .npz or a BANIS/NISB-style NetworkX skeleton.pkl.
+    nerl_graph: Any = None
+    nerl_mask: Any = None
+    nerl_resolution: Optional[List[float]] = None
+    nerl_merge_threshold: int = 1
+    nerl_chunk_num: int = 1
+    nerl_skeleton_id_attribute: str = "id"
+    nerl_skeleton_position_attribute: str = "index_position"
+    nerl_skeleton_edge_length_attribute: str = "edge_length"
+    nerl_skeleton_position_order: str = "xyz"
+    nerl_prediction_position_order: Optional[str] = None
 
 
 @dataclass
