@@ -3,12 +3,15 @@
 from __future__ import annotations
 
 import numpy as np
+import pytest
 import torch
 
 from connectomics.config import Config
 from connectomics.inference.output import resolve_output_filenames
 from connectomics.training.lightning.test_pipeline import (
     _apply_predecode_prediction_crops,
+    _import_em_erl,
+    compute_test_metrics,
     run_test_step,
 )
 
@@ -73,6 +76,101 @@ def test_run_test_step_evaluates_each_volume_in_multi_volume_batch(monkeypatch):
     out = run_test_step(module, batch, batch_idx=0)
     assert isinstance(out, torch.Tensor)
     assert called_names == ["train-input", "test-input_z29"]
+
+
+class _NerlModule:
+    def __init__(self, graph_path):
+        self.device = torch.device("cpu")
+        self.cfg = Config()
+        self.cfg.inference.evaluation.enabled = True
+        self.cfg.inference.evaluation.metrics = ["nerl"]
+        self.cfg.inference.evaluation.nerl_graph = str(graph_path)
+        self.inference_manager = _DummyInferenceManager()
+        self.saved_metrics = None
+
+    def _get_runtime_inference_config(self):
+        return self.cfg.inference
+
+    def _get_test_evaluation_config(self):
+        return self.cfg.inference.evaluation
+
+    def _is_test_evaluation_enabled(self):
+        return True
+
+    def _cfg_value(self, cfg, key, default=None):
+        return getattr(cfg, key, default)
+
+    def _cfg_float(self, cfg, key, default):
+        return float(getattr(cfg, key, default))
+
+    def _save_metrics_to_file(self, metrics_dict):
+        self.saved_metrics = dict(metrics_dict)
+
+    def log(self, *args, **kwargs):
+        return None
+
+
+def test_compute_test_metrics_supports_nerl_without_dense_labels(tmp_path):
+    ERLGraph, _, _ = _import_em_erl()
+    graph_path = tmp_path / "gt_graph.npz"
+    graph = ERLGraph(
+        skeleton_id=np.array([10, 20], dtype=np.uint64),
+        skeleton_len=np.array([1.0, 1.0], dtype=np.float64),
+        node_skeleton_index=np.array([0, 0, 1, 1], dtype=np.uint32),
+        node_coords_zyx=np.array(
+            [
+                [0, 0, 0],
+                [0, 0, 1],
+                [0, 1, 0],
+                [0, 1, 1],
+            ],
+            dtype=np.float32,
+        ),
+        edge_u=np.array([0, 2], dtype=np.uint32),
+        edge_v=np.array([1, 3], dtype=np.uint32),
+        edge_len=np.array([1.0, 1.0], dtype=np.float32),
+        edge_ptr=np.array([0, 1, 2], dtype=np.uint64),
+    )
+    graph.save_npz(graph_path)
+
+    module = _NerlModule(graph_path)
+    decoded = np.zeros((1, 2, 2), dtype=np.uint32)
+    decoded[0, 0, :] = 1
+    decoded[0, 1, :] = 2
+
+    compute_test_metrics(module, decoded, labels=None, volume_name="sample")
+
+    assert module.saved_metrics is not None
+    assert module.saved_metrics["volume_name"] == "sample"
+    assert module.saved_metrics["nerl"] == 1.0
+    assert module.saved_metrics["nerl_erl"] == 1.0
+    assert module.saved_metrics["nerl_max_erl"] == 1.0
+
+
+def test_compute_test_metrics_supports_banis_skeleton_pickle(tmp_path):
+    nx = pytest.importorskip("networkx")
+    import pickle
+
+    skeleton_path = tmp_path / "skeleton.pkl"
+    skeleton = nx.Graph()
+    skeleton.add_node(0, id=10, index_position=(0, 0, 0))
+    skeleton.add_node(1, id=10, index_position=(0, 0, 1))
+    skeleton.add_node(2, id=20, index_position=(0, 1, 0))
+    skeleton.add_node(3, id=20, index_position=(0, 1, 1))
+    skeleton.add_edge(0, 1, edge_length=1.0)
+    skeleton.add_edge(2, 3, edge_length=1.0)
+    with open(skeleton_path, "wb") as f:
+        pickle.dump(skeleton, f)
+
+    module = _NerlModule(skeleton_path)
+    decoded = np.zeros((1, 2, 2), dtype=np.uint32)
+    decoded[0, 0, :] = 1
+    decoded[0, 1, :] = 2
+
+    compute_test_metrics(module, decoded, labels=None, volume_name="sample")
+
+    assert module.saved_metrics is not None
+    assert module.saved_metrics["nerl"] == 1.0
 
 
 class _CroppingModule:
