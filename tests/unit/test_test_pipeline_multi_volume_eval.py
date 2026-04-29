@@ -7,11 +7,11 @@ import pytest
 import torch
 
 from connectomics.config import Config
+from connectomics.evaluation import compute_test_metrics
+from connectomics.evaluation.nerl import import_em_erl
 from connectomics.inference.output import resolve_output_filenames
 from connectomics.training.lightning.test_pipeline import (
     _apply_predecode_prediction_crops,
-    _import_em_erl,
-    compute_test_metrics,
     run_test_step,
 )
 
@@ -69,7 +69,7 @@ def test_run_test_step_evaluates_each_volume_in_multi_volume_batch(monkeypatch):
         called_names.append(volume_name)
 
     monkeypatch.setattr(
-        "connectomics.training.lightning.test_pipeline.compute_test_metrics",
+        "connectomics.evaluation.stage.compute_test_metrics",
         _fake_compute_test_metrics,
     )
 
@@ -111,7 +111,7 @@ class _NerlModule:
 
 
 def test_compute_test_metrics_supports_nerl_without_dense_labels(tmp_path):
-    ERLGraph, _, _ = _import_em_erl()
+    ERLGraph, _, _ = import_em_erl()
     graph_path = tmp_path / "gt_graph.npz"
     graph = ERLGraph(
         skeleton_id=np.array([10, 20], dtype=np.uint64),

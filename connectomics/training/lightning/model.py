@@ -32,6 +32,7 @@ from pytorch_lightning.utilities.types import STEP_OUTPUT
 # Import existing components
 from ...config import Config
 from ...data.io import read_volume
+from ...evaluation import log_test_epoch_metrics, save_metrics_to_file
 from ...inference import (
     InferenceManager,
     resolve_output_filenames,
@@ -46,7 +47,6 @@ from ...models import build_model
 from ...models.losses import create_loss, get_loss_metadata_for_module
 from ...runtime.output_naming import (
     final_prediction_output_tag,
-    format_checkpoint_name_tag,
     is_tta_cache_suffix,
     resolve_prediction_cache_suffix,
     tta_cache_suffix,
@@ -64,7 +64,7 @@ from ..debugging import DebugManager
 from ..losses import LossOrchestrator, build_loss_weighter, infer_num_loss_tasks_from_config
 from ..model_weights import load_external_weights
 from ..optimization import build_lr_scheduler, build_optimizer
-from .test_pipeline import compute_test_metrics, log_test_epoch_metrics, run_test_step
+from .test_pipeline import run_test_step
 
 logger = logging.getLogger(__name__)
 
@@ -613,7 +613,6 @@ class ConnectomicsModule(pl.LightningModule):
             return None, False, cache_suffix
 
         output_dir = Path(output_dir_value)
-        checkpoint_tag = format_checkpoint_name_tag(self._get_prediction_checkpoint_path())
 
         # Build ordered list of suffixes to try: final prediction first, then
         # intermediate TTA, then glob fallback.
@@ -707,154 +706,7 @@ class ConnectomicsModule(pl.LightningModule):
         return None, False, cache_suffix
 
     def _save_metrics_to_file(self, metrics_dict: Dict[str, Any]):
-        """
-        Save evaluation metrics to a text file in the output directory.
-
-        Args:
-            metrics_dict: Dictionary containing metric names and values
-        """
-        metric_keys = [k for k in metrics_dict.keys() if k != "volume_name"]
-        if not metric_keys:
-            return
-
-        mode = "test"
-        output_path = getattr(
-            self._get_runtime_inference_config().save_prediction, "output_path", None
-        )
-
-        if output_path is None:
-            logger.warning(f"Cannot save metrics: output_path not found for mode={mode}")
-            return
-
-        from datetime import datetime
-        from pathlib import Path
-
-        output_dir = Path(output_path)
-        output_dir.mkdir(parents=True, exist_ok=True)
-
-        # Create filename with volume name and TTA pass tag
-        volume_name = metrics_dict.get("volume_name", "unknown")
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        tag = final_prediction_output_tag(
-            self.cfg,
-            checkpoint_path=self._get_prediction_checkpoint_path(),
-        )
-        metrics_file = output_dir / f"evaluation_metrics_{volume_name}_{tag}.txt"
-
-        if "nerl_per_gt_erl" in metrics_dict:
-            try:
-                import numpy as np
-
-                per_gt_erl_file = (
-                    output_dir / f"evaluation_metrics_{volume_name}_{tag}_nerl_per_gt_erl.npz"
-                )
-                np.savez_compressed(
-                    per_gt_erl_file,
-                    gt_segment_id=np.asarray(metrics_dict.get("nerl_gt_segment_ids", [])),
-                    erl=np.asarray(metrics_dict["nerl_per_gt_erl"], dtype=np.float64),
-                )
-                metrics_dict["nerl_per_gt_erl_file"] = str(per_gt_erl_file)
-            except Exception as e:
-                logger.warning(f"Failed to save NERL per-GT ERL file: {e}")
-
-        # Write metrics to file
-        try:
-            with open(metrics_file, "w") as f:
-                f.write("=" * 80 + "\n")
-                f.write("EVALUATION METRICS\n")
-                f.write("=" * 80 + "\n")
-                f.write(f"Timestamp: {timestamp}\n")
-                f.write(f"Volume: {volume_name}\n")
-                f.write("=" * 80 + "\n\n")
-
-                # Write instance segmentation metrics
-                if "adapted_rand_error" in metrics_dict:
-                    f.write("Instance Segmentation Metrics:\n")
-                    f.write("-" * 80 + "\n")
-                    f.write(
-                        "  Adapted Rand Error:           "
-                        f"{metrics_dict['adapted_rand_error']:.6f}\n"
-                    )
-
-                    if "voi_split" in metrics_dict:
-                        f.write(
-                            f"  VOI Split:                    {metrics_dict['voi_split']:.6f}\n"
-                        )
-                        f.write(
-                            f"  VOI Merge:                    {metrics_dict['voi_merge']:.6f}\n"
-                        )
-                        f.write(
-                            f"  VOI Total:                    {metrics_dict['voi_total']:.6f}\n"
-                        )
-
-                    if "instance_accuracy" in metrics_dict:
-                        f.write(
-                            "  Instance Accuracy:            "
-                            f"{metrics_dict['instance_accuracy']:.6f}\n"
-                        )
-
-                    if "instance_accuracy_detail" in metrics_dict:
-                        f.write(
-                            "\n  Instance Accuracy (Detail):   "
-                            f"{metrics_dict['instance_accuracy_detail']:.6f}\n"
-                        )
-                        f.write(
-                            "    ├─ Precision:               "
-                            f"{metrics_dict['instance_precision_detail']:.6f}\n"
-                        )
-                        f.write(
-                            "    ├─ Recall:                  "
-                            f"{metrics_dict['instance_recall_detail']:.6f}\n"
-                        )
-                        f.write(
-                            "    └─ F1:                      "
-                            f"{metrics_dict['instance_f1_detail']:.6f}\n"
-                        )
-                    f.write("\n")
-
-                # Write binary/semantic segmentation metrics
-                if "jaccard" in metrics_dict or "dice" in metrics_dict:
-                    f.write("Binary/Semantic Segmentation Metrics:\n")
-                    f.write("-" * 80 + "\n")
-                    if "jaccard" in metrics_dict:
-                        f.write(f"  Jaccard Index:                {metrics_dict['jaccard']:.6f}\n")
-                    if "dice" in metrics_dict:
-                        f.write(f"  Dice Score:                   {metrics_dict['dice']:.6f}\n")
-                    if "accuracy" in metrics_dict:
-                        f.write(f"  Accuracy:                     {metrics_dict['accuracy']:.6f}\n")
-                    f.write("\n")
-
-                if "nerl" in metrics_dict:
-                    f.write("Neurite ERL Metrics:\n")
-                    f.write("-" * 80 + "\n")
-                    f.write(f"  NERL:                         {metrics_dict['nerl']:.6f}\n")
-                    pred_erl = metrics_dict.get("nerl_pred_erl", metrics_dict.get("nerl_erl"))
-                    gt_erl = metrics_dict.get("nerl_gt_erl", metrics_dict.get("nerl_max_erl"))
-                    if pred_erl is not None:
-                        f.write(f"  Pred ERL:                     {pred_erl:.6f}\n")
-                    if gt_erl is not None:
-                        f.write(f"  GT ERL:                       {gt_erl:.6f}\n")
-                    if "nerl_num_skeletons" in metrics_dict:
-                        f.write(
-                            f"  Skeletons:                    {metrics_dict['nerl_num_skeletons']}\n"
-                        )
-                    if "nerl_graph" in metrics_dict:
-                        f.write(f"  Graph:                        {metrics_dict['nerl_graph']}\n")
-                    if "nerl_per_gt_erl_file" in metrics_dict:
-                        f.write(
-                            "  Per-GT ERL File:              "
-                            f"{metrics_dict['nerl_per_gt_erl_file']}\n"
-                        )
-                    f.write("\n")
-
-                f.write("=" * 80 + "\n")
-
-            logger.info(f"Metrics saved to: {metrics_file}")
-        except Exception as e:
-            logger.warning(f"Failed to save metrics to file: {e}")
-
-        # Append to decode experiment log (TSV)
-        self._log_decode_experiment(output_dir, volume_name, timestamp, metrics_dict)
+        save_metrics_to_file(self, metrics_dict)
 
     def _log_decode_experiment(
         self,
@@ -972,12 +824,6 @@ class ConnectomicsModule(pl.LightningModule):
             logger.info(f"Decode experiment logged to: {tsv_path}")
         except Exception as e:
             logger.warning(f"Failed to log decode experiment: {e}")
-
-    def _compute_test_metrics(
-        self, decoded_predictions: np.ndarray, labels: torch.Tensor, volume_name: str = None
-    ):
-        """Update configured test metrics."""
-        compute_test_metrics(self, decoded_predictions, labels, volume_name=volume_name)
 
     def _compute_loss(
         self,
