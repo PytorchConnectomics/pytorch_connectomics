@@ -315,11 +315,12 @@ Weights & Biases (Optional)
 
 .. code-block:: yaml
 
-    logging:
-      use_wandb: true
-      wandb_project: "connectomics"
-      wandb_entity: "your_team"
-      wandb_name: "lucchi_exp"
+    monitor:
+      wandb:
+        use_wandb: true
+        project: "connectomics"
+        entity: "your_team"
+        name: "lucchi_exp"
 
 Advanced Usage
 --------------

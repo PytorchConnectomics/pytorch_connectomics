@@ -24,10 +24,10 @@ from ...config import (
     print_config,
     resolve_data_paths,
     resolve_default_profiles,
-    resolve_runtime_resource_sentinels,
     update_from_cli,
     validate_config,
 )
+from ...config.hardware import resolve_runtime_resource_sentinels
 from ...utils.model_outputs import resolve_output_head
 from .path_utils import expand_file_paths
 

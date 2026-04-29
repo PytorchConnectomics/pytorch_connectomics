@@ -390,7 +390,8 @@ class TestAutoPlanConfig:
         """Test basic auto-planning of config."""
         from omegaconf import OmegaConf
 
-        from connectomics.config import Config, auto_plan_config
+        from connectomics.config import Config
+        from connectomics.config.hardware import auto_plan_config
 
         # Create test config
         cfg = OmegaConf.structured(Config())
@@ -410,7 +411,8 @@ class TestAutoPlanConfig:
         """Test that explicit manual values are preserved."""
         from omegaconf import OmegaConf
 
-        from connectomics.config import Config, auto_plan_config
+        from connectomics.config import Config
+        from connectomics.config.hardware import auto_plan_config
 
         cfg = OmegaConf.structured(Config())
         cfg.data.dataloader.batch_size = 11
@@ -424,7 +426,8 @@ class TestAutoPlanConfig:
         """Test that planning respects manual config values."""
         from omegaconf import OmegaConf
 
-        from connectomics.config import Config, auto_plan_config
+        from connectomics.config import Config
+        from connectomics.config.hardware import auto_plan_config
 
         cfg = OmegaConf.structured(Config())
         cfg.data.dataloader.batch_size = 16  # Manual override
@@ -483,7 +486,8 @@ class TestIntegration:
         """Test complete planning workflow from config to planned values."""
         from omegaconf import OmegaConf
 
-        from connectomics.config import Config, auto_plan_config
+        from connectomics.config import Config
+        from connectomics.config.hardware import auto_plan_config
 
         # Create config
         cfg = OmegaConf.structured(Config())
@@ -506,7 +510,8 @@ class TestIntegration:
         """Test planning with dataset properties specified."""
         from omegaconf import OmegaConf
 
-        from connectomics.config import Config, auto_plan_config
+        from connectomics.config import Config
+        from connectomics.config.hardware import auto_plan_config
 
         cfg = OmegaConf.structured(Config())
         cfg.data.data_transform.target_spacing = [1.0, 1.0, 1.0]
@@ -521,7 +526,8 @@ class TestIntegration:
         """Test planning with real GPU (if available)."""
         from omegaconf import OmegaConf
 
-        from connectomics.config import Config, auto_plan_config
+        from connectomics.config import Config
+        from connectomics.config.hardware import auto_plan_config
 
         cfg = OmegaConf.structured(Config())
         cfg.model.arch.type = "mednext"

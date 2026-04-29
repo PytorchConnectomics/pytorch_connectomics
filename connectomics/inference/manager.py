@@ -1,8 +1,8 @@
 """
 Inference utilities for PyTorch Connectomics.
 
-This orchestrator wires together sliding-window inference, TTA, decoding, and I/O.
-Most heavy logic now lives in dedicated helper modules for clarity and reuse.
+This orchestrator wires together sliding-window inference and TTA. Decoding and
+evaluation are separate stages.
 """
 
 from __future__ import annotations

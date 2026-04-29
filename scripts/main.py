@@ -52,8 +52,8 @@ from connectomics.config import (  # noqa: E402
     Config,
     resolve_data_paths,
     resolve_default_profiles,
-    resolve_runtime_resource_sentinels,
 )
+from connectomics.config.hardware import resolve_runtime_resource_sentinels  # noqa: E402
 
 # Register safe globals for PyTorch 2.6+ checkpoint loading
 # Allowlist all Config dataclasses used inside Lightning checkpoints
@@ -634,34 +634,6 @@ def shard_test_datamodule(datamodule, shard_id: int, num_shards: int):
     return datamodule
 
 
-def _invert_save_prediction_transform(cfg: Config, data):
-    """Invert save_prediction intensity scaling (matches ConnectomicsModule behavior)."""
-    import numpy as np
-
-    inference_cfg = getattr(cfg, "inference", None)
-    if inference_cfg is None or getattr(inference_cfg, "save_prediction", None) is None:
-        return data.astype(np.float32)
-
-    save_pred_cfg = inference_cfg.save_prediction
-    intensity_scale = getattr(save_pred_cfg, "intensity_scale", None)
-
-    if intensity_scale is not None and intensity_scale > 0 and intensity_scale != 1.0:
-        data = data.astype(np.float32, copy=False)
-        data = data / float(intensity_scale)
-        print(f"  Inverted intensity scaling by {intensity_scale}")
-        return data
-
-    if intensity_scale is not None and intensity_scale < 0:
-        print(
-            f"  INFO: Intensity scaling was disabled (scale={intensity_scale}), keeping dtype "
-            f"{data.dtype}"
-        )
-    else:
-        print(f"  INFO: No intensity inversion needed, keeping dtype {data.dtype}")
-
-    return data
-
-
 def try_cache_only_test_execution(
     cfg: Config,
     mode: str,
@@ -687,8 +659,8 @@ def try_cache_only_test_execution(
         return False
 
     from connectomics.data.io import read_volume
-    from connectomics.decoding import apply_decode_mode, resolve_decode_modes_from_cfg
-    from connectomics.inference.output import apply_postprocessing, write_outputs
+    from connectomics.decoding import run_decoding_stage
+    from connectomics.inference.output import write_outputs
     from connectomics.training.lightning.path_utils import expand_file_paths
 
     try:
@@ -766,14 +738,11 @@ def try_cache_only_test_execution(
         )
 
     print("Cache-only decode/postprocess/save path (evaluation disabled)")
-    predictions_np = _invert_save_prediction_transform(cfg, predictions_np)
-    has_decoding_cfg = bool(resolve_decode_modes_from_cfg(cfg))
-    decoded_predictions = apply_decode_mode(cfg, predictions_np)
-    if has_decoding_cfg:
-        postprocessed_predictions = apply_postprocessing(cfg, decoded_predictions)
+    decoding_result = run_decoding_stage(cfg, predictions_np)
+    if decoding_result.has_decoding_config:
         write_outputs(
             cfg,
-            postprocessed_predictions,
+            decoding_result.postprocessed,
             filenames,
             suffix="prediction",
             mode="test",
@@ -919,7 +888,7 @@ def main():
 
     # Run preflight checks for training mode
     if args.mode == "train":
-        from connectomics.utils.errors import preflight_check, print_preflight_issues
+        from connectomics.runtime import preflight_check, print_preflight_issues
 
         issues = preflight_check(cfg)
         if issues:
@@ -1034,7 +1003,7 @@ def main():
 
         # Handle tune modes
         if args.mode in ["tune", "tune-test"]:
-            from connectomics.decoding import run_tuning
+            from connectomics.decoding.tuning import run_tuning
 
             # Run parameter tuning (automatically skips if best_params.yaml exists)
             run_tuning(model, trainer, cfg, checkpoint_path=ckpt_path)
@@ -1084,7 +1053,7 @@ def main():
                 )
 
             if args.mode == "tune-test":
-                from connectomics.decoding import load_and_apply_best_params
+                from connectomics.decoding.tuning import load_and_apply_best_params
 
                 print("\n" + "=" * 80)
                 print("LOADING BEST PARAMETERS")

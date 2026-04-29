@@ -118,14 +118,43 @@ class SavePredictionConfig:
     cache_suffix: str = "_x1_prediction.h5"
     save_all_heads: bool = False
 
-    # Data scaling and output typing
-    # -1 keeps native float probabilities/logits before dtype conversion.
-    # >0 directly scales values before dtype conversion.
-    intensity_scale: float = -1.0
-    intensity_dtype: str = "float32"  # float32/float16/uint8/uint16/int16/int32
+    # Optional file/cache dtype conversion. This does not affect decoding or
+    # evaluation. Use inference.prediction_transform for semantic value changes.
+    storage_dtype: Optional[str] = None
 
     # File writing behavior
     compression: Optional[str] = "gzip"
+
+
+@dataclass
+class PredictionTransformConfig:
+    """Semantic prediction transforms applied before decoding/evaluation.
+
+    Unlike ``save_prediction``, these transforms affect the in-memory prediction
+    array used by downstream decoding even when intermediate predictions are not
+    saved. Keep disabled unless decoder thresholds are configured for the
+    transformed value range.
+    """
+
+    enabled: bool = False
+    # -1 keeps native prediction values. >0 scales prediction values.
+    intensity_scale: float = -1.0
+    # Optional in-memory dtype conversion. Prefer float16/float32 here; integer
+    # dtypes change threshold semantics and are mainly for save_prediction.
+    intensity_dtype: Optional[str] = None
+
+
+@dataclass
+class InferenceMemoryCleanupConfig:
+    """Memory cleanup policy for large-volume inference."""
+
+    enabled: bool = True
+    gc_collect: bool = True
+    empty_cuda_cache: bool = True
+    # Opt-in only: safe for one-volume test jobs, but it prevents additional
+    # forward passes in the same test epoch unless Lightning moves the module
+    # back to the accelerator.
+    release_model_after_inference: bool = False
 
 
 @dataclass
@@ -176,11 +205,13 @@ class ConnectedComponentsConfig:
 class PostprocessingConfig:
     """Postprocessing configuration for inference output.
 
-    Controls how predictions are transformed after saving:
+    Controls how decoded outputs are transformed after decoding:
     - Binary refinement: Morphological operations and connected components filtering
     - Transpose: Reorder axes (e.g., [2,1,0] for zyx->xyz)
 
-    Note: Intensity scaling and dtype conversion are handled by SavePredictionConfig.
+    Note: raw prediction scaling/dtype changes that should affect decoding are
+    handled by PredictionTransformConfig. Save-only encoding is handled by
+    SavePredictionConfig.
     """
 
     enabled: bool = False  # Enable postprocessing pipeline
@@ -263,8 +294,14 @@ class InferenceConfig:
     saved_prediction_path: str = ""
     # Path to save decoded instance segmentation (separate from raw prediction).
     decoding_path: str = ""
+    prediction_transform: PredictionTransformConfig = field(
+        default_factory=PredictionTransformConfig
+    )
     save_prediction: SavePredictionConfig = field(default_factory=SavePredictionConfig)
     postprocessing: PostprocessingConfig = field(default_factory=PostprocessingConfig)
+    memory_cleanup: InferenceMemoryCleanupConfig = field(
+        default_factory=InferenceMemoryCleanupConfig
+    )
     # If True, switch model to eval() during test/predict. Set False to keep
     # train() mode (useful for BatchNorm recalibration or MC-Dropout workflows).
     do_eval: bool = True

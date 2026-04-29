@@ -444,9 +444,10 @@ Checkpointing and Logging
       experiment_name: "lucchi_exp"
 
       # Weights & Biases (optional)
-      use_wandb: false
-      wandb_project: "connectomics"
-      wandb_entity: "your_team"
+      wandb:
+        use_wandb: false
+        project: "connectomics"
+        entity: "your_team"
 
 Configuration in Python
 -----------------------

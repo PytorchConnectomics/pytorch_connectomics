@@ -12,7 +12,6 @@ from __future__ import annotations
 
 import logging
 import os
-import warnings
 from pathlib import Path
 from typing import Any, Dict
 
@@ -311,65 +310,7 @@ def build_nnunet_pretrained(cfg) -> ConnectomicsModel:
     return wrapper
 
 
-@register_architecture("nnunet_2d_pretrained")
-def build_nnunet_2d_pretrained(cfg) -> ConnectomicsModel:
-    """
-    Build nnUNet 2D model from pretrained checkpoint.
-
-    Convenience wrapper specifically for 2D nnUNet models. Uses the same
-    configuration as nnunet_pretrained but explicitly for 2D models.
-
-    This is useful for 2D mitochondria segmentation and other slice-based tasks.
-
-    Config parameters: Same as nnunet_pretrained
-
-    Args:
-        cfg: Hydra config object
-
-    Returns:
-        nnUNetWrapper containing the pretrained 2D model
-    """
-    wrapper = build_nnunet_pretrained(cfg)
-
-    if wrapper.spatial_dims != 2:
-        warnings.warn(
-            f"nnunet_2d_pretrained used for {wrapper.spatial_dims}D model. "
-            f"Consider using 'nnunet_pretrained' or 'nnunet_3d_pretrained' instead."
-        )
-
-    return wrapper
-
-
-@register_architecture("nnunet_3d_pretrained")
-def build_nnunet_3d_pretrained(cfg) -> ConnectomicsModel:
-    """
-    Build nnUNet 3D model from pretrained checkpoint.
-
-    Convenience wrapper specifically for 3D nnUNet models. Uses the same
-    configuration as nnunet_pretrained but explicitly for 3D models.
-
-    Config parameters: Same as nnunet_pretrained
-
-    Args:
-        cfg: Hydra config object
-
-    Returns:
-        nnUNetWrapper containing the pretrained 3D model
-    """
-    wrapper = build_nnunet_pretrained(cfg)
-
-    if wrapper.spatial_dims != 3:
-        warnings.warn(
-            f"nnunet_3d_pretrained used for {wrapper.spatial_dims}D model. "
-            f"Consider using 'nnunet_pretrained' or 'nnunet_2d_pretrained' instead."
-        )
-
-    return wrapper
-
-
 __all__ = [
     "nnUNetWrapper",
     "build_nnunet_pretrained",
-    "build_nnunet_2d_pretrained",
-    "build_nnunet_3d_pretrained",
 ]

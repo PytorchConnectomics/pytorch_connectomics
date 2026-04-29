@@ -321,6 +321,7 @@ def test_patch_first_local_tta_matches_standard_sliding_output():
     mask[:, :, 0, :, :] = 0.0
 
     standard_cfg = copy.deepcopy(cfg)
+    standard_cfg.inference.test_time_augmentation.patch_first_local = False
     standard_inferer = _TrackingSlidingInferer(build_sliding_inferer(standard_cfg))
     standard_predictor = TTAPredictor(
         cfg=standard_cfg,

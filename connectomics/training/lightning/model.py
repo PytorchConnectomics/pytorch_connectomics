@@ -505,45 +505,6 @@ class ConnectomicsModule(pl.LightningModule):
         """Called before validation starts."""
         self._setup_validation_metrics()
 
-    def _invert_save_prediction_transform(self, data: np.ndarray) -> np.ndarray:
-        """
-        Invert the save_prediction transform to convert saved predictions back to [0,1] range.
-
-        This is needed when loading intermediate predictions that were saved with
-        intensity_scale and intensity_dtype applied. We need to convert them back
-        to the original [0,1] float range for decoding.
-
-        Args:
-            data: Saved predictions (e.g., uint8 in [0, 255])
-
-        Returns:
-            Predictions in original [0,1] float range
-        """
-        inference_cfg = self._get_runtime_inference_config()
-        save_pred_cfg = inference_cfg.save_prediction
-
-        # Get the scale and dtype that were used for saving
-        intensity_scale = getattr(save_pred_cfg, "intensity_scale", None)
-
-        # Only promote to float when an actual inverse scaling step is required.
-        # This preserves uint8 decode-only affinity volumes and avoids a 4x
-        # expansion before memory-heavy instance decoding.
-        if intensity_scale is not None and intensity_scale > 0 and intensity_scale != 1.0:
-            data = data.astype(np.float32, copy=False)
-            data = data / float(intensity_scale)
-            logger.info(f"Inverted intensity scaling by {intensity_scale}")
-            return data
-
-        if intensity_scale is not None and intensity_scale < 0:
-            logger.info(
-                f"Intensity scaling was disabled (scale={intensity_scale}), keeping dtype "
-                f"{data.dtype}"
-            )
-        else:
-            logger.info(f"No inverse scaling needed, keeping dtype {data.dtype}")
-
-        return data
-
     def _resolve_test_output_config(
         self, batch: Dict[str, Any]
     ) -> tuple[str, Optional[str], str, List[str]]:

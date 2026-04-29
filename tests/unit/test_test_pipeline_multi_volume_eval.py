@@ -536,9 +536,6 @@ class _SavedPredictionPathCroppingModule:
         pred = np.zeros((1, 1, 6, 8, 10), dtype=np.uint16)
         return pred, True, "_prediction.h5"
 
-    def _invert_save_prediction_transform(self, data):
-        return data
-
     def _is_test_evaluation_enabled(self):
         return True
 

@@ -94,7 +94,6 @@ def test_chunked_raw_prediction_matches_full_lazy_prediction(tmp_path):
     cfg.inference.chunking.output_mode = "raw_prediction"
     cfg.inference.chunking.chunk_size = [2, 4, 7]
     cfg.inference.chunking.halo = [0, 0, 0]
-    cfg.inference.save_prediction.intensity_scale = -1.0
 
     image_path = tmp_path / "chunked_raw_input.h5"
     output_path = tmp_path / "chunked_raw_prediction.h5"

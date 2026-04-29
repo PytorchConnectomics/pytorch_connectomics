@@ -754,6 +754,76 @@ optimization:
     print("[OK]Enabled flags require explicit opt-in")
 
 
+def test_removed_shared_stage_is_rejected(tmp_path):
+    config_yaml = tmp_path / "removed_shared.yaml"
+    config_yaml.write_text(
+        """
+shared:
+  model:
+    arch:
+      type: mednext
+""".strip()
+    )
+
+    with pytest.raises(ValueError, match="shared.*removed"):
+        load_config(config_yaml)
+
+
+def test_nested_inference_decoding_is_rejected(tmp_path):
+    config_yaml = tmp_path / "nested_inference_decoding.yaml"
+    config_yaml.write_text(
+        """
+inference:
+  decoding:
+    - name: decode_semantic
+""".strip()
+    )
+
+    with pytest.raises(Exception, match="decoding"):
+        load_config(config_yaml)
+
+
+def test_nested_inference_evaluation_is_rejected(tmp_path):
+    config_yaml = tmp_path / "nested_inference_evaluation.yaml"
+    config_yaml.write_text(
+        """
+inference:
+  evaluation:
+    enabled: true
+""".strip()
+    )
+
+    with pytest.raises(Exception, match="evaluation"):
+        load_config(config_yaml)
+
+
+def test_removed_wandb_prefix_fields_are_rejected(tmp_path):
+    config_yaml = tmp_path / "removed_wandb_prefix.yaml"
+    config_yaml.write_text(
+        """
+monitor:
+  wandb:
+    wandb_project: connectomics
+""".strip()
+    )
+
+    with pytest.raises(Exception, match="wandb_project"):
+        load_config(config_yaml)
+
+
+def test_removed_optimizer_step_aliases_are_rejected(tmp_path):
+    config_yaml = tmp_path / "removed_optimizer_alias.yaml"
+    config_yaml.write_text(
+        """
+optimization:
+  iter_num_per_epoch: 100
+""".strip()
+    )
+
+    with pytest.raises(Exception, match="iter_num_per_epoch"):
+        load_config(config_yaml)
+
+
 def test_shared_decoding_template_list_ref(tmp_path):
     """Allow list refs like `- template: decoding_bcd` under default.decoding."""
     base_yaml = tmp_path / "base.yaml"

@@ -120,12 +120,12 @@ Since the ground-truth label of the test set is public, we can run the evaluatio
 
 .. code-block:: python
 
-    from connectomics.utils.evaluation import get_binary_jaccard
-    from connectomics.data.utils import readvol
+    from connectomics.metrics import adapted_rand
+    from connectomics.data.io import read_hdf5
 
     # Load prediction and ground truth
-    pred = readvol('outputs/lucchi++_monai_unet/results/test_im_prediction.h5')
-    gt = readvol('datasets/Lucchi++/test_label.h5')
+    pred = read_hdf5('outputs/lucchi++_monai_unet/results/test_im_prediction.h5')
+    gt = read_hdf5('datasets/Lucchi++/test_label.h5')
 
     # Prepare for evaluation
     pred = (pred / 255).astype(np.uint8)  # output is casted to uint8 with range [0,255]
@@ -235,7 +235,7 @@ The post-processing step requires merging output volumes and applying watershed 
 
     import glob
     import numpy as np
-    from connectomics.data.utils import readvol
+    from connectomics.data.io import read_hdf5
     from connectomics.utils.process import bc_watershed
 
     output_files = 'outputs/MitoEM_R_BC/test/*.h5' # output folder with chunks
@@ -271,7 +271,7 @@ Performance on the MitoEM test data subset can only be evaluated on the Grand Ch
 
   import glob
   import numpy as np
-  from connectomics.data.utils import writeh5, readvol
+  from connectomics.data.io import read_hdf5, write_hdf5
 
   gt_path = "datasets/MitoEM_R/mito_val/*.tif"
   files = sorted(glob.glob(gt_path))

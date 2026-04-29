@@ -272,149 +272,101 @@ def _resolve_mode_configs(
     return inference_cfg, data_cfg, output_dir_value
 
 
-def apply_save_prediction_transform(cfg: Config | DictConfig, data: np.ndarray) -> np.ndarray:
-    """Apply intensity scaling and dtype conversion from save_prediction config."""
-    intensity_scale = -1.0
-    if hasattr(cfg, "inference") and hasattr(cfg.inference, "save_prediction"):
-        save_pred_cfg = cfg.inference.save_prediction
-        intensity_scale = getattr(save_pred_cfg, "intensity_scale", -1.0)
+def _convert_intensity_dtype(
+    data: np.ndarray,
+    target_dtype_str: str | None,
+    *,
+    config_name: str,
+) -> np.ndarray:
+    """Convert prediction/output dtype using the common intensity dtype vocabulary."""
+    if target_dtype_str is None:
+        return data
 
-    if intensity_scale >= 0:
+    dtype_map = {
+        "uint8": np.uint8,
+        "int8": np.int8,
+        "uint16": np.uint16,
+        "int16": np.int16,
+        "uint32": np.uint32,
+        "int32": np.int32,
+        "float16": np.float16,
+        "float32": np.float32,
+        "float64": np.float64,
+    }
+
+    if target_dtype_str not in dtype_map:
+        logger.warning(
+            f"Unknown dtype '{target_dtype_str}' in {config_name}. "
+            f"Supported: {list(dtype_map.keys())}. Keeping current dtype."
+        )
+        return data
+
+    target_dtype = dtype_map[target_dtype_str]
+    if np.issubdtype(target_dtype, np.integer):
+        info = np.iinfo(target_dtype)
+        data = np.clip(data, info.min, info.max)
+        logger.info(
+            f"Converting to {target_dtype_str} for {config_name} "
+            f"(clipped to [{info.min}, {info.max}])"
+        )
+    else:
+        logger.info(f"Converting to {target_dtype_str} for {config_name}")
+
+    return data.astype(target_dtype, copy=False)
+
+
+def _apply_intensity_transform(
+    data: np.ndarray,
+    *,
+    intensity_scale: float | None,
+    intensity_dtype: str | None,
+    config_name: str,
+) -> np.ndarray:
+    """Apply intensity scaling and optional dtype conversion."""
+    if intensity_scale is not None and intensity_scale >= 0:
         data = data.astype(np.float32, copy=False)
         if intensity_scale != 1.0:
             data = data * float(intensity_scale)
             logger.info(
-                f"Scaled predictions by {intensity_scale} -> "
+                f"Scaled predictions by {intensity_scale} for {config_name} -> "
                 f"range [{data.min():.4f}, {data.max():.4f}]"
             )
     else:
         logger.info(
-            f"Intensity scaling disabled (scale={intensity_scale} < 0), keeping raw predictions"
+            f"Intensity scaling disabled for {config_name} "
+            f"(scale={intensity_scale} < 0), keeping raw predictions"
         )
 
-    target_dtype_str = None
-    if hasattr(cfg, "inference") and hasattr(cfg.inference, "save_prediction"):
-        save_pred_cfg = cfg.inference.save_prediction
-        target_dtype_str = getattr(save_pred_cfg, "intensity_dtype", None)
-
-    if target_dtype_str is not None:
-        dtype_map = {
-            "uint8": np.uint8,
-            "int8": np.int8,
-            "uint16": np.uint16,
-            "int16": np.int16,
-            "uint32": np.uint32,
-            "int32": np.int32,
-            "float16": np.float16,
-            "float32": np.float32,
-            "float64": np.float64,
-        }
-
-        if target_dtype_str not in dtype_map:
-            logger.warning(
-                f"Unknown dtype '{target_dtype_str}' in save_prediction config. "
-                f"Supported: {list(dtype_map.keys())}. Keeping current dtype."
-            )
-            return data
-
-        target_dtype = dtype_map[target_dtype_str]
-        if np.issubdtype(target_dtype, np.integer):
-            info = np.iinfo(target_dtype)
-            data = np.clip(data, info.min, info.max)
-            logger.info(f"Converting to {target_dtype_str} (clipped to [{info.min}, {info.max}])")
-
-        data = data.astype(target_dtype, copy=False)
-
-    return data
+    return _convert_intensity_dtype(data, intensity_dtype, config_name=config_name)
 
 
-def apply_postprocessing(cfg: Config | DictConfig, data: np.ndarray) -> np.ndarray:
-    """Apply inference postprocessing transforms."""
-    if not hasattr(cfg, "inference") or not hasattr(cfg.inference, "postprocessing"):
+def apply_prediction_transform(cfg: Config | DictConfig, data: np.ndarray) -> np.ndarray:
+    """Apply semantic prediction transforms before decoding/evaluation."""
+    if not hasattr(cfg, "inference"):
         return data
 
-    postprocessing = cfg.inference.postprocessing
-    if not getattr(postprocessing, "enabled", False):
+    transform_cfg = getattr(cfg.inference, "prediction_transform", None)
+    if transform_cfg is None or not getattr(transform_cfg, "enabled", False):
         return data
 
-    binary_config = getattr(postprocessing, "binary", None)
-    if binary_config is not None and getattr(binary_config, "enabled", False):
-        from connectomics.decoding.postprocessing.postprocessing import apply_binary_postprocessing
+    return _apply_intensity_transform(
+        data,
+        intensity_scale=getattr(transform_cfg, "intensity_scale", -1.0),
+        intensity_dtype=getattr(transform_cfg, "intensity_dtype", None),
+        config_name="inference.prediction_transform",
+    )
 
-        if data.ndim in (4, 5):
-            batch_size = data.shape[0]
-        elif data.ndim == 3:
-            batch_size = 1
-            data = data[np.newaxis, ...]
-        elif data.ndim == 2:
-            batch_size = 1
-            data = data[np.newaxis, np.newaxis, ...]
-        else:
-            batch_size = 1
 
-        results = []
-        for batch_idx in range(batch_size):
-            sample = data[batch_idx]
+def apply_storage_dtype_transform(cfg: Config | DictConfig, data: np.ndarray) -> np.ndarray:
+    """Apply save/cache-only dtype conversion."""
+    if not hasattr(cfg, "inference") or not hasattr(cfg.inference, "save_prediction"):
+        return data
 
-            if sample.ndim == 4:
-                foreground_prob = sample[0]
-            elif sample.ndim == 3:
-                foreground_prob = sample
-            elif sample.ndim == 2:
-                foreground_prob = sample[np.newaxis, ...]
-            else:
-                foreground_prob = sample
-
-            processed = apply_binary_postprocessing(foreground_prob, binary_config)
-
-            if sample.ndim == 4:
-                processed = processed[np.newaxis, ...]
-            elif sample.ndim == 2:
-                processed = processed[np.newaxis, np.newaxis, ...]
-
-            results.append(processed)
-
-        data = np.stack(results, axis=0)
-
-    instance_cc3d_config = getattr(postprocessing, "instance_cc3d", None)
-    if instance_cc3d_config is not None:
-        import cc3d
-
-        cc3d_cfg = dict(instance_cc3d_config) if hasattr(instance_cc3d_config, "items") else {}
-        connectivity = cc3d_cfg.get("connectivity", 6)
-        min_size = cc3d_cfg.get("min_size", 0)
-
-        spatial = data
-        had_batch = False
-        if spatial.ndim == 4:
-            had_batch = True
-            spatial = spatial[0]
-
-        # Relabel connected components so disconnected parts get separate IDs
-        relabeled = cc3d.connected_components(spatial.astype(np.uint32), connectivity=connectivity)
-
-        # Remove small components
-        if min_size > 0:
-            relabeled = cc3d.dust(relabeled, threshold=min_size, connectivity=connectivity)
-
-        data = relabeled[np.newaxis, ...] if had_batch else relabeled
-        logger.info(
-            "Instance cc3d postprocessing: connectivity=%d, min_size=%d, instances=%d",
-            connectivity,
-            min_size,
-            len(np.unique(relabeled)) - 1,
-        )
-
-    output_transpose = getattr(postprocessing, "output_transpose", [])
-    if output_transpose and len(output_transpose) > 0:
-        try:
-            data = np.transpose(data, axes=output_transpose)
-        except Exception as exc:
-            logger.warning(
-                f"Transpose failed with axes {output_transpose}: {exc}. Keeping original shape."
-            )
-
-    return data
+    return _convert_intensity_dtype(
+        data,
+        getattr(cfg.inference.save_prediction, "storage_dtype", None),
+        config_name="inference.save_prediction.storage_dtype",
+    )
 
 
 def write_outputs(
@@ -427,9 +379,8 @@ def write_outputs(
 ) -> None:
     """Persist predictions to disk.
 
-    Note: output_transpose is NOT applied here. It is applied once in
-    apply_postprocessing() to avoid double-transpose when both functions
-    are called on the same data.
+    Note: output_transpose is NOT applied here. It is applied once in the
+    decoding stage to avoid double-transpose when decoded data are then saved.
     """
     inference_cfg, _data_cfg, output_dir_value = _resolve_mode_configs(cfg, mode)
     if inference_cfg is None:
@@ -483,6 +434,8 @@ def write_outputs(
             if hasattr(save_pred_cfg, "output_formats") and save_pred_cfg.output_formats:
                 output_formats = save_pred_cfg.output_formats
 
+        sample = apply_storage_dtype_transform(cfg, sample)
+
         for fmt in output_formats:
             fmt_lower = fmt.lower()
 
@@ -522,8 +475,8 @@ def write_outputs(
 
 
 __all__ = [
-    "apply_save_prediction_transform",
-    "apply_postprocessing",
+    "apply_prediction_transform",
+    "apply_storage_dtype_transform",
     "resolve_output_filenames",
     "write_outputs",
 ]
