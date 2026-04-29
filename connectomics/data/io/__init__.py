@@ -17,11 +17,7 @@ from .io import (
     volume_exists,
     write_hdf5,
 )
-from .transforms import (
-    LoadVolumed,
-    SaveVolumed,
-    TileLoaderd,
-)
+from .transforms import LoadVolumed
 from .utils import (
     rgb_to_seg,
 )
@@ -35,7 +31,5 @@ __all__ = [
     "get_vol_shape",
     "volume_exists",
     "LoadVolumed",
-    "SaveVolumed",
-    "TileLoaderd",
     "rgb_to_seg",
 ]

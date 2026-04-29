@@ -9,7 +9,8 @@ from pathlib import Path
 # Add parent directory to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from connectomics.config import load_config, resolve_data_paths  # noqa: E402
+from connectomics.config import load_config  # noqa: E402
+from connectomics.config.pipeline import resolve_data_paths  # noqa: E402
 from connectomics.training.lightning import create_datamodule  # noqa: E402
 
 

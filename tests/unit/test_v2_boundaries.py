@@ -54,3 +54,35 @@ def test_nnunet_dimension_aliases_are_removed():
     assert "nnunet_3d_pretrained" not in architectures
     assert "nnunet_pretrained" not in architectures
     assert "nnunet" in architectures
+
+
+def test_removed_public_api_exports_are_absent():
+    import connectomics.config as config
+    import connectomics.data.io as data_io
+    import connectomics.models as models
+    import connectomics.models.losses as losses
+    import connectomics.training.lightning.utils as lightning_utils
+    from connectomics.config import schema
+
+    for name in {
+        "merge_configs",
+        "update_from_cli",
+        "to_dict",
+        "from_dict",
+        "print_config",
+        "get_config_hash",
+        "create_experiment_name",
+        "resolve_data_paths",
+        "to_plain",
+    }:
+        assert not hasattr(config, name)
+
+    assert not hasattr(data_io, "SaveVolumed")
+    assert not hasattr(data_io, "TileLoaderd")
+    assert not hasattr(models, "create_combined_loss")
+    assert not hasattr(models, "create_loss_from_config")
+    assert not hasattr(losses, "create_combined_loss")
+    assert not hasattr(losses, "create_loss_from_config")
+    assert not hasattr(lightning_utils, "expand_file_paths")
+    assert not hasattr(schema, "DataTransformProfileConfig")
+    assert not hasattr(schema, "EdgeModeConfig")

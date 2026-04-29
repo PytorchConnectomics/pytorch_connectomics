@@ -1,7 +1,8 @@
 import pytest
 import torch
 
-from connectomics.config import from_dict, validate_config
+from connectomics.config import validate_config
+from connectomics.config.pipeline import from_dict
 from connectomics.models.architectures.mednext_models import MedNeXtMultiHeadWrapper
 from connectomics.models.build import build_model
 

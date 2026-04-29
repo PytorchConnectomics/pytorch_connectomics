@@ -2,7 +2,7 @@ from pathlib import Path
 
 import pytest
 
-from connectomics.config import from_dict
+from connectomics.config.pipeline import from_dict
 from connectomics.training.lightning.trainer import create_trainer
 
 

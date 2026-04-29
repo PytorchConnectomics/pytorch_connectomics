@@ -7,8 +7,9 @@ from typing import Any
 
 import torch
 
-from ..config import Config, resolve_data_paths, resolve_default_profiles
+from ..config import Config, resolve_default_profiles
 from ..config.hardware import resolve_runtime_resource_sentinels
+from ..config.pipeline import resolve_data_paths
 from .output_naming import compute_tta_passes
 
 

@@ -14,8 +14,6 @@ import re
 from pathlib import Path
 from typing import Optional
 
-from .path_utils import expand_file_paths
-
 
 def extract_best_score_from_checkpoint(ckpt_path: str, monitor_metric: str) -> Optional[float]:
     """
@@ -74,7 +72,6 @@ def setup_seed_everything():
 
 
 __all__ = [
-    "expand_file_paths",
     "extract_best_score_from_checkpoint",
     "setup_seed_everything",
 ]
