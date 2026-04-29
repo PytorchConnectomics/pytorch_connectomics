@@ -373,12 +373,12 @@
 <section id="run-evaluation">
 <h3>7 - Run evaluation<a class="headerlink" href="#run-evaluation" title="Link to this heading">¶</a></h3>
 <p>Since the ground-truth label of the test set is public, we can run the evaluation locally:</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">connectomics.utils.evaluation</span><span class="w"> </span><span class="kn">import</span> <span class="n">get_binary_jaccard</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">connectomics.data.utils</span><span class="w"> </span><span class="kn">import</span> <span class="n">readvol</span>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">connectomics.metrics</span><span class="w"> </span><span class="kn">import</span> <span class="n">adapted_rand</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">connectomics.data.io</span><span class="w"> </span><span class="kn">import</span> <span class="n">read_hdf5</span>
 
 <span class="c1"># Load prediction and ground truth</span>
-<span class="n">pred</span> <span class="o">=</span> <span class="n">readvol</span><span class="p">(</span><span class="s1">&#39;outputs/lucchi++_monai_unet/results/test_im_prediction.h5&#39;</span><span class="p">)</span>
-<span class="n">gt</span> <span class="o">=</span> <span class="n">readvol</span><span class="p">(</span><span class="s1">&#39;datasets/Lucchi++/test_label.h5&#39;</span><span class="p">)</span>
+<span class="n">pred</span> <span class="o">=</span> <span class="n">read_hdf5</span><span class="p">(</span><span class="s1">&#39;outputs/lucchi++_monai_unet/results/test_im_prediction.h5&#39;</span><span class="p">)</span>
+<span class="n">gt</span> <span class="o">=</span> <span class="n">read_hdf5</span><span class="p">(</span><span class="s1">&#39;datasets/Lucchi++/test_label.h5&#39;</span><span class="p">)</span>
 
 <span class="c1"># Prepare for evaluation</span>
 <span class="n">pred</span> <span class="o">=</span> <span class="p">(</span><span class="n">pred</span> <span class="o">/</span> <span class="mi">255</span><span class="p">)</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">uint8</span><span class="p">)</span>  <span class="c1"># output is casted to uint8 with range [0,255]</span>
@@ -486,7 +486,7 @@ The 1,000 images are splited into 400, 100 and 500 slices for training, validati
 <p>The post-processing step requires merging output volumes and applying watershed segmentation. As mentioned before, the dataset is very large and cannot be directly loaded into memory for processing. Therefore our code run prediction on smaller chunks sequentially, which produces multiple <code class="docutils literal notranslate"><span class="pre">*.h5</span></code> files with the coordinate information. To merge the chunks into a single volume and apply the segmentation algorithm:</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span><span class="w"> </span><span class="nn">glob</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">connectomics.data.utils</span><span class="w"> </span><span class="kn">import</span> <span class="n">readvol</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">connectomics.data.io</span><span class="w"> </span><span class="kn">import</span> <span class="n">read_hdf5</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">connectomics.utils.process</span><span class="w"> </span><span class="kn">import</span> <span class="n">bc_watershed</span>
 
 <span class="n">output_files</span> <span class="o">=</span> <span class="s1">&#39;outputs/MitoEM_R_BC/test/*.h5&#39;</span> <span class="c1"># output folder with chunks</span>
@@ -521,7 +521,7 @@ The 1,000 images are splited into 400, 100 and 500 slices for training, validati
 <p>Performance on the MitoEM test data subset can only be evaluated on the Grand Challenge website. Users are encouraged to experiment with the metric code on the validation data subset to optimize performance and understand the Challenge’s evaluation process. Evaluation is performed with the <code class="docutils literal notranslate"><span class="pre">demo.py</span></code> file provided by the <a class="reference external" href="https://github.com/ygCoconut/mAP_3Dvolume/tree/master">mAP_3Dvolume</a> repository. The ground truth <code class="docutils literal notranslate"><span class="pre">.h5</span></code> file can be generated from the 2D images using the following script:</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span><span class="w"> </span><span class="nn">glob</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">connectomics.data.utils</span><span class="w"> </span><span class="kn">import</span> <span class="n">writeh5</span><span class="p">,</span> <span class="n">readvol</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">connectomics.data.io</span><span class="w"> </span><span class="kn">import</span> <span class="n">read_hdf5</span><span class="p">,</span> <span class="n">write_hdf5</span>
 
 <span class="n">gt_path</span> <span class="o">=</span> <span class="s2">&quot;datasets/MitoEM_R/mito_val/*.tif&quot;</span>
 <span class="n">files</span> <span class="o">=</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">glob</span><span class="o">.</span><span class="n">glob</span><span class="p">(</span><span class="n">gt_path</span><span class="p">))</span>

@@ -292,23 +292,14 @@
 <span class="sd">      (Completeness + Correctness - Completeness * Correctness)</span>
 <span class="sd">    - Foreground IoU: Intersection over Union of foreground regions</span>
 
-<span class="sd">Supports multi-CPU parallelism with Python multiprocessing for batch evaluation.</span>
+<span class="sd">File-backed batch evaluation lives in ``connectomics.evaluation``.</span>
 <span class="sd">&quot;&quot;&quot;</span>
 
 <span class="kn">from</span><span class="w"> </span><span class="nn">__future__</span><span class="w"> </span><span class="kn">import</span> <span class="n">annotations</span>
 
-<span class="kn">import</span><span class="w"> </span><span class="nn">functools</span>
-<span class="kn">import</span><span class="w"> </span><span class="nn">multiprocessing</span>
-<span class="kn">import</span><span class="w"> </span><span class="nn">os</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">pathlib</span><span class="w"> </span><span class="kn">import</span> <span class="n">Path</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">List</span><span class="p">,</span> <span class="n">Optional</span><span class="p">,</span> <span class="n">Tuple</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">List</span><span class="p">,</span> <span class="n">Tuple</span>
 
 <span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span>
-
-<span class="k">try</span><span class="p">:</span>
-    <span class="kn">import</span><span class="w"> </span><span class="nn">imageio</span>
-<span class="k">except</span> <span class="ne">ImportError</span><span class="p">:</span>
-    <span class="n">imageio</span> <span class="o">=</span> <span class="kc">None</span>
 
 <span class="kn">from</span><span class="w"> </span><span class="nn">skimage.morphology</span><span class="w"> </span><span class="kn">import</span> <span class="n">dilation</span><span class="p">,</span> <span class="n">skeletonize</span><span class="p">,</span> <span class="n">square</span>
 
@@ -488,170 +479,12 @@
 
 
 
-<span class="c1"># ============================================================================</span>
-<span class="c1"># Batch Evaluation Functions (for standalone script usage)</span>
-<span class="c1"># ============================================================================</span>
-
-
-<div class="viewcode-block" id="evaluate_file_pair">
-<a class="viewcode-back" href="../../../modules/metrics.html#connectomics.metrics.evaluate_file_pair">[docs]</a>
-<span class="k">def</span><span class="w"> </span><span class="nf">evaluate_file_pair</span><span class="p">(</span>
-    <span class="n">pred_path</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
-    <span class="n">gt_path</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
-    <span class="n">threshold</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">128</span><span class="p">,</span>
-    <span class="n">dilation_size</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">5</span><span class="p">,</span>
-    <span class="n">verbose</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
-<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Tuple</span><span class="p">[</span><span class="nb">float</span><span class="p">,</span> <span class="nb">float</span><span class="p">,</span> <span class="nb">float</span><span class="p">,</span> <span class="nb">float</span><span class="p">]]:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Evaluate single file pair (for parallel processing).</span>
-
-<span class="sd">    Args:</span>
-<span class="sd">        pred_path: Path to prediction image</span>
-<span class="sd">        gt_path: Path to ground truth image</span>
-<span class="sd">        threshold: Threshold for binarizing prediction. Default: 128</span>
-<span class="sd">        dilation_size: Dilation size for skeleton matching. Default: 5</span>
-<span class="sd">        verbose: Print results for each image. Default: False</span>
-
-<span class="sd">    Returns:</span>
-<span class="sd">        Tuple of (iou, correctness, completeness, quality) or None if file missing</span>
-<span class="sd">    &quot;&quot;&quot;</span>
-    <span class="k">if</span> <span class="n">imageio</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
-        <span class="k">raise</span> <span class="ne">ImportError</span><span class="p">(</span>
-            <span class="s2">&quot;imageio is required for loading images. Install with: pip install imageio&quot;</span>
-        <span class="p">)</span>
-
-    <span class="k">if</span> <span class="ow">not</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="n">pred_path</span><span class="p">):</span>
-        <span class="k">return</span> <span class="kc">None</span>
-
-    <span class="c1"># Load images</span>
-    <span class="n">pred</span> <span class="o">=</span> <span class="n">imageio</span><span class="o">.</span><span class="n">imread</span><span class="p">(</span><span class="n">pred_path</span><span class="p">)</span>
-    <span class="n">gt</span> <span class="o">=</span> <span class="n">imageio</span><span class="o">.</span><span class="n">imread</span><span class="p">(</span><span class="n">gt_path</span><span class="p">)</span>
-
-    <span class="c1"># Evaluate</span>
-    <span class="n">iou</span><span class="p">,</span> <span class="n">correctness</span><span class="p">,</span> <span class="n">completeness</span><span class="p">,</span> <span class="n">quality</span> <span class="o">=</span> <span class="n">evaluate_image_pair</span><span class="p">(</span>
-        <span class="n">pred</span><span class="p">,</span> <span class="n">gt</span><span class="p">,</span> <span class="n">threshold</span><span class="p">,</span> <span class="n">dilation_size</span>
-    <span class="p">)</span>
-
-    <span class="k">if</span> <span class="n">verbose</span><span class="p">:</span>
-        <span class="nb">print</span><span class="p">(</span>
-            <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">Path</span><span class="p">(</span><span class="n">pred_path</span><span class="p">)</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s2">: IoU=</span><span class="si">{</span><span class="n">iou</span><span class="si">:</span><span class="s2">.4f</span><span class="si">}</span><span class="s2">, Corr=</span><span class="si">{</span><span class="n">correctness</span><span class="si">:</span><span class="s2">.4f</span><span class="si">}</span><span class="s2">, &quot;</span>
-            <span class="sa">f</span><span class="s2">&quot;Comp=</span><span class="si">{</span><span class="n">completeness</span><span class="si">:</span><span class="s2">.4f</span><span class="si">}</span><span class="s2">, Qual=</span><span class="si">{</span><span class="n">quality</span><span class="si">:</span><span class="s2">.4f</span><span class="si">}</span><span class="s2">&quot;</span>
-        <span class="p">)</span>
-
-    <span class="k">return</span> <span class="n">iou</span><span class="p">,</span> <span class="n">correctness</span><span class="p">,</span> <span class="n">completeness</span><span class="p">,</span> <span class="n">quality</span></div>
-
-
-
-<div class="viewcode-block" id="evaluate_directory">
-<a class="viewcode-back" href="../../../modules/metrics.html#connectomics.metrics.evaluate_directory">[docs]</a>
-<span class="k">def</span><span class="w"> </span><span class="nf">evaluate_directory</span><span class="p">(</span>
-    <span class="n">pred_dir</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
-    <span class="n">gt_dir</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
-    <span class="n">pred_pattern</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;</span><span class="si">%03d</span><span class="s2">_pred.png&quot;</span><span class="p">,</span>
-    <span class="n">gt_pattern</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;</span><span class="si">%03d</span><span class="s2">.png&quot;</span><span class="p">,</span>
-    <span class="n">max_index</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">200</span><span class="p">,</span>
-    <span class="n">threshold</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">128</span><span class="p">,</span>
-    <span class="n">dilation_size</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">5</span><span class="p">,</span>
-    <span class="n">num_workers</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-    <span class="n">verbose</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
-<span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Evaluate all images in directories using parallel processing.</span>
-
-<span class="sd">    Args:</span>
-<span class="sd">        pred_dir: Directory containing prediction images</span>
-<span class="sd">        gt_dir: Directory containing ground truth images</span>
-<span class="sd">        pred_pattern: Filename pattern for predictions (with %d for index)</span>
-<span class="sd">        gt_pattern: Filename pattern for ground truth (with %d for index)</span>
-<span class="sd">        max_index: Maximum image index to evaluate</span>
-<span class="sd">        threshold: Threshold for binarizing predictions. Default: 128</span>
-<span class="sd">        dilation_size: Dilation size for skeleton matching. Default: 5</span>
-<span class="sd">        num_workers: Number of parallel workers (None = all CPUs). Default: None</span>
-<span class="sd">        verbose: Print progress and results. Default: True</span>
-
-<span class="sd">    Returns:</span>
-<span class="sd">        Dictionary with keys:</span>
-<span class="sd">            - &#39;mean_iou&#39;: Mean foreground IoU</span>
-<span class="sd">            - &#39;mean_correctness&#39;: Mean skeleton correctness</span>
-<span class="sd">            - &#39;mean_completeness&#39;: Mean skeleton completeness</span>
-<span class="sd">            - &#39;mean_quality&#39;: Mean skeleton quality</span>
-<span class="sd">            - &#39;num_evaluated&#39;: Number of images successfully evaluated</span>
-<span class="sd">            - &#39;results&#39;: Array of shape (N, 4) with per-image results</span>
-
-<span class="sd">    Example:</span>
-<span class="sd">        &gt;&gt;&gt; results = evaluate_directory(</span>
-<span class="sd">        ...     pred_dir=&quot;predictions/&quot;,</span>
-<span class="sd">        ...     gt_dir=&quot;ground_truth/&quot;,</span>
-<span class="sd">        ...     max_index=100</span>
-<span class="sd">        ... )</span>
-<span class="sd">        &gt;&gt;&gt; print(f&quot;Mean IoU: {results[&#39;mean_iou&#39;]:.4f}&quot;)</span>
-<span class="sd">    &quot;&quot;&quot;</span>
-    <span class="k">if</span> <span class="n">num_workers</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
-        <span class="n">num_workers</span> <span class="o">=</span> <span class="n">multiprocessing</span><span class="o">.</span><span class="n">cpu_count</span><span class="p">()</span>
-
-    <span class="k">if</span> <span class="n">verbose</span><span class="p">:</span>
-        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Evaluating with </span><span class="si">{</span><span class="n">num_workers</span><span class="si">}</span><span class="s2"> workers...&quot;</span><span class="p">)</span>
-
-    <span class="c1"># Prepare file pairs</span>
-    <span class="n">pred_dir</span> <span class="o">=</span> <span class="n">pred_dir</span> <span class="k">if</span> <span class="n">pred_dir</span><span class="o">.</span><span class="n">endswith</span><span class="p">(</span><span class="s2">&quot;/&quot;</span><span class="p">)</span> <span class="k">else</span> <span class="n">pred_dir</span> <span class="o">+</span> <span class="s2">&quot;/&quot;</span>
-    <span class="n">gt_dir</span> <span class="o">=</span> <span class="n">gt_dir</span> <span class="k">if</span> <span class="n">gt_dir</span><span class="o">.</span><span class="n">endswith</span><span class="p">(</span><span class="s2">&quot;/&quot;</span><span class="p">)</span> <span class="k">else</span> <span class="n">gt_dir</span> <span class="o">+</span> <span class="s2">&quot;/&quot;</span>
-
-    <span class="n">file_pairs</span> <span class="o">=</span> <span class="p">[</span>
-        <span class="p">(</span><span class="n">pred_dir</span> <span class="o">+</span> <span class="p">(</span><span class="n">pred_pattern</span> <span class="o">%</span> <span class="n">i</span><span class="p">),</span> <span class="n">gt_dir</span> <span class="o">+</span> <span class="p">(</span><span class="n">gt_pattern</span> <span class="o">%</span> <span class="n">i</span><span class="p">))</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">max_index</span><span class="p">)</span>
-    <span class="p">]</span>
-
-    <span class="c1"># Parallel evaluation</span>
-    <span class="n">eval_fn</span> <span class="o">=</span> <span class="n">functools</span><span class="o">.</span><span class="n">partial</span><span class="p">(</span>
-        <span class="n">evaluate_file_pair</span><span class="p">,</span> <span class="n">threshold</span><span class="o">=</span><span class="n">threshold</span><span class="p">,</span> <span class="n">dilation_size</span><span class="o">=</span><span class="n">dilation_size</span><span class="p">,</span> <span class="n">verbose</span><span class="o">=</span><span class="n">verbose</span>
-    <span class="p">)</span>
-    <span class="k">with</span> <span class="n">multiprocessing</span><span class="o">.</span><span class="n">Pool</span><span class="p">(</span><span class="n">num_workers</span><span class="p">)</span> <span class="k">as</span> <span class="n">pool</span><span class="p">:</span>
-        <span class="n">results</span> <span class="o">=</span> <span class="n">pool</span><span class="o">.</span><span class="n">starmap</span><span class="p">(</span><span class="n">eval_fn</span><span class="p">,</span> <span class="n">file_pairs</span><span class="p">)</span>
-
-    <span class="c1"># Filter out missing files and compute statistics</span>
-    <span class="n">results</span> <span class="o">=</span> <span class="p">[</span><span class="n">r</span> <span class="k">for</span> <span class="n">r</span> <span class="ow">in</span> <span class="n">results</span> <span class="k">if</span> <span class="n">r</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">]</span>
-    <span class="n">results_array</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">results</span><span class="p">)</span>
-
-    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">results</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
-        <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Warning: No valid results found!&quot;</span><span class="p">)</span>
-        <span class="k">return</span> <span class="p">{</span>
-            <span class="s2">&quot;mean_iou&quot;</span><span class="p">:</span> <span class="mf">0.0</span><span class="p">,</span>
-            <span class="s2">&quot;mean_correctness&quot;</span><span class="p">:</span> <span class="mf">0.0</span><span class="p">,</span>
-            <span class="s2">&quot;mean_completeness&quot;</span><span class="p">:</span> <span class="mf">0.0</span><span class="p">,</span>
-            <span class="s2">&quot;mean_quality&quot;</span><span class="p">:</span> <span class="mf">0.0</span><span class="p">,</span>
-            <span class="s2">&quot;num_evaluated&quot;</span><span class="p">:</span> <span class="mi">0</span><span class="p">,</span>
-            <span class="s2">&quot;results&quot;</span><span class="p">:</span> <span class="n">results_array</span><span class="p">,</span>
-        <span class="p">}</span>
-
-    <span class="n">mean_metrics</span> <span class="o">=</span> <span class="n">results_array</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
-
-    <span class="n">output</span> <span class="o">=</span> <span class="p">{</span>
-        <span class="s2">&quot;mean_iou&quot;</span><span class="p">:</span> <span class="n">mean_metrics</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span>
-        <span class="s2">&quot;mean_correctness&quot;</span><span class="p">:</span> <span class="n">mean_metrics</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span>
-        <span class="s2">&quot;mean_completeness&quot;</span><span class="p">:</span> <span class="n">mean_metrics</span><span class="p">[</span><span class="mi">2</span><span class="p">],</span>
-        <span class="s2">&quot;mean_quality&quot;</span><span class="p">:</span> <span class="n">mean_metrics</span><span class="p">[</span><span class="mi">3</span><span class="p">],</span>
-        <span class="s2">&quot;num_evaluated&quot;</span><span class="p">:</span> <span class="nb">len</span><span class="p">(</span><span class="n">results</span><span class="p">),</span>
-        <span class="s2">&quot;results&quot;</span><span class="p">:</span> <span class="n">results_array</span><span class="p">,</span>
-    <span class="p">}</span>
-
-    <span class="k">if</span> <span class="n">verbose</span><span class="p">:</span>
-        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="se">\n</span><span class="si">{</span><span class="s1">&#39;=&#39;</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="mi">70</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
-        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Evaluated </span><span class="si">{</span><span class="n">output</span><span class="p">[</span><span class="s1">&#39;num_evaluated&#39;</span><span class="p">]</span><span class="si">}</span><span class="s2"> images&quot;</span><span class="p">)</span>
-        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Mean IoU:          </span><span class="si">{</span><span class="n">output</span><span class="p">[</span><span class="s1">&#39;mean_iou&#39;</span><span class="p">]</span><span class="si">:</span><span class="s2">.4f</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
-        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Mean Correctness:  </span><span class="si">{</span><span class="n">output</span><span class="p">[</span><span class="s1">&#39;mean_correctness&#39;</span><span class="p">]</span><span class="si">:</span><span class="s2">.4f</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
-        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Mean Completeness: </span><span class="si">{</span><span class="n">output</span><span class="p">[</span><span class="s1">&#39;mean_completeness&#39;</span><span class="p">]</span><span class="si">:</span><span class="s2">.4f</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
-        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Mean Quality:      </span><span class="si">{</span><span class="n">output</span><span class="p">[</span><span class="s1">&#39;mean_quality&#39;</span><span class="p">]</span><span class="si">:</span><span class="s2">.4f</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
-        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="s1">&#39;=&#39;</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="mi">70</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
-
-    <span class="k">return</span> <span class="n">output</span></div>
-
-
-
 <span class="n">__all__</span> <span class="o">=</span> <span class="p">[</span>
     <span class="s2">&quot;compute_skeleton_metrics&quot;</span><span class="p">,</span>
     <span class="s2">&quot;compute_precision_recall&quot;</span><span class="p">,</span>
     <span class="s2">&quot;compute_iou&quot;</span><span class="p">,</span>
     <span class="s2">&quot;binarize_masks&quot;</span><span class="p">,</span>
     <span class="s2">&quot;evaluate_image_pair&quot;</span><span class="p">,</span>
-    <span class="s2">&quot;evaluate_file_pair&quot;</span><span class="p">,</span>
-    <span class="s2">&quot;evaluate_directory&quot;</span><span class="p">,</span>
 <span class="p">]</span>
 </pre></div>
 
