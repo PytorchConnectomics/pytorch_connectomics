@@ -18,7 +18,7 @@ def compute_tta_passes(cfg: Config, spatial_dims: int = 3) -> int:
     tta_cfg = getattr(inference_cfg, "test_time_augmentation", None)
     if tta_cfg is None or not bool(getattr(tta_cfg, "enabled", False)):
         return 1
-    from ..inference.tta import resolve_tta_augmentation_combinations
+    from ..inference.tta_combinations import resolve_tta_augmentation_combinations
 
     return len(
         resolve_tta_augmentation_combinations(
