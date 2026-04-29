@@ -9,7 +9,7 @@ import numpy as np
 
 from ..utils.channel_slices import resolve_channel_indices
 from .base import DecodeStep
-from .registry import DEFAULT_DECODER_REGISTRY, DecoderRegistry
+from .registry import DEFAULT_DECODER_REGISTRY, DecoderRegistry, ensure_builtin_decoders_registered
 
 logger = logging.getLogger(__name__)
 
@@ -87,7 +87,9 @@ def apply_decode_pipeline(
     if not decode_modes:
         return data
 
-    registry = registry or DEFAULT_DECODER_REGISTRY
+    if registry is None:
+        ensure_builtin_decoders_registered()
+        registry = DEFAULT_DECODER_REGISTRY
     steps = [s for s in normalize_decode_modes(decode_modes) if s.enabled]
     if not steps:
         return data
