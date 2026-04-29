@@ -5,12 +5,13 @@ from __future__ import annotations
 import logging
 import os
 from pathlib import Path
-from typing import Any, Dict, List, Sequence
+from typing import Any, Dict, List
 
 import numpy as np
 from omegaconf import DictConfig
 
 from ..config import Config
+from ..data.processing.nnunet_preprocess import restore_prediction_to_input_space
 
 logger = logging.getLogger(__name__)
 
@@ -91,134 +92,6 @@ def _extract_meta_for_index(batch_meta: Any, idx: int) -> Dict[str, Any]:
                 out[key] = value
         return out
     return {}
-
-
-def _infer_spatial_dims_from_array(array: np.ndarray) -> int:
-    if array.ndim <= 2:
-        return array.ndim
-    if array.ndim == 3:
-        return 3
-    return array.ndim - 1
-
-
-def _spatial_shape(array: np.ndarray, spatial_dims: int) -> tuple:
-    if array.ndim == spatial_dims:
-        return tuple(int(v) for v in array.shape)
-    return tuple(int(v) for v in array.shape[-spatial_dims:])
-
-
-def _resample_array_to_shape(
-    array: np.ndarray,
-    target_shape: Sequence[int],
-    spatial_dims: int,
-    order: int,
-) -> np.ndarray:
-    from scipy.ndimage import zoom
-
-    target = tuple(int(v) for v in target_shape)
-    if _spatial_shape(array, spatial_dims) == target:
-        return array
-
-    def _zoom_single(vol: np.ndarray) -> np.ndarray:
-        factors = np.array(target, dtype=np.float32) / np.maximum(
-            np.array(vol.shape, dtype=np.float32), 1.0
-        )
-        return zoom(
-            vol.astype(np.float32, copy=False),
-            zoom=factors,
-            order=order,
-            mode="nearest",
-            prefilter=order > 1,
-        )
-
-    if array.ndim == spatial_dims + 1:
-        channels = [_zoom_single(array[c])[None] for c in range(array.shape[0])]
-        return np.vstack(channels).astype(array.dtype, copy=False)
-    if array.ndim == spatial_dims:
-        return _zoom_single(array).astype(array.dtype, copy=False)
-    return array
-
-
-def _fit_array_to_shape(
-    array: np.ndarray, target_shape: Sequence[int], spatial_dims: int
-) -> np.ndarray:
-    target = tuple(int(v) for v in target_shape)
-    if _spatial_shape(array, spatial_dims) == target:
-        return array
-
-    if array.ndim == spatial_dims + 1:
-        out = np.zeros((array.shape[0], *target), dtype=array.dtype)
-        in_shape = array.shape[1:]
-        write_shape = tuple(min(int(in_shape[d]), target[d]) for d in range(spatial_dims))
-        out_slices = (slice(None),) + tuple(slice(0, w) for w in write_shape)
-        in_slices = (slice(None),) + tuple(slice(0, w) for w in write_shape)
-        out[out_slices] = array[in_slices]
-        return out
-
-    if array.ndim == spatial_dims:
-        out = np.zeros(target, dtype=array.dtype)
-        in_shape = array.shape
-        write_shape = tuple(min(int(in_shape[d]), target[d]) for d in range(spatial_dims))
-        out_slices = tuple(slice(0, w) for w in write_shape)
-        in_slices = tuple(slice(0, w) for w in write_shape)
-        out[out_slices] = array[in_slices]
-        return out
-
-    return array
-
-
-def _restore_prediction_to_input_space(sample: np.ndarray, meta: Dict[str, Any]) -> np.ndarray:
-    preprocess_meta = meta.get("nnunet_preprocess")
-    if not isinstance(preprocess_meta, dict) or not preprocess_meta.get("enabled", False):
-        return sample
-
-    array = sample
-    spatial_dims = int(preprocess_meta.get("spatial_dims", _infer_spatial_dims_from_array(array)))
-    is_integer = np.issubdtype(array.dtype, np.integer)
-    interp_order = 0 if is_integer else 1
-
-    if preprocess_meta.get("applied_resample", False):
-        cropped_shape = preprocess_meta.get("cropped_spatial_shape")
-        if isinstance(cropped_shape, (list, tuple)) and len(cropped_shape) == spatial_dims:
-            array = _resample_array_to_shape(
-                array,
-                target_shape=cropped_shape,
-                spatial_dims=spatial_dims,
-                order=interp_order,
-            )
-
-    if preprocess_meta.get("applied_crop", False):
-        bbox = preprocess_meta.get("crop_bbox")
-        original_shape = preprocess_meta.get("original_spatial_shape")
-        if (
-            isinstance(bbox, (list, tuple))
-            and isinstance(original_shape, (list, tuple))
-            and len(bbox) == spatial_dims
-            and len(original_shape) == spatial_dims
-        ):
-            crop_target_shape = tuple(int(b[1]) - int(b[0]) for b in bbox)
-            array = _fit_array_to_shape(array, crop_target_shape, spatial_dims=spatial_dims)
-
-            if array.ndim == spatial_dims + 1:
-                restored = np.zeros((array.shape[0], *original_shape), dtype=array.dtype)
-                slices = tuple(slice(int(b[0]), int(b[1])) for b in bbox)
-                restored[(slice(None), *slices)] = array
-            else:
-                restored = np.zeros(tuple(int(v) for v in original_shape), dtype=array.dtype)
-                slices = tuple(slice(int(b[0]), int(b[1])) for b in bbox)
-                restored[slices] = array
-            array = restored
-
-    transpose_axes = preprocess_meta.get("transpose_axes")
-    if isinstance(transpose_axes, (list, tuple)) and len(transpose_axes) == spatial_dims:
-        inverse_axes = np.argsort(np.asarray(transpose_axes))
-        if array.ndim == spatial_dims + 1:
-            perm = [0] + [int(i) + 1 for i in inverse_axes]
-            array = np.transpose(array, perm)
-        elif array.ndim == spatial_dims:
-            array = np.transpose(array, tuple(int(i) for i in inverse_axes))
-
-    return array
 
 
 def _should_restore_outputs(cfg: Config | DictConfig, mode: str) -> bool:
@@ -417,7 +290,7 @@ def write_outputs(
         sample = predictions[idx]
         if should_restore:
             sample_meta = _extract_meta_for_index(batch_meta, idx)
-            sample = _restore_prediction_to_input_space(sample, sample_meta)
+            sample = restore_prediction_to_input_space(sample, sample_meta)
 
         filename = filenames[idx]
         sample = np.squeeze(sample)

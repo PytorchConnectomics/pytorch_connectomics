@@ -113,6 +113,8 @@ def test_chunked_raw_prediction_matches_full_lazy_prediction(tmp_path):
     with h5py.File(output_path, "r") as handle:
         raw = np.asarray(handle["main"])
         assert handle["main"].attrs["checkpoint_path"] == "checkpoint.ckpt"
+        assert handle["main"].attrs["model_architecture"] == "monai_basic_unet3d"
+        assert bool(handle["main"].attrs["decode_after_inference"]) is True
 
     assert raw.shape == tuple(full.shape[1:])
     assert np.allclose(raw, full.numpy()[0], atol=1.0e-5)

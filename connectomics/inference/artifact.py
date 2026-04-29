@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
-from typing import Any, Callable, Mapping
+from typing import Any, Callable, Mapping, Sequence
 
 import numpy as np
 
@@ -22,6 +22,10 @@ class PredictionArtifactMetadata:
     input_shape: tuple[int, ...] | None = None
     final_shape: tuple[int, ...] | None = None
     crop_pad: tuple[tuple[int, int], ...] | None = None
+    transpose: tuple[int, ...] | None = None
+    model_architecture: str | None = None
+    model_output_identity: str | None = None
+    decode_after_inference: bool | None = None
     chunk_shape: tuple[int, ...] | None = None
     halo: tuple[int, ...] | None = None
     channel_order: tuple[str, ...] | None = None
@@ -29,6 +33,86 @@ class PredictionArtifactMetadata:
     intensity_scale: float | None = None
     intensity_dtype: str | None = None
     extra: Mapping[str, Any] = field(default_factory=dict)
+
+
+def _cfg_get(obj: Any, path: str, default: Any = None) -> Any:
+    node = obj
+    for part in path.split("."):
+        if node is None:
+            return default
+        if isinstance(node, Mapping):
+            node = node.get(part, default)
+        else:
+            node = getattr(node, part, default)
+    return node
+
+
+def _tuple_or_none(value: Sequence[Any] | None) -> tuple[int, ...] | None:
+    if value in (None, [], ()):
+        return None
+    return tuple(int(v) for v in value)
+
+
+def _model_output_identity(cfg: Any, output_head: str | None) -> str | None:
+    parts: list[str] = []
+    if output_head:
+        parts.append(f"head={output_head}")
+    else:
+        primary_head = _cfg_get(cfg, "model.primary_head")
+        if primary_head:
+            parts.append(f"primary_head={primary_head}")
+
+    select_channel = _cfg_get(cfg, "inference.select_channel")
+    if select_channel is not None:
+        parts.append(f"select_channel={select_channel}")
+
+    return ";".join(parts) if parts else None
+
+
+def build_prediction_artifact_metadata(
+    cfg: Any,
+    *,
+    image_path: str | None = None,
+    checkpoint_path: str | None = None,
+    output_head: str | None = None,
+    input_shape: Sequence[int] | None = None,
+    final_shape: Sequence[int] | None = None,
+    crop_pad: Sequence[Sequence[int]] | None = None,
+    chunk_shape: Sequence[int] | None = None,
+    halo: Sequence[int] | None = None,
+    intensity_scale: float | None = None,
+    intensity_dtype: str | None = None,
+    extra: Mapping[str, Any] | None = None,
+) -> PredictionArtifactMetadata:
+    """Build standard metadata for raw prediction artifacts."""
+    transform_cfg = _cfg_get(cfg, "inference.prediction_transform")
+    transform_enabled = bool(getattr(transform_cfg, "enabled", False))
+    if intensity_scale is None and transform_enabled:
+        intensity_scale = float(getattr(transform_cfg, "intensity_scale", -1.0))
+    if intensity_dtype is None and transform_enabled:
+        intensity_dtype = getattr(transform_cfg, "intensity_dtype", None)
+
+    return PredictionArtifactMetadata(
+        image_path=image_path,
+        checkpoint_path=str(checkpoint_path) if checkpoint_path is not None else None,
+        output_head=output_head,
+        input_shape=_tuple_or_none(input_shape),
+        final_shape=_tuple_or_none(final_shape),
+        crop_pad=(
+            tuple((int(pair[0]), int(pair[1])) for pair in crop_pad)
+            if crop_pad is not None
+            else None
+        ),
+        transpose=_tuple_or_none(_cfg_get(cfg, "data.data_transform.val_transpose")),
+        model_architecture=_cfg_get(cfg, "model.arch.type"),
+        model_output_identity=_model_output_identity(cfg, output_head),
+        decode_after_inference=bool(_cfg_get(cfg, "inference.decode_after_inference", True)),
+        chunk_shape=_tuple_or_none(chunk_shape),
+        halo=_tuple_or_none(halo),
+        intensity_scale=intensity_scale,
+        intensity_dtype=intensity_dtype,
+        extra=extra or {},
+    )
 
 
 def _json_attr(value: Any) -> Any:
@@ -140,6 +224,7 @@ def read_prediction_artifact(
 
 __all__ = [
     "PredictionArtifactMetadata",
+    "build_prediction_artifact_metadata",
     "read_prediction_artifact",
     "write_prediction_artifact",
     "write_prediction_artifact_attrs",

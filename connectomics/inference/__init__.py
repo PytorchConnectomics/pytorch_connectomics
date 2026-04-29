@@ -2,6 +2,7 @@
 
 from .artifact import (
     PredictionArtifactMetadata,
+    build_prediction_artifact_metadata,
     read_prediction_artifact,
     write_prediction_artifact,
     write_prediction_artifact_attrs,
@@ -29,6 +30,7 @@ from .tta import TTAPredictor
 __all__ = [
     "InferenceManager",
     "PredictionArtifactMetadata",
+    "build_prediction_artifact_metadata",
     "read_prediction_artifact",
     "write_prediction_artifact",
     "write_prediction_artifact_attrs",

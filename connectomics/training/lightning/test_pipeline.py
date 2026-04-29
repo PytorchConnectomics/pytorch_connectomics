@@ -28,6 +28,7 @@ from ...inference import (
     apply_prediction_transform,
     is_chunked_inference_enabled,
     run_chunked_prediction_inference,
+    run_prediction_inference,
     write_outputs,
 )
 from ...inference.lazy import (
@@ -644,7 +645,8 @@ def _predict_output_head(
     else:
         if images is None:
             raise ValueError("lazy_sample=False requires images to be provided.")
-        predictions = module.inference_manager.predict_with_tta(
+        predictions = run_prediction_inference(
+            module.inference_manager,
             images,
             mask=mask,
             mask_align_to_image=mask_align_to_image,

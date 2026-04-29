@@ -6,8 +6,11 @@ import numpy as np
 
 from connectomics.config import Config
 from connectomics.data.io import read_hdf5
-from connectomics.data.processing.nnunet_preprocess import NNUNetPreprocessd
-from connectomics.inference.output import _restore_prediction_to_input_space, write_outputs
+from connectomics.data.processing.nnunet_preprocess import (
+    NNUNetPreprocessd,
+    restore_prediction_to_input_space,
+)
+from connectomics.inference.output import write_outputs
 
 
 def test_nnunet_preprocess_crops_and_tracks_metadata():
@@ -57,7 +60,7 @@ def test_restore_prediction_inverts_resampling():
     assert pre_shape == (8, 6, 8)
 
     pred = np.random.RandomState(1).rand(2, *pre_shape).astype(np.float32)
-    restored = _restore_prediction_to_input_space(pred, result["image_meta_dict"])
+    restored = restore_prediction_to_input_space(pred, result["image_meta_dict"])
     assert restored.shape == (2, 4, 6, 8)
 
 

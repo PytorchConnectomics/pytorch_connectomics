@@ -19,7 +19,7 @@ from ..data.processing.affinity import (
 )
 from ..utils.channel_slices import resolve_channel_indices
 from .artifact import (
-    PredictionArtifactMetadata,
+    build_prediction_artifact_metadata,
     write_prediction_artifact,
 )
 from .lazy import get_lazy_image_reference_shape, lazy_predict_region
@@ -278,7 +278,8 @@ def _run_chunked_prediction_per_rank(
         write_prediction_artifact(
             chunk_path,
             core_pred,
-            metadata=PredictionArtifactMetadata(
+            metadata=build_prediction_artifact_metadata(
+                cfg,
                 image_path=str(image_path),
                 checkpoint_path=str(checkpoint_path) if checkpoint_path is not None else None,
                 output_head=requested_head,
@@ -479,7 +480,8 @@ def run_chunked_prediction_inference(
 
     write_prediction_artifact(
         output_path,
-        metadata=PredictionArtifactMetadata(
+        metadata=build_prediction_artifact_metadata(
+            cfg,
             image_path=str(image_path),
             checkpoint_path=str(checkpoint_path) if checkpoint_path is not None else None,
             output_head=requested_head,
