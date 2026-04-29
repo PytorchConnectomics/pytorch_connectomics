@@ -1,7 +1,7 @@
 Lightning Module API
 ====================
 
-.. currentmodule:: connectomics.training.lit
+.. currentmodule:: connectomics.training.lightning
 
 PyTorch Lightning integration for training orchestration and distributed computing.
 
@@ -20,21 +20,21 @@ Quick Example
 .. code-block:: python
 
     from connectomics.config import load_config
-    from connectomics.training.lit import (
+    from connectomics.training.lightning import (
         ConnectomicsModule,
-        ConnectomicsDataModule,
+        create_datamodule,
         create_trainer
     )
     from pytorch_lightning import seed_everything
 
     # Load config
-    cfg = load_config("tutorials/lucchi.yaml")
+    cfg = load_config("tutorials/minimal.yaml")
 
     # Set seed
     seed_everything(cfg.system.seed)
 
     # Create components
-    datamodule = ConnectomicsDataModule(cfg)
+    datamodule = create_datamodule(cfg)
     model = ConnectomicsModule(cfg)
     trainer = create_trainer(cfg)
 
@@ -50,7 +50,7 @@ Module Reference
 ConnectomicsModule
 ^^^^^^^^^^^^^^^^^^
 
-.. autoclass:: connectomics.training.lit.ConnectomicsModule
+.. autoclass:: connectomics.training.lightning.ConnectomicsModule
    :members:
    :undoc-members:
    :show-inheritance:
@@ -72,9 +72,9 @@ ConnectomicsModule
    .. code-block:: python
 
        from connectomics.config import load_config
-       from connectomics.training.lit import ConnectomicsModule
+       from connectomics.training.lightning import ConnectomicsModule
 
-       cfg = load_config("tutorials/lucchi.yaml")
+       cfg = load_config("tutorials/minimal.yaml")
        model = ConnectomicsModule(cfg)
 
        # Access underlying model
@@ -88,7 +88,7 @@ ConnectomicsModule
    .. code-block:: python
 
        import torch.nn as nn
-       from connectomics.training.lit import ConnectomicsModule
+       from connectomics.training.lightning import ConnectomicsModule
 
        class MyModel(nn.Module):
            def __init__(self):
@@ -104,7 +104,7 @@ ConnectomicsModule
 ConnectomicsDataModule
 ^^^^^^^^^^^^^^^^^^^^^^
 
-.. autoclass:: connectomics.training.lit.ConnectomicsDataModule
+.. autoclass:: connectomics.training.lightning.ConnectomicsDataModule
    :members:
    :undoc-members:
    :show-inheritance:
@@ -123,10 +123,10 @@ ConnectomicsDataModule
    .. code-block:: python
 
        from connectomics.config import load_config
-       from connectomics.training.lit import ConnectomicsDataModule
+       from connectomics.training.lightning import create_datamodule
 
-       cfg = load_config("tutorials/lucchi.yaml")
-       datamodule = ConnectomicsDataModule(cfg)
+       cfg = load_config("tutorials/minimal.yaml")
+       datamodule = create_datamodule(cfg)
 
        # Setup for training
        datamodule.setup('fit')
@@ -142,7 +142,7 @@ ConnectomicsDataModule
 create_trainer
 ^^^^^^^^^^^^^^
 
-.. autofunction:: connectomics.training.lit.create_trainer
+.. autofunction:: connectomics.training.lightning.create_trainer
 
    Create PyTorch Lightning Trainer with appropriate callbacks.
 
@@ -151,9 +151,9 @@ create_trainer
    .. code-block:: python
 
        from connectomics.config import load_config
-       from connectomics.training.lit import create_trainer
+       from connectomics.training.lightning import create_trainer
 
-       cfg = load_config("tutorials/lucchi.yaml")
+       cfg = load_config("tutorials/minimal.yaml")
        trainer = create_trainer(cfg)
 
        # Access trainer properties
@@ -200,7 +200,7 @@ Enable mixed precision for faster training:
 
 .. code-block:: yaml
 
-    training:
+    optimization:
       precision: "16-mixed"  # FP16
       # or
       precision: "bf16-mixed"  # BFloat16 (Ampere+ GPUs)
@@ -212,7 +212,7 @@ Simulate larger batch sizes:
 
 .. code-block:: yaml
 
-    training:
+    optimization:
       accumulate_grad_batches: 4
 
 Gradient Clipping
@@ -222,9 +222,8 @@ Prevent exploding gradients:
 
 .. code-block:: yaml
 
-    training:
+    optimization:
       gradient_clip_val: 1.0
-      gradient_clip_algorithm: "norm"  # or "value"
 
 Learning Rate Scheduling
 ^^^^^^^^^^^^^^^^^^^^^^^^
@@ -233,10 +232,11 @@ Automatic LR scheduling with warmup:
 
 .. code-block:: yaml
 
-    scheduler:
-      name: CosineAnnealingLR
-      warmup_epochs: 5
-      min_lr: 1e-6
+    optimization:
+      scheduler:
+        name: CosineAnnealingLR
+        warmup_epochs: 5
+        min_lr: 1e-6
 
 Deep Supervision
 ^^^^^^^^^^^^^^^^
@@ -246,10 +246,11 @@ Multi-scale loss computation:
 .. code-block:: yaml
 
     model:
-      deep_supervision: true
-      loss_functions:
-        - DiceLoss
-      loss_weights: [1.0]
+      loss:
+        deep_supervision: true
+        losses:
+          - function: DiceLoss
+            weight: 1.0
 
 The module automatically:
 
@@ -267,23 +268,26 @@ Model Checkpointing
 
 .. code-block:: yaml
 
-    checkpoint:
-      monitor: "val/loss"
-      mode: "min"
-      save_top_k: 3
-      save_last: true
-      filename: "epoch{epoch:02d}-loss{val/loss:.2f}"
+    monitor:
+      checkpoint:
+        monitor: "val/loss"
+        mode: "min"
+        save_top_k: 3
+        save_last: true
+        filename: "epoch{epoch:02d}-loss{val/loss:.2f}"
 
 Early Stopping
 ^^^^^^^^^^^^^^
 
 .. code-block:: yaml
 
-    early_stopping:
-      monitor: "val/loss"
-      patience: 10
-      mode: "min"
-      min_delta: 0.0
+    monitor:
+      early_stopping:
+        enabled: true
+        monitor: "val/loss"
+        patience: 10
+        mode: "min"
+        min_delta: 0.0
 
 Learning Rate Monitoring
 ^^^^^^^^^^^^^^^^^^^^^^^^
@@ -298,9 +302,10 @@ TensorBoard (Default)
 
 .. code-block:: yaml
 
-    logging:
-      save_dir: "outputs"
-      log_every_n_steps: 10
+    monitor:
+      logging:
+        scalar:
+          loss_every_n_steps: 10
 
 Logs are saved to ``outputs/lightning_logs/``.
 
@@ -349,7 +354,7 @@ Custom Training Step
 
 .. code-block:: python
 
-    from connectomics.training.lit import ConnectomicsModule
+    from connectomics.training.lightning import ConnectomicsModule
 
     class CustomModule(ConnectomicsModule):
         def training_step(self, batch, batch_idx):
@@ -398,7 +403,7 @@ Full Dataset Inference
     )
 
     # Create datamodule
-    datamodule = ConnectomicsDataModule(cfg)
+    datamodule = create_datamodule(cfg)
 
     # Create trainer
     trainer = create_trainer(cfg)
@@ -424,7 +429,7 @@ Or from command line:
 .. code-block:: bash
 
     python scripts/main.py \
-        --config tutorials/lucchi.yaml \
+        --config tutorials/minimal.yaml \
         --resume outputs/last.ckpt
 
 See Also
