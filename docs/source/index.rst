@@ -89,20 +89,20 @@ Quick Start
 
 .. code-block:: bash
 
-    python scripts/main.py --config tutorials/lucchi.yaml
+    python scripts/main.py --config tutorials/minimal.yaml
 
 **Python API:**
 
 .. code-block:: python
 
     from connectomics.config import load_config
-    from connectomics.training.lit import ConnectomicsModule, ConnectomicsDataModule, create_trainer
+    from connectomics.training.lightning import ConnectomicsModule, create_datamodule, create_trainer
 
     # Load configuration
-    cfg = load_config("tutorials/lucchi.yaml")
+    cfg = load_config("tutorials/minimal.yaml")
 
     # Create components
-    datamodule = ConnectomicsDataModule(cfg)
+    datamodule = create_datamodule(cfg)
     model = ConnectomicsModule(cfg)
     trainer = create_trainer(cfg)
 

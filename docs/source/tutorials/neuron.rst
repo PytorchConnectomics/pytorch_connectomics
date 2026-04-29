@@ -10,11 +10,12 @@ segmentation algorithm (*e.g.*, watershed).
 The evaluation of segmentation results is based on the `Rand Index <https://en.wikipedia.org/wiki/Rand_index>`_
 and `Variation of Information <https://en.wikipedia.org/wiki/Variation_of_information>`_.
 
-    .. tip:: 
+    .. tip::
         Before running neuron segmentation, please take a look at the `notebooks <https://github.com/zudi-lin/pytorch_connectomics/tree/master/notebooks>`_ to get familiar with the datasets and available utility functions in this package.
 
 The main script to run the training and inference is ``pytorch_connectomics/scripts/main.py``.
-The pytorch target affinity generation is :class:`connectomics.data.dataset.VolumeDataset`.
+Affinity targets are generated through the configured Lightning data module and the current
+dataset implementations in :mod:`connectomics.data.datasets`.
 
 Neighboring affinity learning
 -------------------------------
@@ -57,7 +58,7 @@ For description of the SNEMI dataset please check `this page <https://vcg.github
 Provide the **YAML** configuration files to run training:
 
 .. code-block:: none
-   
+
    source activate py3_torch
    python -u scripts/main.py \
    --config-base configs/SNEMI/SNEMI-Base.yaml \
@@ -166,7 +167,7 @@ Follow the instructions on the repository to install the ``waterz`` package. We 
 - ``aff_thresholds``. The values in the affinity maps will be constrained to lie between these thresholds. Recommended values are ``[0.05,0.995]``.
 - ``seg_thresholds``. This is an array of segmentation threshold values. Recommended values are ``[0.1,0.3,0.6]``. The API will produce a segmentation volume for each segmentation threshold in the array.
 - ``merge_function``. The function that will be used while merging the nodes of the region adjacency graph. Recommended value for this parameter is  ``"aff50_his256"``.
-- ``seg_gt``. This is the ground-truth segmentation used for evaluating the segmentation result. If ground truth is not available, this parameter is supposed to be ``None``. If the ground truth is available, the API prints the *Rand* and *VOI* scores. 
+- ``seg_gt``. This is the ground-truth segmentation used for evaluating the segmentation result. If ground truth is not available, this parameter is supposed to be ``None``. If the ground truth is available, the API prints the *Rand* and *VOI* scores.
 
 .. code-block:: python
 
@@ -176,8 +177,8 @@ Follow the instructions on the repository to install the ``waterz`` package. We 
     # affinities is a [3, depth, height, width] numpy array of uint8 if predicted by PyTC
     affinities = ... # model prediction
 
-    affinities = affinities / 255.0 
-    # The affinity values in the model prediction are in the interval [0,255] and the affinity thresholds provided constraint them 
+    affinities = affinities / 255.0
+    # The affinity values in the model prediction are in the interval [0,255] and the affinity thresholds provided constraint them
     # in the interval [0.05,0.995] hence we divide it by 255 in order to scale it.
 
     # evaluation: vi/rand
@@ -185,14 +186,14 @@ Follow the instructions on the repository to install the ``waterz`` package. We 
 
     aff_thresholds = [0.05, 0.995]
     seg_thresholds = [0.1, 0.3, 0.6]
-    
-    seg = waterz.waterz(affinities, seg_thresholds, merge_function='aff50_his256',                                
+
+    seg = waterz.waterz(affinities, seg_thresholds, merge_function='aff50_his256',
               aff_threshold=aff_thresholds, gt=seg_gt)
 
-    # seg will be an array of shape [3,depth,height,width]. Since there are 3 segmentation thresholds, we get a result of shape 
+    # seg will be an array of shape [3,depth,height,width]. Since there are 3 segmentation thresholds, we get a result of shape
     # [depth,height,width] for each threshold.
- 
-Optionally, the ``zwatershed`` package can also be used to process the affinity map into 
+
+Optionally, the ``zwatershed`` package can also be used to process the affinity map into
 segmentation. See details `here <https://github.com/zudi-lin/zwatershed>`_.
 
 

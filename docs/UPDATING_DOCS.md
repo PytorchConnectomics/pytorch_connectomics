@@ -127,7 +127,7 @@ Then open http://127.0.0.1:8000 in your browser.
    - Add new modules:
      - `connectomics.training.lightning` (LightningModule, LightningDataModule, Trainer)
      - `connectomics.config` (Hydra configs)
-     - `connectomics.models.architecturesitectures` (Architecture registry)
+     - `connectomics.models.architectures` (Architecture registry)
    - Mark legacy modules (engine) as deprecated
 
 ### New Documentation Needed
@@ -250,8 +250,8 @@ The API documentation is generated from docstrings. To update:
            Loaded configuration as OmegaConf DictConfig.
 
        Example:
-           >>> cfg = load_config("tutorials/lucchi.yaml")
-           >>> print(cfg.model.architecture)
+           >>> cfg = load_config("tutorials/minimal.yaml")
+           >>> print(cfg.model.arch.type)
            'monai_basic_unet3d'
        """
        pass
@@ -267,7 +267,7 @@ The API documentation is generated from docstrings. To update:
 
        load_config
        save_config
-       print_config
+       as_plain_dict
    ```
 
 3. Rebuild:

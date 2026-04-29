@@ -71,51 +71,36 @@ Hydra/OmegaConf Configuration
 
 .. code-block:: yaml
 
-    # tutorials/lucchi.yaml
-    system:
-      num_gpus: 1
-      num_cpus: 4
-      seed: 42
+    # tutorials/minimal.yaml
+    default:
+      system:
+        num_gpus: 1
+        num_workers: 4
+        seed: 42
+      model:
+        arch:
+          type: monai_basic_unet3d
+        in_channels: 1
+        out_channels: 1
+        loss:
+          losses:
+            - function: DiceLoss
+              weight: 1.0
+      data:
+        dataloader:
+          patch_size: [32, 64, 64]
+          batch_size: 1
 
-    model:
-      architecture: monai_basic_unet3d
-      in_channels: 1
-      out_channels: 2
-      filters: [32, 64, 128, 256, 512]
-      dropout: 0.1
-      loss_functions:
-        - DiceLoss
-        - BCEWithLogitsLoss
-      loss_weights: [1.0, 1.0]
-
-    data:
-      train_image: "datasets/lucchi/train_image.h5"
-      train_label: "datasets/lucchi/train_label.h5"
-      val_image: "datasets/lucchi/val_image.h5"
-      val_label: "datasets/lucchi/val_label.h5"
-      patch_size: [128, 128, 128]
-      batch_size: 2
-      num_workers: 4
-
-    optimizer:
-      name: AdamW
-      lr: 1e-4
-      weight_decay: 1e-4
-
-    scheduler:
-      name: CosineAnnealingLR
-      warmup_epochs: 5
-
-    training:
-      max_epochs: 100
-      precision: "16-mixed"
-      gradient_clip_val: 1.0
-
-    checkpoint:
-      monitor: "val/loss"
-      mode: "min"
-      save_top_k: 3
-      save_last: true
+    train:
+      optimization:
+        max_epochs: 1
+        precision: "32"
+        optimizer:
+          name: AdamW
+          lr: 1e-4
+      monitor:
+        checkpoint:
+          save_last: true
 
 Configuration Structure
 ^^^^^^^^^^^^^^^^^^^^^^^^
@@ -134,16 +119,10 @@ Key configuration sections in v2.0:
      - Architecture, input/output channels, loss functions
    * - ``data``
      - Dataset paths, batch size, augmentation settings
-   * - ``optimizer``
-     - Optimizer type and hyperparameters
-   * - ``scheduler``
-     - Learning rate scheduling configuration
-   * - ``training``
-     - Training loop parameters (epochs, precision, etc.)
-   * - ``checkpoint``
-     - Model checkpointing strategy
-   * - ``logging``
-     - Logging and monitoring configuration
+   * - ``optimization``
+     - Optimizer, scheduler, precision, and training loop parameters
+   * - ``monitor``
+     - Checkpointing, logging, early stopping, and experiment tracking
 
 Configuration Override
 ^^^^^^^^^^^^^^^^^^^^^^
@@ -152,10 +131,10 @@ Override config parameters from CLI:
 
 .. code-block:: bash
 
-    python scripts/main.py --config tutorials/lucchi.yaml \
-        data.batch_size=8 \
-        training.max_epochs=200 \
-        optimizer.lr=2e-4
+    python scripts/main.py --config tutorials/minimal.yaml \
+        default.data.dataloader.batch_size=8 \
+        train.optimization.max_epochs=200 \
+        train.optimization.optimizer.lr=2e-4
 
 Training Script Usage
 ---------------------
@@ -165,18 +144,18 @@ Training Script Usage
 .. code-block:: bash
 
     # Basic training
-    python scripts/main.py --config tutorials/lucchi.yaml
+    python scripts/main.py --config tutorials/minimal.yaml
 
     # Override parameters
-    python scripts/main.py --config tutorials/lucchi.yaml \
-        training.max_epochs=300 \
-        data.batch_size=4
+    python scripts/main.py --config tutorials/minimal.yaml \
+        train.optimization.max_epochs=300 \
+        default.data.dataloader.batch_size=4
 
     # Fast development run (1 batch)
-    python scripts/main.py --config tutorials/lucchi.yaml --fast-dev-run
+    python scripts/main.py --config tutorials/minimal.yaml --fast-dev-run
 
     # Testing mode
-    python scripts/main.py --config tutorials/lucchi.yaml \
+    python scripts/main.py --config tutorials/minimal.yaml \
         --mode test \
         --checkpoint path/to/checkpoint.ckpt
 
@@ -191,21 +170,21 @@ PyTorch Lightning Integration
 .. code-block:: python
 
     from connectomics.config import load_config
-    from connectomics.training.lit import (
+    from connectomics.training.lightning import (
         ConnectomicsModule,
-        ConnectomicsDataModule,
+        create_datamodule,
         create_trainer
     )
     from pytorch_lightning import seed_everything
 
     # Load config
-    cfg = load_config("tutorials/lucchi.yaml")
+    cfg = load_config("tutorials/minimal.yaml")
 
     # Set seed
     seed_everything(cfg.system.seed)
 
     # Create components
-    datamodule = ConnectomicsDataModule(cfg)
+    datamodule = create_datamodule(cfg)
     model = ConnectomicsModule(cfg)
     trainer = create_trainer(cfg)
 
@@ -223,20 +202,24 @@ Using MONAI and MedNeXt Models
 .. code-block:: yaml
 
     model:
-      architecture: monai_basic_unet3d
+      arch:
+        type: monai_basic_unet3d
       in_channels: 1
       out_channels: 3
-      filters: [28, 36, 48, 64, 80]
+      monai:
+        filters: [28, 36, 48, 64, 80]
 
 **MedNeXt (State-of-the-Art):**
 
 .. code-block:: yaml
 
     model:
-      architecture: monai_basic_unet3d
+      arch:
+        type: mednext
       in_channels: 1
       out_channels: 3
-      filters: [28, 36, 48, 64, 80]
+      mednext:
+        size: S
 
 Using Custom Models
 ^^^^^^^^^^^^^^^^^^^
@@ -245,7 +228,7 @@ You can still use custom models by wrapping them:
 
 .. code-block:: python
 
-    from connectomics.training.lit import ConnectomicsModule
+    from connectomics.training.lightning import ConnectomicsModule
     import torch.nn as nn
 
     class MyCustomModel(nn.Module):
@@ -286,10 +269,10 @@ Data Loading Migration
 
 .. code-block:: python
 
-    from connectomics.training.lit import ConnectomicsDataModule
+    from connectomics.training.lightning import create_datamodule
 
     # Create data module (handles all splits)
-    datamodule = ConnectomicsDataModule(cfg)
+    datamodule = create_datamodule(cfg)
 
     # Access loaders if needed
     datamodule.setup('fit')
@@ -313,7 +296,7 @@ Inference Migration
 .. code-block:: bash
 
     python scripts/main.py \
-        --config tutorials/lucchi.yaml \
+        --config tutorials/minimal.yaml \
         --mode test \
         --checkpoint outputs/epoch=99-val_loss=0.123.ckpt
 
@@ -333,10 +316,12 @@ Loss Function Migration
 .. code-block:: yaml
 
     model:
-      loss_functions:
-        - BCEWithLogitsLoss
-        - DiceLoss
-      loss_weights: [1.0, 0.5]
+      loss:
+        losses:
+          - function: BCEWithLogitsLoss
+            weight: 1.0
+          - function: DiceLoss
+            weight: 0.5
 
 **Loss name mappings:**
 
@@ -361,7 +346,8 @@ Augmentation Migration
 
 .. code-block:: python
 
-    from connectomics.data.augmentation import Compose
+    from monai.transforms import Compose
+    from connectomics.data.augmentation import RandMisAlignmentd
 
     augmentor = Compose([...])
 
@@ -372,11 +358,10 @@ MONAI transforms are automatically applied through the data module. To customize
 .. code-block:: yaml
 
     data:
-      use_augmentation: true
-      augmentation_params:
-        rotation_range: 45
-        scale_range: [0.9, 1.1]
-        elastic_deform: true
+      augmentation:
+        profile: aug_standard
+        misalignment:
+          enabled: true
 
 Multi-GPU Training Migration
 -----------------------------
@@ -449,11 +434,10 @@ Logging and Monitoring Migration
 
 .. code-block:: yaml
 
-    logging:
-      save_dir: "outputs"
-      experiment_name: "lucchi_exp"
-
-      # Optional: Weights & Biases
+    monitor:
+      logging:
+        scalar:
+          loss_every_n_steps: 100
       wandb:
         use_wandb: true
         project: "connectomics"
@@ -472,11 +456,12 @@ Common Migration Issues
 Issue: "No module named 'yacs'"
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-**Solution:** Install new dependencies:
+**Solution:** remove the v1 YACS dependency path and convert the config to the v2
+Hydra/OmegaConf format:
 
 .. code-block:: bash
 
-    pip install omegaconf>=2.1.0
+    python scripts/main.py --config tutorials/minimal.yaml
 
 Issue: Config file not found
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -489,7 +474,7 @@ Issue: Config file not found
     --config-file configs/Lucchi-Mitochondria.yaml
 
     # New
-    --config tutorials/lucchi.yaml
+    --config tutorials/minimal.yaml
 
 Issue: Iteration vs Epoch
 ^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -519,49 +504,49 @@ Issue: Model architecture not found
 
     # New - MONAI
     model:
-      architecture: monai_unet
+      arch:
+        type: monai_unet
 
     # Or use MedNeXt
     model:
-      architecture: mednext
-      mednext_size: S
+      arch:
+        type: mednext
+      mednext:
+        size: S
 
 Backward Compatibility
 ----------------------
 
-v2.0 maintains backward compatibility for:
+v2.0 is not backward compatible with the v1 runtime:
 
-- ✅ YACS configs (still work, but deprecated)
-- ✅ Legacy trainer (available in ``engine/trainer.py``)
-- ✅ Custom models
-- ✅ Data formats (HDF5, TIFF, etc.)
-- ✅ Augmentation interface
+- ❌ YACS configs are removed; convert configs to Hydra/OmegaConf YAML.
+- ❌ Legacy trainer entry points are removed from the supported API.
+- ❌ Checkpoint format needs manual conversion.
+- ❌ Direct imports from old modules must move to the documented v2 paths.
 
-Not backward compatible:
+Still supported:
 
-- ❌ Checkpoint format (need manual conversion)
-- ❌ Direct imports from old modules (use new paths)
+- ✅ Custom PyTorch models through :class:`connectomics.training.lightning.ConnectomicsModule`.
+- ✅ HDF5, TIFF, Zarr, and filename-based data inputs.
+- ✅ MONAI-native augmentation pipelines.
 
-Running Both Systems Side-by-Side
-----------------------------------
+Current Entry Point
+-------------------
 
-You can run both v1.0 and v2.0 systems:
+Use the v2 entry point for new runs:
 
 .. code-block:: bash
 
-    # v1.0 style (legacy)
-    python scripts/build.py --config-file configs/old_config.yaml
-
-    # v2.0 style (recommended)
-    python scripts/main.py --config tutorials/new_config.yaml
+    python scripts/main.py --config tutorials/minimal.yaml
 
 Migration Examples
 ------------------
 
 See the ``tutorials/`` directory for complete v2.0 examples:
 
-- `tutorials/lucchi.yaml <https://github.com/zudi-lin/pytorch_connectomics/blob/master/tutorials/lucchi.yaml>`_
-- `tutorials/mednext_lucchi.yaml <https://github.com/zudi-lin/pytorch_connectomics/blob/master/tutorials/mednext_lucchi.yaml>`_
+- `tutorials/minimal.yaml <https://github.com/zudi-lin/pytorch_connectomics/blob/master/tutorials/minimal.yaml>`_
+- `tutorials/mito_lucchi++.yaml <https://github.com/zudi-lin/pytorch_connectomics/blob/master/tutorials/mito_lucchi%2B%2B.yaml>`_
+- `tutorials/neuron_snemi/neuron_snemi_sdt.yaml <https://github.com/zudi-lin/pytorch_connectomics/blob/master/tutorials/neuron_snemi/neuron_snemi_sdt.yaml>`_
 
 Getting Help
 ------------

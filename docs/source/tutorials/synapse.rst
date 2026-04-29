@@ -28,9 +28,10 @@ for more details.
 
         We preform re-alignment of the original CREMI image stacks and also remove the crack artifacts. Please reverse the alignment before submitting the test prediction to the CREMI challenge.
 
-Script needed for this tutorial can be found at ``pytorch_connectomics/scripts/``. The *YAML* configuration files can be found at ``pytorch_connectomics/configs/``, which
-stores the common settings for model training and inference. Other default configuration options can be found at ``pytorch_connectomics/connectomics/config/``. The pytorch
-dataset class of the synaptic cleft detection task is :class:`connectomics.data.dataset.VolumeDataset`.
+Script needed for this tutorial can be found at ``pytorch_connectomics/scripts/``. Modern *YAML* examples live under
+``pytorch_connectomics/tutorials/``, with structured defaults under ``pytorch_connectomics/connectomics/config/``.
+Synaptic cleft detection uses the Lightning data factory, which selects datasets from
+:mod:`connectomics.data.datasets` based on the ``data`` config.
 
 .. figure:: ../_static/img/cremi_qual.png
     :align: center
@@ -106,7 +107,8 @@ The evaluation metric of the synaptic polarity detection results is an IoU-based
         We tackle the task using a bottom-up approach that first generates the segmentation masks of synaptic regions and then apply post-processing algorithms like connected component labeling to separate individual synapses. Our segmentation model uses a model target of three channels. The three channels are **pre-synaptic region**, **post-synaptic region** and **synaptic region** (union of the first two channels), respectively.
 
 All the scripts needed for this tutorial can be found at ``pytorch_connectomics/scripts/``.
-The pytorch dataset class of synaptic partners is :class:`connectomics.data.dataset.VolumeDataset`.
+Synaptic partner datasets are configured through ``data.train``/``data.val``/``data.test`` and loaded by
+:func:`connectomics.training.lightning.create_datamodule`.
 
 .. figure:: ../_static/img/polarity_qual.png
     :align: center

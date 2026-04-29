@@ -434,6 +434,6 @@ Train your first model:
     # ...
 
     # Train with example config
-    python scripts/main.py --config tutorials/lucchi.yaml
+    python scripts/main.py --config tutorials/minimal.yaml
 
 See tutorials for complete examples!
