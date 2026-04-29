@@ -1005,7 +1005,7 @@ def main():
 
         # Handle tune modes
         if args.mode in ["tune", "tune-test"]:
-            from connectomics.decoding.tuning import run_tuning
+            from connectomics.runtime.tune_runner import run_tuning
 
             # Run parameter tuning (automatically skips if best_params.yaml exists)
             run_tuning(model, trainer, cfg, checkpoint_path=ckpt_path)
@@ -1055,7 +1055,7 @@ def main():
                 )
 
             if args.mode == "tune-test":
-                from connectomics.decoding.tuning import load_and_apply_best_params
+                from connectomics.runtime.tune_runner import load_and_apply_best_params
 
                 print("\n" + "=" * 80)
                 print("LOADING BEST PARAMETERS")

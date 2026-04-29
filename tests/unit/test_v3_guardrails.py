@@ -56,7 +56,6 @@ def _forbidden_imports(root: Path, forbidden_prefixes: tuple[str, ...]) -> list[
     return violations
 
 
-@pytest.mark.xfail(strict=True, reason="V3 PR 2/5 removes decoding -> training imports")
 def test_decoding_static_imports_do_not_reference_training():
     violations = _forbidden_imports(
         REPO_ROOT / "connectomics" / "decoding",

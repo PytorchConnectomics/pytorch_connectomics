@@ -25,11 +25,14 @@ def test_config_hardware_helpers_are_not_root_exports():
 def test_decoding_tuning_helpers_are_not_root_exports():
     import connectomics.decoding as decoding
     import connectomics.decoding.tuning as tuning
+    import connectomics.runtime as runtime
 
     assert not hasattr(decoding, "run_tuning")
     assert not hasattr(decoding, "load_and_apply_best_params")
-    assert hasattr(tuning, "run_tuning")
-    assert hasattr(tuning, "load_and_apply_best_params")
+    assert not hasattr(tuning, "run_tuning")
+    assert not hasattr(tuning, "load_and_apply_best_params")
+    assert hasattr(runtime, "run_tuning")
+    assert hasattr(runtime, "load_and_apply_best_params")
 
 
 def test_metrics_do_not_export_file_backed_evaluation():
