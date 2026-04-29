@@ -44,6 +44,14 @@ from ...metrics.metrics_seg import (
 )
 from ...models import build_model
 from ...models.losses import create_loss, get_loss_metadata_for_module
+from ...runtime.output_naming import (
+    final_prediction_output_tag,
+    format_checkpoint_name_tag,
+    is_tta_cache_suffix,
+    resolve_prediction_cache_suffix,
+    tta_cache_suffix,
+    tta_cache_suffix_candidates,
+)
 from ...utils import (
     resolve_channel_range,
     resolve_configured_output_head,
@@ -57,14 +65,6 @@ from ..losses import LossOrchestrator, build_loss_weighter, infer_num_loss_tasks
 from ..model_weights import load_external_weights
 from ..optimization import build_lr_scheduler, build_optimizer
 from .test_pipeline import compute_test_metrics, log_test_epoch_metrics, run_test_step
-from .utils import (
-    final_prediction_output_tag,
-    format_checkpoint_name_tag,
-    is_tta_cache_suffix,
-    resolve_prediction_cache_suffix,
-    tta_cache_suffix,
-    tta_cache_suffix_candidates,
-)
 
 logger = logging.getLogger(__name__)
 

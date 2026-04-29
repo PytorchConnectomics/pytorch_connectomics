@@ -40,6 +40,12 @@ except ImportError:
     OPTUNA_AVAILABLE = False
 
 from connectomics.metrics.metrics_seg import adapted_rand
+from connectomics.runtime.output_naming import (
+    tta_cache_suffix,
+    tuning_best_params_filename,
+    tuning_best_params_filename_candidates,
+    tuning_study_db_filename,
+)
 
 from ..registry import get_decoder
 from ..utils import remove_small_instances
@@ -52,40 +58,6 @@ __all__ = [
     "run_tuning",
     "load_and_apply_best_params",
 ]
-
-
-def tta_cache_suffix(*args, **kwargs) -> str:
-    """Resolve the prediction cache suffix lazily to avoid import-time training coupling."""
-    from connectomics.training.lightning.utils import tta_cache_suffix as _tta_cache_suffix
-
-    return _tta_cache_suffix(*args, **kwargs)
-
-
-def tuning_best_params_filename(*args, **kwargs) -> str:
-    """Resolve the best-params filename lazily."""
-    from connectomics.training.lightning.utils import (
-        tuning_best_params_filename as _tuning_best_params_filename,
-    )
-
-    return _tuning_best_params_filename(*args, **kwargs)
-
-
-def tuning_best_params_filename_candidates(*args, **kwargs) -> list[str]:
-    """Resolve best-params filename candidates lazily."""
-    from connectomics.training.lightning.utils import (
-        tuning_best_params_filename_candidates as _tuning_best_params_filename_candidates,
-    )
-
-    return _tuning_best_params_filename_candidates(*args, **kwargs)
-
-
-def tuning_study_db_filename(*args, **kwargs) -> str:
-    """Resolve the Optuna study DB filename lazily."""
-    from connectomics.training.lightning.utils import (
-        tuning_study_db_filename as _tuning_study_db_filename,
-    )
-
-    return _tuning_study_db_filename(*args, **kwargs)
 
 
 class TrialEvaluationTimeoutError(TimeoutError):

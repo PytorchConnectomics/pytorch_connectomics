@@ -54,6 +54,13 @@ from connectomics.config import (  # noqa: E402
     resolve_default_profiles,
 )
 from connectomics.config.hardware import resolve_runtime_resource_sentinels  # noqa: E402
+from connectomics.runtime.output_naming import (  # noqa: E402
+    compute_tta_passes,
+    is_tta_cache_suffix,
+    resolve_prediction_cache_suffix,
+    tta_cache_suffix,
+    tta_cache_suffix_candidates,
+)
 
 # Register safe globals for PyTorch 2.6+ checkpoint loading
 # Allowlist all Config dataclasses used inside Lightning checkpoints
@@ -72,18 +79,13 @@ except AttributeError:
 from connectomics.training.lightning import (  # noqa: E402
     ConnectomicsModule,
     cleanup_run_directory,
-    compute_tta_passes,
     create_datamodule,
     create_trainer,
-    is_tta_cache_suffix,
     modify_checkpoint_state,
     parse_args,
-    resolve_prediction_cache_suffix,
     setup_config,
     setup_run_directory,
     setup_seed_everything,
-    tta_cache_suffix,
-    tta_cache_suffix_candidates,
 )
 
 # Setup seed_everything helper

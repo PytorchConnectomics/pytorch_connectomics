@@ -38,15 +38,15 @@ from ...inference.lazy import (
 )
 from ...metrics.metrics_seg import AdaptedRandError
 from ...metrics.segmentation_numpy import instance_matching, instance_matching_simple, voi
+from ...runtime.output_naming import (
+    final_prediction_output_tag,
+    is_tta_cache_suffix,
+    tta_cache_suffix,
+)
 from ...utils.channel_slices import resolve_channel_indices, resolve_channel_range
 from ...utils.model_outputs import (
     get_model_head_names,
     resolve_output_heads,
-)
-from .utils import (
-    final_prediction_output_tag,
-    is_tta_cache_suffix,
-    tta_cache_suffix,
 )
 
 logger = logging.getLogger(__name__)

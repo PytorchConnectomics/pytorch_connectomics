@@ -7,7 +7,7 @@ import connectomics.inference.tta as tta_module
 from connectomics.config import Config
 from connectomics.inference.sliding import build_sliding_inferer
 from connectomics.inference.tta import TTAPredictor
-from connectomics.training.lightning.utils import compute_tta_passes
+from connectomics.runtime.output_naming import compute_tta_passes
 
 
 def _forward_constant(x: torch.Tensor) -> torch.Tensor:
