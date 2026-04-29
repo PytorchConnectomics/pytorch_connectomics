@@ -8,7 +8,6 @@ from .artifact import (
 )
 from .chunked import (
     is_chunked_inference_enabled,
-    run_chunked_affinity_cc_inference,
     run_chunked_prediction_inference,
 )
 from .manager import InferenceManager
@@ -35,7 +34,6 @@ __all__ = [
     "write_prediction_artifact_attrs",
     "run_prediction_inference",
     "is_chunked_inference_enabled",
-    "run_chunked_affinity_cc_inference",
     "run_chunked_prediction_inference",
     "apply_prediction_transform",
     "apply_storage_dtype_transform",

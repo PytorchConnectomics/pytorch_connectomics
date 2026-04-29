@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
-from typing import Any, Mapping
+from typing import Any, Callable, Mapping
 
 import numpy as np
 
@@ -54,11 +54,15 @@ def write_prediction_artifact_attrs(dataset: Any, metadata: PredictionArtifactMe
 
 def write_prediction_artifact(
     path: str | Path,
-    data: np.ndarray,
+    data: np.ndarray | None = None,
     *,
     metadata: PredictionArtifactMetadata | None = None,
     dataset: str = "main",
     compression: str | None = "gzip",
+    shape: tuple[int, ...] | None = None,
+    dtype: np.dtype | str | type | None = None,
+    chunks: tuple[int, ...] | None = None,
+    writer: Callable[[Any], None] | None = None,
 ) -> Path:
     """Write one raw prediction artifact.
 
@@ -67,22 +71,49 @@ def write_prediction_artifact(
     """
     import h5py
 
-    arr = np.asarray(data)
-    if arr.ndim != 4:
-        raise ValueError(f"Prediction artifacts must use CZYX layout, got shape {arr.shape}")
+    arr = None if data is None else np.asarray(data)
+    if arr is None:
+        if shape is None or dtype is None:
+            raise ValueError("Streaming prediction artifacts require shape and dtype.")
+        artifact_shape = tuple(int(v) for v in shape)
+        artifact_dtype = np.dtype(dtype)
+    else:
+        if arr.ndim != 4:
+            raise ValueError(f"Prediction artifacts must use CZYX layout, got shape {arr.shape}")
+        artifact_shape = tuple(int(v) for v in arr.shape)
+        artifact_dtype = arr.dtype
+
+    if len(artifact_shape) != 4:
+        raise ValueError(f"Prediction artifacts must use CZYX layout, got shape {artifact_shape}")
 
     output_path = Path(path)
     output_path.parent.mkdir(parents=True, exist_ok=True)
     with h5py.File(output_path, "w") as handle:
-        dset = handle.create_dataset(dataset, data=arr, compression=compression)
+        if arr is None:
+            dset = handle.create_dataset(
+                dataset,
+                shape=artifact_shape,
+                dtype=artifact_dtype,
+                chunks=chunks,
+                compression=compression,
+            )
+        else:
+            dset = handle.create_dataset(
+                dataset,
+                data=arr,
+                chunks=chunks,
+                compression=compression,
+            )
         write_prediction_artifact_attrs(
             dset,
             metadata
             or PredictionArtifactMetadata(
-                final_shape=tuple(int(v) for v in arr.shape[-3:]),
-                intensity_dtype=str(arr.dtype),
+                final_shape=tuple(int(v) for v in artifact_shape[-3:]),
+                intensity_dtype=str(artifact_dtype),
             ),
         )
+        if writer is not None:
+            writer(dset)
     return output_path
 
 

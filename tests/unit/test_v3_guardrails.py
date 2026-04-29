@@ -64,7 +64,6 @@ def test_decoding_static_imports_do_not_reference_training():
     assert violations == []
 
 
-@pytest.mark.xfail(strict=True, reason="V3 PR 6 moves streamed chunk decoding out of inference")
 def test_inference_static_imports_do_not_reference_decoding():
     violations = _forbidden_imports(
         REPO_ROOT / "connectomics" / "inference",
@@ -126,7 +125,6 @@ def test_connectomics_inference_public_api_snapshot():
         "write_prediction_artifact_attrs",
         "run_prediction_inference",
         "is_chunked_inference_enabled",
-        "run_chunked_affinity_cc_inference",
         "run_chunked_prediction_inference",
         "apply_prediction_transform",
         "apply_storage_dtype_transform",

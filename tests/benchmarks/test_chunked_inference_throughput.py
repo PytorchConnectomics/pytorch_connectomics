@@ -55,3 +55,5 @@ def test_chunked_prediction_inference_smoke_throughput(tmp_path):
     assert elapsed_s < 10.0
     with h5py.File(output_path, "r") as handle:
         assert handle["main"].shape == (1, 4, 5, 6)
+        assert handle["main"].chunks == (1, 4, 5, 6)
+        assert handle["main"].compression == "gzip"
