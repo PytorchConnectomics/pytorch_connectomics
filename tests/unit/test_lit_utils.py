@@ -8,6 +8,7 @@ import pytest
 
 from connectomics.config import Config, save_config
 from connectomics.config.schema.stages import TuneConfig
+from connectomics.runtime.cli import setup_config
 from connectomics.runtime.output_naming import (
     format_decode_tag,
     resolve_prediction_cache_suffix,
@@ -23,7 +24,6 @@ from connectomics.training.lightning.path_utils import (
 from connectomics.training.lightning.utils import (
     expand_file_paths,
     extract_best_score_from_checkpoint,
-    setup_config,
 )
 
 REPO_ROOT = Path(__file__).resolve().parents[2]

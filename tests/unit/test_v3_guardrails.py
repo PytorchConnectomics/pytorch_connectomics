@@ -1,8 +1,7 @@
 """V3 refactor guardrails.
 
-These tests document the intended package boundaries before the implementation
-stages move code. Known current violations are marked strict xfail so later
-stages must either fix and un-xfail them or keep the debt visible.
+These tests document the intended package boundaries as the implementation
+stages move code out of legacy ownership.
 """
 
 from __future__ import annotations
@@ -72,7 +71,6 @@ def test_inference_static_imports_do_not_reference_decoding():
     assert violations == []
 
 
-@pytest.mark.xfail(strict=True, reason="V3 PR 7 moves data-aware validation out of config")
 def test_config_static_imports_do_not_reference_data_execution():
     violations = _forbidden_imports(
         REPO_ROOT / "connectomics" / "config",

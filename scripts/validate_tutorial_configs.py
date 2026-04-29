@@ -16,6 +16,7 @@ from typing import Any, Iterable, List, Tuple
 import yaml
 
 from connectomics.config import load_config
+from connectomics.runtime.preflight import validate_runtime_coherence
 
 LEGACY_PATTERNS: List[Tuple[Tuple[str, ...], str]] = [
     (("inference", "data"), "Use `test.data` instead of `inference.data`."),
@@ -81,7 +82,8 @@ def main() -> int:
                 errors.append(f"{config_path}: legacy key `{dotted}` found. {message}")
 
         try:
-            load_config(config_path)
+            cfg = load_config(config_path)
+            validate_runtime_coherence(cfg)
         except Exception as exc:  # pragma: no cover - exact exception type may vary.
             errors.append(f"{config_path}: failed to load ({type(exc).__name__}: {exc})")
 

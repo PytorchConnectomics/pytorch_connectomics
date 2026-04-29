@@ -5,7 +5,7 @@ import torch
 
 from connectomics.config import Config, save_config
 from connectomics.config.schema.inference import EvaluationConfig
-from connectomics.training.lightning.utils import setup_config
+from connectomics.runtime.cli import setup_config
 from scripts.main import (
     _is_test_evaluation_enabled,
     has_assigned_test_shard,
@@ -168,7 +168,10 @@ def test_maybe_enable_independent_test_sharding_uses_rank_env_for_multi_volume_t
 
     monkeypatch.setenv("SLURM_PROCID", "2")
     monkeypatch.setenv("SLURM_NTASKS", "4")
-    monkeypatch.setattr("scripts.main.resolve_test_image_paths", lambda _cfg: ["a", "b", "c", "d"])
+    monkeypatch.setattr(
+        "connectomics.runtime.sharding.resolve_test_image_paths",
+        lambda _cfg: ["a", "b", "c", "d"],
+    )
 
     changed = maybe_enable_independent_test_sharding(args, cfg)
 
@@ -199,7 +202,10 @@ def test_maybe_enable_independent_test_sharding_skips_single_volume_tests(tmp_pa
 
     monkeypatch.setenv("SLURM_PROCID", "0")
     monkeypatch.setenv("SLURM_NTASKS", "4")
-    monkeypatch.setattr("scripts.main.resolve_test_image_paths", lambda _cfg: ["only_one"])
+    monkeypatch.setattr(
+        "connectomics.runtime.sharding.resolve_test_image_paths",
+        lambda _cfg: ["only_one"],
+    )
 
     changed = maybe_enable_independent_test_sharding(args, cfg)
 
@@ -215,6 +221,9 @@ def test_has_assigned_test_shard_returns_false_for_empty_slice(tmp_path, monkeyp
     args.shard_id = 3
     args.num_shards = 4
 
-    monkeypatch.setattr("scripts.main.resolve_test_image_paths", lambda _cfg: ["vol0"])
+    monkeypatch.setattr(
+        "connectomics.runtime.sharding.resolve_test_image_paths",
+        lambda _cfg: ["vol0"],
+    )
 
     assert has_assigned_test_shard(cfg, args) is False

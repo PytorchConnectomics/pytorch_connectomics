@@ -18,8 +18,6 @@ from .runtime import cleanup_run_directory, modify_checkpoint_state, setup_run_d
 from .trainer import create_trainer
 from .utils import (
     extract_best_score_from_checkpoint,
-    parse_args,
-    setup_config,
     setup_seed_everything,
 )
 
@@ -38,7 +36,5 @@ __all__ = [
     "cleanup_run_directory",
     "modify_checkpoint_state",
     "setup_seed_everything",
-    "parse_args",
-    "setup_config",
     "extract_best_score_from_checkpoint",
 ]

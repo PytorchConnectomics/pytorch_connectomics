@@ -26,38 +26,12 @@ from pytorch_lightning.plugins.environments import LightningEnvironment
 from pytorch_lightning.strategies import DDPStrategy
 
 from ...config import Config
-from ...config.schema import (
-    DataConfig,
-    InferenceConfig,
-    ModelConfig,
-    MonitorConfig,
-    OptimizationConfig,
-    SystemConfig,
-    TestConfig,
-    TuneConfig,
-)
+from ...runtime.torch_safe_globals import register_torch_safe_globals
 from .callbacks import EMAWeightsCallback, ValidationReseedingCallback, VisualizationCallback
 
 _log = logging.getLogger(__name__)
 
-# Register safe globals for PyTorch 2.6+ checkpoint loading
-# This allows our Config class to be unpickled from Lightning checkpoints
-try:
-    _safe_classes = [
-        Config,
-        SystemConfig,
-        ModelConfig,
-        DataConfig,
-        OptimizationConfig,
-        MonitorConfig,
-        InferenceConfig,
-        TestConfig,
-        TuneConfig,
-    ]
-    torch.serialization.add_safe_globals(_safe_classes)
-except AttributeError:
-    # PyTorch < 2.6 doesn't have add_safe_globals
-    pass
+register_torch_safe_globals()
 
 
 def create_trainer(
