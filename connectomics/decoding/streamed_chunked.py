@@ -21,7 +21,7 @@ from ..inference.chunked import (
 from ..inference.lazy import get_lazy_image_reference_shape, lazy_predict_region
 from ..inference.output import apply_prediction_transform
 from .decoders.segmentation import decode_affinity_cc
-from .pipeline import normalize_decode_modes
+from .pipeline import normalize_decode_modes, resolve_decode_modes_from_cfg
 
 logger = logging.getLogger(__name__)
 
@@ -51,7 +51,7 @@ class UnionFind:
 def _resolve_decode_affinity_cc_kwargs(cfg: Any) -> dict[str, Any]:
     steps = [
         step
-        for step in normalize_decode_modes(getattr(cfg, "decoding", None) or [])
+        for step in normalize_decode_modes(resolve_decode_modes_from_cfg(cfg) or [])
         if step.enabled
     ]
     if len(steps) != 1 or steps[0].name != "decode_affinity_cc":

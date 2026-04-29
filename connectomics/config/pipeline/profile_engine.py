@@ -608,8 +608,8 @@ _LIST_REFERENCE_FAMILIES: List[Tuple[str, Tuple[str, ...], str, str]] = [
     (
         "decoding_templates",
         (_STAGE_ROOT, _STAGE_DEFAULT, _STAGE_TUNE, _STAGE_TEST),
-        "decoding",
-        "decoding",
+        "decoding.steps",
+        "steps",
     ),
 ]
 

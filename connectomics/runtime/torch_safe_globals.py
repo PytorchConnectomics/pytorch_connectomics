@@ -18,6 +18,8 @@ SCHEMA_MODULES = (
     "connectomics.config.schema.optimization",
     "connectomics.config.schema.monitor",
     "connectomics.config.schema.inference",
+    "connectomics.config.schema.decoding",
+    "connectomics.config.schema.evaluation",
     "connectomics.config.schema.stages",
     "connectomics.config.schema.root",
 )

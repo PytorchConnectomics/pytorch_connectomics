@@ -60,7 +60,7 @@ def test_run_tuning_uses_intermediate_only_inference_overrides(monkeypatch, tmp_
     cfg.inference.save_prediction.output_path = str(tmp_path / "results")
     cfg.inference.save_prediction.enabled = False
     cfg.inference.save_prediction.cache_suffix = "_x1_prediction.h5"
-    cfg.decoding = [{"name": "decode_semantic", "kwargs": {"threshold": 0.8}}]
+    cfg.decoding.steps = [{"name": "decode_semantic", "kwargs": {"threshold": 0.8}}]
     cfg.evaluation.enabled = True
     cfg.data.val.image = str(tmp_path / "images" / "volume_0_input.h5")
     cfg.data.val.label = str(tmp_path / "labels" / "volume_0_label.h5")
@@ -118,7 +118,7 @@ def test_run_tuning_uses_intermediate_only_inference_overrides(monkeypatch, tmp_
 
     assert cfg.inference.save_prediction.enabled is False
     assert cfg.inference.save_prediction.cache_suffix == "_x1_prediction.h5"
-    assert cfg.decoding == [{"name": "decode_semantic", "kwargs": {"threshold": 0.8}}]
+    assert cfg.decoding.steps == [{"name": "decode_semantic", "kwargs": {"threshold": 0.8}}]
     assert cfg.evaluation.enabled is True
 
     assert len(captured["predictions"]) == 1
@@ -250,7 +250,7 @@ def test_run_tuning_logs_existing_best_params_yaml(monkeypatch, tmp_path, caplog
 def test_load_and_apply_best_params_prefers_checkpoint_aware_file(tmp_path):
     cfg = Config()
     cfg.inference.save_prediction.output_path = str(tmp_path / "results")
-    cfg.decoding = [{"name": "decode_waterz", "kwargs": {"thresholds": 0.4}}]
+    cfg.decoding.steps = [{"name": "decode_waterz", "kwargs": {"thresholds": 0.4}}]
 
     tuning_dir = tmp_path / "tuning"
     tuning_dir.mkdir(parents=True, exist_ok=True)
@@ -270,14 +270,14 @@ def test_load_and_apply_best_params_prefers_checkpoint_aware_file(tmp_path):
 
     updated = load_and_apply_best_params(cfg, checkpoint_path="checkpoint.ckpt")
 
-    assert updated.decoding[0]["kwargs"]["thresholds"] == 0.5
-    assert updated.decoding[0]["kwargs"]["dust_merge"] is False
+    assert updated.decoding.steps[0]["kwargs"]["thresholds"] == 0.5
+    assert updated.decoding.steps[0]["kwargs"]["dust_merge"] is False
 
 
 def test_load_and_apply_best_params_falls_back_to_legacy_filename(tmp_path):
     cfg = Config()
     cfg.inference.save_prediction.output_path = str(tmp_path / "results")
-    cfg.decoding = [{"name": "decode_waterz", "kwargs": {"thresholds": 0.4}}]
+    cfg.decoding.steps = [{"name": "decode_waterz", "kwargs": {"thresholds": 0.4}}]
 
     tuning_dir = tmp_path / "tuning"
     tuning_dir.mkdir(parents=True, exist_ok=True)
@@ -296,7 +296,7 @@ def test_load_and_apply_best_params_falls_back_to_legacy_filename(tmp_path):
 
     updated = load_and_apply_best_params(cfg, checkpoint_path="checkpoint.ckpt")
 
-    assert updated.decoding[0]["kwargs"]["thresholds"] == 0.6
+    assert updated.decoding.steps[0]["kwargs"]["thresholds"] == 0.6
 
 
 def test_objective_returns_bad_value_when_standard_trial_times_out(monkeypatch):

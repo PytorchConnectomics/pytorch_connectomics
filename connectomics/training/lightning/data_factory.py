@@ -580,8 +580,8 @@ def create_datamodule(
     test_data_dicts = None
     if mode == "test":
         split = cfg.data.test
-        # Skip image validation when using saved_prediction_path (decode-only)
-        _saved = getattr(getattr(cfg, "inference", None), "saved_prediction_path", "")
+        # Skip image validation when using decoding.input_prediction_path (decode-only)
+        _saved = getattr(getattr(cfg, "decoding", None), "input_prediction_path", "")
         if not split.image and not _saved:
             raise ValueError(
                 "Test mode requires data.test.image to be set.\n"
@@ -591,12 +591,12 @@ def create_datamodule(
             logger.info(f"Creating test dataset from: {split.image}")
             test_image_paths = expand_file_paths(split.image)
         else:
-            # Decode-only: derive filename from saved_prediction_path
+            # Decode-only: derive filename from decoding.input_prediction_path
             from pathlib import Path
 
             pred_stem = Path(_saved).stem if _saved else "decoded"
             test_image_paths = [pred_stem]
-            logger.info(f"Decode-only mode: using filename from saved_prediction_path: {pred_stem}")
+            logger.info(f"Decode-only mode: using filename from input_prediction_path: {pred_stem}")
 
         test_label_paths = expand_file_paths(split.label) if split.label else None
         test_label_aux_paths = expand_file_paths(split.label_aux) if split.label_aux else None

@@ -71,8 +71,8 @@ def test_validate_config_rejects_unknown_chunk_output_mode():
 
 def test_chunked_output_contract_allows_later_decode_postprocessing():
     cfg = Config()
-    cfg.inference.postprocessing.enabled = True
-    cfg.inference.postprocessing.output_transpose = [2, 1, 0]
+    cfg.decoding.postprocessing.enabled = True
+    cfg.decoding.postprocessing.output_transpose = [2, 1, 0]
 
     _validate_chunked_output_contract(cfg)
 

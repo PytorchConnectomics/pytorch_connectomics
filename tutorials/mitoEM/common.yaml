@@ -1,5 +1,5 @@
 _base_:
-  - ../../connectomics/config/all_profiles.yaml
+- ../../connectomics/config/all_profiles.yaml
 
 description: MitoEM 3D mitochondria instance segmentation with MedNeXt multi-head (aff_r1 + aff_r5 + sdt)
 
@@ -36,21 +36,21 @@ default:
         target_slice: "6:7"
     loss:
       losses:
-        - function: PerChannelBCEWithLogitsLoss
-          weight: 1.0
-          pred_head: aff_r1
-          target_slice: "0:3"
-          kwargs: {auto_pos_weight: true}
-        - function: PerChannelBCEWithLogitsLoss
-          weight: 1.0
-          pred_head: aff_r5
-          target_slice: "3:6"
-          kwargs: {auto_pos_weight: true}
-        - function: SmoothL1Loss
-          weight: 10.0
-          pred_head: sdt
-          target_slice: "6:7"
-          kwargs: {tanh: true}
+      - function: PerChannelBCEWithLogitsLoss
+        weight: 1.0
+        pred_head: aff_r1
+        target_slice: "0:3"
+        kwargs: {auto_pos_weight: true}
+      - function: PerChannelBCEWithLogitsLoss
+        weight: 1.0
+        pred_head: aff_r5
+        target_slice: "3:6"
+        kwargs: {auto_pos_weight: true}
+      - function: SmoothL1Loss
+        weight: 10.0
+        pred_head: sdt
+        target_slice: "6:7"
+        kwargs: {tanh: true}
       loss_balancing:
         strategy: uncertainty
   data:
@@ -62,14 +62,14 @@ default:
       # Keep precomputed skeleton caches beside each label file.
       # EM30-H and EM30-R share basenames, so a single shared cache_dir would collide.
       targets:
-        - name: affinity
-          kwargs:
-            offsets: ["0-0-1", "0-1-0", "1-0-0", "0-0-5", "0-5-0", "5-0-0"]
-            affinity_mode: deepem
-        - name: skeleton_aware_edt
-          kwargs:
-            alpha: 0.8
-            bg_value: -1.0
+      - name: affinity
+        kwargs:
+          offsets: ["0-0-1", "0-1-0", "1-0-0", "0-0-5", "0-5-0", "5-0-0"]
+          affinity_mode: deepem
+      - name: skeleton_aware_edt
+        kwargs:
+          alpha: 0.8
+          bg_value: -1.0
     dataloader:
       patch_size: [32, 256, 256]
       batch_size: 1
@@ -95,12 +95,13 @@ default:
       flip_axes: all
       ensemble_mode: min
       channel_activations:
-        - {channels: ":", activation: sigmoid}
+      - {channels: ":", activation: sigmoid}
     save_prediction:
       enabled: true
       storage_dtype: float32
 
   decoding:
+    steps:
     - name: decode_distance_watershed
       kwargs:
         distance_channels: [6]
@@ -126,7 +127,8 @@ train:
   monitor:
     logging:
       scalar:
-        loss: [train_loss_total_epoch, val_loss_total, train_loss_term_0_weighted, train_loss_term_1_weighted, train_loss_term_2_weighted]
+        loss: [train_loss_total_epoch, val_loss_total, train_loss_term_0_weighted, train_loss_term_1_weighted,
+          train_loss_term_2_weighted]
         loss_every_n_steps: 50
       images:
         head: aff_r1

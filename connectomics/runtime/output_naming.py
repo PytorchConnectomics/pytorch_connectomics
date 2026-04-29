@@ -142,7 +142,10 @@ def format_decode_tag(cfg: Config) -> str:
             return [format(value, "g")]
         return [str(value)]
 
-    decoding = getattr(cfg, "decoding", None)
+    decoding_cfg = getattr(cfg, "decoding", None)
+    if decoding_cfg is None:
+        return ""
+    decoding = getattr(decoding_cfg, "steps", None)
     if not decoding:
         return ""
 

@@ -520,7 +520,7 @@ class _SavedPredictionPathCroppingModule:
         self.device = torch.device("cpu")
         self.cfg = Config()
         self.cfg.inference.crop_pad = [1, 2, 3]
-        self.cfg.inference.saved_prediction_path = "/tmp/raw_affinity_prediction.h5"
+        self.cfg.decoding.input_prediction_path = "/tmp/raw_affinity_prediction.h5"
         self.inference_manager = _DummyInferenceManager()
 
     def _get_runtime_inference_config(self):
@@ -540,7 +540,7 @@ class _SavedPredictionPathCroppingModule:
         return True
 
 
-def test_run_test_step_crops_saved_prediction_path_before_decode(monkeypatch):
+def test_run_test_step_crops_input_prediction_path_before_decode(monkeypatch):
     module = _SavedPredictionPathCroppingModule()
     batch = {
         "image": torch.zeros((1, 1, 6, 8, 10), dtype=torch.float32),

@@ -2,7 +2,7 @@ experiment_name: mednext_snemi_sdt
 description: SNEMI3D neuron affinity + SDT learning (MedNeXt-S, 9-channel affinity + 1-channel SDT)
 
 _base_:
-  - ../../connectomics/config/all_profiles.yaml
+- ../../connectomics/config/all_profiles.yaml
 
 default:
   pipeline_profile: aff9_sdt
@@ -18,14 +18,14 @@ default:
       resolution: [30, 6, 6]
       erosion: 1
       targets:
-        - name: affinity
-          kwargs:
-            offsets: ["0-0-1", "0-1-0", "1-0-0", "0-0-5", "0-5-0", "5-0-0", "0-0-9", "0-9-0", "9-0-0"]
-            affinity_mode: deepem
-        - name: skeleton_aware_edt
-          kwargs:
-            alpha: 0.8
-            bg_value: -1.0
+      - name: affinity
+        kwargs:
+          offsets: ["0-0-1", "0-1-0", "1-0-0", "0-0-5", "0-5-0", "5-0-0", "0-0-9", "0-9-0", "9-0-0"]
+          affinity_mode: deepem
+      - name: skeleton_aware_edt
+        kwargs:
+          alpha: 0.8
+          bg_value: -1.0
 
     dataloader:
       profile: cached
@@ -49,18 +49,19 @@ default:
         #select_channel: [0, 1, 2, 9]
     # crop_pad + affinity_crop[(9,0),(9,0),(9,0)] = pad_size [16,80,80]
     crop_pad: [7, 16, 71, 80, 71, 80]
-    postprocessing:
-      enabled: true
     save_prediction:
       enabled: true
 
   decoding:
+    steps:
     - template: decoding_waterz
       kwargs:
         thresholds: 0.4
         merge_function: aff85_his256
         aff_threshold: [0.001, 0.999]
 
+    postprocessing:
+      enabled: true
   evaluation:
     enabled: true
     metrics: [adapted_rand]
@@ -77,7 +78,7 @@ train:
   optimization:
     profile: warmup_cosine_lr
     max_epochs: 200
-    n_steps_per_epoch: 1000    
+    n_steps_per_epoch: 1000
   monitor:
     logging:
       scalar:
@@ -105,7 +106,6 @@ test:
       image: test-input.tif
       label: test-labels.h5
       resolution: [30, 6, 6]
-      
 # ============================================================================
 # Parameter tuning for waterz agglomeration thresholds (--mode tune)
 # ============================================================================

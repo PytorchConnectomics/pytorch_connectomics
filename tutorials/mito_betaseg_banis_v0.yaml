@@ -1,8 +1,9 @@
 _base_:
-  - ../connectomics/config/all_profiles.yaml
+- ../connectomics/config/all_profiles.yaml
 
 experiment_name: mednext_betaseg_banis_v0_repro
-description: BetaSeg 3D mitochondria — faithful reproduction of BANIS mito branch (single-MedNeXt-S, k=3, aff_r1+aff_r10+sdt, plain BCE, MSE, no auto_pos_weight, no Dice, batch=8, 20k steps)
+description: BetaSeg 3D mitochondria — faithful reproduction of BANIS mito branch (single-MedNeXt-S, k=3,
+  aff_r1+aff_r10+sdt, plain BCE, MSE, no auto_pos_weight, no Dice, batch=8, 20k steps)
 
 default:
   system:
@@ -40,20 +41,20 @@ default:
       losses:
         # BANIS: single binary_cross_entropy_with_logits over all 6 affinity
         # channels, no per-channel pos_weight, no Dice.
-        - function: BCEWithLogitsLoss
-          weight: 1.0
-          pred_head: aff_r1
-          target_slice: "0:3"
-        - function: BCEWithLogitsLoss
-          weight: 1.0
-          pred_head: aff_r10
-          target_slice: "3:6"
+      - function: BCEWithLogitsLoss
+        weight: 1.0
+        pred_head: aff_r1
+        target_slice: "0:3"
+      - function: BCEWithLogitsLoss
+        weight: 1.0
+        pred_head: aff_r10
+        target_slice: "3:6"
         # BANIS: mse_loss(tanh(pred), sdt_target), weight = sdt_loss_weight = 1.0.
-        - function: WeightedMSELoss
-          weight: 1.0
-          pred_head: sdt
-          target_slice: "6:7"
-          kwargs: {tanh: true}
+      - function: WeightedMSELoss
+        weight: 1.0
+        pred_head: sdt
+        target_slice: "6:7"
+        kwargs: {tanh: true}
   data:
     image_transform:
       normalize: "divide-255"
@@ -63,14 +64,14 @@ default:
       # source-index affinity_mode).
       cache_dir: datasets/betaSeg
       targets:
-        - name: affinity
-          kwargs:
-            offsets: ["0-0-1", "0-1-0", "1-0-0", "0-0-10", "0-10-0", "10-0-0"]
-            affinity_mode: banis
-        - name: skeleton_aware_edt
-          kwargs:
-            alpha: 0.8
-            bg_value: -1.0
+      - name: affinity
+        kwargs:
+          offsets: ["0-0-1", "0-1-0", "1-0-0", "0-0-10", "0-10-0", "10-0-0"]
+          affinity_mode: banis
+      - name: skeleton_aware_edt
+        kwargs:
+          alpha: 0.8
+          bg_value: -1.0
     dataloader:
       patch_size: [128, 128, 128]
       # BANIS-mito justfile uses --batch_size 8 --devices=1 (global batch = 8).
@@ -129,15 +130,14 @@ default:
       flip_axes: all
       ensemble_mode: min
       channel_activations:
-        - {channels: "0:6", activation: sigmoid}
-        - {channels: "6:7", activation: tanh}
+      - {channels: "0:6", activation: sigmoid}
+      - {channels: "6:7", activation: tanh}
     crop_pad: [64, 54, 64, 54, 64, 54]
-    postprocessing:
-      enabled: true
     save_prediction:
       enabled: true
 
   decoding:
+    steps:
     - name: decode_distance_watershed
       kwargs:
         distance_channels: [6]
@@ -146,6 +146,8 @@ default:
         min_instance_size: 50
         use_fast_edt: true
         edt_parallel: 8
+    postprocessing:
+      enabled: true
   evaluation:
     enabled: true
     metrics: [adapted_rand]

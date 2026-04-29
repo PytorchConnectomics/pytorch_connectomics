@@ -1,8 +1,9 @@
 experiment_name: rsunet_snemi_lee2017_modern
-description: SNEMI3D neuron affinity learning (2017-style short-range setup with modern optimization and stability tricks)
+description: SNEMI3D neuron affinity learning (2017-style short-range setup with modern optimization and
+  stability tricks)
 
 _base_:
-  - ../../connectomics/config/all_profiles.yaml
+- ../../connectomics/config/all_profiles.yaml
 
 default:
   pipeline_profile: aff12
@@ -38,12 +39,11 @@ default:
     # Crop the padded prediction so the later selected-channel affinity_mode=deepem
     # crop lands back on the original image support instead of shrinking the saved volume.
     crop_pad: [7, 8, 127, 128, 127, 128]
-    postprocessing:
-      enabled: true
     save_prediction:
       enabled: true
 
   decoding:
+    steps:
     - template: decoding_waterz
       kwargs:
         thresholds: 0.5
@@ -60,6 +60,8 @@ default:
         one_sided_min_size: 100
         affinity_threshold: 0.0
 
+    postprocessing:
+      enabled: true
   evaluation:
     enabled: true
     metrics: [adapted_rand]
@@ -74,7 +76,7 @@ train:
   optimization:
     profile: warmup_cosine_lr
     max_epochs: 100
-    n_steps_per_epoch: 1000    
+    n_steps_per_epoch: 1000
   monitor:
     logging:
       scalar:
@@ -85,7 +87,7 @@ train:
         num_slices: 2
     checkpoint:
       save_top_k: 3
-      monitor: train_loss_total_epoch      
+      monitor: train_loss_total_epoch
 
 test:
   data:

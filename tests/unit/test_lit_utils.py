@@ -336,7 +336,7 @@ def test_tuning_best_params_filename_includes_output_head_identity():
 
 def test_format_decode_tag_includes_all_decoding_parameters():
     cfg = Config()
-    cfg.decoding = [
+    cfg.decoding.steps = [
         {
             "name": "decode_waterz",
             "kwargs": {
@@ -354,7 +354,7 @@ def test_format_decode_tag_includes_all_decoding_parameters():
 
 def test_format_decode_tag_gates_dust_and_branch_parameter_groups():
     cfg = Config()
-    cfg.decoding = [
+    cfg.decoding.steps = [
         {
             "name": "decode_waterz",
             "kwargs": {
@@ -379,7 +379,7 @@ def test_format_decode_tag_gates_dust_and_branch_parameter_groups():
 
 def test_format_decode_tag_skips_disabled_dust_and_branch_parameter_groups():
     cfg = Config()
-    cfg.decoding = [
+    cfg.decoding.steps = [
         {
             "name": "decode_waterz",
             "kwargs": {

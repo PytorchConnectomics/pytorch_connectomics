@@ -1,8 +1,9 @@
 _base_:
-  - ../../connectomics/config/all_profiles.yaml
+- ../../connectomics/config/all_profiles.yaml
 
 experiment_name: neuron_nisb_base_9nm_banis_erosion2_repro
-description: NISB base neuron instance segmentation, BANIS-style reproduction with erosion=2 (9nm, 6-channel affinity, MedNeXt-S)
+description: NISB base neuron instance segmentation, BANIS-style reproduction with erosion=2 (9nm, 6-channel
+  affinity, MedNeXt-S)
 
 default:
   system:
@@ -20,8 +21,8 @@ default:
     loss:
       deep_supervision: false
       losses:
-        - function: WeightedBCEWithLogitsLoss
-          weight: 1.0
+      - function: WeightedBCEWithLogitsLoss
+        weight: 1.0
     mednext:
       size: S
       kernel_size: 3
@@ -44,11 +45,10 @@ default:
     label_transform:
       erosion: 2
       targets:
-        - name: affinity
-          kwargs:
-            offsets:
-              ["0-0-1", "0-1-0", "1-0-0", "0-0-10", "0-10-0", "10-0-0"]
-            affinity_mode: banis
+      - name: affinity
+        kwargs:
+          offsets: ["0-0-1", "0-1-0", "1-0-0", "0-0-10", "0-10-0", "10-0-0"]
+          affinity_mode: banis
     augmentation:
       # Approximate the BANIS augmentation defaults:
       # drop_slice_prob=0.05, shift_slice_prob=0.05, intensity_aug=true,
@@ -109,13 +109,14 @@ default:
     test_time_augmentation:
       enabled: false
       channel_activations:
-        - {channels: ":", activation: sigmoid}
+      - {channels: ":", activation: sigmoid}
     save_prediction:
       enabled: true
       storage_dtype: float32
       output_formats: [h5]
 
   decoding:
+    steps:
     - name: decode_affinity_cc
       kwargs:
         threshold: 0.5
@@ -123,7 +124,7 @@ default:
   evaluation:
     enabled: true
     metrics:
-      - adapted_rand
+    - adapted_rand
 
 train:
   system:

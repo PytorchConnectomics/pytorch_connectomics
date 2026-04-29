@@ -2,7 +2,7 @@
 
 Subpackages:
     decoders/    - Segmentation decoder implementations
-    postprocessing/ - Post-processing utilities for segmentation refinement
+    postprocess.py - Post-processing utilities for segmentation refinement
     tuning/      - Hyperparameter tuning for decoding parameters
 """
 
@@ -18,7 +18,7 @@ from .pipeline import (
 )
 
 # --- Post-processing & Utilities ---
-from .postprocessing import (
+from .postprocess import (
     add_masks,
     apply_binary_postprocessing,
     binarize_and_median,
