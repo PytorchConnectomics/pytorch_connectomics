@@ -1,4 +1,6 @@
 import argparse
+import subprocess
+import sys
 from pathlib import Path
 
 import numpy as np
@@ -6,6 +8,14 @@ import pytest
 
 from connectomics.config import Config, save_config
 from connectomics.config.schema.stages import TuneConfig
+from connectomics.runtime.output_naming import (
+    format_decode_tag,
+    resolve_prediction_cache_suffix,
+    tta_cache_suffix,
+    tta_cache_suffix_candidates,
+    tuning_best_params_filename,
+    tuning_best_params_filename_candidates,
+)
 from connectomics.training.lightning.data_factory import _calculate_validation_steps_per_epoch
 from connectomics.training.lightning.path_utils import (
     expand_file_paths as canonical_expand_file_paths,
@@ -13,14 +23,10 @@ from connectomics.training.lightning.path_utils import (
 from connectomics.training.lightning.utils import (
     expand_file_paths,
     extract_best_score_from_checkpoint,
-    format_decode_tag,
-    resolve_prediction_cache_suffix,
     setup_config,
-    tta_cache_suffix,
-    tta_cache_suffix_candidates,
-    tuning_best_params_filename,
-    tuning_best_params_filename_candidates,
 )
+
+REPO_ROOT = Path(__file__).resolve().parents[2]
 
 
 def _make_args(
@@ -76,6 +82,22 @@ def test_setup_config_applies_overrides_and_fast_dev_run(tmp_path):
     assert updated.optimization.max_epochs == 5
     assert updated.data.dataloader.batch_size == 2
     assert updated.system.num_workers == 0  # forced by fast-dev-run
+
+
+def test_output_naming_import_does_not_import_lightning():
+    code = (
+        "import sys\n"
+        "import connectomics.runtime.output_naming\n"
+        "print(any(name.startswith('connectomics.training.lightning') for name in sys.modules))\n"
+    )
+
+    output = subprocess.check_output(
+        [sys.executable, "-c", code],
+        cwd=REPO_ROOT,
+        text=True,
+    ).strip()
+
+    assert output == "False"
 
 
 def test_setup_config_enables_nnunet_preprocess_from_cli_switch(tmp_path):
