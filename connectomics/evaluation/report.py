@@ -11,6 +11,7 @@ import numpy as np
 import torch
 import torchmetrics
 
+from ..decoding.experiment_log import log_decode_experiment
 from ..runtime.output_naming import final_prediction_output_tag
 from .metrics import (
     align_metric_tensors,
@@ -181,8 +182,14 @@ def save_metrics_to_file(module, metrics_dict: Dict[str, Any]) -> None:
     except Exception as exc:
         logger.warning("Failed to save metrics to file: %s", exc)
 
-    if hasattr(module, "_log_decode_experiment"):
-        module._log_decode_experiment(output_dir, volume_name, timestamp, metrics_dict)
+    log_decode_experiment(
+        cfg=module.cfg,
+        output_dir=output_dir,
+        volume_name=volume_name,
+        timestamp=timestamp,
+        metrics_dict=metrics_dict,
+        checkpoint_path=_prediction_checkpoint_path(module),
+    )
 
 
 def _persist_metrics(module, metrics_dict: Dict[str, Any]) -> None:

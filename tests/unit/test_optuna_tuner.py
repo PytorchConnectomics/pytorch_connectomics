@@ -12,9 +12,8 @@ from connectomics.decoding.tuning.optuna_tuner import (
     OptunaDecodingTuner,
     TrialEvaluationTimeoutError,
     _get_trial_process_context,
-    load_and_apply_best_params,
-    run_tuning,
 )
+from connectomics.runtime.tune_runner import load_and_apply_best_params, run_tuning
 
 
 class _DummyModel:
@@ -100,13 +99,13 @@ def test_run_tuning_uses_intermediate_only_inference_overrides(monkeypatch, tmp_
         def optimize(self):
             return _FakeStudy()
 
-    monkeypatch.setattr("connectomics.decoding.tuning.optuna_tuner.OPTUNA_AVAILABLE", True)
+    monkeypatch.setattr("connectomics.runtime.tune_runner.OPTUNA_AVAILABLE", True)
     monkeypatch.setattr(
         "connectomics.training.lightning.create_datamodule",
         lambda cfg, mode="tune": {"cfg": cfg, "mode": mode},
     )
     monkeypatch.setattr("connectomics.data.io.read_volume", lambda path: loaded_arrays[path])
-    monkeypatch.setattr("connectomics.decoding.tuning.optuna_tuner.OptunaDecodingTuner", _FakeTuner)
+    monkeypatch.setattr("connectomics.runtime.tune_runner.OptunaDecodingTuner", _FakeTuner)
 
     run_tuning(model, trainer, cfg, checkpoint_path="checkpoint.ckpt")
 
@@ -169,13 +168,13 @@ def test_run_tuning_ignores_stale_test_prediction_cache_when_tuning(monkeypatch,
         def optimize(self):
             return _FakeStudy()
 
-    monkeypatch.setattr("connectomics.decoding.tuning.optuna_tuner.OPTUNA_AVAILABLE", True)
+    monkeypatch.setattr("connectomics.runtime.tune_runner.OPTUNA_AVAILABLE", True)
     monkeypatch.setattr(
         "connectomics.training.lightning.create_datamodule",
         lambda cfg, mode="tune": {"cfg": cfg, "mode": mode},
     )
     monkeypatch.setattr("connectomics.data.io.read_volume", lambda path: loaded_arrays[path])
-    monkeypatch.setattr("connectomics.decoding.tuning.optuna_tuner.OptunaDecodingTuner", _FakeTuner)
+    monkeypatch.setattr("connectomics.runtime.tune_runner.OptunaDecodingTuner", _FakeTuner)
 
     run_tuning(model, trainer, cfg, checkpoint_path="checkpoint.ckpt")
 
@@ -207,7 +206,7 @@ def test_run_tuning_requires_val_labels_in_tune_mode(monkeypatch, tmp_path):
         )
     )
 
-    monkeypatch.setattr("connectomics.decoding.tuning.optuna_tuner.OPTUNA_AVAILABLE", True)
+    monkeypatch.setattr("connectomics.runtime.tune_runner.OPTUNA_AVAILABLE", True)
     monkeypatch.setattr(
         "connectomics.training.lightning.create_datamodule",
         lambda cfg, mode="tune": {"cfg": cfg, "mode": mode},
@@ -236,9 +235,9 @@ def test_run_tuning_logs_existing_best_params_yaml(monkeypatch, tmp_path, caplog
     model = _DummyModel(cfg)
     trainer = _DummyTrainer()
 
-    monkeypatch.setattr("connectomics.decoding.tuning.optuna_tuner.OPTUNA_AVAILABLE", True)
+    monkeypatch.setattr("connectomics.runtime.tune_runner.OPTUNA_AVAILABLE", True)
 
-    with caplog.at_level(logging.INFO, logger="connectomics.decoding.tuning.optuna_tuner"):
+    with caplog.at_level(logging.INFO):
         run_tuning(model, trainer, cfg, checkpoint_path="checkpoint.ckpt")
 
     assert "BEST PARAMETERS" in caplog.text
