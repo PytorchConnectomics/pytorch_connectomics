@@ -1,4 +1,4 @@
-"""Pre-flight validation checks for PyTorch Connectomics training runs."""
+"""Pre-flight validation checks for training runs."""
 
 from __future__ import annotations
 
@@ -11,19 +11,10 @@ import torch
 
 
 def preflight_check(cfg) -> list:
-    """
-    Run pre-flight checks before training.
-
-    Args:
-        cfg: Configuration object
-
-    Returns:
-        List of issues found (empty if all good)
-    """
+    """Run pre-flight checks before training."""
     issues = []
 
     def _is_virtual_data_path(path_value: str) -> bool:
-        """Return True for non-filesystem paths resolved later at runtime."""
         return isinstance(path_value, str) and path_value.startswith("random://")
 
     def _iter_data_paths(path_value):
@@ -43,42 +34,35 @@ def preflight_check(cfg) -> list:
             elif not Path(raw_path).exists():
                 issues.append(f"ERROR: Training {kind} not found: {raw_path}")
 
-    # Check training image/label files exist (supports glob patterns and lists)
     _validate_training_paths(cfg.data.train.image, "image")
     _validate_training_paths(cfg.data.train.label, "label")
 
-    # Check GPU availability
     if cfg.system.num_gpus > 0 and not torch.cuda.is_available():
         issues.append(f"ERROR: {cfg.system.num_gpus} GPU(s) requested but CUDA not available")
 
-    # Check GPU count
     if cfg.system.num_gpus > torch.cuda.device_count():
         issues.append(
             f"ERROR: {cfg.system.num_gpus} GPU(s) requested but only "
             f"{torch.cuda.device_count()} available"
         )
 
-    # Estimate memory requirements
     if torch.cuda.is_available() and cfg.system.num_gpus > 0:
         try:
-            # Rough estimate: batch_size * patch_size * channels * 4 bytes * 10 (model overhead)
             patch_volume = np.prod(cfg.data.dataloader.patch_size)
             estimated_gb = (
                 cfg.data.dataloader.batch_size * patch_volume * cfg.model.in_channels * 4 * 10 / 1e9
             )
-
             available_gb = torch.cuda.get_device_properties(0).total_memory / 1e9
 
-            if estimated_gb > available_gb * 0.8:  # Leave 20% headroom
+            if estimated_gb > available_gb * 0.8:
                 issues.append(
                     "WARNING: Estimated memory ({estimated:.1f}GB) may exceed available "
                     "({available:.1f}GB)".format(estimated=estimated_gb, available=available_gb)
                 )
                 issues.append("   Tip: Consider reducing batch_size or patch_size")
         except Exception:
-            pass  # Skip memory estimation if it fails
+            pass
 
-    # Check patch size vs expected volume size
     if cfg.data.dataloader.patch_size:
         patch_size = cfg.data.dataloader.patch_size
         if min(patch_size) < 16:
@@ -88,9 +72,9 @@ def preflight_check(cfg) -> list:
         if max(patch_size) > 256:
             issues.append(f"WARNING: Very large patch size: {patch_size} (may cause GPU OOM)")
 
-    # Check learning rate
-    if hasattr(cfg, "optimizer") and hasattr(cfg.optimizer, "lr"):
-        lr = cfg.optimizer.get("lr", 1e-4)
+    optimizer_cfg = getattr(getattr(cfg, "optimization", None), "optimizer", None)
+    lr = getattr(optimizer_cfg, "lr", None)
+    if lr is not None:
         if lr > 1e-2:
             issues.append(f"WARNING: Learning rate very high: {lr} (may cause instability)")
         if lr < 1e-6:
@@ -99,8 +83,8 @@ def preflight_check(cfg) -> list:
     return issues
 
 
-def print_preflight_issues(issues: list):
-    """Print preflight check issues."""
+def print_preflight_issues(issues: list) -> None:
+    """Print preflight check issues and optionally stop interactive runs."""
     if not issues:
         return
 
@@ -111,21 +95,21 @@ def print_preflight_issues(issues: list):
         print(f"  {issue}")
     print("=" * 60 + "\n")
 
-    # Check if running in non-interactive environment (SLURM, cluster, etc.)
     import sys
 
     is_non_interactive = not sys.stdin.isatty() or os.environ.get("SLURM_JOB_ID") is not None
-
     if is_non_interactive:
         print("Non-interactive environment detected. Continuing automatically...\n")
         return
 
-    # Ask user if they want to continue
     try:
         response = input("Continue anyway? [y/N]: ").strip().lower()
         if response not in ["y", "yes"]:
             print("Aborted by user")
-            exit(1)
-    except KeyboardInterrupt:
+            raise SystemExit(1)
+    except KeyboardInterrupt as exc:
         print("\nAborted by user")
-        exit(1)
+        raise SystemExit(1) from exc
+
+
+__all__ = ["preflight_check", "print_preflight_issues"]

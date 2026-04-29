@@ -4,7 +4,7 @@ Shared cross-cutting utilities for PyTorch Connectomics.
 This package contains only genuinely cross-cutting helpers used by 2+ packages:
 - channel_slices.py: Channel selector parsing and resolution (inference, data, training)
 - label_overlap.py: Label overlap computation (metrics, decoding)
-- errors.py: Pre-flight validation checks (scripts)
+- model_outputs.py: Model-output head selection helpers (config, training, inference)
 """
 
 from .channel_slices import (

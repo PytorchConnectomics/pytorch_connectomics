@@ -68,10 +68,12 @@ default:
       channel_activations:
         - {channels: "0:2", activation: sigmoid}
         - {channels: "2:3", activation: tanh}
-    save_prediction:
+    prediction_transform:
       enabled: true
       intensity_scale: 255
       intensity_dtype: uint8
+    save_prediction:
+      enabled: true
 
 train:
   system:

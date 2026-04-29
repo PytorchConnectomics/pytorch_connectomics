@@ -40,12 +40,6 @@ except ImportError:
     OPTUNA_AVAILABLE = False
 
 from connectomics.metrics.metrics_seg import adapted_rand
-from connectomics.training.lightning.utils import (
-    tta_cache_suffix,
-    tuning_best_params_filename,
-    tuning_best_params_filename_candidates,
-    tuning_study_db_filename,
-)
 
 from ..registry import get_decoder
 from ..utils import remove_small_instances
@@ -58,6 +52,40 @@ __all__ = [
     "run_tuning",
     "load_and_apply_best_params",
 ]
+
+
+def tta_cache_suffix(*args, **kwargs) -> str:
+    """Resolve the prediction cache suffix lazily to avoid import-time training coupling."""
+    from connectomics.training.lightning.utils import tta_cache_suffix as _tta_cache_suffix
+
+    return _tta_cache_suffix(*args, **kwargs)
+
+
+def tuning_best_params_filename(*args, **kwargs) -> str:
+    """Resolve the best-params filename lazily."""
+    from connectomics.training.lightning.utils import (
+        tuning_best_params_filename as _tuning_best_params_filename,
+    )
+
+    return _tuning_best_params_filename(*args, **kwargs)
+
+
+def tuning_best_params_filename_candidates(*args, **kwargs) -> list[str]:
+    """Resolve best-params filename candidates lazily."""
+    from connectomics.training.lightning.utils import (
+        tuning_best_params_filename_candidates as _tuning_best_params_filename_candidates,
+    )
+
+    return _tuning_best_params_filename_candidates(*args, **kwargs)
+
+
+def tuning_study_db_filename(*args, **kwargs) -> str:
+    """Resolve the Optuna study DB filename lazily."""
+    from connectomics.training.lightning.utils import (
+        tuning_study_db_filename as _tuning_study_db_filename,
+    )
+
+    return _tuning_study_db_filename(*args, **kwargs)
 
 
 class TrialEvaluationTimeoutError(TimeoutError):
@@ -120,13 +148,13 @@ def _print_best_params_yaml(best_params_file: Path) -> None:
     except Exception:
         yaml_text = best_params_file.read_text().rstrip()
 
-    print("\n" + "=" * 80)
-    print(f"BEST PARAMETERS | {best_params_file}")
-    print("=" * 80)
+    logger.info("%s", "=" * 80)
+    logger.info("BEST PARAMETERS | %s", best_params_file)
+    logger.info("%s", "=" * 80)
     if yaml_text:
-        print(yaml_text)
+        logger.info("%s", yaml_text)
     else:
-        print("[empty]")
+        logger.info("[empty]")
 
 
 def _resolve_best_params_file(
@@ -977,9 +1005,14 @@ class OptunaDecodingTuner:
                 f"mt={mt:.2f}:{float(avg_metric):.4f}"
                 for mt, avg_metric in result["per_candidate_metric"].items()
             )
-            print(
-                f"  Trial {self.trial_count:3d}: best ARE={best_avg:.4f} (mt={best_mt:.2f}) "
-                f"Prec={avg_prec:.4f} Rec={avg_rec:.4f} | {mt_summary}"
+            logger.info(
+                "Trial %3d: best ARE=%.4f (mt=%.2f) Prec=%.4f Rec=%.4f | %s",
+                self.trial_count,
+                best_avg,
+                best_mt,
+                avg_prec,
+                avg_rec,
+                mt_summary,
             )
 
         return best_avg
@@ -1059,9 +1092,14 @@ class OptunaDecodingTuner:
                 f"t={thr:.2f}:{float(avg_metric):.4f}"
                 for thr, avg_metric in result["per_candidate_metric"].items()
             )
-            print(
-                f"  Trial {self.trial_count:3d}: best ARE={best_avg:.4f} (thr={best_thr:.2f}) "
-                f"Prec={avg_prec:.4f} Rec={avg_rec:.4f} | {thr_summary}"
+            logger.info(
+                "Trial %3d: best ARE=%.4f (thr=%.2f) Prec=%.4f Rec=%.4f | %s",
+                self.trial_count,
+                best_avg,
+                best_thr,
+                avg_prec,
+                avg_rec,
+                thr_summary,
             )
 
         return best_avg
@@ -1553,7 +1591,7 @@ def run_tuning(model, trainer, cfg, checkpoint_path=None):
 
     Example:
         >>> from connectomics.training.lightning import ConnectomicsModule, create_trainer
-        >>> from connectomics.decoding import run_tuning
+    >>> from connectomics.decoding.tuning import run_tuning
         >>> model = ConnectomicsModule(cfg)
         >>> trainer = create_trainer(cfg)
         >>> run_tuning(model, trainer, cfg, checkpoint_path='best.ckpt')

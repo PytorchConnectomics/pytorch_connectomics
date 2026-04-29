@@ -393,8 +393,7 @@ test:
       output_formats: [h5]
       output_path: /orcd/scratch/bcs/002/mansour/train_liconn/outputs/results_axons/
       # float32 for full precision affinities; use float16 to halve storage
-      intensity_scale: -1.0
-      intensity_dtype: float32
+      storage_dtype: float32
       compression: gzip
 
   evaluation:

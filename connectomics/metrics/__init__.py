@@ -9,7 +9,8 @@ Note: PyTorch Lightning handles training monitoring and logging.
 
 Import patterns:
     from connectomics.metrics import AdaptedRandError, VariationOfInformation
-    from connectomics.metrics import evaluate_image_pair, evaluate_directory
+    from connectomics.metrics import evaluate_image_pair
+    from connectomics.evaluation import evaluate_directory
     from connectomics.metrics.segmentation_numpy import adapted_rand, instance_matching
 """
 
@@ -23,11 +24,7 @@ from .metrics_seg import (
     instance_matching_simple,
     matching_criteria,
 )
-from .metrics_skel import (
-    evaluate_directory,
-    evaluate_file_pair,
-    evaluate_image_pair,
-)
+from .metrics_skel import evaluate_image_pair
 
 __all__ = [
     # Segmentation metrics (numpy)
@@ -42,6 +39,4 @@ __all__ = [
     "InstanceAccuracySimple",
     # Skeleton metrics
     "evaluate_image_pair",
-    "evaluate_file_pair",
-    "evaluate_directory",
 ]

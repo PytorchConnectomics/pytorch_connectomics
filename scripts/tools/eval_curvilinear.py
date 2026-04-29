@@ -23,13 +23,13 @@ Usage:
         --max-index 200
 
     # Or use as module:
-    from connectomics.metrics import evaluate_directory
+    from connectomics.evaluation import evaluate_directory
     results = evaluate_directory(pred_dir, gt_dir)
 """
 
 import argparse
 
-from connectomics.metrics import evaluate_directory
+from connectomics.evaluation import evaluate_directory
 
 
 def get_args():

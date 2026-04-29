@@ -22,9 +22,10 @@ from ...data.processing.affinity import (
     resolve_affinity_mode_from_cfg,
 )
 from ...data.processing.misc import get_padsize
+from ...decoding import run_decoding_stage
+from ...evaluation import run_evaluation_stage
 from ...inference import (
-    apply_postprocessing,
-    apply_save_prediction_transform,
+    apply_prediction_transform,
     is_chunked_inference_enabled,
     run_chunked_affinity_cc_inference,
     run_chunked_prediction_inference,
@@ -112,6 +113,36 @@ class TestContext:
             output_dir_value=output_dir_value,
             cache_suffix=cache_suffix,
         )
+
+
+def _cleanup_inference_memory(module, stage: str, *, release_model: bool = False) -> None:
+    """Release temporary inference memory according to inference.memory_cleanup."""
+    inference_cfg = getattr(getattr(module, "cfg", None), "inference", None)
+    cleanup_cfg = getattr(inference_cfg, "memory_cleanup", None)
+    if cleanup_cfg is not None and not bool(getattr(cleanup_cfg, "enabled", True)):
+        return
+
+    release_model_requested = release_model and bool(
+        getattr(cleanup_cfg, "release_model_after_inference", False)
+        if cleanup_cfg is not None
+        else False
+    )
+    if release_model_requested and hasattr(module, "model"):
+        try:
+            module.model.to("cpu")
+            if hasattr(module, "inference_manager"):
+                module.inference_manager.model = module.model
+            logger.info("Moved model to CPU after inference to free accelerator memory.")
+        except Exception as exc:
+            logger.warning(f"Model CPU release failed after inference: {exc}")
+
+    if cleanup_cfg is None or bool(getattr(cleanup_cfg, "gc_collect", True)):
+        gc.collect()
+
+    if cleanup_cfg is None or bool(getattr(cleanup_cfg, "empty_cuda_cache", True)):
+        if torch.cuda.is_available():
+            torch.cuda.empty_cache()
+            logger.info(f"Cleared CUDA cache after {stage}.")
 
 
 def _resolve_inference_crop_pad(module) -> Optional[tuple[tuple[int, int], ...]]:
@@ -1269,21 +1300,17 @@ def _process_decoding_postprocessing(
     save_final_predictions: bool,
 ) -> np.ndarray:
     logger.info("[STAGE: Decoding Instances]")
-    decode_start = time.time()
-    # Lazy import to avoid circular dependency (decoding -> training via optuna_tuner)
-    from ...decoding import apply_decode_mode, resolve_decode_modes_from_cfg
+    result = run_decoding_stage(module.cfg, predictions_np)
+    decoded_predictions = result.decoded
+    logger.info(f"Decoding completed ({result.duration_s:.1f}s)")
 
-    has_decoding_cfg = bool(resolve_decode_modes_from_cfg(module.cfg))
-    decoded_predictions = apply_decode_mode(module.cfg, predictions_np)
-    logger.info(f"Decoding completed ({time.time() - decode_start:.1f}s)")
-
-    if not has_decoding_cfg:
+    if not result.has_decoding_config:
         logger.info("Skipping postprocessing (no decoding configuration)")
         logger.info("Skipping decoded segmentation summary (no decoding configuration)")
         logger.info("Skipping final prediction save (no decoding configuration)")
         return decoded_predictions
 
-    postprocessed_predictions = apply_postprocessing(module.cfg, decoded_predictions)
+    postprocessed_predictions = result.postprocessed
     logger.info("Decoded Segmentation Summary:")
     logger.info(f"    Shape:      {decoded_predictions.shape}")
     logger.info(f"    Dtype:      {decoded_predictions.dtype}")
@@ -1329,33 +1356,26 @@ def _evaluate_decoded_predictions(
 ) -> None:
     evaluation_enabled = module._is_test_evaluation_enabled()
     nerl_requested = evaluation_enabled and _evaluation_metric_requested(module, "nerl")
+
+    def _compute_metrics(
+        pred_arr: np.ndarray,
+        label_tensor: Optional[torch.Tensor],
+        volume_name: str | None,
+    ) -> None:
+        compute_test_metrics(module, pred_arr, label_tensor, volume_name=volume_name)
+
     if evaluation_enabled and (labels is not None or nerl_requested):
         logger.info("[STAGE: Computing Evaluation Metrics]")
-        eval_start = time.time()
-        volume_names = filenames if filenames else [f"volume_{batch_idx}"]
-
-        # Multi-volume test batches can occur when batch_size > 1.
-        # Evaluate each volume independently so per-volume metrics are emitted.
-        if len(volume_names) > 1:
-            pred_arr = np.asarray(decoded_predictions)
-            can_split_pred = pred_arr.ndim > 0 and pred_arr.shape[0] == len(volume_names)
-            can_split_label = (
-                labels is not None and labels.ndim > 0 and labels.shape[0] == len(volume_names)
-            )
-            if can_split_pred and (labels is None or can_split_label):
-                for i, name in enumerate(volume_names):
-                    label_i = None if labels is None else labels[i]
-                    compute_test_metrics(module, pred_arr[i], label_i, volume_name=name)
-            else:
-                logger.warning(
-                    "Could not split batched predictions/labels by volume; "
-                    "computing a single aggregate metric."
-                )
-                compute_test_metrics(module, pred_arr, labels, volume_name=volume_names[0])
-        else:
-            compute_test_metrics(module, decoded_predictions, labels, volume_name=volume_names[0])
-
-        logger.info(f"Evaluation completed ({time.time() - eval_start:.1f}s)")
+        result = run_evaluation_stage(
+            decoded_predictions,
+            labels,
+            filenames=filenames,
+            batch_idx=batch_idx,
+            evaluation_enabled=evaluation_enabled,
+            nerl_requested=nerl_requested,
+            compute_metrics_fn=_compute_metrics,
+        )
+        logger.info(f"Evaluation completed ({result.duration_s:.1f}s)")
         return
 
     if labels is None:
@@ -1439,10 +1459,9 @@ def _save_intermediate_prediction_outputs(
         checkpoint_path=module._get_prediction_checkpoint_path(),
         output_head=output_head,
     )
-    predictions_to_save = apply_save_prediction_transform(module.cfg, predictions_np)
     write_outputs(
         module.cfg,
-        predictions_to_save,
+        predictions_np,
         filenames,
         suffix=cache_suffix.removeprefix("_").removesuffix(".h5"),
         mode=mode,
@@ -1556,6 +1575,8 @@ def run_test_step(module, batch: Dict[str, torch.Tensor], batch_idx: int) -> STE
             filenames=filenames,
             batch_idx=batch_idx,
         )
+        del predictions_np
+        _cleanup_inference_memory(module, "cached final evaluation")
         _distributed_tta_barrier(module)
         return torch.tensor(0.0, device=module.device)
 
@@ -1570,10 +1591,11 @@ def run_test_step(module, batch: Dict[str, torch.Tensor], batch_idx: int) -> STE
         # In tune mode, the Optuna tuner handles decoding — skip it here.
         if mode == "tune":
             logger.info("Tune mode: skipping decoding (Optuna tuner will handle it)")
+            del predictions_np
+            _cleanup_inference_memory(module, "cached tune prediction")
             _distributed_tta_barrier(module)
             return torch.tensor(0.0, device=module.device)
         _log_volume_header(volume_name, "PROCESSING VOLUME")
-        predictions_np = module._invert_save_prediction_transform(predictions_np)
         if _from_saved_path:
             logger.info("Applying pre-decode crop_pad/affinity_crop to saved_prediction_path data")
             predictions_np, reference_spatial_shape = _apply_predecode_prediction_crops(
@@ -1583,6 +1605,7 @@ def run_test_step(module, batch: Dict[str, torch.Tensor], batch_idx: int) -> STE
                 item_name="saved predictions",
                 output_head=selected_output_head,
             )
+            predictions_np = apply_prediction_transform(module.cfg, predictions_np)
         else:
             logger.info(
                 "Skipping crop_pad/affinity_crop for cached intermediate predictions "
@@ -1597,6 +1620,8 @@ def run_test_step(module, batch: Dict[str, torch.Tensor], batch_idx: int) -> STE
             batch_meta=batch.get("image_meta_dict"),
             save_final_predictions=True,
         )
+        del predictions_np
+        _cleanup_inference_memory(module, "cached intermediate decoding")
         _evaluate_decoded_predictions(
             module,
             decoded_predictions,
@@ -1615,6 +1640,8 @@ def run_test_step(module, batch: Dict[str, torch.Tensor], batch_idx: int) -> STE
             batch_idx=batch_idx,
         )
         _log_volume_header(volume_name, "VOLUME COMPLETE")
+        del decoded_predictions
+        _cleanup_inference_memory(module, "cached intermediate evaluation")
         _distributed_tta_barrier(module)
         return torch.tensor(0.0, device=module.device)
 
@@ -1693,6 +1720,7 @@ def run_test_step(module, batch: Dict[str, torch.Tensor], batch_idx: int) -> STE
                 inference_duration / 60.0,
                 inference_duration,
             )
+            _cleanup_inference_memory(module, "chunked raw inference", release_model=True)
 
             decode_after = bool(getattr(module.cfg.inference, "decode_after_inference", True))
             if not decode_after:
@@ -1702,6 +1730,7 @@ def run_test_step(module, batch: Dict[str, torch.Tensor], batch_idx: int) -> STE
                         "only raw predictions."
                     )
                 _log_volume_header(volume_name, "VOLUME COMPLETE")
+                _cleanup_inference_memory(module, "chunked raw inference", release_model=True)
                 _distributed_tta_barrier(module)
                 return torch.tensor(0.0, device=module.device)
 
@@ -1709,7 +1738,6 @@ def run_test_step(module, batch: Dict[str, torch.Tensor], batch_idx: int) -> STE
 
             logger.info("[STAGE: Loading Chunked Raw Prediction For Whole-Volume Decode]")
             predictions_np = read_volume(str(output_path), dataset="main")
-            predictions_np = module._invert_save_prediction_transform(predictions_np)
             reference_spatial_shape = tuple(int(v) for v in predictions_np.shape[-3:])
             if lazy_sample:
                 labels = _maybe_load_lazy_labels(module, batch.get("label"), mode=mode)
@@ -1721,6 +1749,8 @@ def run_test_step(module, batch: Dict[str, torch.Tensor], batch_idx: int) -> STE
                 batch_meta=batch.get("image_meta_dict"),
                 save_final_predictions=True,
             )
+            del predictions_np
+            _cleanup_inference_memory(module, "chunked raw decoding")
             _evaluate_decoded_predictions(
                 module,
                 decoded_predictions,
@@ -1738,6 +1768,8 @@ def run_test_step(module, batch: Dict[str, torch.Tensor], batch_idx: int) -> STE
                 filenames=filenames,
                 batch_idx=batch_idx,
             )
+            del decoded_predictions
+            _cleanup_inference_memory(module, "chunked raw evaluation")
         else:
             output_suffix = final_prediction_output_tag(
                 module.cfg,
@@ -1761,6 +1793,7 @@ def run_test_step(module, batch: Dict[str, torch.Tensor], batch_idx: int) -> STE
                 inference_duration / 60.0,
                 inference_duration,
             )
+            _cleanup_inference_memory(module, "chunked inference decoding", release_model=True)
             if module._is_test_evaluation_enabled():
                 logger.warning(
                     "Skipping evaluation for chunked inference; streaming metrics are not "
@@ -1828,12 +1861,16 @@ def run_test_step(module, batch: Dict[str, torch.Tensor], batch_idx: int) -> STE
                 "Completed local distributed inference shard; rank 0 will perform "
                 "postprocessing."
             )
+            del images, mask
+            _cleanup_inference_memory(module, "distributed inference shard", release_model=True)
             _distributed_tta_barrier(module)
             return torch.tensor(0.0, device=module.device)
         if not per_head_preds:
             raise RuntimeError("Merged-head inference produced no predictions on rank 0.")
         # Predictions are (B, C, ...) — concat along channel axis preserving head order.
         predictions_np = np.concatenate(per_head_preds, axis=1)
+        del per_head_preds
+        _cleanup_inference_memory(module, "merged head concatenation")
         logger.info(
             f"Merged heads {configured_heads} along channel axis → shape {predictions_np.shape}"
         )
@@ -1855,6 +1892,8 @@ def run_test_step(module, batch: Dict[str, torch.Tensor], batch_idx: int) -> STE
         logger.info(
             "Completed local distributed inference shard; rank 0 will perform postprocessing."
         )
+        del predictions_np, images, mask
+        _cleanup_inference_memory(module, "distributed inference shard", release_model=True)
         _distributed_tta_barrier(module)
         return torch.tensor(0.0, device=module.device)
     if lazy_sample:
@@ -1864,6 +1903,7 @@ def run_test_step(module, batch: Dict[str, torch.Tensor], batch_idx: int) -> STE
     logger.info(
         f"Inference completed in {inference_duration / 60:.2f} minutes ({inference_duration:.1f}s)"
     )
+    predictions_np = apply_prediction_transform(module.cfg, predictions_np)
 
     logger.info("Prediction Summary:")
     logger.info(f"    Shape:  {predictions_np.shape}")
@@ -1910,17 +1950,24 @@ def run_test_step(module, batch: Dict[str, torch.Tensor], batch_idx: int) -> STE
                 )
                 _save_intermediate_prediction_outputs(
                     module,
-                    extra_predictions_np,
+                    apply_prediction_transform(module.cfg, extra_predictions_np),
                     filenames=filenames,
                     mode=mode,
                     batch_meta=batch.get("image_meta_dict"),
                     output_head=head_name,
                 )
+                del extra_predictions_np
+                _cleanup_inference_memory(module, f"extra head {head_name} save")
         logger.info(f"Intermediate predictions saved ({time.time() - save_start:.1f}s)")
+
+    del images, mask
+    _cleanup_inference_memory(module, "model inference", release_model=True)
 
     # In tune mode, skip decoding — the Optuna tuner will handle it.
     if mode == "tune":
         logger.info("Tune mode: skipping decoding (Optuna tuner will handle it)")
+        del predictions_np
+        _cleanup_inference_memory(module, "tune prediction")
         _distributed_tta_barrier(module)
         return torch.tensor(0.0, device=module.device)
 
@@ -1932,6 +1979,8 @@ def run_test_step(module, batch: Dict[str, torch.Tensor], batch_idx: int) -> STE
         batch_meta=batch.get("image_meta_dict"),
         save_final_predictions=True,
     )
+    del predictions_np
+    _cleanup_inference_memory(module, "decoding")
     _evaluate_decoded_predictions(
         module,
         decoded_predictions,
@@ -1950,5 +1999,7 @@ def run_test_step(module, batch: Dict[str, torch.Tensor], batch_idx: int) -> STE
         batch_idx=batch_idx,
     )
     _log_volume_header(volume_name, "VOLUME COMPLETE")
+    del decoded_predictions
+    _cleanup_inference_memory(module, "evaluation")
     _distributed_tta_barrier(module)
     return torch.tensor(0.0, device=module.device)

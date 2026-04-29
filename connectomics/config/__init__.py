@@ -2,22 +2,6 @@
 Modern Hydra-based configuration system for PyTorch Connectomics.
 """
 
-# Auto-configuration system
-from .hardware.auto_config import (
-    AutoConfigPlanner,
-    AutoPlanResult,
-    auto_plan_config,
-    resolve_runtime_resource_sentinels,
-)
-
-# GPU utilities
-from .hardware.gpu_utils import (
-    estimate_gpu_memory_required,
-    get_gpu_info,
-    get_optimal_num_workers,
-    print_gpu_info,
-    suggest_batch_size,
-)
 from .pipeline.config_io import (
     create_experiment_name,
     from_dict,
@@ -56,15 +40,4 @@ __all__ = [
     "to_plain",
     "as_plain_dict",
     "cfg_get",
-    # Auto-configuration
-    "auto_plan_config",
-    "AutoConfigPlanner",
-    "AutoPlanResult",
-    "resolve_runtime_resource_sentinels",
-    # GPU utilities
-    "get_gpu_info",
-    "print_gpu_info",
-    "suggest_batch_size",
-    "estimate_gpu_memory_required",
-    "get_optimal_num_workers",
 ]

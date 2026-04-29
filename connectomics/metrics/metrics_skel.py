@@ -16,23 +16,14 @@ Metrics:
       (Completeness + Correctness - Completeness * Correctness)
     - Foreground IoU: Intersection over Union of foreground regions
 
-Supports multi-CPU parallelism with Python multiprocessing for batch evaluation.
+File-backed batch evaluation lives in ``connectomics.evaluation``.
 """
 
 from __future__ import annotations
 
-import functools
-import multiprocessing
-import os
-from pathlib import Path
-from typing import List, Optional, Tuple
+from typing import List, Tuple
 
 import numpy as np
-
-try:
-    import imageio
-except ImportError:
-    imageio = None
 
 from skimage.morphology import dilation, skeletonize, square
 
@@ -209,162 +200,10 @@ def evaluate_image_pair(
     return iou, correctness, completeness, quality
 
 
-# ============================================================================
-# Batch Evaluation Functions (for standalone script usage)
-# ============================================================================
-
-
-def evaluate_file_pair(
-    pred_path: str,
-    gt_path: str,
-    threshold: int = 128,
-    dilation_size: int = 5,
-    verbose: bool = False,
-) -> Optional[Tuple[float, float, float, float]]:
-    """Evaluate single file pair (for parallel processing).
-
-    Args:
-        pred_path: Path to prediction image
-        gt_path: Path to ground truth image
-        threshold: Threshold for binarizing prediction. Default: 128
-        dilation_size: Dilation size for skeleton matching. Default: 5
-        verbose: Print results for each image. Default: False
-
-    Returns:
-        Tuple of (iou, correctness, completeness, quality) or None if file missing
-    """
-    if imageio is None:
-        raise ImportError(
-            "imageio is required for loading images. Install with: pip install imageio"
-        )
-
-    if not os.path.exists(pred_path):
-        return None
-
-    # Load images
-    pred = imageio.imread(pred_path)
-    gt = imageio.imread(gt_path)
-
-    # Evaluate
-    iou, correctness, completeness, quality = evaluate_image_pair(
-        pred, gt, threshold, dilation_size
-    )
-
-    if verbose:
-        print(
-            f"{Path(pred_path).name}: IoU={iou:.4f}, Corr={correctness:.4f}, "
-            f"Comp={completeness:.4f}, Qual={quality:.4f}"
-        )
-
-    return iou, correctness, completeness, quality
-
-
-def evaluate_directory(
-    pred_dir: str,
-    gt_dir: str,
-    pred_pattern: str = "%03d_pred.png",
-    gt_pattern: str = "%03d.png",
-    max_index: int = 200,
-    threshold: int = 128,
-    dilation_size: int = 5,
-    num_workers: Optional[int] = None,
-    verbose: bool = True,
-) -> dict:
-    """Evaluate all images in directories using parallel processing.
-
-    Args:
-        pred_dir: Directory containing prediction images
-        gt_dir: Directory containing ground truth images
-        pred_pattern: Filename pattern for predictions (with %d for index)
-        gt_pattern: Filename pattern for ground truth (with %d for index)
-        max_index: Maximum image index to evaluate
-        threshold: Threshold for binarizing predictions. Default: 128
-        dilation_size: Dilation size for skeleton matching. Default: 5
-        num_workers: Number of parallel workers (None = all CPUs). Default: None
-        verbose: Print progress and results. Default: True
-
-    Returns:
-        Dictionary with keys:
-            - 'mean_iou': Mean foreground IoU
-            - 'mean_correctness': Mean skeleton correctness
-            - 'mean_completeness': Mean skeleton completeness
-            - 'mean_quality': Mean skeleton quality
-            - 'num_evaluated': Number of images successfully evaluated
-            - 'results': Array of shape (N, 4) with per-image results
-
-    Example:
-        >>> results = evaluate_directory(
-        ...     pred_dir="predictions/",
-        ...     gt_dir="ground_truth/",
-        ...     max_index=100
-        ... )
-        >>> print(f"Mean IoU: {results['mean_iou']:.4f}")
-    """
-    if num_workers is None:
-        num_workers = multiprocessing.cpu_count()
-
-    if verbose:
-        print(f"Evaluating with {num_workers} workers...")
-
-    # Prepare file pairs
-    pred_dir = pred_dir if pred_dir.endswith("/") else pred_dir + "/"
-    gt_dir = gt_dir if gt_dir.endswith("/") else gt_dir + "/"
-
-    file_pairs = [
-        (pred_dir + (pred_pattern % i), gt_dir + (gt_pattern % i)) for i in range(max_index)
-    ]
-
-    # Parallel evaluation
-    eval_fn = functools.partial(
-        evaluate_file_pair, threshold=threshold, dilation_size=dilation_size, verbose=verbose
-    )
-    with multiprocessing.Pool(num_workers) as pool:
-        results = pool.starmap(eval_fn, file_pairs)
-
-    # Filter out missing files and compute statistics
-    results = [r for r in results if r is not None]
-    results_array = np.array(results)
-
-    if len(results) == 0:
-        print("Warning: No valid results found!")
-        return {
-            "mean_iou": 0.0,
-            "mean_correctness": 0.0,
-            "mean_completeness": 0.0,
-            "mean_quality": 0.0,
-            "num_evaluated": 0,
-            "results": results_array,
-        }
-
-    mean_metrics = results_array.mean(axis=0)
-
-    output = {
-        "mean_iou": mean_metrics[0],
-        "mean_correctness": mean_metrics[1],
-        "mean_completeness": mean_metrics[2],
-        "mean_quality": mean_metrics[3],
-        "num_evaluated": len(results),
-        "results": results_array,
-    }
-
-    if verbose:
-        print(f"\n{'=' * 70}")
-        print(f"Evaluated {output['num_evaluated']} images")
-        print(f"Mean IoU:          {output['mean_iou']:.4f}")
-        print(f"Mean Correctness:  {output['mean_correctness']:.4f}")
-        print(f"Mean Completeness: {output['mean_completeness']:.4f}")
-        print(f"Mean Quality:      {output['mean_quality']:.4f}")
-        print(f"{'=' * 70}")
-
-    return output
-
-
 __all__ = [
     "compute_skeleton_metrics",
     "compute_precision_recall",
     "compute_iou",
     "binarize_masks",
     "evaluate_image_pair",
-    "evaluate_file_pair",
-    "evaluate_directory",
 ]

@@ -108,8 +108,7 @@ default:
       apply_mask: false
     save_prediction:
       enabled: true
-      intensity_scale: -1.0
-      intensity_dtype: float32
+      storage_dtype: float32
       output_formats: [h5]
 
   decoding:

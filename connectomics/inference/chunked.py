@@ -18,8 +18,9 @@ from ..data.processing.affinity import (
     resolve_affinity_mode_from_cfg,
 )
 from ..utils.channel_slices import resolve_channel_indices
+from .artifact import PredictionArtifactMetadata, write_prediction_artifact_attrs
 from .lazy import get_lazy_image_reference_shape, lazy_predict_region
-from .output import apply_save_prediction_transform
+from .output import apply_prediction_transform, apply_storage_dtype_transform
 
 logger = logging.getLogger(__name__)
 
@@ -141,9 +142,8 @@ def _resolve_global_prediction_crop(
 
 
 def _resolve_decode_affinity_cc_kwargs(cfg: Any) -> dict[str, Any]:
-    # Import lazily: top-level decoding imports tuning helpers, which import
-    # Lightning, which imports inference. Keeping this out of module import
-    # avoids an inference<->training cycle.
+    # Import lazily so chunked inference stays focused on raw prediction unless
+    # streamed chunk decoding is explicitly selected.
     from ..decoding.pipeline import normalize_decode_modes
 
     steps = [
@@ -294,6 +294,200 @@ def _read_h5(path: Path, *, dataset: str = "main") -> np.ndarray:
         return np.asarray(handle[dataset])
 
 
+def _resolve_distributed_rank() -> tuple[int, int]:
+    """Return (rank, world_size). (0, 1) when torch.distributed isn't initialized."""
+    if torch.distributed.is_available() and torch.distributed.is_initialized():
+        return int(torch.distributed.get_rank()), int(torch.distributed.get_world_size())
+    return 0, 1
+
+
+def _per_chunk_dir(output_path: Path) -> Path:
+    """Sibling directory holding per-chunk h5 files for distributed chunked inference."""
+    return output_path.with_suffix(output_path.suffix + ".chunks")
+
+
+def _run_chunked_prediction_per_rank(
+    *,
+    cfg: Any,
+    forward_fn,
+    image_path: str,
+    output_path: Path,
+    mask_path: str | None,
+    mask_align_to_image: bool,
+    requested_head: str | None,
+    device: torch.device | str,
+    chunks: list[ChunkRef],
+    input_shape: tuple[int, int, int],
+    final_shape: tuple[int, int, int],
+    crop_pad: tuple[tuple[int, int], ...],
+    crop_before: tuple[int, int, int],
+    chunk_shape: tuple[int, int, int],
+    halo: tuple[int, int, int],
+    compression,
+    h5_spatial_chunks: tuple[int, int, int],
+    rank: int,
+    world_size: int,
+) -> Path:
+    """Per-rank chunked affinity inference. Each rank writes its own per-chunk h5 files.
+
+    Layout: output_path.chunks/chunk_{key}.h5 per chunk, plus a rank-0 index.json
+    listing chunk metadata (for downstream stitching/decoding).
+    """
+    import h5py
+
+    chunks_dir = _per_chunk_dir(output_path)
+    chunks_dir.mkdir(parents=True, exist_ok=True)
+
+    my_chunks = [(idx, chunk) for idx, chunk in enumerate(chunks) if idx % world_size == rank]
+    logger.info(
+        "Per-rank chunked raw prediction: rank=%d/%d, total_chunks=%d, my_chunks=%d, "
+        "input_shape=%s, final_shape=%s, chunk_shape=%s, halo=%s",
+        rank,
+        world_size,
+        len(chunks),
+        len(my_chunks),
+        input_shape,
+        final_shape,
+        chunk_shape,
+        halo,
+    )
+
+    transform_cfg = getattr(cfg.inference, "prediction_transform", None)
+
+    for local_pos, (chunk_idx, chunk) in enumerate(my_chunks, start=1):
+        chunk_path = chunks_dir / f"chunk_{chunk.key}.h5"
+        if chunk_path.exists():
+            logger.info(
+                "[rank %d] chunk %d/%d %s: already exists, skipping",
+                rank,
+                chunk_idx,
+                len(chunks),
+                chunk.key,
+            )
+            continue
+
+        pred_core_start = tuple(chunk.start[axis] + crop_before[axis] for axis in range(3))
+        pred_core_stop = tuple(chunk.stop[axis] + crop_before[axis] for axis in range(3))
+        read_start = tuple(max(0, pred_core_start[axis] - halo[axis]) for axis in range(3))
+        read_stop = tuple(
+            min(input_shape[axis], pred_core_stop[axis] + halo[axis]) for axis in range(3)
+        )
+
+        logger.info(
+            "[rank %d] chunk %d/%d (%d/%d local) %s: core=%s:%s read=%s:%s",
+            rank,
+            chunk_idx,
+            len(chunks),
+            local_pos,
+            len(my_chunks),
+            chunk.key,
+            pred_core_start,
+            pred_core_stop,
+            read_start,
+            read_stop,
+        )
+
+        pred_tensor = lazy_predict_region(
+            cfg,
+            forward_fn,
+            image_path,
+            region_start=read_start,
+            region_stop=read_stop,
+            mask_path=mask_path,
+            mask_align_to_image=mask_align_to_image,
+            device=device,
+            requested_head=requested_head,
+        )
+        pred = pred_tensor.detach().cpu().float().numpy()[0]
+        del pred_tensor
+
+        local_core_slices = tuple(
+            slice(
+                pred_core_start[axis] - read_start[axis],
+                pred_core_stop[axis] - read_start[axis],
+            )
+            for axis in range(3)
+        )
+        core_pred = pred[(slice(None), *local_core_slices)]
+        core_pred = apply_prediction_transform(cfg, core_pred)
+        core_pred = apply_storage_dtype_transform(cfg, core_pred)
+
+        with h5py.File(chunk_path, "w") as handle:
+            channel_count = int(core_pred.shape[0])
+            dataset = handle.create_dataset(
+                "main",
+                data=core_pred,
+                chunks=(channel_count, *h5_spatial_chunks),
+                compression=compression,
+            )
+            write_prediction_artifact_attrs(
+                dataset,
+                PredictionArtifactMetadata(
+                    image_path=str(image_path),
+                    output_head=requested_head,
+                    input_shape=input_shape,
+                    final_shape=final_shape,
+                    crop_pad=crop_pad,
+                    chunk_shape=chunk_shape,
+                    halo=halo,
+                    intensity_scale=(
+                        float(getattr(transform_cfg, "intensity_scale", -1.0))
+                        if transform_cfg is not None
+                        and bool(getattr(transform_cfg, "enabled", False))
+                        else None
+                    ),
+                    intensity_dtype=(
+                        str(getattr(transform_cfg, "intensity_dtype", core_pred.dtype))
+                        if transform_cfg is not None
+                        and bool(getattr(transform_cfg, "enabled", False))
+                        else str(core_pred.dtype)
+                    ),
+                    extra={"compression": str(compression), "chunk_key": chunk.key},
+                ),
+            )
+            dataset.attrs["chunk_index_zyx"] = list(chunk.index)
+            dataset.attrs["chunk_start_zyx"] = list(chunk.start)
+            dataset.attrs["chunk_stop_zyx"] = list(chunk.stop)
+
+        del pred, core_pred
+
+    if torch.distributed.is_available() and torch.distributed.is_initialized():
+        torch.distributed.barrier()
+
+    if rank == 0:
+        index = {
+            "input_shape": list(input_shape),
+            "final_shape": list(final_shape),
+            "chunk_shape": list(chunk_shape),
+            "halo": list(halo),
+            "crop_pad": [list(pair) for pair in crop_pad],
+            "world_size": world_size,
+            "chunks": [
+                {
+                    "key": chunk.key,
+                    "index_zyx": list(chunk.index),
+                    "start_zyx": list(chunk.start),
+                    "stop_zyx": list(chunk.stop),
+                    "path": str(
+                        (chunks_dir / f"chunk_{chunk.key}.h5").relative_to(output_path.parent)
+                    ),
+                }
+                for chunk in chunks
+            ],
+        }
+        index_path = output_path.with_suffix(output_path.suffix + ".index.json")
+        with open(index_path, "w") as fh:
+            json.dump(index, fh, indent=2)
+        logger.info(
+            "Per-rank chunked raw prediction wrote %d chunks to %s; index=%s",
+            len(chunks),
+            chunks_dir,
+            index_path,
+        )
+
+    return chunks_dir
+
+
 def run_chunked_prediction_inference(
     cfg: Any,
     forward_fn,
@@ -329,6 +523,30 @@ def run_chunked_prediction_inference(
     compression = getattr(getattr(cfg.inference, "save_prediction", None), "compression", "gzip")
     compression = None if compression in (None, "", "none") else compression
     h5_spatial_chunks = _resolve_h5_spatial_chunks(final_shape)
+
+    rank, world_size = _resolve_distributed_rank()
+    if world_size > 1:
+        return _run_chunked_prediction_per_rank(
+            cfg=cfg,
+            forward_fn=forward_fn,
+            image_path=image_path,
+            output_path=output_path,
+            mask_path=mask_path,
+            mask_align_to_image=mask_align_to_image,
+            requested_head=requested_head,
+            device=device,
+            chunks=chunks,
+            input_shape=input_shape,
+            final_shape=final_shape,
+            crop_pad=crop_pad,
+            crop_before=crop_before,
+            chunk_shape=chunk_shape,
+            halo=halo,
+            compression=compression,
+            h5_spatial_chunks=h5_spatial_chunks,
+            rank=rank,
+            world_size=world_size,
+        )
 
     logger.info(
         "Chunked raw prediction inference: input_shape=%s, final_shape=%s, "
@@ -384,7 +602,8 @@ def run_chunked_prediction_inference(
                 for axis in range(3)
             )
             core_pred = pred[(slice(None), *local_core_slices)]
-            core_pred = apply_save_prediction_transform(cfg, core_pred)
+            core_pred = apply_prediction_transform(cfg, core_pred)
+            core_pred = apply_storage_dtype_transform(cfg, core_pred)
 
             if dataset is None:
                 channel_count = int(core_pred.shape[0])
@@ -395,21 +614,32 @@ def run_chunked_prediction_inference(
                     chunks=(channel_count, *h5_spatial_chunks),
                     compression=compression,
                 )
-                dataset.attrs["kind"] = "raw_prediction"
-                dataset.attrs["image_path"] = str(image_path)
-                dataset.attrs["input_shape"] = json.dumps(list(input_shape))
-                dataset.attrs["final_shape"] = json.dumps(list(final_shape))
-                dataset.attrs["crop_pad"] = json.dumps([list(pair) for pair in crop_pad])
-                dataset.attrs["chunk_shape"] = json.dumps(list(chunk_shape))
-                dataset.attrs["halo"] = json.dumps(list(halo))
-                save_cfg = getattr(cfg.inference, "save_prediction", None)
-                if save_cfg is not None:
-                    dataset.attrs["intensity_scale"] = float(
-                        getattr(save_cfg, "intensity_scale", -1.0)
-                    )
-                    dataset.attrs["intensity_dtype"] = str(
-                        getattr(save_cfg, "intensity_dtype", core_pred.dtype)
-                    )
+                transform_cfg = getattr(cfg.inference, "prediction_transform", None)
+                write_prediction_artifact_attrs(
+                    dataset,
+                    PredictionArtifactMetadata(
+                        image_path=str(image_path),
+                        output_head=requested_head,
+                        input_shape=input_shape,
+                        final_shape=final_shape,
+                        crop_pad=crop_pad,
+                        chunk_shape=chunk_shape,
+                        halo=halo,
+                        intensity_scale=(
+                            float(getattr(transform_cfg, "intensity_scale", -1.0))
+                            if transform_cfg is not None
+                            and bool(getattr(transform_cfg, "enabled", False))
+                            else None
+                        ),
+                        intensity_dtype=(
+                            str(getattr(transform_cfg, "intensity_dtype", core_pred.dtype))
+                            if transform_cfg is not None
+                            and bool(getattr(transform_cfg, "enabled", False))
+                            else str(core_pred.dtype)
+                        ),
+                        extra={"compression": str(compression)},
+                    ),
+                )
 
             dataset[(slice(None), *chunk.slices)] = core_pred
             del pred, core_pred
@@ -534,6 +764,7 @@ def run_chunked_affinity_cc_inference(
         )
         pred = pred_tensor.detach().cpu().float().numpy()[0]
         del pred_tensor
+        pred = apply_prediction_transform(cfg, pred)
 
         decoded = decode_affinity_cc(pred, **decode_kwargs)
         local_core_slices = tuple(

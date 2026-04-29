@@ -454,9 +454,10 @@ Logging and Monitoring Migration
       experiment_name: "lucchi_exp"
 
       # Optional: Weights & Biases
-      use_wandb: true
-      wandb_project: "connectomics"
-      wandb_entity: "your_team"
+      wandb:
+        use_wandb: true
+        project: "connectomics"
+        entity: "your_team"
 
 Lightning provides:
 

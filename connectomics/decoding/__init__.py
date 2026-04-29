@@ -25,6 +25,11 @@ from .pipeline import (
     normalize_decode_modes,
     resolve_decode_modes_from_cfg,
 )
+from .stage import (
+    DecodingStageResult,
+    apply_decoding_postprocessing,
+    run_decoding_stage,
+)
 
 # --- Post-processing & Utilities ---
 from .postprocessing import (
@@ -45,16 +50,6 @@ from .registry import (
     register_decoder,
 )
 
-# --- Hyperparameter Tuning ---
-from .tuning import (
-    OptunaDecodingTuner,
-    SkeletonMetrics,
-    grid_search_threshold,
-    load_and_apply_best_params,
-    optimize_parameters,
-    optimize_threshold,
-    run_tuning,
-)
 from .utils import (
     cast2dtype,
     merge_small_objects,
@@ -75,6 +70,9 @@ __all__ = [
     "apply_decode_pipeline",
     "resolve_decode_modes_from_cfg",
     "apply_decode_mode",
+    "DecodingStageResult",
+    "apply_decoding_postprocessing",
+    "run_decoding_stage",
     # Segmentation decoding
     "decode_instance_binary_contour_distance",
     "decode_affinity_cc",
@@ -84,14 +82,6 @@ __all__ = [
     "decode_abiss",
     # Synapse decoding
     "polarity2instance",
-    # Auto-tuning
-    "optimize_threshold",
-    "optimize_parameters",
-    "grid_search_threshold",
-    "SkeletonMetrics",
-    "OptunaDecodingTuner",
-    "run_tuning",
-    "load_and_apply_best_params",
     # Post-processing
     "binarize_and_median",
     "remove_masks",

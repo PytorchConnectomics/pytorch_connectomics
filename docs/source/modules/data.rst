@@ -4,17 +4,17 @@ connectomics.data
 Datasets
 ----------
 
-.. automodule:: connectomics.data.dataset
+.. automodule:: connectomics.data.datasets
     :members:
 
 Augmentations
 ---------------
 
-.. automodule:: connectomics.transforms.augment
+.. automodule:: connectomics.data.augmentation
     :members:
 
-Utility Functions
-------------------
+I/O
+---
 
-.. automodule:: connectomics.data.utils
+.. automodule:: connectomics.data.io
     :members:

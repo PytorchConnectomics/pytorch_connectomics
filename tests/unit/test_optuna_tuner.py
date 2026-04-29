@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 from pathlib import Path
 
 import numpy as np
@@ -220,7 +221,7 @@ def test_run_tuning_requires_val_labels_in_tune_mode(monkeypatch, tmp_path):
         run_tuning(model, trainer, cfg, checkpoint_path="checkpoint.ckpt")
 
 
-def test_run_tuning_prints_existing_best_params_yaml(monkeypatch, tmp_path, capsys):
+def test_run_tuning_logs_existing_best_params_yaml(monkeypatch, tmp_path, caplog):
     cfg = Config()
     cfg.tune = TuneConfig()
     cfg.inference.save_prediction.output_path = str(tmp_path / "results")
@@ -237,13 +238,13 @@ def test_run_tuning_prints_existing_best_params_yaml(monkeypatch, tmp_path, caps
 
     monkeypatch.setattr("connectomics.decoding.tuning.optuna_tuner.OPTUNA_AVAILABLE", True)
 
-    run_tuning(model, trainer, cfg, checkpoint_path="checkpoint.ckpt")
+    with caplog.at_level(logging.INFO, logger="connectomics.decoding.tuning.optuna_tuner"):
+        run_tuning(model, trainer, cfg, checkpoint_path="checkpoint.ckpt")
 
-    stdout = capsys.readouterr().out
-    assert "BEST PARAMETERS" in stdout
-    assert str(best_params_file) in stdout
-    assert "best_trial: 7" in stdout
-    assert "decode_waterz" in stdout
+    assert "BEST PARAMETERS" in caplog.text
+    assert str(best_params_file) in caplog.text
+    assert "best_trial: 7" in caplog.text
+    assert "decode_waterz" in caplog.text
     assert trainer.observed == {}
 
 

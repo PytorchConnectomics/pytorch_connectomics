@@ -98,8 +98,7 @@ default:
         - {channels: ":", activation: sigmoid}
     save_prediction:
       enabled: true
-      intensity_scale: -1
-      intensity_dtype: float32
+      storage_dtype: float32
 
   decoding:
     - name: decode_distance_watershed

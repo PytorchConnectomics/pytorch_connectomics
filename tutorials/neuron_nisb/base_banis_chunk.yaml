@@ -144,8 +144,7 @@ default:
         - {channels: ":", activation: scale_sigmoid}
     save_prediction:
       enabled: true
-      intensity_scale: -1.0
-      intensity_dtype: float16
+      storage_dtype: float16
       output_formats: [h5]
 
   decoding:

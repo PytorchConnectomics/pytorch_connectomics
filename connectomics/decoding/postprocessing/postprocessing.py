@@ -10,6 +10,7 @@ This module provides utilities for:
 
 from __future__ import annotations
 
+import logging
 from typing import TYPE_CHECKING, List
 
 import numpy as np
@@ -27,6 +28,8 @@ from skimage.feature import peak_local_max
 
 from connectomics.data.processing import bbox_ND, crop_ND, replace_ND
 from connectomics.utils.label_overlap import compute_label_overlap
+
+logger = logging.getLogger(__name__)
 
 __all__ = [
     "binarize_and_median",
@@ -157,7 +160,7 @@ def watershed_split(
         split_objects[np.where(split_objects == idx)] = max_idx + i + 1
         new_id.append(max_idx + i + 1)
     if show_id:
-        print(new_id)
+        logger.info("Watershed split created labels: %s", new_id)
 
     vol = replace_ND(vol, split_objects, bbox, end_included=True)
     return vol
