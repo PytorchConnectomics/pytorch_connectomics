@@ -1,10 +1,9 @@
 from __future__ import annotations
 
-import importlib
-import inspect
-from dataclasses import dataclass, field, is_dataclass
+from dataclasses import dataclass, field
 from typing import List, Optional, Set
 
+from ...runtime.torch_safe_globals import register_torch_safe_globals
 from .data import DataConfig
 from .inference import DecodeModeConfig, EvaluationConfig, InferenceConfig
 from .model import ModelConfig
@@ -90,46 +89,4 @@ class Config:
     )
 
 
-def _register_torch_safe_globals() -> None:
-    """Register schema dataclasses for torch 2.6+ weights_only checkpoint loading."""
-    try:
-        import torch
-
-        if not (
-            hasattr(torch, "serialization") and hasattr(torch.serialization, "add_safe_globals")
-        ):
-            return
-
-        safe_dataclasses = []
-        schema_modules = [
-            "connectomics.config.schema.system",
-            "connectomics.config.schema.model",
-            "connectomics.config.schema.model_monai",
-            "connectomics.config.schema.model_mednext",
-            "connectomics.config.schema.model_rsunet",
-            "connectomics.config.schema.model_nnunet",
-            "connectomics.config.schema.data",
-            "connectomics.config.schema.optimization",
-            "connectomics.config.schema.monitor",
-            "connectomics.config.schema.inference",
-            "connectomics.config.schema.stages",
-            "connectomics.config.schema.root",
-        ]
-        for module_name in schema_modules:
-            module = importlib.import_module(module_name)
-            safe_dataclasses.extend(
-                obj
-                for obj in module.__dict__.values()
-                if inspect.isclass(obj) and is_dataclass(obj)
-            )
-
-        # De-duplicate while preserving order.
-        deduped = list(dict.fromkeys(safe_dataclasses))
-        torch.serialization.add_safe_globals(deduped)
-    except Exception:
-        # Best-effort registration; ignore if torch not available at import time.
-        pass
-
-
-# Register safe globals on import.
-_register_torch_safe_globals()
+register_torch_safe_globals()

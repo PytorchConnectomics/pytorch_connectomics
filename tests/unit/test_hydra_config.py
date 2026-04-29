@@ -31,6 +31,7 @@ from connectomics.config.schema import TestConfig as HydraTestConfig  # noqa: E4
 from connectomics.config.schema import TuneConfig  # noqa: E402
 from connectomics.data.augmentation.build import build_test_transforms  # noqa: E402
 from connectomics.data.processing.build import create_label_transform_pipeline  # noqa: E402
+from connectomics.runtime.preflight import validate_runtime_coherence  # noqa: E402
 
 
 def test_default_config_creation():
@@ -72,7 +73,7 @@ def test_cross_section_validation_rejects_input_patch_mismatch():
     cfg.data.dataloader.patch_size = [128, 128, 128]
 
     with pytest.raises(ValueError, match="model.input_size .* must match .*patch_size"):
-        validate_config(cfg)
+        validate_runtime_coherence(cfg)
 
 
 def test_cross_section_validation_rejects_out_channel_mismatch():
@@ -89,7 +90,7 @@ def test_cross_section_validation_rejects_out_channel_mismatch():
     ]
 
     with pytest.raises(ValueError, match="model.out_channels .* require at least 3 channels"):
-        validate_config(cfg)
+        validate_runtime_coherence(cfg)
 
 
 def test_cross_section_validation_rejects_out_channel_mismatch_with_negative_slice():
@@ -106,7 +107,7 @@ def test_cross_section_validation_rejects_out_channel_mismatch_with_negative_sli
     ]
 
     with pytest.raises(ValueError, match="model.out_channels .* require at least 3 channels"):
-        validate_config(cfg)
+        validate_runtime_coherence(cfg)
 
 
 def test_cross_section_validation_rejects_label_target_channel_mismatch():
@@ -120,7 +121,7 @@ def test_cross_section_validation_rejects_label_target_channel_mismatch():
     ]
 
     with pytest.raises(ValueError, match="require at least 3 channels"):
-        validate_config(cfg)
+        validate_runtime_coherence(cfg)
 
 
 def test_cross_section_validation_rejects_decoding_channel_mismatch():
@@ -138,7 +139,7 @@ def test_cross_section_validation_rejects_decoding_channel_mismatch():
     )
 
     with pytest.raises(ValueError, match="decoding\\[0\\].kwargs.distance_channels"):
-        validate_config(cfg)
+        validate_runtime_coherence(cfg)
 
 
 def test_cross_section_validation_accepts_tta_full_span_selector_for_single_channel():
@@ -149,7 +150,7 @@ def test_cross_section_validation_accepts_tta_full_span_selector_for_single_chan
         {"channels": ":", "activation": "sigmoid"}
     ]
 
-    validate_config(cfg)
+    validate_runtime_coherence(cfg)
 
 
 def test_cross_section_validation_rejects_invalid_tta_channel_range():
@@ -164,7 +165,7 @@ def test_cross_section_validation_rejects_invalid_tta_channel_range():
         ValueError,
         match="inference.test_time_augmentation.channel_activations\\[0\\]\\.channels",
     ):
-        validate_config(cfg)
+        validate_runtime_coherence(cfg)
 
 
 def test_cross_section_validation_rejects_incompatible_deep_supervision_arch():
@@ -174,7 +175,7 @@ def test_cross_section_validation_rejects_incompatible_deep_supervision_arch():
     cfg.model.loss.deep_supervision = True
 
     with pytest.raises(ValueError, match="does not support deep supervision"):
-        validate_config(cfg)
+        validate_runtime_coherence(cfg)
 
 
 def test_config_dict_conversion():
@@ -756,14 +757,12 @@ optimization:
 
 def test_removed_shared_stage_is_rejected(tmp_path):
     config_yaml = tmp_path / "removed_shared.yaml"
-    config_yaml.write_text(
-        """
+    config_yaml.write_text("""
 shared:
   model:
     arch:
       type: mednext
-""".strip()
-    )
+""".strip())
 
     with pytest.raises(ValueError, match="shared.*removed"):
         load_config(config_yaml)
@@ -771,13 +770,11 @@ shared:
 
 def test_nested_inference_decoding_is_rejected(tmp_path):
     config_yaml = tmp_path / "nested_inference_decoding.yaml"
-    config_yaml.write_text(
-        """
+    config_yaml.write_text("""
 inference:
   decoding:
     - name: decode_semantic
-""".strip()
-    )
+""".strip())
 
     with pytest.raises(Exception, match="decoding"):
         load_config(config_yaml)
@@ -785,13 +782,11 @@ inference:
 
 def test_nested_inference_evaluation_is_rejected(tmp_path):
     config_yaml = tmp_path / "nested_inference_evaluation.yaml"
-    config_yaml.write_text(
-        """
+    config_yaml.write_text("""
 inference:
   evaluation:
     enabled: true
-""".strip()
-    )
+""".strip())
 
     with pytest.raises(Exception, match="evaluation"):
         load_config(config_yaml)
@@ -799,13 +794,11 @@ inference:
 
 def test_removed_wandb_prefix_fields_are_rejected(tmp_path):
     config_yaml = tmp_path / "removed_wandb_prefix.yaml"
-    config_yaml.write_text(
-        """
+    config_yaml.write_text("""
 monitor:
   wandb:
     wandb_project: connectomics
-""".strip()
-    )
+""".strip())
 
     with pytest.raises(Exception, match="wandb_project"):
         load_config(config_yaml)
@@ -813,12 +806,10 @@ monitor:
 
 def test_removed_optimizer_step_aliases_are_rejected(tmp_path):
     config_yaml = tmp_path / "removed_optimizer_alias.yaml"
-    config_yaml.write_text(
-        """
+    config_yaml.write_text("""
 optimization:
   iter_num_per_epoch: 100
-""".strip()
-    )
+""".strip())
 
     with pytest.raises(Exception, match="iter_num_per_epoch"):
         load_config(config_yaml)
