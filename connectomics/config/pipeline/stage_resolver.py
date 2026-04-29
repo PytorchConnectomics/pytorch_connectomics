@@ -16,8 +16,6 @@ from ..schema import Config
 from ..schema.root import MergeContext
 from .dict_utils import as_plain_dict
 
-_NO_PATCH = object()
-
 
 def _collect_explicit_paths(yaml_node: Any, path: str = "") -> set[str]:
     """Collect all explicit key paths present in YAML."""
@@ -149,18 +147,9 @@ def _extract_explicit_patch(
     return extracted if isinstance(extracted, dict) else {}
 
 
-def _extract_explicit_value(
-    section_obj: Any,
-    section_path: str,
-    has_explicit_path: Callable[[str], bool],
-) -> Any:
-    """Extract an explicitly provided non-mapping section value."""
-    return section_obj if has_explicit_path(section_path) else _NO_PATCH
-
-
 def _has_section_patch(value: Any) -> bool:
     """Return whether a section override should participate in runtime merging."""
-    return value is not _NO_PATCH and value != {}
+    return value != {}
 
 
 def _resolve_stage_key(mode: str) -> str:
@@ -229,7 +218,7 @@ def _collect_default_overrides(
             "default.inference",
             has_explicit_path,
         ),
-        "decoding": _extract_explicit_value(
+        "decoding": _extract_explicit_patch(
             getattr(default_stage, "decoding", None),
             "default.decoding",
             has_explicit_path,
@@ -258,18 +247,11 @@ def _collect_stage_overrides(
     for section_name in _MODE_SECTIONS[stage_key]:
         section_obj = getattr(stage_cfg, section_name, None)
         section_path = f"{stage_key}.{section_name}"
-        if section_name == "decoding":
-            stage_overrides[section_name] = _extract_explicit_value(
-                section_obj,
-                section_path,
-                has_explicit_path,
-            )
-        else:
-            stage_overrides[section_name] = _extract_explicit_patch(
-                section_obj,
-                section_path,
-                has_explicit_path,
-            )
+        stage_overrides[section_name] = _extract_explicit_patch(
+            section_obj,
+            section_path,
+            has_explicit_path,
+        )
 
     return stage_overrides
 
@@ -287,13 +269,6 @@ def _merge_runtime_sections(
             default_section = _drop_none_values(default_section)
             stage_section = _drop_none_values(stage_section)
         if not _has_section_patch(default_section) and not _has_section_patch(stage_section):
-            continue
-
-        if section_name == "decoding":
-            if _has_section_patch(stage_section):
-                cfg.decoding = stage_section
-            elif _has_section_patch(default_section):
-                cfg.decoding = default_section
             continue
 
         target_section = getattr(cfg, section_name)

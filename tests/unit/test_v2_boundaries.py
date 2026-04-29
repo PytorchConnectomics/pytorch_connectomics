@@ -52,3 +52,5 @@ def test_nnunet_dimension_aliases_are_removed():
     architectures = set(list_architectures())
     assert "nnunet_2d_pretrained" not in architectures
     assert "nnunet_3d_pretrained" not in architectures
+    assert "nnunet_pretrained" not in architectures
+    assert "nnunet" in architectures

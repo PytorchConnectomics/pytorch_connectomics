@@ -131,10 +131,14 @@ def apply_decode_pipeline(
 def resolve_decode_modes_from_cfg(cfg: Any) -> Sequence[Any] | None:
     """Resolve decode mode list from config.
 
-    Uses the top-level ``cfg.decoding`` section only.
+    Uses the top-level ``cfg.decoding.steps`` section.
     """
-    if hasattr(cfg, "decoding") and cfg.decoding:
-        return cfg.decoding
+    decoding = getattr(cfg, "decoding", None)
+    if not decoding:
+        return None
+    steps = getattr(decoding, "steps", None)
+    if steps:
+        return steps
     return None
 
 

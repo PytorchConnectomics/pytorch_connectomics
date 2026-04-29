@@ -5,17 +5,16 @@ description: >
 
   Usage:
     python scripts/main.py --config tutorials/waterz_decoding.yaml --mode test \
-      inference.saved_prediction_path=path/to/affinity.h5 \
+      decoding.input_prediction_path=path/to/affinity.h5 \
       test.data.test.label=path/to/gt.h5
 
 _base_:
-  - ../connectomics/config/all_profiles.yaml
+- ../connectomics/config/all_profiles.yaml
 
 default:
-  inference:
-    saved_prediction_path: "/projects/weilab/dataset/liconn/mansour/DL288B_251222S_cond5_40x_12tiles_round1_fused_488_crop512x1024x1024_ffn_sharp_tta_x8_prediction_uint8.h5"   # SET THIS: path to affinity HDF5
-
+  inference: {}
   decoding:
+    steps:
     - template: decoding_waterz
       kwargs:
         use_aff_uint8: true
@@ -31,6 +30,7 @@ default:
         dust_merge_affinity: 0.3
         dust_remove_size: 200
 
+    input_prediction_path: "/projects/weilab/dataset/liconn/mansour/DL288B_251222S_cond5_40x_12tiles_round1_fused_488_crop512x1024x1024_ffn_sharp_tta_x8_prediction_uint8.h5"
 test:
   data:
     test:

@@ -59,7 +59,7 @@ description: >
 
 # ── Inherit all shared profile libraries ──────────────────────────────────────
 _base_:
-  - ../connectomics/config/all_profiles.yaml
+- ../connectomics/config/all_profiles.yaml
 
 # ── Profile selectors ─────────────────────────────────────────────────────────
 default:
@@ -75,9 +75,9 @@ default:
       profile: mednext_m          # MedNeXt-M (17.6M params); better capacity for 9-ch affinity
     # Override out_channels: 9 affinities (3 distances × 3 axes)
     out_channels: 9
-    
+
     loss:
-      profile: null
+      profile:
       # ── Custom loss: FocalLoss + TverskyLoss per channel group ────────────────
       # We bypass the loss_binary profile and define losses inline.
       # Each entry maps 1:1 to a loss function (by index in the losses list).
@@ -100,59 +100,59 @@ default:
         # ── Short-range channels (ch 0-2, offset 1) ──────────────────────────
         # FocalLoss: no 'sigmoid' param — applies sigmoid by default (use_softmax=False)
         # TverskyLoss: 'sigmoid=true' is valid
-        - function: FocalLoss
-          weight: 1.0
-          pred_slice: [0, 3]
-          target_slice: [0, 3]
-          kwargs:
-            gamma: 2.0
-            alpha: 0.25
-        - function: TverskyLoss
-          weight: 1.0
-          pred_slice: [0, 3]
-          target_slice: [0, 3]
-          kwargs:
-            alpha: 0.3
-            beta: 0.7
-            sigmoid: true
-            smooth_nr: 1.0e-5
-            smooth_dr: 1.0e-5
+      - function: FocalLoss
+        weight: 1.0
+        pred_slice: [0, 3]
+        target_slice: [0, 3]
+        kwargs:
+          gamma: 2.0
+          alpha: 0.25
+      - function: TverskyLoss
+        weight: 1.0
+        pred_slice: [0, 3]
+        target_slice: [0, 3]
+        kwargs:
+          alpha: 0.3
+          beta: 0.7
+          sigmoid: true
+          smooth_nr: 1.0e-5
+          smooth_dr: 1.0e-5
         # ── Mid-range channels (ch 3-5, offset 3) ────────────────────────────
-        - function: FocalLoss
-          weight: 0.8
-          pred_slice: [3, 6]
-          target_slice: [3, 6]
-          kwargs:
-            gamma: 2.0
-            alpha: 0.25
-        - function: TverskyLoss
-          weight: 0.8
-          pred_slice: [3, 6]
-          target_slice: [3, 6]
-          kwargs:
-            alpha: 0.3
-            beta: 0.7
-            sigmoid: true
-            smooth_nr: 1.0e-5
-            smooth_dr: 1.0e-5
+      - function: FocalLoss
+        weight: 0.8
+        pred_slice: [3, 6]
+        target_slice: [3, 6]
+        kwargs:
+          gamma: 2.0
+          alpha: 0.25
+      - function: TverskyLoss
+        weight: 0.8
+        pred_slice: [3, 6]
+        target_slice: [3, 6]
+        kwargs:
+          alpha: 0.3
+          beta: 0.7
+          sigmoid: true
+          smooth_nr: 1.0e-5
+          smooth_dr: 1.0e-5
         # ── Long-range channels (ch 6-8, offset 9) ───────────────────────────
-        - function: FocalLoss
-          weight: 0.5
-          pred_slice: [6, 9]
-          target_slice: [6, 9]
-          kwargs:
-            gamma: 2.0
-            alpha: 0.25
-        - function: TverskyLoss
-          weight: 0.5
-          pred_slice: [6, 9]
-          target_slice: [6, 9]
-          kwargs:
-            alpha: 0.3
-            beta: 0.7
-            sigmoid: true
-            smooth_nr: 1.0e-5
-            smooth_dr: 1.0e-5
+      - function: FocalLoss
+        weight: 0.5
+        pred_slice: [6, 9]
+        target_slice: [6, 9]
+        kwargs:
+          gamma: 2.0
+          alpha: 0.25
+      - function: TverskyLoss
+        weight: 0.5
+        pred_slice: [6, 9]
+        target_slice: [6, 9]
+        kwargs:
+          alpha: 0.3
+          beta: 0.7
+          sigmoid: true
+          smooth_nr: 1.0e-5
+          smooth_dr: 1.0e-5
     mednext:
       size: M                          # MedNeXt-M (17.6M params); was B (10.5M) — more capacity for 9-ch affinity
       kernel_size: 3
@@ -214,22 +214,8 @@ default:
     # crop_pad + selected-channel affinity_crop[(1,0),(1,0),(1,0)] = pad_size [16,64,64]:
     #   Z: 15+1=16, 16+0=16 | Y: 63+1=64, 64+0=64 | X: 63+1=64, 64+0=64
     crop_pad: [15, 16, 63, 64, 63, 64]
-    postprocessing:
-      enabled: true
-    # ── Decoding ──────────────────────────────────────────────────────────────
-    # Option A: ABISS external pipeline — best quality, requires ABISS built.
-    #   Falls back to connected-components automatically if ABISS fails.
-    #
-    # ABISS binary: abiss/build/ws (built from abiss/ source via abiss/build_ws.sh)
-    # Intel TBB runtime: /orcd/software/community/001/rocky8/intel/2024.2.1/tbb/2021.13/lib
-    #   must be on LD_LIBRARY_PATH at runtime (ws binary links against libtbb.so.12).
-    #
-    # Thresholds for axon segmentation at 18 nm:
-    #   ws_high_threshold=0.9  — only seed watershed at very high affinity (confident boundaries)
-    #   ws_low_threshold=0.3   — extend seeds down to moderate affinity
-    #   ws_size_threshold=100  — discard fragments smaller than 100 voxels
-
   decoding:
+    steps:
     - name: decode_abiss
       kwargs:
         command: >
@@ -256,6 +242,21 @@ default:
 
 
 # ── Training stage ─────────────────────────────────────────────────────────────
+    postprocessing:
+      enabled: true
+    # ── Decoding ──────────────────────────────────────────────────────────────
+    # Option A: ABISS external pipeline — best quality, requires ABISS built.
+    #   Falls back to connected-components automatically if ABISS fails.
+    #
+    # ABISS binary: abiss/build/ws (built from abiss/ source via abiss/build_ws.sh)
+    # Intel TBB runtime: /orcd/software/community/001/rocky8/intel/2024.2.1/tbb/2021.13/lib
+    #   must be on LD_LIBRARY_PATH at runtime (ws binary links against libtbb.so.12).
+    #
+    # Thresholds for axon segmentation at 18 nm:
+    #   ws_high_threshold=0.9  — only seed watershed at very high affinity (confident boundaries)
+    #   ws_low_threshold=0.3   — extend seeds down to moderate affinity
+    #   ws_size_threshold=100  — discard fragments smaller than 100 voxels
+
 train:
   data:
     label_transform:
@@ -272,22 +273,22 @@ train:
 
       # 9-channel affinity: distances 1, 3, 9 along each axis (z, y, x)
       targets:
-        - name: affinity
-          kwargs:
-            offsets:
+      - name: affinity
+        kwargs:
+          offsets:
               # Distance 1 (short-range) — primary connectivity signal
-              - "1-0-0"    # ch 0: z
-              - "0-1-0"    # ch 1: y
-              - "0-0-1"    # ch 2: x
+          - "1-0-0"        # ch 0: z
+          - "0-1-0"        # ch 1: y
+          - "0-0-1"        # ch 2: x
               # Distance 3 (mid-range) — bridges small gaps
-              - "3-0-0"    # ch 3: z
-              - "0-3-0"    # ch 4: y
-              - "0-0-3"    # ch 5: x
+          - "3-0-0"        # ch 3: z
+          - "0-3-0"        # ch 4: y
+          - "0-0-3"        # ch 5: x
               # Distance 9 (long-range) — long-range context for agglomeration
-              - "9-0-0"   # ch 6: z
-              - "0-9-0"   # ch 7: y
-              - "0-0-9"   # ch 8: x
-            affinity_mode: deepem
+          - "9-0-0"       # ch 6: z
+          - "0-9-0"       # ch 7: y
+          - "0-0-9"       # ch 8: x
+          affinity_mode: deepem
 
     # ── Data paths ───────────────────────────────────────────────────────────
     # NOTE: split_enabled only works with HDF5/TIFF, not Zarr (raises ValueError).
@@ -371,7 +372,8 @@ test:
     # No label available — inference only (evaluation.enabled: false).
     test:
       # image: /orcd/data/edboyden/002/mansour8/deb_data/BA_5AA_proteintest_1_2026-02-18_17.25.37_channel1_ffn_sharp.zarr
-      image: /orcd/data/edboyden/002/dleible/DL288B/DL288B_251222S_cond5_40x_12tiles_round1_fused_488_crop512x1024x1024.tif
+      image:
+        /orcd/data/edboyden/002/dleible/DL288B/DL288B_251222S_cond5_40x_12tiles_round1_fused_488_crop512x1024x1024.tif
       # label: omitted — no ground truth available for this volume
       resolution: [25, 18, 18]  # same voxel size as training data
 

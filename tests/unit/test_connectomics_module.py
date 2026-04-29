@@ -480,7 +480,7 @@ def test_save_metrics_to_file_matches_final_prediction_tag(tmp_path):
     cfg = _base_config()
     cfg.inference.save_prediction.output_path = str(tmp_path)
     cfg.inference.select_channel = [0, 1, 2]
-    cfg.decoding = [
+    cfg.decoding.steps = [
         {
             "name": "decode_waterz",
             "kwargs": {

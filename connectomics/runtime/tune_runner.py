@@ -352,8 +352,12 @@ def load_and_apply_best_params(cfg, checkpoint_path=None):
     best_params = OmegaConf.load(best_params_file)
     logger.info("Loaded best parameters:\n%s", OmegaConf.to_yaml(best_params))
 
-    if getattr(cfg, "decoding", None) is None:
-        cfg.decoding = []
+    decoding_cfg = getattr(cfg, "decoding", None)
+    if decoding_cfg is None:
+        raise ValueError("Missing top-level decoding configuration")
+    if decoding_cfg.steps is None:
+        decoding_cfg.steps = []
+    decoding_steps = decoding_cfg.steps
 
     decoding_function = best_params.get("decoding_function", None)
 
@@ -362,7 +366,7 @@ def load_and_apply_best_params(cfg, checkpoint_path=None):
         decoder_idx = 0
     else:
         decoder_idx = None
-        for idx, decoder in enumerate(cfg.decoding):
+        for idx, decoder in enumerate(decoding_steps):
             decoder_name = (
                 decoder.get("name") if isinstance(decoder, dict) else getattr(decoder, "name", None)
             )
@@ -371,11 +375,11 @@ def load_and_apply_best_params(cfg, checkpoint_path=None):
                 break
 
         if decoder_idx is None:
-            decoder_idx = len(cfg.decoding)
-            cfg.decoding.append({"name": decoding_function, "kwargs": {}})
+            decoder_idx = len(decoding_steps)
+            decoding_steps.append({"name": decoding_function, "kwargs": {}})
 
-    if decoder_idx < len(cfg.decoding):
-        decoder = cfg.decoding[decoder_idx]
+    if decoder_idx < len(decoding_steps):
+        decoder = decoding_steps[decoder_idx]
 
         if isinstance(decoder, dict):
             if "kwargs" not in decoder:

@@ -1,11 +1,13 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import List, Optional, Set
+from typing import Optional, Set
 
 from ...runtime.torch_safe_globals import register_torch_safe_globals
 from .data import DataConfig
-from .inference import DecodeModeConfig, EvaluationConfig, InferenceConfig
+from .decoding import DecodingConfig
+from .evaluation import EvaluationConfig
+from .inference import InferenceConfig
 from .model import ModelConfig
 from .monitor import MonitorConfig
 from .optimization import OptimizationConfig
@@ -70,7 +72,7 @@ class Config:
     optimization: OptimizationConfig = field(default_factory=OptimizationConfig)
     monitor: MonitorConfig = field(default_factory=MonitorConfig)
     inference: InferenceConfig = field(default_factory=InferenceConfig)
-    decoding: Optional[List[DecodeModeConfig]] = None
+    decoding: DecodingConfig = field(default_factory=DecodingConfig)
     evaluation: EvaluationConfig = field(default_factory=EvaluationConfig)
 
     # Optional: Test-specific configuration (test data paths, decoding, evaluation)

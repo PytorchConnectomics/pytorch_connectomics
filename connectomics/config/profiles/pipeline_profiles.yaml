@@ -17,7 +17,8 @@ pipeline_profiles:
       label_transform:
         profile: label_bcd
     decoding:
-      - template: decoding_bcd
+      steps:
+        - template: decoding_bcd
     inference:
       test_time_augmentation:
         ensemble_mode: mean
@@ -31,7 +32,8 @@ pipeline_profiles:
       label_transform:
         profile: label_aff9
     decoding:
-      - template: decoding_waterz
+      steps:
+        - template: decoding_waterz
     inference:
       test_time_augmentation:
         ensemble_mode: min
@@ -45,7 +47,8 @@ pipeline_profiles:
       label_transform:
         profile: label_aff12
     decoding:
-      - template: decoding_waterz
+      steps:
+        - template: decoding_waterz
     inference:
       select_channel: [0, 1, 2]
       test_time_augmentation:
@@ -60,7 +63,8 @@ pipeline_profiles:
       label_transform:
         profile: label_aff9_sdt
     decoding:
-      - template: decoding_waterz
+      steps:
+        - template: decoding_waterz
     inference:
       test_time_augmentation:
         ensemble_mode: [["0:9", min], ["9:", mean]]

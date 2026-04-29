@@ -4,7 +4,9 @@ from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional
 
 from .data import DataConfig
-from .inference import DecodeModeConfig, EvaluationConfig, InferenceConfig
+from .decoding import DecodingConfig
+from .evaluation import EvaluationConfig
+from .inference import InferenceConfig
 from .model import ModelConfig
 from .monitor import MonitorConfig
 from .optimization import OptimizationConfig
@@ -21,7 +23,7 @@ class DefaultConfig:
     optimization: OptimizationConfig = field(default_factory=OptimizationConfig)
     monitor: MonitorConfig = field(default_factory=MonitorConfig)
     inference: InferenceConfig = field(default_factory=InferenceConfig)
-    decoding: Optional[List[DecodeModeConfig]] = None
+    decoding: DecodingConfig = field(default_factory=DecodingConfig)
     evaluation: EvaluationConfig = field(default_factory=EvaluationConfig)
 
 
@@ -44,7 +46,7 @@ class TestConfig:
     model: ModelConfig = field(default_factory=ModelConfig)
     data: Optional[DataConfig] = field(default_factory=DataConfig)
     inference: InferenceConfig = field(default_factory=InferenceConfig)
-    decoding: Optional[List[DecodeModeConfig]] = None
+    decoding: DecodingConfig = field(default_factory=DecodingConfig)
     evaluation: EvaluationConfig = field(default_factory=EvaluationConfig)
 
 
@@ -115,7 +117,7 @@ class TuneConfig:
     data: DataConfig = field(default_factory=DataConfig)
 
     inference: InferenceConfig = field(default_factory=InferenceConfig)
-    decoding: Optional[List[DecodeModeConfig]] = None
+    decoding: DecodingConfig = field(default_factory=DecodingConfig)
     evaluation: EvaluationConfig = field(default_factory=EvaluationConfig)
     output: TuneOutputConfig = field(default_factory=TuneOutputConfig)
     logging: Dict[str, Any] = field(default_factory=lambda: {"verbose": True})

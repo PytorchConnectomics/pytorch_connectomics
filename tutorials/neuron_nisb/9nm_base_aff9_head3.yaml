@@ -1,5 +1,5 @@
 _base_:
-  - ../../connectomics/config/all_profiles.yaml
+- ../../connectomics/config/all_profiles.yaml
 
 experiment_name: neuron_nisb_base_9nm_mednext_b_aff9_head3
 description: NISB base neuron instance segmentation (BANIS-style) with MedNeXt-B, affinity (9nm)
@@ -33,21 +33,21 @@ default:
     loss:
       deep_supervision: false
       losses:
-        - function: PerChannelBCEWithLogitsLoss
-          weight: 1.0
-          pred_head: aff_r1
-          target_slice: "0:3"
-          kwargs: {auto_pos_weight: true}
-        - function: PerChannelBCEWithLogitsLoss
-          weight: 1.0
-          pred_head: aff_r5
-          target_slice: "3:6"
-          kwargs: {auto_pos_weight: true}
-        - function: PerChannelBCEWithLogitsLoss
-          weight: 1.0
-          pred_head: aff_r11
-          target_slice: "6:9"
-          kwargs: {auto_pos_weight: true}
+      - function: PerChannelBCEWithLogitsLoss
+        weight: 1.0
+        pred_head: aff_r1
+        target_slice: "0:3"
+        kwargs: {auto_pos_weight: true}
+      - function: PerChannelBCEWithLogitsLoss
+        weight: 1.0
+        pred_head: aff_r5
+        target_slice: "3:6"
+        kwargs: {auto_pos_weight: true}
+      - function: PerChannelBCEWithLogitsLoss
+        weight: 1.0
+        pred_head: aff_r11
+        target_slice: "6:9"
+        kwargs: {auto_pos_weight: true}
       loss_balancing:
         strategy: uncertainty
     mednext:
@@ -70,10 +70,10 @@ default:
     label_transform:
       erosion: 2
       targets:
-        - name: affinity
-          kwargs:
-            offsets: ["1-0-0", "0-1-0", "0-0-1", "5-0-0", "0-5-0", "0-0-5", "11-0-0", "0-11-0", "0-0-11"]
-            affinity_mode: banis
+      - name: affinity
+        kwargs:
+          offsets: ["1-0-0", "0-1-0", "0-0-1", "5-0-0", "0-5-0", "0-0-5", "11-0-0", "0-11-0", "0-0-11"]
+          affinity_mode: banis
     data_transform:
       train_transpose: [2, 1, 0]
       val_transpose: [2, 1, 0]
@@ -95,12 +95,13 @@ default:
       save_all_heads: true
 
   decoding:
+    steps:
     - template: decoding_abiss
 
   evaluation:
     enabled: true
     metrics:
-      - adapted_rand
+    - adapted_rand
 
 train:
   optimization:
@@ -129,7 +130,8 @@ train:
   monitor:
     logging:
       scalar:
-        loss: [train_loss_total_epoch, val_loss_total, train_loss_term_0_weighted, train_loss_term_1_weighted, train_loss_term_2_weighted]
+        loss: [train_loss_total_epoch, val_loss_total, train_loss_term_0_weighted, train_loss_term_1_weighted,
+          train_loss_term_2_weighted]
         loss_every_n_steps: 100
       images:
         head: all

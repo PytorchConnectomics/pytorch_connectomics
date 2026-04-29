@@ -1,5 +1,5 @@
 _base_:
-  - ../../connectomics/config/all_profiles.yaml
+- ../../connectomics/config/all_profiles.yaml
 
 experiment_name: neuron_nisb_base_9nm_banis
 description: BANIS train_base reproduction target (9nm, 6-channel affinity, MedNeXt-S/k3, 128-cube)
@@ -18,8 +18,8 @@ default:
     loss:
       deep_supervision: false
       losses:
-        - function: WeightedBCEWithLogitsLoss
-          weight: 1.0
+      - function: WeightedBCEWithLogitsLoss
+        weight: 1.0
     mednext:
       size: S
       kernel_size: 3
@@ -42,11 +42,10 @@ default:
     label_transform:
       erosion: 0
       targets:
-        - name: affinity
-          kwargs:
-            offsets:
-              ["1-0-0", "0-1-0", "0-0-1", "10-0-0", "0-10-0", "0-0-10"]
-            affinity_mode: banis
+      - name: affinity
+        kwargs:
+          offsets: ["1-0-0", "0-1-0", "0-0-1", "10-0-0", "0-10-0", "0-0-10"]
+          affinity_mode: banis
     augmentation:
       # BANIS augmentation defaults:
       # drop_slice_prob=0.05, shift_slice_prob=0.05, intensity_aug=true,
@@ -114,13 +113,14 @@ default:
       # BANIS-style scale_sigmoid: sigmoid(0.2 * x). Avoids fp16 saturation
       # and gives sharper threshold-based decisions.
       channel_activations:
-        - {channels: ":", activation: scale_sigmoid}
+      - {channels: ":", activation: scale_sigmoid}
     save_prediction:
       enabled: true
       storage_dtype: float16
       output_formats: [h5]
 
   decoding:
+    steps:
     - name: decode_affinity_cc
       kwargs:
         threshold: 0.73
@@ -131,7 +131,7 @@ default:
   evaluation:
     enabled: true
     metrics:
-      - adapted_rand
+    - adapted_rand
 
 train:
   system:

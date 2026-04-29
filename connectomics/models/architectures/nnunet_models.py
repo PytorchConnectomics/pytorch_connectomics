@@ -140,8 +140,8 @@ class nnUNetWrapper(ConnectomicsModel):
         return info
 
 
-@register_architecture("nnunet_pretrained")
-def build_nnunet_pretrained(cfg) -> ConnectomicsModel:
+@register_architecture("nnunet")
+def build_nnunet(cfg) -> ConnectomicsModel:
     """
     Build nnUNet model from pretrained checkpoint.
 
@@ -162,7 +162,7 @@ def build_nnunet_pretrained(cfg) -> ConnectomicsModel:
 
     Example config:
         model:
-          architecture: nnunet_pretrained
+          architecture: nnunet
           nnunet:
             checkpoint: /path/to/checkpoint.pth
             plans: /path/to/plans.json
@@ -312,5 +312,5 @@ def build_nnunet_pretrained(cfg) -> ConnectomicsModel:
 
 __all__ = [
     "nnUNetWrapper",
-    "build_nnunet_pretrained",
+    "build_nnunet",
 ]

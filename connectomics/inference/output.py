@@ -256,8 +256,8 @@ def _resolve_mode_configs(
         data_cfg = getattr(cfg, "data", None)
 
     # For decode-only mode: output to same folder as the input prediction
-    if not output_dir_value and inference_cfg is not None:
-        saved_pred = getattr(inference_cfg, "saved_prediction_path", "")
+    if not output_dir_value:
+        saved_pred = getattr(getattr(cfg, "decoding", None), "input_prediction_path", "")
         if saved_pred:
             from pathlib import Path
 

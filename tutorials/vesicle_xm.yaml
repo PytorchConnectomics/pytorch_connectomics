@@ -2,12 +2,12 @@ experiment_name: vesicle_xm_mednext_bcd
 description: Vesicle segmentation with MedNeXt and multi-task learning (Binary + Contour + DT)
 
 _base_:
-  - ../connectomics/config/all_profiles.yaml
+- ../connectomics/config/all_profiles.yaml
 
 default:
   pipeline_profile: bcd
   system:
-    profile: all-gpu-cpu  
+    profile: all-gpu-cpu
   model:
     arch:
       profile: mednext_s
@@ -15,9 +15,9 @@ default:
     output_size: [32, 128, 128]
   data:
     dataloader:
-      profile: cached      
+      profile: cached
       batch_size: 4
-      patch_size: [32, 128, 128]      
+      patch_size: [32, 128, 128]
     image_transform:
       normalize: "0-1"
     augmentation:
@@ -26,18 +26,13 @@ default:
     test_time_augmentation:
       enabled: true
       flip_axes: [1, 2]
-      rotation90_axes: [[1,2]]
+      rotation90_axes: [[1, 2]]
     sliding_window:
       window_size: [32, 128, 128]
     save_prediction:
       enabled: true
-    postprocessing:
-      enabled: true
-      instance_cc3d:
-        connectivity: 6        # 6-connected (face only) for conservative splitting
-        min_size: 100           # remove components smaller than 100 voxels
-
   decoding:
+    steps:
     - name: decode_instance_binary_contour_distance
       kwargs:
         binary_threshold: [0.76, 0.5]
@@ -45,10 +40,16 @@ default:
         distance_threshold: [0.7, -0.2]
         min_instance_size: 100
         min_seed_size: 20
+    postprocessing:
+      enabled: true
+      instance_cc3d:
+        connectivity: 6        # 6-connected (face only) for conservative splitting
+        min_size: 100           # remove components smaller than 100 voxels
+
   evaluation:
     enabled: true
     metrics:
-      - adapted_rand
+    - adapted_rand
 
 train:
   data:
@@ -65,7 +66,7 @@ train:
     profile: warmup_cosine_lr
     n_steps_per_epoch: 1000
     max_epochs: 500
-    
+
   monitor:
     logging:
       scalar:

@@ -1,8 +1,9 @@
 _base_:
-  - ../../connectomics/config/all_profiles.yaml
+- ../../connectomics/config/all_profiles.yaml
 
 experiment_name: nisb_base_banis_chunk
-description: BANIS train_base_long reproduction target with chunked inference (9nm, 6-channel affinity, MedNeXt-S/k3, 128-cube, 200k steps)
+description: BANIS train_base_long reproduction target with chunked inference (9nm, 6-channel affinity,
+  MedNeXt-S/k3, 128-cube, 200k steps)
 
 default:
   system:
@@ -18,8 +19,8 @@ default:
     loss:
       deep_supervision: false
       losses:
-        - function: WeightedBCEWithLogitsLoss
-          weight: 1.0
+      - function: WeightedBCEWithLogitsLoss
+        weight: 1.0
     mednext:
       size: S
       kernel_size: 3
@@ -47,11 +48,10 @@ default:
       relabel_connected_components: true
       relabel_connectivity: 6
       targets:
-        - name: affinity
-          kwargs:
-            offsets:
-              ["1-0-0", "0-1-0", "0-0-1", "10-0-0", "0-10-0", "0-0-10"]
-            affinity_mode: banis
+      - name: affinity
+        kwargs:
+          offsets: ["1-0-0", "0-1-0", "0-0-1", "10-0-0", "0-10-0", "0-0-10"]
+          affinity_mode: banis
     augmentation:
       # BANIS augmentation defaults:
       # drop_slice_prob=0.05, shift_slice_prob=0.05, intensity_aug=true,
@@ -141,13 +141,14 @@ default:
     test_time_augmentation:
       enabled: false
       channel_activations:
-        - {channels: ":", activation: scale_sigmoid}
+      - {channels: ":", activation: scale_sigmoid}
     save_prediction:
       enabled: true
       storage_dtype: float16
       output_formats: [h5]
 
   decoding:
+    steps:
     - name: decode_affinity_cc
       kwargs:
         threshold: 0.7
@@ -158,7 +159,7 @@ default:
   evaluation:
     enabled: false
     metrics:
-      - nerl
+    - nerl
 
 train:
   optimization:

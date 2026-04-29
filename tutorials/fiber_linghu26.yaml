@@ -1,5 +1,5 @@
 _base_:
-  - ../connectomics/config/all_profiles.yaml
+- ../connectomics/config/all_profiles.yaml
 
 experiment_name: fiber_mednext_bcs
 description: Fiber segmentation with MedNeXt and multi-task learning (Binary + Contour + SDT)
@@ -113,10 +113,11 @@ default:
     test_time_augmentation:
       enabled: true
       channel_activations:
-        - {channels: "0:2", activation: sigmoid}
-        - {channels: "2:3", activation: tanh}
+      - {channels: "0:2", activation: sigmoid}
+      - {channels: "2:3", activation: tanh}
 
   decoding:
+    steps:
     - name: decode_binary_contour_distance_watershed
       kwargs:
         binary_threshold:

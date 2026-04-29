@@ -129,12 +129,14 @@ def test_cross_section_validation_rejects_decoding_channel_mismatch():
     cfg = from_dict(
         {
             "model": {"out_channels": 2},
-            "decoding": [
-                {
-                    "name": "decode_instance_binary_contour_distance",
-                    "kwargs": {"distance_channels": [2]},
-                }
-            ],
+            "decoding": {
+                "steps": [
+                    {
+                        "name": "decode_instance_binary_contour_distance",
+                        "kwargs": {"distance_channels": [2]},
+                    }
+                ],
+            },
         }
     )
 
@@ -443,7 +445,7 @@ system_profiles:
     num_workers: 1
 decoding_templates:
   decode_unit:
-    decoding:
+    steps:
       - name: decode_instance_binary_contour_distance
         kwargs:
           min_instance_size: 5
@@ -463,7 +465,8 @@ default:
     label_transform:
       profile: label_unit
   decoding:
-    - template: decode_unit
+    steps:
+      - template: decode_unit
   system:
     profile: single-gpu-cpu
 _base_: {base_yaml.name}
@@ -474,8 +477,8 @@ _base_: {base_yaml.name}
     assert cfg.model.arch.type == "mednext"
     assert cfg.model.mednext.size == "S"
     assert cfg.data.augmentation.flip.enabled is True
-    assert cfg.decoding is not None and len(cfg.decoding) == 1
-    assert cfg.decoding[0].kwargs["min_instance_size"] == 5
+    assert cfg.decoding.steps is not None and len(cfg.decoding.steps) == 1
+    assert cfg.decoding.steps[0].kwargs["min_instance_size"] == 5
     print("[OK]YAML shared profile selectors work")
 
 
@@ -821,7 +824,7 @@ def test_shared_decoding_template_list_ref(tmp_path):
     base_yaml.write_text("""
 decoding_templates:
   decoding_bcd:
-    decoding:
+    steps:
       - name: decode_instance_binary_contour_distance
         kwargs:
           min_instance_size: 3
@@ -832,14 +835,15 @@ decoding_templates:
 _base_: {base_yaml.name}
 default:
   decoding:
-    - template: decoding_bcd
+    steps:
+      - template: decoding_bcd
 """.strip())
 
     cfg = load_config(config_yaml)
     cfg = resolve_default_profiles(cfg, mode="test")
-    assert cfg.decoding is not None and len(cfg.decoding) == 1
-    assert cfg.decoding[0].name == "decode_instance_binary_contour_distance"
-    assert cfg.decoding[0].kwargs["min_instance_size"] == 3
+    assert cfg.decoding.steps is not None and len(cfg.decoding.steps) == 1
+    assert cfg.decoding.steps[0].name == "decode_instance_binary_contour_distance"
+    assert cfg.decoding.steps[0].kwargs["min_instance_size"] == 3
     print("[OK]Shared decoding profile-list ref resolves")
 
 
@@ -849,7 +853,7 @@ def test_top_level_decoding_template_list_ref(tmp_path):
     base_yaml.write_text("""
 decoding_templates:
   decoding_bcd:
-    decoding:
+    steps:
       - name: decode_instance_binary_contour_distance
         kwargs:
           min_instance_size: 7
@@ -859,13 +863,14 @@ decoding_templates:
     config_yaml.write_text(f"""
 _base_: {base_yaml.name}
 decoding:
-  - template: decoding_bcd
+  steps:
+    - template: decoding_bcd
 """.strip())
 
     cfg = load_config(config_yaml)
-    assert cfg.decoding is not None and len(cfg.decoding) == 1
-    assert cfg.decoding[0].name == "decode_instance_binary_contour_distance"
-    assert cfg.decoding[0].kwargs["min_instance_size"] == 7
+    assert cfg.decoding.steps is not None and len(cfg.decoding.steps) == 1
+    assert cfg.decoding.steps[0].name == "decode_instance_binary_contour_distance"
+    assert cfg.decoding.steps[0].kwargs["min_instance_size"] == 7
 
 
 def test_loss_profile_positional_overrides(tmp_path):

@@ -1,8 +1,11 @@
 _base_:
-  - ../connectomics/config/all_profiles.yaml
+- ../connectomics/config/all_profiles.yaml
 
 experiment_name: mednext_betaseg_banis_v2
-description: BetaSeg 3D mitochondria — v0 (faithful BANIS-mito) + improvements only. Same target geometry (r1+r10), no erosion, affinity_mode=banis, same 3-cube test split. Differs from v0 in loss formulation (auto_pos_weight BCE + Dice on aff, gradnorm balancing), precision (bf16-mixed), cosine min_lr floor, and lower gaussian noise std.
+description: BetaSeg 3D mitochondria — v0 (faithful BANIS-mito) + improvements only. Same target geometry
+  (r1+r10), no erosion, affinity_mode=banis, same 3-cube test split. Differs from v0 in loss formulation
+  (auto_pos_weight BCE + Dice on aff, gradnorm balancing), precision (bf16-mixed), cosine min_lr floor,
+  and lower gaussian noise std.
 
 default:
   system:
@@ -38,31 +41,31 @@ default:
         target_slice: "6:7"
     loss:
       losses:
-        - function: PerChannelBCEWithLogitsLoss
-          weight: 1.0
-          pred_head: aff_r1
-          target_slice: "0:3"
-          kwargs: {auto_pos_weight: true, max_pos_weight: 20.0}
-        - function: DiceLoss
-          weight: 1.0
-          pred_head: aff_r1
-          target_slice: "0:3"
-          kwargs: {sigmoid: true}
-        - function: PerChannelBCEWithLogitsLoss
-          weight: 1.0
-          pred_head: aff_r10
-          target_slice: "3:6"
-          kwargs: {auto_pos_weight: true, max_pos_weight: 40.0}
-        - function: DiceLoss
-          weight: 1.0
-          pred_head: aff_r10
-          target_slice: "3:6"
-          kwargs: {sigmoid: true}
-        - function: WeightedMSELoss
-          weight: 1.0
-          pred_head: sdt
-          target_slice: "6:7"
-          kwargs: {tanh: true}
+      - function: PerChannelBCEWithLogitsLoss
+        weight: 1.0
+        pred_head: aff_r1
+        target_slice: "0:3"
+        kwargs: {auto_pos_weight: true, max_pos_weight: 20.0}
+      - function: DiceLoss
+        weight: 1.0
+        pred_head: aff_r1
+        target_slice: "0:3"
+        kwargs: {sigmoid: true}
+      - function: PerChannelBCEWithLogitsLoss
+        weight: 1.0
+        pred_head: aff_r10
+        target_slice: "3:6"
+        kwargs: {auto_pos_weight: true, max_pos_weight: 40.0}
+      - function: DiceLoss
+        weight: 1.0
+        pred_head: aff_r10
+        target_slice: "3:6"
+        kwargs: {sigmoid: true}
+      - function: WeightedMSELoss
+        weight: 1.0
+        pred_head: sdt
+        target_slice: "6:7"
+        kwargs: {tanh: true}
       loss_balancing:
         strategy: gradnorm
   data:
@@ -72,14 +75,14 @@ default:
       resolution: [16, 16, 16]
       cache_dir: datasets/betaSeg
       targets:
-        - name: affinity
-          kwargs:
-            offsets: ["0-0-1", "0-1-0", "1-0-0", "0-0-10", "0-10-0", "10-0-0"]
-            affinity_mode: banis
-        - name: skeleton_aware_edt
-          kwargs:
-            alpha: 0.8
-            bg_value: -1.0
+      - name: affinity
+        kwargs:
+          offsets: ["0-0-1", "0-1-0", "1-0-0", "0-0-10", "0-10-0", "10-0-0"]
+          affinity_mode: banis
+      - name: skeleton_aware_edt
+        kwargs:
+          alpha: 0.8
+          bg_value: -1.0
     dataloader:
       patch_size: [128, 128, 128]
       batch_size: 2
@@ -139,16 +142,15 @@ default:
       flip_axes: all
       ensemble_mode: min
       channel_activations:
-        - {channels: "0:6", activation: sigmoid}
-        - {channels: "6:7", activation: tanh}
+      - {channels: "0:6", activation: sigmoid}
+      - {channels: "6:7", activation: tanh}
     # pad_size [64, 64, 64] minus affinity crop [(0, 10), (0, 10), (0, 10)]
     crop_pad: [64, 54, 64, 54, 64, 54]
-    postprocessing:
-      enabled: true
     save_prediction:
       enabled: true
 
   decoding:
+    steps:
     - name: decode_distance_watershed
       kwargs:
         distance_channels: [6]
@@ -157,6 +159,8 @@ default:
         min_instance_size: 50
         use_fast_edt: true
         edt_parallel: 8
+    postprocessing:
+      enabled: true
   evaluation:
     enabled: true
     metrics: [adapted_rand]
@@ -184,7 +188,8 @@ train:
   monitor:
     logging:
       scalar:
-        loss: [train_loss_total_epoch, train_loss_term_0_weighted, train_loss_term_1_weighted, train_loss_term_2_weighted, train_loss_term_3_weighted, train_loss_term_4_weighted]
+        loss: [train_loss_total_epoch, train_loss_term_0_weighted, train_loss_term_1_weighted, train_loss_term_2_weighted,
+          train_loss_term_3_weighted, train_loss_term_4_weighted]
         loss_every_n_steps: 100
       images:
         head: all

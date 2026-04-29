@@ -1,6 +1,6 @@
 decoding_templates:
   decoding_bcd:
-    decoding:
+    steps:
       - name: decode_instance_binary_contour_distance
         kwargs:
           binary_threshold: [0.9, 0.85]
@@ -9,7 +9,7 @@ decoding_templates:
           min_instance_size: 30
           min_seed_size: 5
   decoding_waterz:
-    decoding:
+    steps:
       - name: decode_waterz
         kwargs:
           thresholds: 0.4
@@ -21,7 +21,7 @@ decoding_templates:
           dust_merge_affinity: 0.0
           dust_remove_size: 50
   decoding_abiss:
-    decoding:
+    steps:
       - name: decode_abiss
         kwargs:
           command: "{python_exe} scripts/run_abiss_single.py --input {input_h5} --output {output_h5}"

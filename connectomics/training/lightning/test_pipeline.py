@@ -749,11 +749,11 @@ def run_test_step(module, batch: Dict[str, torch.Tensor], batch_idx: int) -> STE
     )
 
     # Determine whether loaded predictions need decoding:
-    # - saved_prediction_path → always run decoding (it's raw affinity)
+    # - decoding.input_prediction_path -> always run decoding (it's raw affinity)
     # - *_decoding*.h5 → already decoded, skip decoding
     # - *_prediction*.h5 with TTA suffix → intermediate, run decoding
     # - other → final, skip decoding
-    _saved_pred = getattr(getattr(module.cfg, "inference", None), "saved_prediction_path", "")
+    _saved_pred = getattr(getattr(module.cfg, "decoding", None), "input_prediction_path", "")
     _from_saved_path = bool(loaded_from_file and _saved_pred)
     _is_decoding_file = loaded_from_file and "_decoding" in (loaded_suffix or "")
     loaded_final_predictions = (
@@ -828,7 +828,7 @@ def run_test_step(module, batch: Dict[str, torch.Tensor], batch_idx: int) -> STE
             return torch.tensor(0.0, device=module.device)
         _log_volume_header(volume_name, "PROCESSING VOLUME")
         if _from_saved_path:
-            logger.info("Applying pre-decode crop_pad/affinity_crop to saved_prediction_path data")
+            logger.info("Applying pre-decode crop_pad/affinity_crop to input_prediction_path data")
             predictions_np, reference_spatial_shape = _apply_predecode_prediction_crops(
                 module,
                 predictions_np,

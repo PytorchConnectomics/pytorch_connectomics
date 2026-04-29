@@ -135,11 +135,12 @@ def validate_runtime_coherence(cfg) -> None:
                 path=f"model.heads.{head_name}.target_slice",
             )
 
-    decoding_cfg = getattr(cfg, "decoding", None)
+    decoding_section = getattr(cfg, "decoding", None)
+    decoding_cfg = getattr(decoding_section, "steps", None)
     decode_has_channel_selection = False
     decode_available_channels = out_channels
     decode_channel_scope = "model output"
-    if isinstance(decoding_cfg, list):
+    if decoding_cfg:
         for decode_step in decoding_cfg:
             kwargs = getattr(decode_step, "kwargs", None)
             if isinstance(kwargs, dict) and any(key.endswith("_channels") for key in kwargs):

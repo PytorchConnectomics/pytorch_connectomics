@@ -1,8 +1,9 @@
 _base_:
-  - ../../connectomics/config/all_profiles.yaml
+- ../../connectomics/config/all_profiles.yaml
 
 experiment_name: neuron_nisb_9nm_base_mednext_l_aff9_multitask
-description: NISB base neuron instance segmentation (BANIS-style) with MedNeXt-L multi-head outputs (aff_r1 + aff_r5 + aff_r11, 9nm)
+description: NISB base neuron instance segmentation (BANIS-style) with MedNeXt-L multi-head outputs (aff_r1
+  + aff_r5 + aff_r11, 9nm)
 
 default:
   model:
@@ -103,7 +104,7 @@ default:
       flip_axes:
       rotation90_axes:
       channel_activations:
-        - {channels: ":", activation: sigmoid}
+      - {channels: ":", activation: sigmoid}
       ensemble_mode: mean
       apply_mask: false
     save_prediction:
@@ -112,6 +113,7 @@ default:
       output_formats: [h5]
 
   decoding:
+    steps:
     - name: decode_affinity_cc
       kwargs:
         threshold: 0.5
@@ -156,7 +158,8 @@ train:
   monitor:
     logging:
       scalar:
-        loss: [train_loss_total_epoch, val_loss_total, train_loss_term_0_weighted, train_loss_term_1_weighted, train_loss_term_2_weighted]
+        loss: [train_loss_total_epoch, val_loss_total, train_loss_term_0_weighted, train_loss_term_1_weighted,
+          train_loss_term_2_weighted]
         loss_every_n_steps: 100
       images:
         enabled: true

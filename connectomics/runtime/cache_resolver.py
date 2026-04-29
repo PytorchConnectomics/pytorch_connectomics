@@ -93,12 +93,12 @@ def has_tta_prediction_file(cfg: Config) -> bool:
     return os.path.exists(pred_file) and is_valid_hdf5_prediction_file(pred_file)
 
 
-def create_decode_only_datamodule(cfg: Config, saved_prediction_path: str):
+def create_decode_only_datamodule(cfg: Config, input_prediction_path: str):
     """Create a minimal datamodule for decode-only mode."""
     import pytorch_lightning as pl
     from torch.utils.data import DataLoader, Dataset
 
-    pred_stem = Path(saved_prediction_path).stem
+    pred_stem = Path(input_prediction_path).stem
 
     class _DummyDataset(Dataset):
         def __len__(self):

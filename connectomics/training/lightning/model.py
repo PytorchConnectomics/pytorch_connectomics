@@ -556,9 +556,8 @@ class ConnectomicsModule(pl.LightningModule):
         self, output_dir_value: Optional[str], filenames: List[str], cache_suffix: str, mode: str
     ):
         """Attempt to load cached predictions from disk."""
-        # Check inference.saved_prediction_path first (decode-only mode)
-        inference_cfg = self._get_runtime_inference_config()
-        saved_path = getattr(inference_cfg, "saved_prediction_path", "")
+        # Check decoding.input_prediction_path first (decode-only mode)
+        saved_path = getattr(getattr(self.cfg, "decoding", None), "input_prediction_path", "")
         if saved_path and isinstance(saved_path, str) and saved_path.strip():
             pred_file = Path(saved_path.strip()).expanduser()
             if not pred_file.is_absolute():
@@ -570,7 +569,7 @@ class ConnectomicsModule(pl.LightningModule):
                     pred = pred[np.newaxis, ...]
                 return pred, True, "_prediction.h5"
             else:
-                raise FileNotFoundError(f"inference.saved_prediction_path not found: {pred_file}")
+                raise FileNotFoundError(f"decoding.input_prediction_path not found: {pred_file}")
 
         explicit_prediction = self._resolve_tta_result_path_override()
         if isinstance(explicit_prediction, str) and explicit_prediction.strip():

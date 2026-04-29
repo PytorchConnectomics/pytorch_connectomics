@@ -32,18 +32,21 @@ from .data import (
     SliceShiftZConfig,
     StripeConfig,
 )
-from .inference import (
+from .decoding import (
     BinaryPostprocessingConfig,
-    ChunkingConfig,
-    ChunkStitchingConfig,
     ConnectedComponentsConfig,
     DecodeBinaryContourDistanceWatershedConfig,
     DecodeModeConfig,
-    EvaluationConfig,
+    DecodingConfig,
+    PostprocessingConfig,
+)
+from .evaluation import EvaluationConfig
+from .inference import (
+    ChunkingConfig,
+    ChunkStitchingConfig,
     InferenceConfig,
     InferenceDataConfig,
     InferenceMemoryCleanupConfig,
-    PostprocessingConfig,
     PredictionTransformConfig,
     SavePredictionConfig,
     SlidingWindowConfig,
@@ -133,6 +136,7 @@ __all__ = [
     "PredictionTransformConfig",
     "SavePredictionConfig",
     "InferenceMemoryCleanupConfig",
+    "DecodingConfig",
     "PostprocessingConfig",
     "BinaryPostprocessingConfig",
     "ConnectedComponentsConfig",

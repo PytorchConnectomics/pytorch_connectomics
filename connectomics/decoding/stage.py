@@ -33,21 +33,16 @@ def _cfg_get(cfg: Any, name: str, default: Any = None) -> Any:
 
 
 def apply_decoding_postprocessing(cfg: Any, data: np.ndarray) -> np.ndarray:
-    """Apply postprocessing configured under ``cfg.inference.postprocessing``.
-
-    The postprocessing transforms operate on decoded prediction arrays, so the
-    implementation lives with decoding even though the config section remains
-    under inference for now.
-    """
-    inference_cfg = _cfg_get(cfg, "inference", None)
-    postprocessing = _cfg_get(inference_cfg, "postprocessing", None)
+    """Apply postprocessing configured under ``cfg.decoding.postprocessing``."""
+    decoding_cfg = _cfg_get(cfg, "decoding", None)
+    postprocessing = _cfg_get(decoding_cfg, "postprocessing", None)
     if not _cfg_get(postprocessing, "enabled", False):
         return data
 
     output = data
     binary_config = _cfg_get(postprocessing, "binary", None)
     if binary_config is not None and _cfg_get(binary_config, "enabled", False):
-        from .postprocessing import apply_binary_postprocessing
+        from .postprocess import apply_binary_postprocessing
 
         if output.ndim in (4, 5):
             batch_size = output.shape[0]

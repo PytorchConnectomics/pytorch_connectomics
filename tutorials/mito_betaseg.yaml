@@ -1,8 +1,9 @@
 _base_:
-  - ../connectomics/config/all_profiles.yaml
+- ../connectomics/config/all_profiles.yaml
 
 experiment_name: mednext_betaseg_sdt_multitask
-description: BetaSeg 3D mitochondria instance segmentation with MedNeXt multi-head (aff_r1 + aff_r5 + sdt)
+description: BetaSeg 3D mitochondria instance segmentation with MedNeXt multi-head (aff_r1 + aff_r5 +
+  sdt)
 
 default:
   system:
@@ -38,31 +39,31 @@ default:
         target_slice: "6:7"
     loss:
       losses:
-        - function: PerChannelBCEWithLogitsLoss
-          weight: 1.0
-          pred_head: aff_r1
-          target_slice: "0:3"
-          kwargs: {auto_pos_weight: true, max_pos_weight: 50.0}
-        - function: DiceLoss
-          weight: 1.0
-          pred_head: aff_r1
-          target_slice: "0:3"
-          kwargs: {sigmoid: true}
-        - function: PerChannelBCEWithLogitsLoss
-          weight: 1.0
-          pred_head: aff_r5
-          target_slice: "3:6"
-          kwargs: {auto_pos_weight: true, max_pos_weight: 100.0}
-        - function: DiceLoss
-          weight: 1.0
-          pred_head: aff_r5
-          target_slice: "3:6"
-          kwargs: {sigmoid: true}
-        - function: SmoothL1Loss
-          weight: 10.0
-          pred_head: sdt
-          target_slice: "6:7"
-          kwargs: {tanh: true}
+      - function: PerChannelBCEWithLogitsLoss
+        weight: 1.0
+        pred_head: aff_r1
+        target_slice: "0:3"
+        kwargs: {auto_pos_weight: true, max_pos_weight: 50.0}
+      - function: DiceLoss
+        weight: 1.0
+        pred_head: aff_r1
+        target_slice: "0:3"
+        kwargs: {sigmoid: true}
+      - function: PerChannelBCEWithLogitsLoss
+        weight: 1.0
+        pred_head: aff_r5
+        target_slice: "3:6"
+        kwargs: {auto_pos_weight: true, max_pos_weight: 100.0}
+      - function: DiceLoss
+        weight: 1.0
+        pred_head: aff_r5
+        target_slice: "3:6"
+        kwargs: {sigmoid: true}
+      - function: SmoothL1Loss
+        weight: 10.0
+        pred_head: sdt
+        target_slice: "6:7"
+        kwargs: {tanh: true}
       loss_balancing:
         strategy: gradnorm
   data:
@@ -73,14 +74,14 @@ default:
       erosion: 1
       cache_dir: datasets/betaSeg
       targets:
-        - name: affinity
-          kwargs:
-            offsets: ["0-0-1", "0-1-0", "1-0-0", "0-0-5", "0-5-0", "5-0-0"]
-            affinity_mode: deepem
-        - name: skeleton_aware_edt
-          kwargs:
-            alpha: 0.8
-            bg_value: -1.0
+      - name: affinity
+        kwargs:
+          offsets: ["0-0-1", "0-1-0", "1-0-0", "0-0-5", "0-5-0", "5-0-0"]
+          affinity_mode: deepem
+      - name: skeleton_aware_edt
+        kwargs:
+          alpha: 0.8
+          bg_value: -1.0
     dataloader:
       patch_size: [192, 192, 192]
       batch_size: 1
@@ -102,15 +103,14 @@ default:
       flip_axes: all
       ensemble_mode: min
       channel_activations:
-        - {channels: "0:6", activation: sigmoid}
-        - {channels: "6:7", activation: tanh}
+      - {channels: "0:6", activation: sigmoid}
+      - {channels: "6:7", activation: tanh}
     crop_pad: [59, 64, 59, 64, 59, 64]
-    postprocessing:
-      enabled: true
     save_prediction:
       enabled: true
 
   decoding:
+    steps:
     - name: decode_distance_watershed
       kwargs:
         distance_channels: [6]
@@ -119,6 +119,8 @@ default:
         min_instance_size: 50
         use_fast_edt: true
         edt_parallel: 8
+    postprocessing:
+      enabled: true
   evaluation:
     enabled: true
     metrics: [adapted_rand]

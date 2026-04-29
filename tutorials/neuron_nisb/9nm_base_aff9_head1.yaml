@@ -1,5 +1,5 @@
 _base_:
-  - ../../connectomics/config/all_profiles.yaml
+- ../../connectomics/config/all_profiles.yaml
 
 experiment_name: neuron_nisb_base_9nm_mednext_b_aff9_head1
 description: NISB base neuron instance segmentation (BANIS-style) with MedNeXt-B, affinity (9nm)
@@ -16,9 +16,9 @@ default:
     loss:
       deep_supervision: false
       losses:
-        - function: PerChannelBCEWithLogitsLoss
-          weight: 1.0
-          kwargs: {auto_pos_weight: true}
+      - function: PerChannelBCEWithLogitsLoss
+        weight: 1.0
+        kwargs: {auto_pos_weight: true}
     mednext:
       size: L
       kernel_size: 5
@@ -39,10 +39,10 @@ default:
     label_transform:
       erosion: 2
       targets:
-        - name: affinity
-          kwargs:
-            offsets: ["1-0-0", "0-1-0", "0-0-1", "5-0-0", "0-5-0", "0-0-5", "11-0-0", "0-11-0", "0-0-11"]
-            affinity_mode: banis
+      - name: affinity
+        kwargs:
+          offsets: ["1-0-0", "0-1-0", "0-0-1", "5-0-0", "0-5-0", "0-0-5", "11-0-0", "0-11-0", "0-0-11"]
+          affinity_mode: banis
     data_transform:
       train_transpose: [2, 1, 0]
       val_transpose: [2, 1, 0]
@@ -62,12 +62,13 @@ default:
       enabled: true
 
   decoding:
+    steps:
     - template: decoding_abiss
 
   evaluation:
     enabled: true
     metrics:
-      - adapted_rand
+    - adapted_rand
 
 train:
   optimization:

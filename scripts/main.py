@@ -206,7 +206,7 @@ def main():
 
     # Check for cached/external predictions early so we can skip both the
     # expensive model build and checkpoint restore for test/tune modes.
-    _saved_pred = getattr(getattr(cfg, "inference", None), "saved_prediction_path", "")
+    _saved_pred = getattr(getattr(cfg, "decoding", None), "input_prediction_path", "")
     has_saved_prediction = bool(
         _saved_pred and isinstance(_saved_pred, str) and _saved_pred.strip()
     )

@@ -1,8 +1,9 @@
 experiment_name: mednext_snemi_sdt_multitask
-description: SNEMI3D neuron affinity + SDT learning with MedNeXt multi-head outputs (aff_r1 + aff_r5 + aff_r9 + sdt)
+description: SNEMI3D neuron affinity + SDT learning with MedNeXt multi-head outputs (aff_r1 + aff_r5 +
+  aff_r9 + sdt)
 
 _base_:
-  - ../../connectomics/config/all_profiles.yaml
+- ../../connectomics/config/all_profiles.yaml
 
 default:
   pipeline_profile: aff9_sdt
@@ -33,26 +34,26 @@ default:
         target_slice: "9:10"
     loss:
       losses:
-        - function: PerChannelBCEWithLogitsLoss
-          weight: 1.0
-          pred_head: aff_r1
-          target_slice: "0:3"
-          kwargs: {auto_pos_weight: true}
-        - function: PerChannelBCEWithLogitsLoss
-          weight: 1.0
-          pred_head: aff_r5
-          target_slice: "3:6"
-          kwargs: {auto_pos_weight: true}
-        - function: PerChannelBCEWithLogitsLoss
-          weight: 1.0
-          pred_head: aff_r9
-          target_slice: "6:9"
-          kwargs: {auto_pos_weight: true}
-        - function: SmoothL1Loss
-          weight: 1.0
-          pred_head: sdt
-          target_slice: "9:10"
-          kwargs: {tanh: true}
+      - function: PerChannelBCEWithLogitsLoss
+        weight: 1.0
+        pred_head: aff_r1
+        target_slice: "0:3"
+        kwargs: {auto_pos_weight: true}
+      - function: PerChannelBCEWithLogitsLoss
+        weight: 1.0
+        pred_head: aff_r5
+        target_slice: "3:6"
+        kwargs: {auto_pos_weight: true}
+      - function: PerChannelBCEWithLogitsLoss
+        weight: 1.0
+        pred_head: aff_r9
+        target_slice: "6:9"
+        kwargs: {auto_pos_weight: true}
+      - function: SmoothL1Loss
+        weight: 1.0
+        pred_head: sdt
+        target_slice: "9:10"
+        kwargs: {tanh: true}
       loss_balancing:
         strategy: uncertainty
   data:
@@ -60,14 +61,14 @@ default:
       resolution: [30, 6, 6]
       erosion: 1
       targets:
-        - name: affinity
-          kwargs:
-            offsets: ["0-0-1", "0-1-0", "1-0-0", "0-0-5", "0-5-0", "5-0-0", "0-0-9", "0-9-0", "9-0-0"]
-            affinity_mode: deepem
-        - name: skeleton_aware_edt
-          kwargs:
-            alpha: 0.8
-            bg_value: -1.0
+      - name: affinity
+        kwargs:
+          offsets: ["0-0-1", "0-1-0", "1-0-0", "0-0-5", "0-5-0", "5-0-0", "0-0-9", "0-9-0", "9-0-0"]
+          affinity_mode: deepem
+      - name: skeleton_aware_edt
+        kwargs:
+          alpha: 0.8
+          bg_value: -1.0
 
     dataloader:
       profile: cached
@@ -95,15 +96,14 @@ default:
       rotation90_axes: [[1, 2]]
       ensemble_mode: min
       channel_activations:
-        - {channels: ":", activation: sigmoid}
+      - {channels: ":", activation: sigmoid}
     # crop_pad + affinity_crop[(9,0),(9,0),(9,0)] = pad_size [16,80,80]
     crop_pad: [7, 16, 71, 80, 71, 80]
-    postprocessing:
-      enabled: true
     save_prediction:
       enabled: true
 
   decoding:
+    steps:
     - template: decoding_waterz
       kwargs:
         # Fragment initialization: false=waterz built-in C++ watershed
@@ -126,6 +126,8 @@ default:
         one_sided_threshold: 0.8
         one_sided_min_size: 100
 
+    postprocessing:
+      enabled: true
   evaluation:
     enabled: true
     metrics: [adapted_rand]
@@ -146,7 +148,8 @@ train:
   monitor:
     logging:
       scalar:
-        loss: [train_loss_total_epoch, train_loss_term_0_weighted, train_loss_term_1_weighted, train_loss_term_2_weighted, train_loss_term_3_weighted]
+        loss: [train_loss_total_epoch, train_loss_term_0_weighted, train_loss_term_1_weighted, train_loss_term_2_weighted,
+          train_loss_term_3_weighted]
         loss_every_n_steps: 50
       images:
         log_every_n_epochs: 10
