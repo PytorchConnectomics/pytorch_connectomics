@@ -1258,38 +1258,6 @@ adding channel dimension.</p></li>
 </dl>
 </dd></dl>
 
-<dl class="py class">
-<dt class="sig sig-object py" id="connectomics.data.io.SaveVolumed">
-<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">connectomics.data.io.</span></span><span class="sig-name descname"><span class="pre">SaveVolumed</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/connectomics/data/io/transforms.html#SaveVolumed"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#connectomics.data.io.SaveVolumed" title="Link to this definition">¶</a></dt>
-<dd><p>MONAI transform for saving volume data.</p>
-<dl class="field-list simple">
-<dt class="field-odd">Parameters<span class="colon">:</span></dt>
-<dd class="field-odd"><ul class="simple">
-<li><p><strong>keys</strong> (<em>KeysCollection</em>) – Keys to save from the data dictionary.</p></li>
-<li><p><strong>output_dir</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>) – Output directory.</p></li>
-<li><p><strong>output_format</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>) – File format (‘h5’ or ‘png’).</p></li>
-<li><p><strong>allow_missing_keys</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)"><em>bool</em></a>) – Allow missing keys.</p></li>
-</ul>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="py class">
-<dt class="sig sig-object py" id="connectomics.data.io.TileLoaderd">
-<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">connectomics.data.io.</span></span><span class="sig-name descname"><span class="pre">TileLoaderd</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/connectomics/data/io/transforms.html#TileLoaderd"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#connectomics.data.io.TileLoaderd" title="Link to this definition">¶</a></dt>
-<dd><p>MONAI transform for loading tile-based data.</p>
-<p>Reconstructs volumes from tiles based on chunk
-coordinates and metadata.</p>
-<dl class="field-list simple">
-<dt class="field-odd">Parameters<span class="colon">:</span></dt>
-<dd class="field-odd"><ul class="simple">
-<li><p><strong>keys</strong> (<em>Sequence</em><em>[</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a><em>]</em>) – Keys to process.</p></li>
-<li><p><strong>allow_missing_keys</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)"><em>bool</em></a>) – Allow missing keys.</p></li>
-</ul>
-</dd>
-</dl>
-</dd></dl>
-
 <dl class="py function">
 <dt class="sig sig-object py" id="connectomics.data.io.get_vol_shape">
 <span class="sig-prename descclassname"><span class="pre">connectomics.data.io.</span></span><span class="sig-name descname"><span class="pre">get_vol_shape</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">filename</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dataset</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/connectomics/data/io/io.html#get_vol_shape"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#connectomics.data.io.get_vol_shape" title="Link to this definition">¶</a></dt>
@@ -1566,8 +1534,6 @@ unique 24-bit segmentation ID.</p>
 </li>
 <li><a class="reference internal" href="#module-connectomics.data.io">I/O</a><ul>
 <li><a class="reference internal" href="#connectomics.data.io.LoadVolumed"><code class="docutils literal notranslate"><span class="pre">LoadVolumed</span></code></a></li>
-<li><a class="reference internal" href="#connectomics.data.io.SaveVolumed"><code class="docutils literal notranslate"><span class="pre">SaveVolumed</span></code></a></li>
-<li><a class="reference internal" href="#connectomics.data.io.TileLoaderd"><code class="docutils literal notranslate"><span class="pre">TileLoaderd</span></code></a></li>
 <li><a class="reference internal" href="#connectomics.data.io.get_vol_shape"><code class="docutils literal notranslate"><span class="pre">get_vol_shape()</span></code></a></li>
 <li><a class="reference internal" href="#connectomics.data.io.read_hdf5"><code class="docutils literal notranslate"><span class="pre">read_hdf5()</span></code></a></li>
 <li><a class="reference internal" href="#connectomics.data.io.read_images"><code class="docutils literal notranslate"><span class="pre">read_images()</span></code></a></li>

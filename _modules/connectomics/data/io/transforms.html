@@ -358,8 +358,6 @@
 
 
 
-<div class="viewcode-block" id="SaveVolumed">
-<a class="viewcode-back" href="../../../../modules/data.html#connectomics.data.io.SaveVolumed">[docs]</a>
 <span class="k">class</span><span class="w"> </span><span class="nc">SaveVolumed</span><span class="p">(</span><span class="n">MapTransform</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;MONAI transform for saving volume data.</span>
 
@@ -395,12 +393,9 @@
                     <span class="n">d</span><span class="p">[</span><span class="n">key</span><span class="p">],</span>
                     <span class="n">file_format</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">output_format</span><span class="p">,</span>
                 <span class="p">)</span>
-        <span class="k">return</span> <span class="n">d</span></div>
+        <span class="k">return</span> <span class="n">d</span>
 
 
-
-<div class="viewcode-block" id="TileLoaderd">
-<a class="viewcode-back" href="../../../../modules/data.html#connectomics.data.io.TileLoaderd">[docs]</a>
 <span class="k">class</span><span class="w"> </span><span class="nc">TileLoaderd</span><span class="p">(</span><span class="n">MapTransform</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;MONAI transform for loading tile-based data.</span>
 
@@ -452,8 +447,7 @@
             <span class="n">data_type</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">dtype</span><span class="p">(</span><span class="n">metadata</span><span class="p">[</span><span class="s2">&quot;dtype&quot;</span><span class="p">]),</span>
             <span class="n">tile_start</span><span class="o">=</span><span class="n">metadata</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;tile_st&quot;</span><span class="p">),</span>
             <span class="n">tile_ratio</span><span class="o">=</span><span class="n">metadata</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;tile_ratio&quot;</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">),</span>
-        <span class="p">)</span></div>
-
+        <span class="p">)</span>
 </pre></div>
 
               </article>
