@@ -1,16 +1,16 @@
 # Core processing functions
 from .bbox import bbox_ND, crop_ND, replace_ND
 from .bbox_processor import BBoxInstanceProcessor, BBoxProcessorConfig
-from .iou import seg_to_iou, segs_to_iou
 
 # Pipeline builder (primary entry point for label transforms)
 from .build import create_label_transform_pipeline
+from .iou import seg_to_iou, segs_to_iou
 
 # Utility functions used by decoding
 from .misc import get_seg_type
 
 # MONAI-native transforms and composition
-from .nnunet_preprocess import NNUNetPreprocessd
+from .nnunet_preprocess import NNUNetPreprocessd, restore_prediction_to_input_space
 from .transforms import (
     ComputeBinaryRatioWeightd,
     ComputeUNet3DWeightd,
@@ -61,6 +61,7 @@ __all__ = [
     "SegSelectiond",
     "MultiTaskLabelTransformd",
     "NNUNetPreprocessd",
+    "restore_prediction_to_input_space",
     # Pipelines
     "create_label_transform_pipeline",
     # IoU

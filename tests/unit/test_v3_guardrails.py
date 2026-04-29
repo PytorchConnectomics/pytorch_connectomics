@@ -118,6 +118,7 @@ def test_connectomics_inference_public_api_snapshot():
     assert set(inference.__all__) == {
         "InferenceManager",
         "PredictionArtifactMetadata",
+        "build_prediction_artifact_metadata",
         "read_prediction_artifact",
         "write_prediction_artifact",
         "write_prediction_artifact_attrs",
