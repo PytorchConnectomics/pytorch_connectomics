@@ -417,7 +417,7 @@
 <blockquote>
 <div><div class="admonition note">
 <p class="admonition-title">Note</p>
-<p>Since the dataset is very large and can not be directly loaded into memory, we designed the <code class="xref py py-class docutils literal notranslate"><span class="pre">connectomics.data.dataset.TileDataset</span></code> class that only loads part of the whole volume each time by opening involved <code class="docutils literal notranslate"><span class="pre">PNG</span></code> or <code class="docutils literal notranslate"><span class="pre">TIFF</span></code> images.</p>
+<p>Since the dataset is very large and cannot always be directly loaded into memory, use lazy HDF5/Zarr loading or filename-based datasets from <a class="reference internal" href="../modules/data.html#module-connectomics.data.datasets" title="connectomics.data.datasets"><code class="xref py py-mod docutils literal notranslate"><span class="pre">connectomics.data.datasets</span></code></a> instead of the removed <code class="docutils literal notranslate"><span class="pre">TileDataset</span></code> path.</p>
 </div>
 </div></blockquote>
 <blockquote>

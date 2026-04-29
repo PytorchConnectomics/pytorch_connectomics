@@ -305,9 +305,10 @@ for more details.</p>
 <p>We preform re-alignment of the original CREMI image stacks and also remove the crack artifacts. Please reverse the alignment before submitting the test prediction to the CREMI challenge.</p>
 </div>
 </div></blockquote>
-<p>Script needed for this tutorial can be found at <code class="docutils literal notranslate"><span class="pre">pytorch_connectomics/scripts/</span></code>. The <em>YAML</em> configuration files can be found at <code class="docutils literal notranslate"><span class="pre">pytorch_connectomics/configs/</span></code>, which
-stores the common settings for model training and inference. Other default configuration options can be found at <code class="docutils literal notranslate"><span class="pre">pytorch_connectomics/connectomics/config/</span></code>. The pytorch
-dataset class of the synaptic cleft detection task is <code class="xref py py-class docutils literal notranslate"><span class="pre">connectomics.data.dataset.VolumeDataset</span></code>.</p>
+<p>Script needed for this tutorial can be found at <code class="docutils literal notranslate"><span class="pre">pytorch_connectomics/scripts/</span></code>. Modern <em>YAML</em> examples live under
+<code class="docutils literal notranslate"><span class="pre">pytorch_connectomics/tutorials/</span></code>, with structured defaults under <code class="docutils literal notranslate"><span class="pre">pytorch_connectomics/connectomics/config/</span></code>.
+Synaptic cleft detection uses the Lightning data factory, which selects datasets from
+<a class="reference internal" href="../modules/data.html#module-connectomics.data.datasets" title="connectomics.data.datasets"><code class="xref py py-mod docutils literal notranslate"><span class="pre">connectomics.data.datasets</span></code></a> based on the <code class="docutils literal notranslate"><span class="pre">data</span></code> config.</p>
 <figure class="align-center">
 <a class="reference internal image-reference" href="../_images/cremi_qual.png"><img alt="../_images/cremi_qual.png" src="../_images/cremi_qual.png" style="width: 800px;" />
 </a>
@@ -376,7 +377,8 @@ The evaluation metric of the synaptic polarity detection results is an IoU-based
 </div>
 </div></blockquote>
 <p>All the scripts needed for this tutorial can be found at <code class="docutils literal notranslate"><span class="pre">pytorch_connectomics/scripts/</span></code>.
-The pytorch dataset class of synaptic partners is <code class="xref py py-class docutils literal notranslate"><span class="pre">connectomics.data.dataset.VolumeDataset</span></code>.</p>
+Synaptic partner datasets are configured through <code class="docutils literal notranslate"><span class="pre">data.train</span></code>/<code class="docutils literal notranslate"><span class="pre">data.val</span></code>/<code class="docutils literal notranslate"><span class="pre">data.test</span></code> and loaded by
+<code class="xref py py-func docutils literal notranslate"><span class="pre">connectomics.training.lightning.create_datamodule()</span></code>.</p>
 <figure class="align-center">
 <a class="reference internal image-reference" href="../_images/polarity_qual.png"><img alt="../_images/polarity_qual.png" src="../_images/polarity_qual.png" style="width: 800px;" />
 </a>

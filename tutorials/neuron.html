@@ -294,7 +294,8 @@ and <a class="reference external" href="https://en.wikipedia.org/wiki/Variation_
 </div>
 </div></blockquote>
 <p>The main script to run the training and inference is <code class="docutils literal notranslate"><span class="pre">pytorch_connectomics/scripts/main.py</span></code>.
-The pytorch target affinity generation is <code class="xref py py-class docutils literal notranslate"><span class="pre">connectomics.data.dataset.VolumeDataset</span></code>.</p>
+Affinity targets are generated through the configured Lightning data module and the current
+dataset implementations in <a class="reference internal" href="../modules/data.html#module-connectomics.data.datasets" title="connectomics.data.datasets"><code class="xref py py-mod docutils literal notranslate"><span class="pre">connectomics.data.datasets</span></code></a>.</p>
 <section id="neighboring-affinity-learning">
 <h2>Neighboring affinity learning<a class="headerlink" href="#neighboring-affinity-learning" title="Link to this heading">¶</a></h2>
 <p>The affinity value between two neighboring pixels (voxels) is 1 if they belong to the same instance and 0 if

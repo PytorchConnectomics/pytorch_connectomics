@@ -297,19 +297,20 @@ to a single target during training with different activations.</p>
 </dl>
 </li>
 <li><dl class="simple">
-<dt>How to <strong>finetune</strong> on saved checkpoint from the beginning instead of resume training?</dt><dd><p>To start from a saved checkpoint, we add <code class="docutils literal notranslate"><span class="pre">--checkpoint</span> <span class="pre">checkpoint_xxxxx.pth.tar</span></code> to the training command. By default
-the trainer will also load the status of the optimizer and learning-rate scheduler and resume training at the saved
-iteration. To finetune from beginning (<em>e.g.</em>, on a different dataset), we need to change <code class="docutils literal notranslate"><span class="pre">SOLVER.ITERATION_RESTART</span></code>
-to <code class="docutils literal notranslate"><span class="pre">True</span></code>.</p>
+<dt>How to <strong>finetune</strong> on a saved checkpoint from the beginning instead of resuming training?</dt><dd><p>To start from model weights without optimizer and scheduler state, pass the checkpoint as the model weight source
+in the config instead of resuming the full Lightning trainer state. Full trainer resume is reserved for continuing
+an interrupted run.</p>
 </dd>
 </dl>
 </li>
 <li><dl class="simple">
-<dt>What are the differences between <strong>VolumeDataset</strong> and <strong>TileDataset</strong>?</dt><dd><p><em>VolumeDataset</em> loads a list of 3D arrays and sample random subvolumes during training or stream sliding-window
-subvolumes during inference. Since large volumes (<em>e.g.</em>, <a class="reference external" href="https://mitoem.grand-challenge.org/">MitoEM</a>) can not be
-completed loaded into memory for processing and are usually stored as individual PNG images, we implemented the
-<em>TileDataset</em> that reads the metadata of large datasets to process them by chunk. <em>TileDataset</em> inherits <em>VolumeDataset</em>
-and each chunk is handled by <em>VolumeDataset</em>. See more information <a class="reference external" href="dataloading.html#tiledataset">here</a></p>
+<dt>What dataset classes are used for large volumes?</dt><dd><p>The old <em>VolumeDataset</em>/<em>TileDataset</em> split has been removed. Current configs choose between
+<a class="reference internal" href="../modules/data.html#connectomics.data.datasets.CachedVolumeDataset" title="connectomics.data.datasets.CachedVolumeDataset"><code class="xref py py-class docutils literal notranslate"><span class="pre">connectomics.data.datasets.CachedVolumeDataset</span></code></a>,
+<a class="reference internal" href="../modules/data.html#connectomics.data.datasets.LazyH5VolumeDataset" title="connectomics.data.datasets.LazyH5VolumeDataset"><code class="xref py py-class docutils literal notranslate"><span class="pre">connectomics.data.datasets.LazyH5VolumeDataset</span></code></a>,
+<a class="reference internal" href="../modules/data.html#connectomics.data.datasets.LazyZarrVolumeDataset" title="connectomics.data.datasets.LazyZarrVolumeDataset"><code class="xref py py-class docutils literal notranslate"><span class="pre">connectomics.data.datasets.LazyZarrVolumeDataset</span></code></a>, and
+<a class="reference internal" href="../modules/data.html#connectomics.data.datasets.MonaiFilenameDataset" title="connectomics.data.datasets.MonaiFilenameDataset"><code class="xref py py-class docutils literal notranslate"><span class="pre">connectomics.data.datasets.MonaiFilenameDataset</span></code></a>. Use cached volume loading for datasets that fit in RAM,
+lazy HDF5/Zarr loading for large volumes, and filename JSON loading for pre-tiled image collections. See more
+information <a class="reference external" href="dataloading.html#filename-and-lazy-datasets">here</a>.</p>
 </dd>
 </dl>
 </li>
@@ -320,7 +321,7 @@ reasonable to use symmetric convolutions and the same downsampling ratios for al
 Therefore we use the <code class="docutils literal notranslate"><span class="pre">isotropy</span></code> kwargs to control the types of convolutions and downsampling ratios at different
 CNN stages. For initial stages where the input is anisotropic, we use 2D convolutions and only downsample the <em>xy</em>-plane.
 For later stages where the feature becomes roughly isotropic after downsampling the <em>xy</em>-plane multiple times, we apply
-symmetric 3D convolutions and downsample all three dimensions with the same ratio (see <code class="xref py py-class docutils literal notranslate"><span class="pre">connectomics.model.arch.UNet3D</span></code>).
+symmetric 3D convolutions and downsample all three dimensions with the same ratio (see <code class="xref py py-class docutils literal notranslate"><span class="pre">connectomics.models.architectures.rsunet.RSUNet</span></code>).
 Transformer-based architectures can follow a similar design.</p>
 </dd>
 </dl>

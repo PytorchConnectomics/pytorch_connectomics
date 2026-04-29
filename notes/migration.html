@@ -338,51 +338,36 @@ pip<span class="w"> </span>install<span class="w"> </span>-e<span class="w"> </s
 <section id="hydra-omegaconf-configuration">
 <h3>Hydra/OmegaConf Configuration<a class="headerlink" href="#hydra-omegaconf-configuration" title="Link to this heading">¶</a></h3>
 <p><strong>v2.0 uses Hydra/OmegaConf:</strong></p>
-<div class="highlight-yaml notranslate"><div class="highlight"><pre><span></span><span class="c1"># tutorials/lucchi.yaml</span>
-<span class="nt">system</span><span class="p">:</span>
-<span class="w">  </span><span class="nt">num_gpus</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">1</span>
-<span class="w">  </span><span class="nt">num_cpus</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">4</span>
-<span class="w">  </span><span class="nt">seed</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">42</span>
+<div class="highlight-yaml notranslate"><div class="highlight"><pre><span></span><span class="c1"># tutorials/minimal.yaml</span>
+<span class="nt">default</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">system</span><span class="p">:</span>
+<span class="w">    </span><span class="nt">num_gpus</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">1</span>
+<span class="w">    </span><span class="nt">num_workers</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">4</span>
+<span class="w">    </span><span class="nt">seed</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">42</span>
+<span class="w">  </span><span class="nt">model</span><span class="p">:</span>
+<span class="w">    </span><span class="nt">arch</span><span class="p">:</span>
+<span class="w">      </span><span class="nt">type</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">monai_basic_unet3d</span>
+<span class="w">    </span><span class="nt">in_channels</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">1</span>
+<span class="w">    </span><span class="nt">out_channels</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">1</span>
+<span class="w">    </span><span class="nt">loss</span><span class="p">:</span>
+<span class="w">      </span><span class="nt">losses</span><span class="p">:</span>
+<span class="w">        </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">function</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">DiceLoss</span>
+<span class="w">          </span><span class="nt">weight</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">1.0</span>
+<span class="w">  </span><span class="nt">data</span><span class="p">:</span>
+<span class="w">    </span><span class="nt">dataloader</span><span class="p">:</span>
+<span class="w">      </span><span class="nt">patch_size</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">32</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">64</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">64</span><span class="p p-Indicator">]</span>
+<span class="w">      </span><span class="nt">batch_size</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">1</span>
 
-<span class="nt">model</span><span class="p">:</span>
-<span class="w">  </span><span class="nt">architecture</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">monai_basic_unet3d</span>
-<span class="w">  </span><span class="nt">in_channels</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">1</span>
-<span class="w">  </span><span class="nt">out_channels</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">2</span>
-<span class="w">  </span><span class="nt">filters</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">32</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">64</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">128</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">256</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">512</span><span class="p p-Indicator">]</span>
-<span class="w">  </span><span class="nt">dropout</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">0.1</span>
-<span class="w">  </span><span class="nt">loss_functions</span><span class="p">:</span>
-<span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">DiceLoss</span>
-<span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">BCEWithLogitsLoss</span>
-<span class="w">  </span><span class="nt">loss_weights</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">1.0</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">1.0</span><span class="p p-Indicator">]</span>
-
-<span class="nt">data</span><span class="p">:</span>
-<span class="w">  </span><span class="nt">train_image</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;datasets/lucchi/train_image.h5&quot;</span>
-<span class="w">  </span><span class="nt">train_label</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;datasets/lucchi/train_label.h5&quot;</span>
-<span class="w">  </span><span class="nt">val_image</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;datasets/lucchi/val_image.h5&quot;</span>
-<span class="w">  </span><span class="nt">val_label</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;datasets/lucchi/val_label.h5&quot;</span>
-<span class="w">  </span><span class="nt">patch_size</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">128</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">128</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">128</span><span class="p p-Indicator">]</span>
-<span class="w">  </span><span class="nt">batch_size</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">2</span>
-<span class="w">  </span><span class="nt">num_workers</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">4</span>
-
-<span class="nt">optimizer</span><span class="p">:</span>
-<span class="w">  </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">AdamW</span>
-<span class="w">  </span><span class="nt">lr</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">1e-4</span>
-<span class="w">  </span><span class="nt">weight_decay</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">1e-4</span>
-
-<span class="nt">scheduler</span><span class="p">:</span>
-<span class="w">  </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">CosineAnnealingLR</span>
-<span class="w">  </span><span class="nt">warmup_epochs</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">5</span>
-
-<span class="nt">training</span><span class="p">:</span>
-<span class="w">  </span><span class="nt">max_epochs</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">100</span>
-<span class="w">  </span><span class="nt">precision</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;16-mixed&quot;</span>
-<span class="w">  </span><span class="nt">gradient_clip_val</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">1.0</span>
-
-<span class="nt">checkpoint</span><span class="p">:</span>
-<span class="w">  </span><span class="nt">monitor</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;val/loss&quot;</span>
-<span class="w">  </span><span class="nt">mode</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;min&quot;</span>
-<span class="w">  </span><span class="nt">save_top_k</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">3</span>
-<span class="w">  </span><span class="nt">save_last</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
+<span class="nt">train</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">optimization</span><span class="p">:</span>
+<span class="w">    </span><span class="nt">max_epochs</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">1</span>
+<span class="w">    </span><span class="nt">precision</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;32&quot;</span>
+<span class="w">    </span><span class="nt">optimizer</span><span class="p">:</span>
+<span class="w">      </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">AdamW</span>
+<span class="w">      </span><span class="nt">lr</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">1e-4</span>
+<span class="w">  </span><span class="nt">monitor</span><span class="p">:</span>
+<span class="w">    </span><span class="nt">checkpoint</span><span class="p">:</span>
+<span class="w">      </span><span class="nt">save_last</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
 </pre></div>
 </div>
 </section>
@@ -409,20 +394,11 @@ pip<span class="w"> </span>install<span class="w"> </span>-e<span class="w"> </s
 <tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">data</span></code></p></td>
 <td><p>Dataset paths, batch size, augmentation settings</p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">optimizer</span></code></p></td>
-<td><p>Optimizer type and hyperparameters</p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">optimization</span></code></p></td>
+<td><p>Optimizer, scheduler, precision, and training loop parameters</p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">scheduler</span></code></p></td>
-<td><p>Learning rate scheduling configuration</p></td>
-</tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">training</span></code></p></td>
-<td><p>Training loop parameters (epochs, precision, etc.)</p></td>
-</tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">checkpoint</span></code></p></td>
-<td><p>Model checkpointing strategy</p></td>
-</tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">logging</span></code></p></td>
-<td><p>Logging and monitoring configuration</p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">monitor</span></code></p></td>
+<td><p>Checkpointing, logging, early stopping, and experiment tracking</p></td>
 </tr>
 </tbody>
 </table>
@@ -430,10 +406,10 @@ pip<span class="w"> </span>install<span class="w"> </span>-e<span class="w"> </s
 <section id="configuration-override">
 <h3>Configuration Override<a class="headerlink" href="#configuration-override" title="Link to this heading">¶</a></h3>
 <p>Override config parameters from CLI:</p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>python<span class="w"> </span>scripts/main.py<span class="w"> </span>--config<span class="w"> </span>tutorials/lucchi.yaml<span class="w"> </span><span class="se">\</span>
-<span class="w">    </span>data.batch_size<span class="o">=</span><span class="m">8</span><span class="w"> </span><span class="se">\</span>
-<span class="w">    </span>training.max_epochs<span class="o">=</span><span class="m">200</span><span class="w"> </span><span class="se">\</span>
-<span class="w">    </span>optimizer.lr<span class="o">=</span>2e-4
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>python<span class="w"> </span>scripts/main.py<span class="w"> </span>--config<span class="w"> </span>tutorials/minimal.yaml<span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>default.data.dataloader.batch_size<span class="o">=</span><span class="m">8</span><span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>train.optimization.max_epochs<span class="o">=</span><span class="m">200</span><span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>train.optimization.optimizer.lr<span class="o">=</span>2e-4
 </pre></div>
 </div>
 </section>
@@ -442,18 +418,18 @@ pip<span class="w"> </span>install<span class="w"> </span>-e<span class="w"> </s
 <h2>Training Script Usage<a class="headerlink" href="#training-script-usage" title="Link to this heading">¶</a></h2>
 <p><strong>Using main.py:</strong></p>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="c1"># Basic training</span>
-python<span class="w"> </span>scripts/main.py<span class="w"> </span>--config<span class="w"> </span>tutorials/lucchi.yaml
+python<span class="w"> </span>scripts/main.py<span class="w"> </span>--config<span class="w"> </span>tutorials/minimal.yaml
 
 <span class="c1"># Override parameters</span>
-python<span class="w"> </span>scripts/main.py<span class="w"> </span>--config<span class="w"> </span>tutorials/lucchi.yaml<span class="w"> </span><span class="se">\</span>
-<span class="w">    </span>training.max_epochs<span class="o">=</span><span class="m">300</span><span class="w"> </span><span class="se">\</span>
-<span class="w">    </span>data.batch_size<span class="o">=</span><span class="m">4</span>
+python<span class="w"> </span>scripts/main.py<span class="w"> </span>--config<span class="w"> </span>tutorials/minimal.yaml<span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>train.optimization.max_epochs<span class="o">=</span><span class="m">300</span><span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>default.data.dataloader.batch_size<span class="o">=</span><span class="m">4</span>
 
 <span class="c1"># Fast development run (1 batch)</span>
-python<span class="w"> </span>scripts/main.py<span class="w"> </span>--config<span class="w"> </span>tutorials/lucchi.yaml<span class="w"> </span>--fast-dev-run
+python<span class="w"> </span>scripts/main.py<span class="w"> </span>--config<span class="w"> </span>tutorials/minimal.yaml<span class="w"> </span>--fast-dev-run
 
 <span class="c1"># Testing mode</span>
-python<span class="w"> </span>scripts/main.py<span class="w"> </span>--config<span class="w"> </span>tutorials/lucchi.yaml<span class="w"> </span><span class="se">\</span>
+python<span class="w"> </span>scripts/main.py<span class="w"> </span>--config<span class="w"> </span>tutorials/minimal.yaml<span class="w"> </span><span class="se">\</span>
 <span class="w">    </span>--mode<span class="w"> </span><span class="nb">test</span><span class="w"> </span><span class="se">\</span>
 <span class="w">    </span>--checkpoint<span class="w"> </span>path/to/checkpoint.ckpt
 </pre></div>
@@ -465,21 +441,21 @@ python<span class="w"> </span>scripts/main.py<span class="w"> </span>--config<sp
 <h3>PyTorch Lightning Integration<a class="headerlink" href="#pytorch-lightning-integration" title="Link to this heading">¶</a></h3>
 <p><strong>v2.0 Python API:</strong></p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">connectomics.config</span><span class="w"> </span><span class="kn">import</span> <span class="n">load_config</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">connectomics.training.lit</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">connectomics.training.lightning</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
     <span class="n">ConnectomicsModule</span><span class="p">,</span>
-    <span class="n">ConnectomicsDataModule</span><span class="p">,</span>
+    <span class="n">create_datamodule</span><span class="p">,</span>
     <span class="n">create_trainer</span>
 <span class="p">)</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">pytorch_lightning</span><span class="w"> </span><span class="kn">import</span> <span class="n">seed_everything</span>
 
 <span class="c1"># Load config</span>
-<span class="n">cfg</span> <span class="o">=</span> <span class="n">load_config</span><span class="p">(</span><span class="s2">&quot;tutorials/lucchi.yaml&quot;</span><span class="p">)</span>
+<span class="n">cfg</span> <span class="o">=</span> <span class="n">load_config</span><span class="p">(</span><span class="s2">&quot;tutorials/minimal.yaml&quot;</span><span class="p">)</span>
 
 <span class="c1"># Set seed</span>
 <span class="n">seed_everything</span><span class="p">(</span><span class="n">cfg</span><span class="o">.</span><span class="n">system</span><span class="o">.</span><span class="n">seed</span><span class="p">)</span>
 
 <span class="c1"># Create components</span>
-<span class="n">datamodule</span> <span class="o">=</span> <span class="n">ConnectomicsDataModule</span><span class="p">(</span><span class="n">cfg</span><span class="p">)</span>
+<span class="n">datamodule</span> <span class="o">=</span> <span class="n">create_datamodule</span><span class="p">(</span><span class="n">cfg</span><span class="p">)</span>
 <span class="n">model</span> <span class="o">=</span> <span class="n">ConnectomicsModule</span><span class="p">(</span><span class="n">cfg</span><span class="p">)</span>
 <span class="n">trainer</span> <span class="o">=</span> <span class="n">create_trainer</span><span class="p">(</span><span class="n">cfg</span><span class="p">)</span>
 
@@ -495,25 +471,29 @@ python<span class="w"> </span>scripts/main.py<span class="w"> </span>--config<sp
 <h3>Using MONAI and MedNeXt Models<a class="headerlink" href="#using-monai-and-mednext-models" title="Link to this heading">¶</a></h3>
 <p><strong>MONAI BasicUNet:</strong></p>
 <div class="highlight-yaml notranslate"><div class="highlight"><pre><span></span><span class="nt">model</span><span class="p">:</span>
-<span class="w">  </span><span class="nt">architecture</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">monai_basic_unet3d</span>
+<span class="w">  </span><span class="nt">arch</span><span class="p">:</span>
+<span class="w">    </span><span class="nt">type</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">monai_basic_unet3d</span>
 <span class="w">  </span><span class="nt">in_channels</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">1</span>
 <span class="w">  </span><span class="nt">out_channels</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">3</span>
-<span class="w">  </span><span class="nt">filters</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">28</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">36</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">48</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">64</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">80</span><span class="p p-Indicator">]</span>
+<span class="w">  </span><span class="nt">monai</span><span class="p">:</span>
+<span class="w">    </span><span class="nt">filters</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">28</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">36</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">48</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">64</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">80</span><span class="p p-Indicator">]</span>
 </pre></div>
 </div>
 <p><strong>MedNeXt (State-of-the-Art):</strong></p>
 <div class="highlight-yaml notranslate"><div class="highlight"><pre><span></span><span class="nt">model</span><span class="p">:</span>
-<span class="w">  </span><span class="nt">architecture</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">monai_basic_unet3d</span>
+<span class="w">  </span><span class="nt">arch</span><span class="p">:</span>
+<span class="w">    </span><span class="nt">type</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">mednext</span>
 <span class="w">  </span><span class="nt">in_channels</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">1</span>
 <span class="w">  </span><span class="nt">out_channels</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">3</span>
-<span class="w">  </span><span class="nt">filters</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">28</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">36</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">48</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">64</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">80</span><span class="p p-Indicator">]</span>
+<span class="w">  </span><span class="nt">mednext</span><span class="p">:</span>
+<span class="w">    </span><span class="nt">size</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">S</span>
 </pre></div>
 </div>
 </section>
 <section id="using-custom-models">
 <h3>Using Custom Models<a class="headerlink" href="#using-custom-models" title="Link to this heading">¶</a></h3>
 <p>You can still use custom models by wrapping them:</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">connectomics.training.lit</span><span class="w"> </span><span class="kn">import</span> <span class="n">ConnectomicsModule</span>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">connectomics.training.lightning</span><span class="w"> </span><span class="kn">import</span> <span class="n">ConnectomicsModule</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">torch.nn</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">nn</span>
 
 <span class="k">class</span><span class="w"> </span><span class="nc">MyCustomModel</span><span class="p">(</span><span class="n">nn</span><span class="o">.</span><span class="n">Module</span><span class="p">):</span>
@@ -551,10 +531,10 @@ python<span class="w"> </span>scripts/main.py<span class="w"> </span>--config<sp
 </pre></div>
 </div>
 <p><strong>v2.0:</strong></p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">connectomics.training.lit</span><span class="w"> </span><span class="kn">import</span> <span class="n">ConnectomicsDataModule</span>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">connectomics.training.lightning</span><span class="w"> </span><span class="kn">import</span> <span class="n">create_datamodule</span>
 
 <span class="c1"># Create data module (handles all splits)</span>
-<span class="n">datamodule</span> <span class="o">=</span> <span class="n">ConnectomicsDataModule</span><span class="p">(</span><span class="n">cfg</span><span class="p">)</span>
+<span class="n">datamodule</span> <span class="o">=</span> <span class="n">create_datamodule</span><span class="p">(</span><span class="n">cfg</span><span class="p">)</span>
 
 <span class="c1"># Access loaders if needed</span>
 <span class="n">datamodule</span><span class="o">.</span><span class="n">setup</span><span class="p">(</span><span class="s1">&#39;fit&#39;</span><span class="p">)</span>
@@ -574,7 +554,7 @@ python<span class="w"> </span>scripts/main.py<span class="w"> </span>--config<sp
 </div>
 <p><strong>v2.0:</strong></p>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>python<span class="w"> </span>scripts/main.py<span class="w"> </span><span class="se">\</span>
-<span class="w">    </span>--config<span class="w"> </span>tutorials/lucchi.yaml<span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>--config<span class="w"> </span>tutorials/minimal.yaml<span class="w"> </span><span class="se">\</span>
 <span class="w">    </span>--mode<span class="w"> </span><span class="nb">test</span><span class="w"> </span><span class="se">\</span>
 <span class="w">    </span>--checkpoint<span class="w"> </span>outputs/epoch<span class="o">=</span><span class="m">99</span>-val_loss<span class="o">=</span><span class="m">0</span>.123.ckpt
 </pre></div>
@@ -590,10 +570,12 @@ python<span class="w"> </span>scripts/main.py<span class="w"> </span>--config<sp
 </div>
 <p><strong>v2.0:</strong></p>
 <div class="highlight-yaml notranslate"><div class="highlight"><pre><span></span><span class="nt">model</span><span class="p">:</span>
-<span class="w">  </span><span class="nt">loss_functions</span><span class="p">:</span>
-<span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">BCEWithLogitsLoss</span>
-<span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">DiceLoss</span>
-<span class="w">  </span><span class="nt">loss_weights</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">1.0</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">0.5</span><span class="p p-Indicator">]</span>
+<span class="w">  </span><span class="nt">loss</span><span class="p">:</span>
+<span class="w">    </span><span class="nt">losses</span><span class="p">:</span>
+<span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">function</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">BCEWithLogitsLoss</span>
+<span class="w">        </span><span class="nt">weight</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">1.0</span>
+<span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">function</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">DiceLoss</span>
+<span class="w">        </span><span class="nt">weight</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">0.5</span>
 </pre></div>
 </div>
 <p><strong>Loss name mappings:</strong></p>
@@ -622,7 +604,8 @@ python<span class="w"> </span>scripts/main.py<span class="w"> </span>--config<sp
 <section id="augmentation-migration">
 <h2>Augmentation Migration<a class="headerlink" href="#augmentation-migration" title="Link to this heading">¶</a></h2>
 <p><strong>v1.0 (Custom augmentation):</strong></p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">connectomics.data.augmentation</span><span class="w"> </span><span class="kn">import</span> <span class="n">Compose</span>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">monai.transforms</span><span class="w"> </span><span class="kn">import</span> <span class="n">Compose</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">connectomics.data.augmentation</span><span class="w"> </span><span class="kn">import</span> <span class="n">RandMisAlignmentd</span>
 
 <span class="n">augmentor</span> <span class="o">=</span> <span class="n">Compose</span><span class="p">([</span><span class="o">...</span><span class="p">])</span>
 </pre></div>
@@ -630,11 +613,10 @@ python<span class="w"> </span>scripts/main.py<span class="w"> </span>--config<sp
 <p><strong>v2.0 (MONAI transforms):</strong></p>
 <p>MONAI transforms are automatically applied through the data module. To customize:</p>
 <div class="highlight-yaml notranslate"><div class="highlight"><pre><span></span><span class="nt">data</span><span class="p">:</span>
-<span class="w">  </span><span class="nt">use_augmentation</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
-<span class="w">  </span><span class="nt">augmentation_params</span><span class="p">:</span>
-<span class="w">    </span><span class="nt">rotation_range</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">45</span>
-<span class="w">    </span><span class="nt">scale_range</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">0.9</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">1.1</span><span class="p p-Indicator">]</span>
-<span class="w">    </span><span class="nt">elastic_deform</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
+<span class="w">  </span><span class="nt">augmentation</span><span class="p">:</span>
+<span class="w">    </span><span class="nt">profile</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">aug_standard</span>
+<span class="w">    </span><span class="nt">misalignment</span><span class="p">:</span>
+<span class="w">      </span><span class="nt">enabled</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
 </pre></div>
 </div>
 </section>
@@ -690,11 +672,10 @@ python<span class="w"> </span>scripts/main.py<span class="w"> </span>--config<sp
 </pre></div>
 </div>
 <p><strong>v2.0:</strong></p>
-<div class="highlight-yaml notranslate"><div class="highlight"><pre><span></span><span class="nt">logging</span><span class="p">:</span>
-<span class="w">  </span><span class="nt">save_dir</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;outputs&quot;</span>
-<span class="w">  </span><span class="nt">experiment_name</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;lucchi_exp&quot;</span>
-
-<span class="w">  </span><span class="c1"># Optional: Weights &amp; Biases</span>
+<div class="highlight-yaml notranslate"><div class="highlight"><pre><span></span><span class="nt">monitor</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">logging</span><span class="p">:</span>
+<span class="w">    </span><span class="nt">scalar</span><span class="p">:</span>
+<span class="w">      </span><span class="nt">loss_every_n_steps</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">100</span>
 <span class="w">  </span><span class="nt">wandb</span><span class="p">:</span>
 <span class="w">    </span><span class="nt">use_wandb</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
 <span class="w">    </span><span class="nt">project</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;connectomics&quot;</span>
@@ -713,8 +694,9 @@ python<span class="w"> </span>scripts/main.py<span class="w"> </span>--config<sp
 <h2>Common Migration Issues<a class="headerlink" href="#common-migration-issues" title="Link to this heading">¶</a></h2>
 <section id="issue-no-module-named-yacs">
 <h3>Issue: “No module named ‘yacs’”<a class="headerlink" href="#issue-no-module-named-yacs" title="Link to this heading">¶</a></h3>
-<p><strong>Solution:</strong> Install new dependencies:</p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>pip<span class="w"> </span>install<span class="w"> </span>omegaconf&gt;<span class="o">=</span><span class="m">2</span>.1.0
+<p><strong>Solution:</strong> remove the v1 YACS dependency path and convert the config to the v2
+Hydra/OmegaConf format:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>python<span class="w"> </span>scripts/main.py<span class="w"> </span>--config<span class="w"> </span>tutorials/minimal.yaml
 </pre></div>
 </div>
 </section>
@@ -725,7 +707,7 @@ python<span class="w"> </span>scripts/main.py<span class="w"> </span>--config<sp
 --config-file<span class="w"> </span>configs/Lucchi-Mitochondria.yaml
 
 <span class="c1"># New</span>
---config<span class="w"> </span>tutorials/lucchi.yaml
+--config<span class="w"> </span>tutorials/minimal.yaml
 </pre></div>
 </div>
 </section>
@@ -750,40 +732,39 @@ python<span class="w"> </span>scripts/main.py<span class="w"> </span>--config<sp
 
 <span class="c1"># New - MONAI</span>
 <span class="nt">model</span><span class="p">:</span>
-<span class="w">  </span><span class="nt">architecture</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">monai_unet</span>
+<span class="w">  </span><span class="nt">arch</span><span class="p">:</span>
+<span class="w">    </span><span class="nt">type</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">monai_unet</span>
 
 <span class="c1"># Or use MedNeXt</span>
 <span class="nt">model</span><span class="p">:</span>
-<span class="w">  </span><span class="nt">architecture</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">mednext</span>
-<span class="w">  </span><span class="nt">mednext_size</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">S</span>
+<span class="w">  </span><span class="nt">arch</span><span class="p">:</span>
+<span class="w">    </span><span class="nt">type</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">mednext</span>
+<span class="w">  </span><span class="nt">mednext</span><span class="p">:</span>
+<span class="w">    </span><span class="nt">size</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">S</span>
 </pre></div>
 </div>
 </section>
 </section>
 <section id="backward-compatibility">
 <h2>Backward Compatibility<a class="headerlink" href="#backward-compatibility" title="Link to this heading">¶</a></h2>
-<p>v2.0 maintains backward compatibility for:</p>
+<p>v2.0 is not backward compatible with the v1 runtime:</p>
 <ul class="simple">
-<li><p>✅ YACS configs (still work, but deprecated)</p></li>
-<li><p>✅ Legacy trainer (available in <code class="docutils literal notranslate"><span class="pre">engine/trainer.py</span></code>)</p></li>
-<li><p>✅ Custom models</p></li>
-<li><p>✅ Data formats (HDF5, TIFF, etc.)</p></li>
-<li><p>✅ Augmentation interface</p></li>
+<li><p>❌ YACS configs are removed; convert configs to Hydra/OmegaConf YAML.</p></li>
+<li><p>❌ Legacy trainer entry points are removed from the supported API.</p></li>
+<li><p>❌ Checkpoint format needs manual conversion.</p></li>
+<li><p>❌ Direct imports from old modules must move to the documented v2 paths.</p></li>
 </ul>
-<p>Not backward compatible:</p>
+<p>Still supported:</p>
 <ul class="simple">
-<li><p>❌ Checkpoint format (need manual conversion)</p></li>
-<li><p>❌ Direct imports from old modules (use new paths)</p></li>
+<li><p>✅ Custom PyTorch models through <a class="reference internal" href="../modules/lightning.html#connectomics.training.lightning.ConnectomicsModule" title="connectomics.training.lightning.ConnectomicsModule"><code class="xref py py-class docutils literal notranslate"><span class="pre">connectomics.training.lightning.ConnectomicsModule</span></code></a>.</p></li>
+<li><p>✅ HDF5, TIFF, Zarr, and filename-based data inputs.</p></li>
+<li><p>✅ MONAI-native augmentation pipelines.</p></li>
 </ul>
 </section>
-<section id="running-both-systems-side-by-side">
-<h2>Running Both Systems Side-by-Side<a class="headerlink" href="#running-both-systems-side-by-side" title="Link to this heading">¶</a></h2>
-<p>You can run both v1.0 and v2.0 systems:</p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="c1"># v1.0 style (legacy)</span>
-python<span class="w"> </span>scripts/build.py<span class="w"> </span>--config-file<span class="w"> </span>configs/old_config.yaml
-
-<span class="c1"># v2.0 style (recommended)</span>
-python<span class="w"> </span>scripts/main.py<span class="w"> </span>--config<span class="w"> </span>tutorials/new_config.yaml
+<section id="current-entry-point">
+<h2>Current Entry Point<a class="headerlink" href="#current-entry-point" title="Link to this heading">¶</a></h2>
+<p>Use the v2 entry point for new runs:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>python<span class="w"> </span>scripts/main.py<span class="w"> </span>--config<span class="w"> </span>tutorials/minimal.yaml
 </pre></div>
 </div>
 </section>
@@ -791,8 +772,9 @@ python<span class="w"> </span>scripts/main.py<span class="w"> </span>--config<sp
 <h2>Migration Examples<a class="headerlink" href="#migration-examples" title="Link to this heading">¶</a></h2>
 <p>See the <code class="docutils literal notranslate"><span class="pre">tutorials/</span></code> directory for complete v2.0 examples:</p>
 <ul class="simple">
-<li><p><a class="reference external" href="https://github.com/zudi-lin/pytorch_connectomics/blob/master/tutorials/lucchi.yaml">tutorials/lucchi.yaml</a></p></li>
-<li><p><a class="reference external" href="https://github.com/zudi-lin/pytorch_connectomics/blob/master/tutorials/mednext_lucchi.yaml">tutorials/mednext_lucchi.yaml</a></p></li>
+<li><p><a class="reference external" href="https://github.com/zudi-lin/pytorch_connectomics/blob/master/tutorials/minimal.yaml">tutorials/minimal.yaml</a></p></li>
+<li><p><a class="reference external" href="https://github.com/zudi-lin/pytorch_connectomics/blob/master/tutorials/mito_lucchi%2B%2B.yaml">tutorials/mito_lucchi++.yaml</a></p></li>
+<li><p><a class="reference external" href="https://github.com/zudi-lin/pytorch_connectomics/blob/master/tutorials/neuron_snemi/neuron_snemi_sdt.yaml">tutorials/neuron_snemi/neuron_snemi_sdt.yaml</a></p></li>
 </ul>
 </section>
 <section id="getting-help">
@@ -902,7 +884,7 @@ python<span class="w"> </span>scripts/main.py<span class="w"> </span>--config<sp
 </ul>
 </li>
 <li><a class="reference internal" href="#backward-compatibility">Backward Compatibility</a></li>
-<li><a class="reference internal" href="#running-both-systems-side-by-side">Running Both Systems Side-by-Side</a></li>
+<li><a class="reference internal" href="#current-entry-point">Current Entry Point</a></li>
 <li><a class="reference internal" href="#migration-examples">Migration Examples</a></li>
 <li><a class="reference internal" href="#getting-help">Getting Help</a></li>
 <li><a class="reference internal" href="#next-steps">Next Steps</a></li>

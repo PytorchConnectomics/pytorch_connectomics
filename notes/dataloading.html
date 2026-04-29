@@ -282,78 +282,53 @@
 <h1>Data Loading<a class="headerlink" href="#data-loading" title="Link to this heading">¶</a></h1>
 <section id="data-augmentation">
 <h2>Data Augmentation<a class="headerlink" href="#data-augmentation" title="Link to this heading">¶</a></h2>
-<p>Since many semi-supervised and unsupervised learning tasks do not require labels, the only key required in our
-data augmentor is <code class="docutils literal notranslate"><span class="pre">'image'</span></code>. Let’s look at an example for using an augmentation pipeline on input images:</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">connectomics.data.augment</span><span class="w"> </span><span class="kn">import</span> <span class="o">*</span>
-<span class="n">tranforms</span> <span class="o">=</span> <span class="p">[</span>
-    <span class="n">Rescale</span><span class="p">(</span><span class="n">p</span><span class="o">=</span><span class="mf">0.8</span><span class="p">),</span>
-    <span class="n">MisAlignment</span><span class="p">(</span><span class="n">displacement</span><span class="o">=</span><span class="mi">16</span><span class="p">,</span>
-                 <span class="n">rotate_ratio</span><span class="o">=</span><span class="mf">0.5</span><span class="p">,</span>
-                 <span class="n">p</span><span class="o">=</span><span class="mf">0.5</span><span class="p">),</span>
-    <span class="n">CutBlur</span><span class="p">(</span><span class="n">length_ratio</span><span class="o">=</span><span class="mf">0.6</span><span class="p">,</span>
-            <span class="n">down_ratio_min</span><span class="o">=</span><span class="mf">4.0</span><span class="p">,</span>
-            <span class="n">down_ratio_max</span><span class="o">=</span><span class="mf">8.0</span><span class="p">,</span>
-            <span class="n">p</span><span class="o">=</span><span class="mf">0.7</span><span class="p">),</span>
-<span class="p">]</span>
-<span class="n">augmentor</span> <span class="o">=</span> <span class="n">Compose</span><span class="p">(</span><span class="n">tranforms</span><span class="p">,</span>
-                    <span class="n">input_size</span> <span class="o">=</span> <span class="p">(</span><span class="mi">8</span><span class="p">,</span> <span class="mi">256</span><span class="p">,</span> <span class="mi">256</span><span class="p">))</span>
+<p>PyTorch Connectomics uses MONAI dictionary transforms for augmentation. The common path is to
+configure augmentations in YAML and let the Lightning data factory build the transform pipeline:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">connectomics.config</span><span class="w"> </span><span class="kn">import</span> <span class="n">load_config</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">connectomics.data.augmentation</span><span class="w"> </span><span class="kn">import</span> <span class="n">build_train_transforms</span>
 
-<span class="n">sample</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;image&#39;</span><span class="p">:</span> <span class="n">image</span><span class="p">}</span>
-<span class="n">augmented</span> <span class="o">=</span> <span class="n">augmentor</span><span class="p">(</span><span class="n">sample</span><span class="p">)</span>
+<span class="n">cfg</span> <span class="o">=</span> <span class="n">load_config</span><span class="p">(</span><span class="s2">&quot;tutorials/minimal.yaml&quot;</span><span class="p">)</span>
+<span class="n">transforms</span> <span class="o">=</span> <span class="n">build_train_transforms</span><span class="p">(</span><span class="n">cfg</span><span class="p">,</span> <span class="n">keys</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;image&quot;</span><span class="p">,</span> <span class="s2">&quot;label&quot;</span><span class="p">],</span> <span class="n">skip_loading</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+
+<span class="n">sample</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;image&quot;</span><span class="p">:</span> <span class="n">image</span><span class="p">,</span> <span class="s2">&quot;label&quot;</span><span class="p">:</span> <span class="n">label</span><span class="p">}</span>
+<span class="n">augmented</span> <span class="o">=</span> <span class="n">transforms</span><span class="p">(</span><span class="n">sample</span><span class="p">)</span>
 </pre></div>
 </div>
-<p>Then the augmented data can be retrived using the corresponding key. Our augmentor can also apply the same set
-of transformations to the input images and all other specified targets. For example, under the supervised
-segmentation setting, an label image/volume contains the segmentation masks and a valid mask indicating the
-annotated regions are required. We provide the <code class="docutils literal notranslate"><span class="pre">additional_targets</span></code> option to handle those targets:</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span> <span class="kn">from</span><span class="w"> </span><span class="nn">connectomics.data.augment</span><span class="w"> </span><span class="kn">import</span> <span class="o">*</span>
- <span class="n">additional_targets</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;label&#39;</span><span class="p">:</span> <span class="s1">&#39;mask&#39;</span><span class="p">,</span>
-                       <span class="s1">&#39;valid_mask&#39;</span><span class="p">:</span> <span class="s1">&#39;mask&#39;</span><span class="p">}</span>
+<p>For custom pipelines, compose MONAI transforms with the connectomics-specific <code class="docutils literal notranslate"><span class="pre">*d</span></code>
+dictionary transforms:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">monai.transforms</span><span class="w"> </span><span class="kn">import</span> <span class="n">Compose</span><span class="p">,</span> <span class="n">RandFlipd</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">connectomics.data.augmentation</span><span class="w"> </span><span class="kn">import</span> <span class="n">RandCutBlurd</span><span class="p">,</span> <span class="n">RandMisAlignmentd</span>
 
- <span class="n">tranforms</span> <span class="o">=</span> <span class="p">[</span>
-     <span class="n">Rescale</span><span class="p">(</span><span class="n">p</span><span class="o">=</span><span class="mf">0.8</span><span class="p">,</span>
-             <span class="n">additional_targets</span><span class="o">=</span><span class="n">additional_targets</span><span class="p">),</span>
-     <span class="n">MisAlignment</span><span class="p">(</span><span class="n">displacement</span><span class="o">=</span><span class="mi">16</span><span class="p">,</span>
-                  <span class="n">rotate_ratio</span><span class="o">=</span><span class="mf">0.5</span><span class="p">,</span>
-                  <span class="n">p</span><span class="o">=</span><span class="mf">0.5</span><span class="p">,</span>
-                  <span class="n">additional_targets</span><span class="o">=</span><span class="n">additional_targets</span><span class="p">),</span>
-     <span class="n">CutBlur</span><span class="p">(</span><span class="n">length_ratio</span><span class="o">=</span><span class="mf">0.6</span><span class="p">,</span>
-             <span class="n">down_ratio_min</span><span class="o">=</span><span class="mf">4.0</span><span class="p">,</span>
-             <span class="n">down_ratio_max</span><span class="o">=</span><span class="mf">8.0</span><span class="p">,</span>
-             <span class="n">p</span><span class="o">=</span><span class="mf">0.7</span><span class="p">,</span>
-             <span class="n">additional_targets</span><span class="o">=</span><span class="n">additional_targets</span><span class="p">),</span>
- <span class="p">]</span>
- <span class="n">augmentor</span> <span class="o">=</span> <span class="n">Compose</span><span class="p">(</span><span class="n">tranforms</span><span class="p">,</span>
-                     <span class="n">input_size</span> <span class="o">=</span> <span class="p">(</span><span class="mi">8</span><span class="p">,</span> <span class="mi">256</span><span class="p">,</span> <span class="mi">256</span><span class="p">),</span>
-                     <span class="n">additional_targets</span><span class="o">=</span><span class="n">additional_targets</span><span class="p">)</span>
+<span class="n">transforms</span> <span class="o">=</span> <span class="n">Compose</span><span class="p">([</span>
+    <span class="n">RandFlipd</span><span class="p">(</span><span class="n">keys</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;image&quot;</span><span class="p">,</span> <span class="s2">&quot;label&quot;</span><span class="p">],</span> <span class="n">prob</span><span class="o">=</span><span class="mf">0.5</span><span class="p">,</span> <span class="n">spatial_axis</span><span class="o">=</span><span class="mi">0</span><span class="p">),</span>
+    <span class="n">RandMisAlignmentd</span><span class="p">(</span><span class="n">keys</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;image&quot;</span><span class="p">,</span> <span class="s2">&quot;label&quot;</span><span class="p">],</span> <span class="n">prob</span><span class="o">=</span><span class="mf">0.5</span><span class="p">,</span> <span class="n">displacement</span><span class="o">=</span><span class="mi">16</span><span class="p">),</span>
+    <span class="n">RandCutBlurd</span><span class="p">(</span><span class="n">keys</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;image&quot;</span><span class="p">],</span> <span class="n">prob</span><span class="o">=</span><span class="mf">0.7</span><span class="p">,</span> <span class="n">length_ratio</span><span class="o">=</span><span class="mf">0.6</span><span class="p">),</span>
+<span class="p">])</span>
 
- <span class="n">sample</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;image&#39;</span><span class="p">:</span> <span class="n">image</span><span class="p">,</span>
-           <span class="s1">&#39;label&#39;</span><span class="p">:</span> <span class="n">label</span><span class="p">,</span>
-           <span class="s1">&#39;valid_mask&#39;</span><span class="p">:</span> <span class="n">valid_mask</span><span class="p">}</span>
- <span class="n">augmented</span> <span class="o">=</span> <span class="n">augmentor</span><span class="p">(</span><span class="n">sample</span><span class="p">)</span>
-
-<span class="o">..</span> <span class="n">tip</span><span class="p">::</span>
-
- <span class="n">Each</span> <span class="n">addition</span> <span class="n">target</span> <span class="n">need</span> <span class="n">to</span> <span class="n">be</span> <span class="n">specified</span> <span class="k">with</span> <span class="n">a</span> <span class="n">name</span> <span class="p">(</span><span class="o">*</span><span class="n">e</span><span class="o">.</span><span class="n">g</span><span class="o">.*</span><span class="p">,</span> <span class="err">``</span><span class="s1">&#39;valid_mask&#39;</span><span class="err">``</span><span class="p">)</span> <span class="ow">and</span> <span class="n">a</span> <span class="n">target</span> <span class="nb">type</span> <span class="p">(</span><span class="err">``</span><span class="s1">&#39;img&#39;</span><span class="err">``</span> <span class="ow">or</span> <span class="err">``</span><span class="s1">&#39;mask&#39;</span><span class="err">``</span><span class="p">)</span><span class="o">.</span> <span class="n">Some</span> <span class="n">augmentations</span> <span class="n">are</span> <span class="n">only</span> <span class="n">applied</span> <span class="n">to</span> <span class="err">``</span><span class="s1">&#39;img&#39;</span><span class="err">``</span><span class="p">,</span> <span class="ow">and</span> <span class="n">augmentations</span> <span class="k">for</span> <span class="n">both</span> <span class="err">``</span><span class="s1">&#39;img&#39;</span><span class="err">``</span> <span class="ow">and</span> <span class="err">``</span><span class="s1">&#39;mask&#39;</span><span class="err">``</span> <span class="n">will</span> <span class="n">use</span> <span class="n">different</span> <span class="n">interpolation</span> <span class="n">modes</span> <span class="k">for</span> <span class="n">them</span><span class="o">.</span>
+<span class="n">sample</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;image&quot;</span><span class="p">:</span> <span class="n">image</span><span class="p">,</span> <span class="s2">&quot;label&quot;</span><span class="p">:</span> <span class="n">label</span><span class="p">}</span>
+<span class="n">augmented</span> <span class="o">=</span> <span class="n">transforms</span><span class="p">(</span><span class="n">sample</span><span class="p">)</span>
 </pre></div>
 </div>
-<blockquote>
-<div><div class="admonition note">
-<p class="admonition-title">Note</p>
-<p>The <code class="docutils literal notranslate"><span class="pre">'image'</span></code> key in the examples above is to indicate the <strong>name</strong> of the sample, which means other keys can be used to retrive corresponding samples in augmentation. However, the <code class="docutils literal notranslate"><span class="pre">'img'</span></code> and <code class="docutils literal notranslate"><span class="pre">'mask'</span></code> values indicate the <strong>type</strong> of a sample, therefore only the two values can be recognized by the augmentor.</p>
-</div>
-</div></blockquote>
-<p>The <code class="docutils literal notranslate"><span class="pre">'label'</span></code> key in <code class="docutils literal notranslate"><span class="pre">'mask'</span></code> target type is used by default in the configuration file as most of the tutorial examples belong to the supervised
-training category. For model training with partially annotated dataset under the supervised setting, we need to add:</p>
-<div class="highlight-yaml notranslate"><div class="highlight"><pre><span></span><span class="nt">AUGMENTOR</span><span class="p">:</span>
-<span class="w">  </span><span class="nt">ADDITIONAL_TARGETS_NAME</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="s">&#39;label&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;valid_mask&#39;</span><span class="p p-Indicator">]</span>
-<span class="w">  </span><span class="nt">ADDITIONAL_TARGETS_TYPE</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="s">&#39;mask&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;mask&#39;</span><span class="p p-Indicator">]</span>
+<p>The standard keys are <code class="docutils literal notranslate"><span class="pre">image</span></code>, <code class="docutils literal notranslate"><span class="pre">label</span></code>, <code class="docutils literal notranslate"><span class="pre">label_aux</span></code>, and <code class="docutils literal notranslate"><span class="pre">mask</span></code>. Spatial transforms
+that receive multiple keys sample one random transform and apply it consistently to every
+specified key.</p>
+<p>Augmentations are configured under <code class="docutils literal notranslate"><span class="pre">data.augmentation</span></code>:</p>
+<div class="highlight-yaml notranslate"><div class="highlight"><pre><span></span><span class="nt">default</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">data</span><span class="p">:</span>
+<span class="w">    </span><span class="nt">augmentation</span><span class="p">:</span>
+<span class="w">      </span><span class="nt">profile</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">aug_standard</span>
+<span class="w">      </span><span class="nt">misalignment</span><span class="p">:</span>
+<span class="w">        </span><span class="nt">enabled</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
+<span class="w">        </span><span class="nt">prob</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">0.5</span>
+<span class="w">        </span><span class="nt">displacement</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">16</span>
 </pre></div>
 </div>
-<p>Each transformation class is associated with an <code class="docutils literal notranslate"><span class="pre">ENABLED</span></code> key. To turn off a specific transformation (<em>e.g.</em>, mis-alignment), set:</p>
-<div class="highlight-yaml notranslate"><div class="highlight"><pre><span></span><span class="nt">AUGMENTOR</span><span class="p">:</span>
-<span class="w">  </span><span class="nt">MISALIGNMENT</span><span class="p">:</span>
-<span class="w">    </span><span class="nt">ENABLED</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">False</span>
+<p>Each transform has an <code class="docutils literal notranslate"><span class="pre">enabled</span></code> flag. To turn off a specific transformation, set:</p>
+<div class="highlight-yaml notranslate"><div class="highlight"><pre><span></span><span class="nt">default</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">data</span><span class="p">:</span>
+<span class="w">    </span><span class="nt">augmentation</span><span class="p">:</span>
+<span class="w">      </span><span class="nt">misalignment</span><span class="p">:</span>
+<span class="w">        </span><span class="nt">enabled</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">false</span>
 </pre></div>
 </div>
 </section>
@@ -364,89 +339,82 @@ training category. For model training with partially annotated dataset under the
 <p>For some datasets/tasks, the foreground mask is sparse in the volume (<em>e.g.</em>, <a class="reference external" href="../tutorials/synapse.html">synapse detection</a>).
 Therefore we perform reject sampling to decrease the ratio of (all completely avoid) regions without foreground pixels.
 Such a design lets the model pay more attention to the foreground pixels to alleviate false negatives (but may introduce
-more false positives). There are two corresponding hyper-parameters in the configuration file:</p>
-<div class="highlight-yaml notranslate"><div class="highlight"><pre><span></span><span class="nt">DATASET</span><span class="p">:</span>
-<span class="w">  </span><span class="nt">REJECT_SAMPLING</span><span class="p">:</span>
-<span class="w">    </span><span class="nt">SIZE_THRES</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">1000</span>
-<span class="w">    </span><span class="nt">P</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">0.95</span>
+more false positives). Configure rejection sampling under <code class="docutils literal notranslate"><span class="pre">data.dataloader</span></code>:</p>
+<div class="highlight-yaml notranslate"><div class="highlight"><pre><span></span><span class="nt">default</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">data</span><span class="p">:</span>
+<span class="w">    </span><span class="nt">dataloader</span><span class="p">:</span>
+<span class="w">      </span><span class="nt">reject_sampling</span><span class="p">:</span>
+<span class="w">        </span><span class="nt">size_thres</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">1000</span>
+<span class="w">        </span><span class="nt">p</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">0.95</span>
 </pre></div>
 </div>
-<p>The <code class="docutils literal notranslate"><span class="pre">SIZE_THRES:</span> <span class="pre">1000</span></code> key-value pair means that if a random volume contains more than 1,000 non-background voxels, then
+<p>The <code class="docutils literal notranslate"><span class="pre">size_thres:</span> <span class="pre">1000</span></code> key-value pair means that if a random volume contains more than 1,000 non-background voxels, then
 the volume is considered as a foreground volume and is returned by the rejection sampling function. If it contains less
-than 1,000 voxels, the function will reject it with a probability <code class="docutils literal notranslate"><span class="pre">P:</span> <span class="pre">0.95</span></code> and sample another volume. <code class="docutils literal notranslate"><span class="pre">SIZE_THRES</span></code> is
+than 1,000 voxels, the function will reject it with a probability <code class="docutils literal notranslate"><span class="pre">p:</span> <span class="pre">0.95</span></code> and sample another volume. <code class="docutils literal notranslate"><span class="pre">size_thres</span></code> is
 set to -1 by default to disable the rejection sampling.</p>
 <p><strong>2 - Handling partially annotated data</strong></p>
 <p>Some datasets are only partially labeled, and the unlabeled region should not be considered in loss calculation. In that case,
-the user can specify the data path to the valid mask using the <code class="docutils literal notranslate"><span class="pre">DATASET.VALID_MASK_NAME</span></code> option. The valid mask volume should
+the user can specify the data path to the valid mask using <code class="docutils literal notranslate"><span class="pre">data.train.mask</span></code> and <code class="docutils literal notranslate"><span class="pre">data.val.mask</span></code>. The valid mask volume should
 be of the same shape as the label volume with non-zero values denoting annotated regions. A sampled volume with a valid ratio
 less than 0.5 will be rejected by default.</p>
 </section>
-<section id="tiledataset">
-<h2>TileDataset<a class="headerlink" href="#tiledataset" title="Link to this heading">¶</a></h2>
-<p>Large-scale volumetric datasets (<em>e.g.,</em> <a class="reference external" href="https://mitoem.grand-challenge.org">MitoEM</a>) are usually stored as individual
-tiles (<em>i.e.</em>, 2D patches). Directly loading them as a single array into the memory for training and inference is infeasible.
-Therefore we designed the <code class="xref py py-class docutils literal notranslate"><span class="pre">connectomics.data.dataset.TileDataset</span></code> class that reads the paths of the tiles and
-construct tractable chunks for processing. To use this dataset class, the user needs to prepare a <strong>JSON</strong> file which contains
-the information of the dataset. An example for the MitoEM dataset can be
-found <a class="reference external" href="https://raw.githubusercontent.com/zudi-lin/pytorch_connectomics/master/configs/MitoEM/im_train.json">here</a>.
-Below is a list of (incomplete) configurations exclusive for <em>TileDataset</em>:</p>
-<div class="highlight-yaml notranslate"><div class="highlight"><pre><span></span><span class="nt">DATASET</span><span class="p">:</span>
-<span class="w">  </span><span class="nt">DO_CHUNK_TITLE</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">1</span><span class="w"> </span><span class="c1"># set to 1 to use TileDataset (default is 0)</span>
-<span class="w">  </span><span class="nt">DATA_CHUNK_NUM</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">2</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">4</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">4</span><span class="p p-Indicator">]</span><span class="w"> </span><span class="c1"># split the large volume into chunks</span>
-<span class="w">  </span><span class="nt">DATA_CHUNK_ITER</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">5000</span><span class="w"> </span><span class="c1"># (training) number of iterations for a chunk</span>
-</pre></div>
-</div>
-<p>Suppose the input volume is of size (2000,6400,6400) in <cite>(z,y,x)</cite> order, setting <code class="docutils literal notranslate"><span class="pre">DATASET.DATA_CHUNK_NUM</span> <span class="pre">=</span> <span class="pre">[2,4,4]</span></code> will
-split the <cite>z</cite> axis by 2 and <cite>x</cite> and <cite>y</cite> axes by 4, so that the process can handle (500,1600,1600) chunks sequentially, which
-is more manageable. The actual chunk size can be larger due to overlap sampling (only for training) and padding.</p>
-<blockquote>
-<div><div class="admonition note">
-<p class="admonition-title">Note</p>
-<p>When using padding, the coordinate range of a chunk can have negative numbers, <em>e.g.</em>, <code class="docutils literal notranslate"><span class="pre">[-4,</span> <span class="pre">104,</span> <span class="pre">-64,</span> <span class="pre">864,</span> <span class="pre">-64,</span> <span class="pre">864]</span></code>, or numbers that are larger than the whole volume size, which is not an error. Those regions are padded so that the size of sampled chunks stay unchanged.</p>
-</div>
-</div></blockquote>
-<p>Below is a Python snippet for creating the JSON file for a new dataset of size (2000,6400,6400), which are stored as
-2000 individual PNG images of size (6400,6400).</p>
+<section id="filename-and-lazy-datasets">
+<h2>Filename and Lazy Datasets<a class="headerlink" href="#filename-and-lazy-datasets" title="Link to this heading">¶</a></h2>
+<p>The old <code class="docutils literal notranslate"><span class="pre">TileDataset</span></code> path has been removed. Large datasets now use one of the
+current dataset implementations exported from <a class="reference internal" href="../modules/data.html#module-connectomics.data.datasets" title="connectomics.data.datasets"><code class="xref py py-mod docutils literal notranslate"><span class="pre">connectomics.data.datasets</span></code></a>:</p>
+<ul class="simple">
+<li><p><a class="reference internal" href="../modules/data.html#connectomics.data.datasets.CachedVolumeDataset" title="connectomics.data.datasets.CachedVolumeDataset"><code class="xref py py-class docutils literal notranslate"><span class="pre">connectomics.data.datasets.CachedVolumeDataset</span></code></a> for volumes that fit in RAM.</p></li>
+<li><p><a class="reference internal" href="../modules/data.html#connectomics.data.datasets.LazyH5VolumeDataset" title="connectomics.data.datasets.LazyH5VolumeDataset"><code class="xref py py-class docutils literal notranslate"><span class="pre">connectomics.data.datasets.LazyH5VolumeDataset</span></code></a> and
+<a class="reference internal" href="../modules/data.html#connectomics.data.datasets.LazyZarrVolumeDataset" title="connectomics.data.datasets.LazyZarrVolumeDataset"><code class="xref py py-class docutils literal notranslate"><span class="pre">connectomics.data.datasets.LazyZarrVolumeDataset</span></code></a> for crop-on-read HDF5/Zarr
+training without preloading the full volume.</p></li>
+<li><p><a class="reference internal" href="../modules/data.html#connectomics.data.datasets.MonaiFilenameDataset" title="connectomics.data.datasets.MonaiFilenameDataset"><code class="xref py py-class docutils literal notranslate"><span class="pre">connectomics.data.datasets.MonaiFilenameDataset</span></code></a> for pre-tiled PNG/TIFF-style
+file lists.</p></li>
+</ul>
+<p>For filename-based datasets, prepare a JSON file with image and label paths:</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span><span class="w"> </span><span class="nn">json</span>
-<span class="n">data_path</span> <span class="o">=</span> <span class="s2">&quot;path/to/images&quot;</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">pathlib</span><span class="w"> </span><span class="kn">import</span> <span class="n">Path</span>
+
+<span class="n">root</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="s2">&quot;path/to/dataset&quot;</span><span class="p">)</span>
 <span class="n">n_images</span> <span class="o">=</span> <span class="mi">2000</span>
+<span class="n">data_dict</span> <span class="o">=</span> <span class="p">{</span>
+    <span class="s2">&quot;base_path&quot;</span><span class="p">:</span> <span class="nb">str</span><span class="p">(</span><span class="n">root</span><span class="p">),</span>
+    <span class="s2">&quot;images&quot;</span><span class="p">:</span> <span class="p">[</span><span class="sa">f</span><span class="s2">&quot;images/im</span><span class="si">{</span><span class="n">idx</span><span class="si">:</span><span class="s2">04d</span><span class="si">}</span><span class="s2">.png&quot;</span> <span class="k">for</span> <span class="n">idx</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">n_images</span><span class="p">)],</span>
+    <span class="s2">&quot;masks&quot;</span><span class="p">:</span> <span class="p">[</span><span class="sa">f</span><span class="s2">&quot;labels/seg</span><span class="si">{</span><span class="n">idx</span><span class="si">:</span><span class="s2">04d</span><span class="si">}</span><span class="s2">.png&quot;</span> <span class="k">for</span> <span class="n">idx</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">n_images</span><span class="p">)],</span>
+<span class="p">}</span>
 
-<span class="n">data_dict</span> <span class="o">=</span> <span class="p">{}</span>
-<span class="n">data_dict</span><span class="p">[</span><span class="s2">&quot;ndim&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="mi">1</span>
-<span class="n">data_dict</span><span class="p">[</span><span class="s2">&quot;dtype&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;uint8&quot;</span>
-<span class="n">data_dict</span><span class="p">[</span><span class="s2">&quot;image&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span><span class="n">data_path</span> <span class="o">+</span> <span class="s2">&quot;im</span><span class="si">%04d</span><span class="s2">.png&quot;</span> <span class="o">%</span> <span class="n">idx</span> <span class="k">for</span> <span class="n">idx</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">n_images</span><span class="p">)]</span>
-<span class="n">data_dict</span><span class="p">[</span><span class="s2">&quot;height&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="mi">6400</span>
-<span class="n">data_dict</span><span class="p">[</span><span class="s2">&quot;width&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="mi">6400</span>
-<span class="n">data_dict</span><span class="p">[</span><span class="s2">&quot;depth&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">n_images</span>
-<span class="n">data_dict</span><span class="p">[</span><span class="s2">&quot;tile_ratio&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="mi">1</span>
-<span class="n">data_dict</span><span class="p">[</span><span class="s2">&quot;n_columns&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="mi">1</span>
-<span class="n">data_dict</span><span class="p">[</span><span class="s2">&quot;n_rows&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="mi">1</span>
-<span class="n">data_dict</span><span class="p">[</span><span class="s2">&quot;tile_st&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span><span class="mi">0</span><span class="p">,</span><span class="mi">0</span><span class="p">]</span>
-<span class="n">data_dict</span><span class="p">[</span><span class="s2">&quot;tile_size&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="mi">6400</span>
-
-<span class="n">js_path</span> <span class="o">=</span> <span class="s1">&#39;tile_dataset.json&#39;</span>
+<span class="n">js_path</span> <span class="o">=</span> <span class="s2">&quot;filename_dataset.json&quot;</span>
 <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">js_path</span><span class="p">,</span> <span class="s1">&#39;w&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">fp</span><span class="p">:</span>
     <span class="n">json</span><span class="o">.</span><span class="n">dump</span><span class="p">(</span><span class="n">data_dict</span><span class="p">,</span> <span class="n">fp</span><span class="p">)</span>
 </pre></div>
 </div>
-<p>Please note that the paths to <strong>all</strong> images are given as a list to <code class="docutils literal notranslate"><span class="pre">data_dict[&quot;dtype&quot;]</span></code>. For even larger datasets where
-each slice is saved as multiple non-overlapping patches, <code class="docutils literal notranslate"><span class="pre">data_dict[&quot;dtype&quot;]</span></code> is assumed to have the following format:</p>
-<div class="highlight-json notranslate"><div class="highlight"><pre><span></span><span class="p">{</span>
-<span class="w">    </span><span class="nt">&quot;image&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[</span>
-<span class="w">        </span><span class="s2">&quot;path/to/images/0000/{row}_{column}.png&quot;</span><span class="p">,</span>
-<span class="w">        </span><span class="s2">&quot;path/to/images/0001/{row}_{column}.png&quot;</span><span class="p">,</span>
-<span class="w">        </span><span class="s2">&quot;path/to/images/0002/{row}_{column}.png&quot;</span><span class="p">,</span>
-<span class="w">        </span><span class="err">...</span>
-<span class="w">        </span><span class="s2">&quot;path/to/images/2000/{row}_{column}.png&quot;</span><span class="p">,</span>
-<span class="w">    </span><span class="p">],</span>
-<span class="w">    </span><span class="nt">&quot;n_columns&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">4</span><span class="p">,</span>
-<span class="w">    </span><span class="nt">&quot;n_rows&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">4</span><span class="p">,</span>
-<span class="p">}</span>
+<p>Then select the filename dataset in the Hydra config:</p>
+<div class="highlight-yaml notranslate"><div class="highlight"><pre><span></span><span class="nt">default</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">data</span><span class="p">:</span>
+<span class="w">    </span><span class="nt">train</span><span class="p">:</span>
+<span class="w">      </span><span class="nt">dataset_type</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">filename</span>
+<span class="w">      </span><span class="nt">json</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">filename_dataset.json</span>
+<span class="w">      </span><span class="nt">image_key</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">images</span>
+<span class="w">      </span><span class="nt">label_key</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">masks</span>
+<span class="w">      </span><span class="nt">split_ratio</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">0.9</span>
 </pre></div>
 </div>
-<p>Each slice uses a folder named by the <em>z</em> index. The name <strong>{row}_{column}.png</strong> in the JSON file is just a placeholder,
-and there is no need to give an exact input number. For the case above, each 2D slice is saved as 4x4 patches, so the real
-images files in each <em>path/to/images/xxxx/</em> directory should be <em>0_0.png</em>, <em>1_0.png</em> until <em>3_3.png</em>.</p>
+<p>For large HDF5 or Zarr volumes, prefer lazy crop-on-read instead of file tiling:</p>
+<div class="highlight-yaml notranslate"><div class="highlight"><pre><span></span><span class="nt">default</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">data</span><span class="p">:</span>
+<span class="w">    </span><span class="nt">dataloader</span><span class="p">:</span>
+<span class="w">      </span><span class="nt">use_lazy_h5</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
+<span class="w">      </span><span class="c1"># or: use_lazy_zarr: true</span>
+<span class="w">      </span><span class="nt">patch_size</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">128</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">128</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">128</span><span class="p p-Indicator">]</span>
+</pre></div>
+</div>
+<p>The Lightning data factory chooses the concrete dataset from these config fields:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">connectomics.config</span><span class="w"> </span><span class="kn">import</span> <span class="n">load_config</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">connectomics.training.lightning</span><span class="w"> </span><span class="kn">import</span> <span class="n">create_datamodule</span>
+
+<span class="n">cfg</span> <span class="o">=</span> <span class="n">load_config</span><span class="p">(</span><span class="s2">&quot;tutorials/minimal.yaml&quot;</span><span class="p">)</span>
+<span class="n">datamodule</span> <span class="o">=</span> <span class="n">create_datamodule</span><span class="p">(</span><span class="n">cfg</span><span class="p">)</span>
+</pre></div>
+</div>
 </section>
 <section id="handling-2d-data">
 <h2>Handling 2D Data<a class="headerlink" href="#handling-2d-data" title="Link to this heading">¶</a></h2>
@@ -455,26 +423,28 @@ pipeline will predict each slice one-by-one and stack them back to a 3D volume. 
 the inputs (<em>e.g.</em>, affinity map has three channels for 3D masks but only two channels for 2D masks), the number of output
 channels is consistent with the 2D model. The second way is to directly load 2D PNG or TIFF images. Below are the configurations
 for streaming 2D inputs at inference time:</p>
-<div class="highlight-yaml notranslate"><div class="highlight"><pre><span></span><span class="nt">DATASET</span><span class="p">:</span>
-<span class="w">  </span><span class="nt">DO_2D</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">True</span><span class="w"> </span><span class="c1"># use 2d models</span>
-<span class="w">  </span><span class="nt">LOAD_2D</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">True</span><span class="w"> </span><span class="c1"># load 2d images</span>
-<span class="nt">INFERENCE</span><span class="p">:</span>
-<span class="w">  </span><span class="nt">IMAGE_NAME</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">datasets/test_path.txt</span>
-<span class="w">  </span><span class="nt">IS_ABSOLUTE_PATH</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">True</span>
-<span class="w">  </span><span class="nt">DO_SINGLY</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">True</span>
+<div class="highlight-yaml notranslate"><div class="highlight"><pre><span></span><span class="nt">test</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">data</span><span class="p">:</span>
+<span class="w">    </span><span class="nt">test</span><span class="p">:</span>
+<span class="w">      </span><span class="nt">dataset_type</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">filename</span>
+<span class="w">      </span><span class="nt">json</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">datasets/test_files.json</span>
+<span class="w">    </span><span class="nt">dataloader</span><span class="p">:</span>
+<span class="w">      </span><span class="nt">patch_size</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">1</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">256</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">256</span><span class="p p-Indicator">]</span>
 </pre></div>
 </div>
-<p>Please note that the <cite>test_path.txt</cite> should be a list of absolute paths like the example below to avoid ambiguity:</p>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="o">/</span><span class="n">data</span><span class="o">/</span><span class="n">test</span><span class="o">/</span><span class="n">slice_0001</span><span class="o">.</span><span class="n">png</span>
-<span class="o">/</span><span class="n">data</span><span class="o">/</span><span class="n">test</span><span class="o">/</span><span class="n">slice_0002</span><span class="o">.</span><span class="n">png</span>
-<span class="o">/</span><span class="n">data</span><span class="o">/</span><span class="n">test</span><span class="o">/</span><span class="n">slice_0003</span><span class="o">.</span><span class="n">png</span>
-<span class="o">...</span>
-<span class="o">/</span><span class="n">data</span><span class="o">/</span><span class="n">test</span><span class="o">/</span><span class="n">slice_0004</span><span class="o">.</span><span class="n">png</span>
+<p>The filename JSON should list every input image:</p>
+<div class="highlight-json notranslate"><div class="highlight"><pre><span></span><span class="p">{</span>
+<span class="w">  </span><span class="nt">&quot;base_path&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;/data/test&quot;</span><span class="p">,</span>
+<span class="w">  </span><span class="nt">&quot;images&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[</span>
+<span class="w">    </span><span class="s2">&quot;slice_0001.png&quot;</span><span class="p">,</span>
+<span class="w">    </span><span class="s2">&quot;slice_0002.png&quot;</span><span class="p">,</span>
+<span class="w">    </span><span class="s2">&quot;slice_0003.png&quot;</span><span class="p">,</span>
+<span class="w">    </span><span class="s2">&quot;slice_0004.png&quot;</span>
+<span class="w">  </span><span class="p">]</span>
+<span class="p">}</span>
 </pre></div>
 </div>
-<p>Additionally, <code class="docutils literal notranslate"><span class="pre">INFERENCE.DO_SINGLY</span> <span class="pre">=</span> <span class="pre">True</span></code> will let the pipeline process and save each input image separately, to
-avoid loading all files into memory at the same time. The useful Linux command to get the absolute paths of all PNG
-images in a folder is:</p>
+<p>The useful Linux command to list PNG images in a folder is:</p>
 <div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="go">ls -d $(pwd -P)/*.png &gt; path.txt</span>
 </pre></div>
 </div>
@@ -531,7 +501,7 @@ images in a folder is:</p>
 <li><a class="reference internal" href="#">Data Loading</a><ul>
 <li><a class="reference internal" href="#data-augmentation">Data Augmentation</a></li>
 <li><a class="reference internal" href="#rejection-sampling">Rejection Sampling</a></li>
-<li><a class="reference internal" href="#tiledataset">TileDataset</a></li>
+<li><a class="reference internal" href="#filename-and-lazy-datasets">Filename and Lazy Datasets</a></li>
 <li><a class="reference internal" href="#handling-2d-data">Handling 2D Data</a></li>
 </ul>
 </li>

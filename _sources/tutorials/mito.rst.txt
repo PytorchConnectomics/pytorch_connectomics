@@ -162,7 +162,7 @@ Complex mitochondria in the MitoEM dataset:(**a**) mitochondria-on-a-string (MOA
 
 ..
 
-   .. note:: Since the dataset is very large and can not be directly loaded into memory, we designed the :class:`connectomics.data.dataset.TileDataset` class that only loads part of the whole volume each time by opening involved ``PNG`` or ``TIFF`` images.
+   .. note:: Since the dataset is very large and cannot always be directly loaded into memory, use lazy HDF5/Zarr loading or filename-based datasets from :mod:`connectomics.data.datasets` instead of the removed ``TileDataset`` path.
 
 ..
 
@@ -240,8 +240,8 @@ The post-processing step requires merging output volumes and applying watershed 
 
     output_files = 'outputs/MitoEM_R_BC/test/*.h5' # output folder with chunks
     chunks = glob.glob(output_files)
-    
-    # Mitochondria Segmentation 
+
+    # Mitochondria Segmentation
     vol_shape = (2, 500, 4096, 4096) # MitoEM test set
     pred = np.ones(vol_shape, dtype=np.uint8)
     for x in chunks:
@@ -258,7 +258,7 @@ The post-processing step requires merging output volumes and applying watershed 
 
 ..
 
-   .. note:: The decoding parameters for the watershed step are a set of reasonable thresholds but not optimal given different segmentation models. We suggest conducting a hyper-parameter search on the validation set to decide the decoding parameters.   
+   .. note:: The decoding parameters for the watershed step are a set of reasonable thresholds but not optimal given different segmentation models. We suggest conducting a hyper-parameter search on the validation set to decide the decoding parameters.
 
 The generated segmentation map should be ready for submission to the `MitoEM <https://mitoem.grand-challenge.org/>`_ challenge website for evaluation. Please note that this tutorial only outlines training on **MitoEM-Rat** subset. Results on the **MitoEM-Human** subset, which can be generated using a similar pipeline as above, also need to be provided for online evaluation.
 
@@ -275,7 +275,7 @@ Performance on the MitoEM test data subset can only be evaluated on the Grand Ch
 
   gt_path = "datasets/MitoEM_R/mito_val/*.tif"
   files = sorted(glob.glob(gt_path))
-  
+
   data = []
   for i, file in enumerate(files):
       print("process chunk: ", i)

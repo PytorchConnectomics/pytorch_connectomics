@@ -1,21 +1,20 @@
 connectomics.models
 ====================
 
-Architectures
-----------------
+Model Builder
+-------------
 
-.. automodule:: connectomics.models.arch
+.. automodule:: connectomics.models.build
+    :members:
+
+Architecture Registry
+---------------------
+
+.. automodule:: connectomics.models.architectures
     :members:
 
 Loss Functions
-----------------
+--------------
 
-.. automodule:: connectomics.models.loss
+.. automodule:: connectomics.models.losses
     :members:
-
-Utility Functions
-------------------
-
-.. automodule:: connectomics.models.utils
-    :members:
-

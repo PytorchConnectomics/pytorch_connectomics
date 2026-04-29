@@ -363,18 +363,18 @@ pip<span class="w"> </span>install<span class="w"> </span>-e<span class="w"> </s
 </pre></div>
 </div>
 <p><strong>Train a model:</strong></p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>python<span class="w"> </span>scripts/main.py<span class="w"> </span>--config<span class="w"> </span>tutorials/lucchi.yaml
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>python<span class="w"> </span>scripts/main.py<span class="w"> </span>--config<span class="w"> </span>tutorials/minimal.yaml
 </pre></div>
 </div>
 <p><strong>Python API:</strong></p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">connectomics.config</span><span class="w"> </span><span class="kn">import</span> <span class="n">load_config</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">connectomics.training.lit</span><span class="w"> </span><span class="kn">import</span> <span class="n">ConnectomicsModule</span><span class="p">,</span> <span class="n">ConnectomicsDataModule</span><span class="p">,</span> <span class="n">create_trainer</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">connectomics.training.lightning</span><span class="w"> </span><span class="kn">import</span> <span class="n">ConnectomicsModule</span><span class="p">,</span> <span class="n">create_datamodule</span><span class="p">,</span> <span class="n">create_trainer</span>
 
 <span class="c1"># Load configuration</span>
-<span class="n">cfg</span> <span class="o">=</span> <span class="n">load_config</span><span class="p">(</span><span class="s2">&quot;tutorials/lucchi.yaml&quot;</span><span class="p">)</span>
+<span class="n">cfg</span> <span class="o">=</span> <span class="n">load_config</span><span class="p">(</span><span class="s2">&quot;tutorials/minimal.yaml&quot;</span><span class="p">)</span>
 
 <span class="c1"># Create components</span>
-<span class="n">datamodule</span> <span class="o">=</span> <span class="n">ConnectomicsDataModule</span><span class="p">(</span><span class="n">cfg</span><span class="p">)</span>
+<span class="n">datamodule</span> <span class="o">=</span> <span class="n">create_datamodule</span><span class="p">(</span><span class="n">cfg</span><span class="p">)</span>
 <span class="n">model</span> <span class="o">=</span> <span class="n">ConnectomicsModule</span><span class="p">(</span><span class="n">cfg</span><span class="p">)</span>
 <span class="n">trainer</span> <span class="o">=</span> <span class="n">create_trainer</span><span class="p">(</span><span class="n">cfg</span><span class="p">)</span>
 
