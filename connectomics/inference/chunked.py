@@ -18,8 +18,8 @@ from ..data.processing.affinity import (
     resolve_affinity_mode_from_cfg,
 )
 from ..utils.channel_slices import resolve_channel_indices
-from .lazy import _ensure_region_min_size, get_lazy_image_reference_shape, lazy_predict_region
-from .sliding import resolve_inferer_roi_size
+from .lazy import get_lazy_image_reference_shape, lazy_predict_region
+from .output import apply_save_prediction_transform
 
 logger = logging.getLogger(__name__)
 
@@ -148,9 +148,7 @@ def _resolve_decode_affinity_cc_kwargs(cfg: Any) -> dict[str, Any]:
 
     steps = [
         step
-        for step in normalize_decode_modes(
-            getattr(getattr(cfg, "inference", None), "decoding", []) or []
-        )
+        for step in normalize_decode_modes(getattr(cfg, "decoding", None) or [])
         if step.enabled
     ]
     if len(steps) != 1 or steps[0].name != "decode_affinity_cc":
@@ -193,6 +191,19 @@ def _resolve_chunk_shape(cfg: Any, final_shape: Sequence[int]) -> tuple[int, int
     if axes != "all":
         raise ValueError("inference.chunking.axes must be 'all' or 'z'")
     return tuple(min(chunk_size[axis], int(final_shape[axis])) for axis in range(3))
+
+
+def _resolve_h5_spatial_chunks(spatial_shape: Sequence[int]) -> tuple[int, int, int]:
+    preferred = (64, 64, 64)
+    return tuple(min(int(spatial_shape[axis]), preferred[axis]) for axis in range(3))
+
+
+def _resolve_chunk_output_mode(cfg: Any) -> str:
+    chunking_cfg = cfg.inference.chunking
+    mode = str(getattr(chunking_cfg, "output_mode", "decoded")).lower()
+    if mode not in {"decoded", "raw_prediction"}:
+        raise ValueError("inference.chunking.output_mode must be 'decoded' or 'raw_prediction'.")
+    return mode
 
 
 def _take_face(array: np.ndarray, axis: int, side: str) -> np.ndarray:
@@ -283,6 +294,130 @@ def _read_h5(path: Path, *, dataset: str = "main") -> np.ndarray:
         return np.asarray(handle[dataset])
 
 
+def run_chunked_prediction_inference(
+    cfg: Any,
+    forward_fn,
+    image_path: str,
+    *,
+    output_path: str | Path,
+    device: torch.device | str,
+    mask_path: str | None = None,
+    mask_align_to_image: bool = False,
+    requested_head: str | None = None,
+) -> Path:
+    """Run chunked lazy inference and stream raw predictions into one HDF5 volume."""
+    _validate_chunked_output_contract(cfg)
+    chunking_cfg = cfg.inference.chunking
+    reference_shape = get_lazy_image_reference_shape(cfg, image_path, mode="test")
+    input_shape = tuple(int(v) for v in reference_shape[-3:])
+    crop_pad = _resolve_global_prediction_crop(cfg)
+    crop_before = tuple(int(crop_pad[axis][0]) for axis in range(3))
+    crop_after = tuple(int(crop_pad[axis][1]) for axis in range(3))
+    final_shape = tuple(
+        input_shape[axis] - crop_before[axis] - crop_after[axis] for axis in range(3)
+    )
+    if any(size <= 0 for size in final_shape):
+        raise ValueError(
+            f"Chunked inference crop {crop_pad} is too large for input shape {input_shape}."
+        )
+
+    chunk_shape = _resolve_chunk_shape(cfg, final_shape)
+    halo = tuple(int(v) for v in getattr(chunking_cfg, "halo", [0, 0, 0]))
+    chunks = _build_chunk_grid(final_shape, chunk_shape)
+    output_path = Path(output_path)
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    compression = getattr(getattr(cfg.inference, "save_prediction", None), "compression", "gzip")
+    compression = None if compression in (None, "", "none") else compression
+    h5_spatial_chunks = _resolve_h5_spatial_chunks(final_shape)
+
+    logger.info(
+        "Chunked raw prediction inference: input_shape=%s, final_shape=%s, "
+        "chunk_shape=%s, halo=%s, chunks=%d",
+        input_shape,
+        final_shape,
+        chunk_shape,
+        halo,
+        len(chunks),
+    )
+
+    import h5py
+
+    with h5py.File(output_path, "w") as handle:
+        dataset = None
+        for chunk_idx, chunk in enumerate(chunks, start=1):
+            pred_core_start = tuple(chunk.start[axis] + crop_before[axis] for axis in range(3))
+            pred_core_stop = tuple(chunk.stop[axis] + crop_before[axis] for axis in range(3))
+            read_start = tuple(max(0, pred_core_start[axis] - halo[axis]) for axis in range(3))
+            read_stop = tuple(
+                min(input_shape[axis], pred_core_stop[axis] + halo[axis]) for axis in range(3)
+            )
+
+            logger.info(
+                "Raw prediction chunk %d/%d %s: core=%s:%s read=%s:%s",
+                chunk_idx,
+                len(chunks),
+                chunk.key,
+                pred_core_start,
+                pred_core_stop,
+                read_start,
+                read_stop,
+            )
+            pred_tensor = lazy_predict_region(
+                cfg,
+                forward_fn,
+                image_path,
+                region_start=read_start,
+                region_stop=read_stop,
+                mask_path=mask_path,
+                mask_align_to_image=mask_align_to_image,
+                device=device,
+                requested_head=requested_head,
+            )
+            pred = pred_tensor.detach().cpu().float().numpy()[0]
+            del pred_tensor
+
+            local_core_slices = tuple(
+                slice(
+                    pred_core_start[axis] - read_start[axis],
+                    pred_core_stop[axis] - read_start[axis],
+                )
+                for axis in range(3)
+            )
+            core_pred = pred[(slice(None), *local_core_slices)]
+            core_pred = apply_save_prediction_transform(cfg, core_pred)
+
+            if dataset is None:
+                channel_count = int(core_pred.shape[0])
+                dataset = handle.create_dataset(
+                    "main",
+                    shape=(channel_count, *final_shape),
+                    dtype=core_pred.dtype,
+                    chunks=(channel_count, *h5_spatial_chunks),
+                    compression=compression,
+                )
+                dataset.attrs["kind"] = "raw_prediction"
+                dataset.attrs["image_path"] = str(image_path)
+                dataset.attrs["input_shape"] = json.dumps(list(input_shape))
+                dataset.attrs["final_shape"] = json.dumps(list(final_shape))
+                dataset.attrs["crop_pad"] = json.dumps([list(pair) for pair in crop_pad])
+                dataset.attrs["chunk_shape"] = json.dumps(list(chunk_shape))
+                dataset.attrs["halo"] = json.dumps(list(halo))
+                save_cfg = getattr(cfg.inference, "save_prediction", None)
+                if save_cfg is not None:
+                    dataset.attrs["intensity_scale"] = float(
+                        getattr(save_cfg, "intensity_scale", -1.0)
+                    )
+                    dataset.attrs["intensity_dtype"] = str(
+                        getattr(save_cfg, "intensity_dtype", core_pred.dtype)
+                    )
+
+            dataset[(slice(None), *chunk.slices)] = core_pred
+            del pred, core_pred
+
+    logger.info("Chunked raw prediction inference wrote %s.", output_path)
+    return output_path
+
+
 def run_chunked_affinity_cc_inference(
     cfg: Any,
     forward_fn,
@@ -298,6 +433,12 @@ def run_chunked_affinity_cc_inference(
     from ..decoding.decoders.segmentation import decode_affinity_cc
 
     _validate_chunked_output_contract(cfg)
+    output_mode = _resolve_chunk_output_mode(cfg)
+    if output_mode != "decoded":
+        raise ValueError(
+            "run_chunked_affinity_cc_inference requires "
+            "inference.chunking.output_mode='decoded'."
+        )
     chunking_cfg = cfg.inference.chunking
     decode_kwargs = _resolve_decode_affinity_cc_kwargs(cfg)
     threshold = float(
@@ -320,10 +461,6 @@ def run_chunked_affinity_cc_inference(
 
     reference_shape = get_lazy_image_reference_shape(cfg, image_path, mode="test")
     input_shape = tuple(int(v) for v in reference_shape[-3:])
-    roi_size = resolve_inferer_roi_size(cfg)
-    if roi_size is None or len(roi_size) != 3:
-        raise ValueError("Chunked inference requires a 3D sliding-window ROI.")
-    roi_size = tuple(int(v) for v in roi_size)
     crop_pad = _resolve_global_prediction_crop(cfg)
     crop_before = tuple(int(crop_pad[axis][0]) for axis in range(3))
     crop_after = tuple(int(crop_pad[axis][1]) for axis in range(3))
@@ -372,12 +509,6 @@ def run_chunked_affinity_cc_inference(
         read_start = tuple(max(0, pred_core_start[axis] - halo[axis]) for axis in range(3))
         read_stop = tuple(
             min(input_shape[axis], pred_core_stop[axis] + halo[axis]) for axis in range(3)
-        )
-        read_start, read_stop = _ensure_region_min_size(
-            read_start,
-            read_stop,
-            min_shape=roi_size,
-            bounds_shape=input_shape,
         )
 
         logger.info(
@@ -466,7 +597,7 @@ def run_chunked_affinity_cc_inference(
     output_path.parent.mkdir(parents=True, exist_ok=True)
     compression = getattr(getattr(cfg.inference, "save_prediction", None), "compression", "gzip")
     compression = None if compression in (None, "", "none") else compression
-    h5_chunks = tuple(min(int(chunk_shape[axis]), int(final_shape[axis])) for axis in range(3))
+    h5_chunks = _resolve_h5_spatial_chunks(final_shape)
     with h5py.File(output_path, "w") as handle:
         dataset = handle.create_dataset(
             "main",
@@ -506,4 +637,5 @@ __all__ = [
     "UnionFind",
     "is_chunked_inference_enabled",
     "run_chunked_affinity_cc_inference",
+    "run_chunked_prediction_inference",
 ]

@@ -136,7 +136,6 @@ test:
       - 0
       - 5
       - 5
-  inference:
-    evaluation:
-      enabled: false
-      metrics: []
+  evaluation:
+    enabled: false
+    metrics: []

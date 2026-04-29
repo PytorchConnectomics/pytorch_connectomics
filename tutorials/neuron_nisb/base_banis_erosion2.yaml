@@ -1,0 +1,17 @@
+_base_:
+  - base_banis.yaml
+
+experiment_name: nisb_base_banis_erosion2
+description: BANIS train_base_long reproduction target with label erosion=2
+
+default:
+  data:
+    dataloader:
+      batch_size: 2
+    label_transform:
+      erosion: 2
+
+train:
+  monitor:
+    checkpoint:
+      dirpath: outputs/nisb_base_banis_erosion2/checkpoints/

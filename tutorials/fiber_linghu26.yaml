@@ -115,7 +115,8 @@ default:
       channel_activations:
         - {channels: "0:2", activation: sigmoid}
         - {channels: "2:3", activation: tanh}
-    decoding:
+
+  decoding:
     - name: decode_binary_contour_distance_watershed
       kwargs:
         binary_threshold:
@@ -130,7 +131,6 @@ default:
         min_instance_size: 100
         min_seed_size: 20
         prediction_scale: 1
-
 train:
   optimization:
     max_epochs: 500
@@ -198,8 +198,7 @@ test:
       - 40
       - 16
       - 16
-  inference:
-    evaluation:
-      enabled: true
-      metrics:
-      - adapted_rand
+  evaluation:
+    enabled: true
+    metrics:
+    - adapted_rand

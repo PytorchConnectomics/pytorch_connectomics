@@ -513,11 +513,21 @@ def smart_normalize(
 
     Args:
         volume: numpy array to normalize
-        mode: 'none', 'normal' (z-score), '0-1' (min-max), or 'divide'
-        divide_value: divisor when mode='divide'
+        mode: 'none', 'normal' (z-score), '0-1' (min-max), 'divide', or 'divide-K' (e.g. 'divide-255')
+        divide_value: divisor when mode='divide'. Ignored when mode is 'divide-K' form.
         clip_percentile_low: lower percentile for clipping (0.0 = no clip)
         clip_percentile_high: upper percentile for clipping (1.0 = no clip)
     """
+    if mode.startswith("divide-"):
+        try:
+            divide_value = float(mode.split("-", 1)[1])
+        except ValueError as exc:
+            raise ValueError(
+                f"Invalid divide mode '{mode}'. Format should be 'divide-K' "
+                "where K is a number (e.g., 'divide-255')."
+            ) from exc
+        mode = "divide"
+
     volume = volume.copy()
 
     if clip_percentile_low > 0.0 or clip_percentile_high < 1.0:
@@ -538,6 +548,16 @@ def smart_normalize(
         if max_val > min_val:
             volume = (volume - min_val) / (max_val - min_val)
     elif mode == "divide":
-        volume = volume / divide_value
+        if divide_value is None or float(divide_value) == 0.0:
+            raise ValueError(
+                "smart_normalize mode='divide' requires a non-zero divide_value "
+                "(or use 'divide-K' form to embed the divisor in the mode string)."
+            )
+        volume = volume / float(divide_value)
+    else:
+        raise ValueError(
+            f"Unknown smart_normalize mode '{mode}'. "
+            "Expected 'none', 'normal', '0-1', 'divide', or 'divide-K'."
+        )
 
     return volume

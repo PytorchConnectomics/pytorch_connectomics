@@ -82,9 +82,9 @@ class _NerlModule:
     def __init__(self, graph_path):
         self.device = torch.device("cpu")
         self.cfg = Config()
-        self.cfg.inference.evaluation.enabled = True
-        self.cfg.inference.evaluation.metrics = ["nerl"]
-        self.cfg.inference.evaluation.nerl_graph = str(graph_path)
+        self.cfg.evaluation.enabled = True
+        self.cfg.evaluation.metrics = ["nerl"]
+        self.cfg.evaluation.nerl_graph = str(graph_path)
         self.inference_manager = _DummyInferenceManager()
         self.saved_metrics = None
 
@@ -92,7 +92,7 @@ class _NerlModule:
         return self.cfg.inference
 
     def _get_test_evaluation_config(self):
-        return self.cfg.inference.evaluation
+        return self.cfg.evaluation
 
     def _is_test_evaluation_enabled(self):
         return True
@@ -145,6 +145,16 @@ def test_compute_test_metrics_supports_nerl_without_dense_labels(tmp_path):
     assert module.saved_metrics["nerl"] == 1.0
     assert module.saved_metrics["nerl_erl"] == 1.0
     assert module.saved_metrics["nerl_max_erl"] == 1.0
+    assert module.saved_metrics["nerl_pred_erl"] == 1.0
+    assert module.saved_metrics["nerl_gt_erl"] == 1.0
+    np.testing.assert_allclose(
+        module.saved_metrics["nerl_per_gt_erl"],
+        np.array([[1.0, 1.0], [1.0, 1.0]]),
+    )
+    np.testing.assert_array_equal(
+        module.saved_metrics["nerl_gt_segment_ids"],
+        np.array([10, 20], dtype=np.uint64),
+    )
 
 
 def test_compute_test_metrics_supports_banis_skeleton_pickle(tmp_path):
@@ -171,6 +181,10 @@ def test_compute_test_metrics_supports_banis_skeleton_pickle(tmp_path):
 
     assert module.saved_metrics is not None
     assert module.saved_metrics["nerl"] == 1.0
+    np.testing.assert_allclose(
+        module.saved_metrics["nerl_per_gt_erl"],
+        np.array([[1.0, 1.0], [1.0, 1.0]]),
+    )
 
 
 class _CroppingModule:

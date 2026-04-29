@@ -2,14 +2,22 @@ from __future__ import annotations
 
 import numpy as np
 import pytest
+import torch
 
 from connectomics.config import Config, validate_config
+from connectomics.data.io import write_hdf5
 from connectomics.inference.chunked import (
     UnionFind,
     _build_chunk_grid,
     _union_face_pairs,
     _validate_chunked_output_contract,
+    run_chunked_prediction_inference,
 )
+from connectomics.inference.lazy import lazy_predict_volume
+
+
+def _patch_mean_forward(x: torch.Tensor) -> torch.Tensor:
+    return x + x.mean(dim=(2, 3, 4), keepdim=True)
 
 
 def test_build_chunk_grid_covers_volume_without_overlap():
@@ -42,10 +50,24 @@ def test_validate_config_accepts_chunked_inference():
     cfg.data.dataloader.patch_size = [128, 128, 128]
     cfg.inference.strategy = "chunked"
     cfg.inference.chunking.enabled = True
+    cfg.inference.chunking.output_mode = "raw_prediction"
     cfg.inference.chunking.chunk_size = [64, 512, 512]
     cfg.inference.chunking.halo = [16, 64, 64]
 
     validate_config(cfg)
+
+
+def test_validate_config_rejects_unknown_chunk_output_mode():
+    cfg = Config()
+    cfg.data.dataloader.patch_size = [128, 128, 128]
+    cfg.inference.strategy = "chunked"
+    cfg.inference.chunking.enabled = True
+    cfg.inference.chunking.output_mode = "labels"
+    cfg.inference.chunking.chunk_size = [64, 512, 512]
+    cfg.inference.chunking.halo = [16, 64, 64]
+
+    with pytest.raises(ValueError, match="output_mode"):
+        validate_config(cfg)
 
 
 def test_chunked_output_contract_rejects_transpose_postprocessing():
@@ -55,3 +77,43 @@ def test_chunked_output_contract_rejects_transpose_postprocessing():
 
     with pytest.raises(ValueError, match="output_transpose"):
         _validate_chunked_output_contract(cfg)
+
+
+def test_chunked_raw_prediction_matches_full_lazy_prediction(tmp_path):
+    cfg = Config()
+    cfg.data.image_transform.normalize = "none"
+    cfg.data.dataloader.patch_size = [3, 3, 3]
+    cfg.data.dataloader.batch_size = 2
+    cfg.model.output_size = [3, 3, 3]
+    cfg.inference.strategy = "chunked"
+    cfg.inference.sliding_window.window_size = [3, 3, 3]
+    cfg.inference.sliding_window.overlap = 0.5
+    cfg.inference.sliding_window.blending = "constant"
+    cfg.inference.sliding_window.snap_to_edge = True
+    cfg.inference.chunking.enabled = True
+    cfg.inference.chunking.output_mode = "raw_prediction"
+    cfg.inference.chunking.chunk_size = [2, 4, 7]
+    cfg.inference.chunking.halo = [0, 0, 0]
+    cfg.inference.save_prediction.intensity_scale = -1.0
+
+    image_path = tmp_path / "chunked_raw_input.h5"
+    output_path = tmp_path / "chunked_raw_prediction.h5"
+    volume = np.arange(5 * 6 * 7, dtype=np.float32).reshape(5, 6, 7)
+    write_hdf5(str(image_path), volume, dataset="main")
+
+    full = lazy_predict_volume(cfg, _patch_mean_forward, str(image_path), device="cpu")
+    run_chunked_prediction_inference(
+        cfg,
+        _patch_mean_forward,
+        str(image_path),
+        output_path=output_path,
+        device="cpu",
+    )
+
+    import h5py
+
+    with h5py.File(output_path, "r") as handle:
+        raw = np.asarray(handle["main"])
+
+    assert raw.shape == tuple(full.shape[1:])
+    assert np.allclose(raw, full.numpy()[0], atol=1.0e-5)

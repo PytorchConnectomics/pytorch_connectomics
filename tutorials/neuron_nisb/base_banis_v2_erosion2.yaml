@@ -1,0 +1,19 @@
+_base_:
+  - base_banis_v2.yaml
+
+experiment_name: nisb_base_banis_v2_erosion2
+description: >-
+  v2 multi-head training setup with label erosion=2 for stronger boundary
+  separation.
+
+default:
+  data:
+    dataloader:
+      batch_size: 2
+    label_transform:
+      erosion: 2
+
+train:
+  monitor:
+    checkpoint:
+      dirpath: outputs/nisb_base_banis_v2_erosion2/checkpoints/

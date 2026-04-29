@@ -10,6 +10,36 @@ from connectomics.data.processing.affinity import (
 from connectomics.data.processing.build import count_stacked_label_transform_channels
 
 
+def _banis_comp_affinities_reference(seg: np.ndarray, long_range: int = 10):
+    """Reference copied from lib/banis/data.py::comp_affinities semantics."""
+    labeled_mask = seg != -1
+    affinities = np.zeros((6, *seg.shape), dtype=bool)
+
+    affinities[0, :-1] = seg[:-1] == seg[1:]
+    affinities[1, :, :-1] = seg[:, :-1] == seg[:, 1:]
+    affinities[2, :, :, :-1] = seg[:, :, :-1] == seg[:, :, 1:]
+
+    affinities[3, :-long_range] = seg[:-long_range] == seg[long_range:]
+    affinities[4, :, :-long_range] = seg[:, :-long_range] == seg[:, long_range:]
+    affinities[5, :, :, :-long_range] = seg[:, :, :-long_range] == seg[:, :, long_range:]
+
+    affinities[:, seg == 0] = 0
+
+    loss_mask = np.zeros_like(affinities, dtype=bool)
+    loss_mask[0, :-1] = labeled_mask[:-1] & labeled_mask[1:]
+    loss_mask[1, :, :-1] = labeled_mask[:, :-1] & labeled_mask[:, 1:]
+    loss_mask[2, :, :, :-1] = labeled_mask[:, :, :-1] & labeled_mask[:, :, 1:]
+    loss_mask[3, :-long_range] = labeled_mask[:-long_range] & labeled_mask[long_range:]
+    loss_mask[4, :, :-long_range] = labeled_mask[:, :-long_range] & labeled_mask[:, long_range:]
+    loss_mask[5, :, :, :-long_range] = (
+        labeled_mask[:, :, :-long_range] & labeled_mask[:, :, long_range:]
+    )
+
+    encoded = affinities.astype(np.float32)
+    encoded[~loss_mask] = -1.0
+    return encoded
+
+
 def test_affinity_mode_selects_storage_voxel_for_positive_offset():
     seg = np.ones((1, 1, 4), dtype=np.uint32)
 
@@ -71,3 +101,19 @@ def test_long_range_affinity_resolves_six_channels():
         )
         == 6
     )
+
+
+def test_banis_affinity_matches_reference_for_range_1_and_10():
+    seg = np.ones((12, 13, 14), dtype=np.int32)
+    seg[:4, 2:9, 3:12] = 2
+    seg[6:, 6:, 7:] = 3
+    seg[:, 5:7, :] = 0
+    seg[3:9, :, 4] = -1
+    seg[10, 11, 12] = -1
+
+    expected = _banis_comp_affinities_reference(seg, long_range=10)
+    actual = seg_to_affinity(seg, long_range=10, affinity_mode="banis")
+
+    np.testing.assert_array_equal(actual, expected)
+    np.testing.assert_array_equal(actual[:3], expected[:3])
+    np.testing.assert_array_equal(actual[3:], expected[3:])

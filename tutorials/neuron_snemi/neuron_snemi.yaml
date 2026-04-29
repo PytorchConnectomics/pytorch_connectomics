@@ -42,7 +42,8 @@ default:
       enabled: true
     save_prediction:
       enabled: true
-    decoding:
+
+  decoding:
     - template: decoding_waterz
       kwargs:
         thresholds: 0.5
@@ -58,9 +59,10 @@ default:
         one_sided_threshold: 0.8
         one_sided_min_size: 100
         affinity_threshold: 0.0
-    evaluation:
-      enabled: true
-      metrics: [adapted_rand]
+
+  evaluation:
+    enabled: true
+    metrics: [adapted_rand]
 
 
 train:

@@ -54,7 +54,11 @@ def crop_data_zarr(
     compression: str | None = "gzip",
     compression_level: int = 4,
 ) -> tuple[Path, Path]:
-    """Crop one seed's `data.zarr` and write img/seg HDF5 outputs in xyz layout."""
+    """Crop one seed's `data.zarr` and write img/seg HDF5 outputs in xyz layout.
+
+    Segmentation crops are relabeled with connected components before saving so
+    disconnected fragments do not share one instance ID inside the crop.
+    """
     zarr = _require_zarr()
 
     root = zarr.open(str(data_zarr_path), mode="r")
@@ -64,9 +68,7 @@ def crop_data_zarr(
     img = root["img"]  # shape: (x, y, z, c)
     seg = root["seg"]  # shape: (x, y, z)
     if img.ndim != 4 or seg.ndim != 3:
-        raise ValueError(
-            f"Unexpected ndim in {data_zarr_path}: img={img.shape}, seg={seg.shape}"
-        )
+        raise ValueError(f"Unexpected ndim in {data_zarr_path}: img={img.shape}, seg={seg.shape}")
     if img.shape[:3] != seg.shape:
         raise ValueError(
             f"img/seg spatial shape mismatch in {data_zarr_path}: {img.shape[:3]} vs {seg.shape}"
@@ -84,9 +86,7 @@ def crop_data_zarr(
 
     x0, y0, z0 = _resolve_origin(origin_xyz, size_xyz, full_xyz)
     x1, y1, z1 = x0 + nx, y0 + ny, z0 + nz
-    for v0, v1, full, axis in zip(
-        (x0, y0, z0), (x1, y1, z1), full_xyz, "xyz"
-    ):
+    for v0, v1, full, axis in zip((x0, y0, z0), (x1, y1, z1), full_xyz, "xyz"):
         if v0 < 0 or v1 > full:
             raise ValueError(
                 f"Crop on axis {axis} out of bounds: [{v0}:{v1}] vs full {full} in {data_zarr_path}"
@@ -111,6 +111,19 @@ def crop_data_zarr(
 
     img_xyz = np.asarray(img[x0:x1, y0:y1, z0:z1, 0])
     seg_xyz = np.asarray(seg[x0:x1, y0:y1, z0:z1])
+    try:
+        import cc3d
+    except ModuleNotFoundError as exc:  # pragma: no cover
+        raise ModuleNotFoundError(
+            "Cropping segmentation requires cc3d for connected-component relabeling. "
+            "Install connected-components-3d."
+        ) from exc
+
+    seg_xyz = cc3d.connected_components(
+        seg_xyz,
+        connectivity=6,
+        out_dtype=np.uint32,
+    )
 
     write_hdf5(
         str(img_out_path),
@@ -127,7 +140,7 @@ def crop_data_zarr(
         compression_level=compression_level,
     )
     print(f"  Wrote: {img_out_path} ({img_xyz.dtype})")
-    print(f"  Wrote: {seg_out_path} ({seg_xyz.dtype})")
+    print(f"  Wrote: {seg_out_path} ({seg_xyz.dtype}, cc3d relabeled)")
     return img_out_path, seg_out_path
 
 

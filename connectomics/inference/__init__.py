@@ -3,6 +3,7 @@
 from .chunked import (
     is_chunked_inference_enabled,
     run_chunked_affinity_cc_inference,
+    run_chunked_prediction_inference,
 )
 from .manager import InferenceManager
 from .output import (
@@ -23,6 +24,7 @@ __all__ = [
     "InferenceManager",
     "is_chunked_inference_enabled",
     "run_chunked_affinity_cc_inference",
+    "run_chunked_prediction_inference",
     "apply_save_prediction_transform",
     "apply_postprocessing",
     "resolve_output_filenames",

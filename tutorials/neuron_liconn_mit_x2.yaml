@@ -232,30 +232,31 @@ default:
     #   ws_high_threshold=0.9  — only seed watershed at very high affinity (confident boundaries)
     #   ws_low_threshold=0.3   — extend seeds down to moderate affinity
     #   ws_size_threshold=100  — discard fragments smaller than 100 voxels
-    decoding:
-      - name: decode_abiss
-        kwargs:
-          command: >
-            env LD_LIBRARY_PATH=/orcd/software/community/001/rocky8/intel/2024.2.1/tbb/2021.13/lib:$LD_LIBRARY_PATH
-            {python_exe} scripts/run_abiss_single.py
-            --input {input_h5}
-            --output {output_h5}
-            --abiss-home /home/mansour8/pytc_dev/pytorch_connectomics/abiss
-            --ws-high-threshold 0.9
-            --ws-low-threshold 0.3
-            --ws-size-threshold 100
-          input_dataset: main
-          output_dataset: main
-          timeout_sec: 3600
 
-    # Option B: Lightweight connected-components (no ABISS required).
-    #   Only uses short-range affinities (ch 0-2); good for quick inspection.
-    #   Uncomment and comment out Option A above to use.
-    # decoding:
-    #   - name: decode_affinity_cc
-    #     kwargs:
-    #       threshold: 0.5
-    #       backend: auto
+  decoding:
+    - name: decode_abiss
+      kwargs:
+        command: >
+          env LD_LIBRARY_PATH=/orcd/software/community/001/rocky8/intel/2024.2.1/tbb/2021.13/lib:$LD_LIBRARY_PATH
+          {python_exe} scripts/run_abiss_single.py
+          --input {input_h5}
+          --output {output_h5}
+          --abiss-home /home/mansour8/pytc_dev/pytorch_connectomics/abiss
+          --ws-high-threshold 0.9
+          --ws-low-threshold 0.3
+          --ws-size-threshold 100
+        input_dataset: main
+        output_dataset: main
+        timeout_sec: 3600
+
+  # Option B: Lightweight connected-components (no ABISS required).
+  #   Only uses short-range affinities (ch 0-2); good for quick inspection.
+  #   Uncomment and comment out Option A above to use.
+  # decoding:
+  #   - name: decode_affinity_cc
+  #     kwargs:
+  #       threshold: 0.5
+  #       backend: auto
 
 
 # ── Training stage ─────────────────────────────────────────────────────────────
@@ -396,5 +397,5 @@ test:
       intensity_dtype: float32
       compression: gzip
 
-    evaluation:
-      enabled: false   # no ground truth — cannot compute metrics
+  evaluation:
+    enabled: false   # no ground truth — cannot compute metrics

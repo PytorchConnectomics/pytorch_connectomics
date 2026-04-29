@@ -289,7 +289,7 @@ configs/                         # Canonical shared YAML registries
 │   ├── label_profiles.yaml      # Label-transform presets
 │   └── ...                      # system, dataloader, augmentation, pipeline, tune
 └── templates/                   # Explicit list-item templates
-    └── decoding_templates.yaml  # `inference.decoding` templates (`template: ...`)
+    └── decoding_templates.yaml  # top-level `decoding` templates (`template: ...`)
 
 tutorials/                       # Example configurations
 ├── misc/                        # Miscellaneous experiments
@@ -316,7 +316,7 @@ The project uses **Hydra/OmegaConf** with dataclass-based configs for type safet
 Canonical YAML layout:
 
 - `connectomics/config/profiles/*.yaml`: section-level registries selected by `*.profile`
-- `connectomics/config/templates/*.yaml`: explicit list-item templates, currently for `inference.decoding`
+- `connectomics/config/templates/*.yaml`: explicit list-item templates, currently for top-level `decoding`
 - `tutorials/*.yaml`: runnable experiments that `_base_` the shared registries
 
 Canonical merge semantics:
@@ -324,7 +324,7 @@ Canonical merge semantics:
 - Profile payloads are merged into the target section as the base config.
 - Explicit keys override profile keys.
 - Explicit lists replace profile lists; list overrides are not additive.
-- Canonical decoding expansion is explicit `template:` inside `inference.decoding`.
+- Canonical decoding expansion is explicit `template:` inside top-level `decoding`.
 - Do not introduce `decoding_profile` or `- profile: decoding_*` usages.
 
 **Config File Example** (`tutorials/lucchi.yaml`):
@@ -757,7 +757,7 @@ All previously identified technical debt items have been addressed. Below is the
 31. ~~Pass-through `create_volume_data_dicts()`~~ ✅ (removed)
 32. ~~Python 2 `__future__` imports~~ ✅ (removed)
 33. ~~`cfg.inference.*` references~~ ✅ (valid InferenceConfig in TestConfig, not legacy)
-34. ~~Legacy `test.decoding` fallback~~ ✅ (uses `inference.decoding` directly)
+34. ~~Legacy `test.decoding` fallback~~ ✅ (uses top-level `decoding` directly)
 35. ~~Unnecessary try-except for RSUNet import~~ ✅ (removed)
 36. ~~Hardcoded architecture list~~ ✅ (queries registry dynamically)
 37. ~~Duplicate `_to_plain_dict`/`_as_dict`~~ ✅ (consolidated to `config/dict_utils.py`)

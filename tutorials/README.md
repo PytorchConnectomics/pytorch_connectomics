@@ -24,7 +24,7 @@ Top-level configs now use inheritance via `_base_`:
 
 - `connectomics/config/all_profiles.yaml`: Canonical registry index loaded by top-level tutorials.
 - `connectomics/config/profiles/*.yaml`: Section-level registries selected by `*.profile`.
-- `connectomics/config/templates/*.yaml`: Explicit list-item templates, currently used for `inference.decoding`.
+- `connectomics/config/templates/*.yaml`: Explicit list-item templates, currently used for top-level `decoding`.
 
 `_base_` supports:
 

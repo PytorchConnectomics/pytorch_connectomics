@@ -111,7 +111,8 @@ default:
       intensity_scale: -1.0
       intensity_dtype: float32
       output_formats: [h5]
-    decoding:
+
+  decoding:
     - name: decode_affinity_cc
       kwargs:
         threshold: 0.5
@@ -194,8 +195,7 @@ test:
       image: /projects/weilab/dataset/nisb/base/test/seed*/data.zarr/img
       label: /projects/weilab/dataset/nisb/base/test/seed*/data.zarr/seg
       resolution: [20, 9, 9]
-  inference:
-    evaluation:
-      enabled: true
-      metrics:
-      - adapted_rand
+  evaluation:
+    enabled: true
+    metrics:
+    - adapted_rand

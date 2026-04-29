@@ -128,18 +128,16 @@ def test_cross_section_validation_rejects_decoding_channel_mismatch():
     cfg = from_dict(
         {
             "model": {"out_channels": 2},
-            "inference": {
-                "decoding": [
-                    {
-                        "name": "decode_instance_binary_contour_distance",
-                        "kwargs": {"distance_channels": [2]},
-                    }
-                ]
-            },
+            "decoding": [
+                {
+                    "name": "decode_instance_binary_contour_distance",
+                    "kwargs": {"distance_channels": [2]},
+                }
+            ],
         }
     )
 
-    with pytest.raises(ValueError, match="inference.decoding\\[0\\].kwargs.distance_channels"):
+    with pytest.raises(ValueError, match="decoding\\[0\\].kwargs.distance_channels"):
         validate_config(cfg)
 
 
@@ -436,7 +434,6 @@ label_profiles:
         kwargs: {}
 augmentation_profiles:
   aug_unit:
-    preset: some
     flip:
       enabled: true
 system_profiles:
@@ -464,9 +461,8 @@ default:
       profile: aug_unit
     label_transform:
       profile: label_unit
-  inference:
-    decoding:
-      - template: decode_unit
+  decoding:
+    - template: decode_unit
   system:
     profile: single-gpu-cpu
 _base_: {base_yaml.name}
@@ -476,18 +472,17 @@ _base_: {base_yaml.name}
     cfg = resolve_default_profiles(cfg, mode="test")
     assert cfg.model.arch.type == "mednext"
     assert cfg.model.mednext.size == "S"
-    assert cfg.data.augmentation.preset in {"none", "some", "all"}
-    assert cfg.inference.decoding is not None and len(cfg.inference.decoding) == 1
-    assert cfg.inference.decoding[0].kwargs["min_instance_size"] == 5
+    assert cfg.data.augmentation.flip.enabled is True
+    assert cfg.decoding is not None and len(cfg.decoding) == 1
+    assert cfg.decoding[0].kwargs["min_instance_size"] == 5
     print("[OK]YAML shared profile selectors work")
 
 
 def test_label_transform_profile_can_inherit_top_level_resolution(tmp_path):
     repo_root = Path(__file__).resolve().parents[2]
-    base_profiles = repo_root / "configs" / "all_profiles.yaml"
+    base_profiles = repo_root / "connectomics" / "config" / "all_profiles.yaml"
     config_yaml = tmp_path / "config.yaml"
-    config_yaml.write_text(
-        f"""
+    config_yaml.write_text(f"""
 _base_:
   - {base_profiles}
 
@@ -496,8 +491,7 @@ default:
     label_transform:
       profile: label_aff9_sdt
       resolution: [30, 6, 6]
-""".strip()
-    )
+""".strip())
 
     cfg = load_config(config_yaml)
 
@@ -733,8 +727,8 @@ inference:
     flip_axes: all
   save_prediction:
     output_formats: [h5]
-  evaluation:
-    metrics: [dice]
+evaluation:
+  metrics: [dice]
 monitor:
   logging:
     images:
@@ -752,7 +746,7 @@ optimization:
 
     assert cfg.inference.test_time_augmentation.enabled is False
     assert cfg.inference.save_prediction.enabled is False
-    assert cfg.inference.evaluation.enabled is False
+    assert cfg.evaluation.enabled is False
     assert cfg.monitor.logging.images.enabled is True
     assert cfg.optimization.ema.enabled is False
     # Explicit value in YAML should always win.
@@ -760,8 +754,8 @@ optimization:
     print("[OK]Enabled flags require explicit opt-in")
 
 
-def test_shared_inference_decoding_template_list_ref(tmp_path):
-    """Allow list refs like `- template: decoding_bcd` under default.inference.decoding."""
+def test_shared_decoding_template_list_ref(tmp_path):
+    """Allow list refs like `- template: decoding_bcd` under default.decoding."""
     base_yaml = tmp_path / "base.yaml"
     base_yaml.write_text("""
 decoding_templates:
@@ -776,17 +770,41 @@ decoding_templates:
     config_yaml.write_text(f"""
 _base_: {base_yaml.name}
 default:
-  inference:
-    decoding:
-      - template: decoding_bcd
+  decoding:
+    - template: decoding_bcd
 """.strip())
 
     cfg = load_config(config_yaml)
     cfg = resolve_default_profiles(cfg, mode="test")
-    assert cfg.inference.decoding is not None and len(cfg.inference.decoding) == 1
-    assert cfg.inference.decoding[0].name == "decode_instance_binary_contour_distance"
-    assert cfg.inference.decoding[0].kwargs["min_instance_size"] == 3
-    print("[OK]Shared inference decoding profile-list ref resolves")
+    assert cfg.decoding is not None and len(cfg.decoding) == 1
+    assert cfg.decoding[0].name == "decode_instance_binary_contour_distance"
+    assert cfg.decoding[0].kwargs["min_instance_size"] == 3
+    print("[OK]Shared decoding profile-list ref resolves")
+
+
+def test_top_level_decoding_template_list_ref(tmp_path):
+    """Allow list refs like `- template: decoding_bcd` under root decoding."""
+    base_yaml = tmp_path / "base.yaml"
+    base_yaml.write_text("""
+decoding_templates:
+  decoding_bcd:
+    decoding:
+      - name: decode_instance_binary_contour_distance
+        kwargs:
+          min_instance_size: 7
+""".strip())
+
+    config_yaml = tmp_path / "config.yaml"
+    config_yaml.write_text(f"""
+_base_: {base_yaml.name}
+decoding:
+  - template: decoding_bcd
+""".strip())
+
+    cfg = load_config(config_yaml)
+    assert cfg.decoding is not None and len(cfg.decoding) == 1
+    assert cfg.decoding[0].name == "decode_instance_binary_contour_distance"
+    assert cfg.decoding[0].kwargs["min_instance_size"] == 7
 
 
 def test_loss_profile_positional_overrides(tmp_path):

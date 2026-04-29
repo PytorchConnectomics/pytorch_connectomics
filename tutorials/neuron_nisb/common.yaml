@@ -39,13 +39,15 @@ default:
       ensemble_mode: mean
     save_prediction:
       enabled: true
-    decoding:
-      - template: decoding_abiss
-    evaluation:
-      enabled: true
-      metrics:
-      - adapted_rand      
-    
+
+  decoding:
+    - template: decoding_abiss
+
+  evaluation:
+    enabled: true
+    metrics:
+    - adapted_rand
+
 train:
   optimization:
     profile: warmup_cosine_lr

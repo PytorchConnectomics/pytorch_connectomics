@@ -115,14 +115,16 @@ default:
       intensity_scale: -1.0
       intensity_dtype: float32
       output_formats: [h5]
-    decoding:
-      - name: decode_affinity_cc
-        kwargs:
-          threshold: 0.5
-    evaluation:
-      enabled: true
-      metrics:
-        - adapted_rand
+
+  decoding:
+    - name: decode_affinity_cc
+      kwargs:
+        threshold: 0.5
+
+  evaluation:
+    enabled: true
+    metrics:
+      - adapted_rand
 
 train:
   system:

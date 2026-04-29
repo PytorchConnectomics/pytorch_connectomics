@@ -1,0 +1,69 @@
+_base_:
+  - base_banis_v1.yaml
+
+experiment_name: nisb_base_banis_v2
+description: >-
+  v1 plus separate short- and long-range affinity heads. The r1 head is used
+  for decoding; the r10 head supplies long-range training signal and is saved
+  for diagnostics.
+
+default:
+  model:
+    primary_head: aff_r1
+    heads:
+      aff_r1:
+        out_channels: 3
+        num_blocks: 1
+        hidden_channels: 16
+        target_slice: "0:3"
+      aff_r10:
+        out_channels: 3
+        num_blocks: 1
+        hidden_channels: 16
+        target_slice: "3:6"
+    loss:
+      deep_supervision: false
+      losses:
+        # Keep per-channel balance inside each head; otherwise sparse long-range
+        # positives are still dominated by easy negatives.
+        - function: PerChannelBCEWithLogitsLoss
+          weight: 1.0
+          pred_head: aff_r1
+          target_slice: "0:3"
+          kwargs:
+            auto_pos_weight: true
+            max_pos_weight: 10.0
+        - function: PerChannelBCEWithLogitsLoss
+          weight: 1.0
+          pred_head: aff_r10
+          target_slice: "3:6"
+          kwargs:
+            auto_pos_weight: true
+            max_pos_weight: 10.0
+      loss_balancing:
+        strategy: uncertainty
+  inference:
+    head: aff_r1
+    select_channel: [0, 1, 2]
+    save_prediction:
+      save_all_heads: true
+
+train:
+  monitor:
+    logging:
+      scalar:
+        loss:
+          - train_loss_total_epoch
+          - val_loss_total
+          - train_loss_term_0_raw
+          - train_loss_term_0_weighted
+          - train_loss_term_1_raw
+          - train_loss_term_1_weighted
+          - term_0_weight_epoch
+          - term_1_weight_epoch
+        loss_every_n_steps: 100
+      images:
+        head: all
+        channel_mode: all
+    checkpoint:
+      dirpath: outputs/nisb_base_banis_v2/checkpoints/

@@ -467,6 +467,7 @@ _STAGE_DEFAULT = "default"
 _STAGE_TRAIN = "train"
 _STAGE_TEST = "test"
 _STAGE_TUNE = "tune"
+_STAGE_ROOT = ""
 
 
 def _stage_path(stage: str, rel_path: str) -> str:
@@ -606,8 +607,8 @@ def _build_reference_profile_specs() -> List[Tuple[str, List[str]]]:
 _LIST_REFERENCE_FAMILIES: List[Tuple[str, Tuple[str, ...], str, str]] = [
     (
         "decoding_templates",
-        (_STAGE_DEFAULT, _STAGE_TUNE, _STAGE_TEST),
-        "inference.decoding",
+        (_STAGE_ROOT, _STAGE_DEFAULT, _STAGE_TUNE, _STAGE_TEST),
+        "decoding",
         "decoding",
     ),
 ]

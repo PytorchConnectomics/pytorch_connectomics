@@ -145,20 +145,21 @@ default:
     crop_pad: [64, 54, 64, 54, 64, 54]
     postprocessing:
       enabled: true
-    decoding:
-      - name: decode_distance_watershed
-        kwargs:
-          distance_channels: [6]
-          distance_threshold: [0.5, 0]
-          min_seed_size: 100
-          min_instance_size: 50
-          use_fast_edt: true
-          edt_parallel: 8
     save_prediction:
       enabled: true
-    evaluation:
-      enabled: true
-      metrics: [adapted_rand]
+
+  decoding:
+    - name: decode_distance_watershed
+      kwargs:
+        distance_channels: [6]
+        distance_threshold: [0.5, 0]
+        min_seed_size: 100
+        min_instance_size: 50
+        use_fast_edt: true
+        edt_parallel: 8
+  evaluation:
+    enabled: true
+    metrics: [adapted_rand]
 
 train:
   system:

@@ -385,7 +385,7 @@ def preflight_test_cache_hit(
 
 def _is_test_evaluation_enabled(cfg: Config) -> bool:
     """Return whether test-time evaluation is enabled."""
-    evaluation_cfg = getattr(cfg.inference, "evaluation", None)
+    evaluation_cfg = getattr(cfg, "evaluation", None)
     if evaluation_cfg is None:
         return False
     if isinstance(evaluation_cfg, dict):
@@ -442,7 +442,14 @@ def maybe_limit_test_devices(cfg: Config, datamodule) -> bool:
     test_volume_count = len(test_data_dicts)
 
     tta_cfg = getattr(getattr(cfg, "inference", None), "test_time_augmentation", None)
-    distributed_tta_sharding = bool(getattr(tta_cfg, "distributed_sharding", False))
+    distributed_tta_sharding = bool(
+        getattr(tta_cfg, "enabled", False) and getattr(tta_cfg, "distributed_sharding", False)
+    )
+    sliding_cfg = getattr(getattr(cfg, "inference", None), "sliding_window", None)
+    distributed_window_sharding = bool(
+        getattr(sliding_cfg, "lazy_load", False)
+        and getattr(sliding_cfg, "distributed_sharding", False)
+    )
     if distributed_tta_sharding and test_volume_count != 1:
         print(
             "  WARNING: Disabling distributed TTA sharding for multi-volume test datasets. "
@@ -451,6 +458,14 @@ def maybe_limit_test_devices(cfg: Config, datamodule) -> bool:
         )
         tta_cfg.distributed_sharding = False
         distributed_tta_sharding = False
+
+    if distributed_window_sharding and test_volume_count != 1:
+        print(
+            "  WARNING: Disabling distributed sliding-window sharding for multi-volume "
+            "test datasets. Use independent volume sharding instead."
+        )
+        sliding_cfg.distributed_sharding = False
+        distributed_window_sharding = False
 
     if distributed_tta_sharding and test_volume_count == 1:
         safe_devices = max(1, min(requested_devices, _estimate_tta_total_passes(cfg)))
@@ -465,6 +480,14 @@ def maybe_limit_test_devices(cfg: Config, datamodule) -> bool:
         print(
             "  INFO: Keeping multi-GPU test enabled for single-volume TTA sharding "
             f"({safe_devices} device(s), {_estimate_tta_total_passes(cfg)} total TTA pass(es))."
+        )
+        return False
+
+    if distributed_window_sharding and test_volume_count == 1:
+        print(
+            "  INFO: Keeping multi-GPU test enabled for single-volume lazy "
+            "sliding-window sharding "
+            f"({requested_devices} device(s))."
         )
         return False
 
@@ -541,7 +564,9 @@ def maybe_enable_independent_test_sharding(args, cfg: Config) -> bool:
         source = "distributed launcher environment"
 
     tta_cfg = getattr(getattr(cfg, "inference", None), "test_time_augmentation", None)
-    if tta_cfg is not None and bool(getattr(tta_cfg, "distributed_sharding", False)):
+    if tta_cfg is not None and bool(
+        getattr(tta_cfg, "enabled", False) and getattr(tta_cfg, "distributed_sharding", False)
+    ):
         print(
             "  WARNING: Disabling distributed TTA sharding for independent per-rank test sharding."
         )
@@ -926,7 +951,9 @@ def main():
     # Check for cached/external predictions early so we can skip both the
     # expensive model build and checkpoint restore for test/tune modes.
     _saved_pred = getattr(getattr(cfg, "inference", None), "saved_prediction_path", "")
-    has_saved_prediction = bool(_saved_pred and isinstance(_saved_pred, str) and _saved_pred.strip())
+    has_saved_prediction = bool(
+        _saved_pred and isinstance(_saved_pred, str) and _saved_pred.strip()
+    )
     tta_cached = args.mode in ("test", "tune", "tune-test") and (
         has_saved_prediction
         or _has_tta_prediction_file(cfg)
@@ -940,7 +967,7 @@ def main():
     # Create model
     if has_saved_prediction:
         print(f"  Decode-only mode: loading predictions from {_saved_pred}")
-        print(f"  Skipping model build entirely.")
+        print("  Skipping model build entirely.")
         model = ConnectomicsModule(cfg, model=torch.nn.Identity(), skip_loss=True)
         model._skip_inference = True
         ckpt_path = None
