@@ -593,6 +593,7 @@ def create_datamodule(
         else:
             # Decode-only: derive filename from saved_prediction_path
             from pathlib import Path
+
             pred_stem = Path(_saved).stem if _saved else "decoded"
             test_image_paths = [pred_stem]
             logger.info(f"Decode-only mode: using filename from saved_prediction_path: {pred_stem}")
@@ -657,9 +658,7 @@ def create_datamodule(
             # dataloader batches).
             num_devices = cfg.system.num_gpus if cfg.system.num_gpus > 0 else 1
             accumulate = max(1, int(cfg.optimization.accumulate_grad_batches))
-            iter_num = int(
-                iter_num_cfg * cfg.data.dataloader.batch_size * num_devices * accumulate
-            )
+            iter_num = int(iter_num_cfg * cfg.data.dataloader.batch_size * num_devices * accumulate)
             logger.info(
                 f"Requested n_steps_per_epoch={iter_num_cfg} steps -> "
                 f"dataset samples={iter_num} "
@@ -671,7 +670,7 @@ def create_datamodule(
             logger.info("Auto-computing iter_num from volume size...")
 
             from ...data.datasets.sampling import compute_total_samples
-            from ...data.io import get_vol_shape, volume_exists
+            from ...data.io import get_vol_shape
 
             # Get volume sizes
             volume_sizes = []
@@ -747,9 +746,7 @@ def create_datamodule(
         and dataset_type != "filename"
     )
     if use_lazy_zarr and use_lazy_h5:
-        raise ValueError(
-            "data.dataloader.use_lazy_zarr and use_lazy_h5 are mutually exclusive."
-        )
+        raise ValueError("data.dataloader.use_lazy_zarr and use_lazy_h5 are mutually exclusive.")
 
     if use_preloaded:
         logger.info("Using pre-loaded volume cache (loads once, crops in memory)")
@@ -936,6 +933,7 @@ def create_datamodule(
             def _path_ok(p) -> bool:
                 s = str(p)
                 return ".h5" in s or ".hdf5" in s
+
         else:
             from ...data.datasets.dataset_volume_zarr_lazy import LazyZarrVolumeDataset
 
@@ -956,9 +954,7 @@ def create_datamodule(
                 f"Got: {train_images[:3]}"
             )
 
-        logger.info(
-            "Using lazy %s volume loading (crop-on-read, no full preload)", backend_name
-        )
+        logger.info("Using lazy %s volume loading (crop-on-read, no full preload)", backend_name)
         from torch.utils.data import DataLoader
 
         train_transforms_lazy = build_train_transforms(cfg, skip_loading=True)
@@ -999,9 +995,7 @@ def create_datamodule(
             val_label_aux = [d.get("label_aux") for d in val_data_dicts]
             val_masks = [d.get("mask") for d in val_data_dicts]
             if not all(_path_ok(p) for p in val_images):
-                raise ValueError(
-                    f"data.{flag_name}=true requires {backend_name} val image paths."
-                )
+                raise ValueError(f"data.{flag_name}=true requires {backend_name} val image paths.")
 
             val_transforms_lazy = build_val_transforms(cfg, skip_loading=True)
             val_steps_per_epoch = cfg.optimization.val_steps_per_epoch
@@ -1093,10 +1087,18 @@ def create_datamodule(
         # Disable caching for test/tune modes to avoid issues with partial cache returning 0 length
         use_cache = cfg.data.dataloader.use_cache and mode == "train"
         tta_cfg = getattr(getattr(cfg, "inference", None), "test_time_augmentation", None)
+        sliding_cfg = getattr(getattr(cfg, "inference", None), "sliding_window", None)
         distributed_tta_sharding = bool(
             mode in ["test", "tune"]
             and tta_cfg is not None
+            and getattr(tta_cfg, "enabled", False)
             and getattr(tta_cfg, "distributed_sharding", False)
+        )
+        distributed_window_sharding = bool(
+            mode in ["test", "tune"]
+            and sliding_cfg is not None
+            and getattr(sliding_cfg, "lazy_load", False)
+            and getattr(sliding_cfg, "distributed_sharding", False)
         )
 
         if mode in ["test", "tune"] and cfg.data.dataloader.use_cache:
@@ -1137,6 +1139,7 @@ def create_datamodule(
             val_steps_per_epoch=val_steps_per_epoch,
             seed=cfg.system.seed,  # [FIX 1] Pass seed for validation reseeding
             distributed_tta_sharding=distributed_tta_sharding,
+            distributed_window_sharding=distributed_window_sharding,
             sample_size=_effective_patch_size(cfg),
             do_2d=bool(
                 getattr(cfg.data.train, "do_2d", False) or getattr(cfg.data.val, "do_2d", False)

@@ -84,9 +84,27 @@ class InferenceManager:
         """Return whether distributed TTA sharding is active for this process."""
         return self.tta.is_distributed_sharding_enabled()
 
+    def is_distributed_window_sharding_enabled(self) -> bool:
+        """Return whether lazy sliding-window sharding is active for this process."""
+        sliding_cfg = getattr(getattr(self.cfg, "inference", None), "sliding_window", None)
+        if sliding_cfg is None:
+            return False
+        is_dist = torch.distributed.is_available() and torch.distributed.is_initialized()
+        world_size = torch.distributed.get_world_size() if is_dist else 1
+        return bool(
+            getattr(sliding_cfg, "lazy_load", False)
+            and getattr(sliding_cfg, "distributed_sharding", False)
+            and is_dist
+            and world_size > 1
+        )
+
     def should_skip_postprocess_on_rank(self) -> bool:
-        """Return True on nonzero ranks after distributed TTA aggregation."""
-        return self.tta.should_skip_postprocess_on_rank()
+        """Return True on ranks that only contributed a distributed inference shard."""
+        if self.tta.should_skip_postprocess_on_rank():
+            return True
+        if self.is_distributed_window_sharding_enabled():
+            return torch.distributed.get_rank() != 0
+        return False
 
 
 __all__ = ["InferenceManager"]

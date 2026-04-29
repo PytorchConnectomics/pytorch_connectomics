@@ -214,9 +214,8 @@ test:
       normalize: "0-1"
       clip_percentile_low: 0.0
       clip_percentile_high: 1.0
-  inference:
-    evaluation:
-      enabled: true
-      metrics:
-      - cremi_distance
-      - jaccard
+  evaluation:
+    enabled: true
+    metrics:
+    - cremi_distance
+    - jaccard

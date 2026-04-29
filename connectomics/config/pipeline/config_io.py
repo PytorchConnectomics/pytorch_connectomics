@@ -393,6 +393,9 @@ def validate_config(cfg: Config) -> None:
         axes = str(getattr(chunking_cfg, "axes", "all")).lower()
         if axes not in {"all", "z"}:
             raise ValueError("inference.chunking.axes must be 'all' or 'z'")
+        output_mode = str(getattr(chunking_cfg, "output_mode", "decoded")).lower()
+        if output_mode not in {"decoded", "raw_prediction"}:
+            raise ValueError("inference.chunking.output_mode must be 'decoded' or 'raw_prediction'")
         chunk_size = getattr(chunking_cfg, "chunk_size", None)
         if not chunk_size or len(chunk_size) != 3:
             raise ValueError("inference.chunking.chunk_size must be a length-3 ZYX list")
@@ -615,7 +618,7 @@ def _validate_cross_section_coherence(cfg: Config) -> None:
             )
 
     # 2d) Decoding kwargs channel selectors (*_channels)
-    decoding_cfg = getattr(cfg.inference, "decoding", None)
+    decoding_cfg = getattr(cfg, "decoding", None)
     decode_has_channel_selection = False
     decode_output_head = None
     decode_available_channels = out_channels
@@ -660,10 +663,10 @@ def _validate_cross_section_coherence(cfg: Config) -> None:
                     continue
                 min_channels = infer_min_required_channels(
                     value,
-                    context=f"inference.decoding[{i}].kwargs.{key}",
+                    context=f"decoding[{i}].kwargs.{key}",
                 )
                 if min_channels is not None:
-                    path = f"inference.decoding[{i}].kwargs.{key}"
+                    path = f"decoding[{i}].kwargs.{key}"
                     if model_heads and decode_has_channel_selection:
                         if min_channels > decode_available_channels:
                             raise ValueError(

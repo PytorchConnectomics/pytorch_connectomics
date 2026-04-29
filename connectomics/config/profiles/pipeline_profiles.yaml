@@ -16,9 +16,9 @@ pipeline_profiles:
     data:
       label_transform:
         profile: label_bcd
+    decoding:
+      - template: decoding_bcd
     inference:
-      decoding:
-        - template: decoding_bcd
       test_time_augmentation:
         ensemble_mode: mean
         activation_profile: act_bcd
@@ -30,9 +30,9 @@ pipeline_profiles:
     data:
       label_transform:
         profile: label_aff9
+    decoding:
+      - template: decoding_waterz
     inference:
-      decoding:
-        - template: decoding_waterz
       test_time_augmentation:
         ensemble_mode: min
         activation_profile: act_binary
@@ -44,10 +44,10 @@ pipeline_profiles:
     data:
       label_transform:
         profile: label_aff12
+    decoding:
+      - template: decoding_waterz
     inference:
       select_channel: [0, 1, 2]
-      decoding:
-        - template: decoding_waterz
       test_time_augmentation:
         ensemble_mode: min
         activation_profile: act_binary
@@ -59,9 +59,9 @@ pipeline_profiles:
     data:
       label_transform:
         profile: label_aff9_sdt
+    decoding:
+      - template: decoding_waterz
     inference:
-      decoding:
-        - template: decoding_waterz
       test_time_augmentation:
         ensemble_mode: [["0:9", min], ["9:", mean]]
         activation_profile: act_bd

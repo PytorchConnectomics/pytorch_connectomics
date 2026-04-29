@@ -39,7 +39,9 @@ def normalize_decode_modes(decode_modes: Iterable[Any]) -> List[DecodeStep]:
         enabled = _resolve_enabled(mode)
 
         if isinstance(mode, DecodeStep):
-            steps.append(DecodeStep(enabled=enabled, name=mode.name, kwargs=_coerce_kwargs(mode.kwargs)))
+            steps.append(
+                DecodeStep(enabled=enabled, name=mode.name, kwargs=_coerce_kwargs(mode.kwargs))
+            )
             continue
 
         if hasattr(mode, "name"):
@@ -127,22 +129,22 @@ def apply_decode_pipeline(
 def resolve_decode_modes_from_cfg(cfg: Any) -> Sequence[Any] | None:
     """Resolve decode mode list from config.
 
-    Uses ``cfg.inference.decoding`` only.
+    Uses the top-level ``cfg.decoding`` section only.
     """
-    if hasattr(cfg, "inference") and hasattr(cfg.inference, "decoding") and cfg.inference.decoding:
-        return cfg.inference.decoding
+    if hasattr(cfg, "decoding") and cfg.decoding:
+        return cfg.decoding
     return None
 
 
 def apply_decode_mode(cfg: Any, data: np.ndarray, *, verbose: bool = True) -> np.ndarray:
-    """Apply decode pipeline resolved from ``inference.decoding``."""
+    """Apply decode pipeline resolved from top-level ``decoding``."""
     decode_modes = resolve_decode_modes_from_cfg(cfg)
     if not decode_modes:
         if verbose:
-            logger.info("No decoding configuration found (inference.decoding)")
+            logger.info("No decoding configuration found (decoding)")
         return data
 
     if verbose:
-        logger.info("Using inference.decoding: %s", decode_modes)
+        logger.info("Using decoding: %s", decode_modes)
 
     return apply_decode_pipeline(data, decode_modes)

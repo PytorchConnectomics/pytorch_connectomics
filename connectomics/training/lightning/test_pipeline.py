@@ -27,6 +27,7 @@ from ...inference import (
     apply_save_prediction_transform,
     is_chunked_inference_enabled,
     run_chunked_affinity_cc_inference,
+    run_chunked_prediction_inference,
     write_outputs,
 )
 from ...inference.lazy import (
@@ -43,7 +44,6 @@ from ...utils.model_outputs import (
 )
 from .utils import (
     final_prediction_output_tag,
-    format_decode_tag,
     is_tta_cache_suffix,
     tta_cache_suffix,
 )
@@ -84,16 +84,15 @@ class TestContext:
         prediction_threshold = 0.5
         instance_iou_threshold = 0.5
         if evaluation_enabled and evaluation_cfg is not None:
-            inference_eval_defaults = inference_cfg.evaluation
             prediction_threshold = module._cfg_float(
                 evaluation_cfg,
                 "prediction_threshold",
-                float(inference_eval_defaults.prediction_threshold),
+                0.5,
             )
             instance_iou_threshold = module._cfg_float(
                 evaluation_cfg,
                 "instance_iou_threshold",
-                float(inference_eval_defaults.instance_iou_threshold),
+                0.5,
             )
 
         mode, output_dir_value, cache_suffix, filenames = module._resolve_test_output_config(batch)
@@ -153,6 +152,21 @@ def _is_distributed_tta_sharding_active(module) -> bool:
     if inference_manager is None:
         return False
     return bool(inference_manager.is_distributed_tta_sharding_enabled())
+
+
+def _is_distributed_window_sharding_active(module) -> bool:
+    inference_manager = getattr(module, "inference_manager", None)
+    if inference_manager is None:
+        return False
+    if not hasattr(inference_manager, "is_distributed_window_sharding_enabled"):
+        return False
+    return bool(inference_manager.is_distributed_window_sharding_enabled())
+
+
+def _is_distributed_single_volume_sharding_active(module) -> bool:
+    return _is_distributed_tta_sharding_active(module) or _is_distributed_window_sharding_active(
+        module
+    )
 
 
 def _should_skip_postprocess_on_rank(module) -> bool:
@@ -660,7 +674,7 @@ def _get_effective_evaluation_config(module) -> Any:
     evaluation_cfg = module._get_test_evaluation_config()
     if evaluation_cfg is not None:
         return evaluation_cfg
-    return getattr(module._get_runtime_inference_config(), "evaluation", None)
+    return getattr(getattr(module, "cfg", None), "evaluation", None)
 
 
 def _configured_evaluation_metrics(module) -> set[str]:
@@ -840,7 +854,7 @@ def _load_nerl_graph(graph_source: Any, evaluation_cfg: Any, module: Any):
             skeleton = pickle.load(f)
         return _networkx_skeleton_to_erl_graph(skeleton, evaluation_cfg, module), True
     raise ValueError(
-        "inference.evaluation.nerl_graph must be an ERLGraph .npz or "
+        "evaluation.nerl_graph must be an ERLGraph .npz or "
         f"NetworkX skeleton pickle, got {graph_path}"
     )
 
@@ -872,6 +886,55 @@ def _prepare_nerl_segmentation(decoded_predictions: np.ndarray) -> np.ndarray:
     return seg
 
 
+def _extract_nerl_score_outputs(score: Any) -> tuple[float, float, int, np.ndarray]:
+    """Return aggregate and per-GT ERL values from an em_erl score object."""
+    score_erl = np.asarray(score.erl)
+    if score_erl.ndim > 1:
+        score_erl = score_erl[0]
+
+    pred_erl = getattr(score, "pred_erl", None)
+    gt_erl = getattr(score, "gt_erl", None)
+    if pred_erl is None:
+        pred_erl = score_erl[0]
+    if gt_erl is None:
+        gt_erl = score_erl[1]
+    num_skeletons = int(score_erl[2]) if score_erl.size > 2 else int(len(score.skeleton_len))
+
+    per_gt_erl = None
+    for attr_name in (
+        "per_gt_erl",
+        "gt_segment_erl",
+        "skeleton_erl_pair",
+        "skeleton_erl_pairs",
+    ):
+        attr_value = getattr(score, attr_name, None)
+        if attr_value is not None:
+            per_gt_erl = np.asarray(attr_value, dtype=np.float64)
+            break
+
+    if per_gt_erl is None:
+        skeleton_pred_erl = getattr(score, "skeleton_pred_erl", None)
+        if skeleton_pred_erl is None:
+            skeleton_pred_erl = score.skeleton_erl
+        skeleton_gt_erl = getattr(score, "skeleton_gt_erl", None)
+        if skeleton_gt_erl is None:
+            skeleton_gt_erl = score.skeleton_len
+
+        skeleton_pred_erl = np.asarray(skeleton_pred_erl, dtype=np.float64)
+        skeleton_gt_erl = np.asarray(skeleton_gt_erl, dtype=np.float64)
+        if skeleton_pred_erl.ndim == 2 and skeleton_pred_erl.shape[1] >= 2:
+            per_gt_erl = skeleton_pred_erl[:, :2]
+        else:
+            per_gt_erl = np.column_stack([skeleton_pred_erl, skeleton_gt_erl])
+
+    if per_gt_erl.ndim == 1:
+        per_gt_erl = per_gt_erl.reshape(0, 2) if per_gt_erl.size == 0 else per_gt_erl.reshape(1, -1)
+    if per_gt_erl.ndim != 2 or per_gt_erl.shape[1] != 2:
+        raise ValueError(f"NERL per-GT ERL array must have shape [N, 2], got {per_gt_erl.shape}")
+
+    return float(pred_erl), float(gt_erl), num_skeletons, per_gt_erl
+
+
 def _compute_nerl_metrics(
     module,
     decoded_predictions: np.ndarray,
@@ -886,7 +949,7 @@ def _compute_nerl_metrics(
     )
     if graph_value is None:
         logger.warning(
-            "%sSkipping NERL: set inference.evaluation.nerl_graph to an "
+            "%sSkipping NERL: set evaluation.nerl_graph to an "
             "ERLGraph .npz or BANIS/NISB skeleton.pkl",
             volume_prefix,
         )
@@ -919,30 +982,23 @@ def _compute_nerl_metrics(
     )
     score.compute_erl()
 
-    gt_lut = np.asarray(erl_graph.skeleton_id[erl_graph.node_skeleton_index], dtype=np.uint64)
-    max_score = compute_erl_score(
-        erl_graph,
-        gt_lut,
-        None,
-        merge_threshold=merge_threshold,
-    )
-    max_score.compute_erl()
-
-    erl = float(np.asarray(score.erl)[0])
-    max_erl = float(np.asarray(max_score.erl)[0])
-    nerl = erl / max_erl if max_erl > 0 else float("nan")
-    num_skeletons = int(np.asarray(score.erl)[2])
+    pred_erl, gt_erl, num_skeletons, per_gt_erl = _extract_nerl_score_outputs(score)
+    nerl = pred_erl / gt_erl if gt_erl > 0 else float("nan")
 
     logger.info(f"{volume_prefix}NERL: {nerl:.6f}")
-    logger.info(f"{volume_prefix}  ERL: {erl:.6f}")
-    logger.info(f"{volume_prefix}  Max ERL: {max_erl:.6f}")
+    logger.info(f"{volume_prefix}  Pred ERL: {pred_erl:.6f}")
+    logger.info(f"{volume_prefix}  GT ERL: {gt_erl:.6f}")
     logger.info(f"{volume_prefix}  # Skeletons: {num_skeletons}")
 
     metrics_dict["nerl"] = nerl
-    metrics_dict["nerl_erl"] = erl
-    metrics_dict["nerl_max_erl"] = max_erl
+    metrics_dict["nerl_pred_erl"] = pred_erl
+    metrics_dict["nerl_gt_erl"] = gt_erl
+    metrics_dict["nerl_erl"] = pred_erl
+    metrics_dict["nerl_max_erl"] = gt_erl
     metrics_dict["nerl_num_skeletons"] = num_skeletons
     metrics_dict["nerl_graph"] = str(graph_value)
+    metrics_dict["nerl_gt_segment_ids"] = np.asarray(erl_graph.skeleton_id)
+    metrics_dict["nerl_per_gt_erl"] = per_gt_erl
 
     if hasattr(module, "log"):
         try:
@@ -992,17 +1048,16 @@ def compute_test_metrics(
         module._save_metrics_to_file(metrics_dict)
         return
 
-    inference_eval_defaults = module._get_runtime_inference_config().evaluation
     evaluation_cfg = _get_effective_evaluation_config(module)
     prediction_threshold = module._cfg_float(
         evaluation_cfg,
         "prediction_threshold",
-        float(inference_eval_defaults.prediction_threshold),
+        0.5,
     )
     instance_iou_threshold = module._cfg_float(
         evaluation_cfg,
         "instance_iou_threshold",
-        float(inference_eval_defaults.instance_iou_threshold),
+        0.5,
     )
 
     if _is_instance_segmentation(pred_tensor):
@@ -1034,10 +1089,10 @@ def log_test_epoch_metrics(module) -> None:
 
     is_dist = torch.distributed.is_available() and torch.distributed.is_initialized()
     rank = torch.distributed.get_rank() if is_dist else 0
-    distributed_tta_sharding = _is_distributed_tta_sharding_active(module)
-    if distributed_tta_sharding and rank != 0:
+    distributed_single_volume_sharding = _is_distributed_single_volume_sharding_active(module)
+    if distributed_single_volume_sharding and rank != 0:
         return
-    sync_dist = not distributed_tta_sharding
+    sync_dist = not distributed_single_volume_sharding
 
     if hasattr(module, "test_adapted_rand") and isinstance(
         module.test_adapted_rand, torchmetrics.Metric
@@ -1351,12 +1406,13 @@ def _predict_output_head(
         if _should_skip_postprocess_on_rank(module):
             logger.info(
                 "Skipping prediction crop/postprocessing on this rank after distributed "
-                "TTA aggregation."
+                "inference aggregation."
             )
             return predictions_np, ()
         raise RuntimeError(
             "Inference returned an empty prediction tensor unexpectedly. "
-            "This is only expected on nonzero ranks during distributed TTA sharding."
+            "This is only expected on nonzero ranks during distributed single-volume "
+            "inference sharding."
         )
     predictions_np, reference_spatial_shape = _apply_predecode_prediction_crops(
         module,
@@ -1414,6 +1470,7 @@ def run_test_step(module, batch: Dict[str, torch.Tensor], batch_idx: int) -> STE
     filenames = ctx.filenames
     output_dir_value = ctx.output_dir_value
     cache_suffix = ctx.cache_suffix
+    save_prediction_cfg = ctx.save_prediction_cfg
     mode = "tune" if getattr(module, "_tune_mode", False) else "test"
     lazy_sample = _is_lazy_test_sample(batch)
 
@@ -1457,15 +1514,31 @@ def run_test_step(module, batch: Dict[str, torch.Tensor], batch_idx: int) -> STE
     loaded_intermediate_predictions = loaded_from_file and not loaded_final_predictions
     volume_name = filenames[0] if filenames else f"volume_{batch_idx}"
     is_global_zero = bool(getattr(getattr(module, "trainer", None), "is_global_zero", True))
-    distributed_tta_sharding = _is_distributed_tta_sharding_active(module)
+    distributed_single_volume_sharding = _is_distributed_single_volume_sharding_active(module)
     configured_heads = resolve_output_heads(module.cfg, purpose="test-time inference")
     merge_heads = len(configured_heads) > 1
     selected_output_head = (
         None if merge_heads else (configured_heads[0] if configured_heads else None)
     )
+    if (
+        distributed_single_volume_sharding
+        and not merge_heads
+        and bool(getattr(save_prediction_cfg, "save_all_heads", False))
+    ):
+        extra_head_names = [
+            head_name
+            for head_name in get_model_head_names(module.cfg)
+            if head_name != selected_output_head
+        ]
+        if extra_head_names:
+            raise RuntimeError(
+                "Distributed single-volume inference sharding does not support "
+                "inference.save_prediction.save_all_heads=true unless all requested heads "
+                "are included in inference.output_heads for merged inference."
+            )
 
     if loaded_final_predictions:
-        if distributed_tta_sharding and not is_global_zero:
+        if distributed_single_volume_sharding and not is_global_zero:
             logger.info("Nonzero rank skipping cached final prediction postprocessing.")
             _distributed_tta_barrier(module)
             return torch.tensor(0.0, device=module.device)
@@ -1487,7 +1560,7 @@ def run_test_step(module, batch: Dict[str, torch.Tensor], batch_idx: int) -> STE
         return torch.tensor(0.0, device=module.device)
 
     if loaded_intermediate_predictions:
-        if distributed_tta_sharding and not is_global_zero:
+        if distributed_single_volume_sharding and not is_global_zero:
             logger.info("Nonzero rank skipping cached intermediate postprocessing.")
             _distributed_tta_barrier(module)
             return torch.tensor(0.0, device=module.device)
@@ -1589,34 +1662,110 @@ def run_test_step(module, batch: Dict[str, torch.Tensor], batch_idx: int) -> STE
         logger.info("Input device:      [lazy disk-backed volume]")
         output_dir = Path(output_dir_value)
         output_dir.mkdir(parents=True, exist_ok=True)
-        output_suffix = final_prediction_output_tag(
-            module.cfg,
-            checkpoint_path=module._get_prediction_checkpoint_path(),
-            output_head=selected_output_head,
-        )
-        output_path = output_dir / f"{filenames[0]}_{output_suffix}.h5"
+        chunking_cfg = module.cfg.inference.chunking
+        chunk_output_mode = str(getattr(chunking_cfg, "output_mode", "decoded")).lower()
         inference_start = time.time()
-        run_chunked_affinity_cc_inference(
-            module.cfg,
-            module.forward,
-            image_path,
-            output_path=output_path,
-            device=module.device,
-            mask_path=mask_path,
-            mask_align_to_image=mask_align_to_image,
-            requested_head=selected_output_head,
-        )
-        inference_duration = time.time() - inference_start
-        logger.info(
-            "Chunked inference+decoding completed in %.2f minutes (%.1fs)",
-            inference_duration / 60.0,
-            inference_duration,
-        )
-        if module._is_test_evaluation_enabled():
-            logger.warning(
-                "Skipping evaluation for chunked inference; streaming metrics are not "
-                "implemented and loading the full label defeats this mode's memory goal."
+
+        if chunk_output_mode == "raw_prediction":
+            raw_suffix = (
+                tta_cache_suffix(
+                    module.cfg,
+                    checkpoint_path=module._get_prediction_checkpoint_path(),
+                    output_head=selected_output_head,
+                )
+                .removeprefix("_")
+                .removesuffix(".h5")
             )
+            output_path = output_dir / f"{filenames[0]}_{raw_suffix}.h5"
+            run_chunked_prediction_inference(
+                module.cfg,
+                module.forward,
+                image_path,
+                output_path=output_path,
+                device=module.device,
+                mask_path=mask_path,
+                mask_align_to_image=mask_align_to_image,
+                requested_head=selected_output_head,
+            )
+            inference_duration = time.time() - inference_start
+            logger.info(
+                "Chunked raw prediction inference completed in %.2f minutes (%.1fs)",
+                inference_duration / 60.0,
+                inference_duration,
+            )
+
+            decode_after = bool(getattr(module.cfg.inference, "decode_after_inference", True))
+            if not decode_after:
+                if module._is_test_evaluation_enabled():
+                    logger.warning(
+                        "Skipping evaluation because decode_after_inference=false produced "
+                        "only raw predictions."
+                    )
+                _log_volume_header(volume_name, "VOLUME COMPLETE")
+                _distributed_tta_barrier(module)
+                return torch.tensor(0.0, device=module.device)
+
+            from ...data.io import read_volume
+
+            logger.info("[STAGE: Loading Chunked Raw Prediction For Whole-Volume Decode]")
+            predictions_np = read_volume(str(output_path), dataset="main")
+            predictions_np = module._invert_save_prediction_transform(predictions_np)
+            reference_spatial_shape = tuple(int(v) for v in predictions_np.shape[-3:])
+            if lazy_sample:
+                labels = _maybe_load_lazy_labels(module, batch.get("label"), mode=mode)
+            decoded_predictions = _process_decoding_postprocessing(
+                module,
+                predictions_np,
+                filenames=filenames,
+                mode=mode,
+                batch_meta=batch.get("image_meta_dict"),
+                save_final_predictions=True,
+            )
+            _evaluate_decoded_predictions(
+                module,
+                decoded_predictions,
+                (
+                    _apply_affinity_inference_crop_if_needed(
+                        module,
+                        labels,
+                        reference_spatial_shape=reference_spatial_shape,
+                        item_name="labels",
+                        output_head=selected_output_head,
+                    )
+                    if labels is not None
+                    else None
+                ),
+                filenames=filenames,
+                batch_idx=batch_idx,
+            )
+        else:
+            output_suffix = final_prediction_output_tag(
+                module.cfg,
+                checkpoint_path=module._get_prediction_checkpoint_path(),
+                output_head=selected_output_head,
+            )
+            output_path = output_dir / f"{filenames[0]}_{output_suffix}.h5"
+            run_chunked_affinity_cc_inference(
+                module.cfg,
+                module.forward,
+                image_path,
+                output_path=output_path,
+                device=module.device,
+                mask_path=mask_path,
+                mask_align_to_image=mask_align_to_image,
+                requested_head=selected_output_head,
+            )
+            inference_duration = time.time() - inference_start
+            logger.info(
+                "Chunked inference+decoding completed in %.2f minutes (%.1fs)",
+                inference_duration / 60.0,
+                inference_duration,
+            )
+            if module._is_test_evaluation_enabled():
+                logger.warning(
+                    "Skipping evaluation for chunked inference; streaming metrics are not "
+                    "implemented and loading the full label defeats this mode's memory goal."
+                )
         _log_volume_header(volume_name, "VOLUME COMPLETE")
         _distributed_tta_barrier(module)
         return torch.tensor(0.0, device=module.device)
@@ -1656,6 +1805,7 @@ def run_test_step(module, batch: Dict[str, torch.Tensor], batch_idx: int) -> STE
         selected_output_head = "+".join(configured_heads)
         per_head_preds: list[np.ndarray] = []
         reference_spatial_shape: tuple[int, ...] = ()
+        skip_local_distributed_shard = False
         for head_name in configured_heads:
             head_pred_np, reference_spatial_shape = _predict_output_head(
                 module,
@@ -1669,7 +1819,19 @@ def run_test_step(module, batch: Dict[str, torch.Tensor], batch_idx: int) -> STE
                 requested_head=head_name,
                 affinity_crop_output_head=None,
             )
+            if head_pred_np.size == 0:
+                skip_local_distributed_shard = True
+                continue
             per_head_preds.append(head_pred_np)
+        if skip_local_distributed_shard and _should_skip_postprocess_on_rank(module):
+            logger.info(
+                "Completed local distributed inference shard; rank 0 will perform "
+                "postprocessing."
+            )
+            _distributed_tta_barrier(module)
+            return torch.tensor(0.0, device=module.device)
+        if not per_head_preds:
+            raise RuntimeError("Merged-head inference produced no predictions on rank 0.")
         # Predictions are (B, C, ...) — concat along channel axis preserving head order.
         predictions_np = np.concatenate(per_head_preds, axis=1)
         logger.info(
@@ -1689,12 +1851,14 @@ def run_test_step(module, batch: Dict[str, torch.Tensor], batch_idx: int) -> STE
             requested_head=selected_output_head,
             affinity_crop_output_head=selected_output_head,
         )
-    if lazy_sample:
-        labels = _maybe_load_lazy_labels(module, batch.get("label"), mode=mode)
-    if distributed_tta_sharding and _should_skip_postprocess_on_rank(module):
-        logger.info("Completed local distributed TTA shard; waiting for rank 0 postprocessing.")
+    if distributed_single_volume_sharding and _should_skip_postprocess_on_rank(module):
+        logger.info(
+            "Completed local distributed inference shard; rank 0 will perform postprocessing."
+        )
         _distributed_tta_barrier(module)
         return torch.tensor(0.0, device=module.device)
+    if lazy_sample:
+        labels = _maybe_load_lazy_labels(module, batch.get("label"), mode=mode)
 
     inference_duration = time.time() - inference_start
     logger.info(

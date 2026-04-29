@@ -156,8 +156,8 @@ def test_validation_step_logs_metrics_for_named_head_output():
         "sdt": {"out_channels": 1, "num_blocks": 0},
     }
     cfg.inference.head = "sdt"
-    cfg.inference.evaluation.enabled = True
-    cfg.inference.evaluation.metrics = ["accuracy"]
+    cfg.evaluation.enabled = True
+    cfg.evaluation.metrics = ["accuracy"]
     cfg.model.loss.losses = [
         {
             "function": "DiceLoss",
@@ -204,8 +204,8 @@ def test_validation_step_uses_head_target_slice_mapping_without_loss_target_slic
         "sdt": {"out_channels": 1, "num_blocks": 0, "target_slice": "2:3"},
     }
     cfg.inference.head = "sdt"
-    cfg.inference.evaluation.enabled = True
-    cfg.inference.evaluation.metrics = ["accuracy"]
+    cfg.evaluation.enabled = True
+    cfg.evaluation.metrics = ["accuracy"]
     cfg.model.loss.losses = [
         {
             "function": "DiceLoss",
@@ -243,8 +243,8 @@ def test_validation_step_uses_head_target_slice_mapping_without_loss_target_slic
 def test_validation_step_logs_metrics_when_enabled():
     """Validation step should compute metrics when enabled in the config."""
     cfg = _base_config()
-    cfg.inference.evaluation.enabled = True
-    cfg.inference.evaluation.metrics = ["accuracy"]
+    cfg.evaluation.enabled = True
+    cfg.evaluation.metrics = ["accuracy"]
 
     module = ConnectomicsModule(cfg, model=SimpleModel())
     logged_names: list[str] = []
@@ -480,7 +480,7 @@ def test_save_metrics_to_file_matches_final_prediction_tag(tmp_path):
     cfg = _base_config()
     cfg.inference.save_prediction.output_path = str(tmp_path)
     cfg.inference.select_channel = [0, 1, 2]
-    cfg.inference.decoding = [
+    cfg.decoding = [
         {
             "name": "decode_waterz",
             "kwargs": {
@@ -502,7 +502,7 @@ def test_save_metrics_to_file_matches_final_prediction_tag(tmp_path):
 
     assert (
         tmp_path
-        / "evaluation_metrics_test-input_x1_ch0-1-2_ckpt-best_prediction_waterz_aff50_his256-0.4.txt"
+        / "evaluation_metrics_test-input_x1_ch0-1-2_ckpt-best_decoding_waterz_aff50_his256-0.4.txt"
     ).exists()
 
     tsv_path = tmp_path / "decode_experiments.tsv"
@@ -622,8 +622,8 @@ def test_load_cached_predictions_does_not_pick_legacy_tta_cache_when_checkpoint_
 
 def test_on_test_epoch_end_logs_aggregated_metrics_once():
     cfg = _base_config()
-    cfg.inference.evaluation.enabled = True
-    cfg.inference.evaluation.metrics = ["accuracy"]
+    cfg.evaluation.enabled = True
+    cfg.evaluation.metrics = ["accuracy"]
 
     module = ConnectomicsModule(cfg, model=SimpleModel())
     logged_names: list[str] = []
@@ -640,8 +640,8 @@ def test_log_test_epoch_metrics_uses_rank_zero_only_logging_for_distributed_tta_
     monkeypatch,
 ):
     cfg = _base_config()
-    cfg.inference.evaluation.enabled = True
-    cfg.inference.evaluation.metrics = ["accuracy"]
+    cfg.evaluation.enabled = True
+    cfg.evaluation.metrics = ["accuracy"]
     cfg.inference.test_time_augmentation.enabled = True
     cfg.inference.test_time_augmentation.distributed_sharding = True
 
@@ -671,8 +671,8 @@ def test_log_test_epoch_metrics_uses_rank_zero_only_logging_for_distributed_tta_
 
 def test_log_test_epoch_metrics_skips_nonzero_ranks_for_distributed_tta_sharding(monkeypatch):
     cfg = _base_config()
-    cfg.inference.evaluation.enabled = True
-    cfg.inference.evaluation.metrics = ["accuracy"]
+    cfg.evaluation.enabled = True
+    cfg.evaluation.metrics = ["accuracy"]
     cfg.inference.test_time_augmentation.enabled = True
     cfg.inference.test_time_augmentation.distributed_sharding = True
 

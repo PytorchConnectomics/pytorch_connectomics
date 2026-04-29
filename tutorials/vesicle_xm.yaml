@@ -31,23 +31,24 @@ default:
       window_size: [32, 128, 128]
     save_prediction:
       enabled: true
-    decoding:
-      - name: decode_instance_binary_contour_distance
-        kwargs:
-          binary_threshold: [0.76, 0.5]
-          contour_threshold: [0.6, 1]
-          distance_threshold: [0.7, -0.2]
-          min_instance_size: 100
-          min_seed_size: 20
     postprocessing:
       enabled: true
       instance_cc3d:
         connectivity: 6        # 6-connected (face only) for conservative splitting
         min_size: 100           # remove components smaller than 100 voxels
-    evaluation:
-      enabled: true
-      metrics:
-        - adapted_rand
+
+  decoding:
+    - name: decode_instance_binary_contour_distance
+      kwargs:
+        binary_threshold: [0.76, 0.5]
+        contour_threshold: [0.6, 1]
+        distance_threshold: [0.7, -0.2]
+        min_instance_size: 100
+        min_seed_size: 20
+  evaluation:
+    enabled: true
+    metrics:
+      - adapted_rand
 
 train:
   data:

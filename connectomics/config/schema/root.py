@@ -3,10 +3,10 @@ from __future__ import annotations
 import importlib
 import inspect
 from dataclasses import dataclass, field, is_dataclass
-from typing import Optional, Set
+from typing import List, Optional, Set
 
 from .data import DataConfig
-from .inference import InferenceConfig
+from .inference import DecodeModeConfig, EvaluationConfig, InferenceConfig
 from .model import ModelConfig
 from .monitor import MonitorConfig
 from .optimization import OptimizationConfig
@@ -35,7 +35,9 @@ class Config:
         data: Training dataset loading and preprocessing
         optimization: Training parameters and schedulers
         monitor: Logging, checkpointing, and monitoring
-        inference: Global inference settings (sliding window, TTA, decoding, postprocessing)
+        inference: Global inference settings (sliding window, TTA, prediction I/O)
+        decoding: Decoding pipeline settings
+        evaluation: Evaluation and metric settings
         test: Test-specific configuration (test data paths, decoding, evaluation)
         tune: Parameter tuning configuration (tuning data paths, optimization settings)
 
@@ -50,6 +52,8 @@ class Config:
         optimization: Training optimization configuration
         monitor: Monitoring and logging configuration
         inference: Global inference settings (no data paths)
+        decoding: Decoding pipeline settings
+        evaluation: Evaluation and metric settings
         test: Test-specific configuration (includes test.data as DataConfig)
         tune: Parameter tuning configuration (includes tune.data as DataConfig)
     """
@@ -67,6 +71,8 @@ class Config:
     optimization: OptimizationConfig = field(default_factory=OptimizationConfig)
     monitor: MonitorConfig = field(default_factory=MonitorConfig)
     inference: InferenceConfig = field(default_factory=InferenceConfig)
+    decoding: Optional[List[DecodeModeConfig]] = None
+    evaluation: EvaluationConfig = field(default_factory=EvaluationConfig)
 
     # Optional: Test-specific configuration (test data paths, decoding, evaluation)
     test: Optional[TestConfig] = None

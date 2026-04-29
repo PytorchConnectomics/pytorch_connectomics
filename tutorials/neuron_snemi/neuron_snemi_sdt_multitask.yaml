@@ -102,31 +102,33 @@ default:
       enabled: true
     save_prediction:
       enabled: true
-    decoding:
-      - template: decoding_waterz
-        kwargs:
-          # Fragment initialization: false=waterz built-in C++ watershed
-          #compute_fragments: true
-          #seed_method: maxima_distance-0.3 # maxima_distance, minima, or grid
-          #seed_method: minima # maxima_distance, minima, or grid
-          #use_aff_uint8: true       # convert float→uint8 affinities (4x less aff memory)
-          #use_seg_uint32: true      # uint32 segment IDs (2x less seg memory)
-          thresholds: 0.4
-          merge_function: aff85_his256
-          aff_threshold: [0.01, 0.99]
-          boundary_threshold: 0.2
-          dust_merge: true
-          dust_merge_size: 800
-          dust_merge_affinity: 0.3
-          dust_remove_size: 600
-          branch_merge: false
-          iou_threshold: 0.5
-          best_buddy: true
-          one_sided_threshold: 0.8
-          one_sided_min_size: 100
-    evaluation:
-      enabled: true
-      metrics: [adapted_rand]
+
+  decoding:
+    - template: decoding_waterz
+      kwargs:
+        # Fragment initialization: false=waterz built-in C++ watershed
+        #compute_fragments: true
+        #seed_method: maxima_distance-0.3 # maxima_distance, minima, or grid
+        #seed_method: minima # maxima_distance, minima, or grid
+        #use_aff_uint8: true       # convert float→uint8 affinities (4x less aff memory)
+        #use_seg_uint32: true      # uint32 segment IDs (2x less seg memory)
+        thresholds: 0.4
+        merge_function: aff85_his256
+        aff_threshold: [0.01, 0.99]
+        boundary_threshold: 0.2
+        dust_merge: true
+        dust_merge_size: 800
+        dust_merge_affinity: 0.3
+        dust_remove_size: 600
+        branch_merge: false
+        iou_threshold: 0.5
+        best_buddy: true
+        one_sided_threshold: 0.8
+        one_sided_min_size: 100
+
+  evaluation:
+    enabled: true
+    metrics: [adapted_rand]
 
 
 train:

@@ -60,26 +60,26 @@ def test_resolve_test_stage_runtime_reapplies_resource_sentinels(tmp_path):
 
 def test_is_test_evaluation_enabled_uses_runtime_inference_config():
     cfg = Config()
-    cfg.inference.evaluation.enabled = True
+    cfg.evaluation.enabled = True
 
     assert _is_test_evaluation_enabled(cfg) is True
 
-    cfg.inference.evaluation.enabled = False
+    cfg.evaluation.enabled = False
     assert _is_test_evaluation_enabled(cfg) is False
 
 
 def test_is_test_evaluation_enabled_supports_mapping_or_dataclass_config():
     cfg = Config()
-    cfg.inference.evaluation = {"enabled": False}
+    cfg.evaluation = {"enabled": False}
     assert _is_test_evaluation_enabled(cfg) is False
 
-    cfg.inference.evaluation = {"enabled": True}
+    cfg.evaluation = {"enabled": True}
     assert _is_test_evaluation_enabled(cfg) is True
 
-    cfg.inference.evaluation = EvaluationConfig(enabled=False)
+    cfg.evaluation = EvaluationConfig(enabled=False)
     assert _is_test_evaluation_enabled(cfg) is False
 
-    cfg.inference.evaluation.enabled = True
+    cfg.evaluation.enabled = True
     assert _is_test_evaluation_enabled(cfg) is True
 
 
@@ -116,6 +116,32 @@ def test_maybe_limit_test_devices_keeps_distributed_tta_sharding_for_single_volu
     assert cfg.inference.test_time_augmentation.distributed_sharding is True
 
 
+def test_maybe_limit_test_devices_keeps_distributed_window_sharding_for_single_volume_tests():
+    cfg = Config()
+    cfg.system.num_gpus = 4
+    cfg.inference.sliding_window.lazy_load = True
+    cfg.inference.sliding_window.distributed_sharding = True
+
+    changed = maybe_limit_test_devices(cfg, _DummyTestDataModule(volume_count=1))
+
+    assert changed is False
+    assert cfg.system.num_gpus == 4
+    assert cfg.inference.sliding_window.distributed_sharding is True
+
+
+def test_maybe_limit_test_devices_disables_distributed_window_sharding_for_multi_volume_tests():
+    cfg = Config()
+    cfg.system.num_gpus = 4
+    cfg.inference.sliding_window.lazy_load = True
+    cfg.inference.sliding_window.distributed_sharding = True
+
+    changed = maybe_limit_test_devices(cfg, _DummyTestDataModule(volume_count=2))
+
+    assert changed is True
+    assert cfg.system.num_gpus == 2
+    assert cfg.inference.sliding_window.distributed_sharding is False
+
+
 def test_maybe_limit_test_devices_uses_deduplicated_tta_pass_count_for_single_volume_tests():
     cfg = Config()
     cfg.system.num_gpus = 32
@@ -136,6 +162,7 @@ def test_maybe_enable_independent_test_sharding_uses_rank_env_for_multi_volume_t
 ):
     cfg = Config()
     cfg.system.num_gpus = 4
+    cfg.inference.test_time_augmentation.enabled = True
     cfg.inference.test_time_augmentation.distributed_sharding = True
     args = _make_args(tmp_path / "config.yaml")
 

@@ -32,8 +32,20 @@ class SlidingWindowConfig:
     cval: float = 0.0
     keep_input_on_cpu: bool = False  # Move full volume to CPU between sliding-window batches
     lazy_load: bool = False  # Stream ROIs from disk instead of materializing the full volume
+    distributed_sharding: bool = False  # Split lazy sliding windows across DDP ranks
+    distributed_reduce_chunk_mb: int = 128  # Chunk size for rank-0 accumulator reductions
     sw_device: Optional[str] = None
     output_device: Optional[str] = None
+    # BANIS-style boundary handling (opt-in). When either is set, a custom
+    # inferer replaces MONAI's SlidingWindowInferer.
+    # snap_to_edge: place last window at image_size-roi_size so every window
+    # fits inside the volume; no whole-volume padding.
+    # target_context: per-axis voxels added on each side of the window before
+    # forward; central roi_size of the prediction is accumulated. Per-window
+    # context overhang is padded via padding_mode. Requires the model to
+    # preserve input spatial shape.
+    snap_to_edge: bool = False
+    target_context: List[int] = field(default_factory=list)
 
 
 @dataclass
@@ -48,14 +60,15 @@ class ChunkStitchingConfig:
 
 @dataclass
 class ChunkingConfig:
-    """Chunked inference+decoding for volumes too large to materialize at once.
+    """Chunked inference for volumes too large to materialize at once.
 
     Chunking is an inference execution strategy: data sections still describe
     whole volumes, while this section controls how each volume is partitioned
-    and stitched.
+    and written/decoded.
     """
 
     enabled: bool = False
+    output_mode: str = "decoded"  # "decoded" or "raw_prediction"
     chunk_size: Optional[List[int]] = None  # ZYX after test-time val_transpose.
     halo: List[int] = field(default_factory=lambda: [0, 0, 0])
     axes: str = "all"  # "all" or "z"; "z" keeps full YX in each chunk.
@@ -106,7 +119,8 @@ class SavePredictionConfig:
     save_all_heads: bool = False
 
     # Data scaling and output typing
-    # -1 keeps native float probabilities/logits; >0 scales and casts to integer dtype if chosen.
+    # -1 keeps native float probabilities/logits before dtype conversion.
+    # >0 directly scales values before dtype conversion.
     intensity_scale: float = -1.0
     intensity_dtype: str = "float32"  # float32/float16/uint8/uint16/int16/int32
 
@@ -219,8 +233,7 @@ class InferenceConfig:
     - Sliding window inference for large volumes
     - Test-time augmentation (TTA) support
     - Saving intermediate predictions
-    - Multiple decoding strategies
-    - Postprocessing and evaluation
+    - Optional postprocessing for prediction outputs
     - Runtime resource overrides for inference
 
     Note: stage-specific overrides are merged before runtime; consumers should read `cfg.inference`.
@@ -233,6 +246,7 @@ class InferenceConfig:
     # decoding/saving. Accepts None, int, slice string, or explicit index list.
     select_channel: Optional[Any] = None
     strategy: str = "whole_volume"  # "whole_volume" or "chunked"
+    decode_after_inference: bool = True
     # Crop context padding before decoding/saving predictions:
     # [D,H,W]/[H,W] symmetric or [Db,Da,Hb,Ha,Wb,Wa] asymmetric.
     crop_pad: Optional[List[int]] = None
@@ -241,8 +255,8 @@ class InferenceConfig:
     test_time_augmentation: TestTimeAugmentationConfig = field(
         default_factory=TestTimeAugmentationConfig
     )
-    # Optional explicit intermediate TTA prediction file (.h5). If set in test
-    # mode, pipeline loads this file directly and proceeds to decoding.
+    # Optional explicit intermediate prediction file (.h5). If set in test
+    # mode, pipeline loads this file directly and proceeds to top-level decoding.
     tta_result_path: str = ""
     # Path to pre-computed affinity prediction HDF5 (dataset "main").
     # When set, skips model inference — loads and decodes directly.
@@ -250,9 +264,7 @@ class InferenceConfig:
     # Path to save decoded instance segmentation (separate from raw prediction).
     decoding_path: str = ""
     save_prediction: SavePredictionConfig = field(default_factory=SavePredictionConfig)
-    decoding: Optional[List[DecodeModeConfig]] = None  # List of decode modes to apply sequentially
     postprocessing: PostprocessingConfig = field(default_factory=PostprocessingConfig)
-    evaluation: EvaluationConfig = field(default_factory=EvaluationConfig)
     # If True, switch model to eval() during test/predict. Set False to keep
     # train() mode (useful for BatchNorm recalibration or MC-Dropout workflows).
     do_eval: bool = True

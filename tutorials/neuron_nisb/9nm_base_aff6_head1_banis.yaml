@@ -1,7 +1,7 @@
 _base_:
   - ../../connectomics/config/all_profiles.yaml
 
-experiment_name: neuron_nisb_base_9nm_banis_v0
+experiment_name: neuron_nisb_base_9nm_banis
 description: BANIS train_base reproduction target (9nm, 6-channel affinity, MedNeXt-S/k3, 128-cube)
 
 default:
@@ -109,21 +109,6 @@ default:
       blending: gaussian
       sigma_scale: 0.25
       padding_mode: replicate
-    chunking:
-      enabled: false
-      # Model-axis chunking after test-time transforms. Use axes=all for
-      # no-transpose BANIS/XYZ data; axes=z means axis-0 slabs in model space.
-      chunk_size: [256, 256, 128]
-      halo: [32, 32, 32]
-      axes: all
-      temp_dir: ""
-      save_intermediate: false
-      stitching:
-        method: affinity_cc_boundary_union
-        threshold: 0.95
-        # affinity_mode=banis stores boundary edges at the source voxel.
-        edge_offset: 0
-        min_contact: 1
     test_time_augmentation:
       enabled: false
       # BANIS-style scale_sigmoid: sigmoid(0.2 * x). Avoids fp16 saturation
@@ -135,17 +120,19 @@ default:
       intensity_scale: -1.0
       intensity_dtype: float16
       output_formats: [h5]
-    decoding:
-      - name: decode_affinity_cc
-        kwargs:
-          threshold: 0.73
-          backend: numba
-          # affinity_mode=banis stores edges at the source voxel.
-          edge_offset: 0
-    evaluation:
-      enabled: true
-      metrics:
-        - adapted_rand
+
+  decoding:
+    - name: decode_affinity_cc
+      kwargs:
+        threshold: 0.73
+        backend: numba
+        # affinity_mode=banis stores edges at the source voxel.
+        edge_offset: 0
+
+  evaluation:
+    enabled: true
+    metrics:
+      - adapted_rand
 
 train:
   system:
@@ -204,7 +191,7 @@ train:
       save_top_k: 3
       save_every_n_steps: 50000
       save_last: true
-      dirpath: outputs/neuron_nisb_base_9nm_banis_v0/checkpoints/
+      dirpath: outputs/neuron_nisb_base_9nm_banis_repro/checkpoints/
 
 test:
   data:
@@ -219,9 +206,3 @@ test:
     data_transform:
       pad_size: [1, 1, 1]
       pad_mode: reflect
-  inference:
-    # whole_volume so adapted_rand evaluation runs end-to-end on the 1024^3 crop.
-    # Switch to strategy: chunked for the full 3000^3 (chunking auto-applies).
-    strategy: whole_volume
-    save_prediction:
-      output_path: outputs/neuron_nisb_base_9nm_banis_v0/test/

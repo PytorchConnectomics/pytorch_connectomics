@@ -281,17 +281,6 @@ def apply_save_prediction_transform(cfg: Config | DictConfig, data: np.ndarray) 
 
     if intensity_scale >= 0:
         data = data.astype(np.float32, copy=False)
-        data_min = data.min()
-        data_max = data.max()
-
-        if data_max > data_min:
-            data = (data - data_min) / (data_max - data_min)
-            logger.info(
-                f"Normalized predictions to [0, 1] (min={data_min:.4f}, max={data_max:.4f})"
-            )
-        else:
-            logger.warning(f"data_min == data_max ({data_min:.4f}), skipping normalization")
-
         if intensity_scale != 1.0:
             data = data * float(intensity_scale)
             logger.info(
@@ -302,7 +291,6 @@ def apply_save_prediction_transform(cfg: Config | DictConfig, data: np.ndarray) 
         logger.info(
             f"Intensity scaling disabled (scale={intensity_scale} < 0), keeping raw predictions"
         )
-        return data
 
     target_dtype_str = None
     if hasattr(cfg, "inference") and hasattr(cfg.inference, "save_prediction"):
@@ -500,15 +488,7 @@ def write_outputs(
 
             if fmt_lower == "h5":
                 out_path = output_dir / f"{filename}_{suffix}.h5"
-                write_hdf5(
-                    out_path,
-                    (
-                        sample.astype(np.float32, copy=False)
-                        if not np.issubdtype(sample.dtype, np.integer)
-                        else sample
-                    ),
-                    dataset="main",
-                )
+                write_hdf5(out_path, sample, dataset="main")
                 logger.info(f"Saved HDF5: {out_path.name}")
 
             elif fmt_lower in ["tif", "tiff"]:

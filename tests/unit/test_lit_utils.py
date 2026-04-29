@@ -314,7 +314,7 @@ def test_tuning_best_params_filename_includes_output_head_identity():
 
 def test_format_decode_tag_includes_all_decoding_parameters():
     cfg = Config()
-    cfg.inference.decoding = [
+    cfg.decoding = [
         {
             "name": "decode_waterz",
             "kwargs": {
@@ -332,16 +332,16 @@ def test_format_decode_tag_includes_all_decoding_parameters():
 
 def test_format_decode_tag_gates_dust_and_branch_parameter_groups():
     cfg = Config()
-    cfg.inference.decoding = [
+    cfg.decoding = [
         {
             "name": "decode_waterz",
             "kwargs": {
                 "branch_merge": True,
-                "branch_iou_threshold": 0.5,
-                "branch_best_buddy": True,
-                "branch_one_sided_threshold": 0.8,
-                "branch_one_sided_min_size": 100,
-                "branch_affinity_threshold": 0.0,
+                "iou_threshold": 0.5,
+                "best_buddy": True,
+                "one_sided_threshold": 0.8,
+                "one_sided_min_size": 100,
+                "affinity_threshold": 0.0,
                 "dust_merge": True,
                 "dust_merge_size": 800,
                 "dust_merge_affinity": 0.3,
@@ -357,16 +357,16 @@ def test_format_decode_tag_gates_dust_and_branch_parameter_groups():
 
 def test_format_decode_tag_skips_disabled_dust_and_branch_parameter_groups():
     cfg = Config()
-    cfg.inference.decoding = [
+    cfg.decoding = [
         {
             "name": "decode_waterz",
             "kwargs": {
                 "branch_merge": False,
-                "branch_iou_threshold": 0.5,
-                "branch_best_buddy": True,
-                "branch_one_sided_threshold": 0.8,
-                "branch_one_sided_min_size": 100,
-                "branch_affinity_threshold": 0.0,
+                "iou_threshold": 0.5,
+                "best_buddy": True,
+                "one_sided_threshold": 0.8,
+                "one_sided_min_size": 100,
+                "affinity_threshold": 0.0,
                 "dust_merge": False,
                 "dust_merge_size": 800,
                 "dust_merge_affinity": 0.3,

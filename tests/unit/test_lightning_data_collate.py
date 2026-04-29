@@ -115,6 +115,28 @@ def test_test_dataloader_reuses_single_volume_for_distributed_tta_sharding(monke
     assert len(dataloader) == 1
 
 
+def test_test_dataloader_reuses_single_volume_for_distributed_window_sharding(monkeypatch):
+    monkeypatch.setattr(
+        "connectomics.training.lightning.data._is_distributed_evaluation_active",
+        lambda: True,
+    )
+    monkeypatch.setattr("torch.distributed.get_world_size", lambda: 4)
+
+    datamodule = ConnectomicsDataModule(
+        train_data_dicts=[],
+        test_data_dicts=[{"image": torch.zeros((1, 8, 8, 8), dtype=torch.float32)}],
+        batch_size=1,
+        num_workers=0,
+        distributed_window_sharding=True,
+    )
+
+    datamodule.setup(stage="test")
+    dataloader = datamodule.test_dataloader()
+
+    assert not isinstance(dataloader.sampler, DistributedEvaluationSampler)
+    assert len(dataloader) == 1
+
+
 def test_test_dataloader_rejects_multi_volume_distributed_tta_sharding(monkeypatch):
     monkeypatch.setattr(
         "connectomics.training.lightning.data._is_distributed_evaluation_active",
@@ -135,7 +157,5 @@ def test_test_dataloader_rejects_multi_volume_distributed_tta_sharding(monkeypat
 
     datamodule.setup(stage="test")
 
-    with pytest.raises(
-        RuntimeError, match="Distributed TTA sharding requires a single test sample"
-    ):
+    with pytest.raises(RuntimeError, match="Distributed single-volume inference sharding requires"):
         datamodule.test_dataloader()

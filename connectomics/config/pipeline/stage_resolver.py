@@ -16,6 +16,8 @@ from ..schema import Config
 from ..schema.root import MergeContext
 from .dict_utils import as_plain_dict
 
+_NO_PATCH = object()
+
 
 def _collect_explicit_paths(yaml_node: Any, path: str = "") -> set[str]:
     """Collect all explicit key paths present in YAML."""
@@ -147,6 +149,20 @@ def _extract_explicit_patch(
     return extracted if isinstance(extracted, dict) else {}
 
 
+def _extract_explicit_value(
+    section_obj: Any,
+    section_path: str,
+    has_explicit_path: Callable[[str], bool],
+) -> Any:
+    """Extract an explicitly provided non-mapping section value."""
+    return section_obj if has_explicit_path(section_path) else _NO_PATCH
+
+
+def _has_section_patch(value: Any) -> bool:
+    """Return whether a section override should participate in runtime merging."""
+    return value is not _NO_PATCH and value != {}
+
+
 def _resolve_stage_key(mode: str) -> str:
     if mode == "train":
         return "train"
@@ -157,21 +173,30 @@ def _resolve_stage_key(mode: str) -> str:
 
 _MODE_SECTIONS: Dict[str, tuple[str, ...]] = {
     "train": ("system", "model", "data", "optimization", "monitor"),
-    "test": ("system", "model", "data", "inference"),
-    "tune": ("system", "model", "data", "inference"),
+    "test": ("system", "model", "data", "inference", "decoding", "evaluation"),
+    "tune": ("system", "model", "data", "inference", "decoding", "evaluation"),
 }
+
+_RUNTIME_SECTIONS = (
+    "system",
+    "model",
+    "data",
+    "optimization",
+    "monitor",
+    "inference",
+    "decoding",
+    "evaluation",
+)
 
 
 def _collect_default_overrides(
     cfg: Config,
     has_explicit_path: Callable[[str], bool],
-) -> Dict[str, Dict[str, Any]]:
+) -> Dict[str, Any]:
     """Collect explicit default-stage patches for runtime merges."""
     default_stage = getattr(cfg, "default", None)
     if default_stage is None:
-        return {
-            name: {} for name in ("system", "model", "data", "optimization", "monitor", "inference")
-        }
+        return {name: {} for name in _RUNTIME_SECTIONS}
 
     return {
         "system": _extract_explicit_patch(
@@ -204,6 +229,16 @@ def _collect_default_overrides(
             "default.inference",
             has_explicit_path,
         ),
+        "decoding": _extract_explicit_value(
+            getattr(default_stage, "decoding", None),
+            "default.decoding",
+            has_explicit_path,
+        ),
+        "evaluation": _extract_explicit_patch(
+            getattr(default_stage, "evaluation", None),
+            "default.evaluation",
+            has_explicit_path,
+        ),
     }
 
 
@@ -211,16 +246,9 @@ def _collect_stage_overrides(
     cfg: Config,
     mode: str,
     has_explicit_path: Callable[[str], bool],
-) -> Dict[str, Dict[str, Any]]:
+) -> Dict[str, Any]:
     """Collect mode-specific explicit patches for runtime merges."""
-    stage_overrides: Dict[str, Dict[str, Any]] = {
-        "system": {},
-        "model": {},
-        "data": {},
-        "optimization": {},
-        "monitor": {},
-        "inference": {},
-    }
+    stage_overrides: Dict[str, Any] = {name: {} for name in _RUNTIME_SECTIONS}
 
     stage_key = _resolve_stage_key(mode)
     stage_cfg = getattr(cfg, stage_key, None)
@@ -230,31 +258,49 @@ def _collect_stage_overrides(
     for section_name in _MODE_SECTIONS[stage_key]:
         section_obj = getattr(stage_cfg, section_name, None)
         section_path = f"{stage_key}.{section_name}"
-        stage_overrides[section_name] = _extract_explicit_patch(
-            section_obj,
-            section_path,
-            has_explicit_path,
-        )
+        if section_name == "decoding":
+            stage_overrides[section_name] = _extract_explicit_value(
+                section_obj,
+                section_path,
+                has_explicit_path,
+            )
+        else:
+            stage_overrides[section_name] = _extract_explicit_patch(
+                section_obj,
+                section_path,
+                has_explicit_path,
+            )
 
     return stage_overrides
 
 
 def _merge_runtime_sections(
     cfg: Config,
-    default_overrides: Dict[str, Dict[str, Any]],
-    stage_overrides: Dict[str, Dict[str, Any]],
+    default_overrides: Dict[str, Any],
+    stage_overrides: Dict[str, Any],
 ) -> None:
     """Merge runtime sections with precedence: schema-defaults < default < mode-specific."""
-    for section_name in ("system", "model", "data", "optimization", "monitor", "inference"):
+    for section_name in _RUNTIME_SECTIONS:
         default_section = default_overrides.get(section_name, {})
         stage_section = stage_overrides.get(section_name, {})
         if section_name == "system":
             default_section = _drop_none_values(default_section)
             stage_section = _drop_none_values(stage_section)
-        if not default_section and not stage_section:
+        if not _has_section_patch(default_section) and not _has_section_patch(stage_section):
+            continue
+
+        if section_name == "decoding":
+            if _has_section_patch(stage_section):
+                cfg.decoding = stage_section
+            elif _has_section_patch(default_section):
+                cfg.decoding = default_section
             continue
 
         target_section = getattr(cfg, section_name)
+        if not _has_section_patch(default_section):
+            default_section = {}
+        if not _has_section_patch(stage_section):
+            stage_section = {}
         setattr(cfg, section_name, _merge_dataclass(target_section, default_section, stage_section))
 
 

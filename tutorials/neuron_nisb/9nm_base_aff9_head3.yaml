@@ -93,12 +93,14 @@ default:
     save_prediction:
       enabled: true
       save_all_heads: true
-    decoding:
-      - template: decoding_abiss
-    evaluation:
-      enabled: true
-      metrics:
-        - adapted_rand
+
+  decoding:
+    - template: decoding_abiss
+
+  evaluation:
+    enabled: true
+    metrics:
+      - adapted_rand
 
 train:
   optimization:

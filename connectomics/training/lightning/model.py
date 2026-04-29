@@ -241,9 +241,8 @@ class ConnectomicsModule(pl.LightningModule):
         return super().load_state_dict(state_dict, strict=strict)
 
     def _get_test_evaluation_config(self):
-        """Return merged runtime evaluation config from cfg.inference."""
-        inference_cfg = self._get_runtime_inference_config()
-        return getattr(inference_cfg, "evaluation", None)
+        """Return merged runtime evaluation config."""
+        return getattr(self.cfg, "evaluation", None)
 
     def _is_test_evaluation_enabled(self) -> bool:
         """Return whether test-time metric computation is enabled."""
@@ -449,12 +448,12 @@ class ConnectomicsModule(pl.LightningModule):
         if metrics is None:
             return
 
-        inference_eval_defaults = self._get_runtime_inference_config().evaluation
+        evaluation_defaults = getattr(self.cfg, "evaluation", None)
         instance_iou_threshold = float(
             self._cfg_value(
                 evaluation_config,
                 "instance_iou_threshold",
-                inference_eval_defaults.instance_iou_threshold,
+                self._cfg_value(evaluation_defaults, "instance_iou_threshold", 0.5),
             )
         )
         named_output_channels = self._resolve_named_output_channels(
@@ -610,9 +609,7 @@ class ConnectomicsModule(pl.LightningModule):
                     pred = pred[np.newaxis, ...]
                 return pred, True, "_prediction.h5"
             else:
-                raise FileNotFoundError(
-                    f"inference.saved_prediction_path not found: {pred_file}"
-                )
+                raise FileNotFoundError(f"inference.saved_prediction_path not found: {pred_file}")
 
         explicit_prediction = self._resolve_tta_result_path_override()
         if isinstance(explicit_prediction, str) and explicit_prediction.strip():
@@ -783,6 +780,22 @@ class ConnectomicsModule(pl.LightningModule):
         )
         metrics_file = output_dir / f"evaluation_metrics_{volume_name}_{tag}.txt"
 
+        if "nerl_per_gt_erl" in metrics_dict:
+            try:
+                import numpy as np
+
+                per_gt_erl_file = (
+                    output_dir / f"evaluation_metrics_{volume_name}_{tag}_nerl_per_gt_erl.npz"
+                )
+                np.savez_compressed(
+                    per_gt_erl_file,
+                    gt_segment_id=np.asarray(metrics_dict.get("nerl_gt_segment_ids", [])),
+                    erl=np.asarray(metrics_dict["nerl_per_gt_erl"], dtype=np.float64),
+                )
+                metrics_dict["nerl_per_gt_erl_file"] = str(per_gt_erl_file)
+            except Exception as e:
+                logger.warning(f"Failed to save NERL per-GT ERL file: {e}")
+
         # Write metrics to file
         try:
             with open(metrics_file, "w") as f:
@@ -854,18 +867,23 @@ class ConnectomicsModule(pl.LightningModule):
                     f.write("Neurite ERL Metrics:\n")
                     f.write("-" * 80 + "\n")
                     f.write(f"  NERL:                         {metrics_dict['nerl']:.6f}\n")
-                    if "nerl_erl" in metrics_dict:
-                        f.write(f"  ERL:                          {metrics_dict['nerl_erl']:.6f}\n")
-                    if "nerl_max_erl" in metrics_dict:
-                        f.write(
-                            f"  Max ERL:                      {metrics_dict['nerl_max_erl']:.6f}\n"
-                        )
+                    pred_erl = metrics_dict.get("nerl_pred_erl", metrics_dict.get("nerl_erl"))
+                    gt_erl = metrics_dict.get("nerl_gt_erl", metrics_dict.get("nerl_max_erl"))
+                    if pred_erl is not None:
+                        f.write(f"  Pred ERL:                     {pred_erl:.6f}\n")
+                    if gt_erl is not None:
+                        f.write(f"  GT ERL:                       {gt_erl:.6f}\n")
                     if "nerl_num_skeletons" in metrics_dict:
                         f.write(
                             f"  Skeletons:                    {metrics_dict['nerl_num_skeletons']}\n"
                         )
                     if "nerl_graph" in metrics_dict:
                         f.write(f"  Graph:                        {metrics_dict['nerl_graph']}\n")
+                    if "nerl_per_gt_erl_file" in metrics_dict:
+                        f.write(
+                            "  Per-GT ERL File:              "
+                            f"{metrics_dict['nerl_per_gt_erl_file']}\n"
+                        )
                     f.write("\n")
 
                 f.write("=" * 80 + "\n")
@@ -944,6 +962,8 @@ class ConnectomicsModule(pl.LightningModule):
             "instance_recall_detail",
             "instance_f1_detail",
             "nerl",
+            "nerl_pred_erl",
+            "nerl_gt_erl",
             "nerl_erl",
             "nerl_max_erl",
             "nerl_num_skeletons",
@@ -1074,11 +1094,11 @@ class ConnectomicsModule(pl.LightningModule):
             )
 
             is_multi_task = self._has_multiple_supervised_loss_tasks()
-            inference_eval_defaults = self._get_runtime_inference_config().evaluation
+            evaluation_defaults = getattr(self.cfg, "evaluation", None)
             prediction_threshold = self._cfg_float(
                 evaluation_cfg,
                 "prediction_threshold",
-                inference_eval_defaults.prediction_threshold,
+                self._cfg_float(evaluation_defaults, "prediction_threshold", 0.5),
             )
 
             if resolved_head is not None:

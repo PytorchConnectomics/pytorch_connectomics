@@ -77,7 +77,7 @@ Profiles are named YAML snippets in `tutorials/bases/*.yaml`, resolved pre-conve
 | `optimizer_profiles` | `{stage}.optimization.profile` | `{stage}.optimization` |
 | `loss_profiles` | `{stage}.model.loss.profile` | `{stage}.model.loss.losses` |
 | `label_profiles` | `{stage}.data.label_transform.profile` | `{stage}.data.label_transform` |
-| `decoding_profiles` | `{stage}.inference.decoding_profile` | `{stage}.inference.decoding` |
+| `decoding_templates` | list refs under `{stage}.decoding` | `{stage}.decoding` |
 | `activation_profiles` | `{stage}.inference.test_time_augmentation.activation_profile` | `{stage}.inference.test_time_augmentation.channel_activations` |
 
 Selectors are only accepted at canonical paths; non-canonical paths raise `ValueError`.

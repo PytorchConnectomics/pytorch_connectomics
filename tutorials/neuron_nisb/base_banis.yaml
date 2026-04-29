@@ -31,7 +31,7 @@ default:
       patch_size: [128, 128, 128]
       # BANIS reads small_size + long_range, computes affinities, then crops back to small_size.
       target_context: [10, 10, 10]
-      batch_size: 8
+      batch_size: 4
       use_cache: false
       use_preloaded_cache_train: false
       use_preloaded_cache_val: false
@@ -99,15 +99,28 @@ default:
     # already match decoder axis0, axis1, axis2 order.
     select_channel: [0, 1, 2]
     sliding_window:
+      lazy_load: true
+      distributed_sharding: true
+      distributed_reduce_chunk_mb: 128
       keep_input_on_cpu: true
       sw_device: cuda
       output_device: cpu
-      window_size: [128, 128, 128]
-      sw_batch_size: 1
+      # 144 = 128 (training patch) + 16 voxels of real surrounding-volume
+      # context per axis. Default gaussian blending de-emphasizes the outer
+      # band, so the central 128³ region carries the signal while the model
+      # still sees extra context for boundary affinities. Cleaner than
+      # per-window target_context oversample + central crop. Must remain a
+      # multiple of MedNeXt's 16-voxel stride.
+      window_size: [144, 144, 144]
+      sw_batch_size: 2
       overlap: 0.5
       blending: gaussian
       sigma_scale: 0.25
       padding_mode: replicate
+      # BANIS-style boundary handling: snap last window to image_size-roi_size
+      # (no whole-volume padding). Honored by the lazy sliding-window path
+      # (connectomics/inference/lazy.py) when lazy_load=true.
+      snap_to_edge: true
     test_time_augmentation:
       enabled: false
       channel_activations:
@@ -117,23 +130,21 @@ default:
       intensity_scale: -1.0
       intensity_dtype: float16
       output_formats: [h5]
-    decoding:
-      - name: decode_affinity_cc
-        kwargs:
-          threshold: 0.5
-          backend: numba
-          # affinity_mode=banis stores edges at the source voxel.
-          edge_offset: 0
-    evaluation:
-      enabled: true
-      metrics:
-        - adapted_rand
+
+  decoding:
+    - name: decode_affinity_cc
+      kwargs:
+        threshold: 0.7
+        backend: numba
+        # affinity_mode=banis stores edges at the source voxel.
+        edge_offset: 0
+
+  evaluation:
+    enabled: false
+    metrics:
+      - nerl
 
 train:
-  system:
-    seed: 0
-    num_gpus: 1
-    num_workers: 8
   optimization:
     optimizer:
       name: AdamW
@@ -154,7 +165,7 @@ train:
     val_check_interval: 5000
     val_check_interval_unit: step
     # BANIS uses limit_val_batches=100 with batch_size=8.
-    val_steps_per_epoch: 800
+    val_steps_per_epoch: 100
     gradient_clip_val: 1.0
     accumulate_grad_batches: 1
     precision: "16-mixed"
@@ -181,12 +192,12 @@ train:
       images:
         max_images: 8
         num_slices: 2
-        log_every_n_epochs: 10
+        log_every_n_epochs: 1
         channel_mode: all
     checkpoint:
       monitor: val_loss_total
       mode: min
-      save_top_k: 100
+      save_top_k: 3
       save_every_n_steps: 50000
       save_on_train_epoch_end: false
       save_last: true
@@ -194,9 +205,13 @@ train:
       dirpath: outputs/nisb_base_banis/checkpoints/
 
 test:
+  system:
+    # Lazy sliding-window sharding splits one large volume across ranks and only
+    # rank 0 decodes/saves after accumulator reduction.
+    num_gpus: -1
   data:
     test:
-      path: /projects/weilab/dataset/nisb/base/test/
-      image: seed101/data.zarr/img
-      label: seed101/data.zarr/seg
+      path: /projects/weilab/dataset/nisb/base/train/
+      image: seed0/data.zarr/img
+      label: seed0/data.zarr/seg
       resolution: [9, 9, 20]

@@ -474,10 +474,15 @@ def format_decode_tag(cfg: Config) -> str:
     gated_value_groups = {
         "branch_merge": [
             "iou_threshold",
+            "branch_iou_threshold",
             "best_buddy",
+            "branch_best_buddy",
             "one_sided_threshold",
+            "branch_one_sided_threshold",
             "one_sided_min_size",
+            "branch_one_sided_min_size",
             "affinity_threshold",
+            "branch_affinity_threshold",
         ],
         "dust_merge": [
             "dust_merge_size",
@@ -530,10 +535,7 @@ def format_decode_tag(cfg: Config) -> str:
             return [format(value, "g")]
         return [str(value)]
 
-    inference_cfg = getattr(cfg, "inference", None)
-    if inference_cfg is None:
-        return ""
-    decoding = getattr(inference_cfg, "decoding", None)
+    decoding = getattr(cfg, "decoding", None)
     if not decoding:
         return ""
 

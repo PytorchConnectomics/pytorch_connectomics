@@ -170,8 +170,11 @@ def build_sliding_inferer(cfg) -> Optional[SlidingWindowInferer]:
     """
     Build a MONAI SlidingWindowInferer if configuration permits.
 
-    Returns:
-        SlidingWindowInferer or None.
+    BANIS-style boundary handling (`snap_to_edge`, `target_context`) is honored
+    by the lazy sliding-window path (`connectomics/inference/lazy.py`) when
+    `inference.sliding_window.lazy_load=true`. The eager path here uses MONAI's
+    stock inferer; for BANIS-flavored boundary context in eager mode, simply
+    set `window_size` larger than the training patch size.
     """
     roi_size = resolve_inferer_roi_size(cfg)
     if roi_size is None:

@@ -28,9 +28,10 @@ default:
     test_time_augmentation:
       enabled: true
       flip_axes: all      
-    evaluation:
-      enabled: true
-      metrics: [jaccard]
+
+  evaluation:
+    enabled: true
+    metrics: [jaccard]
 
 train:
   data:

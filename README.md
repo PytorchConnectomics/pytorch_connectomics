@@ -186,14 +186,14 @@ just test lucchi++ outputs/lucchi++/$EXPERIMENT_DATE/checkpoints/best.ckpt
 
 - `tutorials/*.yaml`: runnable experiment configs
 - `connectomics/config/profiles/*.yaml`: section-level registries selected by `*.profile`
-- `connectomics/config/templates/*.yaml`: explicit list-item templates, currently used for `inference.decoding`
+- `connectomics/config/templates/*.yaml`: explicit list-item templates, currently used for top-level `decoding`
 
 Merge rule:
 
 - Profile payloads are merged into the target section as the base config.
 - Explicit keys in the tutorial/config override profile keys.
 - Explicit lists replace profile lists; they are not additive.
-- Canonical decoding syntax is explicit list expansion, for example `inference.decoding: [{template: decoding_waterz}]`.
+- Canonical decoding syntax is explicit list expansion, for example `decoding: [{template: decoding_waterz}]`.
 
 ---
 

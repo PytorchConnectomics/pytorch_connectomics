@@ -1,0 +1,39 @@
+_base_:
+  - base_banis.yaml
+
+experiment_name: nisb_base_banis_v1
+description: >-
+  BANIS base training with stronger single-head supervision: per-channel
+  class-balanced BCE over valid affinity voxels plus EMA validation.
+
+default:
+  model:
+    loss:
+      deep_supervision: false
+      losses:
+        # v0/base uses plain BCE, which lets the dominant class of each
+        # affinity edge channel set the gradient scale. This loss computes
+        # pos_weight independently for each channel on the valid aff>=0 mask,
+        # so short- and long-range channels learn at comparable speed.
+        - function: PerChannelBCEWithLogitsLoss
+          weight: 1.0
+          kwargs:
+            auto_pos_weight: true
+            max_pos_weight: 10.0
+
+train:
+  optimization:
+    ema:
+      enabled: true
+      decay: 0.999
+      warmup_steps: 500
+      validate_with_ema: true
+  monitor:
+    logging:
+      scalar:
+        loss:
+          - train_loss_total_epoch
+          - val_loss_total
+        loss_every_n_steps: 100
+    checkpoint:
+      dirpath: outputs/nisb_base_banis_v1/checkpoints/
