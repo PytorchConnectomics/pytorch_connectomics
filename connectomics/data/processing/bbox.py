@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import itertools
-from collections import OrderedDict
 from typing import Optional, Tuple, Union
 
 import numpy as np
@@ -9,11 +8,8 @@ import numpy as np
 __all__ = [
     "bbox_ND",
     "bbox_relax",
-    "adjust_bbox",
-    "index2bbox",
     "crop_ND",
     "replace_ND",
-    "rand_window",
     "compute_bbox_all",
 ]
 
@@ -51,27 +47,6 @@ def bbox_relax(coord: Union[tuple, list], shape: tuple, relax: int = 0) -> tuple
         coord[2 * i + 1] = min(shape[i], coord[2 * i + 1] + relax)
 
     return tuple(coord)
-
-
-def adjust_bbox(low, high, sz):
-    if high < low:
-        raise ValueError(f"high ({high}) must be >= low ({low})")
-    bbox_sz = high - low
-    diff = abs(sz - bbox_sz) // 2
-    if bbox_sz >= sz:
-        return low + diff, low + diff + sz
-
-    return low - diff, low - diff + sz
-
-
-def index2bbox(seg: np.ndarray, indices: list, relax: int = 0, iterative: bool = True) -> dict:
-    """Calculate the bounding boxes associated with the given mask indices."""
-    bbox_dict = OrderedDict()
-    for idx in indices:
-        temp = seg == idx
-        bbox = bbox_ND(temp, relax=relax)
-        bbox_dict[idx] = bbox
-    return bbox_dict
 
 
 def _coord2slice(coord: Tuple[int], ndim: int, end_included: bool = False):
@@ -114,28 +89,6 @@ def replace_ND(
 
     img[slicing] = replacement
     return img.copy()
-
-
-def rand_window(w0, w1, sz, rand_shift: int = 0):
-    if w1 < w0:
-        raise ValueError(f"w1 ({w1}) must be >= w0 ({w0})")
-    diff = np.abs((w1 - w0) - sz)
-    if (w1 - w0) <= sz:
-        if rand_shift > 0:  # random shift augmentation
-            start_l = max(w0 - diff // 2 - rand_shift, w1 - sz)
-            start_r = min(w0, w0 - diff // 2 + rand_shift)
-            low = np.random.randint(start_l, start_r)
-        else:
-            low = w0 - diff // 2
-    else:
-        if rand_shift > 0:  # random shift augmentation
-            start_l = max(w0, w0 + diff // 2 - rand_shift)
-            start_r = min(w0 + diff // 2 + rand_shift, w1 - sz)
-            low = np.random.randint(start_l, start_r)
-        else:
-            low = w0 + diff // 2
-    high = low + sz
-    return low, high
 
 
 def compute_bbox_all(

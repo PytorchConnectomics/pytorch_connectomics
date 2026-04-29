@@ -6,29 +6,15 @@ Subpackages:
     tuning/      - Hyperparameter tuning for decoding parameters
 """
 
+from importlib import import_module
+
 # --- Framework / Infrastructure ---
 from .base import DecodeStep
-
-# --- Segmentation Decoders ---
-from .decoders import (
-    branch_merge,
-    decode_abiss,
-    decode_affinity_cc,
-    decode_distance_watershed,
-    decode_instance_binary_contour_distance,
-    decode_waterz,
-    polarity2instance,
-)
 from .pipeline import (
     apply_decode_mode,
     apply_decode_pipeline,
     normalize_decode_modes,
     resolve_decode_modes_from_cfg,
-)
-from .stage import (
-    DecodingStageResult,
-    apply_decoding_postprocessing,
-    run_decoding_stage,
 )
 
 # --- Post-processing & Utilities ---
@@ -49,7 +35,11 @@ from .registry import (
     register_builtin_decoders,
     register_decoder,
 )
-
+from .stage import (
+    DecodingStageResult,
+    apply_decoding_postprocessing,
+    run_decoding_stage,
+)
 from .utils import (
     cast2dtype,
     merge_small_objects,
@@ -57,7 +47,26 @@ from .utils import (
     remove_small_instances,
 )
 
-register_builtin_decoders()
+_LAZY_DECODER_EXPORTS = {
+    "branch_merge": "connectomics.decoding.decoders.branch_merge",
+    "decode_abiss": "connectomics.decoding.decoders.abiss",
+    "decode_affinity_cc": "connectomics.decoding.decoders.segmentation",
+    "decode_distance_watershed": "connectomics.decoding.decoders.segmentation",
+    "decode_instance_binary_contour_distance": "connectomics.decoding.decoders.segmentation",
+    "decode_waterz": "connectomics.decoding.decoders.waterz",
+    "polarity2instance": "connectomics.decoding.decoders.synapse",
+}
+
+
+def __getattr__(name: str):
+    module_name = _LAZY_DECODER_EXPORTS.get(name)
+    if module_name is None:
+        raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+
+    value = getattr(import_module(module_name), name)
+    globals()[name] = value
+    return value
+
 
 __all__ = [
     # Registry / pipeline

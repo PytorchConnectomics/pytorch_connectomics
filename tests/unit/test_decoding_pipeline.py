@@ -2,6 +2,10 @@
 
 from __future__ import annotations
 
+import subprocess
+import sys
+from pathlib import Path
+
 import numpy as np
 import pytest
 
@@ -11,6 +15,8 @@ from connectomics.decoding import (
     decode_affinity_cc,
     list_decoders,
 )
+
+REPO_ROOT = Path(__file__).resolve().parents[2]
 
 
 class _Mode:
@@ -40,6 +46,25 @@ def test_builtin_decoders_are_registered():
     assert "decode_distance_watershed" in names
     assert "decode_instance_binary_contour_distance" in names
     assert "decode_abiss" in names
+
+
+def test_import_decoding_does_not_eagerly_import_decoder_modules():
+    code = (
+        "import sys\n"
+        "import connectomics.decoding as decoding\n"
+        "print('connectomics.decoding.decoders.waterz' in sys.modules)\n"
+        "print('connectomics.decoding.decoders.segmentation' in sys.modules)\n"
+        "_ = decoding.decode_affinity_cc\n"
+        "print('connectomics.decoding.decoders.segmentation' in sys.modules)\n"
+        "print('connectomics.decoding.decoders.waterz' in sys.modules)\n"
+    )
+    output = subprocess.check_output(
+        [sys.executable, "-c", code],
+        cwd=REPO_ROOT,
+        text=True,
+    ).splitlines()
+
+    assert output == ["False", "False", "True", "False"]
 
 
 def test_decode_pipeline_dict_mode_matches_direct_decoder(affinity_with_redundant_channels):

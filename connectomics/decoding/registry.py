@@ -41,6 +41,7 @@ class DecoderRegistry:
 
 
 DEFAULT_DECODER_REGISTRY = DecoderRegistry()
+_BUILTINS_REGISTERED = False
 
 
 def register_decoder(name: str, fn: DecodeFunction, *, overwrite: bool = False) -> None:
@@ -50,16 +51,27 @@ def register_decoder(name: str, fn: DecodeFunction, *, overwrite: bool = False) 
 
 def get_decoder(name: str) -> DecodeFunction:
     """Get decoder from the default registry."""
+    ensure_builtin_decoders_registered()
     return DEFAULT_DECODER_REGISTRY.get(name)
 
 
 def list_decoders() -> List[str]:
     """List names in the default registry."""
+    ensure_builtin_decoders_registered()
     return DEFAULT_DECODER_REGISTRY.available()
+
+
+def ensure_builtin_decoders_registered() -> None:
+    """Register built-in decoders on first use."""
+    register_builtin_decoders()
 
 
 def register_builtin_decoders() -> None:
     """Populate registry with built-in decoders."""
+    global _BUILTINS_REGISTERED
+    if _BUILTINS_REGISTERED:
+        return
+
     from .decoders.abiss import decode_abiss
     from .decoders.segmentation import (
         decode_affinity_cc,
@@ -79,3 +91,4 @@ def register_builtin_decoders() -> None:
     register_decoder("decode_waterz", decode_waterz, overwrite=True)
     register_decoder("decode_abiss", decode_abiss, overwrite=True)
     register_decoder("polarity2instance", polarity2instance, overwrite=True)
+    _BUILTINS_REGISTERED = True
