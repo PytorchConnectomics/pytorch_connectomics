@@ -136,6 +136,9 @@ tmpwdir/
 docs/pytorch_sphinx_theme
 lightning_logs/
 slurm_outputs/
+slurm-*.out
+slurm-*.err
+.latest_timestamp
 
 # Build artifacts
 build/
@@ -154,3 +157,4 @@ lib/
 
 # Development logs and documentation
 dev/
+.codex
