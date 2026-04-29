@@ -11,13 +11,11 @@ import torch
 from ..config import (
     Config,
     load_config,
-    print_config,
-    resolve_data_paths,
     resolve_default_profiles,
-    update_from_cli,
     validate_config,
 )
 from ..config.hardware import resolve_runtime_resource_sentinels
+from ..config.pipeline import print_config, resolve_data_paths, update_from_cli
 from .preflight import validate_runtime_coherence
 
 logger = logging.getLogger(__name__)

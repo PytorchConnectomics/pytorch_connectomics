@@ -15,17 +15,19 @@ sys.path.insert(0, str(project_root))
 
 from connectomics.config import (  # noqa: E402
     Config,
+    load_config,
+    resolve_default_profiles,
+    save_config,
+    validate_config,
+)
+from connectomics.config.pipeline import (  # noqa: E402
     create_experiment_name,
     from_dict,
     get_config_hash,
-    load_config,
     merge_configs,
     print_config,
-    resolve_default_profiles,
-    save_config,
     to_dict,
     update_from_cli,
-    validate_config,
 )
 from connectomics.config.schema import TestConfig as HydraTestConfig  # noqa: E402
 from connectomics.config.schema import TuneConfig  # noqa: E402

@@ -17,14 +17,10 @@ from connectomics.runtime.output_naming import (
     tuning_best_params_filename,
     tuning_best_params_filename_candidates,
 )
+from connectomics.training.lightning import utils as lightning_utils
 from connectomics.training.lightning.data_factory import _calculate_validation_steps_per_epoch
-from connectomics.training.lightning.path_utils import (
-    expand_file_paths as canonical_expand_file_paths,
-)
-from connectomics.training.lightning.utils import (
-    expand_file_paths,
-    extract_best_score_from_checkpoint,
-)
+from connectomics.training.lightning.path_utils import expand_file_paths
+from connectomics.training.lightning.utils import extract_best_score_from_checkpoint
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 
@@ -140,18 +136,15 @@ def test_expand_file_paths_handles_globs_and_lists(tmp_path):
     (data_dir / "a.txt").write_text("a")
     (data_dir / "b.txt").write_text("b")
 
-    # Glob expansion returns sorted list
     expanded = expand_file_paths(str(data_dir / "*.txt"))
     assert expanded == [str(data_dir / "a.txt"), str(data_dir / "b.txt")]
 
-    # Passing a list should be returned unchanged
     assert expand_file_paths([str(data_dir / "a.txt")]) == [str(data_dir / "a.txt")]
 
-    # Utility helper should match canonical helper behavior
-    assert canonical_expand_file_paths(str(data_dir / "*.txt")) == expanded
+    assert not hasattr(lightning_utils, "expand_file_paths")
 
     with pytest.raises(FileNotFoundError):
-        canonical_expand_file_paths(str(data_dir / "*.missing"))
+        expand_file_paths(str(data_dir / "*.missing"))
 
 
 def test_calculate_validation_steps_per_epoch_unknown_suffix_defaults():

@@ -9,9 +9,7 @@ Design pattern follows the same package structure used across data processing an
 
 # Main factory functions (recommended interface)
 from .build import (
-    create_combined_loss,
     create_loss,
-    create_loss_from_config,
     list_available_losses,
 )
 
@@ -38,8 +36,6 @@ from .regularization import (
 __all__ = [
     # Factory functions (primary interface)
     "create_loss",
-    "create_combined_loss",
-    "create_loss_from_config",
     # Utility
     "list_available_losses",
     "LossMetadata",

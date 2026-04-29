@@ -19,7 +19,7 @@ import numpy as np
 import pytest
 import torch
 
-from connectomics.config import from_dict
+from connectomics.config.pipeline import from_dict
 from connectomics.training.lightning import (
     ConnectomicsModule,
     create_trainer,

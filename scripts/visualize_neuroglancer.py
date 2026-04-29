@@ -52,9 +52,9 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from connectomics.config import (  # noqa: E402
     load_config,
-    resolve_data_paths,
     resolve_default_profiles,
 )
+from connectomics.config.pipeline import resolve_data_paths  # noqa: E402
 
 # Import connectomics modules (needed for helper functions)
 from connectomics.data.io import read_volume  # noqa: E402

@@ -162,16 +162,6 @@ class NNUNetPreprocessingConfig:
 
 
 @dataclass
-class DataTransformProfileConfig:
-    """Reusable profile for deterministic data preprocessing transforms."""
-
-    data_transform: Optional[DataTransformConfig] = None
-    image_transform: Optional[ImageTransformConfig] = None
-    mask_transform: Optional[DataTransformConfig] = None
-    nnunet_preprocessing: Optional[NNUNetPreprocessingConfig] = None
-
-
-@dataclass
 class DataloaderConfig:
     """Data loading and sampling configuration."""
 
@@ -201,7 +191,9 @@ class DataloaderConfig:
         False  # Voxel approach: center crops on random nonzero mask voxels (stronger guarantee)
     )
     reject_sampling: Optional[Dict[str, Any]] = None  # Dict with 'size_thres' and 'p' keys
-    val_random_sampling: bool = False  # If true, validation samples random patches, not center crops.
+    val_random_sampling: bool = (
+        False  # If true, validation samples random patches, not center crops.
+    )
 
 
 @dataclass
