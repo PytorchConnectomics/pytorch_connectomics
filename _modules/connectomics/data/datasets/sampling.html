@@ -371,82 +371,9 @@
 
 
 
-<span class="k">def</span><span class="w"> </span><span class="nf">calculate_inference_grid</span><span class="p">(</span>
-    <span class="n">volume_shape</span><span class="p">:</span> <span class="n">Tuple</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="nb">int</span><span class="p">,</span> <span class="nb">int</span><span class="p">],</span>
-    <span class="n">patch_size</span><span class="p">:</span> <span class="n">Tuple</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="nb">int</span><span class="p">,</span> <span class="nb">int</span><span class="p">],</span>
-    <span class="n">stride</span><span class="p">:</span> <span class="n">Tuple</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="nb">int</span><span class="p">,</span> <span class="nb">int</span><span class="p">],</span>
-<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Tuple</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">Tuple</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="nb">int</span><span class="p">,</span> <span class="nb">int</span><span class="p">]]:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">    Calculate grid of patch positions for sliding-window inference.</span>
-
-<span class="sd">    This function generates all patch positions needed to cover a volume</span>
-<span class="sd">    with overlapping patches, using the specified stride.</span>
-
-<span class="sd">    Args:</span>
-<span class="sd">        volume_shape: Shape of the input volume (D, H, W)</span>
-<span class="sd">        patch_size: Size of each patch (D, H, W)</span>
-<span class="sd">        stride: Stride between patch centers (D, H, W)</span>
-
-<span class="sd">    Returns:</span>
-<span class="sd">        positions: Array of shape (N, 3) containing (z, y, x) start positions</span>
-<span class="sd">        grid_shape: Tuple (num_z, num_y, num_x) indicating grid dimensions</span>
-
-<span class="sd">    Examples:</span>
-<span class="sd">        &gt;&gt;&gt; volume_shape = (256, 256, 256)</span>
-<span class="sd">        &gt;&gt;&gt; patch_size = (128, 128, 128)</span>
-<span class="sd">        &gt;&gt;&gt; stride = (64, 64, 64)</span>
-<span class="sd">        &gt;&gt;&gt; positions, grid = calculate_inference_grid(volume_shape, patch_size, stride)</span>
-<span class="sd">        &gt;&gt;&gt; print(f&quot;Grid shape: {grid}&quot;)</span>
-<span class="sd">        &gt;&gt;&gt; # Grid shape: (3, 3, 3)</span>
-<span class="sd">        &gt;&gt;&gt; print(f&quot;Total patches: {len(positions)}&quot;)</span>
-<span class="sd">        &gt;&gt;&gt; # Total patches: 27</span>
-
-<span class="sd">    Note:</span>
-<span class="sd">        The last patch in each dimension is &quot;tucked in&quot; to ensure it fits</span>
-<span class="sd">        within the volume boundaries, matching the legacy v1 behavior.</span>
-<span class="sd">    &quot;&quot;&quot;</span>
-    <span class="n">volume_shape</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">volume_shape</span><span class="p">)</span>
-    <span class="n">patch_size</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">patch_size</span><span class="p">)</span>
-    <span class="n">stride</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">stride</span><span class="p">)</span>
-
-    <span class="c1"># Calculate grid dimensions</span>
-    <span class="n">grid_shape</span> <span class="o">=</span> <span class="n">count_volume</span><span class="p">(</span><span class="n">volume_shape</span><span class="p">,</span> <span class="n">patch_size</span><span class="p">,</span> <span class="n">stride</span><span class="p">)</span>
-    <span class="n">grid_shape</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">grid_shape</span><span class="p">)</span>
-
-    <span class="n">positions</span> <span class="o">=</span> <span class="p">[]</span>
-
-    <span class="c1"># Generate all grid positions</span>
-    <span class="k">for</span> <span class="n">z_idx</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">grid_shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]):</span>
-        <span class="k">for</span> <span class="n">y_idx</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">grid_shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]):</span>
-            <span class="k">for</span> <span class="n">x_idx</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">grid_shape</span><span class="p">[</span><span class="mi">2</span><span class="p">]):</span>
-                <span class="c1"># Calculate position with boundary handling</span>
-                <span class="c1"># Normal case: multiply by stride</span>
-                <span class="c1"># Boundary case: tuck in to ensure patch fits</span>
-                <span class="n">z</span> <span class="o">=</span> <span class="p">(</span>
-                    <span class="n">z_idx</span> <span class="o">*</span> <span class="n">stride</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
-                    <span class="k">if</span> <span class="n">z_idx</span> <span class="o">&lt;</span> <span class="n">grid_shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">-</span> <span class="mi">1</span>
-                    <span class="k">else</span> <span class="n">volume_shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">-</span> <span class="n">patch_size</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
-                <span class="p">)</span>
-                <span class="n">y</span> <span class="o">=</span> <span class="p">(</span>
-                    <span class="n">y_idx</span> <span class="o">*</span> <span class="n">stride</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
-                    <span class="k">if</span> <span class="n">y_idx</span> <span class="o">&lt;</span> <span class="n">grid_shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">-</span> <span class="mi">1</span>
-                    <span class="k">else</span> <span class="n">volume_shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">-</span> <span class="n">patch_size</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
-                <span class="p">)</span>
-                <span class="n">x</span> <span class="o">=</span> <span class="p">(</span>
-                    <span class="n">x_idx</span> <span class="o">*</span> <span class="n">stride</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span>
-                    <span class="k">if</span> <span class="n">x_idx</span> <span class="o">&lt;</span> <span class="n">grid_shape</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span> <span class="o">-</span> <span class="mi">1</span>
-                    <span class="k">else</span> <span class="n">volume_shape</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span> <span class="o">-</span> <span class="n">patch_size</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span>
-                <span class="p">)</span>
-
-                <span class="n">positions</span><span class="o">.</span><span class="n">append</span><span class="p">([</span><span class="n">z</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">x</span><span class="p">])</span>
-
-    <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">positions</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">int32</span><span class="p">),</span> <span class="n">grid_shape</span>
-
-
 <span class="n">__all__</span> <span class="o">=</span> <span class="p">[</span>
     <span class="s2">&quot;count_volume&quot;</span><span class="p">,</span>
     <span class="s2">&quot;compute_total_samples&quot;</span><span class="p">,</span>
-    <span class="s2">&quot;calculate_inference_grid&quot;</span><span class="p">,</span>
 <span class="p">]</span>
 </pre></div>
 
