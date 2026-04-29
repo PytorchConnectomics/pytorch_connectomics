@@ -8,8 +8,8 @@ import torchmetrics
 
 from connectomics.config import Config
 from connectomics.config.schema.stages import TestConfig as HydraTestConfig
+from connectomics.evaluation import log_test_epoch_metrics, save_metrics_to_file
 from connectomics.training.lightning import ConnectomicsModule
-from connectomics.training.lightning.test_pipeline import log_test_epoch_metrics
 
 
 def _stub_logging(module: ConnectomicsModule, sink: Optional[List[str]] = None) -> None:
@@ -465,7 +465,7 @@ def test_save_metrics_to_file_uses_runtime_inference_output_path(tmp_path):
     cfg.inference.save_prediction.output_path = str(tmp_path)
     module = ConnectomicsModule(cfg, model=SimpleModel())
 
-    ConnectomicsModule._save_metrics_to_file(
+    save_metrics_to_file(
         module,
         {
             "volume_name": "vol0",
@@ -492,7 +492,7 @@ def test_save_metrics_to_file_matches_final_prediction_tag(tmp_path):
     module = ConnectomicsModule(cfg, model=SimpleModel())
     module._prediction_checkpoint_path = "/tmp/checkpoints/best.ckpt"
 
-    ConnectomicsModule._save_metrics_to_file(
+    save_metrics_to_file(
         module,
         {
             "volume_name": "test-input",
@@ -657,7 +657,7 @@ def test_log_test_epoch_metrics_uses_rank_zero_only_logging_for_distributed_tta_
     module.test_accuracy.update(torch.tensor([1, 0]), torch.tensor([1, 0]))
 
     monkeypatch.setattr(
-        "connectomics.training.lightning.test_pipeline._is_distributed_tta_sharding_active",
+        "connectomics.evaluation.report._is_distributed_tta_sharding_active",
         lambda _module: True,
     )
     monkeypatch.setattr(torch.distributed, "is_available", lambda: True)
@@ -688,7 +688,7 @@ def test_log_test_epoch_metrics_skips_nonzero_ranks_for_distributed_tta_sharding
     module.test_accuracy.update(torch.tensor([1, 0]), torch.tensor([1, 0]))
 
     monkeypatch.setattr(
-        "connectomics.training.lightning.test_pipeline._is_distributed_tta_sharding_active",
+        "connectomics.evaluation.report._is_distributed_tta_sharding_active",
         lambda _module: True,
     )
     monkeypatch.setattr(torch.distributed, "is_available", lambda: True)
