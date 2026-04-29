@@ -83,14 +83,13 @@ def test_config_static_imports_do_not_reference_data_execution():
     assert violations == []
 
 
-@pytest.mark.xfail(strict=True, reason="V3 PR 3 makes unknown top-level keys hard errors")
 def test_config_load_raises_on_unknown_top_level_key(tmp_path):
     from connectomics.config import load_config
 
     config_yaml = tmp_path / "unknown_key.yaml"
     config_yaml.write_text("unknown_section: {}\n")
 
-    with pytest.raises(ValueError, match="unknown_section"):
+    with pytest.raises(ValueError, match="Unknown top-level config key 'unknown_section'"):
         load_config(config_yaml)
 
 

@@ -255,12 +255,6 @@ def _resolve_mode_configs(
     if data_cfg is None:
         data_cfg = getattr(cfg, "data", None)
 
-    # Also check stage-specific output_path if not found in inference config
-    if not output_dir_value:
-        stage_cfg = getattr(cfg, mode, None)
-        if stage_cfg is not None:
-            output_dir_value = getattr(stage_cfg, "output_path", None)
-
     # For decode-only mode: output to same folder as the input prediction
     if not output_dir_value and inference_cfg is not None:
         saved_pred = getattr(inference_cfg, "saved_prediction_path", "")

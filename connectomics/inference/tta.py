@@ -534,21 +534,6 @@ class TTAPredictor:
             )
         else:
             self.channel_activation_types = None
-            tta_act = getattr(self.cfg.inference.test_time_augmentation, "act", None)
-            if tta_act is None:
-                tta_act = getattr(self.cfg.inference, "output_act", None)
-
-            if tta_act == "softmax":
-                tensor = torch.softmax(tensor, dim=1)
-            elif tta_act == "sigmoid":
-                tensor = tensor.sigmoid_()
-            elif tta_act == "tanh":
-                tensor = tensor.tanh_()
-            elif tta_act is not None and tta_act.lower() != "none":
-                logger.warning(
-                    f"Unknown TTA activation function '{tta_act}'. "
-                    f"Supported: 'softmax', 'sigmoid', 'tanh', None"
-                )
 
         select_channel = getattr(self.cfg.inference, "select_channel", None)
         if select_channel is not None:

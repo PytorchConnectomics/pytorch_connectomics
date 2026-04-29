@@ -18,7 +18,9 @@ train:
       label_aux_type: skeleton
 
 test:
-  output_path: outputs/mitoem30h_mednext_sdt_multitask/results/
+  inference:
+    save_prediction:
+      output_path: outputs/mitoem30h_mednext_sdt_multitask/results/
   data:
     test:
       image: EM30-H/im_test.h5

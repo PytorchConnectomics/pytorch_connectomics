@@ -2,7 +2,7 @@ experiment_name: rsunet_snemi_lee2017_modern
 description: SNEMI3D neuron affinity learning (2017-style short-range setup with modern optimization and stability tricks)
 
 _base_:
-  - ../connectomics/config/all_profiles.yaml
+  - ../../connectomics/config/all_profiles.yaml
 
 default:
   pipeline_profile: aff12

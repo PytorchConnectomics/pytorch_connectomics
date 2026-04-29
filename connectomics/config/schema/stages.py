@@ -47,9 +47,6 @@ class TestConfig:
     decoding: Optional[List[DecodeModeConfig]] = None
     evaluation: EvaluationConfig = field(default_factory=EvaluationConfig)
 
-    output_path: Optional[str] = None
-    cache_suffix: str = "_x1_prediction.h5"
-
 
 @dataclass
 class TuneOutputConfig:

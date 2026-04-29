@@ -29,6 +29,8 @@ LEGACY_PATTERNS: List[Tuple[Tuple[str, ...], str]] = [
     ),
 ]
 
+CUSTOM_WORKFLOW_ROOTS = {"large_decode", "abiss_large"}
+
 
 def _has_path(data: Any, path: Tuple[str, ...]) -> bool:
     cur = data
@@ -70,6 +72,8 @@ def main() -> int:
     errors: List[str] = []
     for config_path in config_paths:
         raw = _load_yaml(config_path)
+        if isinstance(raw, dict) and CUSTOM_WORKFLOW_ROOTS.intersection(raw):
+            continue
 
         for pattern, message in LEGACY_PATTERNS:
             if _has_path(raw, pattern):

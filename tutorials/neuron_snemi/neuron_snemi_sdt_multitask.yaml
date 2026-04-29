@@ -2,7 +2,7 @@ experiment_name: mednext_snemi_sdt_multitask
 description: SNEMI3D neuron affinity + SDT learning with MedNeXt multi-head outputs (aff_r1 + aff_r5 + aff_r9 + sdt)
 
 _base_:
-  - ../connectomics/config/all_profiles.yaml
+  - ../../connectomics/config/all_profiles.yaml
 
 default:
   pipeline_profile: aff9_sdt

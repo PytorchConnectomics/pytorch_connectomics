@@ -10,7 +10,6 @@ import dataclasses
 import hashlib
 import os
 import re
-import warnings
 from glob import glob
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple, Union
@@ -91,12 +90,12 @@ def _load_config_with_bases(config_path: Path, loading_stack: Tuple[Path, ...] =
 
 
 # ---------------------------------------------------------------------------
-# Unconsumed-key warnings (Recommendation 3)
+# Unconsumed-key validation
 # ---------------------------------------------------------------------------
 
 
-def _warn_unconsumed_keys(yaml_conf: DictConfig) -> None:
-    """Warn about top-level YAML keys that don't match any Config dataclass field.
+def _raise_unconsumed_keys(yaml_conf: DictConfig) -> None:
+    """Reject top-level YAML keys that don't match any Config dataclass field.
 
     Called after profile engine cleanup so only unconsumed keys remain.
     Catches typos like ``mode`` instead of ``model``.
@@ -107,11 +106,10 @@ def _warn_unconsumed_keys(yaml_conf: DictConfig) -> None:
 
     for key in yaml_conf.keys():
         if str(key) not in known_fields:
-            warnings.warn(
-                f"Unconsumed top-level config key '{key}' is not a known Config field. "
+            raise ValueError(
+                f"Unknown top-level config key '{key}'. "
                 f"Known fields: {sorted(known_fields - {'_base_'})}. "
-                f"This key will be ignored. Did you mean one of the known fields?",
-                stacklevel=3,
+                "Remove the key or move it under the correct config section."
             )
 
 
@@ -134,7 +132,7 @@ def load_config(config_path: Union[str, Path]) -> Config:
     yaml_conf = _load_config_with_bases(config_path)
     yaml_conf = _YAML_PROFILE_ENGINE.apply(yaml_conf)
 
-    _warn_unconsumed_keys(yaml_conf)
+    _raise_unconsumed_keys(yaml_conf)
 
     explicit_field_paths = _collect_explicit_paths(yaml_conf)
 

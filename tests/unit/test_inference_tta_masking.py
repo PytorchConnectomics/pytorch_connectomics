@@ -310,11 +310,13 @@ def test_patch_first_local_tta_matches_standard_sliding_output():
     cfg.inference.test_time_augmentation.flip_axes = [0]
     cfg.inference.test_time_augmentation.rotation90_axes = [[1, 2]]
     cfg.inference.test_time_augmentation.rotate90_k = [0, 1]
+    cfg.inference.test_time_augmentation.channel_activations = [
+        {"channels": ":", "activation": "sigmoid"}
+    ]
     cfg.inference.sliding_window.window_size = [2, 2, 2]
     cfg.inference.sliding_window.sw_batch_size = 2
     cfg.inference.sliding_window.overlap = 0.5
     cfg.inference.sliding_window.padding_mode = "constant"
-    cfg.inference.output_act = "sigmoid"
 
     images = torch.arange(1, 1 + 4 * 4 * 4, dtype=torch.float32).reshape(1, 1, 4, 4, 4) / 64.0
     mask = torch.ones((1, 1, 4, 4, 4), dtype=torch.float32)
