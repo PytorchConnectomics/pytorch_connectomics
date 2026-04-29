@@ -188,7 +188,9 @@ train:
       resolution: [20, 9, 9]
 
 test:
-  output_path: outputs/neuron_nisb_9nm_base_mednext_l_aff9_multitask/results/
+  inference:
+    save_prediction:
+      output_path: outputs/neuron_nisb_9nm_base_mednext_l_aff9_multitask/results/
   data:
     test:
       image: /projects/weilab/dataset/nisb/base/test/seed*/data.zarr/img

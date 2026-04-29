@@ -84,7 +84,7 @@ def test_write_outputs_restores_to_input_space(tmp_path):
 
     cfg = Config()
     cfg.test = HydraTestConfig()
-    cfg.test.output_path = str(tmp_path)
+    cfg.inference.save_prediction.output_path = str(tmp_path)
     cfg.test.data.nnunet_preprocessing.enabled = True
     cfg.test.data.nnunet_preprocessing.restore_to_input_space = True
 

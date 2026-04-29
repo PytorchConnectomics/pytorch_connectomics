@@ -47,7 +47,9 @@ train:
       resolution: [12, 9, 9]
 
 test:
-  output_path: outputs/neuron_nisb_9nm_liconn_mednext_b_sdt/results_seed101/
+  inference:
+    save_prediction:
+      output_path: outputs/neuron_nisb_9nm_liconn_mednext_b_sdt/results_seed101/
   data:
     test:
       path: /projects/weilab/dataset/nisb/liconn/test/

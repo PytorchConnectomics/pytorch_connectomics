@@ -2,7 +2,7 @@ experiment_name: mednext_snemi_sdt
 description: SNEMI3D neuron affinity + SDT learning (MedNeXt-S, 9-channel affinity + 1-channel SDT)
 
 _base_:
-  - ../connectomics/config/all_profiles.yaml
+  - ../../connectomics/config/all_profiles.yaml
 
 default:
   pipeline_profile: aff9_sdt

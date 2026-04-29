@@ -199,10 +199,6 @@ default:
   inference:
     # Only use short-range affinities for TTA ensemble (channels 0-2)
     select_channel: [0, 1, 2]
-    system:
-      num_gpus: 1
-      num_workers: 4
-    batch_size: 4
     sliding_window:
       lazy_load: true
       # Large overlap for smooth predictions on big volumes
@@ -326,6 +322,7 @@ train:
     profile: warmup_cosine_lr
     max_epochs: 500
     n_steps_per_epoch: 200
+    val_check_interval: 10
     # Gradient accumulation: effective batch = batch_size × accumulate_grad_batches.
     # batch_size=1, accumulate=4, num_gpus=1 → effective batch = 4.
     # Larger effective batch reduces gradient noise from individual mislabeled patches.
@@ -345,7 +342,6 @@ train:
       scalar:
         loss: [train_loss_total_epoch, val_loss_total]
         loss_every_n_steps: 100
-        val_check_interval: 10
       images:
         # dtype cast fixed: _log_multi_channel_viz and _log_single_channel_viz now
         # explicitly cast all tensors to float32 before make_grid (uint8 label channels
@@ -363,7 +359,12 @@ train:
 
 # ── Test / inference stage ─────────────────────────────────────────────────────
 test:
+  system:
+    num_gpus: 1
+    num_workers: 4
   data:
+    dataloader:
+      batch_size: 4
     # Test volume: BA_5AA_proteintest_1 FFN-sharpened, uint8.
     # Shape: (59, 1024, 1024) ZYX — Z=59 is smaller than training patch (64).
     # Use window_size: [32, 256, 256] so the sliding window fits within Z=59.

@@ -129,7 +129,9 @@ train:
       - 5
 
 test:
-  output_path: outputs/cem-mitolab_mednext2d/results/
+  inference:
+    save_prediction:
+      output_path: outputs/cem-mitolab_mednext2d/results/
   data:
     test:
       image: datasets/cem-mitolab/test.json
