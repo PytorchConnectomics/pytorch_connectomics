@@ -22,11 +22,11 @@ from ...data.processing.affinity import (
 )
 from ...data.processing.misc import get_padsize
 from ...decoding import run_decoding_stage
+from ...decoding.streamed_chunked import run_chunked_affinity_cc_inference
 from ...evaluation import evaluation_metric_requested, run_evaluation_stage
 from ...inference import (
     apply_prediction_transform,
     is_chunked_inference_enabled,
-    run_chunked_affinity_cc_inference,
     run_chunked_prediction_inference,
     write_outputs,
 )
@@ -941,6 +941,7 @@ def run_test_step(module, batch: Dict[str, torch.Tensor], batch_idx: int) -> STE
                 image_path,
                 output_path=output_path,
                 device=module.device,
+                checkpoint_path=module._get_prediction_checkpoint_path(),
                 mask_path=mask_path,
                 mask_align_to_image=mask_align_to_image,
                 requested_head=selected_output_head,
@@ -1014,6 +1015,7 @@ def run_test_step(module, batch: Dict[str, torch.Tensor], batch_idx: int) -> STE
                 image_path,
                 output_path=output_path,
                 device=module.device,
+                checkpoint_path=module._get_prediction_checkpoint_path(),
                 mask_path=mask_path,
                 mask_align_to_image=mask_align_to_image,
                 requested_head=selected_output_head,

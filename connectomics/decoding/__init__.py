@@ -55,6 +55,7 @@ _LAZY_DECODER_EXPORTS = {
     "decode_instance_binary_contour_distance": "connectomics.decoding.decoders.segmentation",
     "decode_waterz": "connectomics.decoding.decoders.waterz",
     "polarity2instance": "connectomics.decoding.decoders.synapse",
+    "run_chunked_affinity_cc_inference": "connectomics.decoding.streamed_chunked",
 }
 
 
@@ -87,6 +88,7 @@ __all__ = [
     "decode_affinity_cc",
     "decode_distance_watershed",
     "decode_waterz",
+    "run_chunked_affinity_cc_inference",
     "branch_merge",
     "decode_abiss",
     # Synapse decoding

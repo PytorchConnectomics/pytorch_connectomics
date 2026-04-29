@@ -6,10 +6,9 @@ import torch
 
 from connectomics.config import Config, validate_config
 from connectomics.data.io import write_hdf5
+from connectomics.decoding.streamed_chunked import UnionFind, _union_face_pairs
 from connectomics.inference.chunked import (
-    UnionFind,
     _build_chunk_grid,
-    _union_face_pairs,
     _validate_chunked_output_contract,
     run_chunked_prediction_inference,
 )
@@ -70,13 +69,12 @@ def test_validate_config_rejects_unknown_chunk_output_mode():
         validate_config(cfg)
 
 
-def test_chunked_output_contract_rejects_transpose_postprocessing():
+def test_chunked_output_contract_allows_later_decode_postprocessing():
     cfg = Config()
     cfg.inference.postprocessing.enabled = True
     cfg.inference.postprocessing.output_transpose = [2, 1, 0]
 
-    with pytest.raises(ValueError, match="output_transpose"):
-        _validate_chunked_output_contract(cfg)
+    _validate_chunked_output_contract(cfg)
 
 
 def test_chunked_raw_prediction_matches_full_lazy_prediction(tmp_path):
@@ -107,12 +105,14 @@ def test_chunked_raw_prediction_matches_full_lazy_prediction(tmp_path):
         str(image_path),
         output_path=output_path,
         device="cpu",
+        checkpoint_path="checkpoint.ckpt",
     )
 
     import h5py
 
     with h5py.File(output_path, "r") as handle:
         raw = np.asarray(handle["main"])
+        assert handle["main"].attrs["checkpoint_path"] == "checkpoint.ckpt"
 
     assert raw.shape == tuple(full.shape[1:])
     assert np.allclose(raw, full.numpy()[0], atol=1.0e-5)
