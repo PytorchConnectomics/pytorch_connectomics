@@ -308,7 +308,7 @@
 <span class="c1"># Import existing components</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">...config</span><span class="w"> </span><span class="kn">import</span> <span class="n">Config</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">...data.io</span><span class="w"> </span><span class="kn">import</span> <span class="n">read_volume</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">...evaluation</span><span class="w"> </span><span class="kn">import</span> <span class="n">log_test_epoch_metrics</span><span class="p">,</span> <span class="n">save_metrics_to_file</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">...evaluation</span><span class="w"> </span><span class="kn">import</span> <span class="n">EvaluationContext</span><span class="p">,</span> <span class="n">log_test_epoch_metrics</span><span class="p">,</span> <span class="n">save_metrics_to_file</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">...inference</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
     <span class="n">InferenceManager</span><span class="p">,</span>
     <span class="n">resolve_output_filenames</span><span class="p">,</span>
@@ -991,8 +991,42 @@
 
         <span class="k">return</span> <span class="kc">None</span><span class="p">,</span> <span class="kc">False</span><span class="p">,</span> <span class="n">cache_suffix</span>
 
+    <span class="k">def</span><span class="w"> </span><span class="nf">_is_distributed_single_volume_sharding_active</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+        <span class="n">manager</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">inference_manager</span>
+        <span class="n">tta_active</span> <span class="o">=</span> <span class="nb">bool</span><span class="p">(</span><span class="n">manager</span><span class="o">.</span><span class="n">is_distributed_tta_sharding_enabled</span><span class="p">())</span>
+        <span class="n">window_active</span> <span class="o">=</span> <span class="p">(</span>
+            <span class="nb">bool</span><span class="p">(</span><span class="n">manager</span><span class="o">.</span><span class="n">is_distributed_window_sharding_enabled</span><span class="p">())</span>
+            <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">manager</span><span class="p">,</span> <span class="s2">&quot;is_distributed_window_sharding_enabled&quot;</span><span class="p">)</span>
+            <span class="k">else</span> <span class="kc">False</span>
+        <span class="p">)</span>
+        <span class="k">return</span> <span class="n">tta_active</span> <span class="ow">or</span> <span class="n">window_active</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_test_metric_handles</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]:</span>
+        <span class="k">return</span> <span class="p">{</span>
+            <span class="s2">&quot;jaccard&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">test_jaccard</span><span class="p">,</span>
+            <span class="s2">&quot;dice&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">test_dice</span><span class="p">,</span>
+            <span class="s2">&quot;accuracy&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">test_accuracy</span><span class="p">,</span>
+            <span class="s2">&quot;adapted_rand&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">test_adapted_rand</span><span class="p">,</span>
+            <span class="s2">&quot;voi&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">test_voi</span><span class="p">,</span>
+            <span class="s2">&quot;instance_accuracy&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">test_instance_accuracy</span><span class="p">,</span>
+            <span class="s2">&quot;instance_accuracy_detail&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">test_instance_accuracy_detail</span><span class="p">,</span>
+        <span class="p">}</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_evaluation_context</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">EvaluationContext</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">EvaluationContext</span><span class="p">(</span>
+            <span class="n">cfg</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">cfg</span><span class="p">,</span>
+            <span class="n">evaluation_cfg</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_get_test_evaluation_config</span><span class="p">(),</span>
+            <span class="n">inference_cfg</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_get_runtime_inference_config</span><span class="p">(),</span>
+            <span class="n">device</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">device</span><span class="p">,</span>
+            <span class="n">enabled</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_is_test_evaluation_enabled</span><span class="p">(),</span>
+            <span class="n">checkpoint_path</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_get_prediction_checkpoint_path</span><span class="p">(),</span>
+            <span class="n">metrics</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_test_metric_handles</span><span class="p">(),</span>
+            <span class="n">log_fn</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="p">,</span>
+            <span class="n">distributed_single_volume_sharding</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_is_distributed_single_volume_sharding_active</span><span class="p">(),</span>
+        <span class="p">)</span>
+
     <span class="k">def</span><span class="w"> </span><span class="nf">_save_metrics_to_file</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">metrics_dict</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]):</span>
-        <span class="n">save_metrics_to_file</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">metrics_dict</span><span class="p">)</span>
+        <span class="n">save_metrics_to_file</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_evaluation_context</span><span class="p">(),</span> <span class="n">metrics_dict</span><span class="p">)</span>
 
     <span class="k">def</span><span class="w"> </span><span class="nf">_compute_loss</span><span class="p">(</span>
         <span class="bp">self</span><span class="p">,</span>
@@ -1185,7 +1219,7 @@
 <a class="viewcode-back" href="../../../../modules/lightning.html#connectomics.training.lightning.ConnectomicsModule.on_test_epoch_end">[docs]</a>
     <span class="k">def</span><span class="w"> </span><span class="nf">on_test_epoch_end</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Log aggregated test metrics after all ranks finish their assigned volumes.&quot;&quot;&quot;</span>
-        <span class="n">log_test_epoch_metrics</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span></div>
+        <span class="n">log_test_epoch_metrics</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_evaluation_context</span><span class="p">())</span></div>
 
 
 <div class="viewcode-block" id="ConnectomicsModule.transfer_batch_to_device">
