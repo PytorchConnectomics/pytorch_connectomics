@@ -5,9 +5,11 @@ import torch
 
 from connectomics.config import Config, save_config
 from connectomics.config.schema.evaluation import EvaluationConfig
+from connectomics.runtime.cache_resolver import (
+    is_test_evaluation_enabled as _is_test_evaluation_enabled,
+)
 from connectomics.runtime.cli import setup_config
-from scripts.main import (
-    _is_test_evaluation_enabled,
+from connectomics.runtime.sharding import (
     has_assigned_test_shard,
     maybe_enable_independent_test_sharding,
     maybe_limit_test_devices,
