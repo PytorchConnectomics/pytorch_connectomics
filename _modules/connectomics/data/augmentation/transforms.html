@@ -293,118 +293,16 @@
 <span class="kn">from</span><span class="w"> </span><span class="nn">scipy.ndimage</span><span class="w"> </span><span class="kn">import</span> <span class="n">binary_dilation</span><span class="p">,</span> <span class="n">generate_binary_structure</span>
 
 <span class="kn">from</span><span class="w"> </span><span class="nn">.</span><span class="w"> </span><span class="kn">import</span> <span class="n">augment_ops</span>
-
-
-<span class="k">def</span><span class="w"> </span><span class="nf">_to_numpy</span><span class="p">(</span><span class="n">img</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="n">Tuple</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="nb">bool</span><span class="p">,</span> <span class="n">Any</span><span class="p">]:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Convert to numpy, returning (array, was_tensor, device).&quot;&quot;&quot;</span>
-    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">img</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">):</span>
-        <span class="k">return</span> <span class="n">img</span><span class="o">.</span><span class="n">cpu</span><span class="p">()</span><span class="o">.</span><span class="n">numpy</span><span class="p">(),</span> <span class="kc">True</span><span class="p">,</span> <span class="n">img</span><span class="o">.</span><span class="n">device</span>
-    <span class="k">return</span> <span class="n">img</span><span class="p">,</span> <span class="kc">False</span><span class="p">,</span> <span class="kc">None</span>
-
-
-<span class="k">def</span><span class="w"> </span><span class="nf">_from_numpy</span><span class="p">(</span><span class="n">img</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">was_tensor</span><span class="p">:</span> <span class="nb">bool</span><span class="p">,</span> <span class="n">device</span><span class="p">:</span> <span class="n">Any</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Union</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">]:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Convert back to tensor if input was tensor.&quot;&quot;&quot;</span>
-    <span class="k">if</span> <span class="n">was_tensor</span><span class="p">:</span>
-        <span class="k">if</span> <span class="ow">not</span> <span class="n">img</span><span class="o">.</span><span class="n">flags</span><span class="o">.</span><span class="n">c_contiguous</span><span class="p">:</span>
-            <span class="n">img</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">ascontiguousarray</span><span class="p">(</span><span class="n">img</span><span class="p">)</span>
-        <span class="k">return</span> <span class="n">torch</span><span class="o">.</span><span class="n">from_numpy</span><span class="p">(</span><span class="n">img</span><span class="p">)</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">device</span><span class="p">)</span>
-    <span class="k">return</span> <span class="n">img</span>
-
-
-<span class="k">def</span><span class="w"> </span><span class="nf">_infer_depth_axis</span><span class="p">(</span><span class="n">arr</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Infer the depth axis for channel-first volumes.&quot;&quot;&quot;</span>
-    <span class="k">if</span> <span class="n">arr</span><span class="o">.</span><span class="n">ndim</span> <span class="o">&gt;=</span> <span class="mi">4</span> <span class="ow">and</span> <span class="n">arr</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">&lt;=</span> <span class="mi">4</span><span class="p">:</span>
-        <span class="k">return</span> <span class="mi">1</span>
-    <span class="k">return</span> <span class="mi">0</span>
-
-
-<span class="k">def</span><span class="w"> </span><span class="nf">_has_channel_axis</span><span class="p">(</span><span class="n">arr</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Heuristic channel-first detection for image-like tensors.&quot;&quot;&quot;</span>
-    <span class="k">return</span> <span class="n">arr</span><span class="o">.</span><span class="n">ndim</span> <span class="o">&gt;=</span> <span class="mi">4</span> <span class="ow">and</span> <span class="n">arr</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">&lt;=</span> <span class="mi">4</span>
-
-
-<span class="k">def</span><span class="w"> </span><span class="nf">_infer_spatial_rank</span><span class="p">(</span><span class="n">arr</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Infer the number of spatial axes.&quot;&quot;&quot;</span>
-    <span class="k">return</span> <span class="n">arr</span><span class="o">.</span><span class="n">ndim</span> <span class="o">-</span> <span class="mi">1</span> <span class="k">if</span> <span class="n">_has_channel_axis</span><span class="p">(</span><span class="n">arr</span><span class="p">)</span> <span class="k">else</span> <span class="n">arr</span><span class="o">.</span><span class="n">ndim</span>
-
-
-<span class="k">def</span><span class="w"> </span><span class="nf">_spatial_axis_to_array_axis</span><span class="p">(</span><span class="n">arr</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">spatial_axis</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Convert a spatial-axis index to an ndarray axis index.&quot;&quot;&quot;</span>
-    <span class="k">return</span> <span class="n">spatial_axis</span> <span class="o">+</span> <span class="mi">1</span> <span class="k">if</span> <span class="n">_has_channel_axis</span><span class="p">(</span><span class="n">arr</span><span class="p">)</span> <span class="k">else</span> <span class="n">spatial_axis</span>
-
-
-<span class="k">def</span><span class="w"> </span><span class="nf">_sample_spatial_axis</span><span class="p">(</span>
-    <span class="n">rng</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">RandomState</span><span class="p">,</span>
-    <span class="n">spec</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="nb">str</span><span class="p">,</span> <span class="n">Tuple</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="o">...</span><span class="p">],</span> <span class="n">List</span><span class="p">[</span><span class="nb">int</span><span class="p">]],</span>
-    <span class="n">spatial_rank</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
-<span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Sample a spatial axis index from an int/list/random spec.&quot;&quot;&quot;</span>
-    <span class="k">if</span> <span class="n">spatial_rank</span> <span class="o">&lt;=</span> <span class="mi">0</span><span class="p">:</span>
-        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;spatial_rank must be positive&quot;</span><span class="p">)</span>
-
-    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">spec</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
-        <span class="k">if</span> <span class="n">spec</span> <span class="ow">not</span> <span class="ow">in</span> <span class="p">{</span><span class="s2">&quot;random&quot;</span><span class="p">,</span> <span class="s2">&quot;all&quot;</span><span class="p">,</span> <span class="s2">&quot;any&quot;</span><span class="p">}:</span>
-            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Unsupported spatial axis spec: </span><span class="si">{</span><span class="n">spec</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
-        <span class="n">choices</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="nb">range</span><span class="p">(</span><span class="n">spatial_rank</span><span class="p">))</span>
-    <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">spec</span><span class="p">,</span> <span class="p">(</span><span class="nb">tuple</span><span class="p">,</span> <span class="nb">list</span><span class="p">)):</span>
-        <span class="n">choices</span> <span class="o">=</span> <span class="p">[</span><span class="nb">int</span><span class="p">(</span><span class="n">a</span><span class="p">)</span> <span class="k">for</span> <span class="n">a</span> <span class="ow">in</span> <span class="n">spec</span><span class="p">]</span>
-    <span class="k">else</span><span class="p">:</span>
-        <span class="n">choices</span> <span class="o">=</span> <span class="p">[</span><span class="nb">int</span><span class="p">(</span><span class="n">spec</span><span class="p">)]</span>
-
-    <span class="k">if</span> <span class="ow">not</span> <span class="n">choices</span><span class="p">:</span>
-        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;spatial axis choices cannot be empty&quot;</span><span class="p">)</span>
-    <span class="n">invalid</span> <span class="o">=</span> <span class="p">[</span><span class="n">ax</span> <span class="k">for</span> <span class="n">ax</span> <span class="ow">in</span> <span class="n">choices</span> <span class="k">if</span> <span class="n">ax</span> <span class="o">&lt;</span> <span class="mi">0</span> <span class="ow">or</span> <span class="n">ax</span> <span class="o">&gt;=</span> <span class="n">spatial_rank</span><span class="p">]</span>
-    <span class="k">if</span> <span class="n">invalid</span><span class="p">:</span>
-        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Spatial axis choices </span><span class="si">{</span><span class="n">invalid</span><span class="si">}</span><span class="s2"> out of range for rank </span><span class="si">{</span><span class="n">spatial_rank</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
-
-    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">choices</span><span class="p">)</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
-        <span class="k">return</span> <span class="n">choices</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
-    <span class="k">return</span> <span class="nb">int</span><span class="p">(</span><span class="n">rng</span><span class="o">.</span><span class="n">choice</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">choices</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">int64</span><span class="p">)))</span>
-
-
-<span class="k">def</span><span class="w"> </span><span class="nf">_sample_non_identity_permutation</span><span class="p">(</span>
-    <span class="n">rng</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">RandomState</span><span class="p">,</span>
-    <span class="n">spatial_rank</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
-<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Sample a spatial permutation that is not the identity.&quot;&quot;&quot;</span>
-    <span class="n">identity</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">spatial_rank</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">int64</span><span class="p">)</span>
-    <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">8</span><span class="p">):</span>
-        <span class="n">permutation</span> <span class="o">=</span> <span class="n">rng</span><span class="o">.</span><span class="n">permutation</span><span class="p">(</span><span class="n">spatial_rank</span><span class="p">)</span>
-        <span class="k">if</span> <span class="ow">not</span> <span class="n">np</span><span class="o">.</span><span class="n">array_equal</span><span class="p">(</span><span class="n">permutation</span><span class="p">,</span> <span class="n">identity</span><span class="p">):</span>
-            <span class="k">return</span> <span class="n">permutation</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">int64</span><span class="p">)</span>
-    <span class="k">return</span> <span class="n">permutation</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">int64</span><span class="p">)</span>
-
-
-<span class="k">def</span><span class="w"> </span><span class="nf">_sample_non_identity_rotate_ks</span><span class="p">(</span><span class="n">rng</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">RandomState</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Tuple</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="nb">int</span><span class="p">,</span> <span class="nb">int</span><span class="p">]:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Sample quarter-turn counts that are not all zero.&quot;&quot;&quot;</span>
-    <span class="n">rotate_ks</span> <span class="o">=</span> <span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>
-    <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">8</span><span class="p">):</span>
-        <span class="n">rotate_ks</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">(</span><span class="nb">int</span><span class="p">(</span><span class="n">rng</span><span class="o">.</span><span class="n">randint</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">4</span><span class="p">))</span> <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">3</span><span class="p">))</span>
-        <span class="k">if</span> <span class="nb">any</span><span class="p">(</span><span class="n">k</span> <span class="o">!=</span> <span class="mi">0</span> <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="n">rotate_ks</span><span class="p">):</span>
-            <span class="k">return</span> <span class="n">rotate_ks</span>
-    <span class="k">return</span> <span class="n">rotate_ks</span>
-
-
-<span class="k">def</span><span class="w"> </span><span class="nf">_sample_count</span><span class="p">(</span>
-    <span class="n">rng</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">RandomState</span><span class="p">,</span>
-    <span class="n">spec</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="n">Tuple</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="nb">int</span><span class="p">],</span> <span class="n">List</span><span class="p">[</span><span class="nb">int</span><span class="p">]],</span>
-    <span class="n">max_count</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
-<span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Sample a non-negative count from an int or inclusive [min, max] pair.&quot;&quot;&quot;</span>
-    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">spec</span><span class="p">,</span> <span class="p">(</span><span class="nb">tuple</span><span class="p">,</span> <span class="nb">list</span><span class="p">)):</span>
-        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">spec</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
-            <span class="k">return</span> <span class="mi">0</span>
-        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">spec</span><span class="p">)</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
-            <span class="n">count</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">spec</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
-        <span class="k">else</span><span class="p">:</span>
-            <span class="n">low</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">spec</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
-            <span class="n">high</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">spec</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
-            <span class="k">if</span> <span class="n">high</span> <span class="o">&lt;</span> <span class="n">low</span><span class="p">:</span>
-                <span class="n">low</span><span class="p">,</span> <span class="n">high</span> <span class="o">=</span> <span class="n">high</span><span class="p">,</span> <span class="n">low</span>
-            <span class="n">count</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">rng</span><span class="o">.</span><span class="n">randint</span><span class="p">(</span><span class="n">low</span><span class="p">,</span> <span class="n">high</span> <span class="o">+</span> <span class="mi">1</span><span class="p">))</span>
-    <span class="k">else</span><span class="p">:</span>
-        <span class="n">count</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">spec</span><span class="p">)</span>
-    <span class="k">return</span> <span class="nb">min</span><span class="p">(</span><span class="nb">max</span><span class="p">(</span><span class="n">count</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span> <span class="n">max_count</span><span class="p">)</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">.transform_utils</span><span class="w"> </span><span class="kn">import</span> <span class="n">from_numpy</span> <span class="k">as</span> <span class="n">_from_numpy</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">.transform_utils</span><span class="w"> </span><span class="kn">import</span> <span class="n">has_channel_axis</span> <span class="k">as</span> <span class="n">_has_channel_axis</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">.transform_utils</span><span class="w"> </span><span class="kn">import</span> <span class="n">infer_depth_axis</span> <span class="k">as</span> <span class="n">_infer_depth_axis</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">.transform_utils</span><span class="w"> </span><span class="kn">import</span> <span class="n">infer_spatial_rank</span> <span class="k">as</span> <span class="n">_infer_spatial_rank</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">.transform_utils</span><span class="w"> </span><span class="kn">import</span> <span class="n">sample_count</span> <span class="k">as</span> <span class="n">_sample_count</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">.transform_utils</span><span class="w"> </span><span class="kn">import</span> <span class="n">sample_non_identity_permutation</span> <span class="k">as</span> <span class="n">_sample_non_identity_permutation</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">.transform_utils</span><span class="w"> </span><span class="kn">import</span> <span class="n">sample_non_identity_rotate_ks</span> <span class="k">as</span> <span class="n">_sample_non_identity_rotate_ks</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">.transform_utils</span><span class="w"> </span><span class="kn">import</span> <span class="n">sample_spatial_axis</span> <span class="k">as</span> <span class="n">_sample_spatial_axis</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">.transform_utils</span><span class="w"> </span><span class="kn">import</span> <span class="n">spatial_axis_to_array_axis</span> <span class="k">as</span> <span class="n">_spatial_axis_to_array_axis</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">.transform_utils</span><span class="w"> </span><span class="kn">import</span> <span class="n">to_numpy</span> <span class="k">as</span> <span class="n">_to_numpy</span>
 
 
 <div class="viewcode-block" id="RandAxisPermuted">
