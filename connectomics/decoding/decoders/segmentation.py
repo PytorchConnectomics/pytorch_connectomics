@@ -21,35 +21,18 @@ import cc3d
 import fastremap
 import mahotas
 import numpy as np
-from scipy import ndimage
 from skimage.segmentation import watershed
 
 from connectomics.data.processing.distance import edt_semantic as seg_to_semantic_edt
 
 from ..utils import cast2dtype
-
-try:
-    from numba import jit
-
-    NUMBA_AVAILABLE = True
-except ImportError:
-    NUMBA_AVAILABLE = False
-
-    # Define dummy jit decorator
-    def jit(*args, **kwargs):
-        def decorator(func):
-            return func
-
-        return decorator
-
-
-try:
-    import edt
-
-    EDT_AVAILABLE = True
-except ImportError:
-    EDT_AVAILABLE = False
-
+from .segmentation_kernels import (
+    NUMBA_AVAILABLE,
+)
+from .segmentation_kernels import compute_edt as _compute_edt
+from .segmentation_kernels import (
+    connected_components_affinity_3d_numba as _connected_components_affinity_3d_numba,
+)
 
 __all__ = [
     "decode_instance_binary_contour_distance",
@@ -247,94 +230,6 @@ def decode_instance_binary_contour_distance(
         return segmentation, seed
     else:
         return segmentation
-
-
-# ==============================================================================
-# EDT Computation Helper
-# ==============================================================================
-
-
-def _compute_edt(
-    foreground_mask: np.ndarray,
-    use_fast_edt: bool = True,
-    edt_parallel: int = 4,
-    edt_anisotropy: Optional[Tuple[float, ...]] = None,
-    edt_downsample_factor: int = 1,
-) -> np.ndarray:
-    """Compute Euclidean Distance Transform on a foreground mask.
-
-    Supports optional downsampling for large volumes and uses the fast ``edt``
-    library when available, falling back to ``scipy.ndimage``.
-
-    Args:
-        foreground_mask: Binary mask (bool or uint8).
-        use_fast_edt: Prefer the ``edt`` library if installed.
-        edt_parallel: Thread count for the ``edt`` library.
-        edt_anisotropy: Voxel spacing for anisotropic data.  ``None`` means
-            isotropic (all 1.0).
-        edt_downsample_factor: Downsample factor (>1 to save memory/time).
-
-    Returns:
-        Distance transform array with the same spatial shape as *foreground_mask*.
-    """
-    resolved_anisotropy = edt_anisotropy  # keep original None sentinel
-
-    def _edt_on_mask(mask: np.ndarray, anisotropy: Optional[Tuple[float, ...]]) -> np.ndarray:
-        """Run EDT on *mask* using the best available backend."""
-        if use_fast_edt and EDT_AVAILABLE:
-            ani = anisotropy if anisotropy is not None else tuple(1.0 for _ in range(mask.ndim))
-            return edt.edt(
-                mask.astype(np.uint8),
-                anisotropy=ani,
-                black_border=True,
-                parallel=edt_parallel,
-            )
-
-        if use_fast_edt and not EDT_AVAILABLE:
-            warnings.warn(
-                "Fast edt library not available. Using scipy.ndimage (slower). "
-                "Install edt for 10-50x speedup: pip install edt",
-                UserWarning,
-            )
-
-        if anisotropy is not None:
-            return ndimage.distance_transform_edt(mask, sampling=anisotropy)
-        return ndimage.distance_transform_edt(mask)
-
-    if edt_downsample_factor > 1:
-        zoom_factors = tuple(1.0 / edt_downsample_factor for _ in range(foreground_mask.ndim))
-        foreground_ds = ndimage.zoom(
-            foreground_mask.astype(np.float32), zoom_factors, order=0
-        ).astype(bool)
-
-        # Scale anisotropy for downsampled resolution
-        if resolved_anisotropy is not None:
-            ds_anisotropy = tuple(a / edt_downsample_factor for a in resolved_anisotropy)
-        else:
-            ds_anisotropy = None
-
-        distance_ds = _edt_on_mask(foreground_ds, ds_anisotropy)
-
-        # Upsample and scale distances back
-        distance_fg = ndimage.zoom(
-            distance_ds,
-            tuple(edt_downsample_factor for _ in range(distance_ds.ndim)),
-            order=1,
-        )
-        distance_fg *= edt_downsample_factor
-
-        # Fix shape mismatches introduced by zoom rounding
-        if distance_fg.shape != foreground_mask.shape:
-            slices = tuple(
-                slice(0, min(s1, s2)) for s1, s2 in zip(distance_fg.shape, foreground_mask.shape)
-            )
-            corrected = np.zeros(foreground_mask.shape, dtype=distance_fg.dtype)
-            corrected[slices] = distance_fg[slices]
-            distance_fg = corrected
-
-        return distance_fg
-
-    return _edt_on_mask(foreground_mask, resolved_anisotropy)
 
 
 # ==============================================================================
@@ -548,149 +443,6 @@ def decode_distance_watershed(
 # ==============================================================================
 # Affinity-based Segmentation (BANIS-inspired)
 # ==============================================================================
-
-
-@jit(nopython=True, cache=True)
-def _connected_components_affinity_3d_numba(
-    hard_aff: np.ndarray, edge_offset: int = 0
-) -> np.ndarray:
-    """
-    Numba-accelerated connected components from 3D affinities.
-
-    Uses flood-fill algorithm with 6-connectivity (face neighbors only).
-    Provides 10-100x speedup over pure Python implementations.
-
-    Args:
-        hard_aff: Boolean affinities, shape (3, D, H, W)
-                 - Channel c gates motion along array axis c
-        edge_offset: Where along the axis the edge value is stored relative to
-            the source voxel of the move. ``0`` = source-index (BANIS convention):
-            edge from voxel ``v`` to ``v+1`` is at ``hard_aff[c, v]``. ``1`` =
-            destination-index (``affinity_mode=deepem``, also used by zwatershed
-            / abiss): same edge is at ``hard_aff[c, v+1]``.
-
-    Returns:
-        segmentation: Instance segmentation, shape (D, H, W)
-                     Each component gets unique ID >= 1, background is 0
-
-    Note:
-        This function is JIT-compiled with Numba for performance.
-        Reference: BANIS baseline (inference.py)
-    """
-    visited = np.zeros(hard_aff.shape[1:], dtype=np.uint8)
-    seg = np.zeros(hard_aff.shape[1:], dtype=np.uint32)
-    cur_id = 1
-    max_stack = visited.shape[0] * visited.shape[1] * visited.shape[2]
-    # Allocate flood-fill stacks once and reuse for every component.
-    stack_x = np.zeros(max_stack, dtype=np.int32)
-    stack_y = np.zeros(max_stack, dtype=np.int32)
-    stack_z = np.zeros(max_stack, dtype=np.int32)
-
-    # Flood-fill from each foreground voxel
-    for i in range(visited.shape[0]):
-        for j in range(visited.shape[1]):
-            for k in range(visited.shape[2]):
-                # Check if foreground and unvisited
-                if hard_aff[:, i, j, k].any() and not visited[i, j, k]:
-                    # Start new component - use arrays for stack (Numba compatible)
-                    stack_size = 0
-
-                    # Push initial voxel
-                    stack_x[stack_size] = i
-                    stack_y[stack_size] = j
-                    stack_z[stack_size] = k
-                    stack_size += 1
-                    visited[i, j, k] = True
-
-                    # Flood-fill
-                    while stack_size > 0:
-                        # Pop from stack
-                        stack_size -= 1
-                        x = stack_x[stack_size]
-                        y = stack_y[stack_size]
-                        z = stack_z[stack_size]
-
-                        seg[x, y, z] = cur_id
-
-                        # Check 6-connected neighbors.
-                        # Edge from voxel u to voxel u+1 is stored at index
-                        # ``u + edge_offset`` in the corresponding hard_aff
-                        # channel (0 = src-index / BANIS, 1 = dst-index / pytc).
-                        # Positive x
-                        if (
-                            x + 1 < visited.shape[0]
-                            and hard_aff[0, x + edge_offset, y, z]
-                            and not visited[x + 1, y, z]
-                        ):
-                            stack_x[stack_size] = x + 1
-                            stack_y[stack_size] = y
-                            stack_z[stack_size] = z
-                            stack_size += 1
-                            visited[x + 1, y, z] = True
-
-                        # Positive y
-                        if (
-                            y + 1 < visited.shape[1]
-                            and hard_aff[1, x, y + edge_offset, z]
-                            and not visited[x, y + 1, z]
-                        ):
-                            stack_x[stack_size] = x
-                            stack_y[stack_size] = y + 1
-                            stack_z[stack_size] = z
-                            stack_size += 1
-                            visited[x, y + 1, z] = True
-
-                        # Positive z
-                        if (
-                            z + 1 < visited.shape[2]
-                            and hard_aff[2, x, y, z + edge_offset]
-                            and not visited[x, y, z + 1]
-                        ):
-                            stack_x[stack_size] = x
-                            stack_y[stack_size] = y
-                            stack_z[stack_size] = z + 1
-                            stack_size += 1
-                            visited[x, y, z + 1] = True
-
-                        # Negative x
-                        if (
-                            x - 1 >= 0
-                            and hard_aff[0, x - 1 + edge_offset, y, z]
-                            and not visited[x - 1, y, z]
-                        ):
-                            stack_x[stack_size] = x - 1
-                            stack_y[stack_size] = y
-                            stack_z[stack_size] = z
-                            stack_size += 1
-                            visited[x - 1, y, z] = True
-
-                        # Negative y
-                        if (
-                            y - 1 >= 0
-                            and hard_aff[1, x, y - 1 + edge_offset, z]
-                            and not visited[x, y - 1, z]
-                        ):
-                            stack_x[stack_size] = x
-                            stack_y[stack_size] = y - 1
-                            stack_z[stack_size] = z
-                            stack_size += 1
-                            visited[x, y - 1, z] = True
-
-                        # Negative z
-                        if (
-                            z - 1 >= 0
-                            and hard_aff[2, x, y, z - 1 + edge_offset]
-                            and not visited[x, y, z - 1]
-                        ):
-                            stack_x[stack_size] = x
-                            stack_y[stack_size] = y
-                            stack_z[stack_size] = z - 1
-                            stack_size += 1
-                            visited[x, y, z - 1] = True
-
-                    cur_id += 1
-
-    return seg
 
 
 def decode_affinity_cc(
