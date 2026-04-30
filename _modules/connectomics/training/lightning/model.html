@@ -322,6 +322,7 @@
 <span class="kn">from</span><span class="w"> </span><span class="nn">...models</span><span class="w"> </span><span class="kn">import</span> <span class="n">build_model</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">...models.losses</span><span class="w"> </span><span class="kn">import</span> <span class="n">create_loss</span><span class="p">,</span> <span class="n">get_loss_metadata_for_module</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">...runtime.output_naming</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
+    <span class="n">final_prediction_decoded_glob_suffix</span><span class="p">,</span>
     <span class="n">final_prediction_output_tag</span><span class="p">,</span>
     <span class="n">is_tta_cache_suffix</span><span class="p">,</span>
     <span class="n">resolve_prediction_cache_suffix</span><span class="p">,</span>
@@ -916,6 +917,49 @@
             <span class="p">)</span>
             <span class="n">suffixes_to_try</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">final_suffix</span><span class="p">)</span>
         <span class="n">suffixes_to_try</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">cache_suffix</span><span class="p">)</span>
+
+        <span class="c1"># Glob fallback before exact suffix matching: any pre-existing decoded</span>
+        <span class="c1"># final file matching the same TTA/head/channel/checkpoint prefix lets</span>
+        <span class="c1"># us skip a multi-GB intermediate TTA reload + redecode, even if the</span>
+        <span class="c1"># current config&#39;s decoding kwargs differ from the cached file.</span>
+        <span class="k">if</span> <span class="n">is_tta_cache_suffix</span><span class="p">(</span><span class="n">cache_suffix</span><span class="p">):</span>
+            <span class="n">decoded_glob</span> <span class="o">=</span> <span class="n">final_prediction_decoded_glob_suffix</span><span class="p">(</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">cfg</span><span class="p">,</span>
+                <span class="n">checkpoint_path</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_get_prediction_checkpoint_path</span><span class="p">(),</span>
+            <span class="p">)</span>
+            <span class="n">decoded_files</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="n">Path</span><span class="p">]</span> <span class="o">=</span> <span class="p">[]</span>
+            <span class="k">for</span> <span class="n">filename</span> <span class="ow">in</span> <span class="n">filenames</span><span class="p">:</span>
+                <span class="n">matches</span> <span class="o">=</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">output_dir</span><span class="o">.</span><span class="n">glob</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">filename</span><span class="si">}{</span><span class="n">decoded_glob</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">))</span>
+                <span class="k">if</span> <span class="ow">not</span> <span class="n">matches</span><span class="p">:</span>
+                    <span class="n">decoded_files</span> <span class="o">=</span> <span class="p">[]</span>
+                    <span class="k">break</span>
+                <span class="n">decoded_files</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">matches</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">])</span>
+            <span class="k">if</span> <span class="n">decoded_files</span> <span class="ow">and</span> <span class="nb">len</span><span class="p">(</span><span class="n">decoded_files</span><span class="p">)</span> <span class="o">==</span> <span class="nb">len</span><span class="p">(</span><span class="n">filenames</span><span class="p">):</span>
+                <span class="k">try</span><span class="p">:</span>
+                    <span class="n">preds</span> <span class="o">=</span> <span class="p">[</span><span class="n">read_volume</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">p</span><span class="p">),</span> <span class="n">dataset</span><span class="o">=</span><span class="s2">&quot;main&quot;</span><span class="p">)</span> <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="n">decoded_files</span><span class="p">]</span>
+                <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+                    <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span>
+                        <span class="sa">f</span><span class="s2">&quot;Failed to load decoded glob match </span><span class="si">{</span><span class="n">decoded_files</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="si">}</span><span class="s2">: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">; &quot;</span>
+                        <span class="sa">f</span><span class="s2">&quot;falling back to exact suffix matching.&quot;</span>
+                    <span class="p">)</span>
+                    <span class="n">preds</span> <span class="o">=</span> <span class="kc">None</span>
+                <span class="k">if</span> <span class="n">preds</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                    <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+                        <span class="s2">&quot;Loaded existing decoded final prediction(s) via glob fallback &quot;</span>
+                        <span class="s2">&quot;(</span><span class="si">%s</span><span class="s2">); skipping inference and decoding.&quot;</span><span class="p">,</span>
+                        <span class="n">decoded_files</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">name</span><span class="p">,</span>
+                    <span class="p">)</span>
+                    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">preds</span><span class="p">)</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+                        <span class="n">predictions_np</span> <span class="o">=</span> <span class="n">preds</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+                        <span class="k">if</span> <span class="n">predictions_np</span><span class="o">.</span><span class="n">ndim</span> <span class="o">&lt;</span> <span class="mi">4</span><span class="p">:</span>
+                            <span class="n">predictions_np</span> <span class="o">=</span> <span class="n">predictions_np</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">newaxis</span><span class="p">,</span> <span class="o">...</span><span class="p">]</span>
+                    <span class="k">else</span><span class="p">:</span>
+                        <span class="n">predictions_np</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">stack</span><span class="p">(</span>
+                            <span class="p">[</span><span class="n">p</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">newaxis</span><span class="p">,</span> <span class="o">...</span><span class="p">]</span> <span class="k">if</span> <span class="n">p</span><span class="o">.</span><span class="n">ndim</span> <span class="o">&lt;</span> <span class="mi">4</span> <span class="k">else</span> <span class="n">p</span> <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="n">preds</span><span class="p">],</span>
+                            <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span>
+                        <span class="p">)</span>
+                    <span class="n">chosen_suffix</span> <span class="o">=</span> <span class="n">decoded_files</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">name</span><span class="p">[</span><span class="nb">len</span><span class="p">(</span><span class="n">filenames</span><span class="p">[</span><span class="mi">0</span><span class="p">]):]</span>
+                    <span class="k">return</span> <span class="n">predictions_np</span><span class="p">,</span> <span class="kc">True</span><span class="p">,</span> <span class="n">chosen_suffix</span>
 
         <span class="k">for</span> <span class="n">try_suffix</span> <span class="ow">in</span> <span class="n">suffixes_to_try</span><span class="p">:</span>
             <span class="n">existing_predictions</span> <span class="o">=</span> <span class="p">[]</span>
