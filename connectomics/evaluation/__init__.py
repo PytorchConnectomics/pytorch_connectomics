@@ -1,5 +1,6 @@
 """Evaluation stage orchestration."""
 
+from .context import EvaluationContext
 from .curvilinear import evaluate_directory, evaluate_file_pair
 from .nerl import import_em_erl
 from .report import (
@@ -12,6 +13,7 @@ from .report import (
 from .stage import EvaluationStageResult, run_evaluation_stage
 
 __all__ = [
+    "EvaluationContext",
     "EvaluationStageResult",
     "compute_test_metrics",
     "configured_evaluation_metrics",

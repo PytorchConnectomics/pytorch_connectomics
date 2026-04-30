@@ -10,6 +10,7 @@ import torchmetrics
 
 from ..metrics.metrics_seg import AdaptedRandError
 from ..metrics.segmentation_numpy import instance_matching, instance_matching_simple, voi
+from .context import EvaluationContext
 
 logger = logging.getLogger(__name__)
 
@@ -51,7 +52,7 @@ def is_instance_segmentation(pred_tensor: torch.Tensor) -> bool:
 
 
 def compute_instance_metrics(
-    module,
+    context: EvaluationContext,
     pred_tensor: torch.Tensor,
     labels_tensor: torch.Tensor,
     volume_prefix: str,
@@ -61,10 +62,9 @@ def compute_instance_metrics(
     pred_instances = pred_tensor.long()
     labels_instances = labels_tensor.long()
 
-    if hasattr(module, "test_adapted_rand") and isinstance(
-        module.test_adapted_rand, torchmetrics.Metric
-    ):
-        per_volume_metric = AdaptedRandError(return_all_stats=True).to(module.device)
+    adapted_rand_metric = context.metric("adapted_rand")
+    if context.metric_requested("adapted_rand"):
+        per_volume_metric = AdaptedRandError(return_all_stats=True).to(context.device)
         per_volume_metric.update(pred_instances.cpu(), labels_instances.cpu())
         adapted_rand_value = per_volume_metric.compute()
         if isinstance(adapted_rand_value, dict):
@@ -82,9 +82,11 @@ def compute_instance_metrics(
                 logger.info("%s  %s: %.6f", volume_prefix, k, val)
 
         metrics_dict["adapted_rand_error"] = are_score
-        module.test_adapted_rand.update(pred_instances.cpu(), labels_instances.cpu())
+        if isinstance(adapted_rand_metric, torchmetrics.Metric):
+            adapted_rand_metric.update(pred_instances.cpu(), labels_instances.cpu())
 
-    if hasattr(module, "test_voi") and isinstance(module.test_voi, torchmetrics.Metric):
+    voi_metric = context.metric("voi")
+    if context.metric_requested("voi"):
         split, merge = voi(pred_instances.cpu().numpy(), labels_instances.cpu().numpy())
         logger.info("%sVOI Split: %.6f", volume_prefix, split)
         logger.info("%sVOI Merge: %.6f", volume_prefix, merge)
@@ -94,11 +96,11 @@ def compute_instance_metrics(
         metrics_dict["voi_merge"] = merge
         metrics_dict["voi_total"] = split + merge
 
-        module.test_voi.update(pred_instances.cpu(), labels_instances.cpu())
+        if isinstance(voi_metric, torchmetrics.Metric):
+            voi_metric.update(pred_instances.cpu(), labels_instances.cpu())
 
-    if hasattr(module, "test_instance_accuracy") and isinstance(
-        module.test_instance_accuracy, torchmetrics.Metric
-    ):
+    instance_accuracy_metric = context.metric("instance_accuracy")
+    if context.metric_requested("instance_accuracy"):
         stats = instance_matching(
             labels_instances.cpu().numpy(),
             pred_instances.cpu().numpy(),
@@ -108,11 +110,11 @@ def compute_instance_metrics(
         logger.info("%sInstance Accuracy: %.6f", volume_prefix, stats["accuracy"])
         metrics_dict["instance_accuracy"] = stats["accuracy"]
 
-        module.test_instance_accuracy.update(pred_instances.cpu(), labels_instances.cpu())
+        if isinstance(instance_accuracy_metric, torchmetrics.Metric):
+            instance_accuracy_metric.update(pred_instances.cpu(), labels_instances.cpu())
 
-    if hasattr(module, "test_instance_accuracy_detail") and isinstance(
-        module.test_instance_accuracy_detail, torchmetrics.Metric
-    ):
+    instance_accuracy_detail_metric = context.metric("instance_accuracy_detail")
+    if context.metric_requested("instance_accuracy_detail"):
         stats_simple = instance_matching_simple(
             labels_instances.cpu().numpy(),
             pred_instances.cpu().numpy(),
@@ -133,14 +135,12 @@ def compute_instance_metrics(
         metrics_dict["instance_recall_detail"] = stats_simple["recall"]
         metrics_dict["instance_f1_detail"] = stats_simple["f1"]
 
-        module.test_instance_accuracy_detail.update(
-            pred_instances.cpu(),
-            labels_instances.cpu(),
-        )
+        if isinstance(instance_accuracy_detail_metric, torchmetrics.Metric):
+            instance_accuracy_detail_metric.update(pred_instances.cpu(), labels_instances.cpu())
 
 
 def compute_binary_metrics(
-    module,
+    context: EvaluationContext,
     pred_tensor: torch.Tensor,
     labels_tensor: torch.Tensor,
     volume_prefix: str,
@@ -158,7 +158,8 @@ def compute_binary_metrics(
         else labels_tensor.long()
     )
 
-    if hasattr(module, "test_jaccard") and module.test_jaccard is not None:
+    jaccard_metric = context.metric("jaccard")
+    if context.metric_requested("jaccard"):
         jaccard_value = torchmetrics.functional.jaccard_index(
             pred_binary,
             labels_binary,
@@ -166,15 +167,19 @@ def compute_binary_metrics(
         )
         logger.info("%sJaccard: %.6f", volume_prefix, jaccard_value.item())
         metrics_dict["jaccard"] = jaccard_value.item()
-        module.test_jaccard.update(pred_binary, labels_binary)
+        if jaccard_metric is not None:
+            jaccard_metric.update(pred_binary, labels_binary)
 
-    if hasattr(module, "test_dice") and module.test_dice is not None:
+    dice_metric = context.metric("dice")
+    if context.metric_requested("dice"):
         dice_value = torchmetrics.functional.dice(pred_binary, labels_binary)
         logger.info("%sDice: %.6f", volume_prefix, dice_value.item())
         metrics_dict["dice"] = dice_value.item()
-        module.test_dice.update(pred_binary, labels_binary)
+        if dice_metric is not None:
+            dice_metric.update(pred_binary, labels_binary)
 
-    if hasattr(module, "test_accuracy") and module.test_accuracy is not None:
+    accuracy_metric = context.metric("accuracy")
+    if context.metric_requested("accuracy"):
         accuracy_value = torchmetrics.functional.accuracy(
             pred_binary,
             labels_binary,
@@ -182,7 +187,8 @@ def compute_binary_metrics(
         )
         logger.info("%sAccuracy: %.6f", volume_prefix, accuracy_value.item())
         metrics_dict["accuracy"] = accuracy_value.item()
-        module.test_accuracy.update(pred_binary, labels_binary)
+        if accuracy_metric is not None:
+            accuracy_metric.update(pred_binary, labels_binary)
 
 
 __all__ = [

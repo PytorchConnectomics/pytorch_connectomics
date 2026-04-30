@@ -466,7 +466,7 @@ def test_save_metrics_to_file_uses_runtime_inference_output_path(tmp_path):
     module = ConnectomicsModule(cfg, model=SimpleModel())
 
     save_metrics_to_file(
-        module,
+        module._evaluation_context(),
         {
             "volume_name": "vol0",
             "jaccard": 0.5,
@@ -493,7 +493,7 @@ def test_save_metrics_to_file_matches_final_prediction_tag(tmp_path):
     module._prediction_checkpoint_path = "/tmp/checkpoints/best.ckpt"
 
     save_metrics_to_file(
-        module,
+        module._evaluation_context(),
         {
             "volume_name": "test-input",
             "jaccard": 0.5,
@@ -655,16 +655,14 @@ def test_log_test_epoch_metrics_uses_rank_zero_only_logging_for_distributed_tta_
     module.log = log_override
     module.test_accuracy = torchmetrics.Accuracy(task="binary")
     module.test_accuracy.update(torch.tensor([1, 0]), torch.tensor([1, 0]))
+    context = module._evaluation_context()
+    context.distributed_single_volume_sharding = True
 
-    monkeypatch.setattr(
-        "connectomics.evaluation.report._is_distributed_tta_sharding_active",
-        lambda _module: True,
-    )
     monkeypatch.setattr(torch.distributed, "is_available", lambda: True)
     monkeypatch.setattr(torch.distributed, "is_initialized", lambda: True)
     monkeypatch.setattr(torch.distributed, "get_rank", lambda: 0)
 
-    log_test_epoch_metrics(module)
+    log_test_epoch_metrics(context)
 
     assert calls == [("test_accuracy", False)]
 
@@ -686,15 +684,13 @@ def test_log_test_epoch_metrics_skips_nonzero_ranks_for_distributed_tta_sharding
     module.log = log_override
     module.test_accuracy = torchmetrics.Accuracy(task="binary")
     module.test_accuracy.update(torch.tensor([1, 0]), torch.tensor([1, 0]))
+    context = module._evaluation_context()
+    context.distributed_single_volume_sharding = True
 
-    monkeypatch.setattr(
-        "connectomics.evaluation.report._is_distributed_tta_sharding_active",
-        lambda _module: True,
-    )
     monkeypatch.setattr(torch.distributed, "is_available", lambda: True)
     monkeypatch.setattr(torch.distributed, "is_initialized", lambda: True)
     monkeypatch.setattr(torch.distributed, "get_rank", lambda: 1)
 
-    log_test_epoch_metrics(module)
+    log_test_epoch_metrics(context)
 
     assert calls == []

@@ -32,7 +32,7 @@ from pytorch_lightning.utilities.types import STEP_OUTPUT
 # Import existing components
 from ...config import Config
 from ...data.io import read_volume
-from ...evaluation import log_test_epoch_metrics, save_metrics_to_file
+from ...evaluation import EvaluationContext, log_test_epoch_metrics, save_metrics_to_file
 from ...inference import (
     InferenceManager,
     resolve_output_filenames,
@@ -704,8 +704,42 @@ class ConnectomicsModule(pl.LightningModule):
 
         return None, False, cache_suffix
 
+    def _is_distributed_single_volume_sharding_active(self) -> bool:
+        manager = self.inference_manager
+        tta_active = bool(manager.is_distributed_tta_sharding_enabled())
+        window_active = (
+            bool(manager.is_distributed_window_sharding_enabled())
+            if hasattr(manager, "is_distributed_window_sharding_enabled")
+            else False
+        )
+        return tta_active or window_active
+
+    def _test_metric_handles(self) -> Dict[str, Any]:
+        return {
+            "jaccard": self.test_jaccard,
+            "dice": self.test_dice,
+            "accuracy": self.test_accuracy,
+            "adapted_rand": self.test_adapted_rand,
+            "voi": self.test_voi,
+            "instance_accuracy": self.test_instance_accuracy,
+            "instance_accuracy_detail": self.test_instance_accuracy_detail,
+        }
+
+    def _evaluation_context(self) -> EvaluationContext:
+        return EvaluationContext(
+            cfg=self.cfg,
+            evaluation_cfg=self._get_test_evaluation_config(),
+            inference_cfg=self._get_runtime_inference_config(),
+            device=self.device,
+            enabled=self._is_test_evaluation_enabled(),
+            checkpoint_path=self._get_prediction_checkpoint_path(),
+            metrics=self._test_metric_handles(),
+            log_fn=self.log,
+            distributed_single_volume_sharding=self._is_distributed_single_volume_sharding_active(),
+        )
+
     def _save_metrics_to_file(self, metrics_dict: Dict[str, Any]):
-        save_metrics_to_file(self, metrics_dict)
+        save_metrics_to_file(self._evaluation_context(), metrics_dict)
 
     def _compute_loss(
         self,
@@ -887,7 +921,7 @@ class ConnectomicsModule(pl.LightningModule):
 
     def on_test_epoch_end(self) -> None:
         """Log aggregated test metrics after all ranks finish their assigned volumes."""
-        log_test_epoch_metrics(self)
+        log_test_epoch_metrics(self._evaluation_context())
 
     def transfer_batch_to_device(
         self, batch: Any, device: torch.device, dataloader_idx: int
