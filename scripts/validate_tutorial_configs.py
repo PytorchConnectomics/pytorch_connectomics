@@ -1,9 +1,14 @@
 #!/usr/bin/env python3
-"""Validate top-level tutorial YAML configs.
+"""Validate tutorial-tree YAML configs.
 
 Checks:
-1. Config can be loaded by the Hydra/OmegaConf loader.
+1. Canonical tutorial configs can be loaded by the Hydra/OmegaConf loader.
 2. Legacy keys that should not appear in top-level tutorials are absent.
+
+Some large-volume workflow recipes live under ``tutorials/`` but are consumed
+directly by workflow scripts instead of ``scripts/main.py --config``. These are
+identified by a custom top-level root in ``CUSTOM_WORKFLOW_ROOTS`` and reported
+separately rather than loaded through the structured Config schema.
 """
 
 from __future__ import annotations
@@ -71,11 +76,15 @@ def main() -> int:
         return 1
 
     errors: List[str] = []
+    canonical_count = 0
+    custom_workflows: List[Path] = []
     for config_path in config_paths:
         raw = _load_yaml(config_path)
         if isinstance(raw, dict) and CUSTOM_WORKFLOW_ROOTS.intersection(raw):
+            custom_workflows.append(config_path)
             continue
 
+        canonical_count += 1
         for pattern, message in LEGACY_PATTERNS:
             if _has_path(raw, pattern):
                 dotted = ".".join(pattern)
@@ -93,7 +102,14 @@ def main() -> int:
             print(f"  - {err}")
         return 1
 
-    print(f"Validated {len(config_paths)} tutorial configs successfully.")
+    print(
+        f"Validated {canonical_count} canonical tutorial configs successfully; "
+        f"skipped {len(custom_workflows)} custom workflow YAMLs."
+    )
+    if custom_workflows:
+        print("Custom workflows:")
+        for path in custom_workflows:
+            print(f"  - {path}")
     return 0
 
 
