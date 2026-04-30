@@ -81,7 +81,7 @@ def resolve_global_prediction_crop(
 ) -> tuple[tuple[int, int], tuple[int, int], tuple[int, int]]:
     user_crop = normalize_crop_pad(getattr(getattr(cfg, "inference", None), "crop_pad", None))
     affinity_mode = resolve_affinity_mode_from_cfg(cfg)
-    if affinity_mode is None:
+    if affinity_mode != "deepem":
         affinity_crop = ((0, 0), (0, 0), (0, 0))
     else:
         offsets = resolve_selected_affinity_offsets(cfg)

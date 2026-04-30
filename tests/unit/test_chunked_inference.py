@@ -7,7 +7,11 @@ import torch
 from connectomics.config import Config, validate_config
 from connectomics.data.io import write_hdf5
 from connectomics.decoding.streamed_chunked import UnionFind, _union_face_pairs
-from connectomics.inference.chunk_grid import build_chunk_grid, validate_chunked_output_format
+from connectomics.inference.chunk_grid import (
+    build_chunk_grid,
+    resolve_global_prediction_crop,
+    validate_chunked_output_format,
+)
 from connectomics.inference.chunked import run_chunked_prediction_inference
 from connectomics.inference.lazy import lazy_predict_volume
 
@@ -72,6 +76,34 @@ def test_chunked_output_contract_allows_later_decode_postprocessing():
     cfg.decoding.postprocessing.output_transpose = [2, 1, 0]
 
     validate_chunked_output_format(cfg)
+
+
+def test_global_prediction_crop_only_applies_affinity_crop_for_deepem():
+    cfg = Config()
+    cfg.inference.crop_pad = None
+    cfg.inference.select_channel = [0, 1, 2]
+    cfg.data.label_transform.targets = [
+        {
+            "name": "affinity",
+            "kwargs": {
+                "offsets": [
+                    "1-0-0",
+                    "0-1-0",
+                    "0-0-1",
+                    "10-0-0",
+                    "0-10-0",
+                    "0-0-10",
+                ],
+                "affinity_mode": "banis",
+            },
+        }
+    ]
+
+    assert resolve_global_prediction_crop(cfg) == ((0, 0), (0, 0), (0, 0))
+
+    cfg.data.label_transform.targets[0]["kwargs"]["affinity_mode"] = "deepem"
+
+    assert resolve_global_prediction_crop(cfg) == ((1, 0), (1, 0), (1, 0))
 
 
 def test_chunked_raw_prediction_matches_full_lazy_prediction(tmp_path):

@@ -126,18 +126,14 @@ default:
       enabled: true
       # Write chunked raw affinities first, then run the standard whole-volume
       # decoder on the assembled raw prediction. This is less memory efficient
-      # than output_mode=decoded, but it matches whole-volume decoding semantics.
+      # than output_mode=decoded, but it matches whole-volume decoding semantics
+      # and parallelizes across ranks (each rank handles idx % world_size chunks).
       output_mode: raw_prediction
-      # The NISB zarr is kept in XYZ order in this config, so this tiles
-      # 1024x1024 in XY and keeps the full 1350-section Z extent per chunk.
-      chunk_size: [1024, 1024, 1350]
+      # NISB volume is (3000, 3000, 1350) XYZ. 1000x1000 tiles divide evenly into
+      # 3x3=9 uniform chunks; full 1350-section Z extent per chunk.
+      chunk_size: [1000, 1000, 1350]
       halo: [0, 0, 0]
       axes: all
-      stitching:
-        method: affinity_cc_boundary_union
-        threshold: 0.7
-        edge_offset: 0
-        min_contact: 1
     test_time_augmentation:
       enabled: false
       channel_activations:
@@ -223,8 +219,8 @@ train:
 
 test:
   system:
-    # Chunked inference is a single-rank streaming path.
-    num_gpus: 1
+    # raw_prediction chunking parallelizes across ranks; decoded mode is single-rank.
+    num_gpus: -1
   data:
     test:
       path: /projects/weilab/dataset/nisb/base/train/

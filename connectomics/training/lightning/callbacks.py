@@ -108,7 +108,7 @@ def _apply_affinity_visualization_crop_if_needed(
         num_channels=num_channels,
         channel_slice=None,
     )
-    if not offsets:
+    if affinity_mode != "deepem" or not offsets:
         return image, label, pred, mask
 
     image = crop_spatial_by_offsets(
