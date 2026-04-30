@@ -84,7 +84,7 @@ class _NerlModule:
         self.cfg = Config()
         self.cfg.evaluation.enabled = True
         self.cfg.evaluation.metrics = ["nerl"]
-        self.cfg.evaluation.nerl_graph = str(graph_path)
+        self.cfg.data.test.skeleton = str(graph_path)
         self.inference_manager = _DummyInferenceManager()
         self.saved_metrics = None
 
@@ -434,7 +434,7 @@ class _SelectedBanisAffinityCroppingModule(_AffinityCroppingModule):
         ]
 
 
-def test_run_test_step_affinity_crop_uses_selected_channels(monkeypatch):
+def test_run_test_step_banis_affinity_keeps_full_shape(monkeypatch):
     module = _SelectedBanisAffinityCroppingModule()
     batch = {
         "image": torch.zeros((1, 3, 5, 5, 5), dtype=torch.float32),
@@ -477,8 +477,8 @@ def test_run_test_step_affinity_crop_uses_selected_channels(monkeypatch):
     out = run_test_step(module, batch, batch_idx=0)
 
     assert isinstance(out, torch.Tensor)
-    assert captured["predictions_shape"] == (1, 3, 4, 4, 4)
-    assert captured["label_shape"] == (1, 3, 4, 4, 4)
+    assert captured["predictions_shape"] == (1, 3, 5, 5, 5)
+    assert captured["label_shape"] == (1, 3, 5, 5, 5)
 
 
 class _AsymmetricPostprocessAffinityModule:

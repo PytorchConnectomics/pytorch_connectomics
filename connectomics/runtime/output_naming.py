@@ -214,6 +214,22 @@ def final_prediction_output_tag(
     return f"x{n}{head}{ch}{ckpt}{label}{dec}"
 
 
+def final_prediction_decoded_glob_suffix(
+    cfg: Config,
+    spatial_dims: int = 3,
+    checkpoint_path: Optional[str | Path] = None,
+    output_head: Optional[str] = None,
+) -> str:
+    """Return a glob suffix matching any decoded final prediction file for
+    the same TTA/head/channel/checkpoint combination, regardless of the
+    decoding-step kwargs portion of the filename."""
+    n = compute_tta_passes(cfg, spatial_dims=spatial_dims)
+    head = format_output_head_tag(cfg, output_head=output_head)
+    ch = format_select_channel_tag(cfg)
+    ckpt = format_checkpoint_name_tag(checkpoint_path)
+    return f"_x{n}{head}{ch}{ckpt}_decoding*.h5"
+
+
 def tta_cache_suffix(
     cfg: Config,
     spatial_dims: int = 3,
@@ -359,6 +375,7 @@ __all__ = [
     "format_decode_tag",
     "format_output_head_tag",
     "format_select_channel_tag",
+    "final_prediction_decoded_glob_suffix",
     "final_prediction_output_tag",
     "is_tta_cache_suffix",
     "resolve_prediction_cache_suffix",

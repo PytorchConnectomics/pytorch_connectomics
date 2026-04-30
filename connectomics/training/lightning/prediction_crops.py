@@ -202,6 +202,8 @@ def _resolve_affinity_inference_crop(
     affinity_mode = resolve_affinity_mode_from_cfg(cfg)
     if affinity_mode is None:
         return None
+    if affinity_mode != "deepem":
+        return None
 
     offsets = _resolve_affinity_offsets_for_inference_output(module, output_head=output_head)
     if not offsets:

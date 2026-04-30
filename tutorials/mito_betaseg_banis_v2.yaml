@@ -144,8 +144,7 @@ default:
       channel_activations:
       - {channels: "0:6", activation: sigmoid}
       - {channels: "6:7", activation: tanh}
-    # pad_size [64, 64, 64] minus affinity crop [(0, 10), (0, 10), (0, 10)]
-    crop_pad: [64, 54, 64, 54, 64, 54]
+    crop_pad: [64, 64, 64, 64, 64, 64]
     save_prediction:
       enabled: true
 
