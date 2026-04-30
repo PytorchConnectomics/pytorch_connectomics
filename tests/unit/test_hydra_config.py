@@ -875,6 +875,46 @@ decoding:
     assert cfg.decoding.steps[0].kwargs["min_instance_size"] == 7
 
 
+def test_decoding_tuning_uses_structured_schema(tmp_path):
+    config_yaml = tmp_path / "decoding_tuning.yaml"
+    config_yaml.write_text("""
+decoding:
+  tuning:
+    enabled: true
+    parameter_space:
+      decoding:
+        enabled: true
+        function_name: decode_waterz
+        parameters:
+          thresholds:
+            range: [0.1, 0.9]
+            step: 0.1
+""".strip())
+
+    cfg = load_config(config_yaml)
+
+    assert cfg.decoding.tuning is not None
+    assert cfg.decoding.tuning.enabled is True
+    decoding_space = cfg.decoding.tuning.parameter_space.decoding
+    assert decoding_space.function_name == "decode_waterz"
+    threshold_param = decoding_space.parameters["thresholds"]
+    assert threshold_param.range == [0.1, 0.9]
+    assert threshold_param.step == 0.1
+
+
+def test_decoding_tuning_rejects_unknown_nested_keys(tmp_path):
+    config_yaml = tmp_path / "bad_decoding_tuning.yaml"
+    config_yaml.write_text("""
+decoding:
+  tuning:
+    enabled: true
+    unknown_key: true
+""".strip())
+
+    with pytest.raises(Exception, match="unknown_key"):
+        load_config(config_yaml)
+
+
 def test_loss_profile_positional_overrides(tmp_path):
     """Loss profile + overrides dict patches individual list entries by index."""
     base_yaml = tmp_path / "base.yaml"
