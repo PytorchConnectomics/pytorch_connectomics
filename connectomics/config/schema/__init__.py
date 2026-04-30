@@ -36,7 +36,11 @@ from .decoding import (
     DecodeBinaryContourDistanceWatershedConfig,
     DecodeModeConfig,
     DecodingConfig,
+    DecodingTuningConfig,
+    DecodingTuningParameterSpaceConfig,
     PostprocessingConfig,
+    TuningFunctionSpaceConfig,
+    TuningParameterConfig,
 )
 from .evaluation import EvaluationConfig
 from .inference import (
@@ -133,12 +137,16 @@ __all__ = [
     "SavePredictionConfig",
     "InferenceMemoryCleanupConfig",
     "DecodingConfig",
+    "DecodingTuningConfig",
+    "DecodingTuningParameterSpaceConfig",
     "PostprocessingConfig",
     "BinaryPostprocessingConfig",
     "ConnectedComponentsConfig",
     "EvaluationConfig",
     "DecodeModeConfig",
     "DecodeBinaryContourDistanceWatershedConfig",
+    "TuningFunctionSpaceConfig",
+    "TuningParameterConfig",
     # Test configuration
     "TestConfig",
     # Tuning configuration

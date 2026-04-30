@@ -57,6 +57,48 @@ class DecodeModeConfig:
 
 
 @dataclass
+class TuningParameterConfig:
+    """Single tunable decoding/postprocessing parameter."""
+
+    type: str = "float"
+    range: List[Any] = field(default_factory=list)
+    choices: List[Any] = field(default_factory=list)
+    step: Optional[float] = None
+    log: bool = False
+    param_group: Optional[str] = None
+    tuple_index: Optional[int] = None
+    description: Optional[str] = None
+
+
+@dataclass
+class TuningFunctionSpaceConfig:
+    """Search space for one decoding or postprocessing function."""
+
+    enabled: bool = False
+    function_name: str = ""
+    defaults: Dict[str, Any] = field(default_factory=dict)
+    parameters: Dict[str, TuningParameterConfig] = field(default_factory=dict)
+
+
+@dataclass
+class DecodingTuningParameterSpaceConfig:
+    """Parameter spaces attached to a decoding pipeline."""
+
+    decoding: TuningFunctionSpaceConfig = field(default_factory=TuningFunctionSpaceConfig)
+    postprocessing: TuningFunctionSpaceConfig = field(default_factory=TuningFunctionSpaceConfig)
+
+
+@dataclass
+class DecodingTuningConfig:
+    """Structured tuning metadata for decoded-output workflows."""
+
+    enabled: bool = False
+    parameter_space: DecodingTuningParameterSpaceConfig = field(
+        default_factory=DecodingTuningParameterSpaceConfig
+    )
+
+
+@dataclass
 class DecodingConfig:
     """Decoded-output orchestration configuration."""
 
@@ -64,4 +106,4 @@ class DecodingConfig:
     postprocessing: PostprocessingConfig = field(default_factory=PostprocessingConfig)
     output_path: str = ""
     input_prediction_path: str = ""
-    tuning: Optional[Dict[str, Any]] = None
+    tuning: Optional[DecodingTuningConfig] = None
