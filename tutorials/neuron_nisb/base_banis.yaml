@@ -140,9 +140,8 @@ default:
         edge_offset: 0
 
   evaluation:
-    enabled: false
-    metrics:
-    - nerl
+    enabled: true
+    metrics: [nerl]
 
 train:
   optimization:
@@ -215,3 +214,4 @@ test:
       image: seed0/data.zarr/img
       label: seed0/data.zarr/seg
       resolution: [9, 9, 20]
+      skeleton: /projects/weilab/dataset/nisb/base/train/seed0/skeleton.pkl

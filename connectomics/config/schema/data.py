@@ -227,6 +227,11 @@ class DataInputConfig:
     # Voxel resolution (physical dimensions in nm)
     resolution: Optional[List[float]] = None  # Data resolution [z, y, x] in nm
 
+    # Skeleton ground-truth for NERL evaluation. str path (.pkl skeleton or
+    # .npz ERLGraph), per-volume dict {volume_name: path}, or None.
+    skeleton: Any = None
+    skeleton_mask: Any = None
+
 
 @dataclass
 class FlipConfig:
