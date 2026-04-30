@@ -13,60 +13,37 @@ import torchmetrics
 
 from ..decoding.experiment_log import log_decode_experiment
 from ..runtime.output_naming import final_prediction_output_tag
+from .context import EvaluationContext
 from .metrics import (
     align_metric_tensors,
     compute_binary_metrics,
     compute_instance_metrics,
     is_instance_segmentation,
 )
-from .nerl import compute_nerl_metrics, get_effective_evaluation_config, module_cfg_value
+from .nerl import compute_nerl_metrics
 
 logger = logging.getLogger(__name__)
 
 
-def configured_evaluation_metrics(module) -> set[str]:
-    evaluation_cfg = get_effective_evaluation_config(module)
-    metrics = module_cfg_value(module, evaluation_cfg, "metrics", None)
-    if metrics is None:
-        return set()
-    if isinstance(metrics, str):
-        return {metrics.lower()}
-    return {str(metric).lower() for metric in metrics}
+def configured_evaluation_metrics(context: EvaluationContext) -> set[str]:
+    return context.requested_metrics
 
 
-def evaluation_metric_requested(module, metric_name: str) -> bool:
-    return metric_name.lower() in configured_evaluation_metrics(module)
+def evaluation_metric_requested(context: EvaluationContext, metric_name: str) -> bool:
+    return context.metric_requested(metric_name)
 
 
-def is_test_evaluation_enabled(module) -> bool:
-    if hasattr(module, "_is_test_evaluation_enabled"):
-        return bool(module._is_test_evaluation_enabled())
-    evaluation_cfg = get_effective_evaluation_config(module)
-    return bool(module_cfg_value(module, evaluation_cfg, "enabled", False))
+def is_test_evaluation_enabled(context: EvaluationContext) -> bool:
+    return context.is_enabled
 
 
-def _prediction_checkpoint_path(module) -> str | Path | None:
-    if hasattr(module, "_get_prediction_checkpoint_path"):
-        return module._get_prediction_checkpoint_path()
-    return getattr(module, "_prediction_checkpoint_path", None)
-
-
-def _runtime_output_path(module) -> str | None:
-    if hasattr(module, "_get_runtime_inference_config"):
-        inference_cfg = module._get_runtime_inference_config()
-    else:
-        inference_cfg = getattr(getattr(module, "cfg", None), "inference", None)
-    save_prediction_cfg = getattr(inference_cfg, "save_prediction", None)
-    return getattr(save_prediction_cfg, "output_path", None)
-
-
-def save_metrics_to_file(module, metrics_dict: Dict[str, Any]) -> None:
+def save_metrics_to_file(context: EvaluationContext, metrics_dict: Dict[str, Any]) -> None:
     """Save per-volume evaluation metrics in the configured test output directory."""
     metric_keys = [k for k in metrics_dict.keys() if k != "volume_name"]
     if not metric_keys:
         return
 
-    output_path = _runtime_output_path(module)
+    output_path = context.resolved_output_path()
     if output_path is None:
         logger.warning("Cannot save metrics: output_path not found for mode=test")
         return
@@ -77,8 +54,8 @@ def save_metrics_to_file(module, metrics_dict: Dict[str, Any]) -> None:
     volume_name = metrics_dict.get("volume_name", "unknown")
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     tag = final_prediction_output_tag(
-        module.cfg,
-        checkpoint_path=_prediction_checkpoint_path(module),
+        context.cfg,
+        checkpoint_path=context.checkpoint_path,
     )
     metrics_file = output_dir / f"evaluation_metrics_{volume_name}_{tag}.txt"
 
@@ -183,42 +160,38 @@ def save_metrics_to_file(module, metrics_dict: Dict[str, Any]) -> None:
         logger.warning("Failed to save metrics to file: %s", exc)
 
     log_decode_experiment(
-        cfg=module.cfg,
+        cfg=context.cfg,
         output_dir=output_dir,
         volume_name=volume_name,
         timestamp=timestamp,
         metrics_dict=metrics_dict,
-        checkpoint_path=_prediction_checkpoint_path(module),
+        checkpoint_path=context.checkpoint_path,
     )
 
 
-def _persist_metrics(module, metrics_dict: Dict[str, Any]) -> None:
-    if hasattr(module, "save_metrics_to_file"):
-        module.save_metrics_to_file(metrics_dict)
+def _persist_metrics(context: EvaluationContext, metrics_dict: Dict[str, Any]) -> None:
+    if context.persist_metrics(metrics_dict):
         return
-    if hasattr(module, "_save_metrics_to_file"):
-        module._save_metrics_to_file(metrics_dict)
-        return
-    save_metrics_to_file(module, metrics_dict)
+    save_metrics_to_file(context, metrics_dict)
 
 
 def compute_test_metrics(
-    module,
+    context: EvaluationContext,
     decoded_predictions: np.ndarray,
     labels: Optional[torch.Tensor],
     volume_name: str | None = None,
 ) -> None:
     """Update configured metrics and save per-volume evaluation summaries."""
-    if not is_test_evaluation_enabled(module):
+    if not is_test_evaluation_enabled(context):
         return
 
     volume_prefix = f"[{volume_name}] " if volume_name else ""
     metrics_dict: Dict[str, Any] = {"volume_name": volume_name if volume_name else "unknown"}
-    requested_metrics = configured_evaluation_metrics(module)
+    requested_metrics = configured_evaluation_metrics(context)
 
     if "nerl" in requested_metrics:
         compute_nerl_metrics(
-            module,
+            context,
             decoded_predictions,
             volume_prefix,
             metrics_dict,
@@ -226,27 +199,26 @@ def compute_test_metrics(
         )
 
     if labels is None:
-        _persist_metrics(module, metrics_dict)
+        _persist_metrics(context, metrics_dict)
         return
 
-    pred_tensor = torch.from_numpy(decoded_predictions).float().to(module.device)
-    labels_tensor = labels.float().to(pred_tensor.device)
+    pred_tensor = torch.from_numpy(decoded_predictions)
+    labels_tensor = labels.detach().cpu() if labels.is_cuda else labels.detach()
     pred_tensor, labels_tensor = align_metric_tensors(pred_tensor, labels_tensor)
     if pred_tensor is None or labels_tensor is None:
-        _persist_metrics(module, metrics_dict)
+        _persist_metrics(context, metrics_dict)
         return
 
-    evaluation_cfg = get_effective_evaluation_config(module)
     prediction_threshold = float(
-        module_cfg_value(module, evaluation_cfg, "prediction_threshold", 0.5)
+        context.cfg_value(context.evaluation_cfg, "prediction_threshold", 0.5)
     )
     instance_iou_threshold = float(
-        module_cfg_value(module, evaluation_cfg, "instance_iou_threshold", 0.5)
+        context.cfg_value(context.evaluation_cfg, "instance_iou_threshold", 0.5)
     )
 
     if is_instance_segmentation(pred_tensor):
         compute_instance_metrics(
-            module,
+            context,
             pred_tensor,
             labels_tensor,
             volume_prefix,
@@ -255,7 +227,7 @@ def compute_test_metrics(
         )
     else:
         compute_binary_metrics(
-            module,
+            context,
             pred_tensor,
             labels_tensor,
             volume_prefix,
@@ -263,49 +235,25 @@ def compute_test_metrics(
             prediction_threshold,
         )
 
-    _persist_metrics(module, metrics_dict)
+    _persist_metrics(context, metrics_dict)
 
 
-def _is_distributed_tta_sharding_active(module) -> bool:
-    inference_manager = getattr(module, "inference_manager", None)
-    if inference_manager is None:
-        return False
-    return bool(inference_manager.is_distributed_tta_sharding_enabled())
-
-
-def _is_distributed_window_sharding_active(module) -> bool:
-    inference_manager = getattr(module, "inference_manager", None)
-    if inference_manager is None:
-        return False
-    if not hasattr(inference_manager, "is_distributed_window_sharding_enabled"):
-        return False
-    return bool(inference_manager.is_distributed_window_sharding_enabled())
-
-
-def _is_distributed_single_volume_sharding_active(module) -> bool:
-    return _is_distributed_tta_sharding_active(module) or _is_distributed_window_sharding_active(
-        module
-    )
-
-
-def log_test_epoch_metrics(module) -> None:
+def log_test_epoch_metrics(context: EvaluationContext) -> None:
     """Log aggregated test metrics once after all ranks finish processing."""
-    if not is_test_evaluation_enabled(module):
+    if not is_test_evaluation_enabled(context):
         return
 
     is_dist = torch.distributed.is_available() and torch.distributed.is_initialized()
     rank = torch.distributed.get_rank() if is_dist else 0
-    distributed_single_volume_sharding = _is_distributed_single_volume_sharding_active(module)
-    if distributed_single_volume_sharding and rank != 0:
+    if context.distributed_single_volume_sharding and rank != 0:
         return
-    sync_dist = not distributed_single_volume_sharding
+    sync_dist = not context.distributed_single_volume_sharding
 
-    if hasattr(module, "test_adapted_rand") and isinstance(
-        module.test_adapted_rand, torchmetrics.Metric
-    ):
-        epoch_stats = module.test_adapted_rand.compute()
+    adapted_rand_metric = context.metric("adapted_rand")
+    if isinstance(adapted_rand_metric, torchmetrics.Metric):
+        epoch_stats = adapted_rand_metric.compute()
         if isinstance(epoch_stats, dict):
-            module.log(
+            context.log_metric(
                 "test_adapted_rand",
                 epoch_stats["adapted_rand_error"],
                 on_step=False,
@@ -314,7 +262,7 @@ def log_test_epoch_metrics(module) -> None:
                 logger=True,
                 sync_dist=sync_dist,
             )
-            module.log(
+            context.log_metric(
                 "test_adapted_rand_precision",
                 epoch_stats["adapted_rand_precision"],
                 on_step=False,
@@ -323,7 +271,7 @@ def log_test_epoch_metrics(module) -> None:
                 logger=True,
                 sync_dist=sync_dist,
             )
-            module.log(
+            context.log_metric(
                 "test_adapted_rand_recall",
                 epoch_stats["adapted_rand_recall"],
                 on_step=False,
@@ -333,7 +281,7 @@ def log_test_epoch_metrics(module) -> None:
                 sync_dist=sync_dist,
             )
         else:
-            module.log(
+            context.log_metric(
                 "test_adapted_rand",
                 epoch_stats,
                 on_step=False,
@@ -343,28 +291,29 @@ def log_test_epoch_metrics(module) -> None:
                 sync_dist=sync_dist,
             )
 
-    if hasattr(module, "test_voi") and isinstance(module.test_voi, torchmetrics.Metric):
-        module.log(
+    voi_metric = context.metric("voi")
+    if isinstance(voi_metric, torchmetrics.Metric):
+        context.log_metric(
             "test_voi",
-            module.test_voi,
+            voi_metric,
             on_step=False,
             on_epoch=True,
             prog_bar=True,
             logger=True,
             sync_dist=sync_dist,
         )
-        module.log(
+        context.log_metric(
             "test_voi_split",
-            module.test_voi.compute_split(),
+            voi_metric.compute_split(),
             on_step=False,
             on_epoch=True,
             prog_bar=False,
             logger=True,
             sync_dist=sync_dist,
         )
-        module.log(
+        context.log_metric(
             "test_voi_merge",
-            module.test_voi.compute_merge(),
+            voi_metric.compute_merge(),
             on_step=False,
             on_epoch=True,
             prog_bar=False,
@@ -372,12 +321,11 @@ def log_test_epoch_metrics(module) -> None:
             sync_dist=sync_dist,
         )
 
-    if hasattr(module, "test_instance_accuracy") and isinstance(
-        module.test_instance_accuracy, torchmetrics.Metric
-    ):
-        module.log(
+    instance_accuracy_metric = context.metric("instance_accuracy")
+    if isinstance(instance_accuracy_metric, torchmetrics.Metric):
+        context.log_metric(
             "test_instance_accuracy",
-            module.test_instance_accuracy,
+            instance_accuracy_metric,
             on_step=False,
             on_epoch=True,
             prog_bar=True,
@@ -385,39 +333,38 @@ def log_test_epoch_metrics(module) -> None:
             sync_dist=sync_dist,
         )
 
-    if hasattr(module, "test_instance_accuracy_detail") and isinstance(
-        module.test_instance_accuracy_detail, torchmetrics.Metric
-    ):
-        module.log(
+    instance_accuracy_detail_metric = context.metric("instance_accuracy_detail")
+    if isinstance(instance_accuracy_detail_metric, torchmetrics.Metric):
+        context.log_metric(
             "test_instance_accuracy_detail",
-            module.test_instance_accuracy_detail,
+            instance_accuracy_detail_metric,
             on_step=False,
             on_epoch=True,
             prog_bar=True,
             logger=True,
             sync_dist=sync_dist,
         )
-        module.log(
+        context.log_metric(
             "test_instance_precision_detail",
-            module.test_instance_accuracy_detail.compute_precision(),
+            instance_accuracy_detail_metric.compute_precision(),
             on_step=False,
             on_epoch=True,
             prog_bar=False,
             logger=True,
             sync_dist=sync_dist,
         )
-        module.log(
+        context.log_metric(
             "test_instance_recall_detail",
-            module.test_instance_accuracy_detail.compute_recall(),
+            instance_accuracy_detail_metric.compute_recall(),
             on_step=False,
             on_epoch=True,
             prog_bar=False,
             logger=True,
             sync_dist=sync_dist,
         )
-        module.log(
+        context.log_metric(
             "test_instance_f1_detail",
-            module.test_instance_accuracy_detail.compute_f1(),
+            instance_accuracy_detail_metric.compute_f1(),
             on_step=False,
             on_epoch=True,
             prog_bar=False,
@@ -425,10 +372,11 @@ def log_test_epoch_metrics(module) -> None:
             sync_dist=sync_dist,
         )
 
-    if hasattr(module, "test_jaccard") and module.test_jaccard is not None:
-        module.log(
+    jaccard_metric = context.metric("jaccard")
+    if jaccard_metric is not None:
+        context.log_metric(
             "test_jaccard",
-            module.test_jaccard,
+            jaccard_metric,
             on_step=False,
             on_epoch=True,
             prog_bar=True,
@@ -436,10 +384,11 @@ def log_test_epoch_metrics(module) -> None:
             sync_dist=sync_dist,
         )
 
-    if hasattr(module, "test_dice") and module.test_dice is not None:
-        module.log(
+    dice_metric = context.metric("dice")
+    if dice_metric is not None:
+        context.log_metric(
             "test_dice",
-            module.test_dice,
+            dice_metric,
             on_step=False,
             on_epoch=True,
             prog_bar=True,
@@ -447,10 +396,11 @@ def log_test_epoch_metrics(module) -> None:
             sync_dist=sync_dist,
         )
 
-    if hasattr(module, "test_accuracy") and module.test_accuracy is not None:
-        module.log(
+    accuracy_metric = context.metric("accuracy")
+    if accuracy_metric is not None:
+        context.log_metric(
             "test_accuracy",
-            module.test_accuracy,
+            accuracy_metric,
             on_step=False,
             on_epoch=True,
             prog_bar=True,

@@ -8,22 +8,14 @@ from typing import Any, Dict
 
 import numpy as np
 
+from ..config.pipeline.dict_utils import cfg_get
+from .context import EvaluationContext
+
 logger = logging.getLogger(__name__)
 
 
-def module_cfg_value(module, cfg: Any, name: str, default: Any = None) -> Any:
-    if cfg is None:
-        return default
-    if hasattr(module, "_cfg_value"):
-        return module._cfg_value(cfg, name, default)
-    return getattr(cfg, name, default)
-
-
-def get_effective_evaluation_config(module) -> Any:
-    evaluation_cfg = module._get_test_evaluation_config()
-    if evaluation_cfg is not None:
-        return evaluation_cfg
-    return getattr(getattr(module, "cfg", None), "evaluation", None)
+def cfg_value(cfg: Any, name: str, default: Any = None) -> Any:
+    return cfg_get(cfg, name, default)
 
 
 def select_volume_config_value(value: Any, volume_name: str | None) -> Any:
@@ -78,30 +70,26 @@ def reorder_coordinate_axes(
     return np.asarray(coords)[:, axis_indices]
 
 
-def networkx_skeleton_to_erl_graph(skeleton: Any, evaluation_cfg: Any, module: Any):
+def networkx_skeleton_to_erl_graph(skeleton: Any, evaluation_cfg: Any):
     ERLGraph, _, _ = import_em_erl()
 
-    id_attr = module_cfg_value(module, evaluation_cfg, "nerl_skeleton_id_attribute", "id")
-    pos_attr = module_cfg_value(
-        module,
+    id_attr = cfg_value(evaluation_cfg, "nerl_skeleton_id_attribute", "id")
+    pos_attr = cfg_value(
         evaluation_cfg,
         "nerl_skeleton_position_attribute",
         "index_position",
     )
-    edge_len_attr = module_cfg_value(
-        module,
+    edge_len_attr = cfg_value(
         evaluation_cfg,
         "nerl_skeleton_edge_length_attribute",
         "edge_length",
     )
-    source_order = module_cfg_value(
-        module,
+    source_order = cfg_value(
         evaluation_cfg,
         "nerl_skeleton_position_order",
         "xyz",
     )
-    target_order = module_cfg_value(
-        module,
+    target_order = cfg_value(
         evaluation_cfg,
         "nerl_prediction_position_order",
         None,
@@ -171,7 +159,42 @@ def networkx_skeleton_to_erl_graph(skeleton: Any, evaluation_cfg: Any, module: A
     )
 
 
-def load_nerl_graph(graph_source: Any, evaluation_cfg: Any, module: Any):
+_ERL_CACHE_FIELDS = (
+    "skeleton_id",
+    "skeleton_len",
+    "node_skeleton_index",
+    "node_coords_zyx",
+    "edge_u",
+    "edge_v",
+    "edge_len",
+    "edge_ptr",
+)
+
+
+def _erl_cache_path(source: Path) -> Path:
+    return source.with_suffix(source.suffix + ".erl_cache.npz")
+
+
+def _save_erl_cache(graph: Any, voxel_coords: bool, cache_path: Path) -> None:
+    try:
+        np.savez_compressed(
+            cache_path,
+            voxel_coords=np.asarray(int(voxel_coords)),
+            **{name: getattr(graph, name) for name in _ERL_CACHE_FIELDS},
+        )
+    except OSError as exc:
+        logger.warning("Failed to write ERLGraph cache %s: %s", cache_path, exc)
+
+
+def _load_erl_cache(cache_path: Path) -> tuple[Any, bool]:
+    ERLGraph, _, _ = import_em_erl()
+    data = np.load(cache_path, allow_pickle=False)
+    voxel_coords = bool(int(np.asarray(data["voxel_coords"]).item()))
+    graph = ERLGraph(**{name: data[name] for name in _ERL_CACHE_FIELDS})
+    return graph, voxel_coords
+
+
+def load_nerl_graph(graph_source: Any, evaluation_cfg: Any):
     ERLGraph, _, _ = import_em_erl()
     if isinstance(graph_source, ERLGraph):
         return graph_source, False
@@ -183,24 +206,38 @@ def load_nerl_graph(graph_source: Any, evaluation_cfg: Any, module: Any):
     if suffix == ".npz":
         return ERLGraph.from_npz(graph_path), False
     if suffix in {".pkl", ".pickle"}:
+        cache_path = _erl_cache_path(graph_path)
+        if cache_path.exists() and cache_path.stat().st_mtime >= graph_path.stat().st_mtime:
+            try:
+                return _load_erl_cache(cache_path)
+            except (KeyError, OSError, ValueError) as exc:
+                logger.warning("Ignoring corrupt ERLGraph cache %s: %s", cache_path, exc)
+
         import pickle
 
         with open(graph_path, "rb") as f:
             skeleton = pickle.load(f)
-        return networkx_skeleton_to_erl_graph(skeleton, evaluation_cfg, module), True
+        graph = networkx_skeleton_to_erl_graph(skeleton, evaluation_cfg)
+        _save_erl_cache(graph, True, cache_path)
+        return graph, True
     raise ValueError(
-        "evaluation.nerl_graph must be an ERLGraph .npz or "
+        "data.test.skeleton must be an ERLGraph .npz or "
         f"NetworkX skeleton pickle, got {graph_path}"
     )
 
 
-def nerl_node_positions(module, graph: Any, voxel_coords: bool, evaluation_cfg: Any) -> np.ndarray:
+def nerl_node_positions(
+    context: EvaluationContext,
+    graph: Any,
+    voxel_coords: bool,
+    evaluation_cfg: Any,
+) -> np.ndarray:
     if voxel_coords:
         return np.asarray(graph.node_coords_zyx, dtype=np.int64)
 
-    resolution = module_cfg_value(module, evaluation_cfg, "nerl_resolution", None)
+    resolution = cfg_value(evaluation_cfg, "nerl_resolution", None)
     if resolution is None:
-        data_cfg = getattr(getattr(module, "cfg", None), "data", None)
+        data_cfg = getattr(context.cfg, "data", None)
         test_cfg = getattr(data_cfg, "test", None)
         resolution = getattr(test_cfg, "resolution", None)
     return graph.get_nodes_position(resolution)
@@ -271,36 +308,37 @@ def extract_nerl_score_outputs(score: Any) -> tuple[float, float, int, np.ndarra
 
 
 def compute_nerl_metrics(
-    module,
+    context: EvaluationContext,
     decoded_predictions: np.ndarray,
     volume_prefix: str,
     metrics_dict: Dict[str, Any],
     volume_name: str | None,
 ) -> None:
-    evaluation_cfg = get_effective_evaluation_config(module)
+    evaluation_cfg = context.evaluation_cfg
+    test_data_cfg = getattr(getattr(context.cfg, "data", None), "test", None)
     graph_value = select_volume_config_value(
-        module_cfg_value(module, evaluation_cfg, "nerl_graph", None),
+        getattr(test_data_cfg, "skeleton", None),
         volume_name,
     )
     if graph_value is None:
         logger.warning(
-            "%sSkipping NERL: set evaluation.nerl_graph to an "
+            "%sSkipping NERL: set data.test.skeleton to an "
             "ERLGraph .npz or BANIS/NISB skeleton.pkl",
             volume_prefix,
         )
         return
 
     mask_value = select_volume_config_value(
-        module_cfg_value(module, evaluation_cfg, "nerl_mask", None),
+        getattr(test_data_cfg, "skeleton_mask", None),
         volume_name,
     )
     _, compute_erl_score, compute_segment_lut = import_em_erl()
-    erl_graph, voxel_coords = load_nerl_graph(graph_value, evaluation_cfg, module)
-    node_positions = nerl_node_positions(module, erl_graph, voxel_coords, evaluation_cfg)
+    erl_graph, voxel_coords = load_nerl_graph(graph_value, evaluation_cfg)
+    node_positions = nerl_node_positions(context, erl_graph, voxel_coords, evaluation_cfg)
     segment = prepare_nerl_segmentation(decoded_predictions)
 
-    merge_threshold = int(module_cfg_value(module, evaluation_cfg, "nerl_merge_threshold", 1))
-    chunk_num = int(module_cfg_value(module, evaluation_cfg, "nerl_chunk_num", 1))
+    merge_threshold = int(cfg_value(evaluation_cfg, "nerl_merge_threshold", 1))
+    chunk_num = int(cfg_value(evaluation_cfg, "nerl_chunk_num", 1))
     node_segment_lut, mask_segment_id = compute_segment_lut(
         segment,
         node_positions,
@@ -335,27 +373,25 @@ def compute_nerl_metrics(
     metrics_dict["nerl_gt_segment_ids"] = np.asarray(erl_graph.skeleton_id)
     metrics_dict["nerl_per_gt_erl"] = per_gt_erl
 
-    if hasattr(module, "log"):
-        try:
-            module.log(
-                "test_nerl",
-                nerl,
-                on_step=False,
-                on_epoch=True,
-                prog_bar=True,
-                logger=True,
-            )
-        except Exception as exc:  # pragma: no cover
-            logger.debug("Failed to log test_nerl metric: %s", exc)
+    try:
+        context.log_metric(
+            "test_nerl",
+            nerl,
+            on_step=False,
+            on_epoch=True,
+            prog_bar=True,
+            logger=True,
+        )
+    except Exception as exc:  # pragma: no cover
+        logger.debug("Failed to log test_nerl metric: %s", exc)
 
 
 __all__ = [
     "compute_nerl_metrics",
     "extract_nerl_score_outputs",
-    "get_effective_evaluation_config",
+    "cfg_value",
     "import_em_erl",
     "load_nerl_graph",
-    "module_cfg_value",
     "networkx_skeleton_to_erl_graph",
     "nerl_node_positions",
     "prepare_nerl_segmentation",

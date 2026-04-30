@@ -16,7 +16,7 @@ from pytorch_lightning.utilities.types import STEP_OUTPUT
 
 from ...decoding import run_decoding_stage
 from ...decoding.streamed_chunked import run_chunked_affinity_cc_inference
-from ...evaluation import evaluation_metric_requested, run_evaluation_stage
+from ...evaluation import EvaluationContext, evaluation_metric_requested, run_evaluation_stage
 from ...inference import (
     apply_prediction_transform,
     is_chunked_inference_enabled,
@@ -45,6 +45,39 @@ from .prediction_crops import (
 )
 
 logger = logging.getLogger(__name__)
+
+
+def _test_metric_handles(module) -> dict[str, Any]:
+    return {
+        "jaccard": getattr(module, "test_jaccard", None),
+        "dice": getattr(module, "test_dice", None),
+        "accuracy": getattr(module, "test_accuracy", None),
+        "adapted_rand": getattr(module, "test_adapted_rand", None),
+        "voi": getattr(module, "test_voi", None),
+        "instance_accuracy": getattr(module, "test_instance_accuracy", None),
+        "instance_accuracy_detail": getattr(module, "test_instance_accuracy_detail", None),
+    }
+
+
+def _prediction_checkpoint_path(module) -> str | None:
+    resolver = getattr(module, "_get_prediction_checkpoint_path", None)
+    if resolver is None:
+        return None
+    return resolver()
+
+
+def _evaluation_context_from_module(module) -> EvaluationContext:
+    return EvaluationContext(
+        cfg=module.cfg,
+        evaluation_cfg=module._get_test_evaluation_config(),
+        inference_cfg=module._get_runtime_inference_config(),
+        device=module.device,
+        enabled=module._is_test_evaluation_enabled(),
+        checkpoint_path=_prediction_checkpoint_path(module),
+        metrics=_test_metric_handles(module),
+        log_fn=getattr(module, "log", None),
+        distributed_single_volume_sharding=_is_distributed_single_volume_sharding_active(module),
+    )
 
 
 @dataclass
@@ -323,13 +356,17 @@ def _evaluate_decoded_predictions(
     filenames: list[str],
     batch_idx: int,
 ) -> None:
-    evaluation_enabled = module._is_test_evaluation_enabled()
-    nerl_requested = evaluation_enabled and evaluation_metric_requested(module, "nerl")
+    evaluation_context = _evaluation_context_from_module(module)
+    evaluation_enabled = evaluation_context.is_enabled
+    nerl_requested = evaluation_enabled and evaluation_metric_requested(
+        evaluation_context,
+        "nerl",
+    )
 
     if evaluation_enabled and (labels is not None or nerl_requested):
         logger.info("[STAGE: Computing Evaluation Metrics]")
         result = run_evaluation_stage(
-            module,
+            evaluation_context,
             decoded_predictions,
             labels,
             filenames=filenames,
@@ -686,7 +723,7 @@ def run_test_step(module, batch: Dict[str, torch.Tensor], batch_idx: int) -> STE
 
             decode_after = bool(getattr(module.cfg.inference, "decode_after_inference", True))
             if not decode_after:
-                if module._is_test_evaluation_enabled():
+                if _evaluation_context_from_module(module).is_enabled:
                     logger.warning(
                         "Skipping evaluation because decode_after_inference=false produced "
                         "only raw predictions."
@@ -757,7 +794,7 @@ def run_test_step(module, batch: Dict[str, torch.Tensor], batch_idx: int) -> STE
                 inference_duration,
             )
             _cleanup_inference_memory(module, "chunked inference decoding", release_model=True)
-            if module._is_test_evaluation_enabled():
+            if _evaluation_context_from_module(module).is_enabled:
                 logger.warning(
                     "Skipping evaluation for chunked inference; streaming metrics are not "
                     "implemented and loading the full label defeats this mode's memory goal."

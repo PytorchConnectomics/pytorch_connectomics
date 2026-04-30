@@ -7,7 +7,7 @@ import pytest
 import torch
 
 from connectomics.config import Config
-from connectomics.evaluation import compute_test_metrics
+from connectomics.evaluation import EvaluationContext, compute_test_metrics, run_evaluation_stage
 from connectomics.evaluation.nerl import import_em_erl
 from connectomics.inference.output import resolve_output_filenames
 from connectomics.training.lightning.test_pipeline import (
@@ -110,6 +110,46 @@ class _NerlModule:
         return None
 
 
+def _evaluation_context(module, *, metrics_sink=None):
+    return EvaluationContext(
+        cfg=module.cfg,
+        evaluation_cfg=module._get_test_evaluation_config(),
+        inference_cfg=module._get_runtime_inference_config(),
+        device=module.device,
+        enabled=module._is_test_evaluation_enabled(),
+        metrics_sink=metrics_sink,
+        log_fn=getattr(module, "log", None),
+    )
+
+
+def test_run_evaluation_stage_accepts_plain_context_and_arrays():
+    cfg = Config()
+    cfg.evaluation.enabled = True
+    cfg.evaluation.metrics = ["accuracy"]
+    saved_metrics = []
+    context = EvaluationContext(
+        cfg=cfg,
+        evaluation_cfg=cfg.evaluation,
+        inference_cfg=cfg.inference,
+        enabled=True,
+        metrics_sink=lambda metrics: saved_metrics.append(dict(metrics)),
+    )
+    decoded = np.array([[[1.0, 0.0], [0.0, 1.0]]], dtype=np.float32)
+    labels = torch.tensor([[[1.0, 0.0], [0.0, 1.0]]])
+
+    result = run_evaluation_stage(
+        context,
+        decoded,
+        labels,
+        filenames=["plain"],
+        batch_idx=0,
+    )
+
+    assert result.computed is True
+    assert saved_metrics[0]["volume_name"] == "plain"
+    assert saved_metrics[0]["accuracy"] == 1.0
+
+
 def test_compute_test_metrics_supports_nerl_without_dense_labels(tmp_path):
     ERLGraph, _, _ = import_em_erl()
     graph_path = tmp_path / "gt_graph.npz"
@@ -138,7 +178,12 @@ def test_compute_test_metrics_supports_nerl_without_dense_labels(tmp_path):
     decoded[0, 0, :] = 1
     decoded[0, 1, :] = 2
 
-    compute_test_metrics(module, decoded, labels=None, volume_name="sample")
+    compute_test_metrics(
+        _evaluation_context(module, metrics_sink=module._save_metrics_to_file),
+        decoded,
+        labels=None,
+        volume_name="sample",
+    )
 
     assert module.saved_metrics is not None
     assert module.saved_metrics["volume_name"] == "sample"
@@ -177,7 +222,12 @@ def test_compute_test_metrics_supports_banis_skeleton_pickle(tmp_path):
     decoded[0, 0, :] = 1
     decoded[0, 1, :] = 2
 
-    compute_test_metrics(module, decoded, labels=None, volume_name="sample")
+    compute_test_metrics(
+        _evaluation_context(module, metrics_sink=module._save_metrics_to_file),
+        decoded,
+        labels=None,
+        volume_name="sample",
+    )
 
     assert module.saved_metrics is not None
     assert module.saved_metrics["nerl"] == 1.0
