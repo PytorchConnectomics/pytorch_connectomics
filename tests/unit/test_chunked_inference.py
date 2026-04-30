@@ -7,11 +7,8 @@ import torch
 from connectomics.config import Config, validate_config
 from connectomics.data.io import write_hdf5
 from connectomics.decoding.streamed_chunked import UnionFind, _union_face_pairs
-from connectomics.inference.chunked import (
-    _build_chunk_grid,
-    _validate_chunked_output_contract,
-    run_chunked_prediction_inference,
-)
+from connectomics.inference.chunk_grid import build_chunk_grid, validate_chunked_output_format
+from connectomics.inference.chunked import run_chunked_prediction_inference
 from connectomics.inference.lazy import lazy_predict_volume
 
 
@@ -19,8 +16,8 @@ def _patch_mean_forward(x: torch.Tensor) -> torch.Tensor:
     return x + x.mean(dim=(2, 3, 4), keepdim=True)
 
 
-def test_build_chunk_grid_covers_volume_without_overlap():
-    chunks = _build_chunk_grid((5, 7, 9), (2, 3, 4))
+def test_public_chunk_grid_covers_volume_without_overlap():
+    chunks = build_chunk_grid((5, 7, 9), (2, 3, 4))
 
     coverage = np.zeros((5, 7, 9), dtype=np.uint8)
     for chunk in chunks:
@@ -74,7 +71,7 @@ def test_chunked_output_contract_allows_later_decode_postprocessing():
     cfg.decoding.postprocessing.enabled = True
     cfg.decoding.postprocessing.output_transpose = [2, 1, 0]
 
-    _validate_chunked_output_contract(cfg)
+    validate_chunked_output_format(cfg)
 
 
 def test_chunked_raw_prediction_matches_full_lazy_prediction(tmp_path):

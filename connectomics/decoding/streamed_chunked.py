@@ -10,13 +10,13 @@ from typing import Any, Sequence
 import numpy as np
 import torch
 
-from ..inference.chunked import (
-    _build_chunk_grid,
-    _resolve_chunk_output_mode,
-    _resolve_chunk_shape,
-    _resolve_global_prediction_crop,
-    _resolve_h5_spatial_chunks,
-    _validate_chunked_output_contract,
+from ..inference.chunk_grid import (
+    build_chunk_grid,
+    resolve_chunk_output_mode,
+    resolve_chunk_shape,
+    resolve_global_prediction_crop,
+    resolve_h5_spatial_chunks,
+    validate_chunked_output_format,
 )
 from ..inference.lazy import get_lazy_image_reference_shape, lazy_predict_region
 from ..inference.output import apply_prediction_transform
@@ -163,8 +163,8 @@ def run_chunked_affinity_cc_inference(
     requested_head: str | None = None,
 ) -> Path:
     """Run chunked lazy inference, decode chunks, stitch boundaries, and write HDF5."""
-    _validate_chunked_output_contract(cfg)
-    output_mode = _resolve_chunk_output_mode(cfg)
+    validate_chunked_output_format(cfg)
+    output_mode = resolve_chunk_output_mode(cfg)
     if output_mode != "decoded":
         raise ValueError(
             "run_chunked_affinity_cc_inference requires "
@@ -192,7 +192,7 @@ def run_chunked_affinity_cc_inference(
 
     reference_shape = get_lazy_image_reference_shape(cfg, image_path, mode="test")
     input_shape = tuple(int(v) for v in reference_shape[-3:])
-    crop_pad = _resolve_global_prediction_crop(cfg)
+    crop_pad = resolve_global_prediction_crop(cfg)
     crop_before = tuple(int(crop_pad[axis][0]) for axis in range(3))
     crop_after = tuple(int(crop_pad[axis][1]) for axis in range(3))
     final_shape = tuple(
@@ -203,9 +203,9 @@ def run_chunked_affinity_cc_inference(
             f"Chunked inference crop {crop_pad} is too large for input shape {input_shape}."
         )
 
-    chunk_shape = _resolve_chunk_shape(cfg, final_shape)
+    chunk_shape = resolve_chunk_shape(cfg, final_shape)
     halo = tuple(int(v) for v in getattr(chunking_cfg, "halo", [0, 0, 0]))
-    chunks = _build_chunk_grid(final_shape, chunk_shape)
+    chunks = build_chunk_grid(final_shape, chunk_shape)
     output_path = Path(output_path)
     temp_root = (
         Path(chunking_cfg.temp_dir)
@@ -329,7 +329,7 @@ def run_chunked_affinity_cc_inference(
     output_path.parent.mkdir(parents=True, exist_ok=True)
     compression = getattr(getattr(cfg.inference, "save_prediction", None), "compression", "gzip")
     compression = None if compression in (None, "", "none") else compression
-    h5_chunks = _resolve_h5_spatial_chunks(final_shape)
+    h5_chunks = resolve_h5_spatial_chunks(final_shape)
     with h5py.File(output_path, "w") as handle:
         dataset = handle.create_dataset(
             "main",
