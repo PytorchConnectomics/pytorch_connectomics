@@ -14,7 +14,7 @@ import numpy as np
 import torch
 from pytorch_lightning.utilities.types import STEP_OUTPUT
 
-from ...decoding import run_decoding_stage
+from ...decoding import run_decoding_stage, write_decoded_outputs
 from ...decoding.streamed_chunked import run_chunked_affinity_cc_inference
 from ...evaluation import EvaluationContext, evaluation_metric_requested, run_evaluation_stage
 from ...inference import (
@@ -332,7 +332,7 @@ def _process_decoding_postprocessing(
     if save_final_predictions:
         logger.info("[STAGE: Saving Final Predictions]")
         save_start = time.time()
-        write_outputs(
+        write_decoded_outputs(
             module.cfg,
             postprocessed_predictions,
             filenames,
@@ -340,8 +340,6 @@ def _process_decoding_postprocessing(
                 module.cfg,
                 checkpoint_path=module._get_prediction_checkpoint_path(),
             ),
-            mode=mode,
-            batch_meta=batch_meta,
         )
         logger.info(f"Final predictions saved ({time.time() - save_start:.1f}s)")
 

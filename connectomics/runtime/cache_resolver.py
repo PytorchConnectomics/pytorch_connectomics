@@ -312,8 +312,7 @@ def try_cache_only_test_execution(
         return False
 
     from connectomics.data.io import read_volume
-    from connectomics.decoding import run_decoding_stage
-    from connectomics.inference.output import write_outputs
+    from connectomics.decoding import run_decoding_stage, write_decoded_outputs
     from connectomics.training.lightning.path_utils import expand_file_paths
 
     try:
@@ -407,13 +406,11 @@ def try_cache_only_test_execution(
     print("Cache-only decode/postprocess/save path (evaluation disabled)")
     decoding_result = run_decoding_stage(cfg, predictions_np)
     if decoding_result.has_decoding_config:
-        write_outputs(
+        write_decoded_outputs(
             cfg,
             decoding_result.postprocessed,
             filenames,
             suffix="prediction",
-            mode="test",
-            batch_meta=None,
         )
     else:
         print("Skipping postprocessing (no decoding configuration)")
@@ -438,12 +435,12 @@ def _try_cache_only_intermediate_eval(
     import numpy as np
 
     from connectomics.data.io import read_volume
-    from connectomics.decoding import run_decoding_stage
+    from connectomics.decoding import run_decoding_stage, write_decoded_outputs
     from connectomics.evaluation import (
         EvaluationContext,
         run_evaluation_stage,
     )
-    from connectomics.inference.output import apply_prediction_transform, write_outputs
+    from connectomics.inference.output import apply_prediction_transform
     from connectomics.training.lightning.path_utils import expand_file_paths
 
     test_cfg = getattr(getattr(cfg, "data", None), "test", None)
@@ -485,13 +482,11 @@ def _try_cache_only_intermediate_eval(
 
         decoding_result = run_decoding_stage(cfg, predictions_np)
         if decoding_result.has_decoding_config:
-            write_outputs(
+            write_decoded_outputs(
                 cfg,
                 decoding_result.postprocessed,
                 [volume_name],
                 suffix=final_suffix,
-                mode="test",
-                batch_meta=None,
             )
         else:
             print("  Skipping postprocessing (no decoding configuration)")
