@@ -87,8 +87,8 @@ def test_chunked_output_contract_allows_later_decode_postprocessing():
 
 def test_global_prediction_crop_only_applies_affinity_crop_for_deepem():
     cfg = Config()
-    cfg.inference.crop_pad = None
-    cfg.inference.select_channel = [0, 1, 2]
+    cfg.inference.model.crop_pad = None
+    cfg.inference.model.select_channel = [0, 1, 2]
     cfg.data.label_transform.targets = [
         {
             "name": "affinity",

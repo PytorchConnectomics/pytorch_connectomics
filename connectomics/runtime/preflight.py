@@ -13,7 +13,11 @@ import torch
 from ..data.processing.build import count_stacked_label_transform_channels
 from ..models.architectures.registry import get_architecture_info
 from ..utils.channel_slices import infer_min_required_channels
-from ..utils.model_outputs import resolve_output_heads
+from ..utils.model_outputs import (
+    get_inference_channel_activations,
+    get_inference_select_channel,
+    resolve_output_heads,
+)
 
 
 def _architecture_supports_deep_supervision(arch_type: str) -> bool:
@@ -152,7 +156,7 @@ def validate_runtime_coherence(cfg) -> None:
             if len(model_heads) > 1 and not decode_heads:
                 raise ValueError(
                     "Cross-section validation failed: decode channel selectors require "
-                    "inference.head or model.primary_head when model.heads has multiple "
+                    "inference.model.head or model.primary_head when model.heads has multiple "
                     f"entries ({sorted(model_heads.keys())})."
                 )
             if len(decode_heads) > 1:
@@ -192,9 +196,8 @@ def validate_runtime_coherence(cfg) -> None:
                         continue
                     required_output_channels.append((path, min_channels))
 
-    tta_cfg = getattr(cfg.inference, "test_time_augmentation", None)
-    channel_activations = getattr(tta_cfg, "channel_activations", None) if tta_cfg else None
-    select_channel = getattr(cfg.inference, "select_channel", None)
+    channel_activations = get_inference_channel_activations(cfg)
+    select_channel = get_inference_select_channel(cfg)
     inference_has_channel_selection = bool(channel_activations) or select_channel is not None
     tta_heads = (
         resolve_output_heads(cfg, purpose="inference channel selection") if model_heads else []
@@ -202,8 +205,8 @@ def validate_runtime_coherence(cfg) -> None:
     tta_output_head = tta_heads[0] if tta_heads else None
     if model_heads and len(model_heads) > 1 and inference_has_channel_selection and not tta_heads:
         raise ValueError(
-            "Cross-section validation failed: inference channel selectors require inference.head "
-            "or model.primary_head when model.heads has multiple entries "
+            "Cross-section validation failed: inference channel selectors require "
+            "inference.model.head or model.primary_head when model.heads has multiple entries "
             f"({sorted(model_heads.keys())})."
         )
     if len(tta_heads) > 1:
@@ -240,22 +243,22 @@ def validate_runtime_coherence(cfg) -> None:
             if not isinstance(spec, dict):
                 raise ValueError(
                     "Cross-section validation failed: "
-                    f"inference.test_time_augmentation.channel_activations[{i}] "
+                    f"inference.model.channel_activations[{i}] "
                     "must be a mapping with 'channels' and 'activation'."
                 )
             if "channels" not in spec or "activation" not in spec:
                 raise ValueError(
                     "Cross-section validation failed: "
-                    f"inference.test_time_augmentation.channel_activations[{i}] "
+                    f"inference.model.channel_activations[{i}] "
                     "must define both 'channels' and 'activation'."
                 )
             _validate_tta_channel_capacity(
                 spec["channels"],
-                path=f"inference.test_time_augmentation.channel_activations[{i}].channels",
+                path=f"inference.model.channel_activations[{i}].channels",
             )
     _validate_tta_channel_capacity(
         select_channel,
-        path="inference.select_channel",
+        path="inference.model.select_channel",
     )
 
     if required_output_channels:

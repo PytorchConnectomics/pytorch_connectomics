@@ -105,7 +105,7 @@ default:
       - 256
       - 256
   inference:
-    sliding_window:
+    window:
       window_size:
       - 18
       - 256
@@ -115,17 +115,17 @@ default:
       blending: gaussian
       sigma_scale: 0.25
       padding_mode: reflect
+    model:
+      channel_activations:
+        - {channels: "0:1", activation: sigmoid}
     test_time_augmentation:
       enabled: true
       flip_axes: all
       ensemble_mode: mean
-      channel_activations:
-        - {channels: "0:1", activation: sigmoid}
-    save_prediction:
+    save_inference:
       enabled: true
-      storage_dtype: float32
-      output_formats:
-      - h5
+      dtype: float32
+      backend: h5
 
 train:
   system:
@@ -189,7 +189,7 @@ train:
 
 test:
   inference:
-    save_prediction:
+    save_inference:
       output_path: outputs/rsunet_cremi_synapse_cleft/results/
   data:
     test:

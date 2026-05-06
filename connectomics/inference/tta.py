@@ -14,10 +14,12 @@ import numpy as np
 import torch
 import torch.nn.functional as F
 from monai.data.utils import dense_patch_slices
-from monai.inferers.utils import _get_scan_interval, compute_importance_map
+from monai.inferers.utils import _get_scan_interval
 
 from ..utils.channel_slices import resolve_channel_indices
 from ..utils.model_outputs import (
+    get_inference_channel_activations,
+    get_inference_select_channel,
     resolve_output_channels,
     resolve_output_head,
     select_output_tensor,
@@ -25,8 +27,11 @@ from ..utils.model_outputs import (
 from .sliding import (
     _extract_padded_patch_batch,
     _resolve_sliding_window_runtime,
+    build_sliding_accumulator_weight_maps,
     is_2d_inference_mode,
+    normalize_weighted_accumulator,
     resolve_inferer_roi_size,
+    resolve_model_output_dtype,
 )
 from .tta_combinations import (
     _resolve_ensemble_mode_map,
@@ -75,8 +80,7 @@ class TTAPredictor:
         num_channels: int,
     ) -> list[tuple[list[int], Any]]:
         """Resolve configured channel activation specs to explicit channel indices."""
-        tta_cfg = self._get_tta_cfg()
-        channel_activations = getattr(tta_cfg, "channel_activations", None) if tta_cfg else None
+        channel_activations = get_inference_channel_activations(self.cfg)
         if not channel_activations:
             return []
 
@@ -85,24 +89,26 @@ class TTAPredictor:
         for idx, entry in enumerate(channel_activations):
             if not isinstance(entry, dict):
                 raise ValueError(
-                    "channel_activations entries must be mappings with keys "
+                    "inference.model.channel_activations entries must be mappings with keys "
                     f"'channels' and 'activation', got {type(entry).__name__}."
                 )
             if "channels" not in entry or "activation" not in entry:
                 raise ValueError(
-                    f"channel_activations[{idx}] must define both 'channels' and 'activation'."
+                    f"inference.model.channel_activations[{idx}] must define both "
+                    "'channels' and 'activation'."
                 )
 
             channels = resolve_channel_indices(
                 entry["channels"],
                 num_channels=num_channels,
-                context=f"channel_activations[{idx}].channels",
+                context=f"inference.model.channel_activations[{idx}].channels",
             )
             overlap = used_channels.intersection(channels)
             if overlap:
                 overlap_str = ", ".join(str(ch) for ch in sorted(overlap))
                 raise ValueError(
-                    f"channel_activations[{idx}] overlaps already assigned channels: {overlap_str}."
+                    "inference.model.channel_activations"
+                    f"[{idx}] overlaps already assigned channels: {overlap_str}."
                 )
             used_channels.update(channels)
             resolved_specs.append((channels, entry["activation"]))
@@ -111,16 +117,12 @@ class TTAPredictor:
 
     def _parse_channel_activations(self):
         """Parse channel_activations config to determine activation type per channel."""
-        if not hasattr(self.cfg, "inference") or not hasattr(
-            self.cfg.inference, "test_time_augmentation"
-        ):
+        if not hasattr(self.cfg, "inference"):
             return
 
-        channel_activations = getattr(
-            self.cfg.inference.test_time_augmentation, "channel_activations", None
-        )
+        channel_activations = get_inference_channel_activations(self.cfg)
 
-        if channel_activations is not None:
+        if channel_activations:
             channel_count_hint = resolve_output_channels(
                 self.cfg,
                 requested_head=self._requested_output_head_override,
@@ -230,16 +232,12 @@ class TTAPredictor:
         MEMORY OPTIMIZATION: Activations are applied in-place to avoid creating
         intermediate tensors that would double/triple GPU memory usage.
         """
-        if not hasattr(self.cfg, "inference") or not hasattr(
-            self.cfg.inference, "test_time_augmentation"
-        ):
+        if not hasattr(self.cfg, "inference"):
             return tensor
 
-        channel_activations = getattr(
-            self.cfg.inference.test_time_augmentation, "channel_activations", None
-        )
+        channel_activations = get_inference_channel_activations(self.cfg)
 
-        if channel_activations is not None:
+        if channel_activations:
             activation_types: list[Optional[str]] = [None] * int(tensor.shape[1])
             for channels, act in self._resolve_channel_activation_specs(int(tensor.shape[1])):
                 for channel_idx in channels:
@@ -302,12 +300,12 @@ class TTAPredictor:
         else:
             self.channel_activation_types = None
 
-        select_channel = getattr(self.cfg.inference, "select_channel", None)
+        select_channel = get_inference_select_channel(self.cfg)
         if select_channel is not None:
             channel_list = resolve_channel_indices(
                 select_channel,
                 num_channels=int(tensor.shape[1]),
-                context="select_channel",
+                context="inference.model.select_channel",
             )
             if channel_list != list(range(int(tensor.shape[1]))):
                 tensor = tensor[:, channel_list, ...]
@@ -316,6 +314,9 @@ class TTAPredictor:
                     self.channel_activation_types[idx] for idx in channel_list
                 ]
 
+        output_dtype = resolve_model_output_dtype(self.cfg)
+        if tensor.dtype != output_dtype:
+            tensor = tensor.to(dtype=output_dtype)
         return tensor
 
     def _run_network(self, images: torch.Tensor) -> torch.Tensor:
@@ -626,7 +627,7 @@ class TTAPredictor:
     @staticmethod
     def _accumulate_single_mode(
         ensemble_result: torch.Tensor,
-        pred_float: torch.Tensor,
+        pred_accum: torch.Tensor,
         mode: str,
         num_predictions: int,
         distributed_sharding: bool,
@@ -635,23 +636,23 @@ class TTAPredictor:
         """Apply a single ensemble mode to a channel slice (in-place)."""
         if mode == "mean":
             if distributed_sharding:
-                ensemble_result[:, ch_slice] += pred_float[:, ch_slice]
+                ensemble_result[:, ch_slice] += pred_accum[:, ch_slice]
             else:
-                delta = pred_float[:, ch_slice] - ensemble_result[:, ch_slice]
+                delta = pred_accum[:, ch_slice] - ensemble_result[:, ch_slice]
                 ensemble_result[:, ch_slice] += delta / (num_predictions + 1)
         elif mode == "min":
             ensemble_result[:, ch_slice] = torch.minimum(
-                ensemble_result[:, ch_slice], pred_float[:, ch_slice]
+                ensemble_result[:, ch_slice], pred_accum[:, ch_slice]
             )
         elif mode == "max":
             ensemble_result[:, ch_slice] = torch.maximum(
-                ensemble_result[:, ch_slice], pred_float[:, ch_slice]
+                ensemble_result[:, ch_slice], pred_accum[:, ch_slice]
             )
         else:
             raise ValueError(f"Unknown TTA ensemble mode: {mode!r}. Use 'mean', 'min', or 'max'.")
 
-    @staticmethod
     def _accumulate_ensemble_prediction(
+        self,
         ensemble_result: Optional[torch.Tensor],
         pred_processed: torch.Tensor,
         *,
@@ -659,11 +660,11 @@ class TTAPredictor:
         num_predictions: int,
         distributed_sharding: bool,
     ) -> tuple[torch.Tensor, int]:
-        pred_float = pred_processed.to(dtype=torch.float32)
+        pred_accum = pred_processed.to(dtype=resolve_model_output_dtype(self.cfg))
         if ensemble_result is None:
-            return pred_float.clone(), 1
+            return pred_accum.clone(), 1
 
-        num_channels = pred_float.shape[1]
+        num_channels = pred_accum.shape[1]
         mode_map = _resolve_ensemble_mode_map(ensemble_mode, num_channels)
 
         # Group consecutive channels with the same mode for efficiency.
@@ -675,7 +676,7 @@ class TTAPredictor:
                 j += 1
             TTAPredictor._accumulate_single_mode(
                 ensemble_result,
-                pred_float,
+                pred_accum,
                 mode,
                 num_predictions,
                 distributed_sharding,
@@ -840,21 +841,18 @@ class TTAPredictor:
                 1,
                 (len(patch_slices) + runtime["sw_batch_size"] - 1) // runtime["sw_batch_size"],
             )
-            importance_map = (
-                compute_importance_map(
-                    tuple(int(v) for v in roi_size),
-                    mode=runtime["mode"],
-                    sigma_scale=(
-                        runtime["overlap"]
-                        if runtime["mode"] == "constant"
-                        else runtime["sigma_scale"]
-                    ),
-                    device=accumulation_device,
-                    dtype=torch.float32,
-                )
-                .unsqueeze(0)
-                .unsqueeze(0)
+            output_dtype = resolve_model_output_dtype(self.cfg)
+            value_importance_map, weight_importance_map = build_sliding_accumulator_weight_maps(
+                tuple(int(v) for v in roi_size),
+                mode=runtime["mode"],
+                sigma_scale=(
+                    runtime["overlap"] if runtime["mode"] == "constant" else runtime["sigma_scale"]
+                ),
+                device=accumulation_device,
+                value_dtype=output_dtype,
             )
+            value_importance_map = value_importance_map.unsqueeze(0).unsqueeze(0)
+            weight_importance_map = weight_importance_map.unsqueeze(0).unsqueeze(0)
 
             raw_accumulators: list[Optional[torch.Tensor]] = [None] * len(local_combinations)
             weight_accumulator = torch.zeros(
@@ -915,12 +913,12 @@ class TTAPredictor:
                                 f"and roi_size={roi_size}."
                             )
 
-                        pred = pred.detach().to(device=accumulation_device, dtype=torch.float32)
+                        pred = pred.detach().to(device=accumulation_device, dtype=output_dtype)
                         if raw_accumulators[aug_idx] is None:
                             raw_accumulators[aug_idx] = torch.zeros(
                                 (1, int(pred.shape[1]), *padded_size),
                                 device=accumulation_device,
-                                dtype=torch.float32,
+                                dtype=output_dtype,
                             )
 
                         for patch_idx, location in enumerate(locations):
@@ -932,12 +930,12 @@ class TTAPredictor:
                                 for axis in range(spatial_dims)
                             )
                             raw_accumulators[aug_idx][(slice(None), slice(None), *slices)] += (
-                                pred[patch_idx : patch_idx + 1] * importance_map
+                                pred[patch_idx : patch_idx + 1] * value_importance_map
                             )
                             if aug_idx == 0:
                                 weight_accumulator[
                                     (slice(None), slice(None), *slices)
-                                ] += importance_map
+                                ] += weight_importance_map
 
                         tta_forward_calls += 1
                         if (
@@ -959,7 +957,9 @@ class TTAPredictor:
             for raw_accumulator in raw_accumulators:
                 if raw_accumulator is None:
                     continue
-                raw_accumulator /= torch.clamp_min(weight_accumulator, 1.0e-6)
+                raw_accumulator = normalize_weighted_accumulator(
+                    raw_accumulator, weight_accumulator
+                )
                 pred_processed = self.apply_preprocessing(
                     raw_accumulator[(slice(None), slice(None), *crop_slices)]
                 )

@@ -8,6 +8,7 @@ so the logic can be reused by both the Lightning module and TTA routines.
 from __future__ import annotations
 
 import logging
+from collections.abc import Mapping
 from typing import Optional, Sequence, Tuple, Union
 
 import torch
@@ -19,9 +20,122 @@ from monai.inferers.utils import _get_scan_interval, compute_importance_map
 logger = logging.getLogger(__name__)
 
 
-def apply_border_mask(
-    importance_map: torch.Tensor, border_mask: Sequence[int]
+_DISTANCE_TRANSFORM_BLEND_MODES = {
+    "distance",
+    "distance_transform",
+    "distance-transform",
+    "distance_transform_cdt",
+    "banis",
+    "banis_distance",
+}
+
+
+def _cfg_value(obj, key: str, default=None):
+    if obj is None:
+        return default
+    if isinstance(obj, Mapping):
+        return obj.get(key, default)
+    return getattr(obj, key, default)
+
+
+def _normalize_blending_mode(mode: str) -> str:
+    return str(mode).strip().lower()
+
+
+def is_distance_transform_blending(mode: str) -> bool:
+    """Return True for BANIS-style distance-transform window blending."""
+    return _normalize_blending_mode(mode) in _DISTANCE_TRANSFORM_BLEND_MODES
+
+
+def build_sliding_importance_map(
+    roi_size: Sequence[int],
+    *,
+    mode: str,
+    sigma_scale: Union[float, Sequence[float]],
+    device: torch.device | str,
+    dtype: torch.dtype = torch.float32,
 ) -> torch.Tensor:
+    """Build per-window blending weights.
+
+    ``distance_transform`` matches ``lib/banis``:
+    ``distance_transform_cdt(np.pad(np.ones(roi), 1))[1:-1]``. For a solid
+    rectangular window this is exactly ``min(distance_to_each_face) + 1``.
+    """
+    normalized_mode = _normalize_blending_mode(mode)
+    if normalized_mode not in _DISTANCE_TRANSFORM_BLEND_MODES:
+        return compute_importance_map(
+            tuple(int(v) for v in roi_size),
+            mode=normalized_mode,
+            sigma_scale=sigma_scale,
+            device=device,
+            dtype=dtype,
+        )
+
+    spatial_shape = tuple(int(v) for v in roi_size)
+    if not spatial_shape or any(v <= 0 for v in spatial_shape):
+        raise ValueError(f"roi_size must contain positive values, got {roi_size}.")
+
+    importance_map = None
+    for axis, size in enumerate(spatial_shape):
+        coord = torch.arange(size, device=device, dtype=dtype)
+        dist = torch.minimum(coord + 1, torch.as_tensor(size, device=device, dtype=dtype) - coord)
+        view_shape = [1] * len(spatial_shape)
+        view_shape[axis] = size
+        dist = dist.reshape(view_shape)
+        importance_map = dist if importance_map is None else torch.minimum(importance_map, dist)
+
+    return importance_map
+
+
+def build_sliding_accumulator_weight_maps(
+    roi_size: Sequence[int],
+    *,
+    mode: str,
+    sigma_scale: Union[float, Sequence[float]],
+    device: torch.device | str,
+    value_dtype: torch.dtype,
+) -> tuple[torch.Tensor, torch.Tensor]:
+    """Build value and weight maps for weighted sliding-window accumulation.
+
+    The value map follows ``inference.model.output_dtype`` to control the large
+    channel accumulator. The weight map is always fp32 because it is single
+    channel and small, while fp16 can underflow Gaussian tail weights.
+    """
+    value_map = build_sliding_importance_map(
+        roi_size,
+        mode=mode,
+        sigma_scale=sigma_scale,
+        device=device,
+        dtype=value_dtype,
+    )
+    if value_dtype == torch.float32:
+        weight_map = value_map
+    else:
+        weight_map = build_sliding_importance_map(
+            roi_size,
+            mode=mode,
+            sigma_scale=sigma_scale,
+            device=device,
+            dtype=torch.float32,
+        )
+    return value_map, weight_map
+
+
+def normalize_weighted_accumulator(
+    value_accumulator: torch.Tensor, weight_accumulator: torch.Tensor
+) -> torch.Tensor:
+    """Divide value by weight in-place while preserving value dtype."""
+    clamp_value = 1.0e-6
+    if value_accumulator.dtype == torch.float16:
+        clamp_value = max(clamp_value, float(torch.finfo(torch.float16).tiny))
+    divisor = torch.clamp_min(weight_accumulator, clamp_value)
+    if divisor.dtype != value_accumulator.dtype:
+        divisor = divisor.to(value_accumulator.dtype)
+    value_accumulator /= divisor
+    return value_accumulator
+
+
+def apply_border_mask(importance_map: torch.Tensor, border_mask: Sequence[int]) -> torch.Tensor:
     """Zero outer ``k`` voxels of each spatial axis in ``importance_map``.
 
     ``border_mask`` length must equal the number of spatial dimensions; the
@@ -51,7 +165,7 @@ def apply_border_mask(
     return importance_map
 
 
-_ACCUMULATOR_DTYPE_ALIASES: dict[str, "torch.dtype"] = {
+_MODEL_OUTPUT_DTYPE_ALIASES: dict[str, "torch.dtype"] = {
     "float32": torch.float32,
     "fp32": torch.float32,
     "float16": torch.float16,
@@ -62,18 +176,19 @@ _ACCUMULATOR_DTYPE_ALIASES: dict[str, "torch.dtype"] = {
 }
 
 
-def resolve_accumulator_dtype(cfg) -> torch.dtype:
-    """Return the configured value-accumulator dtype, defaulting to float32."""
-    sliding_cfg = getattr(getattr(cfg, "inference", None), "sliding_window", None)
-    raw = getattr(sliding_cfg, "accumulator_dtype", None) if sliding_cfg else None
+def resolve_model_output_dtype(cfg) -> torch.dtype:
+    """Return the configured inference model-output dtype, defaulting to float32."""
+    inference_cfg = _cfg_value(cfg, "inference", None)
+    inference_model_cfg = _cfg_value(inference_cfg, "model", None)
+    raw = _cfg_value(inference_model_cfg, "output_dtype", None)
     if raw is None:
         return torch.float32
     name = str(raw).strip().lower().removeprefix("torch.")
-    if name in _ACCUMULATOR_DTYPE_ALIASES:
-        return _ACCUMULATOR_DTYPE_ALIASES[name]
+    if name in _MODEL_OUTPUT_DTYPE_ALIASES:
+        return _MODEL_OUTPUT_DTYPE_ALIASES[name]
     raise ValueError(
-        "inference.sliding_window.accumulator_dtype must be one of "
-        f"{sorted(_ACCUMULATOR_DTYPE_ALIASES)}, got {raw!r}."
+        "inference.model.output_dtype must be one of "
+        f"{sorted(_MODEL_OUTPUT_DTYPE_ALIASES)}, got {raw!r}."
     )
 
 
@@ -151,7 +266,9 @@ def _resolve_sliding_window_runtime(cfg, roi_size: Tuple[int, ...]) -> dict:
     sw_batch_size = max(
         1, int(config_sw_batch_size if config_sw_batch_size is not None else data_batch_value)
     )
-    mode = getattr(sliding_cfg, "blending", "gaussian") if sliding_cfg else "gaussian"
+    mode = _normalize_blending_mode(
+        getattr(sliding_cfg, "blending", "gaussian") if sliding_cfg else "gaussian"
+    )
     sigma_scale = float(getattr(sliding_cfg, "sigma_scale", 0.125)) if sliding_cfg else 0.125
     padding_mode = getattr(sliding_cfg, "padding_mode", "constant") if sliding_cfg else "constant"
     cval = float(getattr(sliding_cfg, "cval", 0.0)) if sliding_cfg else 0.0
@@ -259,7 +376,20 @@ def build_sliding_inferer(cfg) -> Optional[SlidingWindowInferer]:
         )
         return None
 
+    # The eager MONAI ``SlidingWindowInferer`` is unused when lazy sliding
+    # window is configured; skip building it so options that only the lazy
+    # path supports (distance_transform blending, border_mask, snap_to_edge,
+    # target_context) don't trigger spurious eager-path errors at init.
+    sliding_cfg = getattr(getattr(cfg, "inference", None), "sliding_window", None)
+    if bool(getattr(sliding_cfg, "lazy_load", False)):
+        return None
+
     runtime = _resolve_sliding_window_runtime(cfg, roi_size)
+    if is_distance_transform_blending(runtime["mode"]):
+        raise ValueError(
+            "inference.window.blending=distance_transform requires lazy_load=true; "
+            "MONAI's eager SlidingWindowInferer only supports constant/gaussian blending."
+        )
     if resolve_border_mask(cfg, len(roi_size)):
         logger.warning(
             "inference.sliding_window.border_mask is set but the eager MONAI "

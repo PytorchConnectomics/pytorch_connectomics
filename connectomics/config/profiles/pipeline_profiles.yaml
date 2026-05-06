@@ -5,7 +5,7 @@ pipeline_profiles:
       loss:
         profile: loss_binary
     inference:
-      test_time_augmentation:
+      model:
         activation_profile: act_binary
 
   bcd:
@@ -20,9 +20,10 @@ pipeline_profiles:
       steps:
         - template: decoding_bcd
     inference:
+      model:
+        activation_profile: act_bcd
       test_time_augmentation:
         ensemble_mode: mean
-        activation_profile: act_bcd
   aff9:
     model:
       out_channels: 9
@@ -35,9 +36,10 @@ pipeline_profiles:
       steps:
         - template: decoding_waterz
     inference:
+      model:
+        activation_profile: act_binary
       test_time_augmentation:
         ensemble_mode: min
-        activation_profile: act_binary
   aff12:
     model:
       out_channels: 12
@@ -50,10 +52,11 @@ pipeline_profiles:
       steps:
         - template: decoding_waterz
     inference:
-      select_channel: [0, 1, 2]
+      model:
+        select_channel: [0, 1, 2]
+        activation_profile: act_binary
       test_time_augmentation:
         ensemble_mode: min
-        activation_profile: act_binary
   aff9_sdt:
     model:
       out_channels: 10
@@ -66,6 +69,7 @@ pipeline_profiles:
       steps:
         - template: decoding_waterz
     inference:
+      model:
+        activation_profile: act_bd
       test_time_augmentation:
         ensemble_mode: [["0:9", min], ["9:", mean]]
-        activation_profile: act_bd

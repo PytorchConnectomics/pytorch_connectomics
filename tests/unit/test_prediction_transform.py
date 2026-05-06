@@ -43,7 +43,7 @@ def test_storage_dtype_transform_is_save_side_only():
     cfg = SimpleNamespace(
         inference=SimpleNamespace(
             prediction_transform=SimpleNamespace(enabled=False),
-            save_prediction=SimpleNamespace(storage_dtype="float16"),
+            save_inference=SimpleNamespace(dtype="float16"),
         )
     )
     data = np.array([0.25, 0.5], dtype=np.float32)

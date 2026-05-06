@@ -132,8 +132,13 @@ default:
         # signal-to-noise budget is tighter than dense neuron datasets.
         gaussian_noise_std: 0.2
   inference:
-    head: "aff_r1,aff_r10,sdt"
-    sliding_window:
+    model:
+      head: "aff_r1,aff_r10,sdt"
+      channel_activations:
+      - {channels: "0:6", activation: sigmoid}
+      - {channels: "6:7", activation: tanh}
+      crop_pad: [64, 64, 64, 64, 64, 64]
+    window:
       window_size: [128, 128, 128]
       sw_batch_size: 1
       keep_input_on_cpu: false
@@ -141,11 +146,7 @@ default:
       enabled: false
       flip_axes: all
       ensemble_mode: min
-      channel_activations:
-      - {channels: "0:6", activation: sigmoid}
-      - {channels: "6:7", activation: tanh}
-    crop_pad: [64, 64, 64, 64, 64, 64]
-    save_prediction:
+    save_inference:
       enabled: true
 
   decoding:

@@ -249,7 +249,7 @@ def test_resolve_prediction_cache_suffix_includes_checkpoint_name_for_tta_test_m
 
 def test_resolve_prediction_cache_suffix_includes_channel_for_non_tta_checkpoint():
     cfg = Config()
-    cfg.inference.select_channel = [0, 1, 2]
+    cfg.inference.model.select_channel = [0, 1, 2]
     cfg.inference.test_time_augmentation.enabled = False
 
     assert (
@@ -270,7 +270,7 @@ def test_resolve_prediction_cache_suffix_includes_output_head_for_multi_head_tta
         "affinity": {"out_channels": 2, "num_blocks": 0},
         "sdt": {"out_channels": 1, "num_blocks": 0},
     }
-    cfg.inference.head = "sdt"
+    cfg.inference.model.head = "sdt"
     cfg.inference.test_time_augmentation.enabled = True
     cfg.inference.test_time_augmentation.flip_axes = None
     cfg.inference.test_time_augmentation.rotation90_axes = None
@@ -286,7 +286,7 @@ def test_tta_cache_suffix_accepts_explicit_output_head_override():
         "affinity": {"out_channels": 2, "num_blocks": 0},
         "sdt": {"out_channels": 1, "num_blocks": 0},
     }
-    cfg.inference.head = "affinity"
+    cfg.inference.model.head = "affinity"
     cfg.inference.test_time_augmentation.enabled = True
     cfg.inference.test_time_augmentation.flip_axes = None
     cfg.inference.test_time_augmentation.rotation90_axes = None
@@ -327,7 +327,7 @@ def test_format_checkpoint_name_tag_canonicalizes_lightning_inserted_metric_name
 
 def test_chunked_raw_intermediate_suffix_does_not_collide_with_whole_volume_cache():
     cfg = Config()
-    cfg.inference.select_channel = [0, 1, 2]
+    cfg.inference.model.select_channel = [0, 1, 2]
     cfg.inference.strategy = "chunked"
     cfg.inference.chunking.enabled = True
     cfg.inference.chunking.output_mode = "raw_prediction"
@@ -352,7 +352,7 @@ def test_chunked_raw_intermediate_suffix_does_not_collide_with_whole_volume_cach
 def test_cache_resolver_ignores_whole_volume_raw_for_chunked_raw_config(tmp_path):
     h5py = pytest.importorskip("h5py")
     cfg = Config()
-    cfg.inference.select_channel = [0, 1, 2]
+    cfg.inference.model.select_channel = [0, 1, 2]
     cfg.inference.strategy = "chunked"
     cfg.inference.chunking.enabled = True
     cfg.inference.chunking.output_mode = "raw_prediction"
@@ -388,7 +388,7 @@ def test_cache_resolver_ignores_whole_volume_raw_for_chunked_raw_config(tmp_path
 def test_cache_resolver_prefers_decoded_final_over_large_raw_intermediate(tmp_path):
     h5py = pytest.importorskip("h5py")
     cfg = Config()
-    cfg.inference.select_channel = [0, 1, 2]
+    cfg.inference.model.select_channel = [0, 1, 2]
     cfg.decoding.steps = [
         {
             "name": "decode_affinity_cc",
@@ -426,7 +426,7 @@ def test_cache_resolver_prefers_decoded_final_over_large_raw_intermediate(tmp_pa
 
 def test_tuning_best_params_filename_matches_tta_prediction_identity():
     cfg = Config()
-    cfg.inference.select_channel = [4, 6, 9]
+    cfg.inference.model.select_channel = [4, 6, 9]
 
     assert (
         tuning_best_params_filename(
@@ -452,7 +452,7 @@ def test_tuning_best_params_filename_includes_output_head_identity():
         "affinity": {"out_channels": 2, "num_blocks": 0},
         "sdt": {"out_channels": 1, "num_blocks": 0},
     }
-    cfg.inference.head = "sdt"
+    cfg.inference.model.head = "sdt"
 
     assert (
         tuning_best_params_filename(
@@ -483,7 +483,7 @@ def test_format_decode_tag_includes_all_decoding_parameters():
 
 def test_decoding_output_suffix_disambiguates_final_prediction_cache_glob():
     cfg = Config()
-    cfg.inference.select_channel = [0, 1, 2]
+    cfg.inference.model.select_channel = [0, 1, 2]
     cfg.decoding.output_suffix = "chunk raw/v1"
     cfg.decoding.steps = [
         {

@@ -27,9 +27,9 @@ default:
       enabled: true
       flip_axes: [1, 2]
       rotation90_axes: [[1, 2]]
-    sliding_window:
+    window:
       window_size: [32, 128, 128]
-    save_prediction:
+    save_inference:
       enabled: true
   decoding:
     steps:

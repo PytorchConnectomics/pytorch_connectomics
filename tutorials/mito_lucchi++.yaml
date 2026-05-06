@@ -23,7 +23,7 @@ default:
     augmentation:
       profile: aug_standard
   inference:
-    sliding_window:
+    window:
       window_size: [112, 112, 112]      
     test_time_augmentation:
       enabled: true

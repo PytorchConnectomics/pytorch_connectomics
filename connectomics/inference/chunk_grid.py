@@ -12,6 +12,7 @@ from ..data.processing.affinity import (
     resolve_affinity_mode_from_cfg,
 )
 from ..utils.channel_slices import resolve_channel_indices
+from ..utils.model_outputs import get_inference_select_channel
 
 
 @dataclass(frozen=True)
@@ -50,7 +51,7 @@ def normalize_crop_pad(value: Any) -> tuple[tuple[int, int], tuple[int, int], tu
         return tuple((v, v) for v in values)  # type: ignore[return-value]
     if len(values) == 6:
         return ((values[0], values[1]), (values[2], values[3]), (values[4], values[5]))
-    raise ValueError(f"inference.crop_pad must have length 3 or 6, got {value!r}")
+    raise ValueError(f"inference.model.crop_pad must have length 3 or 6, got {value!r}")
 
 
 def resolve_selected_affinity_offsets(cfg: Any) -> list[tuple[int, int, int]]:
@@ -64,12 +65,12 @@ def resolve_selected_affinity_offsets(cfg: Any) -> list[tuple[int, int, int]]:
         for channel, offset in zip(range(start, end), offsets):
             channel_offsets[channel] = offset
 
-    select_channel = getattr(getattr(cfg, "inference", None), "select_channel", None)
+    select_channel = get_inference_select_channel(cfg)
     if select_channel is not None:
         selected = resolve_channel_indices(
             select_channel,
             num_channels=len(channel_offsets),
-            context="inference.select_channel",
+            context="inference.model.select_channel",
         )
         channel_offsets = [channel_offsets[idx] for idx in selected]
 
@@ -79,7 +80,8 @@ def resolve_selected_affinity_offsets(cfg: Any) -> list[tuple[int, int, int]]:
 def resolve_global_prediction_crop(
     cfg: Any,
 ) -> tuple[tuple[int, int], tuple[int, int], tuple[int, int]]:
-    user_crop = normalize_crop_pad(getattr(getattr(cfg, "inference", None), "crop_pad", None))
+    inference_model = getattr(getattr(cfg, "inference", None), "model", None)
+    user_crop = normalize_crop_pad(getattr(inference_model, "crop_pad", None))
     affinity_mode = resolve_affinity_mode_from_cfg(cfg)
     if affinity_mode != "deepem":
         affinity_crop = ((0, 0), (0, 0), (0, 0))

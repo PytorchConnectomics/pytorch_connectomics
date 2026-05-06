@@ -98,32 +98,34 @@ default:
     augmentation:
       profile: aug_em_neuron_fast
   inference:
-    head: aff_r1
-    select_channel: ":"
+    model:
+      head: aff_r1
+      select_channel: ":"
+      channel_activations:
+      - {channels: ":", activation: sigmoid}
     system:
       num_gpus: 1
       num_workers: 8
-    sliding_window:
+    window:
       window_size: [32, 256, 256]
       sw_batch_size: 1
       overlap: 0.5
       blending: gaussian
       sigma_scale: 0.25
       padding_mode: replicate
+    save_inference:
+      enabled: true
+      backend: h5
+      dtype: float32
     test_time_augmentation:
       enabled: false
       flip_axes:
       rotation90_axes:
-      channel_activations:
-      - {channels: ":", activation: sigmoid}
       ensemble_mode: mean
       apply_mask: false
-    save_prediction:
-      enabled: true
-      storage_dtype: float32
-      output_formats: [h5]
 
   decoding:
+    enabled: true
     steps:
     - name: decode_affinity_cc
       kwargs:
@@ -194,7 +196,7 @@ train:
 
 test:
   inference:
-    save_prediction:
+    save_inference:
       output_path: outputs/neuron_nisb_9nm_base_mednext_l_sdt_multitask/results/
   data:
     test:

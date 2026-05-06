@@ -88,16 +88,22 @@ default:
         gaussian_noise_prob: 0.5
         gaussian_noise_std: 0.5
   inference:
-    strategy: whole_volume
-    # Keep only short-range affinities. In XYZ mode the first three channels
-    # already match decoder axis0, axis1, axis2 order.
-    select_channel: [0, 1, 2]
+    model:
+      # Keep only short-range affinities. In XYZ mode the first three channels
+      # already match decoder axis0, axis1, axis2 order.
+      select_channel: [0, 1, 2]
+      crop_pad: [1, 0, 1, 0, 1, 0]
+      # BANIS-style scale_sigmoid: sigmoid(0.2 * x). Avoids fp16 saturation
+      # and gives sharper threshold-based decisions.
+      channel_activations:
+      - {channels: ":", activation: scale_sigmoid}
+    execution:
+      strategy: whole_volume
     # Test-time pad_size [1,1,1] reflect (image only, labels unpadded) plus
     # this asymmetric crop_pad strips the leading pad. The trailing pad is
     # consumed by the affinity inference crop (banis short-range, trailing -1),
     # leaving pred at the original 1024x1024x200 to match labels.
-    crop_pad: [1, 0, 1, 0, 1, 0]
-    sliding_window:
+    window:
       lazy_load: true
       keep_input_on_cpu: true
       sw_device: cuda
@@ -108,18 +114,15 @@ default:
       blending: gaussian
       sigma_scale: 0.25
       padding_mode: replicate
+    save_inference:
+      enabled: true
+      backend: h5
+      dtype: float16
     test_time_augmentation:
       enabled: false
-      # BANIS-style scale_sigmoid: sigmoid(0.2 * x). Avoids fp16 saturation
-      # and gives sharper threshold-based decisions.
-      channel_activations:
-      - {channels: ":", activation: scale_sigmoid}
-    save_prediction:
-      enabled: true
-      storage_dtype: float16
-      output_formats: [h5]
 
   decoding:
+    enabled: true
     steps:
     - name: decode_affinity_cc
       kwargs:

@@ -96,7 +96,10 @@ default:
       val_transpose: [2, 1, 0]
 
   inference:
-    sliding_window:
+    model:
+      channel_activations:
+      - {channels: ":", activation: sigmoid}
+    window:
       keep_input_on_cpu: true
       sw_device: cuda
       output_device: cpu
@@ -106,16 +109,15 @@ default:
       blending: gaussian
       sigma_scale: 0.25
       padding_mode: replicate
+    save_inference:
+      enabled: true
+      backend: h5
+      dtype: float32
     test_time_augmentation:
       enabled: false
-      channel_activations:
-      - {channels: ":", activation: sigmoid}
-    save_prediction:
-      enabled: true
-      storage_dtype: float32
-      output_formats: [h5]
 
   decoding:
+    enabled: true
     steps:
     - name: decode_affinity_cc
       kwargs:

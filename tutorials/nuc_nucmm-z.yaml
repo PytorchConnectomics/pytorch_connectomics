@@ -80,7 +80,7 @@ default:
   inference:
     system:
       num_workers: 4
-    sliding_window:
+    window:
       window_size:
       - 64
       - 64
@@ -88,11 +88,12 @@ default:
       sw_batch_size: 8
       overlap: 0.5
       padding_mode: reflect
-    test_time_augmentation:
-      flip_axes:
+    model:
       channel_activations:
         - {channels: "0:2", activation: sigmoid}
         - {channels: "2:3", activation: tanh}
+    test_time_augmentation:
+      flip_axes:
 
 train:
   optimization:

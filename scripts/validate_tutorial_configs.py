@@ -31,9 +31,28 @@ LEGACY_PATTERNS: List[Tuple[Tuple[str, ...], str]] = [
     ),
     (
         ("inference", "test_time_augmentation", "act"),
-        "Use `inference.test_time_augmentation.channel_activations`.",
+        "Use `inference.model.channel_activations`.",
     ),
 ]
+
+for _root in (
+    ("inference",),
+    ("default", "inference"),
+    ("test", "inference"),
+    ("tune", "inference"),
+):
+    _root_path = ".".join(_root)
+    LEGACY_PATTERNS.extend(
+        [
+            (_root + ("head",), f"Use `{_root_path}.model.head`."),
+            (_root + ("select_channel",), f"Use `{_root_path}.model.select_channel`."),
+            (_root + ("crop_pad",), f"Use `{_root_path}.model.crop_pad`."),
+            (_root + ("strategy",), f"Use `{_root_path}.execution.strategy`."),
+            (_root + ("do_eval",), f"Use `{_root_path}.execution.do_eval`."),
+            (_root + ("sliding_window",), f"Use `{_root_path}.window`."),
+            (_root + ("save_prediction",), f"Use `{_root_path}.save_inference`."),
+        ]
+    )
 
 CUSTOM_WORKFLOW_ROOTS = {"large_decode", "abiss_large"}
 

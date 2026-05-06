@@ -13,6 +13,7 @@ from connectomics.inference.lazy import (
     lazy_predict_region,
     lazy_predict_volume,
 )
+from connectomics.inference.sliding import build_sliding_importance_map
 
 
 def _identity_forward(x: torch.Tensor) -> torch.Tensor:
@@ -62,6 +63,44 @@ def test_lazy_sliding_window_matches_eager_inference(tmp_path):
 
     assert lazy.shape == eager.shape
     assert torch.allclose(lazy, eager, atol=1.0e-5)
+
+
+def test_distance_transform_blending_matches_banis_weight_map():
+    importance = build_sliding_importance_map(
+        (5, 5, 5),
+        mode="distance_transform",
+        sigma_scale=0.125,
+        device="cpu",
+        dtype=torch.float32,
+    )
+
+    assert importance[0, 0, 0] == 1
+    assert importance[1, 1, 1] == 2
+    assert importance[2, 2, 2] == 3
+    assert torch.equal(importance[0], torch.ones(5, 5))
+
+
+def test_lazy_model_output_dtype_controls_accumulators(tmp_path):
+    cfg = _make_cfg()
+    cfg.data.dataloader.patch_size = [2, 2, 2]
+    cfg.model.output_size = [2, 2, 2]
+    cfg.inference.model.output_dtype = "float16"
+    cfg.inference.sliding_window.window_size = [2, 2, 2]
+    cfg.inference.sliding_window.overlap = 0.5
+    cfg.inference.sliding_window.blending = "constant"
+
+    image_path = tmp_path / "lazy_output_dtype.h5"
+    volume = np.linspace(0.0, 1.0, num=3 * 3 * 3, dtype=np.float32).reshape(3, 3, 3)
+    write_hdf5(str(image_path), volume, dataset="main")
+
+    lazy = lazy_predict_volume(cfg, _identity_forward, str(image_path), device="cpu")
+
+    assert lazy.dtype == torch.float16
+    assert torch.allclose(
+        lazy.float(),
+        torch.from_numpy(volume).unsqueeze(0).unsqueeze(0),
+        atol=5.0e-4,
+    )
 
 
 def test_lazy_region_matches_full_volume_global_window_grid(tmp_path):

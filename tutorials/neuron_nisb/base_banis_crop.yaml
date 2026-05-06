@@ -30,8 +30,11 @@ default:
     dataloader:
       profile: lazy
       patch_size: [128, 128, 128]
-      # BANIS reads small_size + long_range, computes affinities, then crops back to small_size.
-      target_context: [10, 10, 10]
+      # BANIS reads small_size + long_range on the trailing side, computes
+      # affinities, then crops back to small_size. Canonical form is
+      # [pre0, pre1, pre2, post0, post1, post2]; legacy length-3
+      # [a, b, c] is treated as trailing-only.
+      target_context: [0, 0, 0, 10, 10, 10]
       batch_size: 4
       use_cache: false
       use_preloaded_cache_train: false
@@ -94,11 +97,16 @@ default:
         gaussian_noise_prob: 0.5
         gaussian_noise_std: 0.5
   inference:
-    strategy: whole_volume
-    # Keep only short-range affinities. In XYZ mode the first three channels
-    # already match decoder axis0, axis1, axis2 order.
-    select_channel: [0, 1, 2]
-    sliding_window:
+    model:
+      # Keep only short-range affinities. In XYZ mode the first three channels
+      # already match decoder axis0, axis1, axis2 order.
+      select_channel: [0, 1, 2]
+      output_dtype: float16
+      channel_activations:
+      - {channels: ":", activation: scale_sigmoid}
+    execution:
+      strategy: whole_volume
+    window:
       lazy_load: true
       distributed_sharding: true
       distributed_reduce_chunk_mb: 128
@@ -121,20 +129,14 @@ default:
       # (no whole-volume padding). Honored by the lazy sliding-window path
       # (connectomics/inference/lazy.py) when lazy_load=true.
       snap_to_edge: true
-      # Halve the in-memory value-accumulator footprint during sliding-window
-      # accumulation. Weight accumulator stays float32. Acceptable here
-      # because predictions are bounded probabilities ([0,1]) and final
-      # storage is already float16.
-      accumulator_dtype: float16
+    save_inference:
+      enabled: true
+      backend: h5
+      dtype: float16
     test_time_augmentation:
       enabled: false
-      channel_activations:
-      - {channels: ":", activation: scale_sigmoid}
-    save_prediction:
-      enabled: true
-      storage_dtype: float16
-      output_formats: [h5]
   decoding:
+    enabled: true
     steps:
     - name: decode_affinity_cc
       kwargs:

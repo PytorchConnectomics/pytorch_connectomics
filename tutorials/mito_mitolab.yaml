@@ -61,18 +61,19 @@ default:
       - 224
       - 224
   inference:
+    model:
+      channel_activations:
+        - {channels: "0:2", activation: sigmoid}
+        - {channels: "2:3", activation: tanh}
     system:
       num_workers: 4
     test_time_augmentation:
       enabled: false
-      channel_activations:
-        - {channels: "0:2", activation: sigmoid}
-        - {channels: "2:3", activation: tanh}
     prediction_transform:
       enabled: true
       intensity_scale: 255
       intensity_dtype: uint8
-    save_prediction:
+    save_inference:
       enabled: true
 
 train:
@@ -130,7 +131,7 @@ train:
 
 test:
   inference:
-    save_prediction:
+    save_inference:
       output_path: outputs/cem-mitolab_mednext2d/results/
   data:
     test:

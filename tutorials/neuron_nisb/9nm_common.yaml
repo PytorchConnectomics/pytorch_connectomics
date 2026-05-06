@@ -32,7 +32,7 @@ default:
       use_preloaded_cache_val: false
       patch_size: [32, 256, 256]
   inference:
-    sliding_window:
+    window:
       window_size: [32, 256, 256]
 
 train:

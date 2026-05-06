@@ -84,12 +84,15 @@ default:
       train_transpose: [2, 1, 0]
       val_transpose: [2, 1, 0]
   inference:
-    head: aff_r1
-    select_channel: ":"
+    model:
+      head: aff_r1
+      select_channel: ":"
+      channel_activations:
+      - {channels: ":", activation: sigmoid}
     system:
       num_gpus: 1
       num_workers: 8
-    sliding_window:
+    window:
       keep_input_on_cpu: true
       sw_device: cuda
       output_device: cpu
@@ -99,20 +102,19 @@ default:
       blending: gaussian
       sigma_scale: 0.25
       padding_mode: replicate
+    save_inference:
+      enabled: true
+      backend: h5
+      dtype: float32
     test_time_augmentation:
       enabled: false
       flip_axes:
       rotation90_axes:
-      channel_activations:
-      - {channels: ":", activation: sigmoid}
       ensemble_mode: mean
       apply_mask: false
-    save_prediction:
-      enabled: true
-      storage_dtype: float32
-      output_formats: [h5]
 
   decoding:
+    enabled: true
     steps:
     - name: decode_affinity_cc
       kwargs:
@@ -192,7 +194,7 @@ train:
 
 test:
   inference:
-    save_prediction:
+    save_inference:
       output_path: outputs/neuron_nisb_9nm_base_mednext_l_aff9_multitask/results/
   data:
     test:

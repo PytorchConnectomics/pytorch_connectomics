@@ -10,7 +10,7 @@ import numpy as np
 import torch
 import torch.nn.functional as F
 from monai.data.utils import dense_patch_slices
-from monai.inferers.utils import _get_scan_interval, compute_importance_map
+from monai.inferers.utils import _get_scan_interval
 
 try:
     from tqdm.auto import tqdm
@@ -29,27 +29,13 @@ from .lazy_distributed import reduce_cpu_tensor_to_rank_zero as _reduce_cpu_tens
 from .lazy_distributed import validate_distributed_patch_shard as _validate_distributed_patch_shard
 from .sliding import (
     apply_border_mask,
-    resolve_accumulator_dtype,
+    build_sliding_accumulator_weight_maps,
+    normalize_weighted_accumulator,
     resolve_border_mask,
     resolve_inferer_overlap,
     resolve_inferer_roi_size,
+    resolve_model_output_dtype,
 )
-
-
-def _finalize_sliding_accumulators(
-    value_accumulator: torch.Tensor, weight_accumulator: torch.Tensor
-) -> torch.Tensor:
-    """Divide value by weight in-place; preserves value_accumulator's dtype."""
-    clamp_value = 1.0e-6
-    if value_accumulator.dtype == torch.float16:
-        clamp_value = max(clamp_value, float(torch.finfo(torch.float16).tiny))
-    divisor = torch.clamp_min(weight_accumulator, clamp_value)
-    if divisor.dtype != value_accumulator.dtype:
-        divisor = divisor.to(value_accumulator.dtype)
-    value_accumulator /= divisor
-    return value_accumulator
-
-
 from .tta import TTAPredictor
 
 
@@ -863,7 +849,7 @@ def _lazy_sliding_window(
             or getattr(getattr(cfg, "data", None), "dataloader", None).batch_size
         ),
     )
-    blend_mode = getattr(sliding_cfg, "blending", "gaussian")
+    blend_mode = str(getattr(sliding_cfg, "blending", "gaussian")).strip().lower()
     sigma_scale = float(getattr(sliding_cfg, "sigma_scale", 0.125))
     outer_pad_mode = getattr(sliding_cfg, "padding_mode", "constant")
     outer_pad_value = float(getattr(sliding_cfg, "cval", 0.0))
@@ -892,11 +878,7 @@ def _lazy_sliding_window(
                 f"roi_size={tuple(int(v) for v in roi_size)}."
             )
 
-        start = (
-            (0, 0, 0)
-            if region_start is None
-            else tuple(max(0, int(v)) for v in region_start)
-        )
+        start = (0, 0, 0) if region_start is None else tuple(max(0, int(v)) for v in region_start)
         stop = (
             bounds_shape
             if region_stop is None
@@ -914,7 +896,9 @@ def _lazy_sliding_window(
             region_stop=stop,
             snap_to_edge=snap_to_edge,
         )
-        all_records: list[tuple[tuple[int, int, int], tuple[slice, slice, slice], tuple[slice, slice, slice]]] = []
+        all_records: list[
+            tuple[tuple[int, int, int], tuple[slice, slice, slice], tuple[slice, slice, slice]]
+        ] = []
         for patch_slice in global_patch_slices:
             patch_start = tuple(int(s.start) for s in patch_slice)
             patch_stop = tuple(patch_start[axis] + int(roi_size[axis]) for axis in range(3))
@@ -950,15 +934,18 @@ def _lazy_sliding_window(
             patch_records = all_records
 
         border_mask = resolve_border_mask(cfg, len(roi_size))
-        importance_map = compute_importance_map(
+        output_dtype = resolve_model_output_dtype(cfg)
+        value_importance_map, weight_importance_map = build_sliding_accumulator_weight_maps(
             tuple(int(v) for v in roi_size),
             mode=blend_mode,
             sigma_scale=overlap if blend_mode == "constant" else sigma_scale,
             device=accumulation_device,
-            dtype=torch.float32,
+            value_dtype=output_dtype,
         )
-        importance_map = apply_border_mask(importance_map, border_mask)
-        importance_map = importance_map.unsqueeze(0).unsqueeze(0)
+        value_importance_map = apply_border_mask(value_importance_map, border_mask)
+        weight_importance_map = apply_border_mask(weight_importance_map, border_mask)
+        value_importance_map = value_importance_map.unsqueeze(0).unsqueeze(0)
+        weight_importance_map = weight_importance_map.unsqueeze(0).unsqueeze(0)
 
         mask_accessor = (
             _build_accessor(cfg, mask_path, kind="mask", mode="test")
@@ -1037,13 +1024,13 @@ def _lazy_sliding_window(
                     )
 
                     prediction = prediction.detach().to(
-                        device=accumulation_device, dtype=torch.float32
+                        device=accumulation_device, dtype=output_dtype
                     )
                     if value_accumulator is None:
                         value_accumulator = torch.zeros(
                             (1, int(prediction.shape[1]), *output_size),
                             device=accumulation_device,
-                            dtype=resolve_accumulator_dtype(cfg),
+                            dtype=output_dtype,
                         )
 
                     for patch_idx, (prediction_slices, output_slices) in enumerate(batch_records):
@@ -1055,9 +1042,9 @@ def _lazy_sliding_window(
                         )
                         importance_index = (slice(None), slice(None), *prediction_slices)
                         value_accumulator[output_index] += (
-                            prediction[prediction_index] * importance_map[importance_index]
+                            prediction[prediction_index] * value_importance_map[importance_index]
                         )
-                        weight_accumulator[output_index] += importance_map[importance_index]
+                        weight_accumulator[output_index] += weight_importance_map[importance_index]
 
                     if progress_bar is not None:
                         progress_bar.update(1)
@@ -1098,7 +1085,7 @@ def _lazy_sliding_window(
                 value_accumulator = reduced_value
                 weight_accumulator = reduced_weight
 
-            value_accumulator = _finalize_sliding_accumulators(
+            value_accumulator = normalize_weighted_accumulator(
                 value_accumulator, weight_accumulator
             )
             del weight_accumulator

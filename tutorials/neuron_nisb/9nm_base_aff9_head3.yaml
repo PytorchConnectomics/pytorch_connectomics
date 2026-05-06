@@ -79,22 +79,24 @@ default:
       val_transpose: [2, 1, 0]
 
   inference:
-    head: aff_r1
-    sliding_window:
+    model:
+      head: aff_r1
+      activation_profile: act_binary
+    window:
       keep_input_on_cpu: true
       sw_device: cuda
       output_device: cpu
       window_size: [32, 256, 256]
       sw_batch_size: 1
-    test_time_augmentation:
-      enabled: true
-      activation_profile: act_binary
-      ensemble_mode: mean
-    save_prediction:
+    save_inference:
       enabled: true
       save_all_heads: true
+    test_time_augmentation:
+      enabled: true
+      ensemble_mode: mean
 
   decoding:
+    enabled: true
     steps:
     - template: decoding_abiss
 

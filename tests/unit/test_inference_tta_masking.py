@@ -139,9 +139,7 @@ def test_tta_channel_activations_colon_applies_to_all_channels():
     cfg = Config()
     cfg.model.out_channels = 3
     cfg.inference.test_time_augmentation.enabled = False
-    cfg.inference.test_time_augmentation.channel_activations = [
-        {"channels": ":", "activation": "sigmoid"}
-    ]
+    cfg.inference.model.channel_activations = [{"channels": ":", "activation": "sigmoid"}]
 
     predictor = TTAPredictor(
         cfg=cfg, sliding_inferer=None, forward_fn=_forward_three_channel_logits
@@ -159,9 +157,7 @@ def test_tta_channel_activations_sigmoid_is_in_place_for_all_channels():
     cfg = Config()
     cfg.model.out_channels = 3
     cfg.inference.test_time_augmentation.enabled = False
-    cfg.inference.test_time_augmentation.channel_activations = [
-        {"channels": ":", "activation": "sigmoid"}
-    ]
+    cfg.inference.model.channel_activations = [{"channels": ":", "activation": "sigmoid"}]
 
     predictor = TTAPredictor(
         cfg=cfg, sliding_inferer=None, forward_fn=_forward_three_channel_logits
@@ -175,11 +171,27 @@ def test_tta_channel_activations_sigmoid_is_in_place_for_all_channels():
     assert torch.allclose(out, torch.sigmoid(_forward_three_channel_logits(tensor[:, :1])))
 
 
+def test_tta_model_output_dtype_casts_preprocessed_output():
+    cfg = Config()
+    cfg.model.out_channels = 3
+    cfg.inference.test_time_augmentation.enabled = False
+    cfg.inference.model.output_dtype = "float16"
+    cfg.inference.model.channel_activations = [{"channels": ":", "activation": "sigmoid"}]
+
+    predictor = TTAPredictor(
+        cfg=cfg, sliding_inferer=None, forward_fn=_forward_three_channel_logits
+    )
+
+    pred = predictor.predict(torch.zeros((1, 1, 2, 2, 2), dtype=torch.float32))
+
+    assert pred.dtype == torch.float16
+
+
 def test_tta_channel_activations_follow_python_slice_semantics():
     cfg = Config()
     cfg.model.out_channels = 3
     cfg.inference.test_time_augmentation.enabled = False
-    cfg.inference.test_time_augmentation.channel_activations = [
+    cfg.inference.model.channel_activations = [
         {"channels": "0:-1", "activation": "sigmoid"},
         {"channels": "-1:", "activation": "tanh"},
     ]
@@ -206,12 +218,10 @@ def test_tta_selects_named_output_head_before_channel_preprocessing():
         "affinity": {"out_channels": 2, "num_blocks": 0},
         "sdt": {"out_channels": 1, "num_blocks": 0},
     }
-    cfg.inference.head = "affinity"
+    cfg.inference.model.head = "affinity"
     cfg.inference.test_time_augmentation.enabled = False
-    cfg.inference.test_time_augmentation.channel_activations = [
-        {"channels": ":", "activation": "sigmoid"}
-    ]
-    cfg.inference.select_channel = 1
+    cfg.inference.model.channel_activations = [{"channels": ":", "activation": "sigmoid"}]
+    cfg.inference.model.select_channel = 1
 
     predictor = TTAPredictor(cfg=cfg, sliding_inferer=None, forward_fn=_forward_multi_head_logits)
 
@@ -232,7 +242,7 @@ def test_tta_requested_head_override_selects_alternate_named_head():
         "affinity": {"out_channels": 2, "num_blocks": 0},
         "sdt": {"out_channels": 1, "num_blocks": 0},
     }
-    cfg.inference.head = "affinity"
+    cfg.inference.model.head = "affinity"
     cfg.inference.test_time_augmentation.enabled = False
 
     predictor = TTAPredictor(cfg=cfg, sliding_inferer=None, forward_fn=_forward_multi_head_logits)
@@ -310,9 +320,7 @@ def test_patch_first_local_tta_matches_standard_sliding_output():
     cfg.inference.test_time_augmentation.flip_axes = [0]
     cfg.inference.test_time_augmentation.rotation90_axes = [[1, 2]]
     cfg.inference.test_time_augmentation.rotate90_k = [0, 1]
-    cfg.inference.test_time_augmentation.channel_activations = [
-        {"channels": ":", "activation": "sigmoid"}
-    ]
+    cfg.inference.model.channel_activations = [{"channels": ":", "activation": "sigmoid"}]
     cfg.inference.sliding_window.window_size = [2, 2, 2]
     cfg.inference.sliding_window.sw_batch_size = 2
     cfg.inference.sliding_window.overlap = 0.5

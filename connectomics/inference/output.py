@@ -226,13 +226,21 @@ def apply_prediction_transform(cfg: Config | DictConfig, data: np.ndarray) -> np
 
 def apply_storage_dtype_transform(cfg: Config | DictConfig, data: np.ndarray) -> np.ndarray:
     """Apply save/cache-only dtype conversion."""
-    if not hasattr(cfg, "inference") or not hasattr(cfg.inference, "save_prediction"):
+    if not hasattr(cfg, "inference"):
         return data
+
+    save_inference_cfg = getattr(cfg.inference, "save_inference", None)
+    save_prediction_cfg = getattr(cfg.inference, "save_prediction", None)
+    storage_dtype = (
+        getattr(save_inference_cfg, "dtype", None) if save_inference_cfg is not None else None
+    )
+    if storage_dtype is None and save_prediction_cfg is not None:
+        storage_dtype = getattr(save_prediction_cfg, "storage_dtype", None)
 
     return _convert_intensity_dtype(
         data,
-        getattr(cfg.inference.save_prediction, "storage_dtype", None),
-        config_name="inference.save_prediction.storage_dtype",
+        storage_dtype,
+        config_name="inference.save_inference.dtype",
     )
 
 
@@ -295,8 +303,12 @@ def write_outputs(
         filename = filenames[idx]
         sample = np.squeeze(sample)
 
-        output_formats = ["h5"]
-        if hasattr(inference_cfg, "save_prediction"):
+        save_inference_cfg = getattr(inference_cfg, "save_inference", None)
+        if save_inference_cfg is not None:
+            output_formats = [str(getattr(save_inference_cfg, "backend", "h5"))]
+        else:
+            output_formats = ["h5"]
+        if save_inference_cfg is None and hasattr(inference_cfg, "save_prediction"):
             save_pred_cfg = inference_cfg.save_prediction
             if hasattr(save_pred_cfg, "output_formats") and save_pred_cfg.output_formats:
                 output_formats = save_pred_cfg.output_formats

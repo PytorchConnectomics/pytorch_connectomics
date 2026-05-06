@@ -461,8 +461,10 @@ def _try_cache_only_intermediate_eval(
         if len(label_paths) != len(resolved_files):
             return False
 
-    print("  [OK]Loaded intermediate predictions from disk, skipping inference")
-    print(f"  INFO:Cache hit for {len(filenames)} volume(s); running decode + eval directly.")
+    print(
+        f"  [OK]Found intermediate prediction cache for {len(filenames)} volume(s); "
+        "skipping inference and running decode + eval directly."
+    )
 
     final_suffix = final_prediction_output_tag(cfg, checkpoint_path=checkpoint_path)
     inference_cfg = getattr(cfg, "inference", None)
@@ -470,7 +472,7 @@ def _try_cache_only_intermediate_eval(
 
     for idx, pred_file in enumerate(resolved_files):
         volume_name = filenames[idx]
-        print(f"[STAGE: Processing volume] {volume_name}")
+        print(f"  Loading {pred_file.name} ...")
         try:
             predictions_np = read_volume(str(pred_file), dataset="main")
         except Exception as exc:

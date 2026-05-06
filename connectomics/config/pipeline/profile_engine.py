@@ -542,8 +542,8 @@ _VALUE_PROFILE_FAMILIES: List[Tuple[str, Tuple[str, ...], str, str, bool, Option
     (
         "activation_profiles",
         (_STAGE_DEFAULT, _STAGE_TEST, _STAGE_TUNE),
-        "inference.test_time_augmentation.activation_profile",
-        "inference.test_time_augmentation",
+        "inference.model.activation_profile",
+        "inference.model",
         True,
         "channel_activations",
     ),
@@ -581,7 +581,7 @@ _REFERENCE_PROFILE_FAMILIES: List[Tuple[str, Tuple[str, ...], str]] = [
     (
         "activation_profiles",
         (_STAGE_DEFAULT, _STAGE_TEST, _STAGE_TUNE),
-        "inference.test_time_augmentation",
+        "inference.model",
     ),
     ("augmentation_profiles", (_STAGE_DEFAULT, _STAGE_TRAIN), "data.augmentation"),
     (

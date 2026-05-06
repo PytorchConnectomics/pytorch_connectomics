@@ -36,7 +36,7 @@ default:
     augmentation:
       profile: aug_em_neuron
   inference:
-    sliding_window:
+    window:
       window_size: [32, 160, 160]
       sw_batch_size: 1
       keep_input_on_cpu: false
@@ -47,9 +47,10 @@ default:
       flip_axes: all
       rotation90_axes: [[1, 2]]
         #select_channel: [0, 1, 2, 9]
-    # crop_pad + affinity_crop[(9,0),(9,0),(9,0)] = pad_size [16,80,80]
-    crop_pad: [7, 16, 71, 80, 71, 80]
-    save_prediction:
+    model:
+      # crop_pad + affinity_crop[(9,0),(9,0),(9,0)] = pad_size [16,80,80]
+      crop_pad: [7, 16, 71, 80, 71, 80]
+    save_inference:
       enabled: true
 
   decoding:
