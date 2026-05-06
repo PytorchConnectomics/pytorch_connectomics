@@ -41,11 +41,11 @@ from .transforms import (
     RandCutNoised,
     RandElasticd,
     RandMisAlignmentd,
-    RandMulAddIntensityd,
     RandMissingPartsd,
     RandMissingSectiond,
     RandMixupd,
     RandMotionBlurd,
+    RandMulAddIntensityd,
     RandRotate90Alld,
     RandSliceDropd,
     RandSliceDropZd,
@@ -64,24 +64,37 @@ def _strict_binarize_mask(mask, threshold: float = 0.0):
     return (mask > threshold).astype(mask.dtype, copy=False)
 
 
-def _target_context(cfg: Config) -> tuple[int, ...]:
-    context = getattr(cfg.data.dataloader, "target_context", None) or []
-    if not context:
-        return tuple(0 for _ in cfg.data.dataloader.patch_size)
-    return tuple(int(v) for v in context)
+def _target_context(cfg: Config) -> tuple[tuple[int, ...], tuple[int, ...]]:
+    """Return ``(pre, post)`` per-axis voxel counts for target_context extension.
+
+    Length-3 configs ``[a, b, c]`` are interpreted as trailing-only extension
+    (``pre = (0,...,0)``, ``post = (a, b, c)``) for legacy compatibility.
+    Length-6 configs ``[pre0, pre1, pre2, post0, post1, post2]`` are taken
+    literally.
+    """
+    spatial_ndim = len(cfg.data.dataloader.patch_size) if cfg.data.dataloader.patch_size else 0
+    raw = getattr(cfg.data.dataloader, "target_context", None) or []
+    values = [int(v) for v in raw]
+    if not values:
+        zero = tuple(0 for _ in range(spatial_ndim))
+        return zero, zero
+    if len(values) == spatial_ndim:
+        return tuple(0 for _ in range(spatial_ndim)), tuple(values)
+    if len(values) == 2 * spatial_ndim:
+        return tuple(values[:spatial_ndim]), tuple(values[spatial_ndim:])
+    raise ValueError(
+        "data.dataloader.target_context length must be 0, "
+        f"{spatial_ndim} (trailing-only), or {2 * spatial_ndim} (pre+post). "
+        f"Got {raw}."
+    )
 
 
 def _effective_patch_size(cfg: Config) -> tuple[int, ...] | None:
     patch_size = tuple(cfg.data.dataloader.patch_size) if cfg.data.dataloader.patch_size else None
     if patch_size is None:
         return None
-    context = _target_context(cfg)
-    if len(context) != len(patch_size):
-        raise ValueError(
-            "data.dataloader.target_context must have the same length as patch_size: "
-            f"{context} vs {patch_size}"
-        )
-    return tuple(int(patch_size[i]) + int(context[i]) for i in range(len(patch_size)))
+    pre, post = _target_context(cfg)
+    return tuple(int(patch_size[i]) + pre[i] + post[i] for i in range(len(patch_size)))
 
 
 def _append_banis_pre_target_transforms(transforms: list, label_cfg) -> None:
@@ -96,14 +109,51 @@ def _append_banis_pre_target_transforms(transforms: list, label_cfg) -> None:
         )
 
 
+def _label_transform_emits_mask(label_cfg) -> bool:
+    """Return True when label_transform.targets includes an affinity task.
+
+    Affinity target generation emits a paired ``f"{key}_mask"`` key carrying
+    the per-channel loss-mask; downstream pipeline steps (target_context crop,
+    ToTensor, collate) need to know to forward that key.
+    """
+    if label_cfg is None:
+        return False
+    targets = getattr(label_cfg, "targets", None) or []
+    for task in targets:
+        if isinstance(task, dict):
+            name = task.get("name") or task.get("task") or task.get("type")
+        else:
+            name = (
+                getattr(task, "name", None)
+                or getattr(task, "task", None)
+                or getattr(task, "type", None)
+            )
+        if name == "affinity":
+            return True
+    return False
+
+
+def _label_mask_keys(cfg: Config, keys: list[str]) -> list[str]:
+    """Return the mask keys that ``MultiTaskLabelTransformd`` will emit."""
+    label_cfg = getattr(cfg.data, "label_transform", None)
+    if not _label_transform_emits_mask(label_cfg):
+        return []
+    return [f"{k}_mask" for k in keys if k == "label"]
+
+
 def _append_target_context_crop(transforms: list, cfg: Config) -> None:
-    context = _target_context(cfg)
-    if not context or not any(v > 0 for v in context):
+    pre, post = _target_context(cfg)
+    if not any(v > 0 for v in pre) and not any(v > 0 for v in post):
         return
 
     from ..processing.transforms import LeadingSpatialCropd
 
-    transforms.append(LeadingSpatialCropd(roi_size=tuple(cfg.data.dataloader.patch_size)))
+    transforms.append(
+        LeadingSpatialCropd(
+            roi_size=tuple(cfg.data.dataloader.patch_size),
+            roi_start=pre,
+        )
+    )
 
 
 def _build_nnunet_preprocess_transform(keys, nnunet_pre_cfg, source_spacing):
@@ -284,8 +334,14 @@ def build_train_transforms(
     # - CrossEntropyLoss needs (B, H, W)
     # Squeezing is handled in the loss wrapper instead
 
-    # Final conversion to tensor with float32 dtype
+    # Final conversion to tensor with float32 dtype.
     transforms.append(ToTensord(keys=keys, dtype=torch.float32))
+    # Affinity loss-masks emitted by MultiTaskLabelTransformd are bool;
+    # convert separately so they keep the bool dtype (saves 4x memory and
+    # is dtype-checked by the loss orchestrator).
+    mask_keys = _label_mask_keys(cfg, keys)
+    if mask_keys:
+        transforms.append(ToTensord(keys=mask_keys, dtype=torch.bool, allow_missing_keys=True))
 
     return Compose(transforms)
 
@@ -519,9 +575,7 @@ def _build_eval_transforms_impl(
     patch_size = (
         _effective_patch_size(cfg)
         if mode == "val"
-        else tuple(data_cfg.dataloader.patch_size)
-        if data_cfg.dataloader.patch_size
-        else None
+        else tuple(data_cfg.dataloader.patch_size) if data_cfg.dataloader.patch_size else None
     )
     if patch_size and all(size > 0 for size in patch_size):
         transforms.append(
@@ -632,6 +686,9 @@ def _build_eval_transforms_impl(
 
     # Final conversion to tensor with float32 dtype
     transforms.append(ToTensord(keys=keys, dtype=torch.float32))
+    mask_keys = _label_mask_keys(cfg, keys)
+    if mask_keys:
+        transforms.append(ToTensord(keys=mask_keys, dtype=torch.bool, allow_missing_keys=True))
 
     return Compose(transforms)
 

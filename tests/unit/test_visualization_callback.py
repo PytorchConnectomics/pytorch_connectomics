@@ -145,6 +145,37 @@ def test_affinity_visualization_crop_skips_partial_affinity_groups():
     assert mask_c is None
 
 
+def test_affinity_visualization_uses_explicit_label_mask_when_available():
+    cfg = Config()
+    cfg.data.label_transform.targets = [
+        {
+            "name": "affinity",
+            "kwargs": {
+                "offsets": ["0-0-1"],
+                "affinity_mode": "banis",
+            },
+        }
+    ]
+
+    image = torch.zeros((1, 1, 1, 1, 4), dtype=torch.float32)
+    label = torch.ones((1, 1, 1, 1, 4), dtype=torch.float32)
+    pred = torch.ones((1, 1, 1, 1, 4), dtype=torch.float32)
+    label_mask = torch.tensor([[[[[True, False, True, False]]]]])
+
+    image_c, label_c, pred_c, mask_c = _apply_affinity_visualization_crop_if_needed(
+        cfg,
+        image=image,
+        label=label,
+        pred=pred,
+        mask=label_mask,
+    )
+
+    assert image_c is image
+    assert torch.equal(label_c, torch.tensor([[[[[1.0, 0.0, 1.0, 0.0]]]]]))
+    assert torch.equal(pred_c, torch.tensor([[[[[1.0, 0.0, 1.0, 0.0]]]]]))
+    assert mask_c is label_mask
+
+
 class _DummyVisualizationModule:
     @staticmethod
     def _resolve_validation_target_slice(head_name: str):

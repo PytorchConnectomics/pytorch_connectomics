@@ -33,24 +33,6 @@ def _default_resolve_affinity_mode(cfg) -> Optional[str]:
     return resolve_affinity_mode_from_cfg(cfg)
 
 
-def _default_compute_valid_mask(
-    offsets: list,
-    spatial_shape: tuple,
-    *,
-    affinity_mode: str,
-    device: torch.device | None = None,
-) -> torch.Tensor:
-    """Lazy-import bridge to data.process.affinity."""
-    from ...data.processing.affinity import compute_affinity_valid_mask
-
-    return compute_affinity_valid_mask(
-        offsets,
-        spatial_shape,
-        affinity_mode=affinity_mode,
-        device=device,
-    )
-
-
 def _default_resolve_affinity_offsets(cfg, *, num_channels: int, channel_slice):
     """Lazy-import bridge to data.process.affinity."""
     from ...data.processing.affinity import resolve_affinity_offsets_for_channel_slice
@@ -60,6 +42,13 @@ def _default_resolve_affinity_offsets(cfg, *, num_channels: int, channel_slice):
         num_channels=num_channels,
         channel_slice=channel_slice,
     )
+
+
+def _default_resolve_affinity_channel_groups(cfg):
+    """Lazy-import bridge to data.process.affinity."""
+    from ...data.processing.affinity import resolve_affinity_channel_groups_from_cfg
+
+    return resolve_affinity_channel_groups_from_cfg(cfg)
 
 
 class LossOrchestrator:
@@ -77,7 +66,7 @@ class LossOrchestrator:
         *,
         resolve_affinity_mode_fn: Optional[Callable] = None,
         resolve_affinity_offsets_fn: Optional[Callable] = None,
-        compute_valid_mask_fn: Optional[Callable] = None,
+        resolve_affinity_channel_groups_fn: Optional[Callable] = None,
     ):
         self.cfg = cfg
         self.loss_functions = loss_functions
@@ -97,7 +86,9 @@ class LossOrchestrator:
         self._resolve_affinity_offsets_fn = (
             resolve_affinity_offsets_fn or _default_resolve_affinity_offsets
         )
-        self._compute_valid_mask_fn = compute_valid_mask_fn or _default_compute_valid_mask
+        self._resolve_affinity_channel_groups_fn = (
+            resolve_affinity_channel_groups_fn or _default_resolve_affinity_channel_groups
+        )
 
         if self.loss_cfg is None:
             raise ValueError("cfg.model.loss is required for loss orchestration")
@@ -112,6 +103,11 @@ class LossOrchestrator:
         )
         if not self.loss_term_specs:
             raise ValueError("No loss terms were compiled. Configure model.loss.losses.")
+        self.affinity_channel_groups = (
+            list(self._resolve_affinity_channel_groups_fn(cfg))
+            if self.affinity_mode is not None
+            else []
+        )
 
     def _apply_task_weighting(
         self,
@@ -338,7 +334,8 @@ class LossOrchestrator:
             else:
                 raise ValueError(
                     f"Loss term '{term_name}' did not specify {role}_head and model.primary_head "
-                    f"is unset, but model output has multiple heads {sorted(normalized_output.keys())}."
+                    "is unset, but model output has multiple heads "
+                    f"{sorted(normalized_output.keys())}."
                 )
 
         if resolved_head not in normalized_output:
@@ -379,20 +376,100 @@ class LossOrchestrator:
             return self._resize_class_index_target_to_output(tensor, output_like)
         return match_target_to_output(tensor, output_like)
 
-    def _resolve_affinity_offsets_for_term(
+    def _resize_bool_mask_for_output(
+        self,
+        mask: torch.Tensor,
+        output_like: torch.Tensor,
+    ) -> torch.Tensor:
+        if mask.dtype != torch.bool:
+            raise TypeError(f"label_mask must have dtype torch.bool, got {mask.dtype}")
+        mask = mask.to(device=output_like.device)
+        if mask.shape[2:] == output_like.shape[2:]:
+            return mask
+
+        invalid = (~mask).to(dtype=torch.float32)
+        invalid_resized = F.interpolate(
+            invalid,
+            size=output_like.shape[2:],
+            mode="area",
+        )
+        return invalid_resized <= 0.0
+
+    def _term_target_range(
         self,
         term: LossTermSpec,
         *,
         labels_num_channels: int,
-        is_main_scale: bool,
-    ) -> Optional[list[tuple[int, int, int]]]:
-        if self.affinity_mode is None or not is_main_scale:
-            return None
-        return self._resolve_affinity_offsets_fn(
-            self.cfg,
+    ) -> tuple[int, int]:
+        if term.target_slice is None:
+            return 0, labels_num_channels
+        return self._resolve_channel_selector_range(
+            term.target_slice,
             num_channels=labels_num_channels,
-            channel_slice=term.target_slice,
         )
+
+    def _term_targets_affinity(
+        self,
+        term: LossTermSpec,
+        *,
+        labels_num_channels: int,
+    ) -> bool:
+        if self.affinity_mode is None or term.call_kind != "pred_target":
+            return False
+
+        target_start, target_end = self._term_target_range(
+            term,
+            labels_num_channels=labels_num_channels,
+        )
+        for (group_start, group_end), _offsets in self.affinity_channel_groups:
+            if max(target_start, int(group_start)) < min(target_end, int(group_end)):
+                return True
+
+        if self.affinity_channel_groups:
+            return False
+
+        return (
+            self._resolve_affinity_offsets_fn(
+                self.cfg,
+                num_channels=labels_num_channels,
+                channel_slice=term.target_slice,
+            )
+            is not None
+        )
+
+    def _prepare_target_valid_mask(
+        self,
+        term: LossTermSpec,
+        target_mask: Optional[torch.Tensor],
+        labels: torch.Tensor,
+        pred: torch.Tensor,
+        *,
+        require_mask: bool,
+    ) -> Optional[torch.Tensor]:
+        if target_mask is None:
+            if require_mask:
+                raise ValueError(
+                    "Affinity loss requires an explicit label_mask emitted by "
+                    "the affinity target transform. The training loss no longer "
+                    "infers a geometry mask from the cropped prediction shape."
+                )
+            return None
+
+        if target_mask.dtype != torch.bool:
+            raise TypeError(f"label_mask must have dtype torch.bool, got {target_mask.dtype}")
+        if target_mask.shape[:2] != labels.shape[:2] or target_mask.shape[2:] != labels.shape[2:]:
+            raise ValueError(
+                "label_mask must have the same batch, channel, and spatial shape as labels: "
+                f"label_mask={tuple(target_mask.shape)}, labels={tuple(labels.shape)}"
+            )
+
+        sliced_mask = (
+            target_mask
+            if term.target_slice is None
+            else self._slice_channels(target_mask, term.target_slice)
+        )
+        resized_mask = self._resize_bool_mask_for_output(sliced_mask, pred)
+        return resized_mask.to(dtype=pred.dtype)
 
     def _compute_explicit_terms_for_output(
         self,
@@ -403,6 +480,7 @@ class LossOrchestrator:
         scale_idx: Optional[int],
         is_main_scale: bool,
         mask: Optional[torch.Tensor] = None,
+        target_mask: Optional[torch.Tensor] = None,
     ) -> tuple[torch.Tensor, Dict[str, float]]:
         if not self.loss_term_specs:
             raise ValueError("Explicit loss term path requested but no loss terms are configured")
@@ -420,10 +498,9 @@ class LossOrchestrator:
             meta = self.loss_metadata[term.loss_index]
             call_kind = term.call_kind
             spatial_weight_arg = term.spatial_weight_arg
-            affinity_offsets = self._resolve_affinity_offsets_for_term(
+            requires_target_mask = self._term_targets_affinity(
                 term,
                 labels_num_channels=int(labels.shape[1]),
-                is_main_scale=is_main_scale,
             )
 
             pred_source = self._select_prediction_tensor(
@@ -472,7 +549,6 @@ class LossOrchestrator:
                 pred2 = torch.clamp(pred2, min=self.clamp_min, max=self.clamp_max)
 
             # Resize labels/masks per term for deep supervision scales.
-            affinity_valid_mask: Optional[torch.Tensor] = None
             target_valid_mask: Optional[torch.Tensor] = None
             if pred is not None:
                 if target is not None:
@@ -493,31 +569,19 @@ class LossOrchestrator:
                         pred,
                         target_kind="class_index",
                     )
-                # Affinity targets only define edges where both endpoint
-                # voxels exist. Mask invalid borders per channel instead of
-                # training on convention-dependent zero padding.
-                if affinity_offsets:
-                    spatial_shape = tuple(int(v) for v in pred.shape[2:])
-                    affinity_valid_mask = self._compute_valid_mask_fn(
-                        affinity_offsets,
-                        spatial_shape,
-                        affinity_mode=self.affinity_mode,
-                        device=pred.device,
+                if target is not None:
+                    target_valid_mask = self._prepare_target_valid_mask(
+                        term,
+                        target_mask,
+                        labels,
+                        pred,
+                        require_mask=requires_target_mask,
                     )
-                    # (C, D, H, W) -> (1, C, D, H, W); match pred dtype for AMP
-                    affinity_valid_mask = affinity_valid_mask.unsqueeze(0).to(pred.dtype)
-                if affinity_offsets and target is not None:
-                    # BANIS encodes invalid affinity edges as -1 and trains
-                    # with aff >= 0. Mirror that mask here so unlabeled or
-                    # border edges do not become easy negatives.
-                    target_valid_mask = (target >= 0).to(dtype=pred.dtype)
 
             # Merge all masks into combined_mask_tensor (for masking invalid
-            # regions in the loss).  The affinity valid mask is kept separate
-            # from term_mask_tensor so that the pos_weight / class-balancing
-            # computation below works correctly.
+            # regions in the loss).
             combined_mask_tensor: Optional[torch.Tensor] = None
-            for m in (term_mask_tensor, batch_mask_tensor, affinity_valid_mask, target_valid_mask):
+            for m in (term_mask_tensor, batch_mask_tensor, target_valid_mask):
                 if m is not None:
                     combined_mask_tensor = (
                         m if combined_mask_tensor is None else combined_mask_tensor * m
@@ -541,15 +605,6 @@ class LossOrchestrator:
                         spatial_weight_tensor = batch_mask_tensor
                     else:
                         spatial_weight_tensor = spatial_weight_tensor * batch_mask_tensor
-                # Fold affinity valid mask into the spatial weight so border
-                # voxels get zero weight (no gradient).  This is applied AFTER
-                # pos_weight computation so class balancing uses the correct
-                # valid-region statistics.
-                if affinity_valid_mask is not None:
-                    if spatial_weight_tensor is None:
-                        spatial_weight_tensor = affinity_valid_mask
-                    else:
-                        spatial_weight_tensor = spatial_weight_tensor * affinity_valid_mask
                 if target_valid_mask is not None:
                     if spatial_weight_tensor is None:
                         spatial_weight_tensor = target_valid_mask
@@ -710,6 +765,7 @@ class LossOrchestrator:
         scale_idx: int,
         stage: str = "train",
         mask: Optional[torch.Tensor] = None,
+        target_mask: Optional[torch.Tensor] = None,
     ) -> Tuple[torch.Tensor, Dict[str, float]]:
         """Compute explicit loss terms for one output scale."""
         loss_dict: Dict[str, float] = {}
@@ -720,6 +776,7 @@ class LossOrchestrator:
             scale_idx=scale_idx,
             is_main_scale=(scale_idx == 0),
             mask=mask,
+            target_mask=target_mask,
         )
         loss_dict.update(explicit_loss_dict)
 
@@ -732,6 +789,7 @@ class LossOrchestrator:
         labels: torch.Tensor,
         stage: str = "train",
         mask: Optional[torch.Tensor] = None,
+        target_mask: Optional[torch.Tensor] = None,
     ) -> Tuple[torch.Tensor, Dict[str, float]]:
         main_output = outputs["output"]
         ds_outputs = [outputs[f"ds_{i}"] for i in range(1, 5) if f"ds_{i}" in outputs]
@@ -753,11 +811,11 @@ class LossOrchestrator:
 
         all_outputs = [main_output] + ds_outputs
 
-        total_loss = 0.0
+        total_loss = labels.new_tensor(0.0)
         loss_dict: Dict[str, float] = {}
         for scale_idx, (output, ds_weight) in enumerate(zip(all_outputs, ds_weights)):
             scale_loss, scale_loss_dict = self.compute_loss_for_scale(
-                output, labels, scale_idx, stage, mask=mask
+                output, labels, scale_idx, stage, mask=mask, target_mask=target_mask
             )
             total_loss += scale_loss * ds_weight
             loss_dict.update(scale_loss_dict)
@@ -771,6 +829,7 @@ class LossOrchestrator:
         labels: torch.Tensor,
         stage: str = "train",
         mask: Optional[torch.Tensor] = None,
+        target_mask: Optional[torch.Tensor] = None,
     ) -> Tuple[torch.Tensor, Dict[str, float]]:
         total_loss, loss_dict = self._compute_explicit_terms_for_output(
             outputs,
@@ -779,6 +838,7 @@ class LossOrchestrator:
             scale_idx=None,
             is_main_scale=True,
             mask=mask,
+            target_mask=target_mask,
         )
         loss_dict[f"{stage}_loss_total"] = total_loss.item()
         return total_loss, loss_dict

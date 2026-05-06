@@ -26,6 +26,7 @@ from .distance import (
 from .quantize import decode_quantize, energy_quantize
 from .segment import seg_selection
 from .target import (
+    AffinityTarget,
     seg_erosion_dilation,
     seg_to_affinity,
     seg_to_binary,
@@ -93,7 +94,9 @@ class SegToAffinityMapd(MapTransform):
                 elif label.ndim == 3 and label.shape[0] == 1:
                     # 2D case: [1, H, W] -> keep as is for 2D affinity
                     pass
-                d[key] = seg_to_affinity(label, self.offsets, affinity_mode=self.affinity_mode)
+                target = seg_to_affinity(label, self.offsets, affinity_mode=self.affinity_mode)
+                d[key] = target.values
+                d[f"{key}_mask"] = target.mask
         return d
 
 
@@ -518,15 +521,29 @@ class RelabelConnectedComponentsd(MapTransform):
 
 
 class LeadingSpatialCropd:
-    """Crop arrays/tensors to ``roi_size`` from the low-index spatial corner."""
+    """Crop arrays/tensors to ``roi_size`` starting at ``roi_start`` per spatial axis.
+
+    Defaults ``roi_start`` to all zeros, preserving the legacy "crop from the
+    low-index corner" behavior. Pass a non-zero ``roi_start`` to crop a window
+    that has been extended on its leading side (asymmetric ``target_context``).
+    """
 
     def __init__(
         self,
         roi_size: Sequence[int],
+        roi_start: Optional[Sequence[int]] = None,
         keys: Optional[Sequence[str]] = None,
         allow_missing_keys: bool = True,
     ) -> None:
         self.roi_size = tuple(int(v) for v in roi_size)
+        if roi_start is None:
+            self.roi_start = tuple(0 for _ in self.roi_size)
+        else:
+            self.roi_start = tuple(int(v) for v in roi_start)
+            if len(self.roi_start) != len(self.roi_size):
+                raise ValueError(
+                    f"roi_start {roi_start} must have the same length as roi_size {roi_size}."
+                )
         self.keys = tuple(keys) if keys is not None else None
         self.allow_missing_keys = allow_missing_keys
 
@@ -547,13 +564,16 @@ class LeadingSpatialCropd:
                 continue
 
             spatial_shape = tuple(int(v) for v in value.shape[-spatial_ndim:])
-            if all(spatial_shape[i] == self.roi_size[i] for i in range(spatial_ndim)):
+            already_target = all(spatial_shape[i] == self.roi_size[i] for i in range(spatial_ndim))
+            if already_target and all(s == 0 for s in self.roi_start):
                 continue
 
             slices = [slice(None)] * int(ndim)
             first_spatial_axis = int(ndim) - spatial_ndim
-            for axis, size in enumerate(self.roi_size, start=first_spatial_axis):
-                slices[axis] = slice(0, size)
+            for axis_offset in range(spatial_ndim):
+                start = self.roi_start[axis_offset]
+                size = self.roi_size[axis_offset]
+                slices[first_spatial_axis + axis_offset] = slice(start, start + size)
             d[key] = value[tuple(slices)]
 
         return d
@@ -756,6 +776,11 @@ class MultiTaskLabelTransformd(MapTransform):
         self.output_key_format = output_key_format
 
         self.task_specs = self._init_tasks(tasks)
+        # ``use_mask`` is derived from the configured tasks: only affinity
+        # generates a real per-channel loss mask. When no affinity task is
+        # present, the transform skips mask allocation entirely so the
+        # collate / loss path doesn't ferry an all-True tensor.
+        self.use_mask = any(spec["name"] == "affinity" for spec in self.task_specs)
 
     def _init_tasks(
         self,
@@ -892,6 +917,11 @@ class MultiTaskLabelTransformd(MapTransform):
             label_np, spatial_ndim = self._prepare_label_for_tasks(label_np)
 
             outputs: List[np.ndarray] = []
+            # ``masks`` is only populated when ``self.use_mask`` is True;
+            # otherwise it stays empty and we skip mask plumbing entirely
+            # (no all-True allocations, no mask key written, no collate /
+            # loss work for the mask).
+            masks: List[np.ndarray] = []
             for spec in self.task_specs:
                 # Use precomputed label_aux if available for skeleton_aware_edt.
                 if spec["name"] == "skeleton_aware_edt" and "label_aux" in d:
@@ -912,7 +942,10 @@ class MultiTaskLabelTransformd(MapTransform):
                             alpha=spec["kwargs"].get("alpha", 0.8),
                             bg_value=spec["kwargs"].get("bg_value", -1.0),
                         )
-                    outputs.append(self._normalize_output(result, spatial_ndim))
+                    out_arr = self._normalize_output(result, spatial_ndim)
+                    outputs.append(out_arr)
+                    if self.use_mask:
+                        masks.append(np.ones(out_arr.shape, dtype=bool))
                     continue
 
                 try:
@@ -929,10 +962,19 @@ class MultiTaskLabelTransformd(MapTransform):
                         f"Label shape: {label_np.shape}, dtype: {label_np.dtype}\n"
                         f"Task kwargs: {spec['kwargs']}"
                     )
-                result_arr = np.asarray(
-                    result, dtype=np.float32
-                )  # Convert to float32 (handles bool->float)
-                outputs.append(self._normalize_output(result_arr, spatial_ndim))
+                if isinstance(result, AffinityTarget):
+                    values_arr = np.asarray(result.values, dtype=np.float32)
+                    outputs.append(self._normalize_output(values_arr, spatial_ndim))
+                    if self.use_mask:
+                        masks.append(self._normalize_output(result.mask, spatial_ndim))
+                else:
+                    result_arr = np.asarray(
+                        result, dtype=np.float32
+                    )  # Convert to float32 (handles bool->float)
+                    out_arr = self._normalize_output(result_arr, spatial_ndim)
+                    outputs.append(out_arr)
+                    if self.use_mask:
+                        masks.append(np.ones(out_arr.shape, dtype=bool))
 
             if self.stack_outputs:
                 # Concatenate outputs along channel dimension (axis=0 for [C, D, H, W] format)
@@ -941,18 +983,32 @@ class MultiTaskLabelTransformd(MapTransform):
                     original_key = self.output_key_format.format(key=key, task="original")
                     d[original_key] = label
                 d[key] = self._to_tensor(stacked, add_batch_dim=False)
+                if self.use_mask:
+                    stacked_mask = np.concatenate(masks, axis=0)
+                    d[f"{key}_mask"] = self._to_mask_tensor(stacked_mask, add_batch_dim=False)
             else:
                 if not self.retain_original:
                     d.pop(key, None)
                 else:
                     d[key] = label
-                for spec, result in zip(self.task_specs, outputs):
+                for spec_idx, (spec, result) in enumerate(zip(self.task_specs, outputs)):
                     out_key = spec["output_key"] or self.output_key_format.format(
                         key=key, task=spec["name"]
                     )
                     d[out_key] = self._to_tensor(result, add_batch_dim=False)
+                    if self.use_mask and spec["name"] == "affinity":
+                        d[f"{out_key}_mask"] = self._to_mask_tensor(
+                            masks[spec_idx], add_batch_dim=False
+                        )
 
         return d
+
+    def _to_mask_tensor(self, mask_array: np.ndarray, *, add_batch_dim: bool) -> torch.Tensor:
+        """Convert a bool mask ndarray to a bool torch tensor."""
+        tensor = torch.as_tensor(np.ascontiguousarray(mask_array.astype(bool)))
+        if add_batch_dim:
+            tensor = tensor.unsqueeze(0)
+        return tensor
 
 
 __all__ = [
