@@ -27,11 +27,18 @@ from connectomics.data.processing.distance import edt_semantic as seg_to_semanti
 
 from ..utils import cast2dtype
 from .segmentation_kernels import (
+    CUPY_AVAILABLE,
     NUMBA_AVAILABLE,
 )
 from .segmentation_kernels import compute_edt as _compute_edt
 from .segmentation_kernels import (
+    connected_components_affinity_3d_cupy as _connected_components_affinity_3d_cupy,
+)
+from .segmentation_kernels import (
     connected_components_affinity_3d_numba as _connected_components_affinity_3d_numba,
+)
+from .segmentation_kernels import (
+    connected_components_affinity_3d_numba_parallel as _connected_components_affinity_3d_numba_parallel,
 )
 
 __all__ = [
@@ -450,6 +457,7 @@ def decode_affinity_cc(
     threshold: float = 0.5,
     backend: str = "cc3d",
     edge_offset: int = 0,
+    orphan_fill: bool = False,
 ) -> np.ndarray:
     r"""Convert affinity predictions to instance segmentation via connected components.
 
@@ -474,14 +482,24 @@ def decode_affinity_cc(
         backend (str): Connected-components backend. Options:
             - ``"cc3d"`` (default): Fast, predictable startup; ignores directed affinity graph
               and runs connected components on foreground voxels.
-            - ``"numba"``: Uses the directed affinity flood-fill implementation (first call may
-              incur JIT compile overhead).
+            - ``"numba"``: Multi-threaded affinity-graph CC via parallel min-label sweeps
+              (first call may incur JIT compile overhead). Bit-exact with ``"numba_serial"``.
+            - ``"numba_serial"``: Original single-threaded DFS flood-fill kept as a reference
+              fallback.
+            - ``"cupy"``: Single-GPU min-label sweeps via cupy. Same partition as
+              ``"numba_serial"``; bit-exact for ``edge_offset=0``. Requires cupy and
+              enough GPU memory for ~17×volume bytes.
             - ``"auto"``: Use Numba if available, else cc3d.
         edge_offset (int): Index of the edge ``v ↔ v+1`` along each axis, relative
             to source voxel ``v``. ``0`` = source-index (BANIS's ``comp_affinities``
             stores the edge at ``v``). ``1`` = destination-index
             (``affinity_mode=deepem``, zwatershed, abiss store the edge at ``v+1``).
             Only used when ``backend="numba"``. Default: ``0``.
+        orphan_fill (bool): If True, recover voxels with positive but sub-threshold
+            short-range affinities by running a second CC on the leftover foreground
+            mask and assigning new labels. Default: ``False`` (BANIS reference
+            behavior; avoids allocating the full ``(short > 0).any(axis=0)`` bool
+            volume).
 
     Returns:
         numpy.ndarray: Instance segmentation mask of shape :math:`(Z, Y, X)` with
@@ -508,17 +526,13 @@ def decode_affinity_cc(
         - :func:`decode_binary_cc`: Connected components on binary masks
         - :func:`decode_binary_contour_watershed`: Watershed on binary + contour predictions
     """
-    affinities = np.asarray(affinities)
     if affinities.ndim != 4:
         raise ValueError(f"Expected affinities with shape (C, Z, Y, X), got {affinities.ndim}D")
     if affinities.shape[0] < 3:
         raise ValueError(f"Expected >= 3 channels, got {affinities.shape[0]}")
 
-    # Extract short-range affinities (first 3 channels)
+    # Extract short-range affinities (first 3 channels) and binarize
     short_range_aff = affinities[:3]
-    foreground_mask = (short_range_aff > 0).any(axis=0)
-
-    # Binarize affinities
     hard_aff = short_range_aff > threshold
 
     # Connected components
@@ -526,7 +540,7 @@ def decode_affinity_cc(
     if backend_normalized == "auto":
         backend_normalized = "numba" if NUMBA_AVAILABLE else "cc3d"
 
-    if backend_normalized == "numba":
+    if backend_normalized in ("numba", "numba_serial"):
         if not NUMBA_AVAILABLE:
             warnings.warn(
                 "Numba backend requested but numba is not available; falling back to cc3d. "
@@ -534,27 +548,44 @@ def decode_affinity_cc(
                 UserWarning,
             )
             segmentation = cc3d.connected_components(hard_aff.any(axis=0))
-        else:
-            # Numba implementation (directed affinity flood-fill; first call triggers JIT compile)
+        elif backend_normalized == "numba_serial":
             segmentation = _connected_components_affinity_3d_numba(
                 hard_aff, edge_offset=int(edge_offset)
             )
+        else:
+            segmentation = _connected_components_affinity_3d_numba_parallel(
+                hard_aff, edge_offset=int(edge_offset)
+            )
+    elif backend_normalized == "cupy":
+        if not CUPY_AVAILABLE:
+            raise ImportError(
+                "cupy backend requested but cupy is not available. "
+                "Install a CUDA-matching wheel, e.g. `pip install cupy-cuda12x`."
+            )
+        segmentation = _connected_components_affinity_3d_cupy(
+            hard_aff, edge_offset=int(edge_offset)
+        )
     elif backend_normalized == "cc3d":
         # Fast fallback used historically when numba was unavailable.
         segmentation = cc3d.connected_components(hard_aff.any(axis=0))
     else:
-        raise ValueError(f"Unknown backend '{backend}'. Expected one of ['cc3d', 'numba', 'auto'].")
+        raise ValueError(
+            f"Unknown backend '{backend}'. Expected one of "
+            "['cc3d', 'numba', 'numba_serial', 'cupy', 'auto']."
+        )
 
-    # Fill any foreground voxels that lost all connections at high thresholds
-    if foreground_mask.any():
-        missing_mask = foreground_mask & (segmentation == 0)
-        if missing_mask.any():
-            missing_labels = cc3d.connected_components(missing_mask)
-            if segmentation.max() == 0:
-                segmentation = missing_labels
-            else:
-                segmentation = segmentation.astype(np.int64, copy=False)
-                segmentation[missing_mask] = missing_labels[missing_mask] + segmentation.max()
+    # Recover foreground voxels with sub-threshold positive affinities
+    if orphan_fill:
+        unlabeled = segmentation == 0
+        if unlabeled.any():
+            missing_mask = unlabeled & (short_range_aff > 0).any(axis=0)
+            if missing_mask.any():
+                missing_labels = cc3d.connected_components(missing_mask)
+                if segmentation.max() == 0:
+                    segmentation = missing_labels
+                else:
+                    segmentation = segmentation.astype(np.int64, copy=False)
+                    segmentation[missing_mask] = missing_labels[missing_mask] + segmentation.max()
 
     segmentation = fastremap.refit(segmentation)
 

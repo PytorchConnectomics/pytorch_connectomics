@@ -20,6 +20,13 @@ except ImportError:
     NUMBA_AVAILABLE = False
 
 try:
+    import cupy  # noqa: F401
+
+    CUPY_AVAILABLE = True
+except ImportError:
+    CUPY_AVAILABLE = False
+
+try:
     import pytest_benchmark  # noqa: F401
 
     HAS_BENCHMARK = True
@@ -254,6 +261,136 @@ class TestAffinityCC3DIntegration:
         # Check result is still valid
         assert segm.shape == simple_affinities.shape[1:]
         assert segm.dtype in [np.uint8, np.uint16, np.uint32]
+
+
+def _assert_same_partition(a: np.ndarray, b: np.ndarray) -> None:
+    """Assert two label arrays induce the same partition (relabeling-invariant).
+
+    Downstream metrics (adapted_rand, NERL, …) are relabeling-invariant, so the
+    parallel kernel only needs to match the serial kernel's component
+    structure, not the exact label IDs. This builds a bijection between
+    label sets and fails if any voxel disagrees.
+    """
+    assert a.shape == b.shape, f"shape mismatch: {a.shape} vs {b.shape}"
+    flat_a = a.reshape(-1)
+    flat_b = b.reshape(-1)
+    a_to_b: dict = {}
+    b_to_a: dict = {}
+    for av, bv in zip(flat_a.tolist(), flat_b.tolist()):
+        if av in a_to_b:
+            assert a_to_b[av] == bv, f"label {av} maps to both {a_to_b[av]} and {bv}"
+        else:
+            a_to_b[av] = bv
+        if bv in b_to_a:
+            assert b_to_a[bv] == av, f"label {bv} maps to both {b_to_a[bv]} and {av}"
+        else:
+            b_to_a[bv] = av
+
+
+@pytest.mark.skipif(not NUMBA_AVAILABLE, reason="numba required")
+@pytest.mark.parametrize("seed", [0, 1, 7, 42, 123])
+@pytest.mark.parametrize("edge_offset", [0, 1])
+@pytest.mark.parametrize("density", [0.2, 0.5, 0.8])
+def test_numba_parallel_matches_serial(seed, edge_offset, density):
+    """Parallel-numba CC must induce the same partition as the serial DFS reference."""
+    rng = np.random.default_rng(seed)
+    aff = (rng.random((3, 12, 11, 13), dtype=np.float64) < density).astype(np.float32)
+
+    serial = decode_affinity_cc(
+        aff, threshold=0.5, backend="numba_serial", edge_offset=edge_offset
+    )
+    parallel = decode_affinity_cc(
+        aff, threshold=0.5, backend="numba", edge_offset=edge_offset
+    )
+
+    assert serial.shape == parallel.shape
+    n_serial = int(np.unique(serial).size)
+    n_parallel = int(np.unique(parallel).size)
+    assert n_serial == n_parallel, (
+        f"component count mismatch: serial={n_serial} parallel={n_parallel}"
+    )
+    _assert_same_partition(serial, parallel)
+
+    if edge_offset == 0:
+        # edge_offset=0 stores edges at the lex-lower voxel, so both kernels
+        # label components in lex order of their min member → bit-exact.
+        np.testing.assert_array_equal(serial, parallel)
+
+
+@pytest.mark.skipif(not CUPY_AVAILABLE, reason="cupy required")
+@pytest.mark.parametrize("seed", [0, 1, 7, 42, 123])
+@pytest.mark.parametrize("edge_offset", [0, 1])
+@pytest.mark.parametrize("density", [0.2, 0.5, 0.8])
+def test_cupy_matches_serial(seed, edge_offset, density):
+    """cupy CC must induce the same partition as the serial DFS reference."""
+    rng = np.random.default_rng(seed)
+    aff = (rng.random((3, 12, 11, 13), dtype=np.float64) < density).astype(np.float32)
+
+    serial = decode_affinity_cc(
+        aff, threshold=0.5, backend="numba_serial", edge_offset=edge_offset
+    )
+    gpu = decode_affinity_cc(aff, threshold=0.5, backend="cupy", edge_offset=edge_offset)
+
+    assert serial.shape == gpu.shape
+    n_serial = int(np.unique(serial).size)
+    n_gpu = int(np.unique(gpu).size)
+    assert n_serial == n_gpu, f"component count mismatch: serial={n_serial} cupy={n_gpu}"
+    _assert_same_partition(serial, gpu)
+
+    if edge_offset == 0:
+        np.testing.assert_array_equal(serial, gpu)
+
+
+@pytest.mark.skipif(not CUPY_AVAILABLE, reason="cupy required")
+def test_cupy_empty_and_full():
+    """Edge cases for the cupy backend."""
+    aff_empty = np.zeros((3, 5, 5, 5), dtype=np.float32)
+    aff_full = np.ones((3, 5, 5, 5), dtype=np.float32)
+
+    for edge_offset in (0, 1):
+        s_empty = decode_affinity_cc(
+            aff_empty, threshold=0.5, backend="cupy", edge_offset=edge_offset
+        )
+        ref_empty = decode_affinity_cc(
+            aff_empty, threshold=0.5, backend="numba_serial", edge_offset=edge_offset
+        )
+        np.testing.assert_array_equal(s_empty, ref_empty)
+        assert s_empty.max() == 0
+
+        s_full = decode_affinity_cc(
+            aff_full, threshold=0.5, backend="cupy", edge_offset=edge_offset
+        )
+        ref_full = decode_affinity_cc(
+            aff_full, threshold=0.5, backend="numba_serial", edge_offset=edge_offset
+        )
+        np.testing.assert_array_equal(s_full, ref_full)
+        assert s_full.max() == 1
+
+
+@pytest.mark.skipif(not NUMBA_AVAILABLE, reason="numba required")
+def test_numba_parallel_empty_and_full():
+    """Edge cases: no edges → all zeros; all edges → single component."""
+    aff_empty = np.zeros((3, 5, 5, 5), dtype=np.float32)
+    aff_full = np.ones((3, 5, 5, 5), dtype=np.float32)
+
+    for edge_offset in (0, 1):
+        s_empty = decode_affinity_cc(
+            aff_empty, threshold=0.5, backend="numba", edge_offset=edge_offset
+        )
+        p_empty = decode_affinity_cc(
+            aff_empty, threshold=0.5, backend="numba_serial", edge_offset=edge_offset
+        )
+        np.testing.assert_array_equal(s_empty, p_empty)
+        assert s_empty.max() == 0
+
+        s_full = decode_affinity_cc(
+            aff_full, threshold=0.5, backend="numba", edge_offset=edge_offset
+        )
+        p_full = decode_affinity_cc(
+            aff_full, threshold=0.5, backend="numba_serial", edge_offset=edge_offset
+        )
+        np.testing.assert_array_equal(s_full, p_full)
+        assert s_full.max() == 1
 
 
 if __name__ == "__main__":
