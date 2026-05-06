@@ -27,7 +27,29 @@ from .lazy_distributed import (
 )
 from .lazy_distributed import reduce_cpu_tensor_to_rank_zero as _reduce_cpu_tensor_to_rank_zero
 from .lazy_distributed import validate_distributed_patch_shard as _validate_distributed_patch_shard
-from .sliding import resolve_inferer_overlap, resolve_inferer_roi_size
+from .sliding import (
+    apply_border_mask,
+    resolve_accumulator_dtype,
+    resolve_border_mask,
+    resolve_inferer_overlap,
+    resolve_inferer_roi_size,
+)
+
+
+def _finalize_sliding_accumulators(
+    value_accumulator: torch.Tensor, weight_accumulator: torch.Tensor
+) -> torch.Tensor:
+    """Divide value by weight in-place; preserves value_accumulator's dtype."""
+    clamp_value = 1.0e-6
+    if value_accumulator.dtype == torch.float16:
+        clamp_value = max(clamp_value, float(torch.finfo(torch.float16).tiny))
+    divisor = torch.clamp_min(weight_accumulator, clamp_value)
+    if divisor.dtype != value_accumulator.dtype:
+        divisor = divisor.to(value_accumulator.dtype)
+    value_accumulator /= divisor
+    return value_accumulator
+
+
 from .tta import TTAPredictor
 
 
@@ -173,6 +195,62 @@ def _build_window_slices(
     return [
         tuple(slice(int(start[axis]), int(start[axis]) + int(roi_size[axis])) for axis in range(3))
         for start in itertools.product(*per_axis_offsets)
+    ]
+
+
+def _build_window_axis_offsets(
+    image_size: Sequence[int],
+    roi_size: Sequence[int],
+    overlap: Sequence[float],
+    *,
+    snap_to_edge: bool,
+) -> list[list[int]]:
+    if snap_to_edge:
+        strides = tuple(
+            max(1, int(int(roi_size[axis]) * (1.0 - float(overlap[axis])))) for axis in range(3)
+        )
+    else:
+        strides = _get_scan_interval(
+            tuple(int(v) for v in image_size),
+            tuple(int(v) for v in roi_size),
+            num_spatial_dims=3,
+            overlap=tuple(float(v) for v in overlap),
+        )
+
+    return [
+        _snap_offsets(int(image_size[axis]), int(roi_size[axis]), int(strides[axis]))
+        for axis in range(3)
+    ]
+
+
+def _build_intersecting_window_slices(
+    image_size: Sequence[int],
+    roi_size: Sequence[int],
+    overlap: Sequence[float],
+    *,
+    region_start: Sequence[int],
+    region_stop: Sequence[int],
+    snap_to_edge: bool,
+) -> list[tuple[slice, slice, slice]]:
+    """Build full-volume-grid windows intersecting one bounded output region."""
+    per_axis_offsets = _build_window_axis_offsets(
+        image_size,
+        roi_size,
+        overlap,
+        snap_to_edge=snap_to_edge,
+    )
+    intersecting_offsets = []
+    for axis, offsets in enumerate(per_axis_offsets):
+        start = int(region_start[axis])
+        stop = int(region_stop[axis])
+        size = int(roi_size[axis])
+        intersecting_offsets.append(
+            [offset for offset in offsets if offset < stop and offset + size > start]
+        )
+
+    return [
+        tuple(slice(int(start[axis]), int(start[axis]) + int(roi_size[axis])) for axis in range(3))
+        for start in itertools.product(*intersecting_offsets)
     ]
 
 
@@ -742,230 +820,35 @@ def load_lazy_volume(cfg, path: str, *, kind: str, mode: str = "test") -> np.nda
         return accessor.load_full()
 
 
-def lazy_predict_region(
+def _lazy_sliding_window(
     cfg,
     forward_fn,
     image_path: str,
     *,
-    region_start: Sequence[int],
-    region_stop: Sequence[int],
-    mask_path: Optional[str] = None,
-    mask_align_to_image: bool = False,
-    device: torch.device | str = "cpu",
-    requested_head: Optional[str] = None,
+    region_start: Optional[Sequence[int]],
+    region_stop: Optional[Sequence[int]],
+    mask_path: Optional[str],
+    mask_align_to_image: bool,
+    device: torch.device | str,
+    requested_head: Optional[str],
+    enable_distributed_window_sharding: bool,
+    progress_desc: str,
 ) -> torch.Tensor:
-    """Run lazy sliding-window inference for one bounded region.
+    """Lazy sliding-window inference over a bounded ZYX region.
 
-    ``region_start`` and ``region_stop`` are in transformed/padded ZYX
-    coordinates, matching the coordinate system used by full-volume lazy
-    inference. Only this region is accumulated in CPU memory. Prediction
-    windows are selected from the full-volume sliding-window grid, so region
-    boundaries use real neighboring data whenever they are not true volume
-    boundaries.
+    ``region_start`` / ``region_stop`` may be ``None``, in which case the region
+    covers the whole transformed/padded volume. Windows are always selected from
+    the full-volume grid so region boundaries use real neighboring data whenever
+    they are not true volume boundaries. When ``enable_distributed_window_sharding``
+    is True, windows are sharded across ranks (``[rank::world_size]``) and the
+    accumulators are reduced to rank 0 before finalization.
     """
-    roi_size = resolve_inferer_roi_size(cfg)
-    if roi_size is None:
-        raise ValueError(
-            "Lazy region inference requires inference.sliding_window.window_size "
-            "or model.output_size to be configured."
-        )
-    if len(roi_size) != 3:
-        raise ValueError(f"Lazy region inference currently supports 3D only, got {roi_size}.")
-
-    overlap = _coerce_overlap(resolve_inferer_overlap(cfg, roi_size), spatial_dims=3)
-    sliding_cfg = getattr(getattr(cfg, "inference", None), "sliding_window", None)
-    sw_batch_size = max(
-        1,
-        int(
-            getattr(sliding_cfg, "sw_batch_size", None)
-            or getattr(getattr(cfg, "data", None), "dataloader", None).batch_size
-        ),
-    )
-    blend_mode = getattr(sliding_cfg, "blending", "gaussian")
-    sigma_scale = float(getattr(sliding_cfg, "sigma_scale", 0.125))
-    outer_pad_mode = getattr(sliding_cfg, "padding_mode", "constant")
-    outer_pad_value = float(getattr(sliding_cfg, "cval", 0.0))
-    snap_to_edge = bool(getattr(sliding_cfg, "snap_to_edge", False))
-    target_context = _resolve_target_context(sliding_cfg, roi_size)
-    read_patch_size = tuple(int(roi_size[axis]) + 2 * target_context[axis] for axis in range(3))
-    predictor = TTAPredictor(cfg=cfg, sliding_inferer=None, forward_fn=forward_fn)
-    if predictor.is_distributed_sharding_enabled():
-        raise RuntimeError(
-            "Lazy region inference does not support "
-            "`inference.test_time_augmentation.distributed_sharding`. Disable it first."
-        )
-
-    infer_device = torch.device(device)
-    accumulation_device = torch.device("cpu")
-
-    with _build_accessor(cfg, image_path, kind="image", mode="test") as image_accessor:
-        bounds_shape = tuple(int(v) for v in image_accessor.padded_spatial_shape)
-        start = tuple(max(0, int(v)) for v in region_start)
-        stop = tuple(min(bounds_shape[idx], int(region_stop[idx])) for idx in range(3))
-        if any(stop[idx] <= start[idx] for idx in range(3)):
-            raise ValueError(f"Empty lazy inference region: start={start}, stop={stop}")
-        if any(bounds_shape[idx] < int(roi_size[idx]) for idx in range(3)):
-            raise ValueError(
-                "Lazy region inference requires the transformed test volume to be at least "
-                f"as large as the ROI in every axis. Got bounds_shape={bounds_shape}, "
-                f"roi_size={tuple(int(v) for v in roi_size)}."
-            )
-        image_size = tuple(int(stop[idx]) - int(start[idx]) for idx in range(3))
-        global_patch_slices = _build_window_slices(
-            bounds_shape,
-            roi_size,
-            overlap,
-            snap_to_edge=snap_to_edge,
-        )
-        patch_records = []
-        for patch_slice in global_patch_slices:
-            patch_start = tuple(int(s.start) for s in patch_slice)
-            patch_stop = tuple(patch_start[axis] + int(roi_size[axis]) for axis in range(3))
-            intersection_start = tuple(max(patch_start[axis], start[axis]) for axis in range(3))
-            intersection_stop = tuple(min(patch_stop[axis], stop[axis]) for axis in range(3))
-            if any(intersection_stop[axis] <= intersection_start[axis] for axis in range(3)):
-                continue
-
-            prediction_slices = tuple(
-                slice(
-                    intersection_start[axis] - patch_start[axis],
-                    intersection_stop[axis] - patch_start[axis],
-                )
-                for axis in range(3)
-            )
-            output_slices = tuple(
-                slice(
-                    intersection_start[axis] - start[axis],
-                    intersection_stop[axis] - start[axis],
-                )
-                for axis in range(3)
-            )
-            patch_records.append((patch_start, prediction_slices, output_slices))
-
-        importance_map = (
-            compute_importance_map(
-                tuple(int(v) for v in roi_size),
-                mode=blend_mode,
-                sigma_scale=overlap if blend_mode == "constant" else sigma_scale,
-                device=accumulation_device,
-                dtype=torch.float32,
-            )
-            .unsqueeze(0)
-            .unsqueeze(0)
-        )
-
-        mask_accessor = (
-            _build_accessor(cfg, mask_path, kind="mask", mode="test")
-            if mask_path is not None
-            else None
-        )
-        try:
-            value_accumulator = None
-            weight_accumulator = torch.zeros(
-                (1, 1, *image_size), device=accumulation_device, dtype=torch.float32
-            )
-
-            for batch_start in range(0, len(patch_records), sw_batch_size):
-                current_records = patch_records[batch_start : batch_start + sw_batch_size]
-                image_batch = []
-                mask_batch = [] if mask_accessor is not None else None
-                batch_records = []
-
-                for patch_start, prediction_slices, output_slices in current_records:
-                    read_location = tuple(
-                        patch_start[axis] - target_context[axis] for axis in range(3)
-                    )
-                    image_batch.append(
-                        image_accessor.read_patch(
-                            read_location,
-                            read_patch_size,
-                            outer_pad_mode=outer_pad_mode,
-                            outer_pad_value=outer_pad_value,
-                        )
-                    )
-                    if mask_accessor is not None:
-                        mask_batch.append(
-                            mask_accessor.read_patch(
-                                read_location,
-                                read_patch_size,
-                                outer_pad_mode="constant",
-                                outer_pad_value=0.0,
-                            )
-                        )
-                    batch_records.append((prediction_slices, output_slices))
-
-                image_tensor = torch.from_numpy(np.stack(image_batch, axis=0)).to(
-                    device=infer_device, dtype=torch.float32
-                )
-                mask_tensor = None
-                if mask_batch is not None:
-                    mask_tensor = torch.from_numpy(np.stack(mask_batch, axis=0)).to(
-                        device=infer_device, dtype=torch.float32
-                    )
-
-                prediction = predictor.predict(
-                    image_tensor,
-                    mask=mask_tensor,
-                    mask_align_to_image=mask_align_to_image,
-                    requested_head=requested_head,
-                )
-                prediction = _crop_prediction_to_roi(
-                    prediction,
-                    roi_size=roi_size,
-                    target_context=target_context,
-                    scope="Lazy region inference",
-                )
-
-                prediction = prediction.detach().to(device=accumulation_device, dtype=torch.float32)
-                if value_accumulator is None:
-                    value_accumulator = torch.zeros(
-                        (1, int(prediction.shape[1]), *image_size),
-                        device=accumulation_device,
-                        dtype=torch.float32,
-                    )
-
-                for patch_idx, (prediction_slices, output_slices) in enumerate(batch_records):
-                    output_index = (slice(None), slice(None), *output_slices)
-                    prediction_index = (
-                        slice(patch_idx, patch_idx + 1),
-                        slice(None),
-                        *prediction_slices,
-                    )
-                    importance_index = (slice(None), slice(None), *prediction_slices)
-                    value_accumulator[output_index] += (
-                        prediction[prediction_index] * importance_map[importance_index]
-                    )
-                    weight_accumulator[output_index] += importance_map[importance_index]
-
-            if value_accumulator is None:
-                raise RuntimeError(f"No lazy region patches were generated for {image_path}.")
-
-            value_accumulator /= torch.clamp_min(weight_accumulator, 1.0e-6)
-            del weight_accumulator
-            return value_accumulator.cpu()
-        finally:
-            if mask_accessor is not None:
-                mask_accessor.close()
-
-
-def lazy_predict_volume(
-    cfg,
-    forward_fn,
-    image_path: str,
-    *,
-    mask_path: Optional[str] = None,
-    mask_align_to_image: bool = False,
-    device: torch.device | str = "cpu",
-    requested_head: Optional[str] = None,
-) -> torch.Tensor:
-    """Run lazy sliding-window inference directly from disk-backed volumes."""
     roi_size = resolve_inferer_roi_size(cfg)
     if roi_size is None:
         raise ValueError(
             "Lazy sliding-window inference requires inference.sliding_window.window_size "
             "or model.output_size to be configured."
         )
-
     if len(roi_size) != 3:
         raise ValueError(
             f"Lazy sliding-window inference currently supports 3D only, got {roi_size}."
@@ -996,23 +879,86 @@ def lazy_predict_volume(
 
     infer_device = torch.device(device)
     accumulation_device = torch.device("cpu")
-    distributed_window_sharding = _is_distributed_window_sharding_enabled(cfg)
     _is_dist, rank, world_size = _distributed_context()
     reduction_device = _distributed_reduction_device(infer_device)
     reduce_chunk_mb = int(getattr(sliding_cfg, "distributed_reduce_chunk_mb", 128) or 128)
 
     with _build_accessor(cfg, image_path, kind="image", mode="test") as image_accessor:
-        patch_size_cfg = getattr(cfg.data.dataloader, "patch_size", None)
-        if patch_size_cfg and any(
-            image_accessor.transformed_spatial_shape[idx] < int(patch_size_cfg[idx])
-            for idx in range(3)
-        ):
+        bounds_shape = tuple(int(v) for v in image_accessor.padded_spatial_shape)
+        if any(bounds_shape[idx] < int(roi_size[idx]) for idx in range(3)):
             raise ValueError(
-                "Lazy sliding-window inference currently requires the transformed test volume "
-                "to be at least as large as data.dataloader.patch_size in every axis. "
-                f"Got transformed_shape={image_accessor.transformed_spatial_shape}, "
-                f"patch_size={tuple(int(v) for v in patch_size_cfg)}."
+                "Lazy sliding-window inference requires the transformed test volume to be at "
+                f"least as large as the ROI in every axis. Got bounds_shape={bounds_shape}, "
+                f"roi_size={tuple(int(v) for v in roi_size)}."
             )
+
+        start = (
+            (0, 0, 0)
+            if region_start is None
+            else tuple(max(0, int(v)) for v in region_start)
+        )
+        stop = (
+            bounds_shape
+            if region_stop is None
+            else tuple(min(bounds_shape[idx], int(region_stop[idx])) for idx in range(3))
+        )
+        if any(stop[idx] <= start[idx] for idx in range(3)):
+            raise ValueError(f"Empty lazy inference region: start={start}, stop={stop}")
+        output_size = tuple(int(stop[idx]) - int(start[idx]) for idx in range(3))
+
+        global_patch_slices = _build_intersecting_window_slices(
+            bounds_shape,
+            roi_size,
+            overlap,
+            region_start=start,
+            region_stop=stop,
+            snap_to_edge=snap_to_edge,
+        )
+        all_records: list[tuple[tuple[int, int, int], tuple[slice, slice, slice], tuple[slice, slice, slice]]] = []
+        for patch_slice in global_patch_slices:
+            patch_start = tuple(int(s.start) for s in patch_slice)
+            patch_stop = tuple(patch_start[axis] + int(roi_size[axis]) for axis in range(3))
+            intersection_start = tuple(max(patch_start[axis], start[axis]) for axis in range(3))
+            intersection_stop = tuple(min(patch_stop[axis], stop[axis]) for axis in range(3))
+            if any(intersection_stop[axis] <= intersection_start[axis] for axis in range(3)):
+                continue
+
+            prediction_slices = tuple(
+                slice(
+                    intersection_start[axis] - patch_start[axis],
+                    intersection_stop[axis] - patch_start[axis],
+                )
+                for axis in range(3)
+            )
+            output_slices = tuple(
+                slice(
+                    intersection_start[axis] - start[axis],
+                    intersection_stop[axis] - start[axis],
+                )
+                for axis in range(3)
+            )
+            all_records.append((patch_start, prediction_slices, output_slices))
+
+        if enable_distributed_window_sharding:
+            patch_records = all_records[rank::world_size]
+            _validate_distributed_patch_shard(
+                local_count=len(patch_records),
+                total_count=len(all_records),
+                reduction_device=reduction_device,
+            )
+        else:
+            patch_records = all_records
+
+        border_mask = resolve_border_mask(cfg, len(roi_size))
+        importance_map = compute_importance_map(
+            tuple(int(v) for v in roi_size),
+            mode=blend_mode,
+            sigma_scale=overlap if blend_mode == "constant" else sigma_scale,
+            device=accumulation_device,
+            dtype=torch.float32,
+        )
+        importance_map = apply_border_mask(importance_map, border_mask)
+        importance_map = importance_map.unsqueeze(0).unsqueeze(0)
 
         mask_accessor = (
             _build_accessor(cfg, mask_path, kind="mask", mode="test")
@@ -1020,62 +966,34 @@ def lazy_predict_volume(
             else None
         )
         try:
-            image_size = tuple(int(v) for v in image_accessor.padded_spatial_shape)
-            patch_slices = _build_window_slices(
-                image_size,
-                roi_size,
-                overlap,
-                snap_to_edge=snap_to_edge,
-            )
-            local_patch_slices = (
-                patch_slices[rank::world_size] if distributed_window_sharding else patch_slices
-            )
-            if distributed_window_sharding:
-                _validate_distributed_patch_shard(
-                    local_count=len(local_patch_slices),
-                    total_count=len(patch_slices),
-                    reduction_device=reduction_device,
-                )
-            importance_map = (
-                compute_importance_map(
-                    tuple(int(v) for v in roi_size),
-                    mode=blend_mode,
-                    sigma_scale=overlap if blend_mode == "constant" else sigma_scale,
-                    device=accumulation_device,
-                    dtype=torch.float32,
-                )
-                .unsqueeze(0)
-                .unsqueeze(0)
-            )
-
             value_accumulator = None
             weight_accumulator = torch.zeros(
-                (1, 1, *image_size), device=accumulation_device, dtype=torch.float32
+                (1, 1, *output_size), device=accumulation_device, dtype=torch.float32
             )
-            num_patch_batches = math.ceil(len(local_patch_slices) / sw_batch_size)
+
+            num_patch_batches = math.ceil(len(patch_records) / sw_batch_size)
             progress_bar = None
             if tqdm is not None:
-                desc = "Lazy sliding-window"
-                if distributed_window_sharding:
-                    desc = f"Lazy sliding-window rank {rank}/{world_size}"
+                desc = progress_desc
+                if enable_distributed_window_sharding:
+                    desc = f"{progress_desc} rank {rank}/{world_size}"
                 progress_bar = tqdm(
                     total=num_patch_batches,
                     desc=desc,
                     leave=True,
-                    disable=distributed_window_sharding and rank != 0,
+                    disable=enable_distributed_window_sharding and rank != 0,
                 )
 
             try:
-                for batch_start in range(0, len(local_patch_slices), sw_batch_size):
-                    current_slices = local_patch_slices[batch_start : batch_start + sw_batch_size]
+                for batch_start in range(0, len(patch_records), sw_batch_size):
+                    current_records = patch_records[batch_start : batch_start + sw_batch_size]
                     image_batch = []
                     mask_batch = [] if mask_accessor is not None else None
-                    locations = []
+                    batch_records = []
 
-                    for patch_slice in current_slices:
-                        location = tuple(int(s.start) for s in patch_slice)
+                    for patch_start, prediction_slices, output_slices in current_records:
                         read_location = tuple(
-                            location[axis] - target_context[axis] for axis in range(3)
+                            patch_start[axis] - target_context[axis] for axis in range(3)
                         )
                         image_batch.append(
                             image_accessor.read_patch(
@@ -1094,7 +1012,7 @@ def lazy_predict_volume(
                                     outer_pad_value=0.0,
                                 )
                             )
-                        locations.append(location)
+                        batch_records.append((prediction_slices, output_slices))
 
                     image_tensor = torch.from_numpy(np.stack(image_batch, axis=0)).to(
                         device=infer_device, dtype=torch.float32
@@ -1123,20 +1041,23 @@ def lazy_predict_volume(
                     )
                     if value_accumulator is None:
                         value_accumulator = torch.zeros(
-                            (1, int(prediction.shape[1]), *image_size),
+                            (1, int(prediction.shape[1]), *output_size),
                             device=accumulation_device,
-                            dtype=torch.float32,
+                            dtype=resolve_accumulator_dtype(cfg),
                         )
 
-                    for patch_idx, location in enumerate(locations):
-                        slices = tuple(
-                            slice(location[axis], location[axis] + int(roi_size[axis]))
-                            for axis in range(3)
+                    for patch_idx, (prediction_slices, output_slices) in enumerate(batch_records):
+                        output_index = (slice(None), slice(None), *output_slices)
+                        prediction_index = (
+                            slice(patch_idx, patch_idx + 1),
+                            slice(None),
+                            *prediction_slices,
                         )
-                        value_accumulator[(slice(None), slice(None), *slices)] += (
-                            prediction[patch_idx : patch_idx + 1] * importance_map
+                        importance_index = (slice(None), slice(None), *prediction_slices)
+                        value_accumulator[output_index] += (
+                            prediction[prediction_index] * importance_map[importance_index]
                         )
-                        weight_accumulator[(slice(None), slice(None), *slices)] += importance_map
+                        weight_accumulator[output_index] += importance_map[importance_index]
 
                     if progress_bar is not None:
                         progress_bar.update(1)
@@ -1145,12 +1066,12 @@ def lazy_predict_volume(
                     progress_bar.close()
 
             if value_accumulator is None:
+                rank_suffix = f" on rank {rank}" if enable_distributed_window_sharding else ""
                 raise RuntimeError(
-                    f"No lazy sliding-window patches were generated for {image_path} "
-                    f"on rank {rank}."
+                    f"No lazy sliding-window patches were generated for {image_path}{rank_suffix}."
                 )
 
-            if distributed_window_sharding:
+            if enable_distributed_window_sharding:
                 reduced_value = _reduce_cpu_tensor_to_rank_zero(
                     value_accumulator,
                     op=torch.distributed.ReduceOp.SUM,
@@ -1169,17 +1090,79 @@ def lazy_predict_volume(
                     return torch.empty(
                         0, device=infer_device if infer_device.type == "cuda" else "cpu"
                     )
-                value_accumulator = reduced_value
-                weight_accumulator = reduced_weight
-                if value_accumulator is None or weight_accumulator is None:
+                if reduced_value is None or reduced_weight is None:
                     raise RuntimeError(
                         "Distributed lazy sliding-window reduction did not return rank-0 "
                         "accumulators."
                     )
+                value_accumulator = reduced_value
+                weight_accumulator = reduced_weight
 
-            value_accumulator /= torch.clamp_min(weight_accumulator, 1.0e-6)
+            value_accumulator = _finalize_sliding_accumulators(
+                value_accumulator, weight_accumulator
+            )
             del weight_accumulator
             return value_accumulator.cpu()
         finally:
             if mask_accessor is not None:
                 mask_accessor.close()
+
+
+def lazy_predict_region(
+    cfg,
+    forward_fn,
+    image_path: str,
+    *,
+    region_start: Sequence[int],
+    region_stop: Sequence[int],
+    mask_path: Optional[str] = None,
+    mask_align_to_image: bool = False,
+    device: torch.device | str = "cpu",
+    requested_head: Optional[str] = None,
+) -> torch.Tensor:
+    """Run lazy sliding-window inference for one bounded region.
+
+    ``region_start`` and ``region_stop`` are in transformed/padded ZYX
+    coordinates. Only this region is accumulated in CPU memory. Windows are
+    selected from the full-volume sliding-window grid, so region boundaries use
+    real neighboring data whenever they are not true volume boundaries.
+    """
+    return _lazy_sliding_window(
+        cfg,
+        forward_fn,
+        image_path,
+        region_start=region_start,
+        region_stop=region_stop,
+        mask_path=mask_path,
+        mask_align_to_image=mask_align_to_image,
+        device=device,
+        requested_head=requested_head,
+        enable_distributed_window_sharding=False,
+        progress_desc="Lazy region sliding-window",
+    )
+
+
+def lazy_predict_volume(
+    cfg,
+    forward_fn,
+    image_path: str,
+    *,
+    mask_path: Optional[str] = None,
+    mask_align_to_image: bool = False,
+    device: torch.device | str = "cpu",
+    requested_head: Optional[str] = None,
+) -> torch.Tensor:
+    """Run lazy sliding-window inference directly from disk-backed volumes."""
+    return _lazy_sliding_window(
+        cfg,
+        forward_fn,
+        image_path,
+        region_start=None,
+        region_stop=None,
+        mask_path=mask_path,
+        mask_align_to_image=mask_align_to_image,
+        device=device,
+        requested_head=requested_head,
+        enable_distributed_window_sharding=_is_distributed_window_sharding_enabled(cfg),
+        progress_desc="Lazy sliding-window",
+    )

@@ -46,6 +46,24 @@ class SlidingWindowConfig:
     # preserve input spatial shape.
     snap_to_edge: bool = False
     target_context: List[int] = field(default_factory=list)
+    # Per-axis voxel count to zero out at each border of the per-window
+    # importance map after Gaussian/constant construction. Discards window
+    # border predictions from the weighted average. Honored by the lazy
+    # sliding-window path; ignored by the eager MONAI path.
+    border_mask: List[int] = field(default_factory=list)
+    # In-memory dtype for the value accumulator that holds weighted prediction
+    # sums during lazy sliding-window inference. Defaults to float32. Set to
+    # "float16" or "bfloat16" to halve accumulator RAM at some precision cost.
+    # Weight accumulator (the divider) stays float32 regardless.
+    accumulator_dtype: Optional[str] = None
+
+
+@dataclass
+class InferenceExecutionConfig:
+    """Inference execution mode independent of output-array/storage details."""
+
+    strategy: str = "whole_volume"  # "whole_volume" or "chunked"
+    do_eval: bool = True
 
 
 @dataclass
@@ -75,6 +93,51 @@ class ChunkingConfig:
     temp_dir: str = ""
     save_intermediate: bool = False
     stitching: ChunkStitchingConfig = field(default_factory=ChunkStitchingConfig)
+
+
+@dataclass
+class OutputArrayPartitionConfig:
+    """Partitioning of the final prediction array for chunked inference."""
+
+    enabled: bool = False
+    output_mode: str = "decoded"  # "decoded" or "raw_prediction"
+    size: Optional[List[int]] = None  # ZYX after test-time val_transpose.
+    halo: List[int] = field(default_factory=lambda: [0, 0, 0])
+    axes: str = "all"  # "all" or "z"; "z" keeps full YX in each chunk.
+    temp_dir: str = ""
+    save_intermediate: bool = False
+    stitching: ChunkStitchingConfig = field(default_factory=ChunkStitchingConfig)
+
+
+@dataclass
+class OutputArrayStoreConfig:
+    """Physical storage for prediction-array artifacts."""
+
+    enabled: bool = False
+    backend: str = "h5"  # "h5", "zarr", or "tensorstore" when implemented by runtime.
+    output_path: Optional[str] = None
+    cache_suffix: str = "_x1_prediction.h5"
+    save_all_heads: bool = False
+    dtype: Optional[str] = None
+    compression: Optional[str] = "gzip"
+    chunks: Optional[List[int]] = None  # CZYX storage chunks when backend supports it.
+    write_mode: str = "single_writer"  # "single_writer" or "distributed_regions".
+
+
+@dataclass
+class OutputArrayConfig:
+    """Final prediction-array shape, dtype, partitioning, and storage."""
+
+    # Optional channel selector applied after channel activations and before
+    # decoding/saving. Accepts None, int, slice string, or explicit index list.
+    select_channel: Optional[Any] = None
+    # Crop context padding before decoding/saving predictions:
+    # [D,H,W]/[H,W] symmetric or [Db,Da,Hb,Ha,Wb,Wa] asymmetric.
+    crop_pad: Optional[List[int]] = None
+    # In-memory dtype for lazy sliding-window value accumulators.
+    accumulator_dtype: Optional[str] = None
+    partition: OutputArrayPartitionConfig = field(default_factory=OutputArrayPartitionConfig)
+    store: OutputArrayStoreConfig = field(default_factory=OutputArrayStoreConfig)
 
 
 @dataclass
@@ -181,10 +244,12 @@ class InferenceConfig:
     # decoding/saving. Accepts None, int, slice string, or explicit index list.
     select_channel: Optional[Any] = None
     strategy: str = "whole_volume"  # "whole_volume" or "chunked"
-    decode_after_inference: bool = True
     # Crop context padding before decoding/saving predictions:
     # [D,H,W]/[H,W] symmetric or [Db,Da,Hb,Ha,Wb,Wa] asymmetric.
     crop_pad: Optional[List[int]] = None
+    execution: InferenceExecutionConfig = field(default_factory=InferenceExecutionConfig)
+    window: SlidingWindowConfig = field(default_factory=SlidingWindowConfig)
+    output_array: OutputArrayConfig = field(default_factory=OutputArrayConfig)
     sliding_window: SlidingWindowConfig = field(default_factory=SlidingWindowConfig)
     chunking: ChunkingConfig = field(default_factory=ChunkingConfig)
     test_time_augmentation: TestTimeAugmentationConfig = field(
@@ -207,3 +272,100 @@ class InferenceConfig:
     # Inference-specific runtime overrides (applied in test/tune modes)
     # `system` overrides selected keys on top-level cfg.system during stage resolution.
     system: SystemConfig = field(default_factory=lambda: SystemConfig(num_gpus=-1, num_workers=-1))
+
+
+def _copy_attrs(src: object, dst: object, names: list[str]) -> None:
+    for name in names:
+        if hasattr(src, name) and hasattr(dst, name):
+            setattr(dst, name, getattr(src, name))
+
+
+def sync_inference_runtime_aliases(cfg: object) -> None:
+    """Materialize canonical inference sections into runtime-owned objects.
+
+    Runtime code still consumes the narrow owner objects (`sliding_window`,
+    `chunking`, and `save_prediction`). Canonical YAML should configure
+    `execution`, `window`, and `output_array`; this sync keeps one effective
+    runtime representation after config load and stage resolution.
+    """
+    inference = getattr(cfg, "inference", None)
+    if inference is None:
+        return
+
+    execution = getattr(inference, "execution", None)
+    if execution is not None and execution != InferenceExecutionConfig():
+        strategy = getattr(execution, "strategy", None)
+        if strategy is not None:
+            inference.strategy = strategy
+        inference.do_eval = bool(getattr(execution, "do_eval", getattr(inference, "do_eval", True)))
+
+    window = getattr(inference, "window", None)
+    sliding_window = getattr(inference, "sliding_window", None)
+    if window is not None and sliding_window is not None:
+        if window != SlidingWindowConfig():
+            _copy_attrs(
+                window,
+                sliding_window,
+                [
+                    "enabled",
+                    "window_size",
+                    "sw_batch_size",
+                    "overlap",
+                    "blending",
+                    "sigma_scale",
+                    "padding_mode",
+                    "cval",
+                    "keep_input_on_cpu",
+                    "lazy_load",
+                    "distributed_sharding",
+                    "distributed_reduce_chunk_mb",
+                    "sw_device",
+                    "output_device",
+                    "snap_to_edge",
+                    "target_context",
+                    "border_mask",
+                    "accumulator_dtype",
+                ],
+            )
+
+    output_array = getattr(inference, "output_array", None)
+    if output_array is None:
+        return
+
+    if getattr(output_array, "select_channel", None) is not None:
+        inference.select_channel = output_array.select_channel
+    if getattr(output_array, "crop_pad", None) is not None:
+        inference.crop_pad = output_array.crop_pad
+
+    accumulator_dtype = getattr(output_array, "accumulator_dtype", None)
+    if accumulator_dtype is not None and sliding_window is not None:
+        sliding_window.accumulator_dtype = accumulator_dtype
+
+    partition = getattr(output_array, "partition", None)
+    chunking = getattr(inference, "chunking", None)
+    if partition is not None and chunking is not None:
+        if partition != OutputArrayPartitionConfig():
+            chunking.enabled = bool(getattr(partition, "enabled", False))
+            chunking.output_mode = getattr(partition, "output_mode", chunking.output_mode)
+            chunking.chunk_size = getattr(partition, "size", chunking.chunk_size)
+            chunking.halo = getattr(partition, "halo", chunking.halo)
+            chunking.axes = getattr(partition, "axes", chunking.axes)
+            chunking.temp_dir = getattr(partition, "temp_dir", chunking.temp_dir)
+            chunking.save_intermediate = bool(
+                getattr(partition, "save_intermediate", chunking.save_intermediate)
+            )
+            if getattr(partition, "stitching", None) is not None:
+                chunking.stitching = partition.stitching
+
+    store = getattr(output_array, "store", None)
+    save_prediction = getattr(inference, "save_prediction", None)
+    if store is not None and save_prediction is not None:
+        if store != OutputArrayStoreConfig():
+            save_prediction.enabled = bool(getattr(store, "enabled", False))
+            backend = str(getattr(store, "backend", "h5")).lower()
+            save_prediction.output_formats = [backend]
+            save_prediction.output_path = getattr(store, "output_path", None)
+            save_prediction.cache_suffix = getattr(store, "cache_suffix", "_x1_prediction.h5")
+            save_prediction.save_all_heads = bool(getattr(store, "save_all_heads", False))
+            save_prediction.storage_dtype = getattr(store, "dtype", None)
+            save_prediction.compression = getattr(store, "compression", None)

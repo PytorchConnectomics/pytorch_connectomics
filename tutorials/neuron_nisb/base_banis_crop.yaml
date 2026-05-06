@@ -121,6 +121,11 @@ default:
       # (no whole-volume padding). Honored by the lazy sliding-window path
       # (connectomics/inference/lazy.py) when lazy_load=true.
       snap_to_edge: true
+      # Halve the in-memory value-accumulator footprint during sliding-window
+      # accumulation. Weight accumulator stays float32. Acceptable here
+      # because predictions are bounded probabilities ([0,1]) and final
+      # storage is already float16.
+      accumulator_dtype: float16
     test_time_augmentation:
       enabled: false
       channel_activations:
@@ -133,7 +138,7 @@ default:
     steps:
     - name: decode_affinity_cc
       kwargs:
-        threshold: 0.7
+        threshold: 0.65
         backend: numba
         # affinity_mode=banis stores edges at the source voxel.
         edge_offset: 0
@@ -214,3 +219,51 @@ test:
       image: img_crop_988-988-575_x1024_y1024_z200.h5
       label: seg_crop_988-988-575_x1024_y1024_z200.h5
       resolution: [9, 9, 20]
+
+# ============================================================================
+# Parameter tuning for decode_affinity_cc threshold (--mode tune)
+# ============================================================================
+tune:
+  data:
+    val:
+      path: dev/nisb/data/seed0/
+      image: img_crop_988-988-575_x1024_y1024_z200.h5
+      label: seg_crop_988-988-575_x1024_y1024_z200.h5
+      resolution: [9, 9, 20]
+
+
+  enabled: true
+  n_trials: 10
+  study_name: nisb_base_banis_cc_crop_tuning
+  load_if_exists: true
+
+  sampler:
+    name: TPE
+    kwargs:
+      n_startup_trials: 10
+
+  optimization:
+    mode: single
+    single_objective:
+      metric: adapted_rand
+      direction: minimize
+
+  output:
+    save_study: true
+
+  logging:
+    verbose: true
+    show_progress_bar: true
+
+  parameter_space:
+    decoding:
+      function_name: decode_affinity_cc
+      defaults:
+        backend: numba
+        edge_offset: 0
+      parameters:
+        threshold:
+          type: float
+          range: [0.1, 0.7]
+          step: 0.05
+          description: "Affinity binarization threshold for connected components"

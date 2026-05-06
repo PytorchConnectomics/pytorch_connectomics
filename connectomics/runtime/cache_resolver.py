@@ -10,10 +10,12 @@ import torch
 
 from ..config import Config
 from .output_naming import (
+    final_prediction_decoded_glob_suffix,
+    final_prediction_output_tag,
+    intermediate_prediction_cache_suffix,
+    intermediate_prediction_cache_suffix_candidates,
     is_tta_cache_suffix,
     resolve_prediction_cache_suffix,
-    tta_cache_suffix,
-    tta_cache_suffix_candidates,
 )
 from .sharding import resolve_test_image_paths
 
@@ -23,10 +25,46 @@ def resolve_cached_prediction_files(
     filenames: list[str],
     cache_suffix: str,
     fallback_tta_suffixes: list[str] | None = None,
+    preferred_decoded_suffix: str | None = None,
+    decoded_glob_suffix: str | None = None,
 ) -> tuple[bool, str | None, list[Path]]:
-    """Resolve cached prediction files with optional TTA-suffix fallback."""
+    """Resolve cached prediction files, preferring any decoded final file.
+
+    When ``decoded_glob_suffix`` is provided, the resolver first looks for a
+    pre-existing decoded final file matching that glob (regardless of decoding
+    kwargs). This avoids reloading multi-GB intermediate predictions when a
+    usable final segmentation is already on disk.
+    """
     if not filenames:
         return False, None, []
+
+    if preferred_decoded_suffix:
+        resolved_files: list[Path] = []
+        all_exist = True
+        for filename in filenames:
+            pred_file = output_dir / f"{filename}{preferred_decoded_suffix}"
+            if not os.path.exists(pred_file):
+                all_exist = False
+                break
+            if not is_valid_hdf5_prediction_file(pred_file):
+                all_exist = False
+                break
+            resolved_files.append(pred_file)
+        if all_exist and len(resolved_files) == len(filenames):
+            return True, preferred_decoded_suffix, resolved_files
+
+    if decoded_glob_suffix:
+        decoded_files: list[Path] = []
+        for filename in filenames:
+            matches = sorted(output_dir.glob(f"{filename}{decoded_glob_suffix}"))
+            usable = [m for m in matches if is_valid_hdf5_prediction_file(m)]
+            if not usable:
+                decoded_files = []
+                break
+            decoded_files.append(usable[-1])
+        if decoded_files and len(decoded_files) == len(filenames):
+            chosen_suffix = decoded_files[0].name[len(filenames[0]) :]
+            return True, chosen_suffix, decoded_files
 
     suffixes_to_try = [cache_suffix]
     if not is_tta_cache_suffix(cache_suffix) and fallback_tta_suffixes:
@@ -114,6 +152,26 @@ def create_decode_only_datamodule(cfg: Config, input_prediction_path: str):
     return _DummyDataModule()
 
 
+def _resolve_dataset_image_paths(cfg: Config, mode: str) -> list[str]:
+    """Resolve image paths for the dataset used by the given mode.
+
+    ``test``/``tune-test`` reads ``cfg.data.test.image``. ``tune`` reads
+    ``cfg.data.val.image`` (Optuna evaluates against the validation/tune set).
+    """
+    if mode == "tune":
+        from connectomics.training.lightning.path_utils import expand_file_paths
+
+        val_image = getattr(getattr(cfg.data, "val", None), "image", None)
+        if not val_image:
+            return []
+        try:
+            return expand_file_paths(val_image)
+        except Exception as exc:
+            print(f"  WARNING: Failed to resolve tune data.val.image paths: {exc}")
+            return []
+    return resolve_test_image_paths(cfg)
+
+
 def has_cached_predictions_in_output_dir(
     cfg: Config, mode: str, checkpoint_path: str | None = None
 ) -> bool:
@@ -122,22 +180,41 @@ def has_cached_predictions_in_output_dir(
     if save_pred_cfg is None:
         return False
     output_dir = getattr(save_pred_cfg, "output_path", None)
-    if not output_dir:
+    output_dirs = [output_dir] if output_dir else []
+    if mode == "tune":
+        tune_output_dir = getattr(
+            getattr(getattr(cfg, "tune", None), "output", None),
+            "output_pred",
+            None,
+        )
+        output_dirs = [path for path in (tune_output_dir, output_dir) if path]
+    if not output_dirs:
         return False
 
-    test_image_paths = resolve_test_image_paths(cfg)
-    if not test_image_paths:
+    image_paths = _resolve_dataset_image_paths(cfg, mode)
+    if not image_paths:
         return False
 
-    suffix = tta_cache_suffix(cfg, checkpoint_path=checkpoint_path)
-    output_path = Path(output_dir)
-    for image_path in test_image_paths:
-        pred_file = output_path / f"{Path(image_path).stem}{suffix}"
-        if not os.path.exists(pred_file):
-            return False
-        if not is_valid_hdf5_prediction_file(pred_file):
-            return False
-    return True
+    suffix = intermediate_prediction_cache_suffix(cfg, checkpoint_path=checkpoint_path)
+    seen_dirs: set[str] = set()
+    for output_dir_value in output_dirs:
+        output_dir_str = str(output_dir_value)
+        if output_dir_str in seen_dirs:
+            continue
+        seen_dirs.add(output_dir_str)
+        output_path = Path(output_dir_str)
+        all_found = True
+        for image_path in image_paths:
+            pred_file = output_path / f"{Path(image_path).stem}{suffix}"
+            if not os.path.exists(pred_file):
+                all_found = False
+                break
+            if not is_valid_hdf5_prediction_file(pred_file):
+                all_found = False
+                break
+        if all_found:
+            return True
+    return False
 
 
 def preflight_test_cache_hit(
@@ -155,7 +232,11 @@ def preflight_test_cache_hit(
             pred_file = Path.cwd() / pred_file
 
         if os.path.exists(pred_file) and is_valid_hdf5_prediction_file(pred_file):
-            return True, tta_cache_suffix(cfg, checkpoint_path=checkpoint_path), 1
+            return (
+                True,
+                intermediate_prediction_cache_suffix(cfg, checkpoint_path=checkpoint_path),
+                1,
+            )
 
         print(
             "  WARNING: inference.tta_result_path file missing or unreadable "
@@ -184,7 +265,15 @@ def preflight_test_cache_hit(
         Path(output_dir_value),
         filenames,
         resolve_prediction_cache_suffix(cfg, mode="test", checkpoint_path=checkpoint_path),
-        fallback_tta_suffixes=tta_cache_suffix_candidates(cfg, checkpoint_path=checkpoint_path),
+        fallback_tta_suffixes=intermediate_prediction_cache_suffix_candidates(
+            cfg, checkpoint_path=checkpoint_path
+        ),
+        preferred_decoded_suffix=(
+            "_" + final_prediction_output_tag(cfg, checkpoint_path=checkpoint_path) + ".h5"
+        ),
+        decoded_glob_suffix=final_prediction_decoded_glob_suffix(
+            cfg, checkpoint_path=checkpoint_path
+        ),
     )
     if not cache_hit:
         return False, None, len(filenames)
@@ -250,9 +339,35 @@ def try_cache_only_test_execution(
         output_dir,
         filenames,
         cache_suffix,
-        fallback_tta_suffixes=tta_cache_suffix_candidates(cfg, checkpoint_path=checkpoint_path),
+        fallback_tta_suffixes=intermediate_prediction_cache_suffix_candidates(
+            cfg, checkpoint_path=checkpoint_path
+        ),
+        preferred_decoded_suffix=(
+            "_" + final_prediction_output_tag(cfg, checkpoint_path=checkpoint_path) + ".h5"
+        ),
+        decoded_glob_suffix=final_prediction_decoded_glob_suffix(
+            cfg, checkpoint_path=checkpoint_path
+        ),
     )
     if not cache_hit:
+        return False
+
+    # Defer the (potentially multi-GB) read until we know the data will be
+    # consumed here. trainer.test() reloads the cache itself when evaluation
+    # is enabled, so reading here would just waste time and memory.
+    is_intermediate = is_tta_cache_suffix(loaded_suffix)
+    evaluation_enabled = is_test_evaluation_enabled(cfg)
+    if evaluation_enabled and is_intermediate:
+        # Direct decode+eval path that bypasses Lightning when GT labels are
+        # locally accessible. Falls back silently if the path can't be taken.
+        if _try_cache_only_intermediate_eval(
+            cfg, resolved_files, filenames, checkpoint_path=checkpoint_path
+        ):
+            return True
+        return False
+    if evaluation_enabled and not is_intermediate:
+        # Final-prediction cache + eval still routes through trainer.test();
+        # test_pipeline logs cache-hit status itself, so skip the duplicate.
         return False
 
     cached_arrays = []
@@ -265,14 +380,7 @@ def try_cache_only_test_execution(
             )
             return False
 
-    if not is_tta_cache_suffix(loaded_suffix):
-        if is_test_evaluation_enabled(cfg):
-            print(
-                "  [OK]Loaded final predictions from disk, skipping "
-                "inference/decoding/postprocessing"
-            )
-            print("  INFO:Test evaluation is enabled; using trainer.test() for eval pipeline.")
-            return False
+    if not is_intermediate:
         print(
             "  [OK]Loaded final predictions from disk, skipping inference/decoding/postprocessing"
         )
@@ -284,10 +392,6 @@ def try_cache_only_test_execution(
 
     print("  [OK]Loaded intermediate predictions from disk, skipping inference")
     print(f"  INFO:Cache preflight hit for {len(filenames)} volume(s).")
-
-    if is_test_evaluation_enabled(cfg):
-        print("  INFO:Test evaluation is enabled; using trainer.test() for decode/eval pipeline.")
-        return False
 
     import numpy as np
 
@@ -316,6 +420,121 @@ def try_cache_only_test_execution(
         print("Skipping final prediction save (no decoding configuration)")
     print("[OK]Test completed successfully (cache-only decode/postprocess).")
     return True
+
+
+def _try_cache_only_intermediate_eval(
+    cfg: Config,
+    resolved_files: list[Path],
+    filenames: list[str],
+    *,
+    checkpoint_path: str | None,
+) -> bool:
+    """Decode + evaluate cached intermediate predictions without spinning up Lightning.
+
+    Returns ``True`` on success. Returns ``False`` (silently) when the path
+    can't be taken — e.g. label files unavailable or counts mismatched —
+    so the caller can fall back to ``trainer.test()``.
+    """
+    import numpy as np
+
+    from connectomics.data.io import read_volume
+    from connectomics.decoding import run_decoding_stage
+    from connectomics.evaluation import (
+        EvaluationContext,
+        run_evaluation_stage,
+    )
+    from connectomics.inference.output import apply_prediction_transform, write_outputs
+    from connectomics.training.lightning.path_utils import expand_file_paths
+
+    test_cfg = getattr(getattr(cfg, "data", None), "test", None)
+    label_value = getattr(test_cfg, "label", None)
+    nerl_only = label_value is None and _evaluation_metric_requested(cfg, "nerl")
+    if label_value is None and not nerl_only:
+        return False
+
+    label_paths: list[str] | None = None
+    if label_value is not None:
+        try:
+            label_paths = expand_file_paths(label_value)
+        except Exception:
+            return False
+        if len(label_paths) != len(resolved_files):
+            return False
+
+    print("  [OK]Loaded intermediate predictions from disk, skipping inference")
+    print(f"  INFO:Cache hit for {len(filenames)} volume(s); running decode + eval directly.")
+
+    final_suffix = final_prediction_output_tag(cfg, checkpoint_path=checkpoint_path)
+    inference_cfg = getattr(cfg, "inference", None)
+    evaluation_cfg = getattr(cfg, "evaluation", None)
+
+    for idx, pred_file in enumerate(resolved_files):
+        volume_name = filenames[idx]
+        print(f"[STAGE: Processing volume] {volume_name}")
+        try:
+            predictions_np = read_volume(str(pred_file), dataset="main")
+        except Exception as exc:
+            print(f"  WARNING: failed to read {pred_file.name}: {exc}; falling back to trainer.test().")
+            return False
+
+        if predictions_np.ndim < 4:
+            predictions_np = predictions_np[np.newaxis, ...]
+        predictions_np = apply_prediction_transform(cfg, predictions_np)
+
+        decoding_result = run_decoding_stage(cfg, predictions_np)
+        if decoding_result.has_decoding_config:
+            write_outputs(
+                cfg,
+                decoding_result.postprocessed,
+                [volume_name],
+                suffix=final_suffix,
+                mode="test",
+                batch_meta=None,
+            )
+        else:
+            print("  Skipping postprocessing (no decoding configuration)")
+
+        labels_tensor = None
+        if label_paths is not None:
+            try:
+                label_np = read_volume(label_paths[idx], dataset="main")
+            except Exception as exc:
+                print(f"  WARNING: failed to read label {label_paths[idx]}: {exc}")
+                return False
+            labels_tensor = torch.from_numpy(label_np[np.newaxis, ...])
+
+        context = EvaluationContext(
+            cfg=cfg,
+            evaluation_cfg=evaluation_cfg,
+            inference_cfg=inference_cfg,
+            checkpoint_path=checkpoint_path,
+        )
+        run_evaluation_stage(
+            context,
+            decoding_result.decoded,
+            labels_tensor,
+            filenames=[volume_name],
+            batch_idx=idx,
+        )
+
+        del predictions_np
+        if labels_tensor is not None:
+            del labels_tensor
+
+    print("[OK]Test completed successfully (cache-only decode + eval).")
+    return True
+
+
+def _evaluation_metric_requested(cfg: Config, metric_name: str) -> bool:
+    evaluation_cfg = getattr(cfg, "evaluation", None)
+    if evaluation_cfg is None:
+        return False
+    metrics = getattr(evaluation_cfg, "metrics", None)
+    if metrics is None:
+        return False
+    if isinstance(metrics, str):
+        return metrics.lower() == metric_name.lower()
+    return any(str(m).lower() == metric_name.lower() for m in metrics)
 
 
 def handle_test_cache_hit(

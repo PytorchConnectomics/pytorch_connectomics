@@ -88,7 +88,7 @@ def create_trainer(
                 filename=getattr(
                     cfg.monitor.checkpoint,
                     "step_checkpoint_filename",
-                    "step-{step:08d}",
+                    "{step:08d}",
                 ),
                 monitor=None,
                 save_top_k=-1,

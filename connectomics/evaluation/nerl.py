@@ -386,8 +386,54 @@ def compute_nerl_metrics(
         logger.debug("Failed to log test_nerl metric: %s", exc)
 
 
+def compute_nerl_score(
+    segmentation: np.ndarray,
+    skeleton_value: Any,
+    *,
+    evaluation_cfg: Any,
+    skeleton_mask_value: Any = None,
+    resolution: Any = None,
+) -> tuple[float, float, float]:
+    """Standalone NERL scoring for a single segmentation/skeleton pair.
+
+    Returns ``(nerl, pred_erl, gt_erl)``. Same machinery as
+    :func:`compute_nerl_metrics` but free of ``EvaluationContext`` /
+    metrics-dict side effects, so it can be used by the Optuna tuner.
+    """
+    _, compute_erl_score, compute_segment_lut = import_em_erl()
+    erl_graph, voxel_coords = load_nerl_graph(skeleton_value, evaluation_cfg)
+    if voxel_coords:
+        node_positions = np.asarray(erl_graph.node_coords_zyx, dtype=np.int64)
+    else:
+        if resolution is None:
+            resolution = cfg_value(evaluation_cfg, "nerl_resolution", None)
+        node_positions = erl_graph.get_nodes_position(resolution)
+
+    segment = prepare_nerl_segmentation(segmentation)
+    merge_threshold = int(cfg_value(evaluation_cfg, "nerl_merge_threshold", 1))
+    chunk_num = int(cfg_value(evaluation_cfg, "nerl_chunk_num", 1))
+    node_segment_lut, mask_segment_id = compute_segment_lut(
+        segment,
+        node_positions,
+        mask=skeleton_mask_value,
+        chunk_num=chunk_num,
+        data_type=segment.dtype,
+    )
+    score = compute_erl_score(
+        erl_graph,
+        node_segment_lut,
+        mask_segment_id,
+        merge_threshold=merge_threshold,
+    )
+    score.compute_erl()
+    pred_erl, gt_erl, _num, _per_gt = extract_nerl_score_outputs(score)
+    nerl = pred_erl / gt_erl if gt_erl > 0 else float("nan")
+    return float(nerl), float(pred_erl), float(gt_erl)
+
+
 __all__ = [
     "compute_nerl_metrics",
+    "compute_nerl_score",
     "extract_nerl_score_outputs",
     "cfg_value",
     "import_em_erl",

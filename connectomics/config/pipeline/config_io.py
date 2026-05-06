@@ -16,7 +16,7 @@ from typing import Any, Dict, List, Optional, Tuple, Union
 
 from omegaconf import DictConfig, ListConfig, OmegaConf
 
-from ..schema import Config
+from ..schema import Config, sync_inference_runtime_aliases
 from ..schema.root import MergeContext
 from .profile_engine import _YAML_PROFILE_ENGINE
 from .stage_resolver import _collect_explicit_paths
@@ -144,6 +144,7 @@ def load_config(config_path: Union[str, Path]) -> Config:
         merge_context = MergeContext()
         setattr(cfg, "_merge_context", merge_context)
     merge_context.explicit_field_paths = explicit_field_paths
+    sync_inference_runtime_aliases(cfg)
     return cfg
 
 
@@ -192,7 +193,9 @@ def merge_configs(base_cfg: Config, *override_cfgs: Union[Config, Dict, str, Pat
 
         result = OmegaConf.merge(result, override_omega)
 
-    return OmegaConf.to_object(result)
+    cfg = OmegaConf.to_object(result)
+    sync_inference_runtime_aliases(cfg)
+    return cfg
 
 
 def update_from_cli(cfg: Config, overrides: List[str]) -> Config:
@@ -211,7 +214,9 @@ def update_from_cli(cfg: Config, overrides: List[str]) -> Config:
     cfg_omega = OmegaConf.structured(cfg)
     cli_conf = OmegaConf.from_dotlist(overrides)
     merged = OmegaConf.merge(cfg_omega, cli_conf)
-    return OmegaConf.to_object(merged)
+    cfg = OmegaConf.to_object(merged)
+    sync_inference_runtime_aliases(cfg)
+    return cfg
 
 
 # ---------------------------------------------------------------------------
@@ -247,7 +252,9 @@ def from_dict(d: Dict[str, Any]) -> Config:
     default_conf = OmegaConf.structured(Config)
     dict_conf = OmegaConf.create(d)
     merged = OmegaConf.merge(default_conf, dict_conf)
-    return OmegaConf.to_object(merged)
+    cfg = OmegaConf.to_object(merged)
+    sync_inference_runtime_aliases(cfg)
+    return cfg
 
 
 def print_config(cfg: Config, resolve: bool = True) -> None:
@@ -277,6 +284,8 @@ def validate_config(cfg: Config) -> None:
     Raises:
         ValueError: If configuration is invalid
     """
+    sync_inference_runtime_aliases(cfg)
+
     # Model validation
     if cfg.model.in_channels <= 0:
         raise ValueError("model.in_channels must be positive")

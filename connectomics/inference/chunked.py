@@ -49,6 +49,169 @@ def _per_chunk_dir(output_path: Path) -> Path:
     return output_path.with_suffix(output_path.suffix + ".chunks")
 
 
+def _chunk_file_path(chunks_dir: Path, chunk: ChunkRef) -> Path:
+    return chunks_dir / f"chunk_{chunk.key}.h5"
+
+
+def _distributed_barrier() -> None:
+    if torch.distributed.is_available() and torch.distributed.is_initialized():
+        torch.distributed.barrier()
+
+
+def _write_chunk_index(
+    *,
+    output_path: Path,
+    chunks_dir: Path,
+    chunks: list[ChunkRef],
+    input_shape: tuple[int, int, int],
+    final_shape: tuple[int, int, int],
+    crop_pad: tuple[tuple[int, int], ...],
+    chunk_shape: tuple[int, int, int],
+    halo: tuple[int, int, int],
+    checkpoint_path: str | Path | None,
+    world_size: int,
+) -> Path:
+    index = {
+        "input_shape": list(input_shape),
+        "final_shape": list(final_shape),
+        "chunk_shape": list(chunk_shape),
+        "halo": list(halo),
+        "crop_pad": [list(pair) for pair in crop_pad],
+        "checkpoint_path": str(checkpoint_path) if checkpoint_path is not None else None,
+        "world_size": world_size,
+        "chunks": [
+            {
+                "key": chunk.key,
+                "index_zyx": list(chunk.index),
+                "start_zyx": list(chunk.start),
+                "stop_zyx": list(chunk.stop),
+                "path": str(_chunk_file_path(chunks_dir, chunk).relative_to(output_path.parent)),
+            }
+            for chunk in chunks
+        ],
+    }
+    index_path = output_path.with_suffix(output_path.suffix + ".index.json")
+    with open(index_path, "w") as fh:
+        json.dump(index, fh, indent=2)
+    return index_path
+
+
+def _stitch_chunk_prediction_files(
+    *,
+    cfg: Any,
+    image_path: str,
+    output_path: Path,
+    chunks_dir: Path,
+    chunks: list[ChunkRef],
+    input_shape: tuple[int, int, int],
+    final_shape: tuple[int, int, int],
+    crop_pad: tuple[tuple[int, int], ...],
+    chunk_shape: tuple[int, int, int],
+    halo: tuple[int, int, int],
+    compression,
+    h5_spatial_chunks: tuple[int, int, int],
+    checkpoint_path: str | Path | None,
+    requested_head: str | None,
+) -> Path:
+    """Stitch per-rank chunk artifacts into the canonical CZYX raw prediction H5."""
+    import h5py
+
+    if not chunks:
+        raise ValueError("Cannot stitch chunked predictions: no chunks were generated.")
+
+    first_chunk_path = _chunk_file_path(chunks_dir, chunks[0])
+    if not first_chunk_path.exists():
+        raise FileNotFoundError(f"Missing first chunk prediction file: {first_chunk_path}")
+
+    with h5py.File(first_chunk_path, "r") as handle:
+        first_dset = handle["main"]
+        channel_count = int(first_dset.shape[0])
+        output_dtype = first_dset.dtype
+
+    transform_cfg = getattr(cfg.inference, "prediction_transform", None)
+
+    def write_chunks(dataset) -> None:
+        for chunk_idx, chunk in enumerate(chunks, start=1):
+            chunk_path = _chunk_file_path(chunks_dir, chunk)
+            if not chunk_path.exists():
+                raise FileNotFoundError(
+                    f"Missing chunk prediction file {chunk_idx}/{len(chunks)}: {chunk_path}"
+                )
+
+            expected_spatial = tuple(
+                int(chunk.stop[axis]) - int(chunk.start[axis]) for axis in range(3)
+            )
+            with h5py.File(chunk_path, "r") as handle:
+                source = handle["main"]
+                if int(source.shape[0]) != channel_count:
+                    raise ValueError(
+                        f"Chunk {chunk.key} channel mismatch: "
+                        f"{source.shape[0]} vs {channel_count}"
+                    )
+                if tuple(int(v) for v in source.shape[-3:]) != expected_spatial:
+                    raise ValueError(
+                        f"Chunk {chunk.key} spatial shape mismatch: "
+                        f"{tuple(source.shape[-3:])} vs {expected_spatial}"
+                    )
+
+                # Stream by z slabs so stitching never materializes multi-GB chunks.
+                slab_depth = max(1, int(h5_spatial_chunks[0]))
+                for local_z0 in range(0, expected_spatial[0], slab_depth):
+                    local_z1 = min(local_z0 + slab_depth, expected_spatial[0])
+                    global_z0 = int(chunk.start[0]) + local_z0
+                    global_z1 = int(chunk.start[0]) + local_z1
+                    dataset[
+                        (
+                            slice(None),
+                            slice(global_z0, global_z1),
+                            slice(int(chunk.start[1]), int(chunk.stop[1])),
+                            slice(int(chunk.start[2]), int(chunk.stop[2])),
+                        )
+                    ] = source[
+                        (
+                            slice(None),
+                            slice(local_z0, local_z1),
+                            slice(None),
+                            slice(None),
+                        )
+                    ]
+
+    write_prediction_artifact(
+        output_path,
+        metadata=build_prediction_artifact_metadata(
+            cfg,
+            image_path=str(image_path),
+            checkpoint_path=str(checkpoint_path) if checkpoint_path is not None else None,
+            output_head=requested_head,
+            input_shape=input_shape,
+            final_shape=final_shape,
+            crop_pad=crop_pad,
+            chunk_shape=chunk_shape,
+            halo=halo,
+            intensity_scale=(
+                float(getattr(transform_cfg, "intensity_scale", -1.0))
+                if transform_cfg is not None and bool(getattr(transform_cfg, "enabled", False))
+                else None
+            ),
+            intensity_dtype=(
+                str(getattr(transform_cfg, "intensity_dtype", output_dtype))
+                if transform_cfg is not None and bool(getattr(transform_cfg, "enabled", False))
+                else str(output_dtype)
+            ),
+            extra={
+                "compression": str(compression),
+                "chunk_stitch_source": str(chunks_dir),
+            },
+        ),
+        compression=compression,
+        shape=(channel_count, *final_shape),
+        dtype=output_dtype,
+        chunks=(channel_count, *h5_spatial_chunks),
+        writer=write_chunks,
+    )
+    return output_path
+
+
 def _run_chunked_prediction_per_rank(
     *,
     cfg: Any,
@@ -83,13 +246,11 @@ def _run_chunked_prediction_per_rank(
     my_chunks = [(idx, chunk) for idx, chunk in enumerate(chunks) if idx % world_size == rank]
     logger.info(
         "Per-rank chunked raw prediction: rank=%d/%d, total_chunks=%d, my_chunks=%d, "
-        "input_shape=%s, final_shape=%s, chunk_shape=%s, halo=%s",
+        "chunk_shape=%s, halo=%s",
         rank,
         world_size,
         len(chunks),
         len(my_chunks),
-        input_shape,
-        final_shape,
         chunk_shape,
         halo,
     )
@@ -97,7 +258,7 @@ def _run_chunked_prediction_per_rank(
     transform_cfg = getattr(cfg.inference, "prediction_transform", None)
 
     for local_pos, (chunk_idx, chunk) in enumerate(my_chunks, start=1):
-        chunk_path = chunks_dir / f"chunk_{chunk.key}.h5"
+        chunk_path = _chunk_file_path(chunks_dir, chunk)
         if chunk_path.exists():
             logger.info(
                 "[rank %d] chunk %d/%d %s: already exists, skipping",
@@ -114,15 +275,20 @@ def _run_chunked_prediction_per_rank(
         read_stop = tuple(
             min(input_shape[axis], pred_core_stop[axis] + halo[axis]) for axis in range(3)
         )
+        read_shape = tuple(read_stop[axis] - read_start[axis] for axis in range(3))
+        core_shape = tuple(pred_core_stop[axis] - pred_core_start[axis] for axis in range(3))
 
         logger.info(
-            "[rank %d] chunk %d/%d (%d/%d local) %s: core=%s:%s read=%s:%s",
+            "[rank %d] chunk %d/%d (%d/%d local) %s: core_shape=%s read_shape=%s "
+            "core=%s:%s read=%s:%s",
             rank,
             chunk_idx,
             len(chunks),
             local_pos,
             len(my_chunks),
             chunk.key,
+            core_shape,
+            read_shape,
             pred_core_start,
             pred_core_stop,
             read_start,
@@ -155,6 +321,9 @@ def _run_chunked_prediction_per_rank(
         core_pred = apply_storage_dtype_transform(cfg, core_pred)
 
         channel_count = int(core_pred.shape[0])
+        chunk_h5_spatial_chunks = tuple(
+            max(1, min(int(h5_spatial_chunks[axis]), int(core_shape[axis]))) for axis in range(3)
+        )
         write_prediction_artifact(
             chunk_path,
             core_pred,
@@ -163,10 +332,9 @@ def _run_chunked_prediction_per_rank(
                 image_path=str(image_path),
                 checkpoint_path=str(checkpoint_path) if checkpoint_path is not None else None,
                 output_head=requested_head,
-                input_shape=input_shape,
-                final_shape=final_shape,
-                crop_pad=crop_pad,
-                chunk_shape=chunk_shape,
+                input_shape=read_shape,
+                final_shape=core_shape,
+                chunk_shape=core_shape,
                 halo=halo,
                 intensity_scale=(
                     float(getattr(transform_cfg, "intensity_scale", -1.0))
@@ -184,50 +352,58 @@ def _run_chunked_prediction_per_rank(
                     "chunk_index_zyx": list(chunk.index),
                     "chunk_start_zyx": list(chunk.start),
                     "chunk_stop_zyx": list(chunk.stop),
+                    "chunk_read_start_zyx": list(read_start),
+                    "chunk_read_stop_zyx": list(read_stop),
+                    "chunk_read_shape_zyx": list(read_shape),
                 },
             ),
             compression=compression,
-            chunks=(channel_count, *h5_spatial_chunks),
+            chunks=(channel_count, *chunk_h5_spatial_chunks),
         )
 
         del pred, core_pred
 
-    if torch.distributed.is_available() and torch.distributed.is_initialized():
-        torch.distributed.barrier()
+    _distributed_barrier()
 
     if rank == 0:
-        index = {
-            "input_shape": list(input_shape),
-            "final_shape": list(final_shape),
-            "chunk_shape": list(chunk_shape),
-            "halo": list(halo),
-            "crop_pad": [list(pair) for pair in crop_pad],
-            "checkpoint_path": str(checkpoint_path) if checkpoint_path is not None else None,
-            "world_size": world_size,
-            "chunks": [
-                {
-                    "key": chunk.key,
-                    "index_zyx": list(chunk.index),
-                    "start_zyx": list(chunk.start),
-                    "stop_zyx": list(chunk.stop),
-                    "path": str(
-                        (chunks_dir / f"chunk_{chunk.key}.h5").relative_to(output_path.parent)
-                    ),
-                }
-                for chunk in chunks
-            ],
-        }
-        index_path = output_path.with_suffix(output_path.suffix + ".index.json")
-        with open(index_path, "w") as fh:
-            json.dump(index, fh, indent=2)
+        index_path = _write_chunk_index(
+            output_path=output_path,
+            chunks_dir=chunks_dir,
+            chunks=chunks,
+            input_shape=input_shape,
+            final_shape=final_shape,
+            crop_pad=crop_pad,
+            chunk_shape=chunk_shape,
+            halo=halo,
+            checkpoint_path=checkpoint_path,
+            world_size=world_size,
+        )
         logger.info(
             "Per-rank chunked raw prediction wrote %d chunks to %s; index=%s",
             len(chunks),
             chunks_dir,
             index_path,
         )
+        logger.info("Stitching %d per-rank chunks into %s", len(chunks), output_path)
+        _stitch_chunk_prediction_files(
+            cfg=cfg,
+            image_path=image_path,
+            output_path=output_path,
+            chunks_dir=chunks_dir,
+            chunks=chunks,
+            input_shape=input_shape,
+            final_shape=final_shape,
+            crop_pad=crop_pad,
+            chunk_shape=chunk_shape,
+            halo=halo,
+            compression=compression,
+            h5_spatial_chunks=h5_spatial_chunks,
+            checkpoint_path=checkpoint_path,
+            requested_head=requested_head,
+        )
+        logger.info("Stitched chunked raw prediction wrote %s", output_path)
 
-    return chunks_dir
+    return output_path if rank == 0 else chunks_dir
 
 
 def run_chunked_prediction_inference(

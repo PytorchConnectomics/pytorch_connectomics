@@ -1,9 +1,9 @@
 _base_:
 - ../connectomics/config/all_profiles.yaml
 
-experiment_name: mednext_betaseg_banis_v0_repro
-description: BetaSeg 3D mitochondria — faithful reproduction of BANIS mito branch (single-MedNeXt-S, k=3,
-  aff_r1+aff_r10+sdt, plain BCE, MSE, no auto_pos_weight, no Dice, batch=8, 20k steps)
+experiment_name: mito_betaseg_banis_v0
+description: BANIS-mito reproduction target (16nm betaSeg, 6-channel affinity + 1-channel SDT,
+  MedNeXt-S/k3, 128-cube, 50k steps; mirrors lib/banis mito branch justfile train_betaseg)
 
 default:
   system:
@@ -12,142 +12,118 @@ default:
   model:
     arch:
       type: mednext
-    mednext:
-      size: S
-      kernel_size: 3
-      checkpoint_style: outside_block
-
-    # BANIS uses create_mednext_v1(num_classes=7). The multi-head wrapper with
-    # num_blocks: 0 / hidden_channels: None is mathematically equivalent
-    # (three independent 1x1 projections vs one 32->7 conv).
     input_size: [128, 128, 128]
     output_size: [128, 128, 128]
+    in_channels: 1
     out_channels: 7
-    primary_head: aff_r1
+    # BANIS uses create_mednext_v1(num_classes=7), one final 32->7 conv.
+    # Multi-head with num_blocks: 0 gives independent 32->{6,1} projections,
+    # mathematically equivalent (parameters partitioned, no sharing).
+    primary_head: aff
     heads:
-      aff_r1:
-        out_channels: 3
+      aff:
+        out_channels: 6
         num_blocks: 0
-        target_slice: "0:3"
-      aff_r10:
-        out_channels: 3
-        num_blocks: 0
-        target_slice: "3:6"
+        target_slice: "0:6"
       sdt:
         out_channels: 1
         num_blocks: 0
         target_slice: "6:7"
     loss:
+      deep_supervision: false
       losses:
-        # BANIS: single binary_cross_entropy_with_logits over all 6 affinity
-        # channels, no per-channel pos_weight, no Dice.
-      - function: BCEWithLogitsLoss
+      # BANIS: binary_cross_entropy_with_logits over all 6 affinity channels,
+      # no per-channel pos_weight, no Dice. WeightedBCEWithLogitsLoss without
+      # pos_weight is plain BCE.
+      - function: WeightedBCEWithLogitsLoss
         weight: 1.0
-        pred_head: aff_r1
-        target_slice: "0:3"
-      - function: BCEWithLogitsLoss
-        weight: 1.0
-        pred_head: aff_r10
-        target_slice: "3:6"
-        # BANIS: mse_loss(tanh(pred), sdt_target), weight = sdt_loss_weight = 1.0.
+        pred_head: aff
+        target_slice: "0:6"
+      # BANIS: mse_loss(tanh(pred), sdt_target), sdt_loss_weight = 1.0.
       - function: WeightedMSELoss
         weight: 1.0
         pred_head: sdt
         target_slice: "6:7"
         kwargs: {tanh: true}
+    mednext:
+      size: S
+      kernel_size: 3
+      dim: 3d
+      checkpoint_style: outside_block
   data:
+    dataloader:
+      patch_size: [128, 128, 128]
+      # BANIS reads small_size + long_range, computes affinities, then crops
+      # back to small_size so long-range edges have valid context.
+      target_context: [10, 10, 10]
+      # BANIS-mito justfile uses --batch_size 8 --devices=1 (global batch = 8).
+      # On 4 GPUs (DDP), per-GPU batch_size=2 reproduces the same global batch.
+      batch_size: 2
+      val_random_sampling: true
+      cached_sampling_foreground_threshold: 0.05
+      cached_sampling_max_attempts: 50
+      cached_sampling_sample_nonzero_mask: true
     image_transform:
       normalize: "divide-255"
     label_transform:
+      # BANIS comp_affinities runs on the raw (per-patch CC-relabeled)
+      # segmentation: no erosion, source-index storage (affinity_mode=banis).
+      erosion: 0
+      relabel_connected_components: true
+      relabel_connectivity: 6
       resolution: [16, 16, 16]
-      # BANIS comp_affinities runs on the raw segmentation (no erosion,
-      # source-index affinity_mode).
       cache_dir: datasets/betaSeg
       targets:
       - name: affinity
         kwargs:
-          offsets: ["0-0-1", "0-1-0", "1-0-0", "0-0-10", "0-10-0", "10-0-0"]
+          # 3 short-range + 3 long-range@10. decode_affinity_cc consumes the
+          # first 3 channels in axis0/axis1/axis2 order.
+          offsets: ["1-0-0", "0-1-0", "0-0-1", "10-0-0", "0-10-0", "0-0-10"]
           affinity_mode: banis
+      # SDT defaults match BANIS (alpha=0.8, bg_value=-1.0).
       - name: skeleton_aware_edt
         kwargs:
           alpha: 0.8
           bg_value: -1.0
-    dataloader:
-      patch_size: [128, 128, 128]
-      # BANIS-mito justfile uses --batch_size 8 --devices=1 (global batch = 8).
-      # On 4 GPUs (DDP), set per-GPU batch_size=2 to match the same global batch.
-      batch_size: 2
-      cached_sampling_foreground_threshold: 0.05
-      cached_sampling_max_attempts: 50
-      cached_sampling_sample_nonzero_mask: true
     augmentation:
-      # BANIS-style augmentations: drop0.05 shift0.05 intTrue noise0.5 affine0.5
-      axis_permute:
-        enabled: true
-        prob: 1.0
-      rotate90_all:
-        enabled: true
-        prob: 1.0
-      flip:
-        enabled: true
-        prob: 0.5
-        spatial_axis: [0, 1, 2]
-      slice_drop:
-        enabled: true
-        prob: 0.5
-        slice_prob: 0.05
-        spatial_axis: [0, 1, 2]
-        fill_value: 0.0
-      slice_shift:
-        enabled: true
-        prob: 0.5
-        slice_prob: 0.05
-        shift_magnitude: 10
-        spatial_axis: [0, 1, 2]
-        wrap: true
-      affine:
-        enabled: true
-        prob: 0.5
-        rotate_range: [3.141592653589793, 3.141592653589793, 3.141592653589793]
-        scale_range: [0.2, 0.2, 0.2]
-        shear_range: [0.5, 0.5, 0.5]
-      intensity:
-        enabled: true
-        banis_style: true
-        mul_add_prob: 0.5
-        mul_range: [0.9, 1.1]
-        add_range: [-0.1, 0.1]
-        gaussian_noise_prob: 0.5
-        gaussian_noise_std: 0.5
+      profile: aug_banis
   inference:
-    head: "aff_r1,aff_r10,sdt"
+    strategy: whole_volume
+    # Merge both heads so TTA channel_activations and select_channel address
+    # the concatenated 7-channel output (aff[0:6] + sdt[6:7]).
+    head: "aff,sdt"
+    # Keep only short-range affinities for connected-component decoding (matches
+    # BANIS-mito full_cube_inference default prediction_channels=3).
+    select_channel: [0, 1, 2]
     sliding_window:
       window_size: [128, 128, 128]
       sw_batch_size: 1
+      overlap: 0.5
+      blending: gaussian
+      sigma_scale: 0.25
+      padding_mode: replicate
       keep_input_on_cpu: false
     test_time_augmentation:
       enabled: false
-      flip_axes: all
-      ensemble_mode: min
       channel_activations:
-      - {channels: "0:6", activation: sigmoid}
+      # BANIS: scale_sigmoid(x) = sigmoid(0.2 * x) on aff; tanh on SDT.
+      - {channels: "0:6", activation: scale_sigmoid}
       - {channels: "6:7", activation: tanh}
-    crop_pad: [64, 54, 64, 54, 64, 54]
     save_prediction:
       enabled: true
+      storage_dtype: float16
+      output_formats: [h5]
 
   decoding:
     steps:
-    - name: decode_distance_watershed
+    - name: decode_affinity_cc
       kwargs:
-        distance_channels: [6]
-        distance_threshold: [0.5, 0]
-        min_seed_size: 100
-        min_instance_size: 50
-        use_fast_edt: true
-        edt_parallel: 8
-    postprocessing:
-      enabled: true
+        # BANIS sweeps thresholds; pick a single mid-range value matching the
+        # NISB reference. affinity_mode=banis stores edges at the source voxel.
+        threshold: 0.5
+        backend: numba
+        edge_offset: 0
+
   evaluation:
     enabled: true
     metrics: [adapted_rand]
@@ -160,35 +136,30 @@ train:
       name: AdamW
       lr: 0.001
       weight_decay: 0.01
+      betas: [0.9, 0.999]
+      eps: 1.0e-8
     scheduler:
       name: CosineAnnealingLR
       interval: step
+      frequency: 1
       min_lr: 0.0
       params:
-        # BANIS-mito justfile (train_betaseg): n_steps = 50000, T_max = n_steps.
+        # BANIS-mito: T_max = n_steps = 50000.
         t_max: 50000
-    max_epochs: 200
+    max_epochs: 50
     max_steps: 50000
-    n_steps_per_epoch: 1000
-    val_check_interval: 5
+    n_steps_per_epoch: 5000
+    val_check_interval: 5000
+    val_check_interval_unit: step
+    # BANIS uses limit_val_batches=100.
+    val_steps_per_epoch: 100
+    gradient_clip_val: 1.0
     accumulate_grad_batches: 1
-    # BANIS casts data to float16 manually; closest Lightning equivalent.
     precision: "16-mixed"
-  monitor:
-    logging:
-      scalar:
-        loss: [train_loss_total_epoch, train_loss_term_0_weighted, train_loss_term_1_weighted, train_loss_term_2_weighted]
-        loss_every_n_steps: 100
-      images:
-        head: all
-        log_every_n_epochs: 5
-        max_images: 8
-        num_slices: 2
-        channel_mode: all
-    checkpoint:
-      save_top_k: 3
-      monitor: val_loss_total
-      mode: min
+    log_every_n_steps: 100
+    num_sanity_val_steps: 0
+    ema:
+      enabled: false
   data:
     root_path: /projects/weilab/liupeng/data/raw/mito/betaSeg
     train:
@@ -199,6 +170,25 @@ train:
       image: [high_c1_im.tiff]
       label: [high_c1_mito.tiff]
       label_aux_type: skeleton
+  monitor:
+    logging:
+      scalar:
+        loss: [train_loss_total_epoch, val_loss_total]
+        loss_every_n_steps: 100
+      images:
+        max_images: 8
+        num_slices: 2
+        log_every_n_epochs: 1
+        channel_mode: all
+    checkpoint:
+      monitor: val_loss_total
+      mode: min
+      save_top_k: 3
+      save_every_n_steps: 10000
+      save_on_train_epoch_end: false
+      save_last: true
+      checkpoint_filename: "{epoch:03d}-{val_loss_total:.4f}"
+      dirpath: outputs/mito_betaseg_banis_v0/checkpoints/
 
 test:
   data:

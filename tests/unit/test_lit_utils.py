@@ -8,9 +8,16 @@ import pytest
 
 from connectomics.config import Config, save_config
 from connectomics.config.schema.stages import TuneConfig
+from connectomics.runtime.cache_resolver import resolve_cached_prediction_files
 from connectomics.runtime.cli import setup_config
 from connectomics.runtime.output_naming import (
+    final_prediction_decoded_glob_suffix,
+    final_prediction_output_tag,
+    format_checkpoint_name_tag,
     format_decode_tag,
+    intermediate_prediction_cache_suffix,
+    intermediate_prediction_cache_suffix_candidates,
+    is_tta_cache_suffix,
     resolve_prediction_cache_suffix,
     tta_cache_suffix,
     tta_cache_suffix_candidates,
@@ -240,6 +247,21 @@ def test_resolve_prediction_cache_suffix_includes_checkpoint_name_for_tta_test_m
     )
 
 
+def test_resolve_prediction_cache_suffix_includes_channel_for_non_tta_checkpoint():
+    cfg = Config()
+    cfg.inference.select_channel = [0, 1, 2]
+    cfg.inference.test_time_augmentation.enabled = False
+
+    assert (
+        resolve_prediction_cache_suffix(
+            cfg,
+            mode="test",
+            checkpoint_path="/tmp/checkpoints/epoch=4-step=99.ckpt",
+        )
+        == "_x1_ch0-1-2_ckpt-epoch=4-step=99_prediction.h5"
+    )
+
+
 def test_resolve_prediction_cache_suffix_includes_output_head_for_multi_head_tta():
     cfg = Config()
     cfg.model.out_channels = 3
@@ -286,6 +308,120 @@ def test_tta_cache_suffix_candidates_do_not_fall_back_to_legacy_suffix_with_chec
         cfg,
         checkpoint_path="/tmp/checkpoints/epoch=4-step=99.ckpt",
     ) == ["_tta_x8_ckpt-epoch=4-step=99_prediction.h5"]
+
+
+def test_format_checkpoint_name_tag_canonicalizes_lightning_inserted_metric_names():
+    assert (
+        format_checkpoint_name_tag("/tmp/checkpoints/step-step=00050000.ckpt")
+        == "_ckpt-step=00050000"
+    )
+    assert (
+        format_checkpoint_name_tag("/tmp/checkpoints/epoch-epoch=004-step-step=00050000.ckpt")
+        == "_ckpt-epoch=004-step=00050000"
+    )
+    assert (
+        format_checkpoint_name_tag("/tmp/checkpoints/epoch=4-step=99.ckpt")
+        == "_ckpt-epoch=4-step=99"
+    )
+
+
+def test_chunked_raw_intermediate_suffix_does_not_collide_with_whole_volume_cache():
+    cfg = Config()
+    cfg.inference.select_channel = [0, 1, 2]
+    cfg.inference.strategy = "chunked"
+    cfg.inference.chunking.enabled = True
+    cfg.inference.chunking.output_mode = "raw_prediction"
+    cfg.inference.chunking.chunk_size = [1000, 1000, 1350]
+    cfg.inference.chunking.halo = [0, 0, 0]
+    cfg.decoding.output_suffix = "chunk_raw_v1"
+    checkpoint = "/tmp/checkpoints/step-step=00050000.ckpt"
+
+    suffix = intermediate_prediction_cache_suffix(cfg, checkpoint_path=checkpoint)
+
+    assert suffix == (
+        "_tta_x1_ch0-1-2_ckpt-step=00050000"
+        "_chunked-raw_cs1000x1000x1350_chunk_raw_v1_prediction.h5"
+    )
+    assert suffix != tta_cache_suffix(cfg, checkpoint_path=checkpoint)
+    assert is_tta_cache_suffix(suffix)
+    assert intermediate_prediction_cache_suffix_candidates(cfg, checkpoint_path=checkpoint) == [
+        suffix
+    ]
+
+
+def test_cache_resolver_ignores_whole_volume_raw_for_chunked_raw_config(tmp_path):
+    h5py = pytest.importorskip("h5py")
+    cfg = Config()
+    cfg.inference.select_channel = [0, 1, 2]
+    cfg.inference.strategy = "chunked"
+    cfg.inference.chunking.enabled = True
+    cfg.inference.chunking.output_mode = "raw_prediction"
+    cfg.inference.chunking.chunk_size = [1000, 1000, 1350]
+    cfg.decoding.output_suffix = "chunk_raw_v1"
+    checkpoint = "/tmp/checkpoints/step-step=00050000.ckpt"
+    filename = "img"
+
+    old_whole_volume_raw = (
+        tmp_path / f"{filename}{tta_cache_suffix(cfg, checkpoint_path=checkpoint)}"
+    )
+    with h5py.File(old_whole_volume_raw, "w") as handle:
+        handle.create_dataset("main", data=np.zeros((3, 2, 2, 2), dtype=np.float32))
+
+    cache_hit, loaded_suffix, resolved_files = resolve_cached_prediction_files(
+        tmp_path,
+        [filename],
+        resolve_prediction_cache_suffix(cfg, mode="test", checkpoint_path=checkpoint),
+        fallback_tta_suffixes=intermediate_prediction_cache_suffix_candidates(
+            cfg, checkpoint_path=checkpoint
+        ),
+        preferred_decoded_suffix=(
+            "_" + final_prediction_output_tag(cfg, checkpoint_path=checkpoint) + ".h5"
+        ),
+        decoded_glob_suffix=final_prediction_decoded_glob_suffix(cfg, checkpoint_path=checkpoint),
+    )
+
+    assert cache_hit is False
+    assert loaded_suffix is None
+    assert resolved_files == []
+
+
+def test_cache_resolver_prefers_decoded_final_over_large_raw_intermediate(tmp_path):
+    h5py = pytest.importorskip("h5py")
+    cfg = Config()
+    cfg.inference.select_channel = [0, 1, 2]
+    cfg.decoding.steps = [
+        {
+            "name": "decode_affinity_cc",
+            "kwargs": {"threshold": 0.7, "backend": "numba", "edge_offset": 0},
+        }
+    ]
+    checkpoint = "/tmp/checkpoints/step-step=00050000.ckpt"
+    filename = "img"
+    raw_suffix = tta_cache_suffix(cfg, checkpoint_path=checkpoint)
+    final_suffix = "_" + final_prediction_output_tag(cfg, checkpoint_path=checkpoint) + ".h5"
+    variant_suffix = final_suffix.removesuffix(".h5") + "_crop1.h5"
+
+    with h5py.File(tmp_path / f"{filename}{raw_suffix}", "w") as handle:
+        handle.create_dataset("main", data=np.zeros((3, 2, 2, 2), dtype=np.float32))
+    with h5py.File(tmp_path / f"{filename}{final_suffix}", "w") as handle:
+        handle.create_dataset("main", data=np.zeros((2, 2, 2), dtype=np.uint32))
+    with h5py.File(tmp_path / f"{filename}{variant_suffix}", "w") as handle:
+        handle.create_dataset("main", data=np.ones((2, 2, 2), dtype=np.uint32))
+
+    cache_hit, loaded_suffix, resolved_files = resolve_cached_prediction_files(
+        tmp_path,
+        [filename],
+        resolve_prediction_cache_suffix(cfg, mode="test", checkpoint_path=checkpoint),
+        fallback_tta_suffixes=intermediate_prediction_cache_suffix_candidates(
+            cfg, checkpoint_path=checkpoint
+        ),
+        preferred_decoded_suffix=final_suffix,
+        decoded_glob_suffix=final_prediction_decoded_glob_suffix(cfg, checkpoint_path=checkpoint),
+    )
+
+    assert cache_hit is True
+    assert loaded_suffix == final_suffix
+    assert resolved_files == [tmp_path / f"{filename}{final_suffix}"]
 
 
 def test_tuning_best_params_filename_matches_tta_prediction_identity():
@@ -343,6 +479,37 @@ def test_format_decode_tag_includes_all_decoding_parameters():
     ]
 
     assert format_decode_tag(cfg) == "_waterz_256-watershed-aff50_his256-true-0.1-0.2-0.4"
+
+
+def test_decoding_output_suffix_disambiguates_final_prediction_cache_glob():
+    cfg = Config()
+    cfg.inference.select_channel = [0, 1, 2]
+    cfg.decoding.output_suffix = "chunk raw/v1"
+    cfg.decoding.steps = [
+        {
+            "name": "decode_affinity_cc",
+            "kwargs": {
+                "threshold": 0.7,
+                "backend": "numba",
+                "edge_offset": 0,
+            },
+        }
+    ]
+
+    assert (
+        final_prediction_output_tag(
+            cfg,
+            checkpoint_path="/tmp/checkpoints/step-step=00050000.ckpt",
+        )
+        == "x1_ch0-1-2_ckpt-step=00050000_decoding_affinity_cc_numba-0-0.7_chunk-raw-v1"
+    )
+    assert (
+        final_prediction_decoded_glob_suffix(
+            cfg,
+            checkpoint_path="/tmp/checkpoints/step-step=00050000.ckpt",
+        )
+        == "_x1_ch0-1-2_ckpt-step=00050000_decoding_affinity_cc_numba-0-0.7*_chunk-raw-v1.h5"
+    )
 
 
 def test_format_decode_tag_gates_dust_and_branch_parameter_groups():

@@ -102,7 +102,9 @@ class DecodingTuningConfig:
 class DecodingConfig:
     """Decoded-output orchestration configuration."""
 
+    enabled: bool = True
     steps: List[DecodeModeConfig] = field(default_factory=list)
+    output_suffix: str = ""
     postprocessing: PostprocessingConfig = field(default_factory=PostprocessingConfig)
     output_path: str = ""
     input_prediction_path: str = ""

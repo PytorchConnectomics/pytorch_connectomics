@@ -6,7 +6,7 @@ import logging
 from pathlib import Path
 from typing import Any
 
-from connectomics.runtime.output_naming import tta_cache_suffix
+from connectomics.runtime.output_naming import intermediate_prediction_cache_suffix
 
 from .pipeline import normalize_decode_modes, resolve_decode_modes_from_cfg
 
@@ -36,7 +36,7 @@ def log_decode_experiment(
         decode_params.update(step.kwargs)
 
     input_tta_prediction_name = (
-        f"{volume_name}{tta_cache_suffix(cfg, checkpoint_path=checkpoint_path)}"
+        f"{volume_name}{intermediate_prediction_cache_suffix(cfg, checkpoint_path=checkpoint_path)}"
     )
 
     param_keys = [

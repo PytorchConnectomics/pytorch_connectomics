@@ -19,6 +19,81 @@ from monai.inferers.utils import _get_scan_interval, compute_importance_map
 logger = logging.getLogger(__name__)
 
 
+def apply_border_mask(
+    importance_map: torch.Tensor, border_mask: Sequence[int]
+) -> torch.Tensor:
+    """Zero outer ``k`` voxels of each spatial axis in ``importance_map``.
+
+    ``border_mask`` length must equal the number of spatial dimensions; the
+    function operates on the trailing spatial dims so leading channel/batch
+    singletons are left alone. A no-op when all entries are <= 0.
+    """
+    if not border_mask or all(int(b) <= 0 for b in border_mask):
+        return importance_map
+    spatial_dims = len(border_mask)
+    spatial_shape = importance_map.shape[-spatial_dims:]
+    for axis, k in enumerate(border_mask):
+        k = int(k)
+        if k <= 0:
+            continue
+        size = int(spatial_shape[axis])
+        if 2 * k >= size:
+            raise ValueError(
+                f"inference.sliding_window.border_mask[{axis}]={k} is too large "
+                f"for window size {size} on that axis."
+            )
+        idx = [slice(None)] * importance_map.ndim
+        trailing = -(spatial_dims - axis)
+        idx[trailing] = slice(0, k)
+        importance_map[tuple(idx)] = 0
+        idx[trailing] = slice(size - k, size)
+        importance_map[tuple(idx)] = 0
+    return importance_map
+
+
+_ACCUMULATOR_DTYPE_ALIASES: dict[str, "torch.dtype"] = {
+    "float32": torch.float32,
+    "fp32": torch.float32,
+    "float16": torch.float16,
+    "fp16": torch.float16,
+    "half": torch.float16,
+    "bfloat16": torch.bfloat16,
+    "bf16": torch.bfloat16,
+}
+
+
+def resolve_accumulator_dtype(cfg) -> torch.dtype:
+    """Return the configured value-accumulator dtype, defaulting to float32."""
+    sliding_cfg = getattr(getattr(cfg, "inference", None), "sliding_window", None)
+    raw = getattr(sliding_cfg, "accumulator_dtype", None) if sliding_cfg else None
+    if raw is None:
+        return torch.float32
+    name = str(raw).strip().lower().removeprefix("torch.")
+    if name in _ACCUMULATOR_DTYPE_ALIASES:
+        return _ACCUMULATOR_DTYPE_ALIASES[name]
+    raise ValueError(
+        "inference.sliding_window.accumulator_dtype must be one of "
+        f"{sorted(_ACCUMULATOR_DTYPE_ALIASES)}, got {raw!r}."
+    )
+
+
+def resolve_border_mask(cfg, spatial_dims: int) -> list[int]:
+    """Return the configured per-axis border mask, normalized to length ``spatial_dims``."""
+    sliding_cfg = getattr(getattr(cfg, "inference", None), "sliding_window", None)
+    raw = getattr(sliding_cfg, "border_mask", None) if sliding_cfg else None
+    if not raw:
+        return []
+    values = [int(v) for v in raw]
+    if len(values) == 1:
+        values = values * spatial_dims
+    if len(values) != spatial_dims:
+        raise ValueError(
+            f"inference.sliding_window.border_mask must have length 1 or {spatial_dims}, "
+            f"got {len(values)}."
+        )
+    return values
+
+
 def is_2d_inference_mode(cfg) -> bool:
     """Return True when data config indicates 2D mode."""
     train_cfg = getattr(getattr(cfg, "data", None), "train", None)
@@ -185,6 +260,12 @@ def build_sliding_inferer(cfg) -> Optional[SlidingWindowInferer]:
         return None
 
     runtime = _resolve_sliding_window_runtime(cfg, roi_size)
+    if resolve_border_mask(cfg, len(roi_size)):
+        logger.warning(
+            "inference.sliding_window.border_mask is set but the eager MONAI "
+            "SlidingWindowInferer ignores it. Enable lazy_load=true to apply "
+            "border masking."
+        )
     inferer = SlidingWindowInferer(
         roi_size=roi_size,
         sw_batch_size=runtime["sw_batch_size"],
@@ -197,7 +278,7 @@ def build_sliding_inferer(cfg) -> Optional[SlidingWindowInferer]:
         progress=True,
     )
 
-    logger.info(
+    logger.debug(
         "Sliding-window inference configured: "
         f"roi_size={roi_size}, overlap={runtime['overlap']}, sw_batch={runtime['sw_batch_size']}, "
         f"mode={runtime['mode']}, sigma_scale={runtime['sigma_scale']}, "

@@ -6,8 +6,8 @@ cropped by a known number of voxels during inference.
 
 Example:
     python scripts/uncrop.py \
-        img_x1_ch0-1-2_ckpt-step-step=00050000_decoding_affinity_cc_numba-0-0.7.h5 \
-        img_x1_ch0-1-2_ckpt-step-step=00050000_decoding_affinity_cc_numba-0-0.7_uncrop1.h5 \
+        img_x1_ch0-1-2_ckpt-step=00050000_decoding_affinity_cc_numba-0-0.7.h5 \
+        img_x1_ch0-1-2_ckpt-step=00050000_decoding_affinity_cc_numba-0-0.7_uncrop1.h5 \
         --k 1
 """
 

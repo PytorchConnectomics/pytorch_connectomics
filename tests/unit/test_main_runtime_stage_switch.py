@@ -1,14 +1,22 @@
 import argparse
 from pathlib import Path
 
+import numpy as np
 import torch
 
 from connectomics.config import Config, save_config
 from connectomics.config.schema.evaluation import EvaluationConfig
+from connectomics.config.schema.stages import TuneConfig
+from connectomics.data.io import write_hdf5
+from connectomics.runtime.cache_resolver import (
+    has_cached_predictions_in_output_dir,
+)
 from connectomics.runtime.cache_resolver import (
     is_test_evaluation_enabled as _is_test_evaluation_enabled,
 )
+from connectomics.runtime.checkpoint_dispatch import configure_checkpoint_output_paths
 from connectomics.runtime.cli import setup_config
+from connectomics.runtime.dispatch import dispatch_runtime
 from connectomics.runtime.sharding import (
     has_assigned_test_shard,
     maybe_enable_independent_test_sharding,
@@ -131,6 +139,19 @@ def test_maybe_limit_test_devices_keeps_distributed_window_sharding_for_single_v
     assert cfg.inference.sliding_window.distributed_sharding is True
 
 
+def test_maybe_limit_test_devices_keeps_chunked_raw_for_single_volume_tests():
+    cfg = Config()
+    cfg.system.num_gpus = 4
+    cfg.inference.strategy = "chunked"
+    cfg.inference.chunking.enabled = True
+    cfg.inference.chunking.output_mode = "raw_prediction"
+
+    changed = maybe_limit_test_devices(cfg, _DummyTestDataModule(volume_count=1))
+
+    assert changed is False
+    assert cfg.system.num_gpus == 4
+
+
 def test_maybe_limit_test_devices_disables_distributed_window_sharding_for_multi_volume_tests():
     cfg = Config()
     cfg.system.num_gpus = 4
@@ -229,3 +250,131 @@ def test_has_assigned_test_shard_returns_false_for_empty_slice(tmp_path, monkeyp
     )
 
     assert has_assigned_test_shard(cfg, args) is False
+
+
+def test_tune_cache_only_preserves_checkpoint_tag_for_tuning_suffix(tmp_path, monkeypatch):
+    cfg = Config()
+    cfg.tune = TuneConfig()
+    cfg.inference.save_prediction.output_path = str(tmp_path / "results")
+
+    args = _make_args(tmp_path / "config.yaml", mode="tune")
+    args.checkpoint = "outputs/run/checkpoints/step-step=00050000.ckpt"
+
+    captured = {}
+
+    monkeypatch.setattr(
+        "connectomics.runtime.dispatch.setup_runtime_directories",
+        lambda _args, _cfg: (tmp_path / "tuning", tmp_path),
+    )
+    monkeypatch.setattr(
+        "connectomics.runtime.dispatch.try_cache_only_test_execution",
+        lambda *_args, **_kwargs: False,
+    )
+    monkeypatch.setattr(
+        "connectomics.runtime.tune_runner.try_skip_tune_with_cached_results",
+        lambda *_args, **_kwargs: False,
+    )
+    monkeypatch.setattr(
+        "connectomics.runtime.dispatch.has_tta_prediction_file",
+        lambda _cfg: False,
+    )
+    monkeypatch.setattr(
+        "connectomics.runtime.dispatch.has_cached_predictions_in_output_dir",
+        lambda *_args, **_kwargs: True,
+    )
+
+    def _unexpected_model_build(*_args, **_kwargs):
+        raise AssertionError("cache-only tuning should not build a Lightning module")
+
+    monkeypatch.setattr(
+        "connectomics.runtime.dispatch._create_runtime_model", _unexpected_model_build
+    )
+
+    def _fake_run_tuning(model, trainer_or_factory, runtime_cfg, checkpoint_path=None):
+        captured["model"] = model
+        captured["trainer_or_factory"] = trainer_or_factory
+        captured["cfg"] = runtime_cfg
+        captured["checkpoint_path"] = checkpoint_path
+
+    monkeypatch.setattr("connectomics.runtime.tune_runner.run_tuning", _fake_run_tuning)
+
+    dispatch_runtime(args, cfg)
+
+    assert captured["model"] is None
+    assert captured["cfg"] is cfg
+    assert captured["checkpoint_path"] == args.checkpoint
+
+
+def test_checkpoint_tune_uses_tuning_prediction_folder(tmp_path):
+    cfg = Config()
+    cfg.tune = TuneConfig()
+    args = _make_args(tmp_path / "config.yaml", mode="tune")
+    args.checkpoint = str(
+        tmp_path
+        / "outputs"
+        / "nisb_base_banis"
+        / "20260427_095218"
+        / "checkpoints"
+        / "step-step=00050000.ckpt"
+    )
+
+    output_base, tuning_dir = configure_checkpoint_output_paths(args, cfg)
+
+    expected_output_base = tmp_path / "outputs" / "nisb_base_banis" / "20260427_095218"
+    expected_tuning_dir = expected_output_base / "tuning_step=00050000"
+    expected_results_dir = expected_output_base / "results_step=00050000"
+    assert output_base == expected_output_base
+    assert tuning_dir == str(expected_tuning_dir)
+    assert cfg.tune.output.output_dir == str(expected_tuning_dir)
+    assert cfg.tune.output.output_pred == str(expected_tuning_dir / "predictions")
+    assert cfg.inference.save_prediction.output_path == str(expected_results_dir)
+
+
+def test_tune_cache_detection_uses_tuning_folder_then_result_fallback(tmp_path):
+    cfg = Config()
+    cfg.tune = TuneConfig()
+    cfg.inference.save_prediction.output_path = str(tmp_path / "results_step=00050000")
+    cfg.tune.output.output_pred = str(tmp_path / "tuning_step=00050000" / "predictions")
+    cfg.data.val.image = str(tmp_path / "images" / "img.h5")
+
+    image_path = Path(cfg.data.val.image)
+    image_path.parent.mkdir(parents=True, exist_ok=True)
+    image_path.touch()
+
+    assert (
+        has_cached_predictions_in_output_dir(
+            cfg,
+            mode="tune",
+            checkpoint_path="step-step=00050000.ckpt",
+        )
+        is False
+    )
+
+    results_pred = (
+        Path(cfg.inference.save_prediction.output_path)
+        / "img_tta_x1_ckpt-step=00050000_prediction.h5"
+    )
+    results_pred.parent.mkdir(parents=True, exist_ok=True)
+    write_hdf5(str(results_pred), np.zeros((1, 1, 1), dtype=np.float32), dataset="main")
+
+    assert (
+        has_cached_predictions_in_output_dir(
+            cfg,
+            mode="tune",
+            checkpoint_path="step-step=00050000.ckpt",
+        )
+        is True
+    )
+
+    tuning_pred = Path(cfg.tune.output.output_pred) / "img_tta_x1_ckpt-step=00050000_prediction.h5"
+    tuning_pred.parent.mkdir(parents=True, exist_ok=True)
+    write_hdf5(str(tuning_pred), np.zeros((1, 1, 1), dtype=np.float32), dataset="main")
+
+    assert (
+        has_cached_predictions_in_output_dir(
+            cfg,
+            mode="tune",
+            checkpoint_path="step-step=00050000.ckpt",
+        )
+        is True
+    )

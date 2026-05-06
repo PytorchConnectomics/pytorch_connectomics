@@ -8,7 +8,7 @@ from typing import Any
 
 from ..config import Config
 from ..training.lightning.runtime import setup_run_directory
-from .output_naming import tta_cache_suffix
+from .output_naming import intermediate_prediction_cache_suffix
 
 
 def get_output_base_from_checkpoint(checkpoint_path: str) -> Path:
@@ -46,15 +46,23 @@ def configure_checkpoint_output_paths(args: Any, cfg: Config) -> tuple[Path | No
             results_folder_name = "results"
             tuning_folder_name = "tuning"
 
+        tuning_dir = output_base / tuning_folder_name
+        tuning_prediction_dir = tuning_dir / "predictions"
         save_pred_cfg = cfg.inference.save_prediction
+        if getattr(cfg, "tune", None) is not None:
+            cfg.tune.output.output_dir = str(tuning_dir)
+            cfg.tune.output.output_pred = str(tuning_prediction_dir)
         save_pred_cfg.output_path = str(output_base / results_folder_name)
-        save_pred_cfg.cache_suffix = tta_cache_suffix(cfg, checkpoint_path=args.checkpoint)
+        save_pred_cfg.cache_suffix = intermediate_prediction_cache_suffix(
+            cfg, checkpoint_path=args.checkpoint
+        )
 
         if args.mode == "tune-test":
+            print(f"Tuning prediction output: {tuning_prediction_dir}")
             print(f"Test output: {save_pred_cfg.output_path}")
             print(f"Test cache suffix: {save_pred_cfg.cache_suffix}")
 
-        return output_base, str(output_base / tuning_folder_name)
+        return output_base, str(tuning_dir)
 
     results_folder_name = "results"
     if step_suffix:

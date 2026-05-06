@@ -106,7 +106,7 @@ def build_prediction_artifact_metadata(
         transpose=_tuple_or_none(_cfg_get(cfg, "data.data_transform.val_transpose")),
         model_architecture=_cfg_get(cfg, "model.arch.type"),
         model_output_identity=_model_output_identity(cfg, output_head),
-        decode_after_inference=bool(_cfg_get(cfg, "inference.decode_after_inference", True)),
+        decode_after_inference=bool(_cfg_get(cfg, "decoding.enabled", True)),
         chunk_shape=_tuple_or_none(chunk_shape),
         halo=_tuple_or_none(halo),
         intensity_scale=intensity_scale,

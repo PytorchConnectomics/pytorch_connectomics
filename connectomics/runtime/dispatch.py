@@ -92,7 +92,6 @@ def configure_matmul_precision(cfg: Config) -> None:
 
         if has_tensor_cores:
             torch.set_float32_matmul_precision("medium")
-            print("Enabled float32 matmul precision='medium' (Tensor Cores detected)")
     except Exception as exc:
         print(f"WARNING: Could not configure float32 matmul precision automatically: {exc}")
 
@@ -153,6 +152,7 @@ def _create_runtime_model(
 def _run_training(
     args: Any, cfg: Config, model: ConnectomicsModule, trainer: Any, ckpt_path
 ) -> None:
+    print("Loading training data...")
     datamodule = create_datamodule(cfg, mode=args.mode, fast_dev_run=bool(args.fast_dev_run))
     print("\n" + "=" * 60)
     print("STARTING TRAINING")
@@ -170,7 +170,7 @@ def _run_test(
     args: Any,
     cfg: Config,
     model: ConnectomicsModule,
-    trainer: Any,
+    trainer_or_factory: Any,
     run_dir: Path,
     ckpt_path,
     *,
@@ -196,12 +196,16 @@ def _run_test(
             ckpt_path=ckpt_path,
             mode="test",
         )
+    else:
+        trainer = trainer_or_factory() if callable(trainer_or_factory) else trainer_or_factory
     if not has_assigned_test_shard(cfg, args):
         return
 
     if has_saved_prediction:
+        print(f"Loading saved predictions from {saved_prediction_path}...")
         datamodule = create_decode_only_datamodule(cfg, saved_prediction_path)
     else:
+        print("Loading test data...")
         datamodule = create_datamodule(cfg, mode="test")
 
     if args.shard_id is not None and args.num_shards is not None:
@@ -271,8 +275,7 @@ def dispatch_runtime(args: Any, cfg: Config) -> None:
     run_dir, output_base = setup_runtime_directories(args, cfg)
 
     if cfg.system.seed is not None:
-        print(f"Random seed set to: {cfg.system.seed}")
-        seed_everything(cfg.system.seed, workers=True)
+        seed_everything(cfg.system.seed, workers=True, verbose=False)
 
     if args.mode == "test":
         maybe_enable_independent_test_sharding(args, cfg)
@@ -288,54 +291,97 @@ def dispatch_runtime(args: Any, cfg: Config) -> None:
     ):
         return
 
+    if args.mode == "tune":
+        from .tune_runner import try_skip_tune_with_cached_results
+
+        if try_skip_tune_with_cached_results(cfg, checkpoint_path=args.checkpoint):
+            return
+
     saved_prediction_path = getattr(getattr(cfg, "decoding", None), "input_prediction_path", "")
     has_saved_prediction = bool(
         saved_prediction_path
         and isinstance(saved_prediction_path, str)
         and saved_prediction_path.strip()
     )
-    tta_cached = args.mode in ("test", "tune", "tune-test") and (
-        has_saved_prediction
-        or has_tta_prediction_file(cfg)
-        or has_cached_predictions_in_output_dir(
+    if args.mode == "tune":
+        tta_cached = has_cached_predictions_in_output_dir(
             cfg,
-            mode=args.mode,
+            mode="tune",
             checkpoint_path=args.checkpoint,
         )
+    elif args.mode == "tune-test":
+        tune_cache_hit = has_cached_predictions_in_output_dir(
+            cfg,
+            mode="tune",
+            checkpoint_path=args.checkpoint,
+        )
+        test_cache_hit = (
+            has_saved_prediction
+            or has_tta_prediction_file(cfg)
+            or has_cached_predictions_in_output_dir(
+                cfg,
+                mode="tune-test",
+                checkpoint_path=args.checkpoint,
+            )
+        )
+        tta_cached = tune_cache_hit and test_cache_hit
+    else:
+        tta_cached = args.mode == "test" and (
+            has_saved_prediction
+            or has_tta_prediction_file(cfg)
+            or has_cached_predictions_in_output_dir(
+                cfg,
+                mode=args.mode,
+                checkpoint_path=args.checkpoint,
+            )
+        )
+    model_has_saved_prediction = has_saved_prediction and (
+        args.mode == "test" or (args.mode == "tune-test" and tta_cached)
     )
 
-    model, ckpt_path = _create_runtime_model(
-        args,
-        cfg,
-        run_dir,
-        has_saved_prediction=has_saved_prediction,
-        saved_prediction_path=saved_prediction_path,
-        tta_cached=tta_cached,
-    )
+    # Tune with cached intermediate predictions runs entirely in numpy/Optuna,
+    # with no Lightning involvement, so skip the module/identity wrapper too.
+    if args.mode == "tune" and tta_cached:
+        model = None
+        ckpt_path = None
+    else:
+        model, ckpt_path = _create_runtime_model(
+            args,
+            cfg,
+            run_dir,
+            has_saved_prediction=model_has_saved_prediction,
+            saved_prediction_path=saved_prediction_path,
+            tta_cached=tta_cached,
+        )
 
-    trainer = create_trainer(
-        cfg,
-        run_dir=run_dir,
-        fast_dev_run=args.fast_dev_run,
-        ckpt_path=ckpt_path,
-        mode=args.mode,
-    )
+    def _make_trainer():
+        print("Creating Lightning trainer...")
+        return create_trainer(
+            cfg,
+            run_dir=run_dir,
+            fast_dev_run=args.fast_dev_run,
+            ckpt_path=ckpt_path,
+            mode=args.mode,
+        )
 
     try:
         if args.mode == "train":
-            _run_training(args, cfg, model, trainer, ckpt_path)
+            _run_training(args, cfg, model, _make_trainer(), ckpt_path)
 
         if args.mode in ["tune", "tune-test"]:
             from .tune_runner import run_tuning
 
-            run_tuning(model, trainer, cfg, checkpoint_path=ckpt_path)
+            tuning_checkpoint_path = (
+                args.checkpoint if args.mode == "tune" and model is None else ckpt_path
+            )
+            run_tuning(model, _make_trainer, cfg, checkpoint_path=tuning_checkpoint_path)
 
         if args.mode in ["tune-test", "test"]:
             _run_test(
                 args,
                 cfg,
                 model,
-                trainer,
+                _make_trainer,
                 run_dir,
                 ckpt_path,
                 has_saved_prediction=has_saved_prediction,
