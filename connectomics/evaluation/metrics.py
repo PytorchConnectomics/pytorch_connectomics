@@ -15,6 +15,33 @@ from .context import EvaluationContext
 logger = logging.getLogger(__name__)
 
 
+_INSTANCE_INTEGER_DTYPES = tuple(
+    dtype
+    for dtype in (
+        torch.uint8,
+        torch.int8,
+        torch.int16,
+        torch.int32,
+        torch.int64,
+        getattr(torch, "uint16", None),
+        getattr(torch, "uint32", None),
+        getattr(torch, "uint64", None),
+    )
+    if dtype is not None
+)
+
+
+def _max_value(tensor: torch.Tensor) -> float:
+    """Return a scalar max for dtypes where torch reductions may be missing."""
+    if tensor.is_floating_point():
+        return float(tensor.max().item())
+    if tensor.dtype == torch.bool:
+        return float(tensor.to(torch.uint8).max().item())
+    if tensor.dtype == getattr(torch, "uint64", None):
+        return float(tensor.to(torch.float64).max().item())
+    return float(tensor.to(torch.int64).max().item())
+
+
 def align_metric_tensors(
     pred_tensor: torch.Tensor,
     labels_tensor: torch.Tensor,
@@ -43,12 +70,9 @@ def align_metric_tensors(
 
 
 def is_instance_segmentation(pred_tensor: torch.Tensor) -> bool:
-    return pred_tensor.dtype in (
-        torch.int8,
-        torch.int16,
-        torch.int32,
-        torch.int64,
-    ) or (pred_tensor.dtype == torch.float32 and pred_tensor.max() > 1.0)
+    return pred_tensor.dtype in _INSTANCE_INTEGER_DTYPES or (
+        pred_tensor.dtype == torch.float32 and _max_value(pred_tensor) > 1.0
+    )
 
 
 def compute_instance_metrics(
@@ -147,15 +171,20 @@ def compute_binary_metrics(
     metrics_dict: Dict[str, Any],
     prediction_threshold: float,
 ) -> None:
-    if pred_tensor.max() <= 1.0:
-        pred_binary = (pred_tensor > prediction_threshold).long()
+    pred_for_threshold = pred_tensor if pred_tensor.is_floating_point() else pred_tensor.float()
+    labels_for_threshold = (
+        labels_tensor if labels_tensor.is_floating_point() else labels_tensor.float()
+    )
+
+    if _max_value(pred_tensor) <= 1.0:
+        pred_binary = (pred_for_threshold > prediction_threshold).long()
     else:
-        pred_binary = (torch.sigmoid(pred_tensor) > prediction_threshold).long()
+        pred_binary = (torch.sigmoid(pred_for_threshold) > prediction_threshold).long()
 
     labels_binary = (
-        (labels_tensor > prediction_threshold).long()
-        if labels_tensor.max() <= 1.0
-        else labels_tensor.long()
+        (labels_for_threshold > prediction_threshold).long()
+        if _max_value(labels_tensor) <= 1.0
+        else (labels_for_threshold > 0).long()
     )
 
     jaccard_metric = context.metric("jaccard")

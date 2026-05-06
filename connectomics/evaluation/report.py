@@ -18,11 +18,18 @@ from .metrics import (
     align_metric_tensors,
     compute_binary_metrics,
     compute_instance_metrics,
-    is_instance_segmentation,
 )
 from .nerl import compute_nerl_metrics
 
 logger = logging.getLogger(__name__)
+
+INSTANCE_METRIC_NAMES = {
+    "adapted_rand",
+    "voi",
+    "instance_accuracy",
+    "instance_accuracy_detail",
+}
+BINARY_METRIC_NAMES = {"jaccard", "dice", "accuracy"}
 
 
 def configured_evaluation_metrics(context: EvaluationContext) -> set[str]:
@@ -216,7 +223,13 @@ def compute_test_metrics(
         context.cfg_value(context.evaluation_cfg, "instance_iou_threshold", 0.5)
     )
 
-    if is_instance_segmentation(pred_tensor):
+    requested_instance_metrics = requested_metrics & INSTANCE_METRIC_NAMES
+    requested_binary_metrics = requested_metrics & BINARY_METRIC_NAMES
+    if not requested_instance_metrics and not requested_binary_metrics:
+        _persist_metrics(context, metrics_dict)
+        return
+
+    if requested_instance_metrics:
         compute_instance_metrics(
             context,
             pred_tensor,
@@ -225,7 +238,8 @@ def compute_test_metrics(
             metrics_dict,
             instance_iou_threshold,
         )
-    else:
+
+    if requested_binary_metrics:
         compute_binary_metrics(
             context,
             pred_tensor,

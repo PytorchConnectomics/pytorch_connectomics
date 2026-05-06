@@ -3,8 +3,11 @@
 
 from __future__ import annotations
 
+import logging
 import sys
 from pathlib import Path
+
+logging.basicConfig(level=logging.INFO, format="%(message)s", stream=sys.stdout)
 
 # Add parent directory to path for direct script execution.
 REPO_ROOT = Path(__file__).parent.parent
@@ -27,8 +30,15 @@ def main() -> None:
     args = parse_args()
     prepare_cli_args(args, REPO_ROOT)
 
+    mode_labels = {
+        "train": "Training",
+        "test": "Testing",
+        "tune": "Parameter Tuning",
+        "tune-test": "Parameter Tuning + Testing",
+    }
+    mode_label = mode_labels.get(args.mode, args.mode.capitalize())
     print("\n" + "=" * 60)
-    print("PyTorch Connectomics Hydra Training")
+    print(f"PyTorch Connectomics | {mode_label}")
     print("=" * 60)
     cfg = setup_config(args)
 

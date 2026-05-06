@@ -94,12 +94,9 @@ default:
         gaussian_noise_prob: 0.5
         gaussian_noise_std: 0.5
   inference:
-    strategy: chunked
-    decode_after_inference: true
-    # Keep only short-range affinities. In XYZ mode the first three channels
-    # already match decoder axis0, axis1, axis2 order.
-    select_channel: [0, 1, 2]
-    sliding_window:
+    execution:
+      strategy: chunked
+    window:
       lazy_load: true
       distributed_sharding: false
       distributed_reduce_chunk_mb: 128
@@ -122,28 +119,43 @@ default:
       # (no whole-volume padding). Honored by the lazy sliding-window path
       # (connectomics/inference/lazy.py) when lazy_load=true.
       snap_to_edge: true
-    chunking:
-      enabled: true
-      # Write chunked raw affinities first, then run the standard whole-volume
-      # decoder on the assembled raw prediction. This is less memory efficient
-      # than output_mode=decoded, but it matches whole-volume decoding semantics
-      # and parallelizes across ranks (each rank handles idx % world_size chunks).
-      output_mode: raw_prediction
-      # NISB volume is (3000, 3000, 1350) XYZ. 1000x1000 tiles divide evenly into
-      # 3x3=9 uniform chunks; full 1350-section Z extent per chunk.
-      chunk_size: [1000, 1000, 1350]
-      halo: [0, 0, 0]
-      axes: all
+    output_array:
+      # Keep only short-range affinities. In XYZ mode the first three channels
+      # already match decoder axis0, axis1, axis2 order.
+      select_channel: [0, 1, 2]
+      accumulator_dtype: float16
+      partition:
+        enabled: true
+        # Write chunked raw affinities first, then run the standard whole-volume
+        # decoder on the assembled raw prediction. This is less memory efficient
+        # than output_mode=decoded, but it matches whole-volume decoding semantics
+        # and parallelizes across ranks (each rank handles idx % world_size chunks).
+        output_mode: raw_prediction
+        # Match the whole-volume lazy sliding-window grid:
+        # window_size=144 and overlap=0.5 give a 72-voxel stride, so internal
+        # chunk starts should be multiples of 72. 1008 = 14 * 72 keeps a 3x3 XY
+        # layout for a 3000x3000x1350 NISB volume while avoiding off-grid chunk
+        # boundaries from 1000-voxel tiles. lazy_predict_region already selects
+        # windows from the full-volume grid, so halo=0 avoids extra duplicate
+        # window work without changing the grid.
+        size: [1008, 1008, 1350]
+        halo: [0, 0, 0]
+        axes: all
+      store:
+        enabled: true
+        backend: h5
+        dtype: float16
     test_time_augmentation:
       enabled: false
       channel_activations:
       - {channels: ":", activation: scale_sigmoid}
-    save_prediction:
-      enabled: true
-      storage_dtype: float16
-      output_formats: [h5]
 
   decoding:
+    enabled: true
+    # Change this tag when trying decoder/chunking variants; it is included in
+    # decoded output filenames and the decoded-cache glob, so old results are
+    # not accidentally reused.
+    output_suffix: chunk_raw_grid1008_halo0
     steps:
     - name: decode_affinity_cc
       kwargs:

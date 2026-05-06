@@ -15,88 +15,31 @@ The codebase follows a clean separation of concerns:
 
 **Key Principle:** Lightning is the outer shell, MONAI is the inner toolbox. No reimplementation of training loops or domain-specific tools.
 
+### V2/V3 Architecture Contract
+
+The codebase enforces an explicit contract from the v2/v3 refactor (see `.claude/refactor/`):
+
+1. **One canonical owner per concept.** No backward-compatibility shims, no facade re-exports, no duplicate import paths.
+2. **Strict config.** Unknown top-level keys **raise** at load time. Removed fields raise. `getattr(cfg.x, "y", default)` ghost reads on undeclared fields are forbidden.
+3. **Stages are separate.** Pipeline = `train → infer → decode → evaluate → tune`. Each stage has its own package and its own entry function. Combined test-mode is a thin wrapper that calls stage APIs in sequence.
+4. **Dependency direction:** `config → utils → data → models → metrics`; `training → {config, data, models, metrics}`; `inference → {config, data, models}`; `decoding → {config, data, utils}`; `evaluation → {config, data, metrics}`; `runtime → {config, training, inference, decoding, evaluation}`. Static AST tests in `tests/unit/test_v3_guardrails.py` enforce this.
+5. **Public API is explicit and small.** `tests/unit/test_public_api_snapshot.py` asserts exact `__all__` membership.
+
 ## Agent Design Principles
 
 - **Ecosystem-first, no reinvention**: Leverage proven frameworks (PyTorch, Lightning, MONAI, nnU-Net) to keep the codebase modern, minimal, and scalable.
 - **Config-first reproducibility**: Use Hydra/OmegaConf YAML composition + CLI overrides so experiments are declarative, reproducible, and easy to customize across datasets/benchmarks.
-- **Modular + extensible connectomics workflows**: Separate concerns cleanly (config, data, training, inference/decoding), expose registry-style extension points, and support large-volume EM workloads (tiling, sliding-window, multi-GPU) for both novices and agentic workflows.
+- **Modular + extensible connectomics workflows**: Separate concerns cleanly (config, data, training, inference, decoding, evaluation, runtime), expose registry-style extension points, and support large-volume EM workloads (tiling, sliding-window, multi-GPU) for both novices and agentic workflows.
 
 ## Installation
 
-### Prerequisites
-- **Python**: 3.8 or higher
-- **PyTorch**: 1.8.0 or higher (install separately based on your CUDA version)
-- **CUDA**: Recommended for GPU acceleration
+Requires Python 3.8+, PyTorch 1.8+. Install PyTorch separately for your CUDA version, then:
 
-### Installation Methods
-
-#### 1. Basic Installation (Recommended)
-Install core dependencies only:
 ```bash
-# Clone the repository
-git clone https://github.com/zudi-lin/pytorch_connectomics.git
-cd pytorch_connectomics
-
-# Install PyTorch (choose version based on your CUDA version)
-# Visit https://pytorch.org/get-started/locally/ for the correct command
-# Example for CUDA 11.8:
-pip install torch torchvision --index-url https://download.pytorch.org/whl/cu118
-
-# Install PyTorch Connectomics in development mode
-pip install -e .
-```
-
-#### 2. Full Installation (All Features)
-Install with all optional features:
-```bash
-pip install -e .[full]
-```
-
-#### 3. Custom Installation
-Install specific feature sets:
-```bash
-# With hyperparameter optimization
-pip install -e .[optim]
-
-# With Weights & Biases experiment tracking
-pip install -e .[wandb]
-
-# With TIFF file support
-pip install -e .[tiff]
-
-# With 3D visualization
-pip install -e .[viz]
-
-# With development and testing tools
-pip install -e .[dev]
-
-# With documentation building tools
-pip install -e .[docs]
-
-# Multiple extras
-pip install -e .[full,dev,docs]
-```
-
-#### 4. MedNeXt Integration (Optional)
-For MedNeXt model support:
-```bash
-# Install from external repository
-pip install -e /projects/weilab/weidf/lib/MedNeXt
-
-# Or clone and install
-git clone https://github.com/MIC-DKFZ/MedNeXt.git
-cd MedNeXt
-pip install -e .
-```
-MedNeXt is an optional external package installed separately (see Installation section above).
-
-### Verifying Installation
-```bash
-# Test import
-python -c "import connectomics; print(connectomics.__version__)"
-
-# List available architectures
-python -c "from connectomics.models.arch import print_available_architectures; print_available_architectures()"
+pip install -e .              # core
+pip install -e .[full]        # +tifffile/wandb/jupyter/gputil
+# extras: [optim] [wandb] [tiff] [viz] [metrics] [dev] [docs]
+pip install -e /projects/weilab/weidf/lib/MedNeXt   # optional MedNeXt
 ```
 
 ## Development Commands
@@ -138,175 +81,222 @@ python -m pytest tests/test_loss_functions.py
 
 ## Current Package Structure
 
+Post-v3 layout (155 files, ~43K LOC). Many subpackages were renamed in v2/v3:
+`models/arch → models/architectures`, `models/loss → models/losses`,
+`training/loss → training/losses`, `training/optim → training/optimization`,
+`data/dataset → data/datasets`, `data/augment → data/augmentation`,
+`data/process → data/processing`. New top-level packages: `runtime/`,
+`evaluation/`. Schema split: top-level `decoding`, `evaluation`, `inference`
+sections each have their own dataclass module.
+
 ```
-connectomics/                    # Main Python package (123 files, ~35K lines)
-├── config/                      # Hydra/OmegaConf configuration system
-│   ├── config_io.py             # Config loading, saving, merging, path resolution
-│   ├── profile_engine.py        # YAML profile composition engine
-│   ├── stage_resolver.py        # Multi-stage (train/test/tune) config resolution
-│   ├── auto_config.py           # Auto-configuration planner (GPU-aware)
-│   ├── gpu_utils.py             # GPU memory estimation and batch size planning
-│   ├── slurm_utils.py           # SLURM cluster utilities
-│   ├── model_arch.py            # Architecture-specific config helpers
-│   └── schema/                  # Dataclass-based config schema definitions
-│       ├── root.py              # Top-level Config dataclass
-│       ├── data.py              # Data, dataloader, augmentation configs
-│       ├── model.py             # Model config (+ model_monai, model_mednext,
-│       │                        #   model_rsunet, model_nnunet sub-schemas)
-│       ├── optimization.py      # Optimizer, scheduler, training configs
-│       ├── inference.py         # Test/inference stage configs
-│       ├── stages.py            # Multi-stage (test/tune) configs
-│       ├── monitor.py           # Checkpoint, early stopping, logging configs
-│       ├── system.py            # System (GPU, CPU, seed) configs
-│       └── helpers.py           # Shared config utilities
+connectomics/                       # Main Python package (~155 files, ~43K LOC)
+├── config/                         # Hydra/OmegaConf configuration system (no domain imports)
+│   ├── pipeline/
+│   │   ├── config_io.py            # Config loading, saving, merging, strict-key checks
+│   │   ├── profile_engine.py       # YAML profile composition engine
+│   │   ├── stage_resolver.py       # Multi-stage (train/test/tune) config resolution
+│   │   └── dict_utils.py           # Plain-dict + cfg_get accessors
+│   ├── hardware/
+│   │   ├── auto_config.py          # Auto-configuration planner (GPU-aware)
+│   │   ├── gpu_utils.py            # GPU memory estimation and batch-size planning
+│   │   └── slurm_utils.py          # SLURM helpers
+│   ├── profiles/                   # Section-level profile registries (yaml)
+│   ├── templates/                  # Decoding templates (yaml)
+│   ├── all_profiles.yaml           # Master registry index used by tutorials
+│   └── schema/                     # Dataclass-based config schema definitions
+│       ├── root.py                 # Top-level Config dataclass
+│       ├── system.py               # System (GPU, CPU, seed)
+│       ├── data.py                 # Data, dataloader, augmentation
+│       ├── model.py                # Model config (+ model_monai/_mednext/_rsunet/_nnunet)
+│       ├── optimization.py         # Optimizer, scheduler, training
+│       ├── monitor.py              # Checkpoint, early stopping, logging
+│       ├── inference.py            # Inference stage config (raw prediction)
+│       ├── decoding.py             # Decoding stage config (split out in PR 8)
+│       ├── evaluation.py           # Evaluation stage config (split out in PR 8)
+│       └── stages.py               # Multi-stage (test/tune) wrappers
 │
-├── models/                      # Model architectures and loss functions
-│   ├── build.py                 # Model factory (registry-based)
-│   ├── arch/                    # Architecture registry and model wrappers
-│   │   ├── registry.py          # Architecture registration system
-│   │   ├── base.py              # Base model interface (ConnectomicsModel)
-│   │   ├── monai_models.py      # MONAI model wrappers (4 architectures)
-│   │   ├── mednext_models.py    # MedNeXt model wrappers (2 architectures)
-│   │   ├── nnunet_models.py     # nnU-Net pretrained model wrappers
-│   │   └── rsunet.py            # RSUNet models (2 architectures)
-│   └── loss/                    # Loss function implementations
-│       ├── build.py             # Loss factory (19 loss functions)
-│       ├── losses.py            # Connectomics-specific losses
-│       ├── metadata.py          # Loss metadata (target types, activation info)
-│       └── regularization.py    # Regularization losses
+├── models/                         # Model architectures and loss functions
+│   ├── build.py                    # Model factory (registry-based)
+│   ├── architectures/              # Architecture registry + model wrappers
+│   │   ├── registry.py             # Architecture registration system
+│   │   ├── base.py                 # ConnectomicsModel base interface
+│   │   ├── monai_models.py         # MONAI wrappers (4 architectures)
+│   │   ├── mednext_models.py       # MedNeXt wrappers (2 architectures)
+│   │   ├── nnunet_models.py        # nnU-Net pretrained wrappers (`nnunet`)
+│   │   └── rsunet.py               # RSUNet models (2 architectures)
+│   └── losses/                     # Loss function implementations
+│       ├── build.py                # Loss factory
+│       ├── losses.py               # Connectomics-specific losses
+│       ├── metadata.py             # Loss metadata (target types, activation info)
+│       └── regularization.py       # Regularization losses
 │
-├── training/                    # Training orchestration
-│   ├── lightning/               # PyTorch Lightning integration (PRIMARY)
-│   │   ├── model.py             # LightningModule (train/val/test steps, TTA)
-│   │   ├── data.py              # LightningDataModule
-│   │   ├── data_factory.py      # Data dict creation from config
-│   │   ├── trainer.py           # Trainer creation utilities
-│   │   ├── callbacks.py         # Custom callbacks (NaN detection, EMA weights)
-│   │   ├── config.py            # Factory functions for training setup
-│   │   ├── runtime.py           # Run directory setup, checkpoint modification
-│   │   ├── path_utils.py        # File path expansion utilities
-│   │   ├── utils.py             # CLI/config helpers
-│   │   └── validation_callbacks/  # Validation reseeding callback
-│   ├── loss/                    # Loss orchestration
-│   │   ├── orchestrator.py      # Multi-loss + deep supervision orchestrator
-│   │   ├── plan.py              # Loss plan builder from config
-│   │   └── balancing.py         # Loss weight balancing strategies
-│   ├── optim/                   # Optimizers and schedulers
-│   │   ├── build.py             # Optimizer/scheduler factory
-│   │   └── lr_scheduler.py      # Custom LR schedulers (WarmupCosine, etc.)
-│   ├── model_weights.py         # Weight loading/conversion utilities
-│   └── debugging.py             # NaN detection and debugging utilities
+├── training/                       # Training orchestration (no decoding/evaluation internals)
+│   ├── lightning/                  # PyTorch Lightning integration (PRIMARY)
+│   │   ├── model.py                # ConnectomicsModule (train/val/test steps, TTA)
+│   │   ├── data.py                 # ConnectomicsDataModule
+│   │   ├── data_factory.py         # Data dict creation from config
+│   │   ├── trainer.py              # Trainer creation utilities
+│   │   ├── callbacks.py            # Custom callbacks (NaN, EMA, …)
+│   │   ├── runtime.py              # Run directory setup
+│   │   ├── path_utils.py           # File path expansion utilities
+│   │   ├── prediction_crops.py     # Prediction-crop helpers (extracted in PR 10)
+│   │   ├── test_pipeline.py        # Test orchestration; delegates to evaluation/
+│   │   ├── visualizer.py           # TensorBoard visualization
+│   │   └── utils.py                # Thin remaining glue (was 771; now ~77)
+│   ├── losses/                     # Loss orchestration
+│   │   ├── orchestrator.py         # Multi-loss + deep supervision orchestrator
+│   │   ├── plan.py                 # Loss plan builder from config
+│   │   └── balancing.py            # Loss weight balancing
+│   ├── optimization/               # Optimizers and schedulers
+│   │   ├── build.py                # Optimizer/scheduler factory
+│   │   └── lr_scheduler.py         # Custom LR schedulers (WarmupCosine, …)
+│   ├── model_weights.py            # Weight loading/conversion utilities
+│   └── debugging.py                # NaN detection and debugging utilities
 │
-├── data/                        # Data loading and preprocessing
-│   ├── dataset/                 # Dataset classes
-│   │   ├── build.py             # Dataset factory
-│   │   ├── dataset_base.py      # Base dataset class
-│   │   ├── dataset_volume.py    # MONAI volume datasets (map-style)
-│   │   ├── dataset_volume_cached.py  # Cached volume datasets (in-memory)
-│   │   ├── dataset_volume_zarr_lazy.py  # Zarr lazy-loading datasets
-│   │   ├── dataset_tile.py      # Tile-based datasets (chunked volumes)
-│   │   ├── dataset_multi.py     # Multi-dataset wrapper
-│   │   ├── dataset_filename.py  # Filename-based datasets (2D images)
-│   │   └── data_dicts.py        # MONAI data dictionary creation
-│   ├── augment/                 # MONAI-based augmentations
-│   │   ├── build.py             # Transform pipeline builder
-│   │   └── monai_transforms.py  # Custom MONAI transforms
-│   ├── io/                      # Multi-format I/O
-│   │   ├── io.py                # HDF5, TIFF, PNG, NIfTI, Zarr reading/writing
-│   │   ├── monai_transforms.py  # LoadVolumed and related MONAI transforms
-│   │   ├── tiles.py             # Tile I/O utilities
-│   │   └── utils.py             # I/O helpers
-│   ├── process/                 # Preprocessing and target generation
-│   │   ├── build.py             # Transform pipeline builder
-│   │   ├── target.py            # Label target generation
-│   │   ├── distance.py          # Distance transform computation
-│   │   ├── flow.py              # Optical flow computation
-│   │   ├── weight.py            # Sample weight generation
-│   │   ├── segment.py           # Segmentation utilities
-│   │   ├── bbox.py              # Bounding box utilities
-│   │   ├── bbox_processor.py    # Bounding box processing
-│   │   ├── crop.py              # Volume cropping utilities
-│   │   ├── blend.py             # Volume blending
-│   │   ├── quantize.py          # Label quantization
-│   │   ├── misc.py              # Miscellaneous processing
-│   │   └── monai_transforms.py  # Processing MONAI transforms
-│   └── utils/                   # Data utilities
-│       ├── split.py             # Train/val/test splitting
-│       └── sampling.py          # Sampling strategies
+├── data/                           # Data loading and preprocessing
+│   ├── datasets/                   # Dataset classes
+│   │   ├── base.py                 # Base dataset class
+│   │   ├── dataset_volume_cached.py
+│   │   ├── dataset_volume_h5_lazy.py
+│   │   ├── dataset_volume_zarr_lazy.py
+│   │   ├── dataset_filename.py     # Filename-based datasets (2D images)
+│   │   ├── dataset_multi.py        # Multi-dataset wrapper
+│   │   ├── data_dicts.py           # MONAI data dictionary creation
+│   │   ├── crop_sampling.py        # Random crop sampling
+│   │   ├── sampling.py             # Sampling strategies
+│   │   └── split.py                # Train/val/test splitting
+│   ├── augmentation/               # MONAI-based augmentations
+│   │   ├── build.py                # Transform pipeline builder
+│   │   ├── transforms.py           # Custom MONAI transforms
+│   │   ├── augment_ops.py          # Augmentation primitive ops
+│   │   └── transform_utils.py
+│   ├── io/                         # Multi-format I/O
+│   │   ├── io.py                   # HDF5, TIFF, PNG, NIfTI, Zarr reading/writing
+│   │   ├── transforms.py           # LoadVolumed and related MONAI transforms
+│   │   ├── tiles.py                # Tile I/O utilities
+│   │   └── utils.py
+│   └── processing/                 # Preprocessing and target generation
+│       ├── build.py                # Transform pipeline builder
+│       ├── target.py               # Label target generation
+│       ├── transforms.py           # Processing MONAI transforms
+│       ├── distance.py             # Distance transform computation
+│       ├── flow.py                 # Optical flow computation
+│       ├── weight.py               # Sample weight generation
+│       ├── segment.py              # Segmentation utilities
+│       ├── bbox.py / bbox_processor.py
+│       ├── affinity.py / iou.py
+│       ├── nnunet_preprocess.py    # nnU-Net-style preprocessing
+│       ├── quantize.py             # Label quantization
+│       └── misc.py
 │
-├── inference/                   # Inference pipeline
-│   ├── manager.py               # Inference manager (orchestrates pipeline)
-│   ├── sliding.py               # Sliding window inference
-│   ├── tta.py                   # Test-time augmentation
-│   ├── postprocessing.py        # Post-processing pipeline
-│   ├── output.py                # Output saving utilities
-│   └── debug_utils.py           # Inference debugging
+├── inference/                      # Stage 2: model prediction → raw artifacts
+│   ├── stage.py                    # `run_prediction_inference` (canonical entry)
+│   ├── manager.py                  # Inference manager
+│   ├── sliding.py                  # Sliding window inference
+│   ├── lazy.py / lazy_distributed.py  # Lazy-volume sliding window
+│   ├── chunked.py                  # Chunked inference for large volumes
+│   ├── chunk_grid.py               # Public chunk-grid utilities (per PR-14)
+│   ├── tta.py / tta_combinations.py # Test-time augmentation
+│   ├── output.py                   # Output saving utilities
+│   └── artifact.py                 # `PredictionArtifactMetadata`,
+│                                   #   `write_prediction_artifact`
 │
-├── decoding/                    # Post-processing and instance segmentation
-│   ├── registry.py              # Decoder registration system
-│   ├── pipeline.py              # Decoding pipeline
-│   ├── segmentation.py          # Instance segmentation decoders
-│   ├── postprocess.py           # Binary/instance post-processing
-│   ├── synapse.py               # Synapse-specific decoding
-│   ├── abiss.py                 # ABISS external decoder
-│   ├── auto_tuning.py           # Optuna-based parameter tuning
-│   ├── optuna_tuner.py          # Optuna tuner implementation
-│   ├── base.py                  # Base decoder dataclass
-│   └── utils.py                 # Decoding utilities
+├── decoding/                       # Stage 3: raw arrays → segmentation artifacts
+│   ├── stage.py                    # `run_decoding_stage` entry
+│   ├── pipeline.py                 # Decode-mode normalization + apply pipeline
+│   ├── registry.py                 # Decoder registration (lazy registration via _BUILTINS_REGISTERED)
+│   ├── base.py                     # Decoder dataclass + protocol
+│   ├── postprocess.py              # Binary/instance post-processing
+│   ├── streamed_chunked.py         # Chunked decode + CC stitching
+│   ├── experiment_log.py           # Decode-experiment logging (extracted from training)
+│   ├── decoders/                   # Concrete decoder implementations
+│   │   ├── segmentation.py         # CC, distance-watershed, waterz
+│   │   ├── segmentation_kernels.py # numba CC kernels
+│   │   ├── synapse.py / abiss.py / branch_merge.py / waterz.py
+│   ├── tuning/                     # Pure tuner (no `connectomics.training` imports)
+│   │   └── optuna_tuner.py
+│   └── utils.py
 │
-├── metrics/                     # Evaluation metrics
-│   ├── metrics_seg.py           # TorchMetrics segmentation (Jaccard, Dice, VOI)
-│   ├── metrics_skel.py          # Skeleton-based metrics
-│   └── segmentation_numpy.py    # NumPy metrics (Adapted Rand, etc.)
+├── evaluation/                     # Stage 4: artifacts + GT → metrics (PR 4)
+│   ├── stage.py                    # `run_evaluation_stage`
+│   ├── metrics.py                  # Test-mode metric instantiation + computation
+│   ├── nerl.py                     # Skeleton-based metrics (NERL/ERL)
+│   ├── report.py                   # Metrics file writing + epoch logging
+│   ├── context.py                  # `EvaluationContext` (decouples from Lightning module)
+│   └── curvilinear.py
 │
-└── utils/                       # General utilities
-    ├── errors.py                # Preflight config validation
-    ├── visualizer.py            # TensorBoard visualization
-    ├── download.py              # Dataset downloading
-    ├── debug_utils.py           # Debug print utilities
-    └── debug_hooks.py           # Debug forward/backward hooks
+├── runtime/                        # CLI / dispatch / orchestration glue (PR 7)
+│   ├── cli.py                      # `parse_args`, `setup_config`
+│   ├── dispatch.py                 # Mode dispatch (train/test/tune/decode-only/cache-hit)
+│   ├── output_naming.py            # Naming helpers (extracted in PR 2)
+│   ├── checkpoint_dispatch.py      # Output-base derivation from checkpoint
+│   ├── cache_resolver.py           # Cached prediction file detection / cache-only test path
+│   ├── sharding.py                 # Independent test sharding
+│   ├── tune_runner.py              # `run_tuning`, `load_and_apply_best_params` (PR 5)
+│   ├── preflight.py                # Cross-section validation (moved from config in B5)
+│   └── torch_safe_globals.py       # `torch.serialization.add_safe_globals` registry
+│
+├── metrics/                        # Metric implementations (no orchestration)
+│   ├── metrics_seg.py              # TorchMetrics segmentation (Jaccard, Dice, VOI)
+│   ├── metrics_skel.py             # Skeleton-based metrics
+│   └── segmentation_numpy.py       # NumPy metrics (Adapted Rand, etc.)
+│
+└── utils/                          # Cross-domain primitives only
+    ├── errors.py                   # Preflight config validation
+    ├── visualizer.py               # TensorBoard visualization
+    ├── download.py                 # Dataset downloading
+    ├── debug_utils.py / debug_hooks.py
+    └── label_overlap.py            # Vectorized label-overlap helper
 
-scripts/                         # Entry points and utilities
-├── main.py                      # Primary entry point (Lightning + Hydra)
-├── demo.py                      # Demo script for quick testing
-├── profile_dataloader.py        # Data loading profiling tool
-├── slurm_launcher.py            # SLURM cluster job launcher
-├── visualize_neuroglancer.py    # Neuroglancer 3D visualization
-├── download_data.py             # Dataset downloader
-├── apply_volume_function.py     # Apply functions to volume files
-├── images_to_h5.py              # Convert image stacks to HDF5
-├── downsample_nisb.py           # NISB dataset downsampling
-├── validate_tutorial_configs.py # Tutorial config validation
-└── tools/                       # Additional utility scripts
-    ├── compare_config.py        # Config comparison tool
-    └── eval_curvilinear.py      # Curvilinear structure evaluation
+scripts/                            # Entry points and utilities
+├── main.py                         # Primary entry point — thin: parse → dispatch
+├── decode_large.py                 # Large-volume decode workflow (custom config surface)
+├── demo.py                         # Demo script for quick testing
+├── profile_dataloader.py           # Data loading profiling tool
+├── slurm_launcher.py               # SLURM cluster job launcher
+├── visualize_neuroglancer.py       # Neuroglancer 3D visualization
+├── download_data.py                # Dataset downloader
+├── apply_volume_function.py        # Apply functions to volume files
+├── images_to_h5.py                 # Convert image stacks to HDF5
+├── downsample_nisb.py              # NISB dataset downsampling
+├── validate_tutorial_configs.py    # Tutorial config validation (CI)
+└── tools/                          # Additional utility scripts
+    ├── compare_config.py
+    └── eval_curvilinear.py
 
-configs/                         # Canonical shared YAML registries
-├── all_profiles.yaml            # Master registry index used by tutorials
-├── profiles/                    # Section-level profile registries
-│   ├── arch_profiles.yaml       # Architecture presets
-│   ├── loss_profiles.yaml       # Loss presets
-│   ├── label_profiles.yaml      # Label-transform presets
-│   └── ...                      # system, dataloader, augmentation, pipeline, tune
-└── templates/                   # Explicit list-item templates
-    └── decoding_templates.yaml  # top-level `decoding` templates (`template: ...`)
+tutorials/                          # Example configurations (16 canonical YAMLs + custom workflows)
+├── mitoEM/, neuron_nisb/, neuron_snemi/  # Multi-config experiment families
+├── *.yaml                          # Dataset-specific configs
+│                                   #   mito_lucchi++, mito_mitolab, mito_betaseg(_banis_v0/v1/v2),
+│                                   #   neuron_liconn_mit(_x2), nuc_nucmm-z, syn_cremi,
+│                                   #   vesicle_xm, fiber_linghu26, minimal, waterz_decoding
+└── waterz_decoding_large{,_abiss}.yaml  # Custom large-volume workflow YAMLs
+                                    #   (top-level `large_decode:`/`abiss_large:` keys;
+                                    #   bypass structured Config; consumed by scripts/decode_large.py)
 
-tutorials/                       # Example configurations
-├── misc/                        # Miscellaneous experiments
-└── *.yaml                       # Dataset-specific configs (16 files)
-    # mito_lucchi++, mito_mitoEM_*, mito_mitolab, mito_betaseg,
-    # neuron_snemi, neuron_nisb_*, fiber_linghu26,
-    # nuc_nucmm-z, syn_cremi, vesicle_xm, minimal
+tests/                              # Test suite
+├── unit/                           # Unit tests
+│   ├── test_v3_guardrails.py       # Boundary AST tests, public API snapshots, strict-config raise
+│   └── test_v2_boundaries.py       # V2 boundary contracts
+├── integration/                    # Integration tests
+├── benchmarks/                     # Smoke benchmarks (chunked write throughput, …)
+└── e2e/                            # End-to-end tests (requires data)
 
-tests/                           # Test suite (organized by type)
-├── unit/                        # Unit tests
-├── integration/                 # Integration tests
-└── e2e/                         # End-to-end tests (requires data)
-
-docs/                            # Sphinx documentation
-notebooks/                       # Jupyter notebooks
-docker/                          # Docker containerization
+docs/                               # Sphinx documentation
+notebooks/                          # Jupyter notebooks
+docker/                             # Docker containerization
 ```
+
+### Stage Pipeline (top-level config sections)
+
+| Stage | Top-level config | Entry function | Owns |
+|---|---|---|---|
+| train | `optimization`, `data`, `model` | `trainer.fit(...)` | model fitting + checkpoints |
+| infer | `inference` | `inference.stage.run_prediction_inference` | model → raw prediction artifact |
+| decode | `decoding` | `decoding.stage.run_decoding_stage` | raw prediction → segmentation artifact |
+| evaluate | `evaluation` | `evaluation.stage.run_evaluation_stage` | artifact + GT → metrics |
+| tune | `decoding.tuning` (+ `tune` stage block) | `runtime.tune_runner.run_tuning` | search over decode/postproc params |
 
 ## Configuration System
 
@@ -367,15 +357,23 @@ training:
   gradient_clip_val: 1.0
 ```
 
-**Key Config Sections:**
+**Key Config Sections (top-level):**
 - `system`: Hardware (GPUs, CPUs, seed)
 - `model`: Architecture, loss functions, model parameters
 - `data`: Paths, batch size, augmentation
-- `optimizer`: Optimizer type and hyperparameters
-- `scheduler`: Learning rate scheduling
-- `training`: Training loop parameters
-- `checkpoint`: Model checkpointing strategy
-- `logging`: Logging configuration
+- `optimization`: Optimizer, scheduler, training-loop parameters
+- `monitor`: Checkpoint, early stopping, logging configuration
+- `inference`: Raw prediction stage (sliding window, TTA, chunking, output paths)
+- `decoding`: Decoding pipeline (decoders, postprocessing, output, tuning)
+- `evaluation`: Metric selection + thresholds for `evaluate` stage
+- `test` / `tune`: Stage wrappers that pull from the top-level `inference` /
+  `decoding` / `evaluation` sections
+
+V3 schema split (PR 8): `inference.postprocessing` → `decoding.postprocessing`,
+`inference.decoding_path` → `decoding.output_path`,
+`inference.saved_prediction_path` → `decoding.input_prediction_path`. Architecture
+`nnunet_pretrained` was renamed to `nnunet`. Strict-config raise: any unknown
+top-level key fails at load time.
 
 ### Loading and Using Configs
 ```python
@@ -397,7 +395,7 @@ print_config(cfg)
 The framework uses an extensible **architecture registry** for managing models:
 
 ```python
-from connectomics.models.arch import (
+from connectomics.models.architectures import (
     list_architectures,
     get_architecture_builder,
     register_architecture,
@@ -481,7 +479,7 @@ print(model.get_model_info())  # Shows parameters, architecture details
 
 ### MONAI-Based Losses
 ```python
-from connectomics.models.loss import create_loss
+from connectomics.models.losses import create_loss
 
 # Available losses
 loss = create_loss(loss_name='DiceLoss')
@@ -546,13 +544,13 @@ trainer.fit(lit_model, datamodule=datamodule)
 
 ## Data Pipeline
 
-### Dataset Classes (`data/dataset/`)
+### Dataset Classes (`data/datasets/`)
 - Support for HDF5, TIFF stacks, Zarr
 - 3D volumetric EM data handling
 - Multi-scale and multi-task labels
 - Efficient caching and preprocessing
 
-### Augmentation (`data/augment/`)
+### Augmentation (`data/augmentation/`)
 Uses **MONAI transforms** for:
 - Intensity transformations
 - Spatial transformations (rotation, scaling)
@@ -650,46 +648,59 @@ scheduler:
 
 ### Configuration
 - `connectomics/config/schema/root.py`: Top-level Config dataclass
-- `connectomics/config/schema/`: All dataclass config definitions (data, model, optimization, etc.)
-- `connectomics/config/config_io.py`: Config loading, saving, merging, validation
-- `connectomics/config/profile_engine.py`: YAML profile composition engine
-- `connectomics/config/stage_resolver.py`: Multi-stage config resolution
+- `connectomics/config/schema/`: All dataclass schemas (incl. `decoding.py`, `evaluation.py`)
+- `connectomics/config/pipeline/config_io.py`: Config loading, strict-key check, validation
+- `connectomics/config/pipeline/profile_engine.py`: YAML profile composition engine
+- `connectomics/config/pipeline/stage_resolver.py`: Multi-stage config resolution
 
 ### Models
 - `connectomics/models/build.py`: Model factory
-- `connectomics/models/arch/registry.py`: Architecture registration system
-- `connectomics/models/loss/build.py`: Loss factory
-- `connectomics/training/optim/build.py`: Optimizer/scheduler factory
+- `connectomics/models/architectures/registry.py`: Architecture registration system
+- `connectomics/models/losses/build.py`: Loss factory
+- `connectomics/training/optimization/build.py`: Optimizer/scheduler factory
 
-### Lightning
-- `connectomics/training/lightning/model.py`: Lightning module wrapper
-- `connectomics/training/lightning/data.py`: Data module
-- `connectomics/training/lightning/data_factory.py`: Data dict creation from config
+### Lightning + Stage Entries
+- `connectomics/training/lightning/model.py`: ConnectomicsModule (train/val/test)
+- `connectomics/training/lightning/data.py`: ConnectomicsDataModule
 - `connectomics/training/lightning/trainer.py`: Trainer utilities
-- `connectomics/training/loss/orchestrator.py`: Multi-loss + deep supervision
+- `connectomics/training/lightning/test_pipeline.py`: Test orchestration; delegates to `evaluation/`
+- `connectomics/training/losses/orchestrator.py`: Multi-loss + deep supervision
+- `connectomics/inference/stage.py`: `run_prediction_inference` (raw artifact)
+- `connectomics/decoding/stage.py`: `run_decoding_stage`
+- `connectomics/evaluation/stage.py`: `run_evaluation_stage`
+- `connectomics/runtime/tune_runner.py`: `run_tuning`, `load_and_apply_best_params`
 
 ### Entry Points
-- `scripts/main.py`: Primary training script (Lightning + Hydra)
+- `scripts/main.py`: Primary entry — parse → setup config → `runtime.dispatch`
+- `scripts/decode_large.py`: Custom large-volume decode workflow (consumes
+  `large_decode:`/`abiss_large:` top-level keys in `tutorials/waterz_decoding_large*.yaml`;
+  these YAMLs intentionally bypass the structured `Config` schema)
 
 ## Development Guidelines
 
 ### Adding New Architectures
-1. Add builder function in `connectomics/models/arch/`
+1. Add builder function in `connectomics/models/architectures/`
 2. Register with `@register_architecture("name")` decorator
 3. Add config parameters to appropriate schema file in `config/schema/`
 4. Create example config in `tutorials/`
 5. Add tests
 
 ### Adding New Loss Functions
-1. Implement in `connectomics/models/loss/losses.py`
+1. Implement in `connectomics/models/losses/losses.py`
 2. Register in `create_loss()` function
 3. Update documentation
 4. Add unit tests
 
 ### Adding New Transforms
 1. Use MONAI transforms when possible
-2. Add custom transforms to `connectomics/data/augment/`
+2. Add custom transforms to `connectomics/data/augmentation/`
 3. Register in transform builder
+
+### Adding New Decoders
+1. Implement in `connectomics/decoding/decoders/`
+2. Register with `@register_decoder("name")` (lazy registration via `_BUILTINS_REGISTERED`)
+3. Wire into `decoding/pipeline.py` if it needs orchestration glue
+4. Reference from a tutorial YAML using a `template:` entry under top-level `decoding`
 
 ## Best Practices
 
@@ -702,294 +713,83 @@ scheduler:
 
 ## Code Quality Status
 
-### Migration Status: ✅ Complete (100%)
-- ✅ **YACS → Hydra/OmegaConf**: 100% migrated (all YACS code removed)
-- ✅ **Custom trainer → Lightning**: 100% migrated
-- ✅ **Custom models → MONAI models**: Primary path uses MONAI
-- ✅ **Legacy configs**: All YACS config files removed
+### Migration Status
+- ✅ **YACS → Hydra/OmegaConf**: complete
+- ✅ **Custom trainer → Lightning**: complete
+- ✅ **Custom models → MONAI/MedNeXt/RSUNet/nnUNet**: complete
+- ✅ **V2 layout refactor** (Codex): complete — package boundaries, schema dataclasses,
+  stage scaffolding
+- ✅ **V3 boundary/contract refactor** (PR 0–11): mostly complete — see
+  `.claude/refactor/v3_claude_updated.md` (plan), `v3_claude_updated_implementation_check.md`
+  (audit), `v3_claude_updated_implementation_check_rebuttal.md` (corrections)
 
 ### Codebase Metrics
-- **Total Python files**: 123 (connectomics module)
-- **Lines of code**: ~35,000 (connectomics module)
-- **Architecture**: Modular, well-organized
-- **Type safety**: Good (dataclass configs, type hints in most modules)
-- **Test coverage**: Unit tests in tests/unit/, integration tests need updates
+- **Total Python files**: ~155 (connectomics module)
+- **Lines of code**: ~43,000 (connectomics module)
+- **Architecture**: enforced via static AST tests (`tests/unit/test_v3_guardrails.py`)
+- **Type safety**: dataclass configs with strict-key check; `getattr(cfg.x, "y", default)`
+  ghost reads on undeclared fields are forbidden
+- **Public API**: snapshot-tested in `tests/unit/test_public_api_snapshot.py`
 
-### Known Technical Debt
+### V3 Refactor Status (post-PR 11)
 
-All previously identified technical debt items have been addressed. Below is the audit trail.
+The architectural skeleton is correct; behavioral cleanup partial. See
+`.claude/refactor/` for full audit trail.
 
-#### Bugs — All Fixed ✅
-1. ~~Mutable default in loss kwargs~~ ✅
-2. ~~Undefined variable `lr`~~ ✅
-3. ~~Dimension tracking bug in MONAIModelWrapper~~ ✅ (saved `was_5d` before squeeze)
-4. ~~Test mode uses val transforms~~ ✅ (dedicated `build_test_transforms()` without cropping)
-5. ~~Double mask resize~~ ✅ (mutually exclusive via `mask_resize_factors is None` guard)
-6. ~~Off-by-one in random crop sampling~~ ✅ (refactored to `crop_sampling.py`)
-7. ~~Incorrect channel-aware volume slicing~~ ✅ (uses `(slice(None),) + train_slices`)
-8. ~~Nested getattr without None guard~~ ✅ (direct `getattr(cfg.model, ...)`)
-9. ~~Undefined `normalize_mode`~~ ✅ (defined at line 145)
-10. ~~`seed` undefined for cc mode~~ ✅ (`seed = None` before mode check)
-11. ~~`torch.ByteTensor` in dtype check~~ ✅ (removed)
-12. ~~Discarded kwargs in MonaiCachedVolumeDataset~~ ✅ (values now assigned)
-13. ~~Unreachable `is_tensor` branches~~ ✅ (simplified)
-14. ~~`list_available_losses()` missing losses~~ ✅ (dynamic from registry)
-15. ~~Incomplete `__all__` in losses.py~~ ✅ (all 6 classes exported)
-16. ~~Lazy validation metrics init~~ ✅ (shared `_create_metrics()` method)
-17. ~~Assertions for user input validation~~ ✅ (replaced with `ValueError`)
-18. ~~Direct `cfg.model.loss.deep_supervision` access~~ ✅ (`getattr` with fallback)
-19. ~~BinaryRegularization fragile sigmoid~~ ✅ (explicit `apply_sigmoid` parameter)
-20. ~~Dead `set()` call~~ ✅ (removed)
-21. ~~Disabled shape validation~~ ✅ (uncommented)
-22. ~~Double padding logic~~ ✅ (removed redundant safety-check pass)
-23. ~~Duplicated selector collection logic~~ ✅ (unified dataclass/dict branches)
+**Landed cleanly:**
+- Boundary fixes: decoding↛training, inference↛decoding, config↛data execution
+- Strict config: unknown top-level keys raise on load
+- Schema split: `decoding`, `evaluation` are now top-level config sections
+- Stage separation: `inference.stage`, `decoding.stage`, `evaluation.stage`,
+  `runtime.tune_runner` each expose a stage entry function
+- Runtime extraction: `runtime/` package owns CLI, dispatch, naming,
+  cache resolution, sharding, preflight, torch-safe-globals
+- Tutorial migration: 38/40 canonical tutorials load through `Config`; the 2
+  exceptions (`tutorials/waterz_decoding_large{,_abiss}.yaml`) are custom
+  workflow YAMLs consumed by `scripts/decode_large.py` and intentionally bypass
+  the structured schema (validator skips via `CUSTOM_WORKFLOW_ROOTS`)
+- Architecture rename: `nnunet_pretrained` → `nnunet`
+- Lazy decoder registration via `_BUILTINS_REGISTERED` flag
+- Public API trim with snapshot tests
 
-#### Performance — Fixed ✅
-24. ~~Python loop in `_label_overlap()`~~ ✅ (vectorized with `np.add.at`, deduplicated to `utils/label_overlap.py`)
+**Known follow-ups (post-v3):**
+- Evaluation extraction is a file move; `connectomics.evaluation.*` functions
+  still take `module` as first arg with `hasattr(module, "_…")` defensive
+  fallbacks (PR-13 / `EvaluationContext` rewrite)
+- `decoding/streamed_chunked.py` imports public chunk-grid utilities from
+  `inference/chunk_grid.py` (PR-14 done) — verify no remaining underscore-prefixed
+  cross-package imports
+- `DecodingConfig.tuning: Optional[Dict[str, Any]]` should be a typed dataclass
+- File splits in PR 10 are partial: `inference/lazy.py` (1295), the two
+  `data/{augmentation,processing}/transforms.py` (1346 + 979),
+  `training/lightning/data_factory.py` (1168), `callbacks.py` (1001),
+  `decoders/segmentation.py` (815) are untouched and remain the highest-value
+  splits when adjacent behavior changes are needed
+- A3 product items (`RandMixupd`, `auto_plan_config`, `WandbConfig`,
+  `GANLoss`, single-task wrappers, `TestConfig.output_path/cache_suffix`)
+  deferred pending maintainer sign-off
 
-#### Dead Code — All Removed ✅
-25. ~~Legacy backward-compat fields~~ ✅
-26. ~~Legacy alias materialization~~ ✅
-27. ~~Dead module `utils/analysis.py`~~ ✅ (deleted)
-28. ~~Dead functions in `data/process/crop.py`~~ ✅ (file deleted)
-29. ~~Dead `crop_pad_data()`~~ ✅ (removed)
-30. ~~Dead `normalize_image()`~~ ✅ (removed)
-31. ~~Pass-through `create_volume_data_dicts()`~~ ✅ (removed)
-32. ~~Python 2 `__future__` imports~~ ✅ (removed)
-33. ~~`cfg.inference.*` references~~ ✅ (valid InferenceConfig in TestConfig, not legacy)
-34. ~~Legacy `test.decoding` fallback~~ ✅ (uses top-level `decoding` directly)
-35. ~~Unnecessary try-except for RSUNet import~~ ✅ (removed)
-36. ~~Hardcoded architecture list~~ ✅ (queries registry dynamically)
-37. ~~Duplicate `_to_plain_dict`/`_as_dict`~~ ✅ (consolidated to `config/dict_utils.py`)
-38. ~~Dead `_compute_metric()`~~ ✅ (removed)
-39. ~~Empty `setup()` methods~~ ✅ (removed)
-40. ~~Empty `on_test_end()`~~ ✅ (removed)
-41. ~~Indirect import of `LoadVolumed`~~ ✅ (imports from source `data.io.monai_transforms`)
-42. ~~`rgb_to_seg()` implicit None return~~ ✅ (`raise ValueError` for unsupported ndim)
-43. ~~Assertion in production~~ ✅ (replaced with `ValueError`)
-
-#### Code Duplication — All Fixed ✅
-44. ~~3x `expand_file_paths()` wrappers~~ ✅ (consolidated to `path_utils.py`)
-45. ~~Tile dataset duplication~~ ✅ (`MonaiCachedTileDataset` inherits from `MonaiTileDataset`)
-46. ~~`_calculate_chunk_indices` triple copy~~ ✅ (consolidated to `tile_utils.py`)
-47. ~~Dual cache-only test paths~~ ✅ (share `_resolve_cached_prediction_files`)
-48. ~~Crop position logic duplication~~ ✅ (shared `crop_sampling.py`)
-49. ~~test_step size~~ ✅ (delegated to `test_pipeline.py`)
-50. ~~Config accessor duplication~~ ✅ (shared `cfg_get()` in `config/dict_utils.py`)
-51. ~~Volume spec parsing duplication~~ ✅ (both call `_parse_volume_spec()`)
-52. ~~Image/label validation duplication~~ ✅ (shared `_validate_training_paths()`)
-53. ~~`_label_overlap()` duplicated~~ ✅ (shared `utils/label_overlap.py`)
-54. ~~Test/val metrics init duplication~~ ✅ (shared `_create_metrics(prefix)`)
-
-#### Debug/Dev Code — All Fixed ✅
-55. ~~`pdb` imports~~ ✅ (removed; only in `debug_hooks.py` where appropriate)
-56. ~~Environment-gated debug flags~~ ✅ (removed)
-57. ~~Verbose print-based logging~~ ✅ (removed/replaced with logging)
-
-#### Unnecessary Complexity — All Fixed ✅
-58. ~~13x `hasattr(cfg, "test")` checks~~ ✅
-59. ~~Silent glob selector fallback~~ ✅ (raises `ValueError` for out-of-range)
-60. ~~Bare `except: pass`~~ ✅ (catches specific exceptions)
-61. ~~Lazy imports in function body~~ ✅ (moved `hashlib` to module level)
-62. ~~String-based dimension detection~~ ✅ (uses `spatial_dims` config field)
-63. ~~Wrong import in profile_dataloader~~ ✅ (imports from `connectomics.training.lightning`)
-64. ~~Inconsistent normalization in visualizer~~ ✅ (both normalized consistently)
-65. ~~Redundant `reset_max_epochs` print~~ ✅ (removed)
-66. ~~Silent config fallback~~ ✅ (`warnings.warn()` added to `_cfg_float()`)
-67. ~~Hardcoded normalization range detection~~ ✅ (documented heuristic with clear comments)
-68. ~~`model.py` size~~ ✅ (reduced from 1,538 to ~886 lines via delegation to `test_pipeline.py`)
-
-### Overall Assessment: **9/10 - Clean, modern, well-organized**
-- ✅ Modern architecture (Lightning + MONAI + Hydra)
-- ✅ Clean separation of concerns
-- ✅ Comprehensive feature set
-- ✅ All known bugs fixed
-- ✅ Performance bottlenecks resolved (`_label_overlap` vectorized)
-- ✅ Dead code removed
-- ✅ Code duplication eliminated (shared utilities: `crop_sampling.py`, `tile_utils.py`, `label_overlap.py`, `dict_utils.py`)
-- ✅ Debug code removed from production paths
-- ✅ Complexity reduced (model.py halved, config accessors consolidated)
-
-## Migration Notes
-
-### From Legacy System
-The codebase has fully migrated from legacy systems:
-- ✅ YACS configs → Hydra/OmegaConf configs (schema and config_io cleaned up)
-- ✅ Legacy backward-compat fields removed from config schema
-- ✅ Legacy fallbacks removed from all files
-- ✅ `cfg.inference.*` references are valid (InferenceConfig in TestConfig, not legacy YACS)
-- ✅ Custom trainer → PyTorch Lightning (100% complete)
-- ✅ Custom models → MONAI native models (100% complete)
-- ✅ `scripts/build.py` → `scripts/main.py` (legacy script removed)
-- ✅ All legacy config files removed (`configs/barcode/` deleted)
-
-**Current development stack:**
-- Hydra/OmegaConf configs (`tutorials/*.yaml`)
-- PyTorch Lightning modules (`connectomics/training/lightning/`)
-- `scripts/main.py` entry point
-- MONAI models and transforms
-- Type-safe dataclass configurations
+### Boundary Tests (always run before merging refactors)
+```bash
+python -m pytest tests/unit/test_v3_guardrails.py tests/unit/test_v2_boundaries.py \
+                 tests/unit/test_public_api_snapshot.py -q
+python scripts/validate_tutorial_configs.py
+```
 
 ## Dependencies
 
-### Core Dependencies (Always Installed)
-The following packages are automatically installed with `pip install -e .`:
+Authoritative list lives in `setup.py`/`pyproject.toml`. Highlights:
 
-| Package | Version | Purpose |
-|---------|---------|---------|
-| **torch** | >=1.8.0 | Deep learning framework |
-| **numpy** | >=1.23.0 | Numerical computing (compatible with mahotas 1.4.18+) |
-| **pytorch-lightning** | >=2.0.0 | Training orchestration (PRIMARY) |
-| **monai** | >=0.9.1 | Medical imaging toolkit (PRIMARY) |
-| **torchmetrics** | >=0.11.0 | Metrics computation |
-| **omegaconf** | >=2.1.0 | Hydra configuration (PRIMARY) |
-| **scipy** | >=1.5 | Signal processing, optimization |
-| **scikit-learn** | >=0.23.1 | Machine learning utilities |
-| **scikit-image** | >=0.17.2 | Image processing |
-| **opencv-python** | >=4.3.0 | Computer vision (geometric transforms for augmentations) |
-| **h5py** | >=2.10.0 | HDF5 file I/O |
-| **matplotlib** | >=3.3.0 | Visualization |
-| **tensorboard** | >=2.2.2 | Training monitoring |
-| **tqdm** | >=4.58.0 | Progress bars |
-| **einops** | >=0.3.0 | Tensor operations |
-| **psutil** | >=5.8.0 | System monitoring |
-| **cc3d** | >=3.0.0 | Connected components (segmentation) |
-| **imageio** | >=2.9.0 | Image I/O |
-| **kimimaro** | >=1.0.0 | Skeletonization (instance segmentation) |
-| **crackle-codec** | >=0.1.0 | Compression codec (required by kimimaro) |
-| **mahotas** | >=1.4.18 | Morphological operations & watershed (segmentation postprocessing) |
-| **fastremap** | >=1.10.0 | Fast label remapping (segmentation utilities) |
-| **Cython** | >=0.29.22 | C extensions |
-
-### Optional Dependencies
-
-Install via `pip install -e .[extra_name]` where `extra_name` is:
-
-#### `[full]` - Recommended Full Installation
-- **gputil** (>=1.4.0): GPU utilities
-- **jupyter** (>=1.0): Interactive notebooks
-- **tifffile** (>=2021.11.2): TIFF file support
-- **wandb** (>=0.13.0): Experiment tracking
-
-#### `[optim]` - Hyperparameter Optimization
-- **optuna** (>=2.10.0): Automated hyperparameter tuning
-- Used in: `connectomics.decoding.auto_tuning`
-
-#### `[wandb]` - Weights & Biases Integration
-- **wandb** (>=0.13.0): Experiment tracking and monitoring
-- Used in: `connectomics.training.lightning.trainer` (optional logger)
-
-#### `[tiff]` - TIFF File Support
-- **tifffile** (>=2021.11.2): Advanced TIFF reading/writing
-- Used in: `connectomics.data.io`
-
-#### `[viz]` - 3D Visualization
-- **neuroglancer** (>=1.0.0): Interactive 3D EM data visualization
-- Used in: `scripts/visualize_neuroglancer.py`
-
-#### `[metrics]` - Advanced Metrics
-- **funlib.evaluate**: Skeleton-based segmentation metrics (NERL, VOI)
-- Manual install: `pip install git+https://github.com/funkelab/funlib.evaluate.git`
-- Used in: `connectomics.decoding.auto_tuning`
-
-#### `[dev]` - Development Tools
-- **pytest** (>=6.0.0): Testing framework
-- **pytest-benchmark** (>=3.4.0): Performance benchmarking
-
-#### `[docs]` - Documentation Building
-- **sphinx** (==3.4.3): Documentation generator
-- **sphinxcontrib-katex**: Math rendering
-- **jinja2** (==3.0.3): Template engine
-- Additional sphinx extensions
-
-### External Dependencies
-
-#### MedNeXt Integration (Optional)
-MedNeXt models are available from external repository:
-- **Location**: `/projects/weilab/weidf/lib/MedNeXt`
-- **Import**: `from nnunet_mednext import create_mednext_v1`
-- **Installation**: `pip install -e /projects/weilab/weidf/lib/MedNeXt`
-- **Documentation**: See `.claude/MEDNEXT.md` for integration guide
-- **Note**: Graceful fallback if not installed (try/except import protection)
-
-### Dependency Notes
-
-1. **PyTorch Installation**: Install PyTorch separately based on your CUDA version before installing PyTorch Connectomics. Visit [pytorch.org](https://pytorch.org/get-started/locally/) for the correct command.
-
-2. **Optional Features**: All optional dependencies have graceful fallbacks - the package will work without them, but some features will be unavailable.
-
-3. **GPU Utilities**: `gputil` and `psutil` are used for GPU/system monitoring but are not critical for core functionality.
-
-4. **Post-Processing**: `cc3d` is required for connected component analysis in segmentation tasks and is included in core dependencies.
+- **Core (auto-installed)**: torch≥1.8, pytorch-lightning≥2.0, monai≥0.9.1, torchmetrics, omegaconf≥2.1, numpy≥1.23, scipy, scikit-image, h5py, opencv-python, einops, cc3d, kimimaro, mahotas, fastremap, tensorboard, tqdm.
+- **Extras**: `[full]` (tifffile, wandb, jupyter, gputil), `[optim]` (optuna), `[wandb]`, `[tiff]`, `[viz]` (neuroglancer), `[metrics]` (funlib.evaluate, manual: `pip install git+https://github.com/funkelab/funlib.evaluate.git`), `[dev]` (pytest, pytest-benchmark), `[docs]` (sphinx).
+- **External**: MedNeXt at `/projects/weilab/weidf/lib/MedNeXt` (`from nnunet_mednext import create_mednext_v1`); graceful fallback if missing. See `.claude/MEDNEXT.md`.
 
 ## Common Issues
 
-### Installation Issues
-
-#### Missing PyTorch
-```bash
-# Error: No module named 'torch'
-# Solution: Install PyTorch first
-pip install torch torchvision --index-url https://download.pytorch.org/whl/cu118
-```
-
-#### Missing OmegaConf
-```bash
-# Error: No module named 'omegaconf'
-# Solution: Upgrade to latest version
-pip install --upgrade omegaconf
-```
-
-#### Missing cc3d
-```bash
-# Error: No module named 'cc3d'
-# Solution: Install connected-components-3d
-pip install connected-components-3d
-```
-
-#### Import Error: MedNeXt
-```bash
-# Error: Could not import MedNeXt
-# Solution: This is optional - install if needed
-pip install -e /projects/weilab/weidf/lib/MedNeXt
-# Or see .claude/MEDNEXT.md for installation instructions
-```
-
-### Config Loading
-- Ensure YAML syntax is correct
-- Check paths are absolute or relative to working directory
-- Use `print_config(cfg)` to debug
-- Verify OmegaConf is installed (`pip install omegaconf>=2.1.0`)
-
-### GPU Memory Issues
-- Reduce `data.dataloader.batch_size`
-- Enable gradient checkpointing (model-specific)
-- Use mixed precision (`training.precision: "16-mixed"`)
-- Try smaller patch sizes in `data.dataloader.patch_size`
-
-### Data Loading Issues
-- Increase `system.num_workers` for faster loading
-- Use `data.dataloader.use_cache` for small datasets
-- Check `data.dataloader.persistent_workers: true` for efficiency
-- Verify HDF5 files exist and are accessible (`h5py` installed)
-
-### Version Compatibility
-- **Python 3.8+** required (3.10 recommended)
-- **PyTorch 1.8+** required (2.0+ recommended)
-- **PyTorch Lightning 2.0+** required
-- **MONAI 0.9.1+** required (1.0+ recommended)
-
-### Environment Issues
-```bash
-# Reset environment if needed
-pip uninstall connectomics
-pip cache purge
-pip install -e .[full]
-
-# Verify installation
-python -c "import connectomics; print('Version:', connectomics.__version__)"
-python -c "from connectomics.models.arch import list_architectures; print(list_architectures())"
-```
+- **Config**: validate YAML, use `print_config(cfg)`; unknown top-level keys raise.
+- **GPU OOM**: lower `data.dataloader.batch_size` / `patch_size`, use `precision: "16-mixed"`.
+- **Slow data loading**: raise `system.num_workers`, set `data.dataloader.persistent_workers: true`, enable `use_cache` for small datasets.
+- **Missing module errors**: reinstall with the matching extra (e.g. `pip install -e .[full]` for tifffile/wandb).
 
 ## Further Reading
 

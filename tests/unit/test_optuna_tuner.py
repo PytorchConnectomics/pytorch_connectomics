@@ -33,6 +33,7 @@ class _DummyTrainer:
             "ckpt_path": ckpt_path,
             "save_prediction_enabled": inference_cfg.save_prediction.enabled,
             "cache_suffix": inference_cfg.save_prediction.cache_suffix,
+            "output_path": inference_cfg.save_prediction.output_path,
             "decoding": model.cfg.decoding,
             "evaluation_enabled": model.cfg.evaluation.enabled,
         }
@@ -58,6 +59,7 @@ def test_run_tuning_uses_intermediate_only_inference_overrides(monkeypatch, tmp_
     cfg = Config()
     cfg.tune = TuneConfig()
     cfg.inference.save_prediction.output_path = str(tmp_path / "results")
+    cfg.tune.output.output_pred = str(tmp_path / "tuning" / "predictions")
     cfg.inference.save_prediction.enabled = False
     cfg.inference.save_prediction.cache_suffix = "_x1_prediction.h5"
     cfg.decoding.steps = [{"name": "decode_semantic", "kwargs": {"threshold": 0.8}}]
@@ -112,11 +114,13 @@ def test_run_tuning_uses_intermediate_only_inference_overrides(monkeypatch, tmp_
     assert trainer.observed["datamodule"]["mode"] == "tune"
     assert trainer.observed["ckpt_path"] == "checkpoint.ckpt"
     assert trainer.observed["save_prediction_enabled"] is True
+    assert trainer.observed["output_path"] == str(tmp_path / "results")
     assert trainer.observed["cache_suffix"] == "_tta_x1_ckpt-checkpoint_prediction.h5"
     assert trainer.observed["decoding"] is None
     assert trainer.observed["evaluation_enabled"] is False
 
     assert cfg.inference.save_prediction.enabled is False
+    assert cfg.inference.save_prediction.output_path == str(tmp_path / "results")
     assert cfg.inference.save_prediction.cache_suffix == "_x1_prediction.h5"
     assert cfg.decoding.steps == [{"name": "decode_semantic", "kwargs": {"threshold": 0.8}}]
     assert cfg.evaluation.enabled is True
@@ -130,6 +134,7 @@ def test_run_tuning_ignores_stale_test_prediction_cache_when_tuning(monkeypatch,
     cfg = Config()
     cfg.tune = TuneConfig()
     cfg.inference.save_prediction.output_path = str(tmp_path / "results")
+    cfg.tune.output.output_pred = str(tmp_path / "tuning" / "predictions")
     cfg.data.val.image = str(tmp_path / "images" / "train-input.tif")
     cfg.data.val.label = str(tmp_path / "labels" / "train-labels.h5")
 
@@ -146,6 +151,7 @@ def test_run_tuning_ignores_stale_test_prediction_cache_when_tuning(monkeypatch,
     expected_prediction_file = (
         tmp_path / "results" / "train-input_tta_x1_ckpt-checkpoint_prediction.h5"
     )
+    expected_prediction_file.parent.mkdir(parents=True, exist_ok=True)
     label_file = tmp_path / "labels" / "train-labels.h5"
     label_file.parent.mkdir(parents=True, exist_ok=True)
     label_file.touch()
@@ -181,6 +187,117 @@ def test_run_tuning_ignores_stale_test_prediction_cache_when_tuning(monkeypatch,
     assert trainer.observed["datamodule"]["mode"] == "tune"
     assert len(captured["predictions"]) == 1
     assert np.array_equal(captured["predictions"][0], expected_prediction)
+    assert len(captured["ground_truth"]) == 1
+
+
+def test_run_tuning_uses_result_prediction_cache_when_tuning_folder_missing(monkeypatch, tmp_path):
+    cfg = Config()
+    cfg.tune = TuneConfig()
+    cfg.inference.save_prediction.output_path = str(tmp_path / "results")
+    cfg.tune.output.output_pred = str(tmp_path / "tuning" / "predictions")
+    cfg.data.val.image = str(tmp_path / "images" / "train-input.tif")
+    cfg.data.val.label = str(tmp_path / "labels" / "train-labels.h5")
+
+    image_file = tmp_path / "images" / "train-input.tif"
+    image_file.parent.mkdir(parents=True, exist_ok=True)
+    image_file.touch()
+
+    result_prediction_file = (
+        tmp_path / "results" / "train-input_tta_x1_ckpt-checkpoint_prediction.h5"
+    )
+    result_prediction_file.parent.mkdir(parents=True, exist_ok=True)
+    result_prediction_file.touch()
+    label_file = tmp_path / "labels" / "train-labels.h5"
+    label_file.parent.mkdir(parents=True, exist_ok=True)
+    label_file.touch()
+
+    expected_prediction = np.full((3, 4, 4, 4), 3.0, dtype=np.float32)
+    loaded_arrays = {
+        str(result_prediction_file): expected_prediction,
+        str(label_file): np.zeros((4, 4, 4), dtype=np.uint16),
+    }
+    captured = {}
+
+    class _FakeTuner:
+        def __init__(self, cfg, predictions, ground_truth, mask=None):
+            captured["predictions"] = predictions
+            captured["ground_truth"] = ground_truth
+
+        def optimize(self):
+            return _FakeStudy()
+
+    monkeypatch.setattr("connectomics.runtime.tune_runner.OPTUNA_AVAILABLE", True)
+    monkeypatch.setattr("connectomics.data.io.read_volume", lambda path: loaded_arrays[str(path)])
+    monkeypatch.setattr("connectomics.runtime.tune_runner.OptunaDecodingTuner", _FakeTuner)
+
+    run_tuning(
+        None,
+        lambda: pytest.fail("fallback cache should skip inference"),
+        cfg,
+        checkpoint_path="checkpoint.ckpt",
+    )
+
+    assert len(captured["predictions"]) == 1
+    assert np.array_equal(captured["predictions"][0], expected_prediction)
+    assert len(captured["ground_truth"]) == 1
+
+
+def test_run_tuning_prefers_tuning_prediction_cache_over_result_cache(monkeypatch, tmp_path):
+    cfg = Config()
+    cfg.tune = TuneConfig()
+    cfg.inference.save_prediction.output_path = str(tmp_path / "results")
+    cfg.tune.output.output_pred = str(tmp_path / "tuning" / "predictions")
+    cfg.data.val.image = str(tmp_path / "images" / "train-input.tif")
+    cfg.data.val.label = str(tmp_path / "labels" / "train-labels.h5")
+
+    image_file = tmp_path / "images" / "train-input.tif"
+    image_file.parent.mkdir(parents=True, exist_ok=True)
+    image_file.touch()
+
+    result_prediction_file = (
+        tmp_path / "results" / "train-input_tta_x1_ckpt-checkpoint_prediction.h5"
+    )
+    result_prediction_file.parent.mkdir(parents=True, exist_ok=True)
+    result_prediction_file.touch()
+    tuning_prediction_file = (
+        tmp_path / "tuning" / "predictions" / "train-input_tta_x1_ckpt-checkpoint_prediction.h5"
+    )
+    tuning_prediction_file.parent.mkdir(parents=True, exist_ok=True)
+    tuning_prediction_file.touch()
+    label_file = tmp_path / "labels" / "train-labels.h5"
+    label_file.parent.mkdir(parents=True, exist_ok=True)
+    label_file.touch()
+
+    result_prediction = np.full((3, 4, 4, 4), 3.0, dtype=np.float32)
+    tuning_prediction = np.full((3, 4, 4, 4), 9.0, dtype=np.float32)
+    loaded_arrays = {
+        str(result_prediction_file): result_prediction,
+        str(tuning_prediction_file): tuning_prediction,
+        str(label_file): np.zeros((4, 4, 4), dtype=np.uint16),
+    }
+    captured = {}
+
+    class _FakeTuner:
+        def __init__(self, cfg, predictions, ground_truth, mask=None):
+            captured["predictions"] = predictions
+            captured["ground_truth"] = ground_truth
+
+        def optimize(self):
+            return _FakeStudy()
+
+    monkeypatch.setattr("connectomics.runtime.tune_runner.OPTUNA_AVAILABLE", True)
+    monkeypatch.setattr("connectomics.data.io.read_volume", lambda path: loaded_arrays[str(path)])
+    monkeypatch.setattr("connectomics.runtime.tune_runner.OptunaDecodingTuner", _FakeTuner)
+
+    run_tuning(
+        None,
+        lambda: pytest.fail("complete tuning cache should skip inference"),
+        cfg,
+        checkpoint_path="checkpoint.ckpt",
+    )
+
+    assert len(captured["predictions"]) == 1
+    assert np.array_equal(captured["predictions"][0], tuning_prediction)
     assert len(captured["ground_truth"]) == 1
 
 

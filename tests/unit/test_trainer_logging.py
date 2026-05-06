@@ -84,6 +84,7 @@ def test_create_trainer_adds_periodic_step_checkpoint_callback(tmp_path: Path, m
     assert checkpoint_kwargs[0]["save_top_k"] == 3
     assert checkpoint_kwargs[0]["monitor"] == cfg.monitor.checkpoint.monitor
     assert checkpoint_kwargs[1]["monitor"] is None
+    assert checkpoint_kwargs[1]["filename"] == "{step:08d}"
     assert checkpoint_kwargs[1]["save_top_k"] == -1
     assert checkpoint_kwargs[1]["every_n_train_steps"] == 50000
     assert checkpoint_kwargs[1]["every_n_epochs"] == 0

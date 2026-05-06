@@ -48,10 +48,10 @@ from ...models.losses import create_loss, get_loss_metadata_for_module
 from ...runtime.output_naming import (
     final_prediction_decoded_glob_suffix,
     final_prediction_output_tag,
+    intermediate_prediction_cache_suffix,
+    intermediate_prediction_cache_suffix_candidates,
     is_tta_cache_suffix,
     resolve_prediction_cache_suffix,
-    tta_cache_suffix,
-    tta_cache_suffix_candidates,
 )
 from ...utils import (
     resolve_channel_range,
@@ -593,7 +593,7 @@ class ConnectomicsModule(pl.LightningModule):
                     return (
                         pred,
                         True,
-                        tta_cache_suffix(
+                        intermediate_prediction_cache_suffix(
                             self.cfg,
                             checkpoint_path=self._get_prediction_checkpoint_path(),
                         ),
@@ -614,65 +614,94 @@ class ConnectomicsModule(pl.LightningModule):
 
         output_dir = Path(output_dir_value)
 
-        # Build ordered list of suffixes to try: final prediction first, then
-        # intermediate TTA, then glob fallback.
+        # Raw/intermediate cache suffixes are tried after decoded-final caches.
         suffixes_to_try: list[str] = []
-        if is_tta_cache_suffix(cache_suffix):
-            # Prefer the final decoded file (e.g. _x16_prediction.h5) over
-            # the intermediate TTA file (e.g. _tta_x16_prediction.h5).
-            final_suffix = (
-                "_"
-                + final_prediction_output_tag(
-                    self.cfg,
-                    checkpoint_path=self._get_prediction_checkpoint_path(),
-                )
-                + ".h5"
-            )
-            suffixes_to_try.append(final_suffix)
         suffixes_to_try.append(cache_suffix)
 
-        # Glob fallback before exact suffix matching: any pre-existing decoded
-        # final file matching the same TTA/head/channel/checkpoint prefix lets
-        # us skip a multi-GB intermediate TTA reload + redecode, even if the
-        # current config's decoding kwargs differ from the cached file.
-        if is_tta_cache_suffix(cache_suffix):
-            decoded_glob = final_prediction_decoded_glob_suffix(
+        # Prefer the exact decoded final file over any intermediate cache or
+        # looser decoded glob variant.
+        final_suffix = (
+            "_"
+            + final_prediction_output_tag(
                 self.cfg,
                 checkpoint_path=self._get_prediction_checkpoint_path(),
             )
-            decoded_files: list[Path] = []
-            for filename in filenames:
-                matches = sorted(output_dir.glob(f"{filename}{decoded_glob}"))
-                if not matches:
-                    decoded_files = []
-                    break
-                decoded_files.append(matches[-1])
-            if decoded_files and len(decoded_files) == len(filenames):
-                try:
-                    preds = [read_volume(str(p), dataset="main") for p in decoded_files]
-                except Exception as e:
-                    logger.warning(
-                        f"Failed to load decoded glob match {decoded_files[0]}: {e}; "
-                        f"falling back to exact suffix matching."
+            + ".h5"
+        )
+        exact_final_files: list[Path] = []
+        for filename in filenames:
+            pred_file = output_dir / f"{filename}{final_suffix}"
+            if not os.path.exists(pred_file):
+                exact_final_files = []
+                break
+            exact_final_files.append(pred_file)
+        if exact_final_files and len(exact_final_files) == len(filenames):
+            try:
+                preds = [read_volume(str(p), dataset="main") for p in exact_final_files]
+            except Exception as e:
+                logger.warning(
+                    f"Failed to load exact decoded final match {exact_final_files[0]}: {e}; "
+                    f"falling back to decoded glob matching."
+                )
+                preds = None
+            if preds is not None:
+                logger.info(
+                    "Loaded exact decoded final prediction(s) (%s); "
+                    "skipping inference and decoding.",
+                    exact_final_files[0].name,
+                )
+                if len(preds) == 1:
+                    predictions_np = preds[0]
+                    if predictions_np.ndim < 4:
+                        predictions_np = predictions_np[np.newaxis, ...]
+                else:
+                    predictions_np = np.stack(
+                        [p[np.newaxis, ...] if p.ndim < 4 else p for p in preds],
+                        axis=0,
                     )
-                    preds = None
-                if preds is not None:
-                    logger.info(
-                        "Loaded existing decoded final prediction(s) via glob fallback "
-                        "(%s); skipping inference and decoding.",
-                        decoded_files[0].name,
+                return predictions_np, True, final_suffix
+
+        # Glob fallback: any pre-existing decoded final file matching the same
+        # TTA/head/channel/checkpoint prefix lets us skip a multi-GB
+        # intermediate prediction reload + redecode, even if the current
+        # config's decoding kwargs differ from the cached file.
+        decoded_glob = final_prediction_decoded_glob_suffix(
+            self.cfg,
+            checkpoint_path=self._get_prediction_checkpoint_path(),
+        )
+        decoded_files: list[Path] = []
+        for filename in filenames:
+            matches = sorted(output_dir.glob(f"{filename}{decoded_glob}"))
+            if not matches:
+                decoded_files = []
+                break
+            decoded_files.append(matches[-1])
+        if decoded_files and len(decoded_files) == len(filenames):
+            try:
+                preds = [read_volume(str(p), dataset="main") for p in decoded_files]
+            except Exception as e:
+                logger.warning(
+                    f"Failed to load decoded glob match {decoded_files[0]}: {e}; "
+                    f"falling back to exact suffix matching."
+                )
+                preds = None
+            if preds is not None:
+                logger.info(
+                    "Loaded existing decoded final prediction(s) via glob fallback "
+                    "(%s); skipping inference and decoding.",
+                    decoded_files[0].name,
+                )
+                if len(preds) == 1:
+                    predictions_np = preds[0]
+                    if predictions_np.ndim < 4:
+                        predictions_np = predictions_np[np.newaxis, ...]
+                else:
+                    predictions_np = np.stack(
+                        [p[np.newaxis, ...] if p.ndim < 4 else p for p in preds],
+                        axis=0,
                     )
-                    if len(preds) == 1:
-                        predictions_np = preds[0]
-                        if predictions_np.ndim < 4:
-                            predictions_np = predictions_np[np.newaxis, ...]
-                    else:
-                        predictions_np = np.stack(
-                            [p[np.newaxis, ...] if p.ndim < 4 else p for p in preds],
-                            axis=0,
-                        )
-                    chosen_suffix = decoded_files[0].name[len(filenames[0]):]
-                    return predictions_np, True, chosen_suffix
+                chosen_suffix = decoded_files[0].name[len(filenames[0]) :]
+                return predictions_np, True, chosen_suffix
 
         for try_suffix in suffixes_to_try:
             existing_predictions = []
@@ -711,7 +740,7 @@ class ConnectomicsModule(pl.LightningModule):
         # Targeted fallback: look for the exact TTA intermediate cache suffix
         # matching the current config rather than any arbitrary TTA file.
         if mode == "test" and not is_tta_cache_suffix(cache_suffix):
-            fallback_suffixes = tta_cache_suffix_candidates(
+            fallback_suffixes = intermediate_prediction_cache_suffix_candidates(
                 self.cfg,
                 checkpoint_path=self._get_prediction_checkpoint_path(),
             )
@@ -731,7 +760,7 @@ class ConnectomicsModule(pl.LightningModule):
                         all_exist = False
                         break
                 if all_exist and len(existing_predictions) == len(filenames):
-                    logger.info(
+                    logger.debug(
                         "Loaded fallback TTA prediction(s) using exact suffix %s",
                         try_suffix,
                     )
@@ -958,7 +987,7 @@ class ConnectomicsModule(pl.LightningModule):
 
         sliding_cfg = getattr(inference_cfg, "sliding_window", None)
         if bool(getattr(sliding_cfg, "keep_input_on_cpu", False)):
-            logger.info(
+            logger.debug(
                 "Sliding-window CPU input mode enabled: keeping test image tensors on CPU "
                 "and letting MONAI move window batches to the configured sw_device."
             )

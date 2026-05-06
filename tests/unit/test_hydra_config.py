@@ -760,6 +760,78 @@ optimization:
     print("[OK]Enabled flags require explicit opt-in")
 
 
+def test_canonical_inference_output_array_drives_runtime_aliases(tmp_path):
+    config_yaml = tmp_path / "canonical_inference.yaml"
+    config_yaml.write_text("""
+inference:
+  execution:
+    strategy: chunked
+  window:
+    lazy_load: true
+    window_size: [144, 144, 144]
+  output_array:
+    select_channel: [0, 1, 2]
+    accumulator_dtype: float16
+    partition:
+      enabled: true
+      output_mode: raw_prediction
+      size: [1008, 1008, 1350]
+      halo: [0, 0, 0]
+      axes: all
+    store:
+      enabled: true
+      backend: h5
+      dtype: float16
+decoding:
+  enabled: false
+""".strip())
+
+    cfg = load_config(config_yaml)
+
+    assert cfg.inference.strategy == "chunked"
+    assert cfg.inference.sliding_window.lazy_load is True
+    assert cfg.inference.sliding_window.window_size == [144, 144, 144]
+    assert cfg.inference.sliding_window.accumulator_dtype == "float16"
+    assert cfg.inference.select_channel == [0, 1, 2]
+    assert cfg.inference.chunking.enabled is True
+    assert cfg.inference.chunking.output_mode == "raw_prediction"
+    assert cfg.inference.chunking.chunk_size == [1008, 1008, 1350]
+    assert cfg.inference.save_prediction.enabled is True
+    assert cfg.inference.save_prediction.output_formats == ["h5"]
+    assert cfg.inference.save_prediction.storage_dtype == "float16"
+    assert cfg.decoding.enabled is False
+
+
+def test_default_canonical_inference_sections_do_not_overwrite_existing_runtime_fields(tmp_path):
+    config_yaml = tmp_path / "existing_inference.yaml"
+    config_yaml.write_text("""
+inference:
+  strategy: chunked
+  sliding_window:
+    lazy_load: true
+    overlap: 0.25
+  chunking:
+    enabled: true
+    output_mode: raw_prediction
+    chunk_size: [64, 128, 128]
+    halo: [4, 8, 8]
+  save_prediction:
+    enabled: true
+    output_formats: [h5]
+    storage_dtype: float16
+""".strip())
+
+    cfg = load_config(config_yaml)
+
+    assert cfg.inference.strategy == "chunked"
+    assert cfg.inference.sliding_window.lazy_load is True
+    assert cfg.inference.sliding_window.overlap == 0.25
+    assert cfg.inference.chunking.chunk_size == [64, 128, 128]
+    assert cfg.inference.chunking.halo == [4, 8, 8]
+    assert cfg.inference.save_prediction.enabled is True
+    assert cfg.inference.save_prediction.storage_dtype == "float16"
+
+
 def test_removed_shared_stage_is_rejected(tmp_path):
     config_yaml = tmp_path / "removed_shared.yaml"
     config_yaml.write_text("""

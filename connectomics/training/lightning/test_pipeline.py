@@ -31,8 +31,8 @@ from ...inference.lazy import (
 )
 from ...runtime.output_naming import (
     final_prediction_output_tag,
+    intermediate_prediction_cache_suffix,
     is_tta_cache_suffix,
-    tta_cache_suffix,
 )
 from ...utils.model_outputs import (
     get_model_head_names,
@@ -452,7 +452,7 @@ def _save_intermediate_prediction_outputs(
     output_head: Optional[str] = None,
 ) -> None:
     """Persist one intermediate prediction tensor using the configured TTA suffix."""
-    cache_suffix = tta_cache_suffix(
+    cache_suffix = intermediate_prediction_cache_suffix(
         module.cfg,
         checkpoint_path=module._get_prediction_checkpoint_path(),
         output_head=output_head,
@@ -668,12 +668,14 @@ def run_test_step(module, batch: Dict[str, torch.Tensor], batch_idx: int) -> STE
             )
         if merge_heads:
             raise RuntimeError("Chunked inference does not support merged multi-head outputs yet.")
+        chunking_cfg = module.cfg.inference.chunking
+        chunk_output_mode = str(getattr(chunking_cfg, "output_mode", "decoded")).lower()
         if torch.distributed.is_available() and torch.distributed.is_initialized():
             world_size = torch.distributed.get_world_size()
-            if world_size > 1:
+            if world_size > 1 and chunk_output_mode != "raw_prediction":
                 raise RuntimeError(
-                    "Chunked inference currently runs as a single-rank streaming job. "
-                    "Run test with one GPU/process for this mode."
+                    "Distributed chunked inference currently requires "
+                    "inference.chunking.output_mode=raw_prediction."
                 )
         if not output_dir_value:
             raise RuntimeError(
@@ -687,13 +689,11 @@ def run_test_step(module, batch: Dict[str, torch.Tensor], batch_idx: int) -> STE
         logger.info("Input device:      [lazy disk-backed volume]")
         output_dir = Path(output_dir_value)
         output_dir.mkdir(parents=True, exist_ok=True)
-        chunking_cfg = module.cfg.inference.chunking
-        chunk_output_mode = str(getattr(chunking_cfg, "output_mode", "decoded")).lower()
         inference_start = time.time()
 
         if chunk_output_mode == "raw_prediction":
             raw_suffix = (
-                tta_cache_suffix(
+                intermediate_prediction_cache_suffix(
                     module.cfg,
                     checkpoint_path=module._get_prediction_checkpoint_path(),
                     output_head=selected_output_head,
@@ -702,7 +702,7 @@ def run_test_step(module, batch: Dict[str, torch.Tensor], batch_idx: int) -> STE
                 .removesuffix(".h5")
             )
             output_path = output_dir / f"{filenames[0]}_{raw_suffix}.h5"
-            run_chunked_prediction_inference(
+            output_path = run_chunked_prediction_inference(
                 module.cfg,
                 module.forward,
                 image_path,
@@ -719,13 +719,26 @@ def run_test_step(module, batch: Dict[str, torch.Tensor], batch_idx: int) -> STE
                 inference_duration / 60.0,
                 inference_duration,
             )
+            if torch.distributed.is_available() and torch.distributed.is_initialized():
+                rank = torch.distributed.get_rank()
+                if torch.distributed.get_world_size() > 1 and rank != 0:
+                    logger.info(
+                        "Completed local chunked raw inference shard; rank 0 stitched "
+                        "the raw prediction and will perform decode/evaluation."
+                    )
+                    _cleanup_inference_memory(
+                        module, "distributed chunked raw shard", release_model=True
+                    )
+                    _log_volume_header(volume_name, "VOLUME COMPLETE")
+                    return torch.tensor(0.0, device=module.device)
+
             _cleanup_inference_memory(module, "chunked raw inference", release_model=True)
 
-            decode_after = bool(getattr(module.cfg.inference, "decode_after_inference", True))
+            decode_after = bool(getattr(getattr(module.cfg, "decoding", None), "enabled", True))
             if not decode_after:
                 if _evaluation_context_from_module(module).is_enabled:
                     logger.warning(
-                        "Skipping evaluation because decode_after_inference=false produced "
+                        "Skipping evaluation because decoding.enabled=false produced "
                         "only raw predictions."
                     )
                 _log_volume_header(volume_name, "VOLUME COMPLETE")
@@ -966,6 +979,12 @@ def run_test_step(module, batch: Dict[str, torch.Tensor], batch_idx: int) -> STE
     # In tune mode, skip decoding — the Optuna tuner will handle it.
     if mode == "tune":
         logger.info("Tune mode: skipping decoding (Optuna tuner will handle it)")
+        cache = getattr(module, "_tune_predictions_cache", None)
+        if cache is None:
+            cache = {}
+            module._tune_predictions_cache = cache
+        for name in filenames:
+            cache[name] = predictions_np
         del predictions_np
         _cleanup_inference_memory(module, "tune prediction")
         _distributed_tta_barrier(module)

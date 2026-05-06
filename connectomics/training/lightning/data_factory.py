@@ -1088,6 +1088,8 @@ def create_datamodule(
         use_cache = cfg.data.dataloader.use_cache and mode == "train"
         tta_cfg = getattr(getattr(cfg, "inference", None), "test_time_augmentation", None)
         sliding_cfg = getattr(getattr(cfg, "inference", None), "sliding_window", None)
+        inference_cfg = getattr(cfg, "inference", None)
+        chunking_cfg = getattr(inference_cfg, "chunking", None)
         distributed_tta_sharding = bool(
             mode in ["test", "tune"]
             and tta_cfg is not None
@@ -1099,6 +1101,14 @@ def create_datamodule(
             and sliding_cfg is not None
             and getattr(sliding_cfg, "lazy_load", False)
             and getattr(sliding_cfg, "distributed_sharding", False)
+        )
+        distributed_chunked_raw_sharding = bool(
+            mode in ["test", "tune"]
+            and test_data_dicts is not None
+            and len(test_data_dicts) == 1
+            and str(getattr(inference_cfg, "strategy", "whole_volume")).lower() == "chunked"
+            and getattr(chunking_cfg, "enabled", False)
+            and str(getattr(chunking_cfg, "output_mode", "decoded")).lower() == "raw_prediction"
         )
 
         if mode in ["test", "tune"] and cfg.data.dataloader.use_cache:
@@ -1140,6 +1150,7 @@ def create_datamodule(
             seed=cfg.system.seed,  # [FIX 1] Pass seed for validation reseeding
             distributed_tta_sharding=distributed_tta_sharding,
             distributed_window_sharding=distributed_window_sharding,
+            distributed_chunked_raw_sharding=distributed_chunked_raw_sharding,
             sample_size=_effective_patch_size(cfg),
             do_2d=bool(
                 getattr(cfg.data.train, "do_2d", False) or getattr(cfg.data.val, "do_2d", False)

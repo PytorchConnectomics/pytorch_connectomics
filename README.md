@@ -2,317 +2,136 @@
 <img src="./.github/logo_fullname.png" width="450"></a>
 
 <p align="left">
-    <a href="https://www.python.org/">
-      <img src="https://img.shields.io/badge/Python-3.8+-ff69b4.svg" /></a>
-    <a href= "https://pytorch.org/">
-      <img src="https://img.shields.io/badge/PyTorch-1.8+-2BAF2B.svg" /></a>
-    <a href= "https://lightning.ai/">
-      <img src="https://img.shields.io/badge/Lightning-2.0+-792EE5.svg" /></a>
-    <a href= "https://monai.io/">
-      <img src="https://img.shields.io/badge/MONAI-0.9+-00A3E0.svg" /></a>
-    <a href= "https://github.com/zudi-lin/pytorch_connectomics/blob/master/LICENSE">
-      <img src="https://img.shields.io/badge/License-MIT-blue.svg" /></a>
-    <a href= "https://zudi-lin.github.io/pytorch_connectomics/build/html/index.html">
-      <img src="https://img.shields.io/badge/Doc-Latest-2BAF2B.svg" /></a>
-    <a href= "https://join.slack.com/t/pytorchconnectomics/shared_invite/zt-obufj5d1-v5_NndNS5yog8vhxy4L12w">
-      <img src="https://img.shields.io/badge/Slack-Join-CC8899.svg" /></a>
-    <a href= "https://arxiv.org/abs/2112.05754">
-      <img src="https://img.shields.io/badge/arXiv-2112.05754-FF7F50.svg" /></a>
+    <a href="https://www.python.org/"><img src="https://img.shields.io/badge/Python-3.8+-ff69b4.svg" /></a>
+    <a href="https://pytorch.org/"><img src="https://img.shields.io/badge/PyTorch-1.8+-2BAF2B.svg" /></a>
+    <a href="https://lightning.ai/"><img src="https://img.shields.io/badge/Lightning-2.0+-792EE5.svg" /></a>
+    <a href="https://monai.io/"><img src="https://img.shields.io/badge/MONAI-0.9+-00A3E0.svg" /></a>
+    <a href="https://github.com/zudi-lin/pytorch_connectomics/blob/master/LICENSE"><img src="https://img.shields.io/badge/License-MIT-blue.svg" /></a>
+    <a href="https://join.slack.com/t/pytorchconnectomics/shared_invite/zt-obufj5d1-v5_NndNS5yog8vhxy4L12w"><img src="https://img.shields.io/badge/Slack-Join-CC8899.svg" /></a>
+    <a href="https://arxiv.org/abs/2112.05754"><img src="https://img.shields.io/badge/arXiv-2112.05754-FF7F50.svg" /></a>
 </p>
 
----
+**Modern deep learning for connectomics.** Train, run inference, decode, and evaluate segmentation pipelines on large EM volumes — from a single GPU to multi-node clusters.
 
-## What is PyTorch Connectomics (PyTC)?
-
-**Automatic segmentation of neural structures in electron microscopy images** 🔬🧠
-
-PyTorch Connectomics (PyTC) helps neuroscientists and biologists:
-- ✅ **Initial run:** Ready-to-use segmentation models for strong initial segmentation
-- ✅ **Development:** Easy to build and adapt models to your annotated data
-- ✅ **Deployment:** Scales from a single GPU to large-scale clusters
-
-**Built on:** [PyTorch Lightning](https://lightning.ai/) + [MONAI](https://monai.io/) + [nnU-Net](https://github.com/MIC-DKFZ/nnUNet) for modern, scalable deep learning.
+Built on **[Lightning](https://lightning.ai/)** (orchestration) + **[MONAI](https://monai.io/)** (medical imaging) + **[Hydra](https://hydra.cc/)** (configs).
 
 ---
 
-## Quick Start (5 Minutes)
-
-### 1. Install
-
-Choose your preferred method:
-
-<details open>
-<summary><b>🚀 One-Command Install (Recommended)</b></summary>
+## Quick Start
 
 ```bash
+# Install (one command)
 curl -fsSL https://raw.githubusercontent.com/zudi-lin/pytorch_connectomics/refs/heads/master/quickstart.sh | bash
 conda activate pytc
-```
 
-Done! ✅
-</details>
-
-<details>
-<summary><b>🐍 Python Script Install</b></summary>
-
-```bash
-git clone https://github.com/PytorchConnectomics/pytorch_connectomics.git
-cd pytorch_connectomics
-python install.py
-conda activate pytc
-```
-</details>
-
-<details>
-<summary><b>🛠️ Manual Install</b></summary>
-
-```bash
-conda create -n pytc python=3.10 -y
-conda activate pytc
-conda install -c conda-forge numpy h5py cython connected-components-3d -y
-pip install torch torchvision --index-url https://download.pytorch.org/whl/cu121
-git clone https://github.com/PytorchConnectomics/pytorch_connectomics.git
-cd pytorch_connectomics
-pip install -e . --no-build-isolation
-```
-</details>
-
-**📖 Detailed instructions:** [INSTALLATION.md](INSTALLATION.md) | **🚀 Quick start:** [QUICKSTART.md](QUICKSTART.md)
-
----
-
-### 2. Run Demo
-
-Verify your installation with a 30-second demo:
-
-```bash
+# Verify
 python scripts/main.py --demo
 ```
 
-**Expected output:**
-```
-🎯 PyTorch Connectomics Demo Mode
-...
-✅ DEMO COMPLETED SUCCESSFULLY!
+Need a manual install or specific CUDA version? See **[INSTALLATION.md](INSTALLATION.md)**.
+
+### Run a tutorial
+
+```bash
+just download lucchi++              # ~50 MB sample data
+just train mito_lucchi++            # train from scratch
+just test  mito_lucchi++ <ckpt>     # inference + decoding + evaluation
+just tensorboard mito_lucchi++      # monitor
 ```
 
 ---
 
-### 3. Try a Tutorial
-```bash
-# Download tutorial data (~50 MB)
-just download lucchi++
+## Pipeline
+
+PyTC is organized as five composable stages, each with its own config section
+and entry point:
+
+```
+train   →   infer   →   decode   →   evaluate
+                          ↘
+                          tune  (Optuna search over decode/postproc params)
 ```
 
-#### 3.1 Run inference with a pretrained checkpoint (no training required):
+A single CLI dispatches them all:
 
-- Ours: 0.913 Jaccard index (Foreground-IoU)
-- Prior art: 0.907 (systematic comparsions in [Casser et.al 20](https://arxiv.org/abs/1812.06024))
 ```bash
-# Download pretrained checkpoint
-mkdir -p checkpoints
-curl -L "https://huggingface.co/pytc/tutorial2.0/resolve/main/mito_lucchi%2B%2B_15k.ckpt?download=true" \
-  -o checkpoints/mito_lucchi_pp_15k.ckpt
-
-# Run inference
-just test mito_lucchi++ checkpoints/mito_lucchi_pp_15k.ckpt
+python scripts/main.py --config tutorials/mito_lucchi++.yaml                       # train
+python scripts/main.py --config <cfg> --mode test --checkpoint <ckpt>              # infer + decode + evaluate
+python scripts/main.py --config <cfg> --mode tune --checkpoint <ckpt>              # decode-param search
 ```
 
-#### 3.2 Train from scratch
-- current settings: num_gpus=4, num_cpus=8, batch_size=16
-- change settings in [tutorials/mito_lucchi++.yaml](https://github.com/PytorchConnectomics/pytorch_connectomics/blob/master/tutorials/mito_lucchi%2B%2B.yaml#L6)
-```bash
-# Quick test (1 batch)
-just train mito_lucchi++ --fast-dev-run
+Override anything from the CLI:
 
-# Full training
-just train mito_lucchi++
+```bash
+python scripts/main.py --config <cfg> data.dataloader.batch_size=4 optimization.max_epochs=200
 ```
 
-**Monitor progress:**
-```bash
-just tensorboard lucchi++
-```
-
-**Run inference from your trained checkpoint:**
-```bash
-just test lucchi++ outputs/lucchi++/$EXPERIMENT_DATE/checkpoints/best.ckpt
-```
 ---
 
-## Key Features
+## Features
 
-### 🚀 Modern Architecture (v2.0)
-- **PyTorch Lightning:** Automatic distributed training, mixed precision, callbacks
-- **MONAI:** Medical imaging models, transforms, losses optimized for 3D volumes
-- **Hydra/OmegaConf:** Type-safe configurations with CLI overrides
-- **Extensible:** Easy to add custom models, losses, and transforms
+- **State-of-the-art models** — MONAI (BasicUNet3D, UNet, UNETR, Swin UNETR), MedNeXt (S/B/M/L), nnU-Net, RSUNet
+- **Distributed by default** — DDP multi-GPU, mixed precision (FP16/BF16), gradient accumulation, persistent workers
+- **Big volumes** — chunked sliding-window inference, lazy zarr/HDF5 loading, streamed decode + CC stitching
+- **Decoders** — waterz (with `aff85_his256` scoring), distance watershed, connected components, ABISS, dust merge
+- **Tuning** — Optuna search over decode params; auto-logged to `decode_experiments.tsv`
+- **Composable configs** — Hydra/OmegaConf with profile registries, strict-key validation, CLI overrides
 
-### 🏗️ State-of-the-Art Models
-- **MONAI Models:** BasicUNet3D, UNet, UNETR, Swin UNETR
-- **MedNeXt (MICCAI 2023):** ConvNeXt-based architecture for medical imaging
-- **Custom Models:** Easily integrate your own architectures
+---
 
-### ⚡ Performance
-- **Distributed Training:** Automatic multi-GPU with DDP
-- **Mixed Precision:** FP16/BF16 training for 2x speedup
-- **Efficient Data Loading:** Pre-loaded caching, MONAI transforms
-- **Gradient Accumulation:** Train with large effective batch sizes
+## Minimal Config
 
-### 🧩 Decoding & Post-Processing
-- **Waterz Decoder:** Watershed + hierarchical agglomeration on affinity graphs with tunable scoring functions (`aff50_his256`, `aff85_his256`, etc.)
-- **Dust Merge:** Zwatershed-style size+affinity cleanup — merges small fragments into their best-affinity neighbor instead of dropping to background (C++/Cython)
-- **Optuna Tuning:** Batch threshold sweep in a single waterz call (watershed computed once) for efficient hyperparameter search
-- **Experiment Auto-Logging:** Every decode+eval run auto-appends parameters and metrics to `decode_experiments.tsv`
+```yaml
+model:
+  arch: { type: monai_unet }
+  in_channels: 1
+  out_channels: 1
+  loss:
+    losses:
+      - { function: DiceLoss, weight: 1.0 }
 
-### 📊 Monitoring & Logging
-- **TensorBoard:** Training curves, images, metrics
-- **Weights & Biases:** Experiment tracking (optional)
-- **Early Stopping:** Automatic stopping when training plateaus
-- **Checkpointing:** Save best models automatically
+data:
+  train: { image: train.h5, label: train_mask.h5 }
+  val:   { image: val.h5,   label: val_mask.h5 }
+  dataloader: { batch_size: 2, patch_size: [128, 128, 128] }
+
+optimization:
+  optimizer: { name: AdamW, lr: 1e-4 }
+  max_epochs: 100
+  precision: "16-mixed"
+
+decoding:
+  - template: decoding_waterz   # instance segmentation via waterz
+
+evaluation:
+  enabled: true
+  metrics: [adapted_rand, voi]
+```
+
+See [`tutorials/`](tutorials/) for 16 dataset-specific configs (mitochondria, neurons,
+synapses, vesicles, fibers, nuclei).
 
 ---
 
 ## Documentation
 
-- 🚀 **[Quick Start Guide](QUICKSTART.md)** - Get running in 5 minutes
-- 📦 **[Installation Guide](INSTALLATION.md)** - Detailed setup instructions
-- 📚 **[Full Documentation](https://connectomics.readthedocs.io)** - Complete reference
-- 🎯 **[Tutorials](tutorials/)** - Example configurations
-- 🔧 **[Troubleshooting](TROUBLESHOOTING.md)** - Common issues and solutions
-- 👨‍💻 **[Developer Guide](.claude/CLAUDE.md)** - Contributing and architecture
-
-## Config Layout
-
-- `tutorials/*.yaml`: runnable experiment configs
-- `connectomics/config/profiles/*.yaml`: section-level registries selected by `*.profile`
-- `connectomics/config/templates/*.yaml`: explicit list-item templates, currently used for top-level `decoding`
-
-Merge rule:
-
-- Profile payloads are merged into the target section as the base config.
-- Explicit keys in the tutorial/config override profile keys.
-- Explicit lists replace profile lists; they are not additive.
-- Canonical decoding syntax is explicit list expansion, for example `decoding: [{template: decoding_waterz}]`.
+- 🚀 [Quick Start](QUICKSTART.md) — get running in 5 minutes
+- 📦 [Installation](INSTALLATION.md) — detailed setup
+- 📚 [Full docs](https://connectomics.readthedocs.io)
+- 🔧 [Troubleshooting](TROUBLESHOOTING.md)
+- 👨‍💻 [Developer guide](CLAUDE.md) — architecture, contributing, refactor history
 
 ---
 
-## Example: Train a Model
+## Community
 
-Create a config file (`my_config.yaml`):
-
-```yaml
-system:
-  training:
-    num_gpus: 1
-    num_cpus: 4
-    batch_size: 2
-
-model:
-  architecture: monai_basic_unet3d
-  in_channels: 1
-  out_channels: 2
-  loss_functions: [DiceLoss]
-
-data:
-  train_image: "path/to/train_image.h5"
-  train_label: "path/to/train_label.h5"
-  patch_size: [128, 128, 128]
-
-optimization:
-  max_epochs: 100
-  precision: "16-mixed"  # Mixed precision for speed
-
-optimizer:
-  name: AdamW
-  lr: 1e-4
-```
-
-Train:
-```bash
-python scripts/main.py --config my_config.yaml
-```
-
-Override from CLI:
-```bash
-python scripts/main.py --config my_config.yaml data.dataloader.batch_size=4 optimization.max_epochs=200
-```
-
----
-
-## Example: Decode Predictions
-
-Configure instance segmentation decoding in your YAML config:
-
-```yaml
-inference:
-  decoding:
-    - name: decode_waterz
-      kwargs:
-        thresholds: 0.4                  # agglomeration threshold
-        merge_function: aff85_his256     # 85th percentile affinity scoring
-        aff_threshold: [0.1, 0.99]       # watershed low/high thresholds
-        channel_order: xyz               # affinity channel order (auto-transpose to zyx)
-        dust_merge_size: 100             # merge dust < 100 voxels into best neighbor
-        dust_merge_affinity: 0.0         # min affinity for dust merge
-        dust_remove_size: 50             # remove remaining orphans < 50 voxels
-```
-
-Run inference with decoding:
-```bash
-python scripts/main.py --config tutorials/neuron_snemi.yaml --mode test --checkpoint path/to/best.ckpt
-```
-
-Tune decode parameters with Optuna:
-```bash
-python scripts/main.py --config tutorials/neuron_snemi.yaml --mode tune --checkpoint path/to/best.ckpt
-```
-
-Results are auto-logged to `outputs/<experiment>/results/decode_experiments.tsv` with all parameters and metrics.
-
----
-
-## Supported Models
-
-### MONAI Models
-- **BasicUNet3D** - Fast, simple 3D U-Net (recommended for beginners)
-- **UNet** - U-Net with residual units
-- **UNETR** - Transformer-based architecture
-- **Swin UNETR** - Swin Transformer U-Net
-
-### MedNeXt Models (MICCAI 2023)
-- **MedNeXt-S** - 5.6M parameters (fast)
-- **MedNeXt-B** - 10.5M parameters (balanced)
-- **MedNeXt-M** - 17.6M parameters (accurate)
-- **MedNeXt-L** - 61.8M parameters (state-of-the-art)
-
-**See:** [.claude/MEDNEXT.md](.claude/MEDNEXT.md) for MedNeXt integration guide
-
----
-
-## Data Formats
-
-- **HDF5** (.h5) - Primary format (recommended)
-- **TIFF** (.tif, .tiff) - Multi-page TIFF stacks
-- **Zarr** - For large-scale datasets
-- **NumPy** - Direct array loading
-
-**Input shape:** `(batch, channels, depth, height, width)`
-
----
-
-## Community & Support
-
-- 💬 **Slack:** [Join our community](https://join.slack.com/t/pytorchconnectomics/shared_invite/zt-obufj5d1-v5_NndNS5yog8vhxy4L12w) (friendly and helpful!)
-- 🐛 **Issues:** [GitHub Issues](https://github.com/zudi-lin/pytorch_connectomics/issues)
-- 📧 **Contact:** See lab website
+- 💬 **[Slack](https://join.slack.com/t/pytorchconnectomics/shared_invite/zt-obufj5d1-v5_NndNS5yog8vhxy4L12w)** — friendly help
+- 🐛 **[Issues](https://github.com/zudi-lin/pytorch_connectomics/issues)**
 - 📄 **Paper:** [arXiv:2112.05754](https://arxiv.org/abs/2112.05754)
 
 ---
 
 ## Citation
-
-If PyTorch Connectomics helps your research, please cite:
 
 ```bibtex
 @article{lin2021pytorch,
@@ -323,33 +142,7 @@ If PyTorch Connectomics helps your research, please cite:
 }
 ```
 
----
+Maintained by Harvard's [Visual Computing Group](https://vcg.seas.harvard.edu/).
+Supported by NSF IIS-1835231, IIS-2124179, IIS-2239688.
 
-## Acknowledgements
-
-**Powered by:**
-- [PyTorch Lightning](https://lightning.ai/) - Lightning AI Team
-- [MONAI](https://monai.io/) - MONAI Consortium
-- [MedNeXt](https://github.com/MIC-DKFZ/MedNeXt) - DKFZ Medical Image Computing
-
-**Supported by:**
-- NSF awards IIS-1835231, IIS-2124179, IIS-2239688
-
----
-
-## License
-
-**MIT License** - See [LICENSE](LICENSE) for details.
-
-Copyright © PyTorch Connectomics Contributors
-
----
-
-## Version History
-
-- **v2.0** (2025) - Complete rewrite with PyTorch Lightning + MONAI
-- **v1.0** (2021) - Initial release
-
-See [RELEASE_NOTES.md](RELEASE_NOTES.md) for detailed release notes.
-
----
+**MIT License** — see [LICENSE](LICENSE).

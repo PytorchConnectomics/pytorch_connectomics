@@ -365,18 +365,28 @@ def seg_to_affinity(
     edges outside the valid source/destination region, or touching ``seg == -1``
     unlabeled voxels, are encoded as ``-1`` so the loss can skip them.
 
+    Axis convention: this function operates positionally on the input array's
+    spatial dimensions — offset ``(a, b, c)`` shifts along ``seg`` axes 0, 1, 2
+    in that order, regardless of whether callers label them ZYX or XYZ. The
+    user is responsible for keeping the disk layout, label-target generation,
+    and decoder expectations on the same axis convention. Your ``lib/banis``
+    setup stores zarr volumes XYZ and reads them without a spatial transpose,
+    so axis 0 = X here, matching BANIS's ``comp_affinities``.
+
     Args:
-        seg: The segmentation to compute affinities from. Shape: (z, y, x).
-             0 indicates background.
-        offsets: List of offset strings in "z-y-x" format (e.g., ["0-0-1", "0-1-0", "1-0-0"]).
-                 Each string defines one affinity channel.
-        long_range: Offset for 6-channel output:
-                    - Channel 0-2: Short-range (offset 1) for z, y, x
-                    - Channel 3-5: Long-range (offset long_range) for z, y, x
+        seg: Segmentation array, ``0`` is background. Spatial shape ``(A0, A1, A2)``
+             where the meaning of each axis is set by the caller's convention.
+        offsets: List of ``"a-b-c"`` strings or 3-tuples; each defines one
+                 affinity channel as a shift ``(da0, da1, da2)`` along the
+                 input's axes 0, 1, 2.
+        long_range: When set, returns a 6-channel output:
+                    - Channels 0-2: short-range (offset 1) along axes 0, 1, 2
+                    - Channels 3-5: long-range (offset ``long_range``) along
+                      axes 0, 1, 2
         affinity_mode: ``deepem`` or ``banis``.
 
     Returns:
-        The affinities. Shape: (num_channels, z, y, x).
+        Affinities of shape ``(num_channels, A0, A1, A2)``.
     """
     mode = normalize_affinity_mode(affinity_mode)
     parsed_offsets = resolve_affinity_offsets_from_kwargs(

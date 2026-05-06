@@ -41,6 +41,8 @@ class ConnectomicsDataModule(pl.LightningDataModule):
             TTA passes can be partitioned inside inference rather than by sampler.
         distributed_window_sharding: Keep the single test sample replicated on all
             ranks so lazy sliding-window patches can be partitioned inside inference.
+        distributed_chunked_raw_sharding: Keep the single test sample replicated on all
+            ranks so raw prediction chunks can be partitioned inside inference.
         **dataset_kwargs: Extra args (iter_num, sample_size, etc.).
     """
 
@@ -60,6 +62,7 @@ class ConnectomicsDataModule(pl.LightningDataModule):
         seed: int = 0,
         distributed_tta_sharding: bool = False,
         distributed_window_sharding: bool = False,
+        distributed_chunked_raw_sharding: bool = False,
         **dataset_kwargs,
     ):
         super().__init__()
@@ -78,6 +81,7 @@ class ConnectomicsDataModule(pl.LightningDataModule):
         self.seed = seed
         self.distributed_tta_sharding = distributed_tta_sharding
         self.distributed_window_sharding = distributed_window_sharding
+        self.distributed_chunked_raw_sharding = distributed_chunked_raw_sharding
         self.dataset_kwargs = dataset_kwargs
 
         self.train_dataset = None
@@ -135,14 +139,19 @@ class ConnectomicsDataModule(pl.LightningDataModule):
     def test_dataloader(self):
         sampler = None
         if self.test_dataset is not None and _distributed_world_size() > 1:
-            if self.distributed_tta_sharding or self.distributed_window_sharding:
+            replicated_single_volume = (
+                self.distributed_tta_sharding
+                or self.distributed_window_sharding
+                or self.distributed_chunked_raw_sharding
+            )
+            if replicated_single_volume:
                 if len(self.test_dataset) != 1:
                     raise RuntimeError(
                         "Distributed single-volume inference sharding requires exactly one "
                         "test sample replicated on every rank. Disable "
                         "inference.test_time_augmentation.distributed_sharding and "
-                        "inference.sliding_window.distributed_sharding for multi-volume "
-                        "test datasets."
+                        "inference.sliding_window.distributed_sharding, or use single-GPU "
+                        "chunked raw inference, for multi-volume test datasets."
                     )
             else:
                 sampler = DistributedEvaluationSampler(self.test_dataset)

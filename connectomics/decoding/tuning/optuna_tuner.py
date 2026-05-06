@@ -148,13 +148,55 @@ def _resolve_existing_best_params_file(
     return None
 
 
+def _expand_glob_or_list(value: Any) -> list[str]:
+    """Expand a path / glob pattern / list-of-paths into a sorted list."""
+    from glob import glob
+
+    if isinstance(value, list):
+        return list(value)
+    text = str(value)
+    if "*" in text or "?" in text:
+        matches = sorted(glob(text))
+        if not matches:
+            raise FileNotFoundError(f"No files found matching pattern: {text}")
+        return matches
+    return [text]
+
+
 def _compute_segmentation_metric(
     segmentation: np.ndarray,
-    ground_truth: np.ndarray,
+    ground_truth: np.ndarray | None,
     mask: np.ndarray | None,
     metric_name: str,
+    *,
+    nerl_context: Optional[Dict[str, Any]] = None,
+    volume_index: int = 0,
 ) -> tuple[float, float, float]:
-    """Compute a segmentation metric triplet for one volume."""
+    """Compute a metric triplet for one volume.
+
+    Returns ``(metric, precision, recall)`` for ``adapted_rand`` and
+    ``(nerl, pred_erl, gt_erl)`` for ``nerl``.
+    """
+    if metric_name == "nerl":
+        if nerl_context is None:
+            raise ValueError("metric='nerl' requires a nerl_context payload entry")
+        from connectomics.evaluation.nerl import compute_nerl_score
+
+        skeletons = nerl_context["skeleton_values"]
+        skeleton_value = skeletons[volume_index] if skeletons else None
+        masks = nerl_context.get("skeleton_mask_values")
+        skeleton_mask_value = masks[volume_index] if masks else None
+        return compute_nerl_score(
+            segmentation,
+            skeleton_value,
+            evaluation_cfg=nerl_context.get("evaluation_cfg"),
+            skeleton_mask_value=skeleton_mask_value,
+            resolution=nerl_context.get("resolution"),
+        )
+
+    if ground_truth is None:
+        raise ValueError(f"metric={metric_name!r} requires ground-truth labels")
+
     gt_masked = ground_truth * mask if mask is not None else ground_truth
     seg_masked = segmentation * mask if mask is not None else segmentation
 
@@ -169,11 +211,12 @@ def _evaluate_standard_trial_payload(
     *,
     decoder_fn,
     predictions_list: list[np.ndarray],
-    ground_truth_list: list[np.ndarray],
+    ground_truth_list: list[np.ndarray] | None,
     mask_list: list[np.ndarray] | None,
     decoding_params: Dict[str, Any],
     postproc_params: Optional[Dict[str, Any]],
     metric_name: str,
+    nerl_context: Optional[Dict[str, Any]] = None,
 ) -> Dict[str, Any]:
     """Run one standard decoding trial and return aggregate metrics."""
     metric_values: list[float] = []
@@ -181,7 +224,7 @@ def _evaluate_standard_trial_payload(
     recall_values: list[float] = []
 
     for vol_idx, pred_vol in enumerate(predictions_list):
-        gt_vol = ground_truth_list[vol_idx]
+        gt_vol = ground_truth_list[vol_idx] if ground_truth_list else None
         mask_vol = mask_list[vol_idx] if mask_list else None
 
         try:
@@ -206,6 +249,8 @@ def _evaluate_standard_trial_payload(
                 gt_vol,
                 mask_vol,
                 metric_name,
+                nerl_context=nerl_context,
+                volume_index=vol_idx,
             )
         except Exception as exc:
             raise RuntimeError(
@@ -232,13 +277,14 @@ def _evaluate_batch_trial_payload(
     *,
     decoder_fn,
     predictions_list: list[np.ndarray],
-    ground_truth_list: list[np.ndarray],
+    ground_truth_list: list[np.ndarray] | None,
     mask_list: list[np.ndarray] | None,
     batch_params: Dict[str, Any],
     postproc_params: Optional[Dict[str, Any]],
     metric_name: str,
     direction: str,
     candidate_values: list[float],
+    nerl_context: Optional[Dict[str, Any]] = None,
 ) -> Dict[str, Any]:
     """Run one batch-decoder trial and return aggregate metrics."""
     candidate_are: Dict[float, List[float]] = {val: [] for val in candidate_values}
@@ -246,7 +292,7 @@ def _evaluate_batch_trial_payload(
     candidate_rec: Dict[float, List[float]] = {val: [] for val in candidate_values}
 
     for vol_idx, pred_vol in enumerate(predictions_list):
-        gt_vol = ground_truth_list[vol_idx]
+        gt_vol = ground_truth_list[vol_idx] if ground_truth_list else None
         mask_vol = mask_list[vol_idx] if mask_list else None
 
         try:
@@ -275,6 +321,8 @@ def _evaluate_batch_trial_payload(
                 gt_vol,
                 mask_vol,
                 metric_name,
+                nerl_context=nerl_context,
+                volume_index=vol_idx,
             )
             candidate_are[candidate].append(are_val)
             candidate_prec[candidate].append(prec_val)
@@ -462,6 +510,8 @@ class OptunaDecodingTuner:
         if self.param_space_cfg is None:
             raise ValueError("Missing tune.parameter_space configuration for Optuna tuning")
 
+        self._nerl_context = self._build_nerl_context()
+
         # Resolve decoder function from registry
         self.decoder_fn_name = getattr(
             self.param_space_cfg.decoding,
@@ -531,6 +581,52 @@ class OptunaDecodingTuner:
                     len(self._waterz_all_thresholds),
                     self._waterz_all_thresholds,
                 )
+
+    def _build_nerl_context(self) -> Optional[Dict[str, Any]]:
+        """Resolve skeleton/evaluation_cfg required for NERL-driven tuning."""
+        opt_cfg = getattr(self.tune_cfg, "optimization", None)
+        single_obj = (
+            opt_cfg.get("single_objective") if isinstance(opt_cfg, dict) else getattr(opt_cfg, "single_objective", None)
+        ) if opt_cfg is not None else None
+        metric = (
+            single_obj.get("metric") if isinstance(single_obj, dict) else getattr(single_obj, "metric", None)
+        ) if single_obj is not None else None
+        if metric != "nerl":
+            return None
+
+        tune_data_cfg = getattr(self.tune_cfg, "data", None)
+        tune_val_cfg = getattr(tune_data_cfg, "val", None)
+        skeleton_value = getattr(tune_val_cfg, "skeleton", None)
+        if skeleton_value is None:
+            test_data_cfg = getattr(getattr(self.cfg, "data", None), "test", None)
+            skeleton_value = getattr(test_data_cfg, "skeleton", None)
+        if skeleton_value is None:
+            raise ValueError(
+                "metric='nerl' requires tune.data.val.skeleton (or data.test.skeleton) "
+                "to point at a skeleton .pkl / ERLGraph .npz."
+            )
+        skeleton_values = _expand_glob_or_list(skeleton_value)
+
+        skeleton_mask_value = getattr(tune_val_cfg, "skeleton_mask", None)
+        if skeleton_mask_value is None:
+            test_data_cfg = getattr(getattr(self.cfg, "data", None), "test", None)
+            skeleton_mask_value = getattr(test_data_cfg, "skeleton_mask", None)
+        skeleton_mask_values = (
+            _expand_glob_or_list(skeleton_mask_value) if skeleton_mask_value is not None else None
+        )
+
+        evaluation_cfg = getattr(self.cfg, "evaluation", None)
+        resolution = getattr(tune_val_cfg, "resolution", None)
+        if resolution is None:
+            test_data_cfg = getattr(getattr(self.cfg, "data", None), "test", None)
+            resolution = getattr(test_data_cfg, "resolution", None)
+
+        return {
+            "skeleton_values": skeleton_values,
+            "skeleton_mask_values": skeleton_mask_values,
+            "evaluation_cfg": evaluation_cfg,
+            "resolution": resolution,
+        }
 
     def _get_trial_timeout_seconds(self) -> float | None:
         """Return the configured per-trial timeout in seconds, if enabled."""
@@ -844,6 +940,7 @@ class OptunaDecodingTuner:
             "batch_params": batch_params,
             "postproc_params": postproc_params,
             "metric_name": metric_name,
+            "nerl_context": self._nerl_context,
             "direction": direction,
             "candidate_values": self._abiss_all_merge_thresholds,
         }
@@ -931,6 +1028,7 @@ class OptunaDecodingTuner:
             "batch_params": batch_params,
             "postproc_params": postproc_params,
             "metric_name": metric_name,
+            "nerl_context": self._nerl_context,
             "direction": direction,
             "candidate_values": self._waterz_all_thresholds,
         }
@@ -1035,6 +1133,7 @@ class OptunaDecodingTuner:
             "decoding_params": decoding_params,
             "postproc_params": postproc_params,
             "metric_name": metric_name,
+            "nerl_context": self._nerl_context,
         }
         try:
             result = self._execute_evaluation("standard", payload)

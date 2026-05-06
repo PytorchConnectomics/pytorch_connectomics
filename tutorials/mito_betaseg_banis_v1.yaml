@@ -70,7 +70,7 @@ default:
           bg_value: -1.0
     dataloader:
       patch_size: [128, 128, 128]
-      batch_size: 2
+      batch_size: 4
       cached_sampling_foreground_threshold: 0.05
       cached_sampling_max_attempts: 50
       cached_sampling_sample_nonzero_mask: true
@@ -127,7 +127,6 @@ default:
       channel_activations:
       - {channels: "0:6", activation: sigmoid}
       - {channels: "6:7", activation: tanh}
-    crop_pad: [64, 64, 64, 64, 64, 64]
     save_prediction:
       enabled: true
 
@@ -205,5 +204,3 @@ test:
       label_aux: datasets/betaSeg/high_c2_mito_skeleton.h5
       label_aux_type: skeleton
       resolution: [16, 16, 16]
-    data_transform:
-      pad_size: [64, 64, 64]

@@ -61,6 +61,13 @@ def maybe_limit_test_devices(cfg: Config, datamodule: Any) -> bool:
         getattr(sliding_cfg, "lazy_load", False)
         and getattr(sliding_cfg, "distributed_sharding", False)
     )
+    inference_cfg = getattr(cfg, "inference", None)
+    chunking_cfg = getattr(inference_cfg, "chunking", None)
+    distributed_chunked_raw = bool(
+        str(getattr(inference_cfg, "strategy", "whole_volume")).lower() == "chunked"
+        and getattr(chunking_cfg, "enabled", False)
+        and str(getattr(chunking_cfg, "output_mode", "decoded")).lower() == "raw_prediction"
+    )
     if distributed_tta_sharding and test_volume_count != 1:
         print(
             "  WARNING: Disabling distributed TTA sharding for multi-volume test datasets. "
@@ -99,6 +106,13 @@ def maybe_limit_test_devices(cfg: Config, datamodule: Any) -> bool:
             "  INFO: Keeping multi-GPU test enabled for single-volume lazy "
             "sliding-window sharding "
             f"({requested_devices} device(s))."
+        )
+        return False
+
+    if distributed_chunked_raw and test_volume_count == 1:
+        print(
+            "  INFO: Keeping multi-GPU test enabled for single-volume chunked raw "
+            f"inference ({requested_devices} device(s))."
         )
         return False
 

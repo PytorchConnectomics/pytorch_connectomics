@@ -178,6 +178,55 @@ def format_decode_tag(cfg: Config) -> str:
     return "_" + "__".join(parts)
 
 
+def format_decoding_output_suffix_tag(cfg: Config) -> str:
+    """Return an optional user-controlled suffix for decoded output filenames."""
+    decoding_cfg = getattr(cfg, "decoding", None)
+    if decoding_cfg is None:
+        return ""
+    suffix = getattr(decoding_cfg, "output_suffix", "")
+    if suffix is None:
+        return ""
+
+    safe_suffix = re.sub(r"[^A-Za-z0-9._=-]+", "-", str(suffix).strip())
+    safe_suffix = re.sub(r"-{2,}", "-", safe_suffix).strip("-_")
+    if not safe_suffix:
+        return ""
+    return f"_{safe_suffix}"
+
+
+def _is_chunked_raw_prediction(cfg: Config) -> bool:
+    inference_cfg = getattr(cfg, "inference", None)
+    if inference_cfg is None:
+        return False
+    strategy = str(getattr(inference_cfg, "strategy", "whole_volume")).lower()
+    chunking_cfg = getattr(inference_cfg, "chunking", None)
+    if chunking_cfg is None:
+        return False
+    enabled = strategy == "chunked" or bool(getattr(chunking_cfg, "enabled", False))
+    output_mode = str(getattr(chunking_cfg, "output_mode", "decoded")).lower()
+    return enabled and output_mode == "raw_prediction"
+
+
+def format_chunked_raw_cache_tag(cfg: Config) -> str:
+    """Return a cache tag that separates chunked raw outputs from whole-volume raw caches."""
+    if not _is_chunked_raw_prediction(cfg):
+        return ""
+
+    chunking_cfg = cfg.inference.chunking
+    parts = ["chunked-raw"]
+    chunk_size = getattr(chunking_cfg, "chunk_size", None)
+    if chunk_size:
+        parts.append("cs" + "x".join(str(int(v)) for v in chunk_size))
+    halo = getattr(chunking_cfg, "halo", None)
+    if halo and any(int(v) != 0 for v in halo):
+        parts.append("halo" + "x".join(str(int(v)) for v in halo))
+
+    suffix = format_decoding_output_suffix_tag(cfg).lstrip("_")
+    if suffix:
+        parts.append(suffix)
+    return "_" + "_".join(parts)
+
+
 def format_checkpoint_name_tag(checkpoint_path: Optional[str | Path]) -> str:
     """Return a compact checkpoint tag for prediction cache filenames."""
     if checkpoint_path is None:
@@ -191,6 +240,11 @@ def format_checkpoint_name_tag(checkpoint_path: Optional[str | Path]) -> str:
     if not stem:
         return ""
 
+    # PyTorch Lightning's default auto_insert_metric_name=True turns a template
+    # like "step-{step:08d}" into "step-step=00050000". Artifact names should
+    # use the canonical metric assignment token regardless of that filename
+    # template duplication.
+    stem = re.sub(r"(^|-)([A-Za-z_][A-Za-z0-9_]*)-\2=", r"\1\2=", stem)
     safe_stem = re.sub(r"[^A-Za-z0-9._=-]+", "-", stem).strip("-")
     if not safe_stem:
         return ""
@@ -210,8 +264,9 @@ def final_prediction_output_tag(
     ch = format_select_channel_tag(cfg)
     ckpt = format_checkpoint_name_tag(checkpoint_path)
     dec = format_decode_tag(cfg)
+    suffix = format_decoding_output_suffix_tag(cfg)
     label = "_decoding" if dec else "_prediction"
-    return f"x{n}{head}{ch}{ckpt}{label}{dec}"
+    return f"x{n}{head}{ch}{ckpt}{label}{dec}{suffix}"
 
 
 def final_prediction_decoded_glob_suffix(
@@ -220,14 +275,16 @@ def final_prediction_decoded_glob_suffix(
     checkpoint_path: Optional[str | Path] = None,
     output_head: Optional[str] = None,
 ) -> str:
-    """Return a glob suffix matching any decoded final prediction file for
-    the same TTA/head/channel/checkpoint combination, regardless of the
-    decoding-step kwargs portion of the filename."""
+    """Return a glob suffix matching decoded final files for the same
+    TTA/head/channel/checkpoint AND decode kwargs, plus optional trailing
+    crop-variant tails (e.g. ``_crop1``)."""
     n = compute_tta_passes(cfg, spatial_dims=spatial_dims)
     head = format_output_head_tag(cfg, output_head=output_head)
     ch = format_select_channel_tag(cfg)
     ckpt = format_checkpoint_name_tag(checkpoint_path)
-    return f"_x{n}{head}{ch}{ckpt}_decoding*.h5"
+    dec = format_decode_tag(cfg)
+    suffix = format_decoding_output_suffix_tag(cfg)
+    return f"_x{n}{head}{ch}{ckpt}_decoding{dec}*{suffix}.h5"
 
 
 def tta_cache_suffix(
@@ -242,6 +299,53 @@ def tta_cache_suffix(
     ch = format_select_channel_tag(cfg)
     ckpt = format_checkpoint_name_tag(checkpoint_path)
     return f"_tta_x{n}{head}{ch}{ckpt}_prediction.h5"
+
+
+def intermediate_prediction_cache_suffix(
+    cfg: Config,
+    spatial_dims: int = 3,
+    checkpoint_path: Optional[str | Path] = None,
+    output_head: Optional[str] = None,
+) -> str:
+    """Return the raw/intermediate prediction cache suffix for the active inference strategy."""
+    suffix = tta_cache_suffix(
+        cfg,
+        spatial_dims=spatial_dims,
+        checkpoint_path=checkpoint_path,
+        output_head=output_head,
+    )
+    strategy_tag = format_chunked_raw_cache_tag(cfg)
+    if not strategy_tag:
+        return suffix
+    return suffix.removesuffix("_prediction.h5") + f"{strategy_tag}_prediction.h5"
+
+
+def intermediate_prediction_cache_suffix_candidates(
+    cfg: Config,
+    spatial_dims: int = 3,
+    checkpoint_path: Optional[str | Path] = None,
+    output_head: Optional[str] = None,
+) -> list[str]:
+    """Return raw/intermediate cache suffix candidates for the active inference strategy."""
+    candidates = [
+        intermediate_prediction_cache_suffix(
+            cfg,
+            spatial_dims=spatial_dims,
+            checkpoint_path=checkpoint_path,
+            output_head=output_head,
+        )
+    ]
+    if checkpoint_path is not None:
+        return candidates
+
+    legacy_suffix = intermediate_prediction_cache_suffix(
+        cfg,
+        spatial_dims=spatial_dims,
+        output_head=output_head,
+    )
+    if legacy_suffix not in candidates:
+        candidates.append(legacy_suffix)
+    return candidates
 
 
 def tta_cache_suffix_candidates(
@@ -348,17 +452,22 @@ def resolve_prediction_cache_suffix(
     configured_suffix = getattr(save_prediction_cfg, "cache_suffix", "_x1_prediction.h5")
 
     if mode in ("tune", "tune-test"):
-        return tta_cache_suffix(cfg, checkpoint_path=checkpoint_path, output_head=output_head)
+        return intermediate_prediction_cache_suffix(
+            cfg, checkpoint_path=checkpoint_path, output_head=output_head
+        )
 
     if mode == "test":
         tta_cfg = getattr(inference_cfg, "test_time_augmentation", None)
         if tta_cfg is not None and bool(getattr(tta_cfg, "enabled", False)):
-            return tta_cache_suffix(cfg, checkpoint_path=checkpoint_path, output_head=output_head)
+            return intermediate_prediction_cache_suffix(
+                cfg, checkpoint_path=checkpoint_path, output_head=output_head
+            )
 
     head = format_output_head_tag(cfg, output_head=output_head)
+    ch = format_select_channel_tag(cfg)
     ckpt = format_checkpoint_name_tag(checkpoint_path)
-    if head or ckpt:
-        return f"_x1{head}{ckpt}_prediction.h5"
+    if head or ch or ckpt:
+        return f"_x1{head}{ch}{ckpt}_prediction.h5"
     return configured_suffix
 
 
@@ -372,11 +481,15 @@ def is_tta_cache_suffix(suffix: str | None) -> bool:
 __all__ = [
     "compute_tta_passes",
     "format_checkpoint_name_tag",
+    "format_chunked_raw_cache_tag",
     "format_decode_tag",
+    "format_decoding_output_suffix_tag",
     "format_output_head_tag",
     "format_select_channel_tag",
     "final_prediction_decoded_glob_suffix",
     "final_prediction_output_tag",
+    "intermediate_prediction_cache_suffix",
+    "intermediate_prediction_cache_suffix_candidates",
     "is_tta_cache_suffix",
     "resolve_prediction_cache_suffix",
     "tta_cache_suffix",

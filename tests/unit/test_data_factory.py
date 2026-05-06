@@ -84,6 +84,28 @@ def test_create_datamodule_test_lazy_load_keeps_paths_unloaded(tmp_path):
     assert batch["image"] == [str(image_path)]
 
 
+def test_create_datamodule_chunked_raw_replicates_single_test_volume_without_window_sharding(
+    tmp_path,
+):
+    image_path = tmp_path / "lazy_input.h5"
+    image_path.touch()
+
+    cfg = Config()
+    cfg.inference.strategy = "chunked"
+    cfg.inference.chunking.enabled = True
+    cfg.inference.chunking.output_mode = "raw_prediction"
+    cfg.inference.sliding_window.lazy_load = True
+    cfg.inference.sliding_window.distributed_sharding = False
+    cfg.data.test.image = str(image_path)
+    cfg.system.num_workers = 0
+    cfg.data.dataloader.batch_size = 1
+
+    datamodule = create_datamodule(cfg, mode="test")
+
+    assert datamodule.distributed_chunked_raw_sharding is True
+    assert datamodule.distributed_window_sharding is False
+
+
 def test_build_val_transforms_auto_includes_label_aux_keys():
     cfg = Config()
     cfg.data.train.label_aux = "train_aux.h5"

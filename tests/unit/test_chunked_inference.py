@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import json
+
 import numpy as np
 import pytest
 import torch
@@ -12,7 +14,12 @@ from connectomics.inference.chunk_grid import (
     resolve_global_prediction_crop,
     validate_chunked_output_format,
 )
-from connectomics.inference.chunked import run_chunked_prediction_inference
+from connectomics.inference.chunked import (
+    _per_chunk_dir,
+    _run_chunked_prediction_per_rank,
+    _stitch_chunk_prediction_files,
+    run_chunked_prediction_inference,
+)
 from connectomics.inference.lazy import lazy_predict_volume
 
 
@@ -147,3 +154,111 @@ def test_chunked_raw_prediction_matches_full_lazy_prediction(tmp_path):
 
     assert raw.shape == tuple(full.shape[1:])
     assert np.allclose(raw, full.numpy()[0], atol=1.0e-5)
+
+
+def test_stitch_chunk_prediction_files_streams_per_chunk_artifacts(tmp_path):
+    cfg = Config()
+    cfg.inference.strategy = "chunked"
+    cfg.inference.chunking.enabled = True
+    cfg.inference.chunking.output_mode = "raw_prediction"
+    final_shape = (5, 6, 7)
+    chunk_shape = (2, 4, 7)
+    chunks = build_chunk_grid(final_shape, chunk_shape)
+    expected = np.arange(2 * np.prod(final_shape), dtype=np.float32).reshape((2, *final_shape))
+    chunks_dir = tmp_path / "prediction.h5.chunks"
+    chunks_dir.mkdir()
+
+    from connectomics.inference.artifact import write_prediction_artifact
+
+    for chunk in chunks:
+        write_prediction_artifact(
+            chunks_dir / f"chunk_{chunk.key}.h5",
+            expected[(slice(None), *chunk.slices)],
+            compression=None,
+        )
+
+    output_path = tmp_path / "prediction.h5"
+    _stitch_chunk_prediction_files(
+        cfg=cfg,
+        image_path="image.h5",
+        output_path=output_path,
+        chunks_dir=chunks_dir,
+        chunks=chunks,
+        input_shape=final_shape,
+        final_shape=final_shape,
+        crop_pad=((0, 0), (0, 0), (0, 0)),
+        chunk_shape=chunk_shape,
+        halo=(0, 0, 0),
+        compression=None,
+        h5_spatial_chunks=(1, 1, 1),
+        checkpoint_path="checkpoint.ckpt",
+        requested_head=None,
+    )
+
+    import h5py
+
+    with h5py.File(output_path, "r") as handle:
+        stitched = np.asarray(handle["main"])
+        assert handle["main"].attrs["chunk_stitch_source"] == str(chunks_dir)
+        assert handle["main"].attrs["checkpoint_path"] == "checkpoint.ckpt"
+
+    assert np.array_equal(stitched, expected)
+
+
+def test_per_rank_chunk_artifacts_use_chunk_local_shape_metadata(tmp_path):
+    cfg = Config()
+    cfg.data.image_transform.normalize = "none"
+    cfg.data.dataloader.patch_size = [3, 3, 3]
+    cfg.data.dataloader.batch_size = 2
+    cfg.model.output_size = [3, 3, 3]
+    cfg.inference.strategy = "chunked"
+    cfg.inference.sliding_window.window_size = [3, 3, 3]
+    cfg.inference.sliding_window.overlap = 0.5
+    cfg.inference.sliding_window.blending = "constant"
+    cfg.inference.sliding_window.snap_to_edge = True
+    cfg.inference.chunking.enabled = True
+    cfg.inference.chunking.output_mode = "raw_prediction"
+    cfg.inference.chunking.chunk_size = [2, 4, 7]
+    cfg.inference.chunking.halo = [0, 0, 0]
+
+    image_path = tmp_path / "chunked_rank_input.h5"
+    output_path = tmp_path / "chunked_rank_prediction.h5"
+    volume = np.arange(5 * 6 * 7, dtype=np.float32).reshape(5, 6, 7)
+    write_hdf5(str(image_path), volume, dataset="main")
+
+    final_shape = volume.shape
+    chunk_shape = tuple(cfg.inference.chunking.chunk_size)
+    chunks = build_chunk_grid(final_shape, chunk_shape)
+    _run_chunked_prediction_per_rank(
+        cfg=cfg,
+        forward_fn=_patch_mean_forward,
+        image_path=str(image_path),
+        output_path=output_path,
+        checkpoint_path="checkpoint.ckpt",
+        mask_path=None,
+        mask_align_to_image=False,
+        requested_head=None,
+        device="cpu",
+        chunks=chunks,
+        input_shape=final_shape,
+        final_shape=final_shape,
+        crop_pad=((0, 0), (0, 0), (0, 0)),
+        crop_before=(0, 0, 0),
+        chunk_shape=chunk_shape,
+        halo=(0, 0, 0),
+        compression=None,
+        h5_spatial_chunks=(2, 2, 2),
+        rank=0,
+        world_size=1,
+    )
+
+    import h5py
+
+    first_chunk = chunks[0]
+    with h5py.File(_per_chunk_dir(output_path) / f"chunk_{first_chunk.key}.h5", "r") as handle:
+        attrs = dict(handle["main"].attrs)
+
+    assert json.loads(attrs["input_shape"]) == [2, 4, 7]
+    assert json.loads(attrs["final_shape"]) == [2, 4, 7]
+    assert json.loads(attrs["chunk_shape"]) == [2, 4, 7]
+    assert "crop_pad" not in attrs

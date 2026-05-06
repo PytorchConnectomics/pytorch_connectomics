@@ -20,13 +20,70 @@ from ..decoding.tuning.optuna_tuner import (
     _resolve_existing_best_params_file,
     _resolve_tuning_prediction_files,
 )
-from .output_naming import tta_cache_suffix, tuning_best_params_filename_candidates
+from .output_naming import (
+    intermediate_prediction_cache_suffix,
+    tuning_best_params_filename_candidates,
+)
 
 logger = logging.getLogger(__name__)
 
 
+def _unique_prediction_dirs(*paths: str | Path | None) -> list[Path]:
+    result: list[Path] = []
+    seen: set[str] = set()
+    for path in paths:
+        if not path:
+            continue
+        resolved = Path(path)
+        key = str(resolved)
+        if key in seen:
+            continue
+        seen.add(key)
+        result.append(resolved)
+    return result
+
+
+def _resolve_first_complete_tuning_prediction_cache(
+    cfg,
+    prediction_dirs: list[Path],
+    cache_suffix: str,
+) -> tuple[Path | None, list[str], list[str]]:
+    expected_from_first_dir: list[str] = []
+    for idx, predictions_dir in enumerate(prediction_dirs):
+        pred_files, expected_pred_files = _resolve_tuning_prediction_files(
+            cfg,
+            predictions_dir,
+            cache_suffix,
+        )
+        if idx == 0:
+            expected_from_first_dir = expected_pred_files
+        if len(pred_files) == len(expected_pred_files):
+            return predictions_dir, pred_files, expected_pred_files
+    return None, [], expected_from_first_dir
+
+
+def _resolve_tuning_output_dir(cfg, fallback_prediction_dir: str | Path | None) -> Path:
+    tune_output_cfg = getattr(getattr(cfg, "tune", None), "output", None)
+    configured_output_dir = getattr(tune_output_cfg, "output_dir", None)
+    if configured_output_dir:
+        return Path(configured_output_dir)
+    configured_prediction_dir = getattr(tune_output_cfg, "output_pred", None)
+    if configured_prediction_dir:
+        return Path(configured_prediction_dir).parent
+    if fallback_prediction_dir:
+        return Path(fallback_prediction_dir).parent / "tuning"
+    raise ValueError(
+        "Missing tuning output directory. Set tune.output.output_dir "
+        "or inference.save_prediction.output_path."
+    )
+
+
 @contextmanager
-def temporary_tuning_inference_overrides(*cfg_objects: Any, checkpoint_path: str | None = None):
+def temporary_tuning_inference_overrides(
+    *cfg_objects: Any,
+    checkpoint_path: str | None = None,
+    prediction_output_path: str | Path | None = None,
+):
     """Force the pre-Optuna inference pass to cache raw predictions only."""
     inference_cfgs = []
     seen_inference_cfgs: set[int] = set()
@@ -57,7 +114,7 @@ def temporary_tuning_inference_overrides(*cfg_objects: Any, checkpoint_path: str
         raise ValueError("Missing runtime cfg.inference configuration required for tuning")
 
     suffix = (
-        tta_cache_suffix(primary_cfg, checkpoint_path=checkpoint_path)
+        intermediate_prediction_cache_suffix(primary_cfg, checkpoint_path=checkpoint_path)
         if primary_cfg is not None
         else "_tta_x1_prediction.h5"
     )
@@ -77,11 +134,18 @@ def temporary_tuning_inference_overrides(*cfg_objects: Any, checkpoint_path: str
                     "cache_suffix",
                     "_x1_prediction.h5",
                 ),
+                "save_prediction_output_path": getattr(
+                    save_prediction_cfg,
+                    "output_path",
+                    None,
+                ),
             }
         )
 
         save_prediction_cfg.enabled = True
         save_prediction_cfg.cache_suffix = suffix
+        if prediction_output_path is not None:
+            save_prediction_cfg.output_path = str(prediction_output_path)
 
     decoding_backups = [
         (owner, deepcopy(getattr(owner, "decoding", None))) for owner in decoding_owners
@@ -105,6 +169,7 @@ def temporary_tuning_inference_overrides(*cfg_objects: Any, checkpoint_path: str
             save_prediction_cfg = inference_cfg.save_prediction
             save_prediction_cfg.enabled = backup["save_prediction_enabled"]
             save_prediction_cfg.cache_suffix = backup["save_prediction_cache_suffix"]
+            save_prediction_cfg.output_path = backup["save_prediction_output_path"]
 
         for owner, decoding in decoding_backups:
             owner.decoding = decoding
@@ -113,23 +178,44 @@ def temporary_tuning_inference_overrides(*cfg_objects: Any, checkpoint_path: str
             evaluation_cfg.enabled = evaluation_enabled
 
 
-def run_tuning(model, trainer, cfg, checkpoint_path=None):
-    """Run Optuna-based parameter tuning for instance segmentation decoding."""
+def run_tuning(model, trainer_or_factory, cfg, checkpoint_path=None):
+    """Run Optuna-based parameter tuning for instance segmentation decoding.
+
+    ``trainer_or_factory`` may be a Lightning Trainer or a zero-arg callable
+    that builds one on demand. The trainer is only constructed when the
+    intermediate prediction cache misses and inference must be re-run.
+    """
     if not OPTUNA_AVAILABLE:
         raise ImportError(
             "Optuna is required for parameter tuning. Install with: pip install optuna"
         )
 
-    output_pred_dir = getattr(cfg.inference.save_prediction, "output_path", None)
-    if not output_pred_dir:
-        raise ValueError("Missing inference.save_prediction.output_path in configuration")
-    output_dir = Path(output_pred_dir).parent / "tuning"
+    tune_output_cfg = getattr(getattr(cfg, "tune", None), "output", None)
+    primary_output_pred_dir = getattr(tune_output_cfg, "output_pred", None)
+    fallback_output_pred_dir = getattr(cfg.inference.save_prediction, "output_path", None)
+    if not primary_output_pred_dir:
+        primary_output_pred_dir = fallback_output_pred_dir
+    if not primary_output_pred_dir:
+        raise ValueError(
+            "Missing tuning prediction output path. Set tune.output.output_pred "
+            "or inference.save_prediction.output_path."
+        )
+    predictions_dir = Path(primary_output_pred_dir)
+    inference_write_dir = Path(fallback_output_pred_dir or primary_output_pred_dir)
+    prediction_search_dirs = _unique_prediction_dirs(
+        predictions_dir,
+        inference_write_dir,
+    )
+    inference_write_dir.mkdir(parents=True, exist_ok=True)
+
+    output_dir = _resolve_tuning_output_dir(cfg, fallback_output_pred_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
 
     cfg.tune.output.output_dir = str(output_dir)
+    cfg.tune.output.output_pred = str(predictions_dir)
     prediction_checkpoint_path = (
-        getattr(model, "_prediction_checkpoint_path", None) or checkpoint_path
-    )
+        getattr(model, "_prediction_checkpoint_path", None) if model is not None else None
+    ) or checkpoint_path
     best_params_file = _resolve_best_params_file(
         cfg,
         output_dir,
@@ -158,41 +244,52 @@ def run_tuning(model, trainer, cfg, checkpoint_path=None):
     logger.info("[1/4] Running inference on tuning dataset...")
 
     tune_data = cfg.data
-    cache_suffix = tta_cache_suffix(cfg, checkpoint_path=prediction_checkpoint_path)
+    cache_suffix = intermediate_prediction_cache_suffix(
+        cfg, checkpoint_path=prediction_checkpoint_path
+    )
 
-    output_pred_dir = cfg.inference.save_prediction.output_path
-    predictions_dir = Path(output_pred_dir)
-    pred_files, expected_pred_files = _resolve_tuning_prediction_files(
+    cache_dir, pred_files, expected_pred_files = _resolve_first_complete_tuning_prediction_cache(
         cfg,
-        predictions_dir,
+        prediction_search_dirs,
         cache_suffix,
     )
 
-    if len(pred_files) == len(expected_pred_files):
+    if cache_dir is not None:
+        cache_kind = (
+            "tuning prediction cache"
+            if str(cache_dir) == str(predictions_dir)
+            else "inference result cache"
+        )
         logger.info(
-            "Found %d existing tuning prediction file(s) for the current tune dataset in %s "
-            "- skipping inference.",
+            "Found %d existing %s file(s) for the current tune dataset in %s - "
+            "skipping inference.",
             len(pred_files),
-            predictions_dir,
+            cache_kind,
+            cache_dir,
         )
     else:
-        if pred_files:
-            logger.info(
-                "Found %d/%d matching tuning prediction file(s); rerunning inference for missing "
-                "volumes instead of mixing partial caches.",
-                len(pred_files),
-                len(expected_pred_files),
+        logger.info(
+            "No complete tuning prediction cache found in %s.",
+            ", ".join(str(path) for path in prediction_search_dirs),
+        )
+
+        if model is None:
+            raise RuntimeError(
+                "Cached intermediate predictions are missing from both the tuning "
+                "prediction directory and fallback inference results directory, but the "
+                "Lightning module was not built. This indicates a bug in the dispatch "
+                "logic — the cache miss should have triggered model construction."
             )
-        else:
-            logger.info("No matching tuning prediction files found in %s.", predictions_dir)
 
         datamodule = create_datamodule(cfg, mode="tune")
 
         logger.info("Using intermediate-only cache generation (decoding/evaluation disabled)")
+        trainer = trainer_or_factory() if callable(trainer_or_factory) else trainer_or_factory
         with temporary_tuning_inference_overrides(
             cfg,
             getattr(model, "cfg", None),
             checkpoint_path=prediction_checkpoint_path,
+            prediction_output_path=inference_write_dir,
         ) as cache_suffix:
             model._tune_mode = True
             try:
@@ -203,28 +300,42 @@ def run_tuning(model, trainer, cfg, checkpoint_path=None):
         logger.info("Test completed. Results: %s", results)
         pred_files, expected_pred_files = _resolve_tuning_prediction_files(
             cfg,
-            predictions_dir,
+            inference_write_dir,
             cache_suffix,
         )
+        cache_dir = inference_write_dir
 
-    logger.info("[2/4] Loading predictions from saved files...")
+    logger.info("[2/4] Loading predictions...")
 
     if len(pred_files) != len(expected_pred_files):
         missing = sorted(set(expected_pred_files) - set(pred_files))
+        active_prediction_dir = cache_dir or predictions_dir
         raise FileNotFoundError(
             "Missing tuning prediction files for the current tune dataset.\n"
-            f"Found: {len(pred_files)}/{len(expected_pred_files)} in {predictions_dir}\n"
+            f"Found: {len(pred_files)}/{len(expected_pred_files)} in {active_prediction_dir}\n"
             f"Missing: {missing}"
         )
 
     logger.info("Found %d prediction file(s)", len(pred_files))
 
+    in_memory_cache = (
+        getattr(model, "_tune_predictions_cache", None) if model is not None else None
+    ) or {}
+
     all_predictions = []
     for pred_file in pred_files:
-        pred = read_volume(pred_file)
+        cache_key = Path(pred_file).name.removesuffix(cache_suffix)
+        cached = in_memory_cache.get(cache_key)
+        if cached is not None:
+            pred = cached
+            source = "in-memory"
+        else:
+            pred = read_volume(pred_file)
+            source = "disk"
         logger.info(
-            "Loaded %s: shape %s, dtype %s, range [%.4f, %.4f]",
+            "Loaded %s (%s): shape %s, dtype %s, range [%.4f, %.4f]",
             Path(pred_file).name,
+            source,
             pred.shape,
             pred.dtype,
             pred.min(),
@@ -239,12 +350,11 @@ def run_tuning(model, trainer, cfg, checkpoint_path=None):
         total_slices,
     )
 
-    logger.info("[3/4] Loading ground truth labels...")
     tune_label_pattern = getattr(getattr(tune_data, "val", None), "label", None)
-
     if tune_label_pattern is None:
         raise ValueError("Missing data.val.label in configuration")
 
+    logger.info("[3/4] Loading ground truth labels for tuning from %s ...", tune_label_pattern)
     label_files = _expand_tuning_paths(tune_label_pattern, field_name="data.val.label")
 
     if not label_files:
@@ -324,13 +434,14 @@ def run_tuning(model, trainer, cfg, checkpoint_path=None):
     if best_params_file.exists():
         _print_best_params_yaml(best_params_file)
 
+    if model is not None and hasattr(model, "_tune_predictions_cache"):
+        model._tune_predictions_cache.clear()
+
 
 def load_and_apply_best_params(cfg, checkpoint_path=None):
     """Load tuned parameters and apply them to the merged runtime decoding config."""
     output_pred_dir = getattr(cfg.inference.save_prediction, "output_path", None)
-    if not output_pred_dir:
-        raise ValueError("Missing inference.save_prediction.output_path in configuration")
-    output_dir = Path(output_pred_dir).parent / "tuning"
+    output_dir = _resolve_tuning_output_dir(cfg, output_pred_dir)
     best_params_file = _resolve_existing_best_params_file(
         cfg,
         output_dir,
@@ -396,8 +507,41 @@ def load_and_apply_best_params(cfg, checkpoint_path=None):
     return cfg
 
 
+def try_skip_tune_with_cached_results(cfg, checkpoint_path: str | None) -> bool:
+    """Short-circuit ``--mode tune`` when ``best_params.yaml`` already exists.
+
+    The presence of a previously-saved final-decoded segmentation file is NOT a
+    valid skip signal: that file reflects whatever decoding parameters were used
+    in a prior test run, not the result of an Optuna sweep. Only an existing
+    best-params YAML proves tuning has converged.
+    """
+    save_pred_cfg = getattr(cfg.inference, "save_prediction", None)
+    if save_pred_cfg is None:
+        return False
+    output_pred_dir = getattr(save_pred_cfg, "output_path", None)
+
+    try:
+        tuning_dir = _resolve_tuning_output_dir(cfg, output_pred_dir)
+    except ValueError:
+        return False
+    best_params_file = _resolve_existing_best_params_file(
+        cfg, tuning_dir, checkpoint_path=checkpoint_path
+    )
+    if best_params_file is None:
+        return False
+
+    logger.info(
+        "SKIPPING PARAMETER TUNING: best parameters already exist at %s. "
+        "Delete this file to re-run tuning.",
+        best_params_file,
+    )
+    _print_best_params_yaml(best_params_file)
+    return True
+
+
 __all__ = [
     "load_and_apply_best_params",
     "run_tuning",
     "temporary_tuning_inference_overrides",
+    "try_skip_tune_with_cached_results",
 ]

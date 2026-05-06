@@ -48,11 +48,16 @@ from .inference import (
     ChunkStitchingConfig,
     InferenceConfig,
     InferenceDataConfig,
+    InferenceExecutionConfig,
     InferenceMemoryCleanupConfig,
+    OutputArrayConfig,
+    OutputArrayPartitionConfig,
+    OutputArrayStoreConfig,
     PredictionTransformConfig,
     SavePredictionConfig,
     SlidingWindowConfig,
     TestTimeAugmentationConfig,
+    sync_inference_runtime_aliases,
 )
 from .model import LossConfig, ModelArchConfig, ModelConfig, ModelHeadConfig
 from .model_mednext import MedNeXtConfig
@@ -129,6 +134,10 @@ __all__ = [
     # Inference configuration
     "InferenceConfig",
     "InferenceDataConfig",
+    "InferenceExecutionConfig",
+    "OutputArrayConfig",
+    "OutputArrayPartitionConfig",
+    "OutputArrayStoreConfig",
     "SlidingWindowConfig",
     "ChunkingConfig",
     "ChunkStitchingConfig",
@@ -136,6 +145,7 @@ __all__ = [
     "PredictionTransformConfig",
     "SavePredictionConfig",
     "InferenceMemoryCleanupConfig",
+    "sync_inference_runtime_aliases",
     "DecodingConfig",
     "DecodingTuningConfig",
     "DecodingTuningParameterSpaceConfig",

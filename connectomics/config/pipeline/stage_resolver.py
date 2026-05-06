@@ -12,7 +12,7 @@ from typing import Any, Callable, Dict
 
 from omegaconf import DictConfig, ListConfig, OmegaConf
 
-from ..schema import Config
+from ..schema import Config, sync_inference_runtime_aliases
 from ..schema.root import MergeContext
 from .dict_utils import as_plain_dict
 
@@ -352,5 +352,6 @@ def resolve_default_profiles(cfg: Config, mode: str = "train") -> Config:
         has_explicit_path,
     )
     _merge_runtime_sections(cfg, default_overrides, stage_overrides)
+    sync_inference_runtime_aliases(cfg)
 
     return cfg
