@@ -35,6 +35,7 @@ from .registry import (
     register_builtin_decoders,
     register_decoder,
 )
+from .output import write_decoded_outputs
 from .stage import (
     DecodingStageResult,
     apply_decoding_postprocessing,
@@ -83,6 +84,7 @@ __all__ = [
     "DecodingStageResult",
     "apply_decoding_postprocessing",
     "run_decoding_stage",
+    "write_decoded_outputs",
     # Segmentation decoding
     "decode_instance_binary_contour_distance",
     "decode_affinity_cc",
