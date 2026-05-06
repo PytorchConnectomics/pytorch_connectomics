@@ -150,9 +150,7 @@ def test_cross_section_validation_accepts_tta_full_span_selector_for_single_chan
     """TTA should accept Python-style full-span selectors for binary outputs."""
     cfg = Config()
     cfg.model.out_channels = 1
-    cfg.inference.test_time_augmentation.channel_activations = [
-        {"channels": ":", "activation": "sigmoid"}
-    ]
+    cfg.inference.model.channel_activations = [{"channels": ":", "activation": "sigmoid"}]
 
     validate_runtime_coherence(cfg)
 
@@ -161,13 +159,11 @@ def test_cross_section_validation_rejects_invalid_tta_channel_range():
     """TTA channel selectors must still fit model.out_channels."""
     cfg = Config()
     cfg.model.out_channels = 1
-    cfg.inference.test_time_augmentation.channel_activations = [
-        {"channels": "1:", "activation": "sigmoid"}
-    ]
+    cfg.inference.model.channel_activations = [{"channels": "1:", "activation": "sigmoid"}]
 
     with pytest.raises(
         ValueError,
-        match="inference.test_time_augmentation.channel_activations\\[0\\]\\.channels",
+        match="inference.model.channel_activations\\[0\\]\\.channels",
     ):
         validate_runtime_coherence(cfg)
 
@@ -371,13 +367,13 @@ def test_shared_profile_resolution():
     cfg.test.system.num_workers = 4
     cfg.default.data.image_transform.normalize = "none"
     cfg.default.inference.test_time_augmentation.enabled = False
-    cfg.default.inference.sliding_window.overlap = 0.25
+    cfg.default.inference.window.overlap = 0.25
     cfg._merge_context.explicit_field_paths = {
         "default.system.num_gpus",
         "default.system.num_workers",
         "default.data.image_transform.normalize",
         "default.inference.test_time_augmentation.enabled",
-        "default.inference.sliding_window.overlap",
+        "default.inference.window.overlap",
         "train.data.dataloader.batch_size",
         "test.system.num_workers",
         "test.data.dataloader.batch_size",
@@ -661,15 +657,15 @@ def test_runtime_merge_and_inference_profile_for_test_mode():
     cfg.default.model.arch.type = "mednext"
     cfg.test.model.monai.dropout = 0.15
     cfg.default.inference.test_time_augmentation.enabled = False
-    cfg.default.inference.sliding_window.overlap = 0.3
+    cfg.default.inference.window.overlap = 0.3
     test_inference_cfg = getattr(cfg.test, "inference")
-    test_inference_cfg.sliding_window.overlap = 0.4
+    test_inference_cfg.window.overlap = 0.4
     cfg._merge_context.explicit_field_paths = {
         "default.model.arch.type",
         "test.model.monai.dropout",
         "default.inference.test_time_augmentation.enabled",
-        "default.inference.sliding_window.overlap",
-        "test.inference.sliding_window.overlap",
+        "default.inference.window.overlap",
+        "test.inference.window.overlap",
     }
 
     cfg = resolve_default_profiles(cfg, mode="test")
@@ -731,8 +727,8 @@ def test_enabled_flags_require_explicit_opt_in(tmp_path):
 inference:
   test_time_augmentation:
     flip_axes: all
-  save_prediction:
-    output_formats: [h5]
+  save_inference:
+    backend: h5
 evaluation:
   metrics: [dice]
 monitor:
@@ -760,28 +756,28 @@ optimization:
     print("[OK]Enabled flags require explicit opt-in")
 
 
-def test_canonical_inference_output_array_drives_runtime_aliases(tmp_path):
+def test_canonical_inference_sections_drive_runtime_aliases(tmp_path):
     config_yaml = tmp_path / "canonical_inference.yaml"
     config_yaml.write_text("""
 inference:
+  model:
+    select_channel: [0, 1, 2]
+    output_dtype: float16
   execution:
     strategy: chunked
   window:
     lazy_load: true
     window_size: [144, 144, 144]
-  output_array:
-    select_channel: [0, 1, 2]
-    accumulator_dtype: float16
-    partition:
-      enabled: true
-      output_mode: raw_prediction
-      size: [1008, 1008, 1350]
-      halo: [0, 0, 0]
-      axes: all
-    store:
-      enabled: true
-      backend: h5
-      dtype: float16
+  chunking:
+    enabled: true
+    output_mode: raw_prediction
+    chunk_size: [1008, 1008, 1350]
+    halo: [0, 0, 0]
+    axes: all
+  save_inference:
+    enabled: true
+    backend: h5
+    dtype: float16
 decoding:
   enabled: false
 """.strip())
@@ -791,7 +787,7 @@ decoding:
     assert cfg.inference.strategy == "chunked"
     assert cfg.inference.sliding_window.lazy_load is True
     assert cfg.inference.sliding_window.window_size == [144, 144, 144]
-    assert cfg.inference.sliding_window.accumulator_dtype == "float16"
+    assert cfg.inference.model.output_dtype == "float16"
     assert cfg.inference.select_channel == [0, 1, 2]
     assert cfg.inference.chunking.enabled is True
     assert cfg.inference.chunking.output_mode == "raw_prediction"
@@ -802,34 +798,48 @@ decoding:
     assert cfg.decoding.enabled is False
 
 
-def test_default_canonical_inference_sections_do_not_overwrite_existing_runtime_fields(tmp_path):
-    config_yaml = tmp_path / "existing_inference.yaml"
+@pytest.mark.parametrize(
+    ("alias_yaml", "canonical_path"),
+    [
+        ("head: aff", "inference.model.head"),
+        ("select_channel: [0, 1, 2]", "inference.model.select_channel"),
+        ("crop_pad: [1, 1, 1]", "inference.model.crop_pad"),
+        ("strategy: chunked", "inference.execution.strategy"),
+        ("do_eval: false", "inference.execution.do_eval"),
+        ("sliding_window:\n    lazy_load: true", "inference.window"),
+        ("save_prediction:\n    enabled: true", "inference.save_inference"),
+    ],
+)
+def test_inference_runtime_aliases_are_rejected_in_yaml(tmp_path, alias_yaml, canonical_path):
+    config_yaml = tmp_path / "runtime_alias_inference.yaml"
     config_yaml.write_text("""
 inference:
-  strategy: chunked
-  sliding_window:
-    lazy_load: true
-    overlap: 0.25
-  chunking:
-    enabled: true
-    output_mode: raw_prediction
-    chunk_size: [64, 128, 128]
-    halo: [4, 8, 8]
-  save_prediction:
-    enabled: true
-    output_formats: [h5]
-    storage_dtype: float16
+  {alias_yaml}
+""".format(alias_yaml=alias_yaml).strip())
+
+    with pytest.raises(ValueError, match=canonical_path.replace(".", r"\.")):
+        load_config(config_yaml)
+
+
+def test_stage_inference_runtime_aliases_are_rejected_in_yaml(tmp_path):
+    config_yaml = tmp_path / "stage_runtime_alias_inference.yaml"
+    config_yaml.write_text("""
+default:
+  inference:
+    save_prediction:
+      enabled: true
 """.strip())
 
-    cfg = load_config(config_yaml)
+    with pytest.raises(ValueError, match=r"default\.inference\.save_inference"):
+        load_config(config_yaml)
 
-    assert cfg.inference.strategy == "chunked"
-    assert cfg.inference.sliding_window.lazy_load is True
-    assert cfg.inference.sliding_window.overlap == 0.25
-    assert cfg.inference.chunking.chunk_size == [64, 128, 128]
-    assert cfg.inference.chunking.halo == [4, 8, 8]
-    assert cfg.inference.save_prediction.enabled is True
-    assert cfg.inference.save_prediction.storage_dtype == "float16"
+
+def test_inference_runtime_aliases_are_rejected_in_dict_and_cli():
+    with pytest.raises(ValueError, match=r"inference\.save_inference"):
+        from_dict({"inference": {"save_prediction": {"enabled": True}}})
+
+    with pytest.raises(ValueError, match=r"inference\.window"):
+        update_from_cli(Config(), ["inference.sliding_window.lazy_load=true"])
 
 
 def test_removed_shared_stage_is_rejected(tmp_path):

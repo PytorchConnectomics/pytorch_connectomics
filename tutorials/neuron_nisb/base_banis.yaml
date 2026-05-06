@@ -30,8 +30,11 @@ default:
     dataloader:
       profile: lazy
       patch_size: [128, 128, 128]
-      # BANIS reads small_size + long_range, computes affinities, then crops back to small_size.
-      target_context: [10, 10, 10]
+      # BANIS reads small_size + long_range on the trailing side, computes
+      # affinities, then crops back to small_size. Canonical form is
+      # [pre0, pre1, pre2, post0, post1, post2]; legacy length-3
+      # [a, b, c] is treated as trailing-only.
+      target_context: [0, 0, 0, 10, 10, 10]
       batch_size: 4
       use_cache: false
       use_preloaded_cache_train: false
@@ -55,52 +58,48 @@ default:
     augmentation:
       profile: aug_banis
   inference:
-    strategy: whole_volume
-    # Keep only short-range affinities. In XYZ mode the first three channels
-    # already match decoder axis0, axis1, axis2 order.
-    select_channel: [0, 1, 2]
-    sliding_window:
+    model:
+      # Keep only short-range affinities. In XYZ mode the first three channels
+      # already match decoder axis0, axis1, axis2 order.
+      select_channel: [0, 1, 2]
+      # Use float16 for the large value accumulator during lazy sliding-window
+      # accumulation. Blending weights stay fp32; final storage is float16.
+      output_dtype: float16
+      channel_activations:
+      - {channels: ":", activation: scale_sigmoid}
+    execution:
+      strategy: whole_volume
+    window:
       lazy_load: true
       distributed_sharding: true
       distributed_reduce_chunk_mb: 128
       keep_input_on_cpu: true
       sw_device: cuda
       output_device: cpu
-      # 144 = 128 (training patch) + 16 voxels of real surrounding-volume
-      # context per axis. Default gaussian blending de-emphasizes the outer
-      # band, so the central 128³ region carries the signal while the model
-      # still sees extra context for boundary affinities. Cleaner than
-      # per-window target_context oversample + central crop. Must remain a
-      # multiple of MedNeXt's 16-voxel stride.
-      window_size: [144, 144, 144]
+      # Match lib/banis patched_inference: 128^3 windows, 50% overlap,
+      # snap-to-edge grid, and distance-transform blending.
+      window_size: [128, 128, 128]
       sw_batch_size: 2
       overlap: 0.5
-      blending: gaussian
-      sigma_scale: 0.25
-      padding_mode: replicate
+      blending: distance_transform
       # BANIS-style boundary handling: snap last window to image_size-roi_size
       # (no whole-volume padding). Honored by the lazy sliding-window path
       # (connectomics/inference/lazy.py) when lazy_load=true.
       snap_to_edge: true
-      # Halve the in-memory value-accumulator footprint during sliding-window
-      # accumulation. Weight accumulator stays float32. Acceptable here
-      # because predictions are bounded probabilities ([0,1]) and final
-      # storage is already float16.
-      accumulator_dtype: float16
+    save_inference:
+      enabled: true
+      backend: h5
+      dtype: float16
     test_time_augmentation:
       enabled: false
-      channel_activations:
-      - {channels: ":", activation: scale_sigmoid}
-    save_prediction:
-      enabled: true
-      storage_dtype: float16
-      output_formats: [h5]
 
   decoding:
+    enabled: true
     steps:
     - name: decode_affinity_cc
       kwargs:
         threshold: 0.65
+        #backend: cupy
         backend: numba
         # affinity_mode=banis stores edges at the source voxel.
         edge_offset: 0
@@ -223,7 +222,7 @@ tune:
     decoding:
       function_name: decode_affinity_cc
       defaults:
-        backend: numba
+        backend: cupy
         edge_offset: 0
       parameters:
         threshold:

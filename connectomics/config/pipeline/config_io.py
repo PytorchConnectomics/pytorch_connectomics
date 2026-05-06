@@ -16,6 +16,7 @@ from typing import Any, Dict, List, Optional, Tuple, Union
 
 from omegaconf import DictConfig, ListConfig, OmegaConf
 
+from ...utils.model_outputs import get_inference_model_value
 from ..schema import Config, sync_inference_runtime_aliases
 from ..schema.root import MergeContext
 from .profile_engine import _YAML_PROFILE_ENGINE
@@ -109,6 +110,64 @@ def _raise_unconsumed_keys(yaml_conf: DictConfig) -> None:
             )
 
 
+_INFERENCE_RUNTIME_ALIAS_REPLACEMENTS = {
+    "head": "model.head",
+    "select_channel": "model.select_channel",
+    "crop_pad": "model.crop_pad",
+    "strategy": "execution.strategy",
+    "do_eval": "execution.do_eval",
+    "sliding_window": "window",
+    "save_prediction": "save_inference",
+}
+
+_INFERENCE_CONFIG_ROOTS = ("inference", "default.inference", "test.inference", "tune.inference")
+
+
+def _path_is_or_descendant(path: str, prefix: str) -> bool:
+    return path == prefix or path.startswith(f"{prefix}.")
+
+
+def _reject_inference_runtime_alias_paths(explicit_field_paths: set[str]) -> None:
+    """Reject YAML use of internal inference runtime aliases.
+
+    The aliases stay on the dataclass because runtime code still consumes one
+    synced representation after load. User-facing YAML must configure the
+    canonical sections so duplicate old/new paths cannot silently disagree.
+    """
+    for root in _INFERENCE_CONFIG_ROOTS:
+        for alias, canonical_tail in _INFERENCE_RUNTIME_ALIAS_REPLACEMENTS.items():
+            alias_path = f"{root}.{alias}"
+            if any(_path_is_or_descendant(path, alias_path) for path in explicit_field_paths):
+                raise ValueError(
+                    f"`{alias_path}` is an internal runtime alias and cannot be set in YAML. "
+                    f"Use `{root}.{canonical_tail}` instead."
+                )
+
+
+def _reject_inference_runtime_alias_config(conf: DictConfig) -> None:
+    _reject_inference_runtime_alias_paths(_collect_explicit_paths(conf))
+
+
+def _delete_plain_path(conf: Any, dotted_path: str) -> None:
+    parent_path, key = dotted_path.rsplit(".", 1)
+    parent: Any = conf
+    for part in parent_path.split("."):
+        if not isinstance(parent, dict):
+            return
+        parent = parent.get(part)
+    if isinstance(parent, dict) and key in parent:
+        del parent[key]
+
+
+def _canonical_config_for_serialization(cfg: Config) -> DictConfig:
+    """Return a YAML-facing config without internal inference runtime aliases."""
+    conf = OmegaConf.to_container(OmegaConf.structured(cfg), resolve=False)
+    for root in _INFERENCE_CONFIG_ROOTS:
+        for alias in _INFERENCE_RUNTIME_ALIAS_REPLACEMENTS:
+            _delete_plain_path(conf, f"{root}.{alias}")
+    return OmegaConf.create(conf)
+
+
 # ---------------------------------------------------------------------------
 # Config loading
 # ---------------------------------------------------------------------------
@@ -131,6 +190,7 @@ def load_config(config_path: Union[str, Path]) -> Config:
     _raise_unconsumed_keys(yaml_conf)
 
     explicit_field_paths = _collect_explicit_paths(yaml_conf)
+    _reject_inference_runtime_alias_paths(explicit_field_paths)
 
     # Merge with structured config defaults
     default_conf = OmegaConf.structured(Config)
@@ -164,7 +224,7 @@ def save_config(cfg: Config, save_path: Union[str, Path]) -> None:
     save_path = Path(save_path)
     save_path.parent.mkdir(parents=True, exist_ok=True)
 
-    omega_conf = OmegaConf.structured(cfg)
+    omega_conf = _canonical_config_for_serialization(cfg)
     OmegaConf.save(omega_conf, save_path)
 
 
@@ -184,10 +244,12 @@ def merge_configs(base_cfg: Config, *override_cfgs: Union[Config, Dict, str, Pat
     for override_cfg in override_cfgs:
         if isinstance(override_cfg, (str, Path)):
             override_omega = OmegaConf.load(override_cfg)
+            _reject_inference_runtime_alias_config(override_omega)
         elif isinstance(override_cfg, Config):
             override_omega = OmegaConf.structured(override_cfg)
         elif isinstance(override_cfg, (dict, DictConfig)):
             override_omega = OmegaConf.create(override_cfg)
+            _reject_inference_runtime_alias_config(override_omega)
         else:
             raise TypeError(f"Unsupported config type: {type(override_cfg)}")
 
@@ -213,6 +275,7 @@ def update_from_cli(cfg: Config, overrides: List[str]) -> Config:
     """
     cfg_omega = OmegaConf.structured(cfg)
     cli_conf = OmegaConf.from_dotlist(overrides)
+    _reject_inference_runtime_alias_config(cli_conf)
     merged = OmegaConf.merge(cfg_omega, cli_conf)
     cfg = OmegaConf.to_object(merged)
     sync_inference_runtime_aliases(cfg)
@@ -235,7 +298,7 @@ def to_dict(cfg: Config, resolve: bool = True) -> Dict[str, Any]:
     Returns:
         Dictionary representation
     """
-    omega_conf = OmegaConf.structured(cfg)
+    omega_conf = _canonical_config_for_serialization(cfg)
     return OmegaConf.to_container(omega_conf, resolve=resolve)
 
 
@@ -251,6 +314,7 @@ def from_dict(d: Dict[str, Any]) -> Config:
     """
     default_conf = OmegaConf.structured(Config)
     dict_conf = OmegaConf.create(d)
+    _reject_inference_runtime_alias_config(dict_conf)
     merged = OmegaConf.merge(default_conf, dict_conf)
     cfg = OmegaConf.to_object(merged)
     sync_inference_runtime_aliases(cfg)
@@ -265,7 +329,7 @@ def print_config(cfg: Config, resolve: bool = True) -> None:
         cfg: Config to print
         resolve: Whether to resolve variable interpolations
     """
-    omega_conf = OmegaConf.structured(cfg)
+    omega_conf = _canonical_config_for_serialization(cfg)
     print(OmegaConf.to_yaml(omega_conf, resolve=resolve))
 
 
@@ -293,7 +357,7 @@ def validate_config(cfg: Config) -> None:
         raise ValueError("model.out_channels must be positive")
     model_heads = getattr(cfg.model, "heads", None) or {}
     inference_cfg = getattr(cfg, "inference", None)
-    inference_head = getattr(inference_cfg, "head", None) if inference_cfg is not None else None
+    inference_head = get_inference_model_value(cfg, "head", None)
     images_cfg = getattr(getattr(getattr(cfg, "monitor", None), "logging", None), "images", None)
     visualization_head = getattr(images_cfg, "head", None) if images_cfg is not None else None
     if model_heads:
@@ -342,7 +406,7 @@ def validate_config(cfg: Config) -> None:
             missing = [h for h in inference_head_names if h not in model_heads]
             if missing:
                 raise ValueError(
-                    f"inference.head={inference_head_names} references unknown heads {missing}; "
+                    f"inference.model.head={inference_head_names} references unknown heads {missing}; "
                     f"available: {sorted(model_heads.keys())}."
                 )
         if (
@@ -355,7 +419,7 @@ def validate_config(cfg: Config) -> None:
                 f"model.heads ({sorted(model_heads.keys())})."
             )
     elif inference_head is not None:
-        raise ValueError("inference.head requires model.heads to be configured")
+        raise ValueError("inference.model.head requires model.heads to be configured")
     elif visualization_head is not None:
         raise ValueError("monitor.logging.images.head requires model.heads to be configured")
     if len(cfg.model.input_size) not in [2, 3]:
@@ -375,10 +439,12 @@ def validate_config(cfg: Config) -> None:
         )
     target_context = getattr(cfg.data.dataloader, "target_context", None) or []
     if target_context:
-        if len(target_context) != len(cfg.data.dataloader.patch_size):
+        spatial_ndim = len(cfg.data.dataloader.patch_size)
+        if len(target_context) not in (spatial_ndim, 2 * spatial_ndim):
             raise ValueError(
-                "data.dataloader.target_context must match patch_size dimensionality "
-                f"({len(target_context)} vs {len(cfg.data.dataloader.patch_size)})"
+                "data.dataloader.target_context must have length "
+                f"{spatial_ndim} (trailing-only) or {2 * spatial_ndim} (pre+post), "
+                f"got {len(target_context)}"
             )
         if any(int(v) < 0 for v in target_context):
             raise ValueError("data.dataloader.target_context values must be non-negative")

@@ -99,9 +99,13 @@ default:
         contrast_prob: 0.5
         contrast_range: [0.9, 1.1]
   inference:
+    model:
+      channel_activations:
+      - {channels: "0:2", activation: sigmoid}
+      - {channels: "2:3", activation: tanh}
     system:
       num_workers: 1
-    sliding_window:
+    window:
       window_size:
       - 32
       - 128
@@ -112,9 +116,6 @@ default:
       padding_mode: reflect
     test_time_augmentation:
       enabled: true
-      channel_activations:
-      - {channels: "0:2", activation: sigmoid}
-      - {channels: "2:3", activation: tanh}
 
   decoding:
     steps:

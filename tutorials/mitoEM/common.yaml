@@ -81,8 +81,11 @@ default:
         enabled: true
         spatial_axes: [0, 1, 2]
   inference:
-    head: aff_r1
-    sliding_window:
+    model:
+      head: aff_r1
+      channel_activations:
+      - {channels: ":", activation: sigmoid}
+    window:
       window_size: [32, 256, 256]
       sw_batch_size: 1
       overlap: 0.5
@@ -94,11 +97,9 @@ default:
       enabled: false
       flip_axes: all
       ensemble_mode: min
-      channel_activations:
-      - {channels: ":", activation: sigmoid}
-    save_prediction:
+    save_inference:
       enabled: true
-      storage_dtype: float32
+      dtype: float32
 
   decoding:
     steps:

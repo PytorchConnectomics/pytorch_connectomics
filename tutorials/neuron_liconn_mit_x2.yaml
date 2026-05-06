@@ -198,8 +198,12 @@ default:
 
   inference:
     # Only use short-range affinities for TTA ensemble (channels 0-2)
-    select_channel: [0, 1, 2]
-    sliding_window:
+    model:
+      select_channel: [0, 1, 2]
+      # crop_pad + selected-channel affinity_crop[(1,0),(1,0),(1,0)] = pad_size [16,64,64]:
+      #   Z: 15+1=16, 16+0=16 | Y: 63+1=64, 64+0=64 | X: 63+1=64, 64+0=64
+      crop_pad: [15, 16, 63, 64, 63, 64]
+    window:
       lazy_load: true
       # Large overlap for smooth predictions on big volumes
       overlap: 0.5
@@ -211,9 +215,6 @@ default:
       enabled: false
       ensemble_mode: min          # min-pooling is conservative for affinities
       # activation_profile is not in TestTimeAugmentationConfig — removed
-    # crop_pad + selected-channel affinity_crop[(1,0),(1,0),(1,0)] = pad_size [16,64,64]:
-    #   Z: 15+1=16, 16+0=16 | Y: 63+1=64, 64+0=64 | X: 63+1=64, 64+0=64
-    crop_pad: [15, 16, 63, 64, 63, 64]
   decoding:
     steps:
     - name: decode_abiss
@@ -378,7 +379,7 @@ test:
       resolution: [25, 18, 18]  # same voxel size as training data
 
   inference:
-    sliding_window:
+    window:
       # Lazy 2x upsampling: _resolve_scale_factors() computes resize/patch_size
       # = [64,256,256]/[32,128,128] = [2.0,2.0,2.0].  LazyVolumeAccessor reads
       # ~[32,128,128] raw patches from disk and upsamples them 2x via grid_sample,
@@ -391,12 +392,12 @@ test:
       sw_device: cuda
       output_device: cpu
 
-    save_prediction:
+    save_inference:
       enabled: true
-      output_formats: [h5]
+      backend: h5
       output_path: /orcd/scratch/bcs/002/mansour/train_liconn/outputs/results_axons/
       # float32 for full precision affinities; use float16 to halve storage
-      storage_dtype: float32
+      dtype: float32
       compression: gzip
 
   evaluation:

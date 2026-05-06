@@ -241,7 +241,7 @@ class _CroppingModule:
     def __init__(self):
         self.device = torch.device("cpu")
         self.cfg = Config()
-        self.cfg.inference.crop_pad = [1, 2, 3]
+        self.cfg.inference.model.crop_pad = [1, 2, 3]
         self.inference_manager = _DummyInferenceManager()
 
     def _get_runtime_inference_config(self):
@@ -415,7 +415,7 @@ def test_run_test_step_crops_affinity_predictions_and_labels(monkeypatch):
 class _SelectedBanisAffinityCroppingModule(_AffinityCroppingModule):
     def __init__(self):
         super().__init__()
-        self.cfg.inference.select_channel = [2, 1, 0]
+        self.cfg.inference.model.select_channel = [2, 1, 0]
         self.cfg.data.label_transform.targets = [
             {
                 "name": "affinity",
@@ -485,7 +485,7 @@ class _AsymmetricPostprocessAffinityModule:
     def __init__(self):
         self.device = torch.device("cpu")
         self.cfg = Config()
-        self.cfg.inference.crop_pad = [0, 1, 1, 2, 1, 2]
+        self.cfg.inference.model.crop_pad = [0, 1, 1, 2, 1, 2]
         self.cfg.data.label_transform.targets = [
             {
                 "name": "affinity",
@@ -569,7 +569,7 @@ class _SavedPredictionPathCroppingModule:
     def __init__(self):
         self.device = torch.device("cpu")
         self.cfg = Config()
-        self.cfg.inference.crop_pad = [1, 2, 3]
+        self.cfg.inference.model.crop_pad = [1, 2, 3]
         self.cfg.decoding.input_prediction_path = "/tmp/raw_affinity_prediction.h5"
         self.inference_manager = _DummyInferenceManager()
 
@@ -803,7 +803,7 @@ class _SaveAllHeadsModule:
             "affinity": {"out_channels": 2, "num_blocks": 0},
             "sdt": {"out_channels": 1, "num_blocks": 0},
         }
-        self.cfg.inference.head = "affinity"
+        self.cfg.inference.model.head = "affinity"
         self.cfg.inference.save_prediction.enabled = True
         self.cfg.inference.save_prediction.save_all_heads = True
         self.inference_manager = _SaveAllHeadsInferenceManager()

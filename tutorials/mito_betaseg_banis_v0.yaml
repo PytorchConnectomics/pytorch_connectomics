@@ -88,14 +88,20 @@ default:
     augmentation:
       profile: aug_banis
   inference:
-    strategy: whole_volume
-    # Merge both heads so TTA channel_activations and select_channel address
-    # the concatenated 7-channel output (aff[0:6] + sdt[6:7]).
-    head: "aff,sdt"
-    # Keep only short-range affinities for connected-component decoding (matches
-    # BANIS-mito full_cube_inference default prediction_channels=3).
-    select_channel: [0, 1, 2]
-    sliding_window:
+    execution:
+      strategy: whole_volume
+    model:
+      # Merge both heads so TTA channel_activations and select_channel address
+      # the concatenated 7-channel output (aff[0:6] + sdt[6:7]).
+      head: "aff,sdt"
+      # Keep only short-range affinities for connected-component decoding (matches
+      # BANIS-mito full_cube_inference default prediction_channels=3).
+      select_channel: [0, 1, 2]
+      channel_activations:
+      # BANIS: scale_sigmoid(x) = sigmoid(0.2 * x) on aff; tanh on SDT.
+      - {channels: "0:6", activation: scale_sigmoid}
+      - {channels: "6:7", activation: tanh}
+    window:
       window_size: [128, 128, 128]
       sw_batch_size: 1
       overlap: 0.5
@@ -105,14 +111,10 @@ default:
       keep_input_on_cpu: false
     test_time_augmentation:
       enabled: false
-      channel_activations:
-      # BANIS: scale_sigmoid(x) = sigmoid(0.2 * x) on aff; tanh on SDT.
-      - {channels: "0:6", activation: scale_sigmoid}
-      - {channels: "6:7", activation: tanh}
-    save_prediction:
+    save_inference:
       enabled: true
-      storage_dtype: float16
-      output_formats: [h5]
+      dtype: float16
+      backend: h5
 
   decoding:
     steps:

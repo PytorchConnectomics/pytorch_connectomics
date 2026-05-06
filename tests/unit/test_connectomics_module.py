@@ -92,7 +92,7 @@ def test_training_step_uses_deep_supervision_branch():
 
     branch_called = {"used": False}
 
-    def fake_deep_supervision(outputs, labels, stage="train", mask=None):
+    def fake_deep_supervision(outputs, labels, stage="train", mask=None, target_mask=None):
         branch_called["used"] = True
         return torch.tensor(0.0, requires_grad=True), {"train_loss_total": 0.0}
 
@@ -155,7 +155,7 @@ def test_validation_step_logs_metrics_for_named_head_output():
         "affinity": {"out_channels": 2, "num_blocks": 0},
         "sdt": {"out_channels": 1, "num_blocks": 0},
     }
-    cfg.inference.head = "sdt"
+    cfg.inference.model.head = "sdt"
     cfg.evaluation.enabled = True
     cfg.evaluation.metrics = ["accuracy"]
     cfg.model.loss.losses = [
@@ -203,7 +203,7 @@ def test_validation_step_uses_head_target_slice_mapping_without_loss_target_slic
         "affinity": {"out_channels": 2, "num_blocks": 0, "target_slice": "0:2"},
         "sdt": {"out_channels": 1, "num_blocks": 0, "target_slice": "2:3"},
     }
-    cfg.inference.head = "sdt"
+    cfg.inference.model.head = "sdt"
     cfg.evaluation.enabled = True
     cfg.evaluation.metrics = ["accuracy"]
     cfg.model.loss.losses = [
@@ -436,7 +436,7 @@ def test_resolve_test_output_config_includes_output_head_in_tta_suffix(monkeypat
         "affinity": {"out_channels": 2, "num_blocks": 0},
         "sdt": {"out_channels": 1, "num_blocks": 0},
     }
-    cfg.inference.head = "sdt"
+    cfg.inference.model.head = "sdt"
     cfg.inference.save_prediction.output_path = "/tmp/test_results"
     cfg.inference.save_prediction.cache_suffix = "_x1_prediction.h5"
     cfg.inference.test_time_augmentation.enabled = True
@@ -479,7 +479,7 @@ def test_save_metrics_to_file_uses_runtime_inference_output_path(tmp_path):
 def test_save_metrics_to_file_matches_final_prediction_tag(tmp_path):
     cfg = _base_config()
     cfg.inference.save_prediction.output_path = str(tmp_path)
-    cfg.inference.select_channel = [0, 1, 2]
+    cfg.inference.model.select_channel = [0, 1, 2]
     cfg.decoding.steps = [
         {
             "name": "decode_waterz",
@@ -568,7 +568,7 @@ def test_load_cached_predictions_prefers_final_prediction_for_checkpoint_tagged_
 def test_load_cached_predictions_does_not_pick_unrelated_tta_channel_cache(tmp_path, monkeypatch):
     cfg = _base_config()
     cfg.inference.save_prediction.cache_suffix = "_x1_ch4-6-9_prediction_waterz_t0.4.h5"
-    cfg.inference.select_channel = [4, 6, 9]
+    cfg.inference.model.select_channel = [4, 6, 9]
     module = ConnectomicsModule(cfg, model=SimpleModel())
     unrelated_tta_file = tmp_path / "sample_tta_x1_ch0-1-2_prediction.h5"
     unrelated_tta_file.write_text("stub")

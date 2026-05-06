@@ -37,8 +37,8 @@ def test_run_prediction_inference_writes_raw_artifact_metadata(tmp_path):
     cfg = Config()
     cfg.model.arch.type = "mednext"
     cfg.data.data_transform.val_transpose = [2, 1, 0]
-    cfg.inference.save_prediction.storage_dtype = "float16"
-    cfg.inference.select_channel = [0, 1]
+    cfg.inference.save_inference.dtype = "float16"
+    cfg.inference.model.select_channel = [0, 1]
 
     prediction = torch.arange(1 * 2 * 3 * 4 * 5, dtype=torch.float32).reshape(1, 2, 3, 4, 5)
     manager = _DummyManager(cfg, prediction)

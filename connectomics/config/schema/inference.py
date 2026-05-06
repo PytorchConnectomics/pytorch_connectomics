@@ -19,6 +19,38 @@ class InferenceDataConfig:
 
 
 @dataclass
+class InferenceModelConfig:
+    """Post-forward model-output policy for inference.
+
+    These fields run after model forward and before save/decode: output-head
+    selection, channel activation/selection, output dtype, and context crop.
+    Architecture knobs stay under top-level ``model``.
+    """
+
+    # Named output head selection for multi-head models. When unset, falls back
+    # to model.primary_head or the sole configured head.
+    head: Optional[str] = None
+    # Optional channel selector applied after channel activations and before
+    # decoding/saving. Accepts None, int, slice string, or explicit index list.
+    select_channel: Optional[Any] = None
+    # Optional prediction/accumulator dtype used after model forward. Defaults
+    # to float32 in runtime helpers. Storage dtype is configured separately in
+    # save_inference.dtype.
+    output_dtype: Optional[str] = None
+    # Activation profile selector expanded by the YAML profile engine.
+    activation_profile: Optional[str] = None
+    # Optional channel-wise activation overrides applied before aggregation.
+    # Each entry is a mapping:
+    #   {channels: "start:end" | int | [int, ...], activation: "sigmoid"|"softmax"|"tanh"|"none"}
+    # Channel selectors follow Python/NumPy indexing rules:
+    #   -1 means the last channel, ":" means all channels, ":-1" excludes the last.
+    channel_activations: List[Dict[str, Any]] = field(default_factory=list)
+    # Crop context padding before decoding/saving predictions:
+    # [D,H,W]/[H,W] symmetric or [Db,Da,Hb,Ha,Wb,Wa] asymmetric.
+    crop_pad: Optional[List[int]] = None
+
+
+@dataclass
 class SlidingWindowConfig:
     """Sliding window inference configuration."""
 
@@ -26,7 +58,7 @@ class SlidingWindowConfig:
     window_size: Optional[List[int]] = None  # None = fallback to data.dataloader.patch_size
     sw_batch_size: Optional[int] = None  # If None, falls back to data.dataloader.batch_size
     overlap: float = 0.5
-    blending: str = "gaussian"  # "constant" or "gaussian"
+    blending: str = "gaussian"  # "constant", "gaussian", or "distance_transform" (lazy only)
     sigma_scale: float = 0.125
     padding_mode: str = "reflect"
     cval: float = 0.0
@@ -51,16 +83,11 @@ class SlidingWindowConfig:
     # border predictions from the weighted average. Honored by the lazy
     # sliding-window path; ignored by the eager MONAI path.
     border_mask: List[int] = field(default_factory=list)
-    # In-memory dtype for the value accumulator that holds weighted prediction
-    # sums during lazy sliding-window inference. Defaults to float32. Set to
-    # "float16" or "bfloat16" to halve accumulator RAM at some precision cost.
-    # Weight accumulator (the divider) stays float32 regardless.
-    accumulator_dtype: Optional[str] = None
 
 
 @dataclass
 class InferenceExecutionConfig:
-    """Inference execution mode independent of output-array/storage details."""
+    """Inference execution mode independent of model-output/storage details."""
 
     strategy: str = "whole_volume"  # "whole_volume" or "chunked"
     do_eval: bool = True
@@ -96,48 +123,18 @@ class ChunkingConfig:
 
 
 @dataclass
-class OutputArrayPartitionConfig:
-    """Partitioning of the final prediction array for chunked inference."""
-
-    enabled: bool = False
-    output_mode: str = "decoded"  # "decoded" or "raw_prediction"
-    size: Optional[List[int]] = None  # ZYX after test-time val_transpose.
-    halo: List[int] = field(default_factory=lambda: [0, 0, 0])
-    axes: str = "all"  # "all" or "z"; "z" keeps full YX in each chunk.
-    temp_dir: str = ""
-    save_intermediate: bool = False
-    stitching: ChunkStitchingConfig = field(default_factory=ChunkStitchingConfig)
-
-
-@dataclass
-class OutputArrayStoreConfig:
-    """Physical storage for prediction-array artifacts."""
+class SaveInferenceConfig:
+    """Physical storage for inference prediction artifacts."""
 
     enabled: bool = False
     backend: str = "h5"  # "h5", "zarr", or "tensorstore" when implemented by runtime.
     output_path: Optional[str] = None
-    cache_suffix: str = "_x1_prediction.h5"
+    cache_suffix: str = "_x1_prediction.h5"  # Includes extension; keep aligned with backend.
     save_all_heads: bool = False
     dtype: Optional[str] = None
     compression: Optional[str] = "gzip"
     chunks: Optional[List[int]] = None  # CZYX storage chunks when backend supports it.
     write_mode: str = "single_writer"  # "single_writer" or "distributed_regions".
-
-
-@dataclass
-class OutputArrayConfig:
-    """Final prediction-array shape, dtype, partitioning, and storage."""
-
-    # Optional channel selector applied after channel activations and before
-    # decoding/saving. Accepts None, int, slice string, or explicit index list.
-    select_channel: Optional[Any] = None
-    # Crop context padding before decoding/saving predictions:
-    # [D,H,W]/[H,W] symmetric or [Db,Da,Hb,Ha,Wb,Wa] asymmetric.
-    crop_pad: Optional[List[int]] = None
-    # In-memory dtype for lazy sliding-window value accumulators.
-    accumulator_dtype: Optional[str] = None
-    partition: OutputArrayPartitionConfig = field(default_factory=OutputArrayPartitionConfig)
-    store: OutputArrayStoreConfig = field(default_factory=OutputArrayStoreConfig)
 
 
 @dataclass
@@ -147,12 +144,6 @@ class TestTimeAugmentationConfig:
     enabled: bool = False
     distributed_sharding: bool = True  # Split TTA variants across DDP ranks for one-volume tests
     distributed_reduce_chunk_mb: int = 128  # Chunk size for rank reduction of large volumes
-    # Optional channel-wise activation overrides applied before aggregation.
-    # Each entry is a mapping:
-    #   {channels: "start:end" | int | [int, ...], activation: "sigmoid"|"softmax"|"tanh"|"none"}
-    # Channel selectors follow Python/NumPy indexing rules:
-    #   -1 means the last channel, ":" means all channels, ":-1" excludes the last.
-    channel_activations: List[Dict[str, Any]] = field(default_factory=list)
     flip_axes: Any = "all"  # "all" | "none" | list[int] (0-indexed spatial: 0=z, 1=y, 2=x)
     flip_combinations: Optional[List[List[int]]] = None  # explicit list of axis subsets
     rotation90_axes: Any = None  # "all" | None | [[int, int], ...] spatial plane pairs
@@ -237,21 +228,20 @@ class InferenceConfig:
     Note: stage-specific overrides are merged before runtime; consumers should read `cfg.inference`.
     """
 
-    # Named output head selection for multi-head models. When unset, falls back
-    # to model.primary_head or the sole configured head.
-    head: Optional[str] = None
-    # Optional channel selector applied after channel activations and before
-    # decoding/saving. Accepts None, int, slice string, or explicit index list.
-    select_channel: Optional[Any] = None
-    strategy: str = "whole_volume"  # "whole_volume" or "chunked"
-    # Crop context padding before decoding/saving predictions:
-    # [D,H,W]/[H,W] symmetric or [Db,Da,Hb,Ha,Wb,Wa] asymmetric.
-    crop_pad: Optional[List[int]] = None
+    model: InferenceModelConfig = field(default_factory=InferenceModelConfig)
     execution: InferenceExecutionConfig = field(default_factory=InferenceExecutionConfig)
     window: SlidingWindowConfig = field(default_factory=SlidingWindowConfig)
-    output_array: OutputArrayConfig = field(default_factory=OutputArrayConfig)
-    sliding_window: SlidingWindowConfig = field(default_factory=SlidingWindowConfig)
     chunking: ChunkingConfig = field(default_factory=ChunkingConfig)
+    save_inference: SaveInferenceConfig = field(default_factory=SaveInferenceConfig)
+
+    # Runtime aliases consumed by existing stage code after sync.
+    head: Optional[str] = None
+    select_channel: Optional[Any] = None
+    strategy: str = "whole_volume"  # "whole_volume" or "chunked"
+    crop_pad: Optional[List[int]] = None
+    sliding_window: SlidingWindowConfig = field(default_factory=SlidingWindowConfig)
+    save_prediction: SavePredictionConfig = field(default_factory=SavePredictionConfig)
+
     test_time_augmentation: TestTimeAugmentationConfig = field(
         default_factory=TestTimeAugmentationConfig
     )
@@ -261,7 +251,6 @@ class InferenceConfig:
     prediction_transform: PredictionTransformConfig = field(
         default_factory=PredictionTransformConfig
     )
-    save_prediction: SavePredictionConfig = field(default_factory=SavePredictionConfig)
     memory_cleanup: InferenceMemoryCleanupConfig = field(
         default_factory=InferenceMemoryCleanupConfig
     )
@@ -283,14 +272,24 @@ def _copy_attrs(src: object, dst: object, names: list[str]) -> None:
 def sync_inference_runtime_aliases(cfg: object) -> None:
     """Materialize canonical inference sections into runtime-owned objects.
 
-    Runtime code still consumes the narrow owner objects (`sliding_window`,
-    `chunking`, and `save_prediction`). Canonical YAML should configure
-    `execution`, `window`, and `output_array`; this sync keeps one effective
-    runtime representation after config load and stage resolution.
+    Runtime code still consumes a few narrow owner objects (`head`,
+    `select_channel`, `crop_pad`, `sliding_window`, and `save_prediction`).
+    Canonical YAML should configure `model`, `execution`, `window`, `chunking`,
+    and `save_inference`; this sync keeps one effective runtime representation
+    after config load and stage resolution.
     """
     inference = getattr(cfg, "inference", None)
     if inference is None:
         return
+
+    model = getattr(inference, "model", None)
+    if model is not None:
+        if getattr(model, "head", None) is not None:
+            inference.head = model.head
+        if getattr(model, "select_channel", None) is not None:
+            inference.select_channel = model.select_channel
+        if getattr(model, "crop_pad", None) is not None:
+            inference.crop_pad = model.crop_pad
 
     execution = getattr(inference, "execution", None)
     if execution is not None and execution != InferenceExecutionConfig():
@@ -324,43 +323,13 @@ def sync_inference_runtime_aliases(cfg: object) -> None:
                     "snap_to_edge",
                     "target_context",
                     "border_mask",
-                    "accumulator_dtype",
                 ],
             )
 
-    output_array = getattr(inference, "output_array", None)
-    if output_array is None:
-        return
-
-    if getattr(output_array, "select_channel", None) is not None:
-        inference.select_channel = output_array.select_channel
-    if getattr(output_array, "crop_pad", None) is not None:
-        inference.crop_pad = output_array.crop_pad
-
-    accumulator_dtype = getattr(output_array, "accumulator_dtype", None)
-    if accumulator_dtype is not None and sliding_window is not None:
-        sliding_window.accumulator_dtype = accumulator_dtype
-
-    partition = getattr(output_array, "partition", None)
-    chunking = getattr(inference, "chunking", None)
-    if partition is not None and chunking is not None:
-        if partition != OutputArrayPartitionConfig():
-            chunking.enabled = bool(getattr(partition, "enabled", False))
-            chunking.output_mode = getattr(partition, "output_mode", chunking.output_mode)
-            chunking.chunk_size = getattr(partition, "size", chunking.chunk_size)
-            chunking.halo = getattr(partition, "halo", chunking.halo)
-            chunking.axes = getattr(partition, "axes", chunking.axes)
-            chunking.temp_dir = getattr(partition, "temp_dir", chunking.temp_dir)
-            chunking.save_intermediate = bool(
-                getattr(partition, "save_intermediate", chunking.save_intermediate)
-            )
-            if getattr(partition, "stitching", None) is not None:
-                chunking.stitching = partition.stitching
-
-    store = getattr(output_array, "store", None)
+    store = getattr(inference, "save_inference", None)
     save_prediction = getattr(inference, "save_prediction", None)
     if store is not None and save_prediction is not None:
-        if store != OutputArrayStoreConfig():
+        if store != SaveInferenceConfig():
             save_prediction.enabled = bool(getattr(store, "enabled", False))
             backend = str(getattr(store, "backend", "h5")).lower()
             save_prediction.output_formats = [backend]

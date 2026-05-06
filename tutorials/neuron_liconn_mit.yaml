@@ -70,7 +70,7 @@ default:
       profile: aug_em_neuron
 
   inference:
-    sliding_window:
+    window:
       window_size: [64, 256, 256]
       sw_batch_size: 1
       overlap: 0.5
@@ -80,8 +80,9 @@ default:
       output_device: cpu
     test_time_augmentation:
       enabled: false
-    crop_pad: [23, 32, 119, 128, 119, 128]
-    save_prediction:
+    model:
+      crop_pad: [23, 32, 119, 128, 119, 128]
+    save_inference:
       enabled: true
 
   decoding:
@@ -150,7 +151,7 @@ test:
       resolution: [25, 18, 18]
 
   inference:
-    sliding_window:
+    window:
       window_size: [32, 256, 256]
 
   evaluation:

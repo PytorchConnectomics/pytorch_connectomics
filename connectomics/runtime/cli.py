@@ -182,10 +182,8 @@ def setup_config(args) -> Config:
         save_pred_cfg.output_path = str(Path(output_folder) / "results")
     else:
         save_pred_cfg.output_path = str(Path(save_pred_cfg.output_path))
-    logger.info("Prediction output directory: %s", save_pred_cfg.output_path)
 
     cfg.monitor.checkpoint.use_timestamp = False
-    logger.info("Checkpoints base directory: %s", cfg.monitor.checkpoint.dirpath)
 
     if args.overrides:
         logger.info("Applying %d CLI overrides", len(args.overrides))

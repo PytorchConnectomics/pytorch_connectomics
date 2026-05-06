@@ -115,8 +115,12 @@ default:
         gaussian_noise_prob: 0.5
         gaussian_noise_std: 0.5
   inference:
-    head: "aff_r1,aff_r3,sdt"
-    sliding_window:
+    model:
+      head: "aff_r1,aff_r3,sdt"
+      channel_activations:
+      - {channels: "0:6", activation: sigmoid}
+      - {channels: "6:7", activation: tanh}
+    window:
       window_size: [128, 128, 128]
       sw_batch_size: 1
       keep_input_on_cpu: false
@@ -124,10 +128,7 @@ default:
       enabled: false
       flip_axes: all
       ensemble_mode: min
-      channel_activations:
-      - {channels: "0:6", activation: sigmoid}
-      - {channels: "6:7", activation: tanh}
-    save_prediction:
+    save_inference:
       enabled: true
 
   decoding:

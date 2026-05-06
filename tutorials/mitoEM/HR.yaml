@@ -19,7 +19,7 @@ train:
 
 test:
   inference:
-    save_prediction:
+    save_inference:
       output_path: outputs/mitoem30hr_mednext_sdt_multitask/results/
   data:
     test:

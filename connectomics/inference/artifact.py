@@ -9,6 +9,8 @@ from typing import Any, Callable, Mapping, Sequence
 
 import numpy as np
 
+from ..utils.model_outputs import get_inference_select_channel
+
 
 @dataclass(frozen=True)
 class PredictionArtifactMetadata:
@@ -62,7 +64,7 @@ def _model_output_identity(cfg: Any, output_head: str | None) -> str | None:
         if primary_head:
             parts.append(f"primary_head={primary_head}")
 
-    select_channel = _cfg_get(cfg, "inference.select_channel")
+    select_channel = get_inference_select_channel(cfg)
     if select_channel is not None:
         parts.append(f"select_channel={select_channel}")
 

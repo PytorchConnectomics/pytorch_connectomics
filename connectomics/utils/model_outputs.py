@@ -22,6 +22,29 @@ def _get_model_heads(cfg: Any) -> Mapping[str, Any]:
     return model_heads if isinstance(model_heads, Mapping) else {}
 
 
+def get_inference_model_config(cfg: Any) -> Any:
+    """Return the inference-time model-output config node, if present."""
+    inference_cfg = _cfg_value(cfg, "inference", None)
+    return _cfg_value(inference_cfg, "model", None)
+
+
+def get_inference_model_value(cfg: Any, key: str, default: Any = None) -> Any:
+    """Read a value from ``inference.model``."""
+    model_cfg = get_inference_model_config(cfg)
+    return _cfg_value(model_cfg, key, default)
+
+
+def get_inference_select_channel(cfg: Any) -> Any:
+    """Return the configured inference output channel selector."""
+    return get_inference_model_value(cfg, "select_channel", None)
+
+
+def get_inference_channel_activations(cfg: Any) -> list[dict[str, Any]]:
+    """Return channel activation specs configured for inference model outputs."""
+    value = get_inference_model_value(cfg, "channel_activations", None)
+    return value if isinstance(value, list) else []
+
+
 def get_model_head_names(cfg: Any) -> list[str]:
     """Return configured named model heads in declaration order."""
     return list(_get_model_heads(cfg).keys())
@@ -60,7 +83,8 @@ def resolve_output_head(
         return requested_head
 
     inference_cfg = _cfg_value(cfg, "inference", None)
-    configured_head = _cfg_value(inference_cfg, "head", None)
+    inference_model_cfg = _cfg_value(inference_cfg, "model", None)
+    configured_head = _cfg_value(inference_model_cfg, "head", None)
     if configured_head is not None:
         if isinstance(configured_head, str) and "," in configured_head:
             # Merged-inference spec: not a single-head selection. Fall through
@@ -94,7 +118,7 @@ def resolve_output_head(
         return None
 
     raise ValueError(
-        f"{purpose} requires inference.head or model.primary_head when model.heads has "
+        f"{purpose} requires inference.model.head or model.primary_head when model.heads has "
         f"multiple entries ({sorted(model_heads.keys())})."
     )
 
@@ -121,7 +145,7 @@ def resolve_output_heads(
 ) -> list[str]:
     """Resolve one or more named output heads for merged-inference callers.
 
-    Accepts a single head name or a comma-separated list in `inference.head`
+    Accepts a single head name or a comma-separated list in `inference.model.head`
     (e.g. "aff_r1,aff_r5,sdt"). Returns the heads in the order the user wrote
     them so downstream concatenation is deterministic.
     """
@@ -130,15 +154,16 @@ def resolve_output_heads(
         return []
 
     inference_cfg = _cfg_value(cfg, "inference", None)
-    configured_head = _cfg_value(inference_cfg, "head", None)
+    inference_model_cfg = _cfg_value(inference_cfg, "model", None)
+    configured_head = _cfg_value(inference_model_cfg, "head", None)
     if isinstance(configured_head, str) and "," in configured_head:
         names = [h.strip() for h in configured_head.split(",") if h.strip()]
         if not names:
-            raise ValueError(f"inference.head for {purpose} is an empty list.")
+            raise ValueError(f"inference.model.head for {purpose} is an empty list.")
         missing = [n for n in names if n not in model_heads]
         if missing:
             raise ValueError(
-                f"inference.head for {purpose} references unknown heads {missing}; "
+                f"inference.model.head for {purpose} references unknown heads {missing}; "
                 f"available: {sorted(model_heads.keys())}."
             )
         return names

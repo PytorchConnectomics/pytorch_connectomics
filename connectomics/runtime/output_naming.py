@@ -7,7 +7,7 @@ from pathlib import Path
 from typing import Optional
 
 from ..config import Config
-from ..utils.model_outputs import resolve_output_head
+from ..utils.model_outputs import get_inference_select_channel, resolve_output_head
 
 
 def compute_tta_passes(cfg: Config, spatial_dims: int = 3) -> int:
@@ -33,7 +33,7 @@ def format_select_channel_tag(cfg: Config) -> str:
     inference_cfg = getattr(cfg, "inference", None)
     if inference_cfg is None:
         return ""
-    sel = getattr(inference_cfg, "select_channel", None)
+    sel = get_inference_select_channel(cfg)
     if sel is None:
         return ""
 

@@ -59,6 +59,7 @@ from ...utils import (
     resolve_head_target_slice,
     select_output_tensor,
 )
+from ...utils.model_outputs import get_inference_channel_activations
 from ..debugging import DebugManager
 
 # Import training/inference components
@@ -820,6 +821,7 @@ class ConnectomicsModule(pl.LightningModule):
         labels: torch.Tensor,
         stage: str,
         mask: Optional[torch.Tensor] = None,
+        target_mask: Optional[torch.Tensor] = None,
     ):
         """Compute loss handling both standard and deep supervision outputs."""
         is_deep_supervision = isinstance(outputs, dict) and any(
@@ -827,9 +829,11 @@ class ConnectomicsModule(pl.LightningModule):
         )
         if is_deep_supervision:
             return self.loss_orchestrator.compute_deep_supervision_loss(
-                outputs, labels, stage=stage, mask=mask
+                outputs, labels, stage=stage, mask=mask, target_mask=target_mask
             )
-        return self.loss_orchestrator.compute_standard_loss(outputs, labels, stage=stage, mask=mask)
+        return self.loss_orchestrator.compute_standard_loss(
+            outputs, labels, stage=stage, mask=mask, target_mask=target_mask
+        )
 
     def training_step(self, batch: Dict[str, torch.Tensor], batch_idx: int) -> STEP_OUTPUT:
         """Training step with deep supervision support."""
@@ -839,12 +843,15 @@ class ConnectomicsModule(pl.LightningModule):
         raw_mask = batch.get("mask", None)
         # Binarize mask: (B, 1, D, H, W) float, 1 = valid, 0 = ignore
         mask = (raw_mask > 0).float() if raw_mask is not None else None
+        target_mask = batch.get("label_mask", None)
 
         # Forward pass
         outputs = self(images)
 
         # Compute loss using the loss orchestrator
-        total_loss, loss_dict = self._compute_loss(outputs, labels, stage="train", mask=mask)
+        total_loss, loss_dict = self._compute_loss(
+            outputs, labels, stage="train", mask=mask, target_mask=target_mask
+        )
 
         # Keep full training curves in TensorBoard while avoiding console spam.
         self.log_dict(
@@ -864,12 +871,15 @@ class ConnectomicsModule(pl.LightningModule):
         labels = batch["label"]
         raw_mask = batch.get("mask", None)
         mask = (raw_mask > 0).float() if raw_mask is not None else None
+        target_mask = batch.get("label_mask", None)
 
         # Forward pass
         outputs = self(images)
 
         # Compute loss using the loss orchestrator
-        total_loss, loss_dict = self._compute_loss(outputs, labels, stage="val", mask=mask)
+        total_loss, loss_dict = self._compute_loss(
+            outputs, labels, stage="val", mask=mask, target_mask=target_mask
+        )
 
         # Compute evaluation metrics if enabled
         evaluation_cfg = self._get_test_evaluation_config()
@@ -1065,7 +1075,7 @@ class ConnectomicsModule(pl.LightningModule):
 
         flip_axes_cfg = getattr(tta_cfg, "flip_axes", None)
         rotation90_axes_cfg = getattr(tta_cfg, "rotation90_axes", None)
-        channel_activations_cfg = getattr(tta_cfg, "channel_activations", None)
+        channel_activations_cfg = get_inference_channel_activations(self.cfg)
 
         spatial_dims = 3 if image_ndim == 5 else 2 if image_ndim == 4 else 0
 

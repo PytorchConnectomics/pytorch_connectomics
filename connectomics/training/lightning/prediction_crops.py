@@ -17,6 +17,7 @@ from ...data.processing.affinity import (
 )
 from ...data.processing.misc import get_padsize
 from ...utils.channel_slices import resolve_channel_indices, resolve_channel_range
+from ...utils.model_outputs import get_inference_select_channel
 
 logger = logging.getLogger(__name__)
 
@@ -31,7 +32,8 @@ def _resolve_inference_crop_pad(module) -> Optional[tuple[tuple[int, int], ...]]
     if inference_cfg is None:
         return None
 
-    crop_pad = getattr(inference_cfg, "crop_pad", None)
+    inference_model_cfg = getattr(inference_cfg, "model", None)
+    crop_pad = getattr(inference_model_cfg, "crop_pad", None)
     if crop_pad is None:
         return None
 
@@ -39,7 +41,7 @@ def _resolve_inference_crop_pad(module) -> Optional[tuple[tuple[int, int], ...]]
     if not crop_pad_values or not any(crop_pad_values):
         return None
     if any(v < 0 for v in crop_pad_values):
-        raise ValueError(f"inference.crop_pad must be non-negative, got {crop_pad_values}")
+        raise ValueError(f"inference.model.crop_pad must be non-negative, got {crop_pad_values}")
 
     if len(crop_pad_values) in (2, 4):
         spatial_rank = 2
@@ -47,7 +49,7 @@ def _resolve_inference_crop_pad(module) -> Optional[tuple[tuple[int, int], ...]]
         spatial_rank = 3
     else:
         raise ValueError(
-            "inference.crop_pad must have length 2/3 for symmetric cropping "
+            "inference.model.crop_pad must have length 2/3 for symmetric cropping "
             f"or 4/6 for asymmetric cropping, got {crop_pad_values}."
         )
 
@@ -78,7 +80,7 @@ def _apply_prediction_crop_pad_if_needed(
 
     if len(reference_image_shape) < len(crop_pad):
         raise ValueError(
-            "reference_image_shape rank must be >= inference.crop_pad rank. "
+            "reference_image_shape rank must be >= inference.model.crop_pad rank. "
             f"Got reference_image_shape={reference_image_shape}, crop_pad={crop_pad}"
         )
 
@@ -89,7 +91,7 @@ def _apply_prediction_crop_pad_if_needed(
     )
     if any(size <= 0 for size in expected_cropped_shape):
         raise ValueError(
-            "inference.crop_pad is too large for the padded input shape. "
+            "inference.model.crop_pad is too large for the padded input shape. "
             f"crop_pad={crop_pad}, padded_shape={padded_spatial_shape}"
         )
 
@@ -98,7 +100,7 @@ def _apply_prediction_crop_pad_if_needed(
         return data
     if data_spatial_shape != padded_spatial_shape:
         raise ValueError(
-            "Cannot apply inference.crop_pad to "
+            "Cannot apply inference.model.crop_pad to "
             f"{item_name}: spatial shape {data_spatial_shape} matches neither "
             f"padded input {padded_spatial_shape} nor cropped shape "
             f"{expected_cropped_shape}."
@@ -179,12 +181,12 @@ def _resolve_affinity_offsets_for_inference_output(
         )
         channel_offsets = channel_offsets[start_idx:end_idx]
 
-    select_channel = getattr(getattr(module.cfg, "inference", None), "select_channel", None)
+    select_channel = get_inference_select_channel(module.cfg)
     if select_channel is not None:
         selected_indices = resolve_channel_indices(
             select_channel,
             num_channels=len(channel_offsets),
-            context="inference.select_channel",
+            context="inference.model.select_channel",
         )
         channel_offsets = [channel_offsets[idx] for idx in selected_indices]
 
