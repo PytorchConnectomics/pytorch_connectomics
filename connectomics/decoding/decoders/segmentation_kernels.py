@@ -348,7 +348,9 @@ def connected_components_affinity_3d_numba_parallel(
         return np.zeros((X, Y, Z), dtype=np.uint32)
 
     fg_flat = fg.reshape(-1)
-    label_dtype = np.uint32 if fg_flat.size < (1 << 32) else np.uint64
+    # cumsum max equals the foreground voxel count, not the total voxel count.
+    fg_count = int(fg_flat.sum(dtype=np.uint64))
+    label_dtype = np.uint32 if fg_count < (1 << 32) else np.uint64
     # Scan-order labels via cumsum + mask-multiply (mirrors the cupy backend);
     # avoids the np.arange + boolean-scatter scratch.
     labels_flat = np.cumsum(fg_flat, dtype=label_dtype)
