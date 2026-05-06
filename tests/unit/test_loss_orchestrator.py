@@ -303,13 +303,18 @@ def test_standard_loss_supports_affinity_mode_deepem():
 
     outputs = torch.zeros(1, 3, 5, 5, 5)
     labels = torch.randn(1, 3, 5, 5, 5)
+    target_mask = torch.ones_like(labels, dtype=torch.bool)
+    target_mask[:, 0, 0, :, :] = False
+    target_mask[:, 1, :, 0, :] = False
+    target_mask[:, 2, :, :, 0] = False
 
-    total_loss, loss_dict = orchestrator.compute_standard_loss(outputs, labels, stage="train")
+    total_loss, loss_dict = orchestrator.compute_standard_loss(
+        outputs, labels, stage="train", target_mask=target_mask
+    )
 
     assert torch.isfinite(total_loss)
     assert "train_loss_total" in loss_dict
-    # Per-channel valid masking (deepem mode): spatial dims are preserved,
-    # but a per-channel weight mask zeros out invalid border voxels.
+    # The explicit target mask is passed through as the spatial loss weight.
     assert weighted_loss.calls[0]["pred_shape"] == (1, 3, 5, 5, 5)
     assert weighted_loss.calls[0]["target_shape"] == (1, 3, 5, 5, 5)
     weight = weighted_loss.calls[0]["weight"]
@@ -353,8 +358,14 @@ def test_standard_loss_supports_affinity_mode_banis():
 
     outputs = torch.zeros(1, 3, 5, 5, 5)
     labels = torch.randn(1, 3, 5, 5, 5)
+    target_mask = torch.ones_like(labels, dtype=torch.bool)
+    target_mask[:, 0, -1, :, :] = False
+    target_mask[:, 1, :, -1, :] = False
+    target_mask[:, 2, :, :, -1] = False
 
-    total_loss, loss_dict = orchestrator.compute_standard_loss(outputs, labels, stage="train")
+    total_loss, loss_dict = orchestrator.compute_standard_loss(
+        outputs, labels, stage="train", target_mask=target_mask
+    )
 
     assert torch.isfinite(total_loss)
     assert "train_loss_total" in loss_dict
@@ -369,7 +380,39 @@ def test_standard_loss_supports_affinity_mode_banis():
     assert weight[0, 2, :, :, -2].sum() > 0
 
 
-def test_banis_affinity_loss_skips_negative_one_targets():
+def test_affinity_loss_requires_explicit_target_mask():
+    cfg = _cfg(
+        losses=[
+            {
+                "weight": 1.0,
+            },
+        ]
+    )
+    cfg.data.label_transform.targets = [
+        {
+            "name": "affinity",
+            "kwargs": {
+                "offsets": ["0-0-1"],
+                "affinity_mode": "banis",
+            },
+        }
+    ]
+    orchestrator = LossOrchestrator(
+        cfg=cfg,
+        loss_functions=nn.ModuleList([WeightAwareSpyLoss()]),
+        loss_weights=[1.0],
+        enable_nan_detection=False,
+        debug_on_nan=False,
+    )
+
+    outputs = torch.zeros(1, 1, 1, 1, 5)
+    labels = torch.zeros_like(outputs)
+
+    with pytest.raises(ValueError, match="Affinity loss requires an explicit label_mask"):
+        orchestrator.compute_standard_loss(outputs, labels, stage="train")
+
+
+def test_banis_affinity_loss_skips_via_explicit_target_mask():
     weighted_loss = WeightAwareSpyLoss()
     cfg = _cfg(
         losses=[
@@ -396,9 +439,15 @@ def test_banis_affinity_loss_skips_negative_one_targets():
     )
 
     outputs = torch.zeros(1, 1, 1, 1, 5)
-    labels = torch.tensor([[[[[1.0, -1.0, -1.0, 0.0, -1.0]]]]])
+    # Targets are now bool-valued (no -1 sentinel); the validity mask is
+    # passed explicitly via ``target_mask`` (mirrors the dataloader's
+    # ``label_mask`` key emitted alongside ``label`` for affinity tasks).
+    labels = torch.tensor([[[[[1.0, 0.0, 0.0, 0.0, 0.0]]]]])
+    target_mask = torch.tensor([[[[[True, False, False, True, False]]]]])
 
-    total_loss, _ = orchestrator.compute_standard_loss(outputs, labels, stage="train")
+    total_loss, _ = orchestrator.compute_standard_loss(
+        outputs, labels, stage="train", target_mask=target_mask
+    )
 
     assert torch.isfinite(total_loss)
     received = weighted_loss.calls[0]
@@ -409,6 +458,148 @@ def test_banis_affinity_loss_skips_negative_one_targets():
     assert torch.equal(
         received["target"],
         torch.tensor([[[[[1.0, 0.0, 0.0, 0.0, 0.0]]]]]),
+    )
+
+
+def test_banis_affinity_explicit_target_mask_does_not_apply_extra_border_crop():
+    weighted_loss = WeightAwareSpyLoss()
+    cfg = _cfg(
+        losses=[
+            {
+                "weight": 1.0,
+            },
+        ]
+    )
+    cfg.data.label_transform.targets = [
+        {
+            "name": "affinity",
+            "kwargs": {
+                "offsets": ["0-0-2"],
+                "affinity_mode": "banis",
+            },
+        }
+    ]
+    orchestrator = LossOrchestrator(
+        cfg=cfg,
+        loss_functions=nn.ModuleList([weighted_loss]),
+        loss_weights=[1.0],
+        enable_nan_detection=False,
+        debug_on_nan=False,
+    )
+
+    outputs = torch.zeros(1, 1, 1, 1, 4)
+    labels = torch.ones_like(outputs)
+    target_mask = torch.ones_like(outputs, dtype=torch.bool)
+
+    total_loss, _ = orchestrator.compute_standard_loss(
+        outputs, labels, stage="train", target_mask=target_mask
+    )
+
+    assert torch.isfinite(total_loss)
+    received = weighted_loss.calls[0]
+    assert torch.equal(received["weight"], torch.ones_like(outputs))
+
+
+def test_affinity_target_mask_applies_to_deep_supervision_scales():
+    weighted_loss = WeightAwareSpyLoss()
+    cfg = _cfg(
+        losses=[
+            {
+                "weight": 1.0,
+                "apply_deep_supervision": True,
+            },
+        ]
+    )
+    cfg.data.label_transform.targets = [
+        {
+            "name": "affinity",
+            "kwargs": {
+                "offsets": ["0-0-1"],
+                "affinity_mode": "banis",
+            },
+        }
+    ]
+    orchestrator = LossOrchestrator(
+        cfg=cfg,
+        loss_functions=nn.ModuleList([weighted_loss]),
+        loss_weights=[1.0],
+        enable_nan_detection=False,
+        debug_on_nan=False,
+    )
+
+    outputs = {
+        "output": torch.zeros(1, 1, 1, 1, 4),
+        "ds_1": torch.zeros(1, 1, 1, 1, 2),
+    }
+    labels = torch.zeros(1, 1, 1, 1, 4)
+    target_mask = torch.tensor([[[[[True, True, False, False]]]]])
+
+    total_loss, _ = orchestrator.compute_deep_supervision_loss(
+        outputs, labels, stage="train", target_mask=target_mask
+    )
+
+    assert torch.isfinite(total_loss)
+    assert len(weighted_loss.calls) == 2
+    assert torch.equal(
+        weighted_loss.calls[0]["weight"],
+        torch.tensor([[[[[1.0, 1.0, 0.0, 0.0]]]]]),
+    )
+    assert torch.equal(
+        weighted_loss.calls[1]["weight"],
+        torch.tensor([[[[[1.0, 0.0]]]]]),
+    )
+
+
+def test_mixed_stack_affinity_term_requires_and_applies_full_stack_target_mask():
+    weighted_loss = WeightAwareSpyLoss()
+    cfg = _cfg(
+        losses=[
+            {
+                "weight": 1.0,
+            },
+        ]
+    )
+    cfg.data.label_transform.targets = [
+        {
+            "name": "affinity",
+            "kwargs": {
+                "offsets": ["0-0-1"],
+                "affinity_mode": "banis",
+            },
+        },
+        {"name": "binary"},
+    ]
+    orchestrator = LossOrchestrator(
+        cfg=cfg,
+        loss_functions=nn.ModuleList([weighted_loss]),
+        loss_weights=[1.0],
+        enable_nan_detection=False,
+        debug_on_nan=False,
+    )
+
+    outputs = torch.zeros(1, 2, 1, 1, 4)
+    labels = torch.zeros_like(outputs)
+
+    with pytest.raises(ValueError, match="Affinity loss requires an explicit label_mask"):
+        orchestrator.compute_standard_loss(outputs, labels, stage="train")
+
+    target_mask = torch.ones_like(outputs, dtype=torch.bool)
+    target_mask[:, 0, :, :, -1] = False
+    total_loss, _ = orchestrator.compute_standard_loss(
+        outputs, labels, stage="train", target_mask=target_mask
+    )
+
+    assert torch.isfinite(total_loss)
+    assert torch.equal(
+        weighted_loss.calls[0]["weight"],
+        torch.tensor(
+            [
+                [
+                    [[[1.0, 1.0, 1.0, 0.0]]],
+                    [[[1.0, 1.0, 1.0, 1.0]]],
+                ]
+            ]
+        ),
     )
 
 
@@ -439,8 +630,11 @@ def test_standard_loss_supports_batched_affinity_mode_with_weighted_bce():
 
     outputs = torch.zeros(4, 3, 5, 5, 5)
     labels = torch.zeros(4, 3, 5, 5, 5)
+    target_mask = torch.ones_like(labels, dtype=torch.bool)
 
-    total_loss, loss_dict = orchestrator.compute_standard_loss(outputs, labels, stage="train")
+    total_loss, loss_dict = orchestrator.compute_standard_loss(
+        outputs, labels, stage="train", target_mask=target_mask
+    )
 
     assert torch.isfinite(total_loss)
     assert "train_loss_total" in loss_dict

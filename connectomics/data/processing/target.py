@@ -7,11 +7,13 @@ from scipy.ndimage import grey_dilation, grey_erosion
 from skimage.morphology import binary_dilation, disk
 
 from .affinity import (
+    AffinityTarget,
     seg_to_affinity,
 )
 from .flow import seg2d_to_flows
 
 __all__ = [
+    "AffinityTarget",
     "seg_to_flows",
     "seg_to_affinity",
     "seg_to_polarity",

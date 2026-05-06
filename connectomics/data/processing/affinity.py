@@ -2,7 +2,8 @@
 
 from __future__ import annotations
 
-from typing import Any, List, Optional, Sequence
+from dataclasses import dataclass
+from typing import Any, List, Optional, Sequence, Tuple
 
 import numpy as np
 import torch
@@ -11,6 +12,7 @@ from ...utils.channel_slices import resolve_channel_range
 
 __all__ = [
     "AFFINITY_MODES",
+    "AffinityTarget",
     "compute_affinity_crop_pad",
     "compute_affinity_valid_mask",
     "crop_spatial_by_offsets",
@@ -23,6 +25,58 @@ __all__ = [
     "resolve_affinity_offsets_for_channel_slice",
     "seg_to_affinity",
 ]
+
+
+@dataclass(frozen=True)
+class AffinityTarget:
+    """Explicit affinity target + loss-mask pair (no sentinel encoding).
+
+    Both ``values`` and ``mask`` are bool ``np.ndarray`` of shape
+    ``(C, A0, A1, A2)`` where ``C`` is the number of affinity offsets and the
+    spatial layout follows the input segmentation. ``mask[c, ...]`` is
+    ``True`` exactly at the voxels that should participate in the loss for
+    affinity channel ``c`` (both source and destination labeled, and inside
+    the valid storage region for that offset). The two ``affinity_mode``s
+    differ only in the storage convention:
+
+    - ``deepem``: edge stored at the destination voxel.
+    - ``banis``:  edge stored at the source voxel.
+
+    The mask is returned alongside the values rather than encoded as a
+    sentinel, so the loss contract is explicit at every consumer.
+    """
+
+    values: np.ndarray
+    mask: np.ndarray
+    affinity_mode: str
+
+    def __post_init__(self) -> None:
+        if self.values.shape != self.mask.shape:
+            raise ValueError(
+                "AffinityTarget values and mask must have matching shape: "
+                f"{self.values.shape} vs {self.mask.shape}"
+            )
+        if self.values.dtype != np.bool_ or self.mask.dtype != np.bool_:
+            raise TypeError(
+                "AffinityTarget values and mask must be bool, got "
+                f"values={self.values.dtype}, mask={self.mask.dtype}"
+            )
+
+    @property
+    def shape(self) -> Tuple[int, ...]:
+        return self.values.shape
+
+    @property
+    def num_channels(self) -> int:
+        return int(self.values.shape[0])
+
+    def __array__(self, dtype=None) -> np.ndarray:
+        # Backwards-compatible: callers that ``np.asarray(target)`` get the
+        # values tensor. ``target.mask`` must be accessed explicitly.
+        if dtype is None:
+            return self.values
+        return self.values.astype(dtype, copy=False)
+
 
 AFFINITY_MODES = ("deepem", "banis")
 
@@ -334,36 +388,36 @@ def compute_affinity_valid_mask(
         device: Torch device for the returned tensor.
 
     Returns:
-        Float tensor of shape ``(len(offsets), D, H, W)`` with 1 in valid
-        positions and 0 elsewhere.
+        Bool tensor of shape ``(len(offsets), D, H, W)`` with True in valid
+        positions and False elsewhere.
     """
     mode = normalize_affinity_mode(affinity_mode)
     num_channels = len(offsets)
-    mask = torch.zeros(num_channels, *spatial_shape, device=device)
+    mask = torch.zeros(num_channels, *spatial_shape, device=device, dtype=torch.bool)
 
     for i, offset in enumerate(offsets):
         if all(int(value) == 0 for value in offset):
-            mask[i] = 1.0
+            mask[i] = True
             continue
 
-        mask[i][_storage_slice_for_offset(offset, mode)] = 1.0
+        mask[i][_storage_slice_for_offset(offset, mode)] = True
 
     return mask
 
 
 def seg_to_affinity(
     seg: np.ndarray,
-    offsets: List[str] = None,
-    long_range: int = None,
+    offsets: Optional[List[str]] = None,
+    long_range: Optional[int] = None,
     affinity_mode: str = "deepem",
-) -> np.ndarray:
+) -> "AffinityTarget":
     """
     Compute affinity maps from segmentation.
 
     ``deepem`` stores each edge at the destination voxel. ``banis`` stores
-    each edge at the source voxel and follows ``lib/banis`` target semantics:
-    edges outside the valid source/destination region, or touching ``seg == -1``
-    unlabeled voxels, are encoded as ``-1`` so the loss can skip them.
+    each edge at the source voxel and follows ``lib/banis`` target semantics.
+    Edges outside the valid source/destination region, or touching ``seg == -1``
+    unlabeled voxels, are marked invalid in the returned mask.
 
     Axis convention: this function operates positionally on the input array's
     spatial dimensions — offset ``(a, b, c)`` shifts along ``seg`` axes 0, 1, 2
@@ -386,33 +440,30 @@ def seg_to_affinity(
         affinity_mode: ``deepem`` or ``banis``.
 
     Returns:
-        Affinities of shape ``(num_channels, A0, A1, A2)``.
+        :class:`AffinityTarget` carrying ``values`` (bool) and ``mask`` (bool),
+        each of shape ``(num_channels, A0, A1, A2)``. The two ``affinity_mode``s
+        differ only in the edge-storage convention; the masking machinery is
+        identical, mirroring ``lib/banis``'s ``loss_mask`` and ``lib/DeepEM``'s
+        ``affinity_mask`` / valid-crop semantics.
     """
     mode = normalize_affinity_mode(affinity_mode)
     parsed_offsets = resolve_affinity_offsets_from_kwargs(
         {"offsets": offsets, "long_range": long_range}
     )
     num_channels = len(parsed_offsets)
-    affinities = np.zeros((num_channels, *seg.shape), dtype=np.float32)
-    banis_loss_mask = np.zeros_like(affinities, dtype=bool) if mode == "banis" else None
+    values = np.zeros((num_channels, *seg.shape), dtype=bool)
+    mask = np.zeros_like(values, dtype=bool)
     labeled_mask = seg != -1
 
     for i, offset in enumerate(parsed_offsets):
         if all(value == 0 for value in offset):
-            affinities[i] = (seg > 0).astype(np.float32)
-            if banis_loss_mask is not None:
-                banis_loss_mask[i] = labeled_mask
+            values[i] = seg > 0
+            mask[i] = labeled_mask
             continue
 
         src_slice, dst_slice = _source_destination_slices(offset)
         storage_slice = dst_slice if mode == "deepem" else src_slice
-        affinities[i][storage_slice] = (
-            (seg[src_slice] == seg[dst_slice]) & (seg[storage_slice] > 0)
-        ).astype(np.float32)
-        if banis_loss_mask is not None:
-            banis_loss_mask[i][storage_slice] = labeled_mask[src_slice] & labeled_mask[dst_slice]
+        values[i][storage_slice] = (seg[src_slice] == seg[dst_slice]) & (seg[storage_slice] > 0)
+        mask[i][storage_slice] = labeled_mask[src_slice] & labeled_mask[dst_slice]
 
-    if banis_loss_mask is not None:
-        affinities[~banis_loss_mask] = -1.0
-
-    return affinities
+    return AffinityTarget(values=values, mask=mask, affinity_mode=mode)

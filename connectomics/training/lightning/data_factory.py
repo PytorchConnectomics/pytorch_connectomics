@@ -23,22 +23,33 @@ from .path_utils import expand_file_paths
 logger = logging.getLogger(__name__)
 
 
-def _target_context(cfg: Config) -> tuple[int, ...]:
-    context = getattr(cfg.data.dataloader, "target_context", None) or []
-    if not context:
-        return tuple(0 for _ in cfg.data.dataloader.patch_size)
-    return tuple(int(v) for v in context)
+def _target_context(cfg: Config) -> tuple[tuple[int, ...], tuple[int, ...]]:
+    """Return ``(pre, post)`` per-axis voxel counts for target_context extension.
+
+    Length-3 ``[a, b, c]`` is taken as trailing-only extension (legacy);
+    length-6 ``[pre0, pre1, pre2, post0, post1, post2]`` is asymmetric.
+    """
+    spatial_ndim = len(cfg.data.dataloader.patch_size)
+    raw = getattr(cfg.data.dataloader, "target_context", None) or []
+    values = [int(v) for v in raw]
+    if not values:
+        zero = tuple(0 for _ in range(spatial_ndim))
+        return zero, zero
+    if len(values) == spatial_ndim:
+        return tuple(0 for _ in range(spatial_ndim)), tuple(values)
+    if len(values) == 2 * spatial_ndim:
+        return tuple(values[:spatial_ndim]), tuple(values[spatial_ndim:])
+    raise ValueError(
+        "data.dataloader.target_context length must be 0, "
+        f"{spatial_ndim} (trailing-only), or {2 * spatial_ndim} (pre+post). "
+        f"Got {raw}."
+    )
 
 
 def _effective_patch_size(cfg: Config) -> tuple[int, ...]:
     patch_size = tuple(int(v) for v in cfg.data.dataloader.patch_size)
-    context = _target_context(cfg)
-    if len(context) != len(patch_size):
-        raise ValueError(
-            "data.dataloader.target_context must have the same length as patch_size: "
-            f"{context} vs {patch_size}"
-        )
-    return tuple(patch_size[i] + context[i] for i in range(len(patch_size)))
+    pre, post = _target_context(cfg)
+    return tuple(patch_size[i] + pre[i] + post[i] for i in range(len(patch_size)))
 
 
 def _validation_dataset_mode(cfg: Config) -> str:

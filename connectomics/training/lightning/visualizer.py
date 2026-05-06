@@ -29,6 +29,9 @@ def get_visualization_mask(batch: Dict[str, torch.Tensor]) -> Optional[torch.Ten
     valid_mask = batch.get("valid_mask")
     if valid_mask is not None:
         return valid_mask
+    label_mask = batch.get("label_mask")
+    if label_mask is not None:
+        return label_mask
     return batch.get("mask")
 
 

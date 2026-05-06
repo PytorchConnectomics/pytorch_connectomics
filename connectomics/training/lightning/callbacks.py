@@ -42,6 +42,26 @@ __all__ = [
 ]
 
 
+def _select_affinity_visualization_group_mask(
+    mask: Optional[torch.Tensor],
+    *,
+    label: torch.Tensor,
+    start_idx: int,
+    end_idx: int,
+) -> Optional[torch.Tensor]:
+    if mask is None:
+        return None
+    if mask.ndim != label.ndim:
+        return None
+    if mask.shape[0] != label.shape[0]:
+        return None
+    if tuple(mask.shape[-3:]) != tuple(label.shape[-3:]):
+        return None
+    if int(mask.shape[1]) != int(label.shape[1]):
+        return None
+    return mask[:, start_idx:end_idx].to(device=label.device, dtype=label.dtype)
+
+
 def _apply_affinity_visualization_crop_if_needed(
     cfg,
     *,
@@ -84,15 +104,20 @@ def _apply_affinity_visualization_crop_if_needed(
         if end_idx - start_idx != len(offsets):
             continue
 
-        group_mask = compute_affinity_valid_mask(
-            list(offsets[: end_idx - start_idx]),
-            spatial_shape,
-            affinity_mode=affinity_mode,
-            device=label.device,
-        ).unsqueeze(0)
-        group_mask = group_mask.to(device=label.device, dtype=label.dtype)
-        target_valid = (label[:, start_idx:end_idx] >= 0).to(dtype=label.dtype)
-        group_valid = group_mask * target_valid
+        group_valid = _select_affinity_visualization_group_mask(
+            mask,
+            label=label,
+            start_idx=start_idx,
+            end_idx=end_idx,
+        )
+        if group_valid is None:
+            group_valid = compute_affinity_valid_mask(
+                list(offsets[: end_idx - start_idx]),
+                spatial_shape,
+                affinity_mode=affinity_mode,
+                device=label.device,
+            ).unsqueeze(0)
+            group_valid = group_valid.to(device=label.device, dtype=label.dtype)
         label[:, start_idx:end_idx] = torch.where(
             group_valid > 0,
             label[:, start_idx:end_idx],
@@ -103,36 +128,36 @@ def _apply_affinity_visualization_crop_if_needed(
             dtype=pred.dtype,
         )
 
-    offsets = resolve_affinity_offsets_for_channel_slice(
+    crop_offsets = resolve_affinity_offsets_for_channel_slice(
         cfg,
         num_channels=num_channels,
         channel_slice=None,
     )
-    if affinity_mode != "deepem" or not offsets:
+    if affinity_mode != "deepem" or not crop_offsets:
         return image, label, pred, mask
 
     image = crop_spatial_by_offsets(
         image,
-        offsets,
+        crop_offsets,
         affinity_mode=affinity_mode,
         item_name="visualization image",
     )
     label = crop_spatial_by_offsets(
         label,
-        offsets,
+        crop_offsets,
         affinity_mode=affinity_mode,
         item_name="visualization label",
     )
     pred = crop_spatial_by_offsets(
         pred,
-        offsets,
+        crop_offsets,
         affinity_mode=affinity_mode,
         item_name="visualization prediction",
     )
     if mask is not None:
         mask = crop_spatial_by_offsets(
             mask,
-            offsets,
+            crop_offsets,
             affinity_mode=affinity_mode,
             item_name="visualization mask",
         )
@@ -174,8 +199,8 @@ class VisualizationCallback(Callback):
         self.output_head = getattr(images_cfg, "head", None)
 
         # Store batch for end-of-epoch visualization
-        self._last_train_batch = None
-        self._last_val_batch = None
+        self._last_train_batch: Optional[Dict[str, torch.Tensor]] = None
+        self._last_val_batch: Optional[Dict[str, torch.Tensor]] = None
         # Next epoch at which to log per prefix; advances by log_every_n_epochs
         # after each log so val (which runs every val_check_interval epochs)
         # still fires at the first val epoch >= each 10-epoch boundary.
@@ -376,9 +401,13 @@ class VisualizationCallback(Callback):
             writer = trainer.logger.experiment
             image = self.visualizer._prepare_volume(batch["image"].cpu())
             label = self.visualizer._prepare_volume(batch["label"].cpu())
+            if image is None or label is None:
+                return
 
             image = self.visualizer._normalize(image)
             label = self.visualizer._normalize(label)
+            if image is None or label is None:
+                return
 
             # Limit samples
             image = image[: self.visualizer.max_images]
@@ -522,7 +551,7 @@ class NaNDetectionCallback(Callback):
         self.debug_on_nan = debug_on_nan
         self.terminate_on_nan = terminate_on_nan
         self.print_diagnostics = print_diagnostics
-        self._last_batch = None  # Store last batch for debugging
+        self._last_batch: Optional[Dict[str, torch.Tensor]] = None
 
     def on_train_batch_start(
         self, trainer, pl_module, batch: Dict[str, torch.Tensor], batch_idx: int

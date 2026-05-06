@@ -168,8 +168,12 @@ class DataloaderConfig:
     batch_size: int = 4
     patch_size: List[int] = field(default_factory=lambda: [128, 128, 128])
     target_context: List[int] = field(
-        default_factory=lambda: [0, 0, 0]
-    )  # Extra positive-side crop context used for target generation, then cropped away.
+        default_factory=lambda: [0, 0, 0, 0, 0, 0]
+    )  # Per-axis voxels of extra context fed to target generation, then cropped
+    # away before training. Length 3 ``[a, b, c]`` extends only the trailing
+    # side per axis (legacy; equivalent to ``[0, 0, 0, a, b, c]``). Length 6
+    # ``[pre0, pre1, pre2, post0, post1, post2]`` is the canonical asymmetric
+    # form.
     pin_memory: bool = True
     use_preloaded_cache_train: bool = True  # Preload training volumes into memory
     use_preloaded_cache_val: bool = True  # Preload validation volumes into memory
