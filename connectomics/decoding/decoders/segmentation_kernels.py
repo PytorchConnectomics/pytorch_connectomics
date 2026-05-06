@@ -219,21 +219,18 @@ def _affinity_foreground_mask(hard_aff: np.ndarray, edge_offset: int) -> np.ndar
     parallel sweep gives them a unique propagated label.
     """
     X, Y, Z = hard_aff.shape[1], hard_aff.shape[2], hard_aff.shape[3]
-    fg = hard_aff[:3].any(axis=0).copy()
+    # `.any(axis=0)` already covers the edge-source side (whichever channel holds
+    # the edge value at voxel v is included in the OR). Only the destination side
+    # needs an extra OR per axis.
+    fg = hard_aff[:3].any(axis=0)
     if edge_offset == 0:
-        ax0 = hard_aff[0, : X - 1, :, :]
-        ax1 = hard_aff[1, :, : Y - 1, :]
-        ax2 = hard_aff[2, :, :, : Z - 1]
+        fg[1:X, :, :] |= hard_aff[0, : X - 1, :, :]
+        fg[:, 1:Y, :] |= hard_aff[1, :, : Y - 1, :]
+        fg[:, :, 1:Z] |= hard_aff[2, :, :, : Z - 1]
     else:
-        ax0 = hard_aff[0, 1:X, :, :]
-        ax1 = hard_aff[1, :, 1:Y, :]
-        ax2 = hard_aff[2, :, :, 1:Z]
-    fg[: X - 1, :, :] |= ax0
-    fg[1:X, :, :] |= ax0
-    fg[:, : Y - 1, :] |= ax1
-    fg[:, 1:Y, :] |= ax1
-    fg[:, :, : Z - 1] |= ax2
-    fg[:, :, 1:Z] |= ax2
+        fg[: X - 1, :, :] |= hard_aff[0, 1:X, :, :]
+        fg[:, : Y - 1, :] |= hard_aff[1, :, 1:Y, :]
+        fg[:, :, : Z - 1] |= hard_aff[2, :, :, 1:Z]
     return fg
 
 
@@ -324,23 +321,6 @@ def _propagate_affinity_sweep(seg, hard_aff, edge_offset):
     return changes
 
 
-@jit(nopython=True, cache=True)
-def _compact_affinity_labels(flat_in: np.ndarray) -> np.ndarray:
-    """Map sparse uint64 labels in scan order to dense uint32 1..K (0 stays 0)."""
-    out = np.zeros(flat_in.size, dtype=np.uint32)
-    remap = {np.uint64(0): np.uint32(0)}
-    next_id = np.uint32(0)
-    for i in range(flat_in.size):
-        v = flat_in[i]
-        if v in remap:
-            out[i] = remap[v]
-        else:
-            next_id += np.uint32(1)
-            remap[v] = next_id
-            out[i] = next_id
-    return out
-
-
 def connected_components_affinity_3d_numba_parallel(
     hard_aff: np.ndarray, edge_offset: int = 0, max_iters: int = 256
 ) -> np.ndarray:
@@ -368,10 +348,13 @@ def connected_components_affinity_3d_numba_parallel(
         return np.zeros((X, Y, Z), dtype=np.uint32)
 
     fg_flat = fg.reshape(-1)
-    n_fg = int(fg_flat.sum())
-    labels_flat = np.zeros(fg_flat.shape, dtype=np.uint64)
-    labels_flat[fg_flat] = np.arange(1, n_fg + 1, dtype=np.uint64)
+    label_dtype = np.uint32 if fg_flat.size < (1 << 32) else np.uint64
+    # Scan-order labels via cumsum + mask-multiply (mirrors the cupy backend);
+    # avoids the np.arange + boolean-scatter scratch.
+    labels_flat = np.cumsum(fg_flat, dtype=label_dtype)
+    labels_flat *= fg_flat
     seg = labels_flat.reshape((X, Y, Z))
+    del fg, fg_flat
 
     converged = False
     for _ in range(max_iters):
@@ -385,7 +368,8 @@ def connected_components_affinity_3d_numba_parallel(
             RuntimeWarning,
         )
 
-    return _compact_affinity_labels(seg.reshape(-1)).reshape((X, Y, Z))
+    seg, _ = fastremap.renumber(seg, preserve_zero=True, in_place=True)
+    return seg
 
 
 _AFFINITY_CC_SWEEP_KERNELS: dict = {}
@@ -598,6 +582,8 @@ def connected_components_affinity_3d_cupy(
     labels_flat = cp.cumsum(fg_flat, dtype=label_dtype)
     labels_flat *= fg_flat
     seg = labels_flat.reshape((X, Y, Z))
+    del fg_flat, fg
+    cp.get_default_memory_pool().free_all_blocks()
 
     sweep0, sweep1, sweep2 = _build_affinity_cc_sweep_kernels(label_key)
     aff0 = cp.ascontiguousarray(hard_aff_gpu[0]).view(cp.uint8)
