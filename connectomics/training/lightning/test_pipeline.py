@@ -416,7 +416,10 @@ def _predict_output_head(
             requested_head=requested_head,
         )
 
-    predictions_np = predictions.detach().cpu().float().numpy()
+    predictions_cpu = predictions.detach().cpu()
+    if predictions_cpu.dtype == torch.bfloat16:
+        predictions_cpu = predictions_cpu.float()
+    predictions_np = predictions_cpu.numpy()
     del predictions
     if predictions_np.size == 0:
         if _should_skip_postprocess_on_rank(module):
