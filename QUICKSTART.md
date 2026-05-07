@@ -163,7 +163,7 @@ python install.py --cuda 12.1
 
 ### Learn More
 - 📚 **Full Documentation:** [connectomics.readthedocs.io](https://connectomics.readthedocs.io)
-- 📖 **Developer Guide:** [.claude/CLAUDE.md](.claude/CLAUDE.md)
+- 📖 **Developer Guide:** [CLAUDE.md](CLAUDE.md)
 - 🎯 **More Tutorials:** See `tutorials/` directory
 
 ### Get Help

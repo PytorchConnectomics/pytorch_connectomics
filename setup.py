@@ -80,7 +80,7 @@ extras_require = {
     # Install separately: pip install -e /projects/weilab/weidf/lib/MedNeXt
     # Or from your local MedNeXt installation path
     "mednext": [
-        # Placeholder - install manually as documented in .claude/MEDNEXT.md
+        # Placeholder - install manually as documented in .agent/integrations/mednext.md
     ],
 }
 
