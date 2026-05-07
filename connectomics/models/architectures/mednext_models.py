@@ -12,7 +12,7 @@ Reference:
 Installation:
     pip install -e /projects/weilab/weidf/lib/MedNeXt
 
-See .claude/MEDNEXT.md for detailed documentation.
+See .agent/integrations/mednext.md for detailed documentation.
 """
 
 from __future__ import annotations
@@ -302,7 +302,7 @@ def _check_mednext_available():
             "Run: pip install -e /projects/weilab/weidf/lib/MedNeXt\n"
             "Or add to PYTHONPATH: export PYTHONPATH=/projects/weilab/weidf/lib/MedNeXt:"
             "$PYTHONPATH\n"
-            "\nSee .claude/MEDNEXT.md for detailed setup instructions."
+            "\nSee .agent/integrations/mednext.md for detailed setup instructions."
         )
 
 
@@ -347,7 +347,7 @@ def build_mednext(cfg) -> ConnectomicsModel:
           loss:
             deep_supervision: true
 
-    See .claude/MEDNEXT.md for complete documentation.
+    See .agent/integrations/mednext.md for complete documentation.
     """
     _check_mednext_available()
 
@@ -437,7 +437,7 @@ def build_mednext_custom(cfg) -> ConnectomicsModel:
             block_counts: [3, 4, 4, 4, 4, 4, 4, 4, 3]
             checkpoint_style: outside_block
 
-    See .claude/MEDNEXT.md for complete parameter documentation.
+    See .agent/integrations/mednext.md for complete parameter documentation.
     """
     _check_mednext_available()
     head_cfg, primary_head = _get_mednext_heads_cfg(cfg)

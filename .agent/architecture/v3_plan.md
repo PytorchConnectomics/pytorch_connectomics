@@ -7,8 +7,9 @@ Audit run on commit `ba0f482`. Codex v2 round delivered the package layout
 integrity*, *strict config*, *stage separation*, and *dead-code removal*.
 No backward compatibility is preserved.
 
-This revision incorporates Codex feedback on the original v3 plan
-(`v3_claude_feedback.md`). Three things changed:
+This revision incorporates Codex feedback on the original v3 plan (the
+initial draft and its feedback have since been removed from the tree as
+part of the `.agent/` reorg). Three things changed:
 
 1. **Dead-code claims were too broad.** Several "zero caller" items in the
    original plan are public API exports or test-covered features. Theme A

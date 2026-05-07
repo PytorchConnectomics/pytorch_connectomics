@@ -55,8 +55,6 @@ description: >
     - Fallback: decode_affinity_cc (connected components on short-range affinities)
     - For the full 795×4870×3825 volume, run ABISS externally on saved predictions.
 
-  See .claude/repos_other/ABISS_USAGE_SUMMARY.md for ABISS build/run instructions.
-
 # ── Inherit all shared profile libraries ──────────────────────────────────────
 _base_:
 - ../connectomics/config/all_profiles.yaml

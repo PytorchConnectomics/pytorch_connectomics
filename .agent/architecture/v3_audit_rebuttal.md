@@ -1,4 +1,4 @@
-# Rebuttal to `v3_claude_updated_implementation_check.md`
+# Rebuttal to `v3_audit.md`
 
 The implementation check is useful and mostly accurate, but several points
 should be tightened before using it as the next execution plan. The main issue
@@ -106,7 +106,7 @@ boundary obvious.
 
 ### 5. Add an accepted-deviations section
 
-Some deviations from `v3_claude_updated.md` are reasonable:
+Some deviations from `v3_plan.md` are reasonable:
 
 - A3 product/API decisions were deferred because they need maintainer sign-off.
 - Not every large file needs to be split immediately.

@@ -1,4 +1,4 @@
-# V3 Implementation Check (against `v3_claude_updated.md`)
+# V3 Implementation Check (against `v3_plan.md`)
 
 Reviewed against branch `master` as of commit `eeab7cc`. Plan baseline was
 `ba0f482`; 13 commits land between then and HEAD, mapping cleanly to PRs 0–11
@@ -343,7 +343,7 @@ Plan A3 said these required maintainer sign-off. Codex took the safe path
 (no decision = keep), which is defensible. But the plan also said they
 should be "tracked through PRs 8/9 with explicit decisions" — no such
 decision document exists. Recommendation: add a one-line `A3 deferred:` note
-in `v3_claude_updated.md` or a follow-up issue tracker so they aren't
+in `v3_plan.md` or a follow-up issue tracker so they aren't
 silently accepted as permanent.
 
 ### 11. `runtime/checkpoint_dispatch.py:10` top-level import of `training`
