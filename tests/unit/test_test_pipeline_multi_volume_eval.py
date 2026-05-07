@@ -12,6 +12,7 @@ from connectomics.evaluation.nerl import import_em_erl
 from connectomics.inference.output import resolve_output_filenames
 from connectomics.training.lightning.test_pipeline import (
     _apply_predecode_prediction_crops,
+    _predict_output_head,
     run_test_step,
 )
 
@@ -54,6 +55,35 @@ class _DummyModule:
 
     def _is_test_evaluation_enabled(self):
         return True
+
+
+def test_predict_output_head_preserves_model_output_dtype():
+    class _HalfInferenceManager:
+        def predict_with_tta(
+            self,
+            images,
+            mask=None,
+            mask_align_to_image=False,
+            requested_head=None,
+        ):
+            return torch.ones((1, 1, 2, 2, 2), dtype=torch.float16)
+
+    module = _DummyModule()
+    module.inference_manager = _HalfInferenceManager()
+
+    predictions, reference_shape = _predict_output_head(
+        module,
+        lazy_sample=False,
+        images=torch.zeros((1, 1, 2, 2, 2), dtype=torch.float32),
+        mask=None,
+        image_path=None,
+        mask_path=None,
+        mask_align_to_image=False,
+        reference_image_shape=(1, 1, 2, 2, 2),
+    )
+
+    assert predictions.dtype == np.float16
+    assert reference_shape == (2, 2, 2)
 
 
 def test_run_test_step_evaluates_each_volume_in_multi_volume_batch(monkeypatch):

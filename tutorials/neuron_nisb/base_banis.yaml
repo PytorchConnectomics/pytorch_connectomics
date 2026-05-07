@@ -71,15 +71,17 @@ default:
       strategy: whole_volume
     window:
       lazy_load: true
-      distributed_sharding: true
-      distributed_reduce_chunk_mb: 128
+      # Single-GPU tutorial path. Distributed sliding-window sharding splits
+      # windows across DDP ranks, but each rank still owns full-volume value and
+      # weight accumulators before reducing to rank 0.
+      distributed_sharding: false
       keep_input_on_cpu: true
       sw_device: cuda
       output_device: cpu
       # Match lib/banis patched_inference: 128^3 windows, 50% overlap,
       # snap-to-edge grid, and distance-transform blending.
       window_size: [128, 128, 128]
-      sw_batch_size: 2
+      sw_batch_size: 6
       overlap: 0.5
       blending: distance_transform
       # BANIS-style boundary handling: snap last window to image_size-roi_size
@@ -98,7 +100,7 @@ default:
     steps:
     - name: decode_affinity_cc
       kwargs:
-        threshold: 0.65
+        threshold: 0.75
         #backend: cupy
         backend: numba
         # affinity_mode=banis stores edges at the source voxel.
@@ -170,16 +172,16 @@ train:
 
 test:
   system:
-    # Lazy sliding-window sharding splits one large volume across ranks and only
-    # rank 0 decodes/saves after accumulator reduction.
-    num_gpus: -1
+    num_gpus: 1
   data:
     test:
-      path: /projects/weilab/dataset/nisb/base/train/
-      image: seed0/data.zarr/img
-      label: seed0/data.zarr/seg
+      #path: /projects/weilab/dataset/nisb/base/train/seed0/
+      #skeleton: /projects/weilab/dataset/nisb/base/train/seed0/skeleton.pkl
+      path: /projects/weilab/dataset/nisb/base/test/seed101/
+      skeleton: /projects/weilab/dataset/nisb/base/test/seed101/skeleton.pkl
+      image: data.zarr/img
+      label: data.zarr/seg
       resolution: [9, 9, 20]
-      skeleton: /projects/weilab/dataset/nisb/base/train/seed0/skeleton.pkl
 
 
 # ============================================================================

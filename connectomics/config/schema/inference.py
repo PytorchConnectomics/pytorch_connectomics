@@ -333,7 +333,9 @@ def sync_inference_runtime_aliases(cfg: object) -> None:
             save_prediction.enabled = bool(getattr(store, "enabled", False))
             backend = str(getattr(store, "backend", "h5")).lower()
             save_prediction.output_formats = [backend]
-            save_prediction.output_path = getattr(store, "output_path", None)
+            output_path = getattr(store, "output_path", None)
+            if output_path not in (None, ""):
+                save_prediction.output_path = output_path
             save_prediction.cache_suffix = getattr(store, "cache_suffix", "_x1_prediction.h5")
             save_prediction.save_all_heads = bool(getattr(store, "save_all_heads", False))
             save_prediction.storage_dtype = getattr(store, "dtype", None)

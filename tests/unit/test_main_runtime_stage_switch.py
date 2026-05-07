@@ -330,6 +330,36 @@ def test_checkpoint_tune_uses_tuning_prediction_folder(tmp_path):
     assert cfg.inference.save_prediction.output_path == str(expected_results_dir)
 
 
+def test_test_stage_sync_preserves_checkpoint_prediction_output_path(tmp_path):
+    cfg = Config()
+    cfg.inference.save_inference.enabled = True
+    cfg.inference.save_inference.backend = "h5"
+    cfg.inference.save_inference.dtype = "float16"
+    args = _make_args(tmp_path / "config.yaml", mode="test")
+    args.checkpoint = str(
+        tmp_path
+        / "outputs"
+        / "nisb_base_banis"
+        / "20260427_095218"
+        / "checkpoints"
+        / "step=00200000.ckpt"
+    )
+
+    configure_checkpoint_output_paths(args, cfg)
+    expected_results_dir = (
+        tmp_path / "outputs" / "nisb_base_banis" / "20260427_095218" / "results_step=00200000"
+    )
+
+    assert cfg.inference.save_prediction.output_path == str(expected_results_dir)
+
+    cfg = resolve_test_stage_runtime(cfg)
+
+    assert cfg.inference.save_prediction.enabled is True
+    assert cfg.inference.save_prediction.output_formats == ["h5"]
+    assert cfg.inference.save_prediction.storage_dtype == "float16"
+    assert cfg.inference.save_prediction.output_path == str(expected_results_dir)
+
+
 def test_tune_cache_detection_uses_tuning_folder_then_result_fallback(tmp_path):
     cfg = Config()
     cfg.tune = TuneConfig()
