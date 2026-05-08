@@ -10,7 +10,7 @@ Reference:
     https://arxiv.org/abs/2303.09975
 
 Installation:
-    pip install git+https://github.com/MIC-DKFZ/MedNeXt.git
+    pip install git+https://github.com/PytorchConnectomics/MedNeXt.git
 """
 
 from __future__ import annotations
@@ -296,7 +296,7 @@ def _check_mednext_available():
     if not MEDNEXT_AVAILABLE:
         raise ImportError(
             "MedNeXt is not installed. Install with:\n"
-            "    pip install git+https://github.com/MIC-DKFZ/MedNeXt.git"
+            "    pip install git+https://github.com/PytorchConnectomics/MedNeXt.git"
         )
 
 
@@ -508,7 +508,7 @@ def upkern_load_weights(
     except ImportError:
         raise ImportError(
             "UpKern utility not found in MedNeXt installation.\n"
-            "Reinstall: pip install git+https://github.com/MIC-DKFZ/MedNeXt.git"
+            "Reinstall: pip install git+https://github.com/PytorchConnectomics/MedNeXt.git"
         )
 
     # Extract the actual MedNeXt models from wrappers
