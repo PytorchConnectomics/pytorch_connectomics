@@ -143,10 +143,9 @@ default:
       chunk_size: [1008, 1008, 1350]
       halo: [0, 0, 0]
       axes: all
-    save_inference:
-      enabled: true
-      backend: h5
-      dtype: float16
+    save_results: true
+    save_backend: h5
+    save_dtype: float16
     test_time_augmentation:
       enabled: false
 
@@ -155,7 +154,7 @@ default:
     # Change this tag when trying decoder/chunking variants; it is included in
     # decoded output filenames and the decoded-cache glob, so old results are
     # not accidentally reused.
-    output_suffix: chunk_raw_grid1008_halo0
+    save_suffix: chunk_raw_grid1008_halo0
     steps:
     - name: decode_affinity_cc
       kwargs:

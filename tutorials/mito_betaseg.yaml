@@ -107,8 +107,7 @@ default:
       enabled: false
       flip_axes: all
       ensemble_mode: min
-    save_inference:
-      enabled: true
+    save_results: true
 
   decoding:
     steps:

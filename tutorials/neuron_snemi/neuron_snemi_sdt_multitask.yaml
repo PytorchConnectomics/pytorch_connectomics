@@ -100,8 +100,7 @@ default:
       flip_axes: all
       rotation90_axes: [[1, 2]]
       ensemble_mode: min
-    save_inference:
-      enabled: true
+    save_results: true
 
   decoding:
     steps:

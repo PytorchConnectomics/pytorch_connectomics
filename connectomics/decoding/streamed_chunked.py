@@ -327,7 +327,7 @@ def run_chunked_affinity_cc_inference(
     import h5py
 
     output_path.parent.mkdir(parents=True, exist_ok=True)
-    compression = getattr(getattr(cfg.inference, "save_prediction", None), "compression", "gzip")
+    compression = getattr(cfg.inference, "save_compression", "gzip")
     compression = None if compression in (None, "", "none") else compression
     h5_chunks = resolve_h5_spatial_chunks(final_shape)
     with h5py.File(output_path, "w") as handle:

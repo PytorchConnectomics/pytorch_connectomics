@@ -14,7 +14,7 @@ from .output_naming import (
     final_prediction_output_tag,
     intermediate_prediction_cache_suffix,
     intermediate_prediction_cache_suffix_candidates,
-    is_tta_cache_suffix,
+    is_raw_cache_suffix,
     resolve_prediction_cache_suffix,
 )
 from .sharding import resolve_test_image_paths
@@ -38,15 +38,14 @@ def resolve_cached_prediction_files(
     if not filenames:
         return False, None, []
 
+    # Per-volume layout (v3): files live at <output_dir>/<volume_stem>/<artifact>.h5
+
     if preferred_decoded_suffix:
         resolved_files: list[Path] = []
         all_exist = True
         for filename in filenames:
-            pred_file = output_dir / f"{filename}{preferred_decoded_suffix}"
-            if not os.path.exists(pred_file):
-                all_exist = False
-                break
-            if not is_valid_hdf5_prediction_file(pred_file):
+            pred_file = output_dir / filename / preferred_decoded_suffix
+            if not os.path.exists(pred_file) or not is_valid_hdf5_prediction_file(pred_file):
                 all_exist = False
                 break
             resolved_files.append(pred_file)
@@ -56,18 +55,19 @@ def resolve_cached_prediction_files(
     if decoded_glob_suffix:
         decoded_files: list[Path] = []
         for filename in filenames:
-            matches = sorted(output_dir.glob(f"{filename}{decoded_glob_suffix}"))
+            volume_dir = output_dir / filename
+            matches = sorted(volume_dir.glob(decoded_glob_suffix))
             usable = [m for m in matches if is_valid_hdf5_prediction_file(m)]
             if not usable:
                 decoded_files = []
                 break
             decoded_files.append(usable[-1])
         if decoded_files and len(decoded_files) == len(filenames):
-            chosen_suffix = decoded_files[0].name[len(filenames[0]) :]
+            chosen_suffix = decoded_files[0].name
             return True, chosen_suffix, decoded_files
 
     suffixes_to_try = [cache_suffix]
-    if not is_tta_cache_suffix(cache_suffix) and fallback_tta_suffixes:
+    if not is_raw_cache_suffix(cache_suffix) and fallback_tta_suffixes:
         for try_suffix in fallback_tta_suffixes:
             if try_suffix not in suffixes_to_try:
                 suffixes_to_try.append(try_suffix)
@@ -76,11 +76,8 @@ def resolve_cached_prediction_files(
         resolved_files: list[Path] = []
         all_exist = True
         for filename in filenames:
-            pred_file = output_dir / f"{filename}{try_suffix}"
-            if not os.path.exists(pred_file):
-                all_exist = False
-                break
-            if not is_valid_hdf5_prediction_file(pred_file):
+            pred_file = output_dir / filename / try_suffix
+            if not os.path.exists(pred_file) or not is_valid_hdf5_prediction_file(pred_file):
                 all_exist = False
                 break
             resolved_files.append(pred_file)
@@ -113,8 +110,8 @@ def is_valid_hdf5_prediction_file(path: Path, dataset: str = "main") -> bool:
 
 
 def resolve_tta_result_path_override(cfg: Config) -> str:
-    """Return explicit intermediate prediction file from inference.tta_result_path."""
-    value = getattr(cfg.inference, "tta_result_path", "")
+    """Return explicit intermediate prediction file from inference.load_tta_path."""
+    value = getattr(cfg.inference, "load_tta_path", "")
     if isinstance(value, str) and value.strip():
         return value.strip()
     return ""
@@ -176,24 +173,27 @@ def has_cached_predictions_in_output_dir(
     cfg: Config, mode: str, checkpoint_path: str | None = None
 ) -> bool:
     """Return True if all expected TTA prediction files exist in the output directory."""
-    save_pred_cfg = getattr(cfg.inference, "save_prediction", None)
-    if save_pred_cfg is None:
-        return False
-    output_dir = getattr(save_pred_cfg, "output_path", None)
+    output_dir = getattr(cfg.inference, "save_path", None)
     output_dirs = [output_dir] if output_dir else []
     if mode == "tune":
-        tune_output_dir = getattr(
-            getattr(getattr(cfg, "tune", None), "output", None),
-            "output_pred",
-            None,
-        )
+        tune_output_dir = getattr(getattr(cfg, "tune", None), "save_predictions_path", None)
         output_dirs = [path for path in (tune_output_dir, output_dir) if path]
     if not output_dirs:
         return False
 
-    image_paths = _resolve_dataset_image_paths(cfg, mode)
-    if not image_paths:
-        return False
+    from .output_naming import resolve_dataset_volume_stems
+
+    volume_stems = resolve_dataset_volume_stems(cfg, mode)
+    if not volume_stems:
+        # Fall back to image-path-derived stems when the dataset config has no
+        # explicit `name` and the resolver returned empty (e.g. unit-test
+        # configs that point only `data.test.image` to a single file).
+        image_paths = _resolve_dataset_image_paths(cfg, mode)
+        if not image_paths:
+            return False
+        from .output_naming import _stem_from_image_path
+
+        volume_stems = [_stem_from_image_path(p) for p in image_paths]
 
     suffix = intermediate_prediction_cache_suffix(cfg, checkpoint_path=checkpoint_path)
     seen_dirs: set[str] = set()
@@ -204,12 +204,9 @@ def has_cached_predictions_in_output_dir(
         seen_dirs.add(output_dir_str)
         output_path = Path(output_dir_str)
         all_found = True
-        for image_path in image_paths:
-            pred_file = output_path / f"{Path(image_path).stem}{suffix}"
-            if not os.path.exists(pred_file):
-                all_found = False
-                break
-            if not is_valid_hdf5_prediction_file(pred_file):
+        for stem in volume_stems:
+            pred_file = output_path / stem / suffix
+            if not os.path.exists(pred_file) or not is_valid_hdf5_prediction_file(pred_file):
                 all_found = False
                 break
         if all_found:
@@ -221,10 +218,6 @@ def preflight_test_cache_hit(
     cfg: Config, datamodule: Any, checkpoint_path: str | None = None
 ) -> tuple[bool, str | None, int]:
     """Check if test outputs already exist so inference and ckpt restore can be skipped."""
-    save_pred_cfg = getattr(cfg.inference, "save_prediction", None)
-    if save_pred_cfg is None:
-        return False, None, 0
-
     explicit_prediction = resolve_tta_result_path_override(cfg)
     if isinstance(explicit_prediction, str) and explicit_prediction.strip():
         pred_file = Path(explicit_prediction).expanduser()
@@ -239,18 +232,20 @@ def preflight_test_cache_hit(
             )
 
         print(
-            "  WARNING: inference.tta_result_path file missing or unreadable "
+            "  WARNING: inference.load_tta_path file missing or unreadable "
             f"during preflight: {pred_file}. "
             "Falling back to normal cache/inference flow."
         )
 
-    output_dir_value = getattr(save_pred_cfg, "output_path", None)
+    output_dir_value = getattr(cfg.inference, "save_path", None)
     if not output_dir_value:
         return False, None, 0
 
     test_data_dicts = getattr(datamodule, "test_data_dicts", None)
     if not test_data_dicts:
         return False, None, 0
+
+    from .output_naming import _stem_from_image_path
 
     filenames = []
     for data_dict in test_data_dicts:
@@ -259,7 +254,8 @@ def preflight_test_cache_hit(
         image_path = data_dict.get("image")
         if not image_path:
             return False, None, 0
-        filenames.append(Path(str(image_path)).stem)
+        # Use the canonical per-volume stem so preflight matches the writers.
+        filenames.append(_stem_from_image_path(str(image_path)))
 
     cache_hit, loaded_suffix, _resolved_files = resolve_cached_prediction_files(
         Path(output_dir_value),
@@ -268,9 +264,7 @@ def preflight_test_cache_hit(
         fallback_tta_suffixes=intermediate_prediction_cache_suffix_candidates(
             cfg, checkpoint_path=checkpoint_path
         ),
-        preferred_decoded_suffix=(
-            "_" + final_prediction_output_tag(cfg, checkpoint_path=checkpoint_path) + ".h5"
-        ),
+        preferred_decoded_suffix=final_prediction_output_tag(cfg, checkpoint_path=checkpoint_path),
         decoded_glob_suffix=final_prediction_decoded_glob_suffix(
             cfg, checkpoint_path=checkpoint_path
         ),
@@ -303,10 +297,7 @@ def try_cache_only_test_execution(
     data_cfg = getattr(cfg, "data", None)
     if data_cfg is None:
         return False
-    save_pred_cfg = getattr(cfg.inference, "save_prediction", None)
-    if save_pred_cfg is None:
-        return False
-    output_dir_value = getattr(save_pred_cfg, "output_path", None)
+    output_dir_value = getattr(cfg.inference, "save_path", None)
     test_image = getattr(getattr(data_cfg, "test", None), "image", None)
     if not output_dir_value or not test_image:
         return False
@@ -332,7 +323,9 @@ def try_cache_only_test_execution(
 
     output_dir = Path(output_dir_value)
     cache_suffix = resolve_prediction_cache_suffix(cfg, mode, checkpoint_path=checkpoint_path)
-    filenames = [Path(str(p)).stem for p in test_image_paths]
+    from .output_naming import _stem_from_image_path
+
+    filenames = [_stem_from_image_path(str(p)) for p in test_image_paths]
 
     cache_hit, loaded_suffix, resolved_files = resolve_cached_prediction_files(
         output_dir,
@@ -341,9 +334,7 @@ def try_cache_only_test_execution(
         fallback_tta_suffixes=intermediate_prediction_cache_suffix_candidates(
             cfg, checkpoint_path=checkpoint_path
         ),
-        preferred_decoded_suffix=(
-            "_" + final_prediction_output_tag(cfg, checkpoint_path=checkpoint_path) + ".h5"
-        ),
+        preferred_decoded_suffix=final_prediction_output_tag(cfg, checkpoint_path=checkpoint_path),
         decoded_glob_suffix=final_prediction_decoded_glob_suffix(
             cfg, checkpoint_path=checkpoint_path
         ),
@@ -354,7 +345,7 @@ def try_cache_only_test_execution(
     # Defer the (potentially multi-GB) read until we know the data will be
     # consumed here. trainer.test() reloads the cache itself when evaluation
     # is enabled, so reading here would just waste time and memory.
-    is_intermediate = is_tta_cache_suffix(loaded_suffix)
+    is_intermediate = is_raw_cache_suffix(loaded_suffix)
     evaluation_enabled = is_test_evaluation_enabled(cfg)
     if evaluation_enabled and is_intermediate:
         # Direct decode+eval path that bypasses Lightning when GT labels are
@@ -404,14 +395,17 @@ def try_cache_only_test_execution(
         )
 
     print("Cache-only decode/postprocess/save path (evaluation disabled)")
+    decoding_cfg = getattr(cfg, "decoding", None)
+    save_results = bool(getattr(decoding_cfg, "save_results", True))
     decoding_result = run_decoding_stage(cfg, predictions_np)
     if decoding_result.has_decoding_config:
-        write_decoded_outputs(
-            cfg,
-            decoding_result.postprocessed,
-            filenames,
-            suffix="prediction",
-        )
+        if save_results:
+            write_decoded_outputs(
+                cfg,
+                decoding_result.postprocessed,
+                filenames,
+                suffix=final_prediction_output_tag(cfg, checkpoint_path=checkpoint_path),
+            )
     else:
         print("Skipping postprocessing (no decoding configuration)")
         print("Skipping final prediction save (no decoding configuration)")
@@ -466,6 +460,8 @@ def _try_cache_only_intermediate_eval(
     final_suffix = final_prediction_output_tag(cfg, checkpoint_path=checkpoint_path)
     inference_cfg = getattr(cfg, "inference", None)
     evaluation_cfg = getattr(cfg, "evaluation", None)
+    decoding_cfg = getattr(cfg, "decoding", None)
+    save_results = bool(getattr(decoding_cfg, "save_results", True))
 
     for idx, pred_file in enumerate(resolved_files):
         volume_name = filenames[idx]
@@ -482,12 +478,13 @@ def _try_cache_only_intermediate_eval(
 
         decoding_result = run_decoding_stage(cfg, predictions_np)
         if decoding_result.has_decoding_config:
-            write_decoded_outputs(
-                cfg,
-                decoding_result.postprocessed,
-                [volume_name],
-                suffix=final_suffix,
-            )
+            if save_results:
+                write_decoded_outputs(
+                    cfg,
+                    decoding_result.postprocessed,
+                    [volume_name],
+                    suffix=final_suffix,
+                )
         else:
             print("  Skipping postprocessing (no decoding configuration)")
 
@@ -542,7 +539,7 @@ def handle_test_cache_hit(
     ckpt_path: str | None,
 ) -> tuple[bool, None]:
     """Print cache-hit status and return whether the test loop can be skipped."""
-    if is_tta_cache_suffix(cached_suffix):
+    if is_raw_cache_suffix(cached_suffix):
         print("  [OK]Loaded intermediate predictions from disk, skipping inference")
     else:
         print(
@@ -558,7 +555,7 @@ def handle_test_cache_hit(
 
     should_skip_test_loop = (
         args.mode == "test"
-        and not is_tta_cache_suffix(cached_suffix)
+        and not is_raw_cache_suffix(cached_suffix)
         and not is_test_evaluation_enabled(cfg)
     )
     if should_skip_test_loop:

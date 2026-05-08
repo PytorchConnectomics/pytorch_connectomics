@@ -439,7 +439,7 @@ def run_chunked_prediction_inference(
     chunks = build_chunk_grid(final_shape, chunk_shape)
     output_path = Path(output_path)
     output_path.parent.mkdir(parents=True, exist_ok=True)
-    compression = getattr(getattr(cfg.inference, "save_prediction", None), "compression", "gzip")
+    compression = getattr(cfg.inference, "save_compression", "gzip")
     compression = None if compression in (None, "", "none") else compression
     h5_spatial_chunks = resolve_h5_spatial_chunks(final_shape)
 

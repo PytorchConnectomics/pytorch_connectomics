@@ -46,8 +46,7 @@ default:
     model:
       head: aff_r1
       select_channel: [0, 1, 2]
-    save_inference:
-      save_all_heads: true
+    save_all_heads: true
 
 train:
   monitor:

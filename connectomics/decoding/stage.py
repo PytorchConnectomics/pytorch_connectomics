@@ -116,11 +116,75 @@ def apply_decoding_postprocessing(cfg: Any, data: np.ndarray) -> np.ndarray:
     return output
 
 
-def run_decoding_stage(cfg: Any, predictions: np.ndarray) -> DecodingStageResult:
-    """Decode raw predictions and apply decoded-output postprocessing."""
+def _maybe_apply_affinity_mask(cfg: Any, predictions: np.ndarray) -> np.ndarray:
+    """Zero affinity channels at masked-out voxels per ``decoding.affinity_mask_path``.
+
+    The mask file must contain a single 3D ``uint8`` dataset matching the spatial
+    shape of ``predictions[0]`` (the affinity volume). 0 = drop, 1 = keep. Mask is
+    broadcast across the channel dimension; voxels where ``mask==0`` get zeroed
+    so that connected-components decoders sever all outgoing edges there.
+    """
+    decoding_cfg = _cfg_get(cfg, "decoding", None)
+    mask_path = _cfg_get(decoding_cfg, "affinity_mask_path", "") or ""
+    if not mask_path:
+        return predictions
+    if predictions.ndim != 4:
+        raise ValueError(
+            "affinity_mask_path requires 4D predictions (C, *spatial); "
+            f"got shape {predictions.shape}"
+        )
+    import h5py
+
+    with h5py.File(mask_path, "r") as f:
+        if "main" in f:
+            mask = f["main"][...]
+        else:
+            keys = list(f.keys())
+            if len(keys) != 1:
+                raise ValueError(
+                    f"affinity_mask_path={mask_path}: expected dataset 'main' or "
+                    f"a single dataset, got {keys}"
+                )
+            mask = f[keys[0]][...]
+    if mask.shape != predictions.shape[1:]:
+        raise ValueError(
+            f"affinity_mask shape {mask.shape} != predictions spatial shape "
+            f"{predictions.shape[1:]}"
+        )
+    zero_idx = (mask == 0) if mask.dtype != np.bool_ else ~mask
+    n_zero = int(zero_idx.sum())
+    n_total = int(zero_idx.size)
+    logger.info(
+        "Applying affinity mask %s: zeroing %d/%d voxels (%.2f%%) across %d channels",
+        mask_path,
+        n_zero,
+        n_total,
+        100.0 * n_zero / max(n_total, 1),
+        predictions.shape[0],
+    )
+    for c in range(predictions.shape[0]):
+        predictions[c][zero_idx] = 0
+    return predictions
+
+
+def run_decoding_stage(
+    cfg: Any,
+    predictions: np.ndarray,
+    *,
+    on_step_complete: Any = None,
+) -> DecodingStageResult:
+    """Decode raw predictions and apply decoded-output postprocessing.
+
+    ``on_step_complete``, if provided, is forwarded to the per-step decoder
+    pipeline so callers can write intermediate per-step outputs.
+    """
     start = time.time()
+    if predictions.ndim == 5 and predictions.shape[0] == 1:
+        predictions = predictions[0]
     has_decoding_cfg = bool(resolve_decode_modes_from_cfg(cfg))
-    decoded = apply_decode_mode(cfg, predictions)
+    if has_decoding_cfg:
+        predictions = _maybe_apply_affinity_mask(cfg, predictions)
+    decoded = apply_decode_mode(cfg, predictions, on_step_complete=on_step_complete)
     postprocessed = apply_decoding_postprocessing(cfg, decoded) if has_decoding_cfg else decoded
     return DecodingStageResult(
         decoded=decoded,

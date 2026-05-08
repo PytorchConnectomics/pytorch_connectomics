@@ -81,22 +81,24 @@ default:
       # Match lib/banis patched_inference: 128^3 windows, 50% overlap,
       # snap-to-edge grid, and distance-transform blending.
       window_size: [128, 128, 128]
-      sw_batch_size: 6
+      sw_batch_size: 8
       overlap: 0.5
       blending: distance_transform
       # BANIS-style boundary handling: snap last window to image_size-roi_size
       # (no whole-volume padding). Honored by the lazy sliding-window path
       # (connectomics/inference/lazy.py) when lazy_load=true.
       snap_to_edge: true
-    save_inference:
-      enabled: true
-      backend: h5
-      dtype: float16
+    save_results: true
+    save_backend: h5
     test_time_augmentation:
       enabled: false
 
   decoding:
     enabled: true
+    # Optional per-volume affinity mask: zeros out affinity channels at
+    # masked-out voxels before decoding. Top-level DecodingConfig field —
+    # not a decoder-step kwarg.
+    affinity_mask_path: outputs/nisb_base_banis/20260427_095218/results_step=00200000/affinity_mask.h5
     steps:
     - name: decode_affinity_cc
       kwargs:
@@ -213,8 +215,7 @@ tune:
       metric: nerl
       direction: maximize
 
-  output:
-    save_study: true
+  save_study: true
 
   logging:
     verbose: true

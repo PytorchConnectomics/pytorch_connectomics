@@ -63,18 +63,18 @@ def _resolve_first_complete_tuning_prediction_cache(
 
 
 def _resolve_tuning_output_dir(cfg, fallback_prediction_dir: str | Path | None) -> Path:
-    tune_output_cfg = getattr(getattr(cfg, "tune", None), "output", None)
-    configured_output_dir = getattr(tune_output_cfg, "output_dir", None)
+    tune_cfg = getattr(cfg, "tune", None)
+    configured_output_dir = getattr(tune_cfg, "save_path", None)
     if configured_output_dir:
         return Path(configured_output_dir)
-    configured_prediction_dir = getattr(tune_output_cfg, "output_pred", None)
+    configured_prediction_dir = getattr(tune_cfg, "save_predictions_path", None)
     if configured_prediction_dir:
         return Path(configured_prediction_dir).parent
     if fallback_prediction_dir:
         return Path(fallback_prediction_dir).parent / "tuning"
     raise ValueError(
-        "Missing tuning output directory. Set tune.output.output_dir "
-        "or inference.save_prediction.output_path."
+        "Missing tuning output directory. Set tune.save_path "
+        "or inference.save_path."
     )
 
 
@@ -121,31 +121,19 @@ def temporary_tuning_inference_overrides(
 
     backups = []
     for inference_cfg in inference_cfgs:
-        save_prediction_cfg = getattr(inference_cfg, "save_prediction", None)
-        if save_prediction_cfg is None:
-            raise ValueError("Missing inference.save_prediction configuration required for tuning")
-
         backups.append(
             {
                 "inference_cfg": inference_cfg,
-                "save_prediction_enabled": bool(getattr(save_prediction_cfg, "enabled", False)),
-                "save_prediction_cache_suffix": getattr(
-                    save_prediction_cfg,
-                    "cache_suffix",
-                    "_x1_prediction.h5",
-                ),
-                "save_prediction_output_path": getattr(
-                    save_prediction_cfg,
-                    "output_path",
-                    None,
-                ),
+                "save_results": bool(getattr(inference_cfg, "save_results", False)),
+                "save_cache_suffix": getattr(inference_cfg, "save_cache_suffix", "_x1_prediction.h5"),
+                "save_path": getattr(inference_cfg, "save_path", None),
             }
         )
 
-        save_prediction_cfg.enabled = True
-        save_prediction_cfg.cache_suffix = suffix
+        inference_cfg.save_results = True
+        inference_cfg.save_cache_suffix = suffix
         if prediction_output_path is not None:
-            save_prediction_cfg.output_path = str(prediction_output_path)
+            inference_cfg.save_path = str(prediction_output_path)
 
     decoding_backups = [
         (owner, deepcopy(getattr(owner, "decoding", None))) for owner in decoding_owners
@@ -166,10 +154,9 @@ def temporary_tuning_inference_overrides(
     finally:
         for backup in backups:
             inference_cfg = backup["inference_cfg"]
-            save_prediction_cfg = inference_cfg.save_prediction
-            save_prediction_cfg.enabled = backup["save_prediction_enabled"]
-            save_prediction_cfg.cache_suffix = backup["save_prediction_cache_suffix"]
-            save_prediction_cfg.output_path = backup["save_prediction_output_path"]
+            inference_cfg.save_results = backup["save_results"]
+            inference_cfg.save_cache_suffix = backup["save_cache_suffix"]
+            inference_cfg.save_path = backup["save_path"]
 
         for owner, decoding in decoding_backups:
             owner.decoding = decoding
@@ -190,15 +177,15 @@ def run_tuning(model, trainer_or_factory, cfg, checkpoint_path=None):
             "Optuna is required for parameter tuning. Install with: pip install optuna"
         )
 
-    tune_output_cfg = getattr(getattr(cfg, "tune", None), "output", None)
-    primary_output_pred_dir = getattr(tune_output_cfg, "output_pred", None)
-    fallback_output_pred_dir = getattr(cfg.inference.save_prediction, "output_path", None)
+    tune_cfg = getattr(cfg, "tune", None)
+    primary_output_pred_dir = getattr(tune_cfg, "save_predictions_path", None)
+    fallback_output_pred_dir = getattr(cfg.inference, "save_path", None)
     if not primary_output_pred_dir:
         primary_output_pred_dir = fallback_output_pred_dir
     if not primary_output_pred_dir:
         raise ValueError(
-            "Missing tuning prediction output path. Set tune.output.output_pred "
-            "or inference.save_prediction.output_path."
+            "Missing tuning prediction output path. Set tune.save_predictions_path "
+            "or inference.save_path."
         )
     predictions_dir = Path(primary_output_pred_dir)
     inference_write_dir = Path(fallback_output_pred_dir or primary_output_pred_dir)
@@ -211,8 +198,8 @@ def run_tuning(model, trainer_or_factory, cfg, checkpoint_path=None):
     output_dir = _resolve_tuning_output_dir(cfg, fallback_output_pred_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    cfg.tune.output.output_dir = str(output_dir)
-    cfg.tune.output.output_pred = str(predictions_dir)
+    cfg.tune.save_path = str(output_dir)
+    cfg.tune.save_predictions_path = str(predictions_dir)
     prediction_checkpoint_path = (
         getattr(model, "_prediction_checkpoint_path", None) if model is not None else None
     ) or checkpoint_path
@@ -440,7 +427,7 @@ def run_tuning(model, trainer_or_factory, cfg, checkpoint_path=None):
 
 def load_and_apply_best_params(cfg, checkpoint_path=None):
     """Load tuned parameters and apply them to the merged runtime decoding config."""
-    output_pred_dir = getattr(cfg.inference.save_prediction, "output_path", None)
+    output_pred_dir = getattr(cfg.inference, "save_path", None)
     output_dir = _resolve_tuning_output_dir(cfg, output_pred_dir)
     best_params_file = _resolve_existing_best_params_file(
         cfg,
@@ -515,10 +502,7 @@ def try_skip_tune_with_cached_results(cfg, checkpoint_path: str | None) -> bool:
     in a prior test run, not the result of an Optuna sweep. Only an existing
     best-params YAML proves tuning has converged.
     """
-    save_pred_cfg = getattr(cfg.inference, "save_prediction", None)
-    if save_pred_cfg is None:
-        return False
-    output_pred_dir = getattr(save_pred_cfg, "output_path", None)
+    output_pred_dir = getattr(cfg.inference, "save_path", None)
 
     try:
         tuning_dir = _resolve_tuning_output_dir(cfg, output_pred_dir)

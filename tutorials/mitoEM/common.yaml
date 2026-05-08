@@ -97,9 +97,8 @@ default:
       enabled: false
       flip_axes: all
       ensemble_mode: min
-    save_inference:
-      enabled: true
-      dtype: float32
+    save_results: true
+    save_dtype: float32
 
   decoding:
     steps:

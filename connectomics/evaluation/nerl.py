@@ -376,11 +376,12 @@ def compute_nerl_metrics(
     try:
         context.log_metric(
             "test_nerl",
-            nerl,
+            float(nerl),
             on_step=False,
             on_epoch=True,
             prog_bar=True,
             logger=True,
+            batch_size=1,
         )
     except Exception as exc:  # pragma: no cover
         logger.debug("Failed to log test_nerl metric: %s", exc)

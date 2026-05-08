@@ -1,0 +1,32 @@
+# Chunked inference variant of the parallel-inference consistency
+# test. Pair with `whole.yaml`; both share `base.yaml`.
+#
+# Splits the 1024x1024x200 crop into a 2x2x1 chunk grid (576x576x200,
+# axes=all but Z chunk size equals volume Z, so only X/Y are
+# partitioned). chunk_size 576 = 8 * 72, where 72 is the sliding-window
+# stride (window 144 * (1 - overlap 0.5)) — this keeps chunk boundaries
+# on the lazy-sliding-window grid so halo=0 is sound.
+#
+# `output_mode: raw_prediction` writes per-chunk h5 files which are
+# stitched into a single full-volume prediction; this matches the
+# whole-volume save format so the comparator only has to diff one h5
+# pair.
+
+_base_:
+  - base.yaml
+
+experiment_name: test_nisb_consistency_chunked
+
+default:
+  inference:
+    execution:
+      strategy: chunked
+    chunking:
+      enabled: true
+      output_mode: raw_prediction
+      # ZYX after any val_transpose; for this XYZ-stored crop the
+      # dataloader keeps axis order (axis0=X, axis1=Y, axis2=Z), so
+      # this list is [X, Y, Z]. 576 = 8 * stride(72).
+      chunk_size: [576, 576, 200]
+      halo: [0, 0, 0]
+      axes: all

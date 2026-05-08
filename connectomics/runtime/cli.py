@@ -177,11 +177,10 @@ def setup_config(args) -> Config:
     else:
         cfg.monitor.checkpoint.dirpath = str(Path(cfg.monitor.checkpoint.dirpath))
 
-    save_pred_cfg = cfg.inference.save_prediction
-    if not getattr(save_pred_cfg, "output_path", None):
-        save_pred_cfg.output_path = str(Path(output_folder) / "results")
+    if not getattr(cfg.inference, "save_path", None):
+        cfg.inference.save_path = str(Path(output_folder) / "results")
     else:
-        save_pred_cfg.output_path = str(Path(save_pred_cfg.output_path))
+        cfg.inference.save_path = str(Path(cfg.inference.save_path))
 
     cfg.monitor.checkpoint.use_timestamp = False
 

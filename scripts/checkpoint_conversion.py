@@ -39,6 +39,32 @@ _CURRENT_NAMESPACES = (
 )
 
 
+_LEGACY_SHIM_CLASSES: dict[str, type] = {}
+
+
+def _make_legacy_shim(name: str) -> type:
+    """Return a placeholder class for a legacy schema name.
+
+    Used only at unpickle time so ``find_class(legacy_module, name)`` succeeds
+    for classes that were removed entirely (not just relocated). Instances are
+    detected and stripped from the loaded state before re-saving so the
+    rewritten checkpoint contains no references to the placeholder.
+    """
+    if name in _LEGACY_SHIM_CLASSES:
+        return _LEGACY_SHIM_CLASSES[name]
+    cls = type(
+        name,
+        (),
+        {
+            "__module__": _LEGACY_NAMESPACE,
+            "_legacy_shim": True,
+            "__setstate__": lambda self, state: self.__dict__.update(state),
+        },
+    )
+    _LEGACY_SHIM_CLASSES[name] = cls
+    return cls
+
+
 def install_legacy_aliases() -> None:
     legacy = importlib.import_module(_LEGACY_NAMESPACE)
     for current_mod_name in _CURRENT_NAMESPACES:
@@ -46,6 +72,48 @@ def install_legacy_aliases() -> None:
         for name, obj in current.__dict__.items():
             if inspect.isclass(obj) and is_dataclass(obj) and not hasattr(legacy, name):
                 setattr(legacy, name, obj)
+    if not getattr(legacy, "_shim_getattr_installed", False):
+        original_getattr = legacy.__dict__.get("__getattr__")
+
+        def _legacy_module_getattr(name: str):
+            if original_getattr is not None:
+                try:
+                    return original_getattr(name)
+                except AttributeError:
+                    pass
+            print(f"  [legacy shim] {_LEGACY_NAMESPACE}.{name}", file=sys.stderr)
+            return _make_legacy_shim(name)
+
+        legacy.__getattr__ = _legacy_module_getattr  # type: ignore[attr-defined]
+        legacy._shim_getattr_installed = True  # type: ignore[attr-defined]
+
+
+def _is_legacy_shim_instance(value: object) -> bool:
+    return getattr(type(value), "_legacy_shim", False) is True
+
+
+def scrub_legacy_state(obj: object, seen: set[int] | None = None) -> None:
+    """Recursively delete attributes / dict entries holding shim instances."""
+    if seen is None:
+        seen = set()
+    sid = id(obj)
+    if sid in seen:
+        return
+    seen.add(sid)
+
+    if isinstance(obj, dict):
+        for k in [k for k, v in obj.items() if _is_legacy_shim_instance(v)]:
+            del obj[k]
+        for v in list(obj.values()):
+            scrub_legacy_state(v, seen)
+    elif isinstance(obj, (list, tuple, set)):
+        for v in obj:
+            scrub_legacy_state(v, seen)
+    elif hasattr(obj, "__dict__"):
+        for k in [k for k, v in obj.__dict__.items() if _is_legacy_shim_instance(v)]:
+            delattr(obj, k)
+        for v in list(obj.__dict__.values()):
+            scrub_legacy_state(v, seen)
 
 
 def convert_checkpoint(path: Path, *, backup: bool) -> None:
@@ -54,6 +122,7 @@ def convert_checkpoint(path: Path, *, backup: bool) -> None:
         if not bak.exists():
             shutil.copy2(path, bak)
     state = torch.load(path, map_location="cpu", weights_only=False)
+    scrub_legacy_state(state)
     torch.save(state, path)
     print(f"converted: {path}")
 

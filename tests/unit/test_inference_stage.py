@@ -37,7 +37,7 @@ def test_run_prediction_inference_writes_raw_artifact_metadata(tmp_path):
     cfg = Config()
     cfg.model.arch.type = "mednext"
     cfg.data.data_transform.val_transpose = [2, 1, 0]
-    cfg.inference.save_inference.dtype = "float16"
+    cfg.inference.save_dtype = "float16"
     cfg.inference.model.select_channel = [0, 1]
 
     prediction = torch.arange(1 * 2 * 3 * 4 * 5, dtype=torch.float32).reshape(1, 2, 3, 4, 5)
@@ -69,3 +69,29 @@ def test_run_prediction_inference_writes_raw_artifact_metadata(tmp_path):
         assert bool(dataset.attrs["decode_after_inference"]) is True
         assert json.loads(dataset.attrs["transpose"]) == [2, 1, 0]
         assert json.loads(dataset.attrs["final_shape"]) == [3, 4, 5]
+
+
+def test_run_prediction_inference_honors_save_compression(tmp_path):
+    """``inference.save_compression`` must reach the HDF5 writer (regression for
+    review_v0 finding 1)."""
+    cfg = Config()
+    cfg.model.arch.type = "mednext"
+    cfg.inference.save_compression = "lzf"
+
+    prediction = torch.arange(1 * 1 * 3 * 4 * 5, dtype=torch.float32).reshape(1, 1, 3, 4, 5)
+    manager = _DummyManager(cfg, prediction)
+    output_path = tmp_path / "raw_prediction.h5"
+
+    run_prediction_inference(
+        manager,
+        torch.zeros(1, 1, 3, 4, 5),
+        requested_head=None,
+        output_path=output_path,
+        image_path="input.h5",
+        checkpoint_path="checkpoint.ckpt",
+        input_shape=(3, 4, 5),
+    )
+
+    with h5py.File(output_path, "r") as handle:
+        dataset = handle["main"]
+        assert dataset.compression == "lzf"

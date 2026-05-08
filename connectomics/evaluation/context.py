@@ -58,8 +58,7 @@ class EvaluationContext:
     def resolved_output_path(self) -> str | Path | None:
         if self.output_path is not None:
             return self.output_path
-        save_prediction_cfg = self.cfg_value(self.inference_cfg, "save_prediction", None)
-        return self.cfg_value(save_prediction_cfg, "output_path", None)
+        return self.cfg_value(self.inference_cfg, "save_path", None)
 
     def log_metric(self, name: str, value: Any, **kwargs: Any) -> None:
         if self.log_fn is None:

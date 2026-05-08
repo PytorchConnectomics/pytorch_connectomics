@@ -19,7 +19,14 @@ logger = logging.getLogger(__name__)
 def resolve_output_filenames(
     cfg: Config | DictConfig, batch: Dict[str, Any], global_step: int = 0
 ) -> List[str]:
-    """Extract and resolve filenames from batch metadata."""
+    """Extract and resolve per-volume directory names from batch metadata.
+
+    Returns one stem per batch item, used as the per-volume subdir under
+    ``<inference.save_path>``. When the raw filename stem is uninformative
+    (e.g. ``img`` from ``data.zarr/img``), falls back to the parent dir name
+    via the same rule as ``output_naming._stem_from_image_path``.
+    """
+    from connectomics.runtime.output_naming import _stem_from_image_path
     images = batch.get("image")
     if images is not None:
         if isinstance(images, (str, os.PathLike)):
@@ -61,7 +68,7 @@ def resolve_output_filenames(
     resolved_names: List[str] = []
     for idx in range(batch_size):
         if idx < len(filenames) and filenames[idx]:
-            resolved_names.append(Path(str(filenames[idx])).stem)
+            resolved_names.append(_stem_from_image_path(filenames[idx]))
         else:
             resolved_names.append(f"volume_{global_step}_{idx}")
 
@@ -112,11 +119,7 @@ def _resolve_mode_configs(
 ) -> tuple[Any, Any, str | None]:
     """Resolve merged runtime inference/data/output configuration."""
     inference_cfg = getattr(cfg, "inference", None)
-    output_dir_value = None
-    if inference_cfg is not None:
-        save_pred_cfg = getattr(inference_cfg, "save_prediction", None)
-        if save_pred_cfg is not None:
-            output_dir_value = getattr(save_pred_cfg, "output_path", None)
+    output_dir_value = getattr(inference_cfg, "save_path", None) if inference_cfg is not None else None
 
     # Resolve data config: prefer stage-specific data (cfg.test.data / cfg.tune.data),
     # fall back to cfg.data (post-stage-resolution)
@@ -130,7 +133,7 @@ def _resolve_mode_configs(
 
     # For decode-only mode: output to same folder as the input prediction
     if not output_dir_value:
-        saved_pred = getattr(getattr(cfg, "decoding", None), "input_prediction_path", "")
+        saved_pred = getattr(getattr(cfg, "decoding", None), "load_prediction_path", "")
         if saved_pred:
             from pathlib import Path
 
@@ -225,34 +228,42 @@ def apply_prediction_transform(cfg: Config | DictConfig, data: np.ndarray) -> np
 
 
 def apply_storage_dtype_transform(cfg: Config | DictConfig, data: np.ndarray) -> np.ndarray:
-    """Apply save/cache-only dtype conversion."""
+    """Apply save/cache-only dtype conversion. Skip when ``inference.save_dtype`` is unset."""
     if not hasattr(cfg, "inference"):
         return data
 
-    save_inference_cfg = getattr(cfg.inference, "save_inference", None)
-    save_prediction_cfg = getattr(cfg.inference, "save_prediction", None)
-    storage_dtype = (
-        getattr(save_inference_cfg, "dtype", None) if save_inference_cfg is not None else None
-    )
-    if storage_dtype is None and save_prediction_cfg is not None:
-        storage_dtype = getattr(save_prediction_cfg, "storage_dtype", None)
+    storage_dtype = getattr(cfg.inference, "save_dtype", None)
+    if storage_dtype is None:
+        return data
 
     return _convert_intensity_dtype(
         data,
         storage_dtype,
-        config_name="inference.save_inference.dtype",
+        config_name="inference.save_dtype",
     )
+
+
+def _strip_extension(name: str) -> str:
+    if name.endswith(".nii.gz"):
+        return name[: -len(".nii.gz")]
+    return Path(name).stem if "." in Path(name).name else name
 
 
 def write_outputs(
     cfg: Config | DictConfig,
     predictions: np.ndarray,
     filenames: List[str],
-    suffix: str = "prediction",
+    suffix: str = "prediction.h5",
     mode: str = "test",
     batch_meta: Any = None,
 ) -> None:
-    """Persist predictions to disk.
+    """Persist predictions under ``<save_path>/<volume_stem>/<suffix>``.
+
+    ``filenames`` are the per-volume directory names (typically the image
+    file stems with parent-dir fallback for uninformative stems like
+    ``img``). ``suffix`` is the artifact filename inside the per-volume
+    subdir; an extension matching the configured backend is appended if
+    missing.
 
     Note: output_transpose is NOT applied here. It is applied once in the
     decoding stage to avoid double-transpose when decoded data are then saved.
@@ -288,7 +299,11 @@ def write_outputs(
             f"{min(len(filenames), actual_batch_size)} filenames."
         )
 
-    should_restore = _should_restore_outputs(cfg, mode) and suffix == "prediction"
+    should_restore = _should_restore_outputs(cfg, mode) and (
+        suffix == "prediction.h5" or suffix == "prediction"
+    )
+
+    artifact_stem = _strip_extension(suffix)
 
     for idx in range(actual_batch_size):
         if idx >= len(filenames):
@@ -300,50 +315,48 @@ def write_outputs(
             sample_meta = _extract_meta_for_index(batch_meta, idx)
             sample = restore_prediction_to_input_space(sample, sample_meta)
 
-        filename = filenames[idx]
+        volume_stem = filenames[idx]
         sample = np.squeeze(sample)
 
-        save_inference_cfg = getattr(inference_cfg, "save_inference", None)
-        if save_inference_cfg is not None:
-            output_formats = [str(getattr(save_inference_cfg, "backend", "h5"))]
-        else:
-            output_formats = ["h5"]
-        if save_inference_cfg is None and hasattr(inference_cfg, "save_prediction"):
-            save_pred_cfg = inference_cfg.save_prediction
-            if hasattr(save_pred_cfg, "output_formats") and save_pred_cfg.output_formats:
-                output_formats = save_pred_cfg.output_formats
+        backend = str(getattr(inference_cfg, "save_backend", "h5"))
+        output_formats = [backend]
 
         sample = apply_storage_dtype_transform(cfg, sample)
+
+        volume_dir = output_dir / volume_stem
+        volume_dir.mkdir(parents=True, exist_ok=True)
 
         for fmt in output_formats:
             fmt_lower = fmt.lower()
 
             if fmt_lower == "h5":
-                out_path = output_dir / f"{filename}_{suffix}.h5"
+                out_path = volume_dir / f"{artifact_stem}.h5"
                 write_hdf5(out_path, sample, dataset="main")
-                logger.info(f"Saved HDF5: {out_path.name}")
+                logger.info(f"Saved HDF5: {volume_stem}/{out_path.name}")
 
             elif fmt_lower in ["tif", "tiff"]:
-                out_path = output_dir / f"{filename}_{suffix}.tiff"
+                out_path = volume_dir / f"{artifact_stem}.tiff"
                 try:
                     save_volume(str(out_path), sample, file_format="tiff")
-                    logger.info(f"Saved TIFF: {out_path.name} (shape: {sample.shape})")
+                    logger.info(
+                        f"Saved TIFF: {volume_stem}/{out_path.name} (shape: {sample.shape})"
+                    )
                 except Exception as exc:
                     logger.warning(f"TIFF export failed: {exc}")
 
             elif fmt_lower in ["nii", "nii.gz"]:
-                out_path = output_dir / f"{filename}_{suffix}.nii.gz"
+                out_path = volume_dir / f"{artifact_stem}.nii.gz"
                 try:
                     save_volume(str(out_path), sample, file_format="nii.gz")
-                    logger.info(f"Saved NIfTI: {out_path.name}")
+                    logger.info(f"Saved NIfTI: {volume_stem}/{out_path.name}")
                 except Exception as exc:
                     logger.warning(f"NIfTI export failed: {exc}")
 
             elif fmt_lower == "png":
-                out_dir = output_dir / f"{filename}_{suffix}_png"
+                out_dir = volume_dir / f"{artifact_stem}_png"
                 try:
                     save_volume(str(out_dir), sample, file_format="png")
-                    logger.info(f"Saved PNG stack: {out_dir.name}/")
+                    logger.info(f"Saved PNG stack: {volume_stem}/{out_dir.name}/")
                 except Exception as exc:
                     logger.warning(f"PNG export failed: {exc}")
 

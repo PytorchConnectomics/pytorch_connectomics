@@ -29,8 +29,7 @@ default:
       rotation90_axes: [[1, 2]]
     window:
       window_size: [32, 128, 128]
-    save_inference:
-      enabled: true
+    save_results: true
   decoding:
     steps:
     - name: decode_instance_binary_contour_distance

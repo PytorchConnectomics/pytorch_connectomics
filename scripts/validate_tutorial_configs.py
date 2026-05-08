@@ -50,9 +50,63 @@ for _root in (
             (_root + ("strategy",), f"Use `{_root_path}.execution.strategy`."),
             (_root + ("do_eval",), f"Use `{_root_path}.execution.do_eval`."),
             (_root + ("sliding_window",), f"Use `{_root_path}.window`."),
-            (_root + ("save_prediction",), f"Use `{_root_path}.save_inference`."),
+            (_root + ("save",), f"Use `{_root_path}.save_results` plus sibling save_* leaves."),
+            (_root + ("save_prediction",), f"Use `{_root_path}.save_results`."),
+            (_root + ("save_inference",), f"Use `{_root_path}.save_results`."),
+            (_root + ("output_path",), f"Use `{_root_path}.save_path`."),
+            (_root + ("cache_suffix",), f"Use `{_root_path}.save_cache_suffix`."),
+            (_root + ("dtype",), f"Use `{_root_path}.save_dtype`."),
+            (_root + ("backend",), f"Use `{_root_path}.save_backend`."),
+            (_root + ("compression",), f"Use `{_root_path}.save_compression`."),
+            (_root + ("chunks",), f"`{_root_path}.chunks` was deleted (unused field)."),
+            (_root + ("write_mode",), f"`{_root_path}.write_mode` was deleted (unused field)."),
+            (_root + ("tta_result_path",), f"Use `{_root_path}.load_tta_path`."),
         ]
     )
+
+for _root in (
+    ("decoding",),
+    ("default", "decoding"),
+    ("test", "decoding"),
+    ("tune", "decoding"),
+):
+    _root_path = ".".join(_root)
+    LEGACY_PATTERNS.extend(
+        [
+            (_root + ("save",), f"Use `{_root_path}.save_results` and `{_root_path}.save_intermediate`."),
+            (_root + ("output_path",), f"Use `{_root_path}.save_path`."),
+            (_root + ("output_suffix",), f"Use `{_root_path}.save_suffix`."),
+            (_root + ("input_prediction_path",), f"Use `{_root_path}.load_prediction_path`."),
+        ]
+    )
+
+# tune.output: sub-block hoisted to tune.save_*
+for _root in (("tune",), ("default", "tune")):
+    _root_path = ".".join(_root)
+    LEGACY_PATTERNS.extend(
+        [
+            (_root + ("output", "output_dir"), f"Use `{_root_path}.save_path`."),
+            (_root + ("output", "output_pred"), f"Use `{_root_path}.save_predictions_path`."),
+            (_root + ("output", "cache_suffix"), f"Use `{_root_path}.save_cache_suffix`."),
+            (_root + ("output", "save_all_trials"), f"Use `{_root_path}.save_all_trials`."),
+            (_root + ("output", "save_best_segmentation"), f"Use `{_root_path}.save_best_segmentation`."),
+            (_root + ("output", "save_study"), f"Use `{_root_path}.save_study`."),
+            (_root + ("output", "visualizations"), f"Use `{_root_path}.save_visualizations`."),
+            (_root + ("output", "report"), f"Use `{_root_path}.save_report`."),
+            (_root + ("output",), f"`{_root_path}.output` was hoisted; use `{_root_path}.save_*` siblings."),
+        ]
+    )
+
+# `data.train.name` is structurally allowed but advisory only — train mode does
+# not write per-volume artifacts. Validator emits an info warning but does not
+# fail. Implemented inline in the validator main loop.
+ADVISORY_PATTERNS: List[Tuple[Tuple[str, ...], str]] = [
+    (("data", "train", "name"),
+     "data.train.name has no effect; train mode writes no per-volume artifacts. "
+     "Set `data.val.name` or `data.test.name` instead."),
+    (("default", "data", "train", "name"),
+     "default.data.train.name has no effect; set under val/test instead."),
+]
 
 CUSTOM_WORKFLOW_ROOTS = {"large_decode", "abiss_large"}
 
@@ -95,6 +149,7 @@ def main() -> int:
         return 1
 
     errors: List[str] = []
+    advisories: List[str] = []
     canonical_count = 0
     custom_workflows: List[Path] = []
     for config_path in config_paths:
@@ -109,11 +164,21 @@ def main() -> int:
                 dotted = ".".join(pattern)
                 errors.append(f"{config_path}: legacy key `{dotted}` found. {message}")
 
+        for pattern, message in ADVISORY_PATTERNS:
+            if _has_path(raw, pattern):
+                dotted = ".".join(pattern)
+                advisories.append(f"{config_path}: advisory key `{dotted}`. {message}")
+
         try:
             cfg = load_config(config_path)
             validate_runtime_coherence(cfg)
         except Exception as exc:  # pragma: no cover - exact exception type may vary.
             errors.append(f"{config_path}: failed to load ({type(exc).__name__}: {exc})")
+
+    if advisories:
+        print("Advisory warnings (non-fatal):")
+        for adv in advisories:
+            print(f"  - {adv}")
 
     if errors:
         print("Tutorial config validation failed:")

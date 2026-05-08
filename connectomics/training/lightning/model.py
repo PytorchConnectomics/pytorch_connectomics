@@ -50,7 +50,7 @@ from ...runtime.output_naming import (
     final_prediction_output_tag,
     intermediate_prediction_cache_suffix,
     intermediate_prediction_cache_suffix_candidates,
-    is_tta_cache_suffix,
+    is_raw_cache_suffix,
     resolve_prediction_cache_suffix,
 )
 from ...utils import (
@@ -512,8 +512,8 @@ class ConnectomicsModule(pl.LightningModule):
     ) -> tuple[str, Optional[str], str, List[str]]:
         """Determine output dir/cache suffix from merged runtime inference config."""
         mode = "test"
-        save_pred_cfg = self._get_runtime_inference_config().save_prediction
-        output_dir_value = getattr(save_pred_cfg, "output_path", None)
+        inference_cfg = self._get_runtime_inference_config()
+        output_dir_value = getattr(inference_cfg, "save_path", None)
         cache_suffix = resolve_prediction_cache_suffix(
             self.cfg,
             mode=mode,
@@ -547,9 +547,9 @@ class ConnectomicsModule(pl.LightningModule):
         return ""
 
     def _resolve_tta_result_path_override(self) -> str:
-        """Return explicit intermediate prediction file from inference.tta_result_path."""
+        """Return explicit intermediate prediction file from inference.load_tta_path."""
         inference_cfg = self._get_runtime_inference_config()
-        value = getattr(inference_cfg, "tta_result_path", "")
+        value = getattr(inference_cfg, "load_tta_path", "")
         if isinstance(value, str) and value.strip():
             return value.strip()
         return ""
@@ -558,8 +558,8 @@ class ConnectomicsModule(pl.LightningModule):
         self, output_dir_value: Optional[str], filenames: List[str], cache_suffix: str, mode: str
     ):
         """Attempt to load cached predictions from disk."""
-        # Check decoding.input_prediction_path first (decode-only mode)
-        saved_path = getattr(getattr(self.cfg, "decoding", None), "input_prediction_path", "")
+        # Check decoding.load_prediction_path first (decode-only mode)
+        saved_path = getattr(getattr(self.cfg, "decoding", None), "load_prediction_path", "")
         if saved_path and isinstance(saved_path, str) and saved_path.strip():
             pred_file = Path(saved_path.strip()).expanduser()
             if not pred_file.is_absolute():
@@ -571,7 +571,7 @@ class ConnectomicsModule(pl.LightningModule):
                     pred = pred[np.newaxis, ...]
                 return pred, True, "_prediction.h5"
             else:
-                raise FileNotFoundError(f"decoding.input_prediction_path not found: {pred_file}")
+                raise FileNotFoundError(f"decoding.load_prediction_path not found: {pred_file}")
 
         explicit_prediction = self._resolve_tta_result_path_override()
         if isinstance(explicit_prediction, str) and explicit_prediction.strip():
@@ -581,13 +581,13 @@ class ConnectomicsModule(pl.LightningModule):
 
             if os.path.exists(pred_file):
                 try:
-                    logger.info(f"Using explicit inference.tta_result_path file: {pred_file}")
+                    logger.info(f"Using explicit inference.load_tta_path file: {pred_file}")
                     pred = read_volume(str(pred_file), dataset="main")
                     if pred.ndim < 4:
                         pred = pred[np.newaxis, ...]
                     if len(filenames) > 1:
                         logger.warning(
-                            f"inference.tta_result_path is a single file while batch has "
+                            f"inference.load_tta_path is a single file while batch has "
                             f"{len(filenames)} filenames; decoding will use the explicit file only."
                         )
                     # Treat explicit file as intermediate prediction so decoding still runs.
@@ -601,12 +601,12 @@ class ConnectomicsModule(pl.LightningModule):
                     )
                 except Exception as e:
                     logger.warning(
-                        f"Failed to load explicit inference.tta_result_path file {pred_file}: {e}. "
+                        f"Failed to load explicit inference.load_tta_path file {pred_file}: {e}. "
                         f"Falling back to computed cache paths."
                     )
             else:
                 logger.warning(
-                    f"inference.tta_result_path file not found: {pred_file}. "
+                    f"inference.load_tta_path file not found: {pred_file}. "
                     f"Falling back to computed cache paths."
                 )
 
@@ -620,18 +620,14 @@ class ConnectomicsModule(pl.LightningModule):
         suffixes_to_try.append(cache_suffix)
 
         # Prefer the exact decoded final file over any intermediate cache or
-        # looser decoded glob variant.
-        final_suffix = (
-            "_"
-            + final_prediction_output_tag(
-                self.cfg,
-                checkpoint_path=self._get_prediction_checkpoint_path(),
-            )
-            + ".h5"
+        # looser decoded glob variant. Per-volume layout: <out>/<volume>/<file>.
+        final_suffix = final_prediction_output_tag(
+            self.cfg,
+            checkpoint_path=self._get_prediction_checkpoint_path(),
         )
         exact_final_files: list[Path] = []
         for filename in filenames:
-            pred_file = output_dir / f"{filename}{final_suffix}"
+            pred_file = output_dir / filename / final_suffix
             if not os.path.exists(pred_file):
                 exact_final_files = []
                 break
@@ -672,7 +668,7 @@ class ConnectomicsModule(pl.LightningModule):
         )
         decoded_files: list[Path] = []
         for filename in filenames:
-            matches = sorted(output_dir.glob(f"{filename}{decoded_glob}"))
+            matches = sorted((output_dir / filename).glob(decoded_glob))
             if not matches:
                 decoded_files = []
                 break
@@ -701,14 +697,14 @@ class ConnectomicsModule(pl.LightningModule):
                         [p[np.newaxis, ...] if p.ndim < 4 else p for p in preds],
                         axis=0,
                     )
-                chosen_suffix = decoded_files[0].name[len(filenames[0]) :]
+                chosen_suffix = decoded_files[0].name
                 return predictions_np, True, chosen_suffix
 
         for try_suffix in suffixes_to_try:
             existing_predictions = []
             all_exist = True
             for filename in filenames:
-                pred_file = output_dir / f"{filename}{try_suffix}"
+                pred_file = output_dir / filename / try_suffix
                 if os.path.exists(pred_file):
                     try:
                         pred = read_volume(str(pred_file), dataset="main")
@@ -740,7 +736,7 @@ class ConnectomicsModule(pl.LightningModule):
 
         # Targeted fallback: look for the exact TTA intermediate cache suffix
         # matching the current config rather than any arbitrary TTA file.
-        if mode == "test" and not is_tta_cache_suffix(cache_suffix):
+        if mode == "test" and not is_raw_cache_suffix(cache_suffix):
             fallback_suffixes = intermediate_prediction_cache_suffix_candidates(
                 self.cfg,
                 checkpoint_path=self._get_prediction_checkpoint_path(),
@@ -749,7 +745,7 @@ class ConnectomicsModule(pl.LightningModule):
                 existing_predictions = []
                 all_exist = True
                 for filename in filenames:
-                    pred_file = output_dir / f"{filename}{try_suffix}"
+                    pred_file = output_dir / filename / try_suffix
                     if not os.path.exists(pred_file):
                         all_exist = False
                         break

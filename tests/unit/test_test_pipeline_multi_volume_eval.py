@@ -600,7 +600,7 @@ class _SavedPredictionPathCroppingModule:
         self.device = torch.device("cpu")
         self.cfg = Config()
         self.cfg.inference.model.crop_pad = [1, 2, 3]
-        self.cfg.decoding.input_prediction_path = "/tmp/raw_affinity_prediction.h5"
+        self.cfg.decoding.load_prediction_path = "/tmp/raw_affinity_prediction.h5"
         self.inference_manager = _DummyInferenceManager()
 
     def _get_runtime_inference_config(self):
@@ -834,8 +834,8 @@ class _SaveAllHeadsModule:
             "sdt": {"out_channels": 1, "num_blocks": 0},
         }
         self.cfg.inference.model.head = "affinity"
-        self.cfg.inference.save_prediction.enabled = True
-        self.cfg.inference.save_prediction.save_all_heads = True
+        self.cfg.inference.save_results = True
+        self.cfg.inference.save_all_heads = True
         self.inference_manager = _SaveAllHeadsInferenceManager()
 
     def _get_runtime_inference_config(self):
@@ -889,6 +889,6 @@ def test_run_test_step_saves_all_named_output_heads(monkeypatch):
     assert isinstance(out, torch.Tensor)
     assert module.inference_manager.requested_heads == ["affinity", "sdt"]
     assert saved == [
-        ((1, 2, 4, 4, 4), ("sample",), "tta_x1_head-affinity_prediction", "test"),
-        ((1, 1, 4, 4, 4), ("sample",), "tta_x1_head-sdt_prediction", "test"),
+        ((1, 2, 4, 4, 4), ("sample",), "raw_x1_head-affinity.h5", "test"),
+        ((1, 1, 4, 4, 4), ("sample",), "raw_x1_head-sdt.h5", "test"),
     ]

@@ -31,8 +31,9 @@ from ...inference.lazy import (
 )
 from ...runtime.output_naming import (
     final_prediction_output_tag,
+    intermediate_decode_step_output_tag,
     intermediate_prediction_cache_suffix,
-    is_tta_cache_suffix,
+    is_raw_cache_suffix,
 )
 from ...utils.model_outputs import (
     get_model_head_names,
@@ -98,7 +99,6 @@ class TestContext:
     evaluation_enabled: bool = False
     prediction_threshold: float = 0.5
     instance_iou_threshold: float = 0.5
-    save_prediction_cfg: Any = None
     filenames: List[str] = field(default_factory=list)
     output_dir_value: Optional[str] = None
     cache_suffix: str = "_x1_prediction.h5"
@@ -125,7 +125,6 @@ class TestContext:
             )
 
         mode, output_dir_value, cache_suffix, filenames = module._resolve_test_output_config(batch)
-        save_prediction_cfg = inference_cfg.save_prediction
 
         return TestContext(
             cfg=module.cfg,
@@ -136,7 +135,6 @@ class TestContext:
             evaluation_enabled=evaluation_enabled,
             prediction_threshold=prediction_threshold,
             instance_iou_threshold=instance_iou_threshold,
-            save_prediction_cfg=save_prediction_cfg,
             filenames=filenames,
             output_dir_value=output_dir_value,
             cache_suffix=cache_suffix,
@@ -302,7 +300,21 @@ def _process_decoding_postprocessing(
     save_final_predictions: bool,
 ) -> np.ndarray:
     logger.info("[STAGE: Decoding Instances]")
-    result = run_decoding_stage(module.cfg, predictions_np)
+    decoding_cfg = getattr(module.cfg, "decoding", None)
+    save_intermediate = bool(getattr(decoding_cfg, "save_intermediate", False))
+    save_results = bool(getattr(decoding_cfg, "save_results", True))
+
+    on_step_complete = None
+    if save_intermediate:
+        ckpt_path = module._get_prediction_checkpoint_path()
+
+        def on_step_complete(batch_idx: int, step: Any, sample: np.ndarray) -> None:
+            suffix = intermediate_decode_step_output_tag(
+                module.cfg, step, checkpoint_path=ckpt_path
+            )
+            write_decoded_outputs(module.cfg, sample, filenames, suffix=suffix)
+
+    result = run_decoding_stage(module.cfg, predictions_np, on_step_complete=on_step_complete)
     decoded_predictions = result.decoded
     logger.info(f"Decoding completed ({result.duration_s:.1f}s)")
 
@@ -329,7 +341,7 @@ def _process_decoding_postprocessing(
             max_summary_voxels,
         )
 
-    if save_final_predictions:
+    if save_final_predictions and save_results:
         logger.info("[STAGE: Saving Final Predictions]")
         save_start = time.time()
         write_decoded_outputs(
@@ -452,7 +464,7 @@ def _save_intermediate_prediction_outputs(
     batch_meta: Any,
     output_head: Optional[str] = None,
 ) -> None:
-    """Persist one intermediate prediction tensor using the configured TTA suffix."""
+    """Persist one intermediate prediction tensor using the configured cache suffix."""
     cache_suffix = intermediate_prediction_cache_suffix(
         module.cfg,
         checkpoint_path=module._get_prediction_checkpoint_path(),
@@ -462,7 +474,7 @@ def _save_intermediate_prediction_outputs(
         module.cfg,
         predictions_np,
         filenames,
-        suffix=cache_suffix.removeprefix("_").removesuffix(".h5"),
+        suffix=cache_suffix,
         mode=mode,
         batch_meta=batch_meta,
     )
@@ -488,7 +500,6 @@ def run_test_step(module, batch: Dict[str, torch.Tensor], batch_idx: int) -> STE
     filenames = ctx.filenames
     output_dir_value = ctx.output_dir_value
     cache_suffix = ctx.cache_suffix
-    save_prediction_cfg = ctx.save_prediction_cfg
     mode = "tune" if getattr(module, "_tune_mode", False) else "test"
     lazy_sample = _is_lazy_test_sample(batch)
 
@@ -517,17 +528,17 @@ def run_test_step(module, batch: Dict[str, torch.Tensor], batch_idx: int) -> STE
     )
 
     # Determine whether loaded predictions need decoding:
-    # - decoding.input_prediction_path -> always run decoding (it's raw affinity)
+    # - decoding.load_prediction_path -> always run decoding (it's raw affinity)
     # - *_decoding*.h5 → already decoded, skip decoding
     # - *_prediction*.h5 with TTA suffix → intermediate, run decoding
     # - other → final, skip decoding
-    _saved_pred = getattr(getattr(module.cfg, "decoding", None), "input_prediction_path", "")
+    _saved_pred = getattr(getattr(module.cfg, "decoding", None), "load_prediction_path", "")
     _from_saved_path = bool(loaded_from_file and _saved_pred)
     _is_decoding_file = loaded_from_file and "_decoding" in (loaded_suffix or "")
     loaded_final_predictions = (
         loaded_from_file
         and not _from_saved_path
-        and (_is_decoding_file or not is_tta_cache_suffix(loaded_suffix))
+        and (_is_decoding_file or not is_raw_cache_suffix(loaded_suffix))
     )
     loaded_intermediate_predictions = loaded_from_file and not loaded_final_predictions
     volume_name = filenames[0] if filenames else f"volume_{batch_idx}"
@@ -541,7 +552,7 @@ def run_test_step(module, batch: Dict[str, torch.Tensor], batch_idx: int) -> STE
     if (
         distributed_single_volume_sharding
         and not merge_heads
-        and bool(getattr(save_prediction_cfg, "save_all_heads", False))
+        and bool(getattr(ctx.inference_cfg, "save_all_heads", False))
     ):
         extra_head_names = [
             head_name
@@ -551,7 +562,7 @@ def run_test_step(module, batch: Dict[str, torch.Tensor], batch_idx: int) -> STE
         if extra_head_names:
             raise RuntimeError(
                 "Distributed single-volume inference sharding does not support "
-                "inference.save_prediction.save_all_heads=true unless all requested heads "
+                "inference.save_all_heads=true unless all requested heads "
                 "are included in inference.output_heads for merged inference."
             )
 
@@ -611,6 +622,18 @@ def run_test_step(module, batch: Dict[str, torch.Tensor], batch_idx: int) -> STE
                 "(already saved after those crops)"
             )
             reference_spatial_shape = tuple(int(v) for v in predictions_np.shape[-3:])
+        decode_after = bool(getattr(getattr(module.cfg, "decoding", None), "enabled", True))
+        if not decode_after:
+            if _evaluation_context_from_module(module).is_enabled:
+                logger.warning(
+                    "Skipping evaluation because decoding.enabled=false produced "
+                    "only raw predictions."
+                )
+            del predictions_np
+            _log_volume_header(volume_name, "VOLUME COMPLETE")
+            _cleanup_inference_memory(module, "cached intermediate prediction", release_model=True)
+            _distributed_tta_barrier(module)
+            return torch.tensor(0.0, device=module.device)
         decoded_predictions = _process_decoding_postprocessing(
             module,
             predictions_np,
@@ -681,7 +704,7 @@ def run_test_step(module, batch: Dict[str, torch.Tensor], batch_idx: int) -> STE
         if not output_dir_value:
             raise RuntimeError(
                 "Chunked inference writes a streamed final volume and requires "
-                "inference.save_prediction.output_path."
+                "inference.save_path."
             )
 
         _log_volume_header(volume_name, "CHUNKED INFERENCE PLAN")
@@ -693,16 +716,15 @@ def run_test_step(module, batch: Dict[str, torch.Tensor], batch_idx: int) -> STE
         inference_start = time.time()
 
         if chunk_output_mode == "raw_prediction":
-            raw_suffix = (
-                intermediate_prediction_cache_suffix(
-                    module.cfg,
-                    checkpoint_path=module._get_prediction_checkpoint_path(),
-                    output_head=selected_output_head,
-                )
-                .removeprefix("_")
-                .removesuffix(".h5")
+            # Per-volume layout: <save_path>/<volume_stem>/<artifact>.h5
+            raw_filename = intermediate_prediction_cache_suffix(
+                module.cfg,
+                checkpoint_path=module._get_prediction_checkpoint_path(),
+                output_head=selected_output_head,
             )
-            output_path = output_dir / f"{filenames[0]}_{raw_suffix}.h5"
+            volume_dir = output_dir / filenames[0]
+            volume_dir.mkdir(parents=True, exist_ok=True)
+            output_path = volume_dir / raw_filename
             output_path = run_chunked_prediction_inference(
                 module.cfg,
                 module.forward,
@@ -784,12 +806,16 @@ def run_test_step(module, batch: Dict[str, torch.Tensor], batch_idx: int) -> STE
             del decoded_predictions
             _cleanup_inference_memory(module, "chunked raw evaluation")
         else:
-            output_suffix = final_prediction_output_tag(
+            # Per-volume layout: final_prediction_output_tag returns a full
+            # filename including the .h5 extension.
+            output_filename = final_prediction_output_tag(
                 module.cfg,
                 checkpoint_path=module._get_prediction_checkpoint_path(),
                 output_head=selected_output_head,
             )
-            output_path = output_dir / f"{filenames[0]}_{output_suffix}.h5"
+            volume_dir = output_dir / filenames[0]
+            volume_dir.mkdir(parents=True, exist_ok=True)
+            output_path = volume_dir / output_filename
             run_chunked_affinity_cc_inference(
                 module.cfg,
                 module.forward,
@@ -926,7 +952,7 @@ def run_test_step(module, batch: Dict[str, torch.Tensor], batch_idx: int) -> STE
     logger.info(f"    Max:    {predictions_np.max():.6f}")
     logger.info(f"    Mean:   {predictions_np.mean():.6f}")
 
-    save_intermediate = bool(getattr(inference_cfg.save_prediction, "enabled", False))
+    save_intermediate = bool(getattr(inference_cfg, "save_results", False))
     if save_intermediate:
         logger.info("[STAGE: Saving Intermediate Predictions]")
         save_start = time.time()
@@ -939,7 +965,7 @@ def run_test_step(module, batch: Dict[str, torch.Tensor], batch_idx: int) -> STE
             output_head=selected_output_head,
         )
 
-        save_all_heads = bool(getattr(inference_cfg.save_prediction, "save_all_heads", False))
+        save_all_heads = bool(getattr(inference_cfg, "save_all_heads", False))
         model_head_names = get_model_head_names(module.cfg)
         # When heads are already merged into predictions_np, the single saved file
         # covers every head — skip the redundant per-head re-prediction loop.
@@ -988,6 +1014,19 @@ def run_test_step(module, batch: Dict[str, torch.Tensor], batch_idx: int) -> STE
             cache[name] = predictions_np
         del predictions_np
         _cleanup_inference_memory(module, "tune prediction")
+        _distributed_tta_barrier(module)
+        return torch.tensor(0.0, device=module.device)
+
+    decode_after = bool(getattr(getattr(module.cfg, "decoding", None), "enabled", True))
+    if not decode_after:
+        if _evaluation_context_from_module(module).is_enabled:
+            logger.warning(
+                "Skipping evaluation because decoding.enabled=false produced "
+                "only raw predictions."
+            )
+        del predictions_np
+        _log_volume_header(volume_name, "VOLUME COMPLETE")
+        _cleanup_inference_memory(module, "whole-volume inference", release_model=True)
         _distributed_tta_barrier(module)
         return torch.tensor(0.0, device=module.device)
 

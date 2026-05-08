@@ -15,7 +15,7 @@ Functions:
 from __future__ import annotations
 
 import warnings
-from typing import List, Optional, Tuple
+from typing import Optional, Sequence, Tuple
 
 import cc3d
 import fastremap
@@ -38,7 +38,7 @@ from .segmentation_kernels import (
     connected_components_affinity_3d_numba as _connected_components_affinity_3d_numba,
 )
 from .segmentation_kernels import (
-    connected_components_affinity_3d_numba_parallel as _connected_components_affinity_3d_numba_parallel,
+    connected_components_affinity_3d_numba_parallel as _cc_affinity_3d_numba_parallel,
 )
 
 __all__ = [
@@ -48,12 +48,36 @@ __all__ = [
 ]
 
 
+def _reduce_selected_channels(
+    predictions: np.ndarray,
+    channels: Sequence[int],
+    *,
+    reduction: str,
+    context: str,
+) -> np.ndarray:
+    selected = predictions[channels]
+    if len(channels) == 1:
+        return selected[0]
+
+    reduction_name = reduction.lower()
+    if reduction_name == "mean":
+        return selected.mean(axis=0)
+    if reduction_name == "min":
+        return selected.min(axis=0)
+    if reduction_name == "max":
+        return selected.max(axis=0)
+    raise ValueError(
+        f"{context} reduction must be one of ['mean', 'min', 'max'], got {reduction!r}."
+    )
+
+
 def decode_instance_binary_contour_distance(
     predictions: np.ndarray,
     mode: str = "watershed",  # "watershed" or "cc"
-    binary_channels: Optional[List[int]] = (0,),
-    contour_channels: Optional[List[int]] = (1,),
-    distance_channels: Optional[List[int]] = (2,),
+    binary_channels: Optional[Sequence[int]] = (0,),
+    contour_channels: Optional[Sequence[int]] = (1,),
+    distance_channels: Optional[Sequence[int]] = (2,),
+    binary_channel_reduction: str = "mean",
     binary_threshold: Tuple[float, float] = (0.9, 0.85),
     contour_threshold: Optional[Tuple[float, float]] = (0.8, 1.1),
     distance_threshold: Tuple[float, float] = (0.5, 0),
@@ -61,6 +85,7 @@ def decode_instance_binary_contour_distance(
     min_seed_size: int = 32,
     min_instance_size: int = 0,
     return_seed: bool = False,
+    **kwargs,
 ):
     r"""Convert binary foreground probability maps, instance contours and signed distance
     transform to instance masks via watershed or connected components.
@@ -81,12 +106,15 @@ def decode_instance_binary_contour_distance(
             - 'cc': Use connected components (faster, simpler)
             Default: 'watershed'
         binary_channels (list of int, optional): Channel indices for binary foreground mask.
-            If multiple channels provided, they are averaged. Default: [0]
+            If multiple channels provided, they are reduced by ``binary_channel_reduction``.
+            Default: [0]
         contour_channels (list of int, optional): Channel indices for instance contours.
             If multiple channels provided, they are averaged. Set to None to disable contour
             constraints (for BANIS-style binary+distance only). Default: [1]
         distance_channels (list of int, optional): Channel indices for signed distance transform.
             If multiple channels provided, they are averaged. Default: [2]
+        binary_channel_reduction (str): Reduction for multiple binary channels. Options are
+            "mean", "min", and "max". Default: "mean".
         binary_threshold (tuple): Tuple of two floats (seed_threshold,
             foreground_threshold) for binary mask. The first value is used for
             seed generation, the second for foreground mask. Default: (0.9, 0.85)
@@ -106,6 +134,8 @@ def decode_instance_binary_contour_distance(
             Default: 0
         return_seed (bool): Whether to return the seed map along with the segmentation.
             If True, returns (segmentation, seed). Only applicable in watershed mode. Default: False
+        **kwargs: Additional parameters for compatibility with YAML configs.
+            Unused parameters are silently ignored.
 
     Returns:
         numpy.ndarray or tuple: Instance segmentation mask of shape :math:`(Z, Y, X)`.
@@ -148,12 +178,17 @@ def decode_instance_binary_contour_distance(
         ... )
     """
 
+    if contour_threshold is None:
+        contour_channels = None
+
     binary, contour, distance = None, None, None
     if binary_channels is not None:
-        if len(binary_channels) > 1:  # average multiple channels
-            binary = predictions[binary_channels].mean(axis=0)
-        else:
-            binary = predictions[binary_channels[0]]  # use first channel
+        binary = _reduce_selected_channels(
+            predictions,
+            binary_channels,
+            reduction=binary_channel_reduction,
+            context="binary_channel_reduction",
+        )
 
     if contour_channels is not None:
         if len(contour_channels) > 1:
@@ -171,7 +206,7 @@ def decode_instance_binary_contour_distance(
     foreground = None
     if binary is not None:
         foreground = binary > binary_threshold[1]
-    if contour is not None:
+    if contour is not None and contour_threshold is not None:
         foreground = (
             foreground * (contour < contour_threshold[1])
             if foreground is not None
@@ -182,6 +217,10 @@ def decode_instance_binary_contour_distance(
             foreground * (distance > distance_threshold[1])
             if foreground is not None
             else (distance > distance_threshold[1])
+        )
+    if foreground is None:
+        raise ValueError(
+            "At least one of binary_channels, contour_channels, or distance_channels must be set."
         )
 
     seed = None
@@ -198,7 +237,7 @@ def decode_instance_binary_contour_distance(
             seed_map = None
             if binary is not None:
                 seed_map = binary > binary_threshold[0]
-            if contour is not None:
+            if contour is not None and contour_threshold is not None:
                 seed_map = (
                     seed_map * (contour < contour_threshold[0])
                     if seed_map is not None
@@ -209,6 +248,10 @@ def decode_instance_binary_contour_distance(
                     seed_map * (distance > distance_threshold[0])
                     if seed_map is not None
                     else (distance > distance_threshold[0])
+                )
+            if seed_map is None:
+                raise ValueError(
+                    "At least one seed source must be available for watershed decoding."
                 )
             seed = cc3d.connected_components(seed_map)
             if min_seed_size > 0:
@@ -246,7 +289,7 @@ def decode_instance_binary_contour_distance(
 
 def decode_distance_watershed(
     predictions: np.ndarray,
-    distance_channels: Optional[List[int]] = (0,),
+    distance_channels: Optional[Sequence[int]] = (0,),
     distance_threshold: Tuple[float, float] = (0.5, 0),
     min_seed_size: int = 50,
     min_instance_size: int = 0,
@@ -256,7 +299,7 @@ def decode_distance_watershed(
     edt_downsample_factor: int = 1,
     return_seed: bool = False,
     **kwargs,  # Accept but ignore unused parameters for compatibility
-) -> np.ndarray:
+):
     """
     Convert signed distance transform (SDT) predictions to instance segmentation
     via watershed with recomputed Euclidean Distance Transform (EDT).
@@ -553,9 +596,7 @@ def decode_affinity_cc(
                 hard_aff, edge_offset=int(edge_offset)
             )
         else:
-            segmentation = _connected_components_affinity_3d_numba_parallel(
-                hard_aff, edge_offset=int(edge_offset)
-            )
+            segmentation = _cc_affinity_3d_numba_parallel(hard_aff, edge_offset=int(edge_offset))
     elif backend_normalized == "cupy":
         if not CUPY_AVAILABLE:
             raise ImportError(
