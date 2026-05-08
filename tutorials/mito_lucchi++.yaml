@@ -17,13 +17,14 @@ default:
       size: S
       kernel_size: 3
       dim: 3d
+      checkpoint_style: outside_block
     loss:
       deep_supervision: false
   data:
     dataloader:
       profile: cached
       patch_size: [112, 112, 112]
-      batch_size: 4
+      batch_size: 2
     augmentation:
       profile: aug_strong
   inference:

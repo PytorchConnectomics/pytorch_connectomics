@@ -161,7 +161,7 @@ slurm partition num_cpu num_gpu cmd constraint='' mem='32G' nodelist='' reservat
            $reservation_flag \
            $exclude_flag \
            --export=ALL,PYTC_CMD \
-           --wrap='mkdir -p $HOME/.just && export JUST_TEMPDIR=$HOME/.just TMPDIR=$HOME/.just NCCL_SOCKET_FAMILY=AF_INET NUMBA_NUM_THREADS=${SLURM_CPUS_PER_TASK:-{{num_cpu}}} OMP_NUM_THREADS=1 MKL_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 && unset SLURM_CPU_BIND && source /projects/weilab/weidf/lib/miniconda3/bin/activate pytc && cd '"$PWD"' && srun --cpu-bind=none --ntasks=1 --gpus-per-task={{num_gpu}} --cpus-per-task={{num_cpu}} $PYTC_CMD'
+           --wrap='mkdir -p $HOME/.just && export JUST_TEMPDIR=$HOME/.just TMPDIR=$HOME/.just NCCL_SOCKET_FAMILY=AF_INET NUMBA_NUM_THREADS=${SLURM_CPUS_PER_TASK:-{{num_cpu}}} OMP_NUM_THREADS=1 MKL_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True && unset SLURM_CPU_BIND && source /projects/weilab/weidf/lib/miniconda3/bin/activate pytc && cd '"$PWD"' && srun --cpu-bind=none --ntasks=1 --gpus-per-task={{num_gpu}} --cpus-per-task={{num_cpu}} $PYTC_CMD'
 
 # Generic CPU-only multi-task launcher (single node, no GPU).
 # Example:
