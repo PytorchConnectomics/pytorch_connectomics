@@ -1,7 +1,0 @@
----
-stage: review_v1
-role: a2
-artifact: artifacts/review_v1.md
-status: complete
----
-Completed by CCC coordinator after artifact validation.

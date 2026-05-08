@@ -1,7 +1,0 @@
----
-stage: code_v2
-role: a1
-artifact: artifacts/code_v2.md
-status: complete
----
-Completed by CCC coordinator after artifact validation.
