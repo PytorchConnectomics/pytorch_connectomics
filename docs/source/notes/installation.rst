@@ -154,7 +154,7 @@ For state-of-the-art MedNeXt models (MICCAI 2023):
 
 .. code-block:: bash
 
-    git clone https://github.com/MIC-DKFZ/MedNeXt.git
+    git clone https://github.com/PytorchConnectomics/MedNeXt.git
     cd MedNeXt
     pip install -e .
 
@@ -371,7 +371,7 @@ This is expected if MedNeXt is not installed. MedNeXt is optional. Install it if
 
 .. code-block:: bash
 
-    git clone https://github.com/MIC-DKFZ/MedNeXt.git
+    git clone https://github.com/PytorchConnectomics/MedNeXt.git
     cd MedNeXt
     pip install -e .
 
