@@ -29,6 +29,19 @@ from .transform_utils import spatial_axis_to_array_axis as _spatial_axis_to_arra
 from .transform_utils import to_numpy as _to_numpy
 
 
+def _as_range(value: Union[float, Tuple[float, float], List[float]]) -> Tuple[float, float]:
+    """Normalize a scalar or 2-tuple/list into a ``(low, high)`` pair for uniform sampling."""
+    if isinstance(value, (tuple, list)):
+        if len(value) != 2:
+            raise ValueError(f"Expected a (low, high) pair, got {value!r}")
+        low, high = float(value[0]), float(value[1])
+    else:
+        low = high = float(value)
+    if low > high:
+        low, high = high, low
+    return low, high
+
+
 class RandAxisPermuted(RandomizableTransform, MapTransform):
     """Randomly permute the three spatial axes of a cubic 3D volume."""
 
@@ -635,20 +648,23 @@ class RandCutNoised(RandomizableTransform, MapTransform):
         self,
         keys: KeysCollection,
         prob: float = 0.1,
-        length_ratio: float = 0.25,
-        noise_scale: float = 0.2,
+        length_ratio: Union[float, Tuple[float, float]] = (0.1, 0.4),
+        noise_scale: Union[float, Tuple[float, float]] = (0.05, 0.15),
         allow_missing_keys: bool = False,
     ) -> None:
         MapTransform.__init__(self, keys, allow_missing_keys)
         RandomizableTransform.__init__(self, prob)
-        self.length_ratio = length_ratio
-        self.noise_scale = noise_scale
+        self.length_ratio = _as_range(length_ratio)
+        self.noise_scale = _as_range(noise_scale)
 
     def __call__(self, data: Dict[str, Any]) -> Dict[str, Any]:
         d = dict(data)
         self.randomize(None)
         if not self._do_transform:
             return d
+
+        length_ratio = float(self.R.uniform(*self.length_ratio))
+        noise_scale = float(self.R.uniform(*self.noise_scale))
 
         for key in self.key_iterator(d):
             if key in d:
@@ -661,12 +677,12 @@ class RandCutNoised(RandomizableTransform, MapTransform):
                 slices = [slice(None)]
                 noise_shape = [arr.shape[0]]
                 for s in spatial_shape:
-                    length = max(1, int(self.length_ratio * s))
+                    length = max(1, int(length_ratio * s))
                     start = int(self.R.randint(0, max(1, s - length + 1)))
                     slices.append(slice(start, start + length))
                     noise_shape.append(length)
 
-                noise = self.R.uniform(-self.noise_scale, self.noise_scale, noise_shape)
+                noise = self.R.uniform(-noise_scale, noise_scale, noise_shape)
                 result = augment_ops.apply_cut_noise(arr, slices, noise)
                 d[key] = _from_numpy(result, was_tensor, device)
         return d
@@ -682,14 +698,14 @@ class RandCutBlurd(RandomizableTransform, MapTransform):
         self,
         keys: KeysCollection,
         prob: float = 0.5,
-        length_ratio: float = 0.25,
+        length_ratio: Union[float, Tuple[float, float]] = (0.1, 0.4),
         down_ratio_range: Tuple[float, float] = (2.0, 8.0),
         downsample_z: bool = False,
         allow_missing_keys: bool = False,
     ) -> None:
         MapTransform.__init__(self, keys, allow_missing_keys)
         RandomizableTransform.__init__(self, prob)
-        self.length_ratio = length_ratio
+        self.length_ratio = _as_range(length_ratio)
         self.down_ratio_range = down_ratio_range
         self.downsample_z = downsample_z
 
@@ -725,19 +741,24 @@ class RandCutBlurd(RandomizableTransform, MapTransform):
     def _get_random_params(self, img: Union[np.ndarray, torch.Tensor]) -> Tuple:
         shape = img.shape
         zdim = shape[0] if len(shape) == 3 else 1
+        length_ratio = float(self.R.uniform(*self.length_ratio))
 
         if zdim > 1:
-            zl, zh = self._random_region(shape[0])
+            zl, zh = self._random_region(shape[0], length_ratio)
         else:
             zl, zh = None, None
 
-        yl, yh = self._random_region(shape[1] if len(shape) == 3 else shape[0])
-        xl, xh = self._random_region(shape[2] if len(shape) == 3 else shape[1])
+        yl, yh = self._random_region(
+            shape[1] if len(shape) == 3 else shape[0], length_ratio
+        )
+        xl, xh = self._random_region(
+            shape[2] if len(shape) == 3 else shape[1], length_ratio
+        )
         down_ratio = self.R.uniform(*self.down_ratio_range)
         return zl, zh, yl, yh, xl, xh, down_ratio
 
-    def _random_region(self, vol_len: int) -> Tuple[int, int]:
-        cuboid_len = max(1, int(self.length_ratio * vol_len))
+    def _random_region(self, vol_len: int, length_ratio: float) -> Tuple[int, int]:
+        cuboid_len = max(1, int(length_ratio * vol_len))
         low = int(self.R.randint(0, max(1, vol_len - cuboid_len + 1)))
         return low, low + cuboid_len
 
