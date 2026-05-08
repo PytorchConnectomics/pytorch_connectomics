@@ -51,20 +51,6 @@ class TestConfig:
 
 
 @dataclass
-class TuneOutputConfig:
-    """Tuning output configuration."""
-
-    output_dir: Optional[str] = None
-    output_pred: Optional[str] = None
-    cache_suffix: str = "_tta_x1_prediction.h5"
-    save_all_trials: bool = False
-    save_best_segmentation: bool = True
-    save_study: bool = True
-    visualizations: Optional[Dict[str, Any]] = None
-    report: Optional[Dict[str, Any]] = None
-
-
-@dataclass
 class ParameterConfig:
     """Single parameter configuration for optimization."""
 
@@ -119,9 +105,19 @@ class TuneConfig:
     inference: InferenceConfig = field(default_factory=InferenceConfig)
     decoding: DecodingConfig = field(default_factory=DecodingConfig)
     evaluation: EvaluationConfig = field(default_factory=EvaluationConfig)
-    output: TuneOutputConfig = field(default_factory=TuneOutputConfig)
     logging: Dict[str, Any] = field(default_factory=lambda: {"verbose": True})
     parameter_space: ParameterSpaceConfig = field(default_factory=ParameterSpaceConfig)
+
+    # Tuning storage policy — flat siblings under the `save_*` action group
+    # (replaces former `tune.output:` sub-block).
+    save_path: Optional[str] = None             # study/best-params dir
+    save_predictions_path: Optional[str] = None  # cached intermediate predictions dir
+    save_cache_suffix: str = "_tta_x1_prediction.h5"
+    save_all_trials: bool = False
+    save_best_segmentation: bool = True
+    save_study: bool = True
+    save_visualizations: Optional[Dict[str, Any]] = None
+    save_report: Optional[Dict[str, Any]] = None
 
     n_trials: int = 100
     timeout: Optional[int] = None

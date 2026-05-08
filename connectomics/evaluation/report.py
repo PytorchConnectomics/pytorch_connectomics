@@ -55,22 +55,26 @@ def save_metrics_to_file(context: EvaluationContext, metrics_dict: Dict[str, Any
         logger.warning("Cannot save metrics: output_path not found for mode=test")
         return
 
-    output_dir = Path(output_path)
-    output_dir.mkdir(parents=True, exist_ok=True)
+    save_root = Path(output_path)
+    save_root.mkdir(parents=True, exist_ok=True)
 
     volume_name = metrics_dict.get("volume_name", "unknown")
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    tag = final_prediction_output_tag(
+    tag_filename = final_prediction_output_tag(
         context.cfg,
         checkpoint_path=context.checkpoint_path,
     )
-    metrics_file = output_dir / f"evaluation_metrics_{volume_name}_{tag}.txt"
+    # Tag now returns "decoded_x1...h5" / "prediction_x1...h5"; strip the .h5
+    # for use as a filename token in the eval metric files.
+    tag = tag_filename.removesuffix(".h5")
+    # Per-volume layout: eval files live under <save_root>/<volume_name>/
+    output_dir = save_root / volume_name
+    output_dir.mkdir(parents=True, exist_ok=True)
+    metrics_file = output_dir / f"eval_{tag}.txt"
 
     if "nerl_per_gt_erl" in metrics_dict:
         try:
-            per_gt_erl_file = (
-                output_dir / f"evaluation_metrics_{volume_name}_{tag}_nerl_per_gt_erl.npz"
-            )
+            per_gt_erl_file = output_dir / f"eval_{tag}_nerl_per_gt_erl.npz"
             np.savez_compressed(
                 per_gt_erl_file,
                 gt_segment_id=np.asarray(metrics_dict.get("nerl_gt_segment_ids", [])),
@@ -166,9 +170,10 @@ def save_metrics_to_file(context: EvaluationContext, metrics_dict: Dict[str, Any
     except Exception as exc:
         logger.warning("Failed to save metrics to file: %s", exc)
 
+    # decode_experiments.tsv is a cross-volume log; keep at save_root.
     log_decode_experiment(
         cfg=context.cfg,
-        output_dir=output_dir,
+        output_dir=save_root,
         volume_name=volume_name,
         timestamp=timestamp,
         metrics_dict=metrics_dict,

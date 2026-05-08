@@ -1,0 +1,70 @@
+_base_:
+  - ../../../../tutorials/neuron_nisb/base_banis.yaml
+
+experiment_name: nisb_base_banis_waterz_tune
+description: >-
+  Decode-only sweep over `decode_waterz` thresholds on the saved
+  base_banis prediction artifact. Reuses base_banis training & inference
+  blocks; replaces the decoder and tunes a single `thresholds` parameter
+  via waterz batch mode (one Optuna trial = one waterz call sweeping all
+  thresholds via `return_all_thresholds`).
+
+# Replace the default decode_affinity_cc step so test-mode decode also
+# runs waterz with sensible defaults (the tuner reads tune.parameter_space
+# directly, but a consistent test-mode decode is convenient).
+default:
+  decoding:
+    enabled: true
+    steps:
+      - name: decode_waterz
+        kwargs:
+          thresholds: 0.4
+          merge_function: aff85_his256
+          aff_threshold: [0.001, 0.999]
+          channel_order: xyz
+          dust_merge: true
+          dust_merge_size: 800
+          dust_merge_affinity: 0.3
+          dust_remove_size: 600
+          branch_merge: false
+
+# Tune block: swap function_name + defaults + parameter map.
+#
+# IMPORTANT — n_trials = 1.
+# OmegaConf merges parameter_space.{defaults,parameters} as dicts (it does
+# not "replace" them on overlay), so the inherited CC `threshold`
+# parameter and `backend`/`edge_offset` defaults from
+# `tutorials/neuron_nisb/base_banis.yaml:223-234` remain in the resolved
+# tune config alongside the waterz keys we add here. `decode_waterz`
+# accepts **kwargs and silently drops unknown args
+# (`connectomics/decoding/decoders/waterz.py:31-56`), so trial *correctness*
+# is unaffected — but every Optuna trial would re-sample the inherited
+# `threshold` and re-run the same waterz batch, wasting 24 of 25 trials
+# on identical work. With waterz batch mode the threshold sweep is done
+# inside a single call (`optuna_tuner.py:562-583, :1018-1021`), so one
+# trial is enough. The selected best threshold is stored as a trial user
+# attribute named `best_threshold`
+# (`optuna_tuner.py:1058-1063`); read it from the Optuna study/journal
+# rather than from `best_params`.
+tune:
+  study_name: nisb_base_banis_waterz_tuning
+  n_trials: 1
+  load_if_exists: true
+  parameter_space:
+    decoding:
+      function_name: decode_waterz
+      defaults:
+        merge_function: aff85_his256
+        aff_threshold: [0.001, 0.999]
+        channel_order: xyz
+        dust_merge: true
+        dust_merge_size: 800
+        dust_merge_affinity: 0.3
+        dust_remove_size: 600
+        branch_merge: false
+      parameters:
+        thresholds:
+          type: float
+          range: [0.1, 0.6]
+          step: 0.05
+          description: Affinity agglomeration threshold for waterz batch mode

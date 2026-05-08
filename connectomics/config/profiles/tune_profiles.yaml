@@ -17,8 +17,7 @@ tune_profiles:
         metric: adapted_rand
         direction: minimize
 
-    output:
-      save_study: true
+    save_study: true
 
     logging:
       verbose: true
@@ -108,8 +107,7 @@ tune_profiles:
         metric: adapted_rand
         direction: minimize
 
-    output:
-      save_study: true
+    save_study: true
 
     logging:
       verbose: true
@@ -165,8 +163,7 @@ tune_profiles:
         metric: adapted_rand
         direction: minimize
 
-    output:
-      save_study: true
+    save_study: true
 
     logging:
       verbose: true

@@ -35,7 +35,7 @@ class InferenceModelConfig:
     select_channel: Optional[Any] = None
     # Optional prediction/accumulator dtype used after model forward. Defaults
     # to float32 in runtime helpers. Storage dtype is configured separately in
-    # save_inference.dtype.
+    # `inference.save_dtype`.
     output_dtype: Optional[str] = None
     # Activation profile selector expanded by the YAML profile engine.
     activation_profile: Optional[str] = None
@@ -123,21 +123,6 @@ class ChunkingConfig:
 
 
 @dataclass
-class SaveInferenceConfig:
-    """Physical storage for inference prediction artifacts."""
-
-    enabled: bool = False
-    backend: str = "h5"  # "h5", "zarr", or "tensorstore" when implemented by runtime.
-    output_path: Optional[str] = None
-    cache_suffix: str = "_x1_prediction.h5"  # Includes extension; keep aligned with backend.
-    save_all_heads: bool = False
-    dtype: Optional[str] = None
-    compression: Optional[str] = "gzip"
-    chunks: Optional[List[int]] = None  # CZYX storage chunks when backend supports it.
-    write_mode: str = "single_writer"  # "single_writer" or "distributed_regions".
-
-
-@dataclass
 class TestTimeAugmentationConfig:
     """Test-time augmentation (TTA) configuration."""
 
@@ -163,38 +148,20 @@ class TestTimeAugmentationConfig:
 
 
 @dataclass
-class SavePredictionConfig:
-    """Prediction saving configuration."""
-
-    enabled: bool = False
-    output_formats: List[str] = field(default_factory=lambda: ["h5"])  # Any of: h5, tiff, png
-    output_path: Optional[str] = None
-    cache_suffix: str = "_x1_prediction.h5"
-    save_all_heads: bool = False
-
-    # Optional file/cache dtype conversion. This does not affect decoding or
-    # evaluation. Use inference.prediction_transform for semantic value changes.
-    storage_dtype: Optional[str] = None
-
-    # File writing behavior
-    compression: Optional[str] = "gzip"
-
-
-@dataclass
 class PredictionTransformConfig:
     """Semantic prediction transforms applied before decoding/evaluation.
 
-    Unlike ``save_prediction``, these transforms affect the in-memory prediction
-    array used by downstream decoding even when intermediate predictions are not
-    saved. Keep disabled unless decoder thresholds are configured for the
-    transformed value range.
+    Unlike ``inference.save_results`` / ``inference.save_dtype``, these
+    transforms affect the in-memory prediction array used by downstream
+    decoding even when intermediate predictions are not saved. Keep disabled
+    unless decoder thresholds are configured for the transformed value range.
     """
 
     enabled: bool = False
     # -1 keeps native prediction values. >0 scales prediction values.
     intensity_scale: float = -1.0
     # Optional in-memory dtype conversion. Prefer float16/float32 here; integer
-    # dtypes change threshold semantics and are mainly for save_prediction.
+    # dtypes change threshold semantics and are mainly for storage casts.
     intensity_dtype: Optional[str] = None
 
 
@@ -232,7 +199,17 @@ class InferenceConfig:
     execution: InferenceExecutionConfig = field(default_factory=InferenceExecutionConfig)
     window: SlidingWindowConfig = field(default_factory=SlidingWindowConfig)
     chunking: ChunkingConfig = field(default_factory=ChunkingConfig)
-    save_inference: SaveInferenceConfig = field(default_factory=SaveInferenceConfig)
+
+    # Physical storage for raw prediction artifacts. Off by default because
+    # raw probability/affinity volumes are large; opt in for cached decode flows.
+    # All `save_*` siblings group together under one prefix per the v3 naming rule.
+    save_results: bool = False
+    save_path: str = ""
+    save_cache_suffix: str = "_x1_prediction.h5"  # Includes extension; keep aligned with save_backend.
+    save_all_heads: bool = False
+    save_dtype: Optional[str] = None
+    save_backend: str = "h5"  # "h5", "zarr", or "tensorstore" when implemented by runtime.
+    save_compression: Optional[str] = "gzip"
 
     # Runtime aliases consumed by existing stage code after sync.
     head: Optional[str] = None
@@ -240,14 +217,14 @@ class InferenceConfig:
     strategy: str = "whole_volume"  # "whole_volume" or "chunked"
     crop_pad: Optional[List[int]] = None
     sliding_window: SlidingWindowConfig = field(default_factory=SlidingWindowConfig)
-    save_prediction: SavePredictionConfig = field(default_factory=SavePredictionConfig)
 
     test_time_augmentation: TestTimeAugmentationConfig = field(
         default_factory=TestTimeAugmentationConfig
     )
-    # Optional explicit intermediate prediction file (.h5). If set in test
-    # mode, pipeline loads this file directly and proceeds to top-level decoding.
-    tta_result_path: str = ""
+    # Optional explicit pre-aggregated TTA prediction file (.h5). If set in
+    # test mode, pipeline loads this file directly and proceeds to top-level
+    # decoding without running inference.
+    load_tta_path: str = ""
     prediction_transform: PredictionTransformConfig = field(
         default_factory=PredictionTransformConfig
     )
@@ -273,10 +250,10 @@ def sync_inference_runtime_aliases(cfg: object) -> None:
     """Materialize canonical inference sections into runtime-owned objects.
 
     Runtime code still consumes a few narrow owner objects (`head`,
-    `select_channel`, `crop_pad`, `sliding_window`, and `save_prediction`).
-    Canonical YAML should configure `model`, `execution`, `window`, `chunking`,
-    and `save_inference`; this sync keeps one effective runtime representation
-    after config load and stage resolution.
+    `select_channel`, `crop_pad`, `sliding_window`). Canonical YAML should
+    configure `model`, `execution`, `window`, `chunking`, and `save`; this
+    sync keeps one effective runtime representation after config load and
+    stage resolution.
     """
     inference = getattr(cfg, "inference", None)
     if inference is None:
@@ -326,17 +303,3 @@ def sync_inference_runtime_aliases(cfg: object) -> None:
                 ],
             )
 
-    store = getattr(inference, "save_inference", None)
-    save_prediction = getattr(inference, "save_prediction", None)
-    if store is not None and save_prediction is not None:
-        if store != SaveInferenceConfig():
-            save_prediction.enabled = bool(getattr(store, "enabled", False))
-            backend = str(getattr(store, "backend", "h5")).lower()
-            save_prediction.output_formats = [backend]
-            output_path = getattr(store, "output_path", None)
-            if output_path not in (None, ""):
-                save_prediction.output_path = output_path
-            save_prediction.cache_suffix = getattr(store, "cache_suffix", "_x1_prediction.h5")
-            save_prediction.save_all_heads = bool(getattr(store, "save_all_heads", False))
-            save_prediction.storage_dtype = getattr(store, "dtype", None)
-            save_prediction.compression = getattr(store, "compression", None)

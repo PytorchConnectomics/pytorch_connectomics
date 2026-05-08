@@ -31,9 +31,9 @@ class _DummyTrainer:
         self.observed = {
             "datamodule": datamodule,
             "ckpt_path": ckpt_path,
-            "save_prediction_enabled": inference_cfg.save_prediction.enabled,
-            "cache_suffix": inference_cfg.save_prediction.cache_suffix,
-            "output_path": inference_cfg.save_prediction.output_path,
+            "save_enabled": inference_cfg.save_results,
+            "cache_suffix": inference_cfg.save_cache_suffix,
+            "output_path": inference_cfg.save_path,
             "decoding": model.cfg.decoding,
             "evaluation_enabled": model.cfg.evaluation.enabled,
         }
@@ -58,10 +58,10 @@ class _DummyTrial:
 def test_run_tuning_uses_intermediate_only_inference_overrides(monkeypatch, tmp_path):
     cfg = Config()
     cfg.tune = TuneConfig()
-    cfg.inference.save_prediction.output_path = str(tmp_path / "results")
-    cfg.tune.output.output_pred = str(tmp_path / "tuning" / "predictions")
-    cfg.inference.save_prediction.enabled = False
-    cfg.inference.save_prediction.cache_suffix = "_x1_prediction.h5"
+    cfg.inference.save_path = str(tmp_path / "results")
+    cfg.tune.save_predictions_path = str(tmp_path / "tuning" / "predictions")
+    cfg.inference.save_results = False
+    cfg.inference.save_cache_suffix = "raw_x1.h5"
     cfg.decoding.steps = [{"name": "decode_semantic", "kwargs": {"threshold": 0.8}}]
     cfg.evaluation.enabled = True
     cfg.data.val.image = str(tmp_path / "images" / "volume_0_input.h5")
@@ -74,7 +74,7 @@ def test_run_tuning_uses_intermediate_only_inference_overrides(monkeypatch, tmp_
     image_file.touch()
 
     prediction_file = str(
-        tmp_path / "results" / "volume_0_input_tta_x1_ckpt-checkpoint_prediction.h5"
+        tmp_path / "results" / "volume_0_input/raw_x1.h5"
     )
     label_file = str(tmp_path / "labels" / "volume_0_label.h5")
     Path(label_file).parent.mkdir(parents=True, exist_ok=True)
@@ -113,15 +113,15 @@ def test_run_tuning_uses_intermediate_only_inference_overrides(monkeypatch, tmp_
 
     assert trainer.observed["datamodule"]["mode"] == "tune"
     assert trainer.observed["ckpt_path"] == "checkpoint.ckpt"
-    assert trainer.observed["save_prediction_enabled"] is True
+    assert trainer.observed["save_enabled"] is True
     assert trainer.observed["output_path"] == str(tmp_path / "results")
-    assert trainer.observed["cache_suffix"] == "_tta_x1_ckpt-checkpoint_prediction.h5"
+    assert trainer.observed["cache_suffix"] == "raw_x1.h5"
     assert trainer.observed["decoding"] is None
     assert trainer.observed["evaluation_enabled"] is False
 
-    assert cfg.inference.save_prediction.enabled is False
-    assert cfg.inference.save_prediction.output_path == str(tmp_path / "results")
-    assert cfg.inference.save_prediction.cache_suffix == "_x1_prediction.h5"
+    assert cfg.inference.save_results is False
+    assert cfg.inference.save_path == str(tmp_path / "results")
+    assert cfg.inference.save_cache_suffix == "raw_x1.h5"
     assert cfg.decoding.steps == [{"name": "decode_semantic", "kwargs": {"threshold": 0.8}}]
     assert cfg.evaluation.enabled is True
 
@@ -133,8 +133,8 @@ def test_run_tuning_uses_intermediate_only_inference_overrides(monkeypatch, tmp_
 def test_run_tuning_ignores_stale_test_prediction_cache_when_tuning(monkeypatch, tmp_path):
     cfg = Config()
     cfg.tune = TuneConfig()
-    cfg.inference.save_prediction.output_path = str(tmp_path / "results")
-    cfg.tune.output.output_pred = str(tmp_path / "tuning" / "predictions")
+    cfg.inference.save_path = str(tmp_path / "results")
+    cfg.tune.save_predictions_path = str(tmp_path / "tuning" / "predictions")
     cfg.data.val.image = str(tmp_path / "images" / "train-input.tif")
     cfg.data.val.label = str(tmp_path / "labels" / "train-labels.h5")
 
@@ -144,12 +144,12 @@ def test_run_tuning_ignores_stale_test_prediction_cache_when_tuning(monkeypatch,
     image_file.parent.mkdir(parents=True, exist_ok=True)
     image_file.touch()
 
-    stale_prediction_file = tmp_path / "results" / "test-input_z29_tta_x1_prediction.h5"
+    stale_prediction_file = tmp_path / "results" / "test-input_z29/raw_x1.h5"
     stale_prediction_file.parent.mkdir(parents=True, exist_ok=True)
     stale_prediction_file.touch()
 
     expected_prediction_file = (
-        tmp_path / "results" / "train-input_tta_x1_ckpt-checkpoint_prediction.h5"
+        tmp_path / "results" / "train-input/raw_x1.h5"
     )
     expected_prediction_file.parent.mkdir(parents=True, exist_ok=True)
     label_file = tmp_path / "labels" / "train-labels.h5"
@@ -193,8 +193,8 @@ def test_run_tuning_ignores_stale_test_prediction_cache_when_tuning(monkeypatch,
 def test_run_tuning_uses_result_prediction_cache_when_tuning_folder_missing(monkeypatch, tmp_path):
     cfg = Config()
     cfg.tune = TuneConfig()
-    cfg.inference.save_prediction.output_path = str(tmp_path / "results")
-    cfg.tune.output.output_pred = str(tmp_path / "tuning" / "predictions")
+    cfg.inference.save_path = str(tmp_path / "results")
+    cfg.tune.save_predictions_path = str(tmp_path / "tuning" / "predictions")
     cfg.data.val.image = str(tmp_path / "images" / "train-input.tif")
     cfg.data.val.label = str(tmp_path / "labels" / "train-labels.h5")
 
@@ -203,7 +203,7 @@ def test_run_tuning_uses_result_prediction_cache_when_tuning_folder_missing(monk
     image_file.touch()
 
     result_prediction_file = (
-        tmp_path / "results" / "train-input_tta_x1_ckpt-checkpoint_prediction.h5"
+        tmp_path / "results" / "train-input/raw_x1.h5"
     )
     result_prediction_file.parent.mkdir(parents=True, exist_ok=True)
     result_prediction_file.touch()
@@ -245,8 +245,8 @@ def test_run_tuning_uses_result_prediction_cache_when_tuning_folder_missing(monk
 def test_run_tuning_prefers_tuning_prediction_cache_over_result_cache(monkeypatch, tmp_path):
     cfg = Config()
     cfg.tune = TuneConfig()
-    cfg.inference.save_prediction.output_path = str(tmp_path / "results")
-    cfg.tune.output.output_pred = str(tmp_path / "tuning" / "predictions")
+    cfg.inference.save_path = str(tmp_path / "results")
+    cfg.tune.save_predictions_path = str(tmp_path / "tuning" / "predictions")
     cfg.data.val.image = str(tmp_path / "images" / "train-input.tif")
     cfg.data.val.label = str(tmp_path / "labels" / "train-labels.h5")
 
@@ -255,12 +255,12 @@ def test_run_tuning_prefers_tuning_prediction_cache_over_result_cache(monkeypatc
     image_file.touch()
 
     result_prediction_file = (
-        tmp_path / "results" / "train-input_tta_x1_ckpt-checkpoint_prediction.h5"
+        tmp_path / "results" / "train-input/raw_x1.h5"
     )
     result_prediction_file.parent.mkdir(parents=True, exist_ok=True)
     result_prediction_file.touch()
     tuning_prediction_file = (
-        tmp_path / "tuning" / "predictions" / "train-input_tta_x1_ckpt-checkpoint_prediction.h5"
+        tmp_path / "tuning" / "predictions" / "train-input/raw_x1.h5"
     )
     tuning_prediction_file.parent.mkdir(parents=True, exist_ok=True)
     tuning_prediction_file.touch()
@@ -304,7 +304,7 @@ def test_run_tuning_prefers_tuning_prediction_cache_over_result_cache(monkeypatc
 def test_run_tuning_requires_val_labels_in_tune_mode(monkeypatch, tmp_path):
     cfg = Config()
     cfg.tune = TuneConfig()
-    cfg.inference.save_prediction.output_path = str(tmp_path / "results")
+    cfg.inference.save_path = str(tmp_path / "results")
     cfg.data.val.image = str(tmp_path / "images" / "val_input.h5")
     cfg.data.test.label = str(tmp_path / "labels" / "test_*.h5")
 
@@ -312,7 +312,7 @@ def test_run_tuning_requires_val_labels_in_tune_mode(monkeypatch, tmp_path):
     image_file.parent.mkdir(parents=True, exist_ok=True)
     image_file.touch()
     expected_prediction_file = (
-        tmp_path / "results" / "val_input_tta_x1_ckpt-checkpoint_prediction.h5"
+        tmp_path / "results" / "val_input/raw_x1.h5"
     )
 
     model = _DummyModel(cfg)
@@ -340,11 +340,11 @@ def test_run_tuning_requires_val_labels_in_tune_mode(monkeypatch, tmp_path):
 def test_run_tuning_logs_existing_best_params_yaml(monkeypatch, tmp_path, caplog):
     cfg = Config()
     cfg.tune = TuneConfig()
-    cfg.inference.save_prediction.output_path = str(tmp_path / "results")
+    cfg.inference.save_path = str(tmp_path / "results")
 
     tuning_dir = tmp_path / "tuning"
     tuning_dir.mkdir(parents=True, exist_ok=True)
-    best_params_file = tuning_dir / "best_params_tta_x1_ckpt-checkpoint_prediction.yaml"
+    best_params_file = tuning_dir / "best_params_raw_x1.yaml"
     best_params_file.write_text(
         "best_trial: 7\nbest_value: 0.1234\ndecoding_function: decode_waterz\n"
     )
@@ -366,12 +366,12 @@ def test_run_tuning_logs_existing_best_params_yaml(monkeypatch, tmp_path, caplog
 
 def test_load_and_apply_best_params_prefers_checkpoint_aware_file(tmp_path):
     cfg = Config()
-    cfg.inference.save_prediction.output_path = str(tmp_path / "results")
+    cfg.inference.save_path = str(tmp_path / "results")
     cfg.decoding.steps = [{"name": "decode_waterz", "kwargs": {"thresholds": 0.4}}]
 
     tuning_dir = tmp_path / "tuning"
     tuning_dir.mkdir(parents=True, exist_ok=True)
-    best_params_file = tuning_dir / "best_params_tta_x1_ckpt-checkpoint_prediction.yaml"
+    best_params_file = tuning_dir / "best_params_raw_x1.yaml"
     best_params_file.write_text(
         "\n".join(
             [
@@ -393,7 +393,7 @@ def test_load_and_apply_best_params_prefers_checkpoint_aware_file(tmp_path):
 
 def test_load_and_apply_best_params_falls_back_to_legacy_filename(tmp_path):
     cfg = Config()
-    cfg.inference.save_prediction.output_path = str(tmp_path / "results")
+    cfg.inference.save_path = str(tmp_path / "results")
     cfg.decoding.steps = [{"name": "decode_waterz", "kwargs": {"thresholds": 0.4}}]
 
     tuning_dir = tmp_path / "tuning"

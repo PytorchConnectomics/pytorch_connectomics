@@ -1,10 +1,10 @@
 """Output writing for decoded segmentation artifacts.
 
 The decoded artifact is the Stage-3 output (instance label map) and must
-not pass through ``cfg.inference.save_inference.dtype``: that field
-configures the Stage-2 raw-prediction artifact (probability/affinity
-field) and silently truncates uint32 instance IDs above 65504 when
-applied to label volumes via float16.
+not pass through ``cfg.inference.save_dtype``: that field configures the
+Stage-2 raw-prediction artifact (probability/affinity field) and silently
+truncates uint32 instance IDs above 65504 when applied to label volumes
+via float16.
 """
 
 from __future__ import annotations
@@ -24,30 +24,32 @@ logger = logging.getLogger(__name__)
 def _resolve_decoded_output_dir(cfg: Config | DictConfig) -> str | None:
     """Output directory for decoded artifacts.
 
-    Priority: ``cfg.decoding.output_path`` →
-    ``cfg.inference.save_prediction.output_path`` →
-    parent of ``cfg.decoding.input_prediction_path``.
+    Priority: ``cfg.decoding.save_path`` →
+    ``cfg.inference.save_path`` →
+    parent of ``cfg.decoding.load_prediction_path``.
     """
     decoding_cfg = getattr(cfg, "decoding", None)
     if decoding_cfg is not None:
-        path = getattr(decoding_cfg, "output_path", "")
+        path = getattr(decoding_cfg, "save_path", "")
         if path:
             return str(path)
 
     inference_cfg = getattr(cfg, "inference", None)
     if inference_cfg is not None:
-        save_pred_cfg = getattr(inference_cfg, "save_prediction", None)
-        if save_pred_cfg is not None:
-            path = getattr(save_pred_cfg, "output_path", None)
-            if path:
-                return str(path)
+        path = getattr(inference_cfg, "save_path", None)
+        if path:
+            return str(path)
 
     if decoding_cfg is not None:
-        input_path = getattr(decoding_cfg, "input_prediction_path", "")
+        input_path = getattr(decoding_cfg, "load_prediction_path", "")
         if input_path:
             return str(Path(input_path).expanduser().parent)
 
     return None
+
+
+def _strip_h5(name: str) -> str:
+    return name[:-3] if name.endswith(".h5") else name
 
 
 def write_decoded_outputs(
@@ -56,11 +58,12 @@ def write_decoded_outputs(
     filenames: List[str],
     suffix: str,
 ) -> None:
-    """Persist decoded segmentation arrays to disk as HDF5.
+    """Persist decoded segmentation arrays under ``<save_path>/<volume_stem>/``.
 
-    Saves integer label volumes as-is. Does not consult inference-stage
-    storage dtype config; instance IDs are preserved at their native
-    dtype.
+    ``filenames`` are per-volume directory names; ``suffix`` is the artifact
+    filename inside the per-volume subdir (``.h5`` extension is added if
+    missing). Saves integer label volumes as-is — does not consult
+    inference-stage storage dtype config; instance IDs preserved.
     """
     output_dir_value = _resolve_decoded_output_dir(cfg)
     if not output_dir_value:
@@ -90,6 +93,8 @@ def write_decoded_outputs(
             f"{min(len(filenames), actual_batch_size)} filenames."
         )
 
+    artifact_stem = _strip_h5(suffix)
+
     for idx in range(actual_batch_size):
         if idx >= len(filenames):
             logger.warning(
@@ -98,9 +103,11 @@ def write_decoded_outputs(
             continue
 
         sample = np.squeeze(predictions[idx])
-        out_path = output_dir / f"{filenames[idx]}_{suffix}.h5"
+        volume_dir = output_dir / filenames[idx]
+        volume_dir.mkdir(parents=True, exist_ok=True)
+        out_path = volume_dir / f"{artifact_stem}.h5"
         write_hdf5(out_path, sample, dataset="main")
-        logger.info(f"Saved HDF5: {out_path.name}")
+        logger.info(f"Saved HDF5: {filenames[idx]}/{out_path.name}")
 
 
 __all__ = ["write_decoded_outputs"]

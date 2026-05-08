@@ -236,6 +236,14 @@ class DataInputConfig:
     skeleton: Any = None
     skeleton_mask: Any = None
 
+    # Optional per-volume name(s) used to build per-volume output subfolders
+    # in test/tune modes. None → fallback to filename stem heuristics
+    # (`runtime/output_naming.resolve_dataset_volume_stems`). str → applied
+    # to every dataset item. List[str] → indexed per item.
+    # On data.train this field is advisory; train mode does not write
+    # per-volume artifacts.
+    name: Any = None  # str | List[str] | None — Any for OmegaConf
+
 
 @dataclass
 class FlipConfig:

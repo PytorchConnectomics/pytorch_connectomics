@@ -76,8 +76,8 @@ default:
       targets:
       - name: affinity
         kwargs:
-          # 3 short-range + 3 long-range@10. decode_affinity_cc consumes the
-          # first 3 channels in axis0/axis1/axis2 order.
+          # 3 short-range + 3 long-range@10. Watershed decoding uses the first
+          # 3 channels in axis0/axis1/axis2 order as foreground.
           offsets: ["1-0-0", "0-1-0", "0-0-1", "10-0-0", "0-10-0", "0-0-10"]
           affinity_mode: banis
       # SDT defaults match BANIS (alpha=0.8, bg_value=-1.0).
@@ -91,12 +91,11 @@ default:
     execution:
       strategy: whole_volume
     model:
-      # Merge both heads so TTA channel_activations and select_channel address
-      # the concatenated 7-channel output (aff[0:6] + sdt[6:7]).
+      # Merge both heads so TTA channel_activations address the concatenated
+      # 7-channel output (aff[0:6] + sdt[6:7]).
       head: "aff,sdt"
-      # Keep only short-range affinities for connected-component decoding (matches
-      # BANIS-mito full_cube_inference default prediction_channels=3).
-      select_channel: [0, 1, 2]
+      # Keep the full aff+sdt tensor so binary+distance watershed can use
+      # affinity foreground channels plus SDT channel 6.
       channel_activations:
       # BANIS: scale_sigmoid(x) = sigmoid(0.2 * x) on aff; tanh on SDT.
       - {channels: "0:6", activation: scale_sigmoid}
@@ -111,20 +110,28 @@ default:
       keep_input_on_cpu: false
     test_time_augmentation:
       enabled: false
-    save_inference:
-      enabled: true
-      dtype: float16
-      backend: h5
+    save_results: true
+    save_dtype: float16
+    save_backend: h5
 
   decoding:
     steps:
-    - name: decode_affinity_cc
+    - name: decode_binary_contour_distance_watershed
       kwargs:
-        # BANIS sweeps thresholds; pick a single mid-range value matching the
-        # NISB reference. affinity_mode=banis stores edges at the source voxel.
-        threshold: 0.5
-        backend: numba
-        edge_offset: 0
+        binary_channels: [0, 1, 2]
+        binary_channel_reduction: min
+        contour_channels:
+        distance_channels: [6]
+        binary_threshold:
+        - 0.9
+        - 0.85
+        contour_threshold:
+        distance_threshold:
+        - 0.5
+        - -0.5
+        min_instance_size: 100
+        min_seed_size: 20
+        prediction_scale: 1
 
   evaluation:
     enabled: true

@@ -40,8 +40,7 @@ default:
       patch_first_local: true
       flip_axes: all
       rotation90_axes: [[1, 2]]
-    save_inference:
-      enabled: true
+    save_results: true
 
   decoding:
     steps:

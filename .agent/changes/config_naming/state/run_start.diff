@@ -1,0 +1,2818 @@
+diff --git a/.gitignore b/.gitignore
+index 3d27a59..5337d66 100755
+--- a/.gitignore
++++ b/.gitignore
+@@ -158,3 +158,4 @@ lib/
+ # Development logs and documentation
+ dev/
+ .codex
++.claude
+diff --git a/connectomics/config/pipeline/config_io.py b/connectomics/config/pipeline/config_io.py
+index 04644a2..a372181 100644
+--- a/connectomics/config/pipeline/config_io.py
++++ b/connectomics/config/pipeline/config_io.py
+@@ -117,7 +117,9 @@ _INFERENCE_RUNTIME_ALIAS_REPLACEMENTS = {
+     "strategy": "execution.strategy",
+     "do_eval": "execution.do_eval",
+     "sliding_window": "window",
+-    "save_prediction": "save_inference",
++    "save": "save_results",
++    "save_prediction": "save_results",
++    "save_inference": "save_results",
+ }
+ 
+ _INFERENCE_CONFIG_ROOTS = ("inference", "default.inference", "test.inference", "tune.inference")
+diff --git a/connectomics/config/schema/__init__.py b/connectomics/config/schema/__init__.py
+index 1085690..ae6e33f 100644
+--- a/connectomics/config/schema/__init__.py
++++ b/connectomics/config/schema/__init__.py
+@@ -52,8 +52,6 @@ from .inference import (
+     InferenceMemoryCleanupConfig,
+     InferenceModelConfig,
+     PredictionTransformConfig,
+-    SaveInferenceConfig,
+-    SavePredictionConfig,
+     SlidingWindowConfig,
+     TestTimeAugmentationConfig,
+     sync_inference_runtime_aliases,
+@@ -140,8 +138,6 @@ __all__ = [
+     "ChunkStitchingConfig",
+     "TestTimeAugmentationConfig",
+     "PredictionTransformConfig",
+-    "SaveInferenceConfig",
+-    "SavePredictionConfig",
+     "InferenceMemoryCleanupConfig",
+     "sync_inference_runtime_aliases",
+     "DecodingConfig",
+diff --git a/connectomics/config/schema/decoding.py b/connectomics/config/schema/decoding.py
+index 6248251..8d94cc3 100644
+--- a/connectomics/config/schema/decoding.py
++++ b/connectomics/config/schema/decoding.py
+@@ -103,9 +103,15 @@ class DecodingConfig:
+     """Decoded-output orchestration configuration."""
+ 
+     enabled: bool = True
++    # Save the per-step output of each decoder in `steps`. Off by default;
++    # only useful for debugging chained decoders.
++    save_intermediate: bool = False
++    # Save the final decoded (and optionally postprocessed) artifact.
++    save_results: bool = True
+     steps: List[DecodeModeConfig] = field(default_factory=list)
+     output_suffix: str = ""
+     postprocessing: PostprocessingConfig = field(default_factory=PostprocessingConfig)
+     output_path: str = ""
+     input_prediction_path: str = ""
++    affinity_mask_path: str = ""
+     tuning: Optional[DecodingTuningConfig] = None
+diff --git a/connectomics/config/schema/inference.py b/connectomics/config/schema/inference.py
+index d74ac48..e3103f5 100644
+--- a/connectomics/config/schema/inference.py
++++ b/connectomics/config/schema/inference.py
+@@ -35,7 +35,7 @@ class InferenceModelConfig:
+     select_channel: Optional[Any] = None
+     # Optional prediction/accumulator dtype used after model forward. Defaults
+     # to float32 in runtime helpers. Storage dtype is configured separately in
+-    # save_inference.dtype.
++    # save.dtype.
+     output_dtype: Optional[str] = None
+     # Activation profile selector expanded by the YAML profile engine.
+     activation_profile: Optional[str] = None
+@@ -122,21 +122,6 @@ class ChunkingConfig:
+     stitching: ChunkStitchingConfig = field(default_factory=ChunkStitchingConfig)
+ 
+ 
+-@dataclass
+-class SaveInferenceConfig:
+-    """Physical storage for inference prediction artifacts."""
+-
+-    enabled: bool = False
+-    backend: str = "h5"  # "h5", "zarr", or "tensorstore" when implemented by runtime.
+-    output_path: Optional[str] = None
+-    cache_suffix: str = "_x1_prediction.h5"  # Includes extension; keep aligned with backend.
+-    save_all_heads: bool = False
+-    dtype: Optional[str] = None
+-    compression: Optional[str] = "gzip"
+-    chunks: Optional[List[int]] = None  # CZYX storage chunks when backend supports it.
+-    write_mode: str = "single_writer"  # "single_writer" or "distributed_regions".
+-
+-
+ @dataclass
+ class TestTimeAugmentationConfig:
+     """Test-time augmentation (TTA) configuration."""
+@@ -162,39 +147,21 @@ class TestTimeAugmentationConfig:
+     empty_cache_interval: int = 4
+ 
+ 
+-@dataclass
+-class SavePredictionConfig:
+-    """Prediction saving configuration."""
+-
+-    enabled: bool = False
+-    output_formats: List[str] = field(default_factory=lambda: ["h5"])  # Any of: h5, tiff, png
+-    output_path: Optional[str] = None
+-    cache_suffix: str = "_x1_prediction.h5"
+-    save_all_heads: bool = False
+-
+-    # Optional file/cache dtype conversion. This does not affect decoding or
+-    # evaluation. Use inference.prediction_transform for semantic value changes.
+-    storage_dtype: Optional[str] = None
+-
+-    # File writing behavior
+-    compression: Optional[str] = "gzip"
+-
+-
+ @dataclass
+ class PredictionTransformConfig:
+     """Semantic prediction transforms applied before decoding/evaluation.
+ 
+-    Unlike ``save_prediction``, these transforms affect the in-memory prediction
+-    array used by downstream decoding even when intermediate predictions are not
+-    saved. Keep disabled unless decoder thresholds are configured for the
+-    transformed value range.
++    Unlike ``inference.save_results``, these transforms affect the in-memory
++    prediction array used by downstream decoding even when intermediate
++    predictions are not saved. Keep disabled unless decoder thresholds are
++    configured for the transformed value range.
+     """
+ 
+     enabled: bool = False
+     # -1 keeps native prediction values. >0 scales prediction values.
+     intensity_scale: float = -1.0
+     # Optional in-memory dtype conversion. Prefer float16/float32 here; integer
+-    # dtypes change threshold semantics and are mainly for save_prediction.
++    # dtypes change threshold semantics and are mainly for storage casts.
+     intensity_dtype: Optional[str] = None
+ 
+ 
+@@ -232,7 +199,18 @@ class InferenceConfig:
+     execution: InferenceExecutionConfig = field(default_factory=InferenceExecutionConfig)
+     window: SlidingWindowConfig = field(default_factory=SlidingWindowConfig)
+     chunking: ChunkingConfig = field(default_factory=ChunkingConfig)
+-    save_inference: SaveInferenceConfig = field(default_factory=SaveInferenceConfig)
++
++    # Physical storage for raw prediction artifacts. Off by default because
++    # raw probability/affinity volumes are large; opt in for cached decode flows.
++    save_results: bool = False
++    output_path: str = ""
++    cache_suffix: str = "_x1_prediction.h5"  # Includes extension; keep aligned with backend.
++    save_all_heads: bool = False
++    dtype: Optional[str] = None
++    backend: str = "h5"  # "h5", "zarr", or "tensorstore" when implemented by runtime.
++    compression: Optional[str] = "gzip"
++    chunks: Optional[List[int]] = None  # CZYX storage chunks when backend supports it.
++    write_mode: str = "single_writer"  # "single_writer" or "distributed_regions".
+ 
+     # Runtime aliases consumed by existing stage code after sync.
+     head: Optional[str] = None
+@@ -240,7 +218,6 @@ class InferenceConfig:
+     strategy: str = "whole_volume"  # "whole_volume" or "chunked"
+     crop_pad: Optional[List[int]] = None
+     sliding_window: SlidingWindowConfig = field(default_factory=SlidingWindowConfig)
+-    save_prediction: SavePredictionConfig = field(default_factory=SavePredictionConfig)
+ 
+     test_time_augmentation: TestTimeAugmentationConfig = field(
+         default_factory=TestTimeAugmentationConfig
+@@ -273,10 +250,10 @@ def sync_inference_runtime_aliases(cfg: object) -> None:
+     """Materialize canonical inference sections into runtime-owned objects.
+ 
+     Runtime code still consumes a few narrow owner objects (`head`,
+-    `select_channel`, `crop_pad`, `sliding_window`, and `save_prediction`).
+-    Canonical YAML should configure `model`, `execution`, `window`, `chunking`,
+-    and `save_inference`; this sync keeps one effective runtime representation
+-    after config load and stage resolution.
++    `select_channel`, `crop_pad`, `sliding_window`). Canonical YAML should
++    configure `model`, `execution`, `window`, `chunking`, and `save`; this
++    sync keeps one effective runtime representation after config load and
++    stage resolution.
+     """
+     inference = getattr(cfg, "inference", None)
+     if inference is None:
+@@ -326,17 +303,3 @@ def sync_inference_runtime_aliases(cfg: object) -> None:
+                 ],
+             )
+ 
+-    store = getattr(inference, "save_inference", None)
+-    save_prediction = getattr(inference, "save_prediction", None)
+-    if store is not None and save_prediction is not None:
+-        if store != SaveInferenceConfig():
+-            save_prediction.enabled = bool(getattr(store, "enabled", False))
+-            backend = str(getattr(store, "backend", "h5")).lower()
+-            save_prediction.output_formats = [backend]
+-            output_path = getattr(store, "output_path", None)
+-            if output_path not in (None, ""):
+-                save_prediction.output_path = output_path
+-            save_prediction.cache_suffix = getattr(store, "cache_suffix", "_x1_prediction.h5")
+-            save_prediction.save_all_heads = bool(getattr(store, "save_all_heads", False))
+-            save_prediction.storage_dtype = getattr(store, "dtype", None)
+-            save_prediction.compression = getattr(store, "compression", None)
+diff --git a/connectomics/decoding/decoders/segmentation.py b/connectomics/decoding/decoders/segmentation.py
+index 7a62db9..5749a38 100644
+--- a/connectomics/decoding/decoders/segmentation.py
++++ b/connectomics/decoding/decoders/segmentation.py
+@@ -15,7 +15,7 @@ Functions:
+ from __future__ import annotations
+ 
+ import warnings
+-from typing import List, Optional, Tuple
++from typing import Optional, Sequence, Tuple
+ 
+ import cc3d
+ import fastremap
+@@ -38,7 +38,7 @@ from .segmentation_kernels import (
+     connected_components_affinity_3d_numba as _connected_components_affinity_3d_numba,
+ )
+ from .segmentation_kernels import (
+-    connected_components_affinity_3d_numba_parallel as _connected_components_affinity_3d_numba_parallel,
++    connected_components_affinity_3d_numba_parallel as _cc_affinity_3d_numba_parallel,
+ )
+ 
+ __all__ = [
+@@ -48,12 +48,36 @@ __all__ = [
+ ]
+ 
+ 
++def _reduce_selected_channels(
++    predictions: np.ndarray,
++    channels: Sequence[int],
++    *,
++    reduction: str,
++    context: str,
++) -> np.ndarray:
++    selected = predictions[channels]
++    if len(channels) == 1:
++        return selected[0]
++
++    reduction_name = reduction.lower()
++    if reduction_name == "mean":
++        return selected.mean(axis=0)
++    if reduction_name == "min":
++        return selected.min(axis=0)
++    if reduction_name == "max":
++        return selected.max(axis=0)
++    raise ValueError(
++        f"{context} reduction must be one of ['mean', 'min', 'max'], got {reduction!r}."
++    )
++
++
+ def decode_instance_binary_contour_distance(
+     predictions: np.ndarray,
+     mode: str = "watershed",  # "watershed" or "cc"
+-    binary_channels: Optional[List[int]] = (0,),
+-    contour_channels: Optional[List[int]] = (1,),
+-    distance_channels: Optional[List[int]] = (2,),
++    binary_channels: Optional[Sequence[int]] = (0,),
++    contour_channels: Optional[Sequence[int]] = (1,),
++    distance_channels: Optional[Sequence[int]] = (2,),
++    binary_channel_reduction: str = "mean",
+     binary_threshold: Tuple[float, float] = (0.9, 0.85),
+     contour_threshold: Optional[Tuple[float, float]] = (0.8, 1.1),
+     distance_threshold: Tuple[float, float] = (0.5, 0),
+@@ -61,6 +85,7 @@ def decode_instance_binary_contour_distance(
+     min_seed_size: int = 32,
+     min_instance_size: int = 0,
+     return_seed: bool = False,
++    **kwargs,
+ ):
+     r"""Convert binary foreground probability maps, instance contours and signed distance
+     transform to instance masks via watershed or connected components.
+@@ -81,12 +106,15 @@ def decode_instance_binary_contour_distance(
+             - 'cc': Use connected components (faster, simpler)
+             Default: 'watershed'
+         binary_channels (list of int, optional): Channel indices for binary foreground mask.
+-            If multiple channels provided, they are averaged. Default: [0]
++            If multiple channels provided, they are reduced by ``binary_channel_reduction``.
++            Default: [0]
+         contour_channels (list of int, optional): Channel indices for instance contours.
+             If multiple channels provided, they are averaged. Set to None to disable contour
+             constraints (for BANIS-style binary+distance only). Default: [1]
+         distance_channels (list of int, optional): Channel indices for signed distance transform.
+             If multiple channels provided, they are averaged. Default: [2]
++        binary_channel_reduction (str): Reduction for multiple binary channels. Options are
++            "mean", "min", and "max". Default: "mean".
+         binary_threshold (tuple): Tuple of two floats (seed_threshold,
+             foreground_threshold) for binary mask. The first value is used for
+             seed generation, the second for foreground mask. Default: (0.9, 0.85)
+@@ -106,6 +134,8 @@ def decode_instance_binary_contour_distance(
+             Default: 0
+         return_seed (bool): Whether to return the seed map along with the segmentation.
+             If True, returns (segmentation, seed). Only applicable in watershed mode. Default: False
++        **kwargs: Additional parameters for compatibility with YAML configs.
++            Unused parameters are silently ignored.
+ 
+     Returns:
+         numpy.ndarray or tuple: Instance segmentation mask of shape :math:`(Z, Y, X)`.
+@@ -148,12 +178,17 @@ def decode_instance_binary_contour_distance(
+         ... )
+     """
+ 
++    if contour_threshold is None:
++        contour_channels = None
++
+     binary, contour, distance = None, None, None
+     if binary_channels is not None:
+-        if len(binary_channels) > 1:  # average multiple channels
+-            binary = predictions[binary_channels].mean(axis=0)
+-        else:
+-            binary = predictions[binary_channels[0]]  # use first channel
++        binary = _reduce_selected_channels(
++            predictions,
++            binary_channels,
++            reduction=binary_channel_reduction,
++            context="binary_channel_reduction",
++        )
+ 
+     if contour_channels is not None:
+         if len(contour_channels) > 1:
+@@ -171,7 +206,7 @@ def decode_instance_binary_contour_distance(
+     foreground = None
+     if binary is not None:
+         foreground = binary > binary_threshold[1]
+-    if contour is not None:
++    if contour is not None and contour_threshold is not None:
+         foreground = (
+             foreground * (contour < contour_threshold[1])
+             if foreground is not None
+@@ -183,6 +218,10 @@ def decode_instance_binary_contour_distance(
+             if foreground is not None
+             else (distance > distance_threshold[1])
+         )
++    if foreground is None:
++        raise ValueError(
++            "At least one of binary_channels, contour_channels, or distance_channels must be set."
++        )
+ 
+     seed = None
+     if mode == "cc":
+@@ -198,7 +237,7 @@ def decode_instance_binary_contour_distance(
+             seed_map = None
+             if binary is not None:
+                 seed_map = binary > binary_threshold[0]
+-            if contour is not None:
++            if contour is not None and contour_threshold is not None:
+                 seed_map = (
+                     seed_map * (contour < contour_threshold[0])
+                     if seed_map is not None
+@@ -210,6 +249,10 @@ def decode_instance_binary_contour_distance(
+                     if seed_map is not None
+                     else (distance > distance_threshold[0])
+                 )
++            if seed_map is None:
++                raise ValueError(
++                    "At least one seed source must be available for watershed decoding."
++                )
+             seed = cc3d.connected_components(seed_map)
+             if min_seed_size > 0:
+                 seed = cc3d.dust(seed, threshold=min_seed_size, in_place=True)
+@@ -246,7 +289,7 @@ def decode_instance_binary_contour_distance(
+ 
+ def decode_distance_watershed(
+     predictions: np.ndarray,
+-    distance_channels: Optional[List[int]] = (0,),
++    distance_channels: Optional[Sequence[int]] = (0,),
+     distance_threshold: Tuple[float, float] = (0.5, 0),
+     min_seed_size: int = 50,
+     min_instance_size: int = 0,
+@@ -256,7 +299,7 @@ def decode_distance_watershed(
+     edt_downsample_factor: int = 1,
+     return_seed: bool = False,
+     **kwargs,  # Accept but ignore unused parameters for compatibility
+-) -> np.ndarray:
++):
+     """
+     Convert signed distance transform (SDT) predictions to instance segmentation
+     via watershed with recomputed Euclidean Distance Transform (EDT).
+@@ -553,9 +596,7 @@ def decode_affinity_cc(
+                 hard_aff, edge_offset=int(edge_offset)
+             )
+         else:
+-            segmentation = _connected_components_affinity_3d_numba_parallel(
+-                hard_aff, edge_offset=int(edge_offset)
+-            )
++            segmentation = _cc_affinity_3d_numba_parallel(hard_aff, edge_offset=int(edge_offset))
+     elif backend_normalized == "cupy":
+         if not CUPY_AVAILABLE:
+             raise ImportError(
+diff --git a/connectomics/decoding/output.py b/connectomics/decoding/output.py
+index f909509..0df31cb 100644
+--- a/connectomics/decoding/output.py
++++ b/connectomics/decoding/output.py
+@@ -1,10 +1,10 @@
+ """Output writing for decoded segmentation artifacts.
+ 
+ The decoded artifact is the Stage-3 output (instance label map) and must
+-not pass through ``cfg.inference.save_inference.dtype``: that field
+-configures the Stage-2 raw-prediction artifact (probability/affinity
+-field) and silently truncates uint32 instance IDs above 65504 when
+-applied to label volumes via float16.
++not pass through ``cfg.inference.dtype``: that field configures the
++Stage-2 raw-prediction artifact (probability/affinity field) and silently
++truncates uint32 instance IDs above 65504 when applied to label volumes
++via float16.
+ """
+ 
+ from __future__ import annotations
+@@ -25,7 +25,7 @@ def _resolve_decoded_output_dir(cfg: Config | DictConfig) -> str | None:
+     """Output directory for decoded artifacts.
+ 
+     Priority: ``cfg.decoding.output_path`` →
+-    ``cfg.inference.save_prediction.output_path`` →
++    ``cfg.inference.output_path`` →
+     parent of ``cfg.decoding.input_prediction_path``.
+     """
+     decoding_cfg = getattr(cfg, "decoding", None)
+@@ -36,11 +36,9 @@ def _resolve_decoded_output_dir(cfg: Config | DictConfig) -> str | None:
+ 
+     inference_cfg = getattr(cfg, "inference", None)
+     if inference_cfg is not None:
+-        save_pred_cfg = getattr(inference_cfg, "save_prediction", None)
+-        if save_pred_cfg is not None:
+-            path = getattr(save_pred_cfg, "output_path", None)
+-            if path:
+-                return str(path)
++        path = getattr(inference_cfg, "output_path", None)
++        if path:
++            return str(path)
+ 
+     if decoding_cfg is not None:
+         input_path = getattr(decoding_cfg, "input_prediction_path", "")
+diff --git a/connectomics/decoding/pipeline.py b/connectomics/decoding/pipeline.py
+index 61ba3ce..3f8f263 100644
+--- a/connectomics/decoding/pipeline.py
++++ b/connectomics/decoding/pipeline.py
+@@ -82,8 +82,16 @@ def apply_decode_pipeline(
+     data: np.ndarray,
+     decode_modes: Sequence[Any] | None,
+     registry: DecoderRegistry | None = None,
++    *,
++    on_step_complete: Any = None,
+ ) -> np.ndarray:
+-    """Apply configured decode steps to prediction data."""
++    """Apply configured decode steps to prediction data.
++
++    ``on_step_complete``, if provided, is invoked as
++    ``on_step_complete(batch_idx, step, sample)`` after each decoder step
++    runs, with the step's output array. Used by the decoding stage to write
++    per-step intermediates without keeping them all in memory.
++    """
+     if not decode_modes:
+         return data
+ 
+@@ -121,6 +129,9 @@ def apply_decode_pipeline(
+             except Exception as exc:
+                 raise RuntimeError(f"Error applying decode function '{step.name}': {exc}") from exc
+ 
++            if on_step_complete is not None:
++                on_step_complete(batch_idx, step, sample)
++
+         results.append(sample)
+ 
+     if len(results) == 1:
+@@ -142,7 +153,13 @@ def resolve_decode_modes_from_cfg(cfg: Any) -> Sequence[Any] | None:
+     return None
+ 
+ 
+-def apply_decode_mode(cfg: Any, data: np.ndarray, *, verbose: bool = True) -> np.ndarray:
++def apply_decode_mode(
++    cfg: Any,
++    data: np.ndarray,
++    *,
++    verbose: bool = True,
++    on_step_complete: Any = None,
++) -> np.ndarray:
+     """Apply decode pipeline resolved from top-level ``decoding``."""
+     decode_modes = resolve_decode_modes_from_cfg(cfg)
+     if not decode_modes:
+@@ -153,4 +170,4 @@ def apply_decode_mode(cfg: Any, data: np.ndarray, *, verbose: bool = True) -> np
+     if verbose:
+         logger.info("Using decoding: %s", decode_modes)
+ 
+-    return apply_decode_pipeline(data, decode_modes)
++    return apply_decode_pipeline(data, decode_modes, on_step_complete=on_step_complete)
+diff --git a/connectomics/decoding/registry.py b/connectomics/decoding/registry.py
+index 61c0b92..4abd254 100644
+--- a/connectomics/decoding/registry.py
++++ b/connectomics/decoding/registry.py
+@@ -86,6 +86,11 @@ def register_builtin_decoders() -> None:
+         decode_instance_binary_contour_distance,
+         overwrite=True,
+     )
++    register_decoder(
++        "decode_binary_contour_distance_watershed",
++        decode_instance_binary_contour_distance,
++        overwrite=True,
++    )
+     register_decoder("decode_affinity_cc", decode_affinity_cc, overwrite=True)
+     register_decoder("decode_distance_watershed", decode_distance_watershed, overwrite=True)
+     register_decoder("decode_waterz", decode_waterz, overwrite=True)
+diff --git a/connectomics/decoding/stage.py b/connectomics/decoding/stage.py
+index 9c796a6..eaf18c5 100644
+--- a/connectomics/decoding/stage.py
++++ b/connectomics/decoding/stage.py
+@@ -116,11 +116,75 @@ def apply_decoding_postprocessing(cfg: Any, data: np.ndarray) -> np.ndarray:
+     return output
+ 
+ 
+-def run_decoding_stage(cfg: Any, predictions: np.ndarray) -> DecodingStageResult:
+-    """Decode raw predictions and apply decoded-output postprocessing."""
++def _maybe_apply_affinity_mask(cfg: Any, predictions: np.ndarray) -> np.ndarray:
++    """Zero affinity channels at masked-out voxels per ``decoding.affinity_mask_path``.
++
++    The mask file must contain a single 3D ``uint8`` dataset matching the spatial
++    shape of ``predictions[0]`` (the affinity volume). 0 = drop, 1 = keep. Mask is
++    broadcast across the channel dimension; voxels where ``mask==0`` get zeroed
++    so that connected-components decoders sever all outgoing edges there.
++    """
++    decoding_cfg = _cfg_get(cfg, "decoding", None)
++    mask_path = _cfg_get(decoding_cfg, "affinity_mask_path", "") or ""
++    if not mask_path:
++        return predictions
++    if predictions.ndim != 4:
++        raise ValueError(
++            "affinity_mask_path requires 4D predictions (C, *spatial); "
++            f"got shape {predictions.shape}"
++        )
++    import h5py
++
++    with h5py.File(mask_path, "r") as f:
++        if "main" in f:
++            mask = f["main"][...]
++        else:
++            keys = list(f.keys())
++            if len(keys) != 1:
++                raise ValueError(
++                    f"affinity_mask_path={mask_path}: expected dataset 'main' or "
++                    f"a single dataset, got {keys}"
++                )
++            mask = f[keys[0]][...]
++    if mask.shape != predictions.shape[1:]:
++        raise ValueError(
++            f"affinity_mask shape {mask.shape} != predictions spatial shape "
++            f"{predictions.shape[1:]}"
++        )
++    zero_idx = (mask == 0) if mask.dtype != np.bool_ else ~mask
++    n_zero = int(zero_idx.sum())
++    n_total = int(zero_idx.size)
++    logger.info(
++        "Applying affinity mask %s: zeroing %d/%d voxels (%.2f%%) across %d channels",
++        mask_path,
++        n_zero,
++        n_total,
++        100.0 * n_zero / max(n_total, 1),
++        predictions.shape[0],
++    )
++    for c in range(predictions.shape[0]):
++        predictions[c][zero_idx] = 0
++    return predictions
++
++
++def run_decoding_stage(
++    cfg: Any,
++    predictions: np.ndarray,
++    *,
++    on_step_complete: Any = None,
++) -> DecodingStageResult:
++    """Decode raw predictions and apply decoded-output postprocessing.
++
++    ``on_step_complete``, if provided, is forwarded to the per-step decoder
++    pipeline so callers can write intermediate per-step outputs.
++    """
+     start = time.time()
++    if predictions.ndim == 5 and predictions.shape[0] == 1:
++        predictions = predictions[0]
+     has_decoding_cfg = bool(resolve_decode_modes_from_cfg(cfg))
+-    decoded = apply_decode_mode(cfg, predictions)
++    if has_decoding_cfg:
++        predictions = _maybe_apply_affinity_mask(cfg, predictions)
++    decoded = apply_decode_mode(cfg, predictions, on_step_complete=on_step_complete)
+     postprocessed = apply_decoding_postprocessing(cfg, decoded) if has_decoding_cfg else decoded
+     return DecodingStageResult(
+         decoded=decoded,
+diff --git a/connectomics/decoding/streamed_chunked.py b/connectomics/decoding/streamed_chunked.py
+index 3d6958b..59c8340 100644
+--- a/connectomics/decoding/streamed_chunked.py
++++ b/connectomics/decoding/streamed_chunked.py
+@@ -327,7 +327,7 @@ def run_chunked_affinity_cc_inference(
+     import h5py
+ 
+     output_path.parent.mkdir(parents=True, exist_ok=True)
+-    compression = getattr(getattr(cfg.inference, "save_prediction", None), "compression", "gzip")
++    compression = getattr(cfg.inference, "compression", "gzip")
+     compression = None if compression in (None, "", "none") else compression
+     h5_chunks = resolve_h5_spatial_chunks(final_shape)
+     with h5py.File(output_path, "w") as handle:
+diff --git a/connectomics/evaluation/context.py b/connectomics/evaluation/context.py
+index f69df2b..8061922 100644
+--- a/connectomics/evaluation/context.py
++++ b/connectomics/evaluation/context.py
+@@ -58,8 +58,7 @@ class EvaluationContext:
+     def resolved_output_path(self) -> str | Path | None:
+         if self.output_path is not None:
+             return self.output_path
+-        save_prediction_cfg = self.cfg_value(self.inference_cfg, "save_prediction", None)
+-        return self.cfg_value(save_prediction_cfg, "output_path", None)
++        return self.cfg_value(self.inference_cfg, "output_path", None)
+ 
+     def log_metric(self, name: str, value: Any, **kwargs: Any) -> None:
+         if self.log_fn is None:
+diff --git a/connectomics/evaluation/nerl.py b/connectomics/evaluation/nerl.py
+index 8cedeec..72d464c 100644
+--- a/connectomics/evaluation/nerl.py
++++ b/connectomics/evaluation/nerl.py
+@@ -376,11 +376,12 @@ def compute_nerl_metrics(
+     try:
+         context.log_metric(
+             "test_nerl",
+-            nerl,
++            float(nerl),
+             on_step=False,
+             on_epoch=True,
+             prog_bar=True,
+             logger=True,
++            batch_size=1,
+         )
+     except Exception as exc:  # pragma: no cover
+         logger.debug("Failed to log test_nerl metric: %s", exc)
+diff --git a/connectomics/inference/chunk_grid.py b/connectomics/inference/chunk_grid.py
+index bf0ae9e..4743159 100644
+--- a/connectomics/inference/chunk_grid.py
++++ b/connectomics/inference/chunk_grid.py
+@@ -102,13 +102,12 @@ def resolve_global_prediction_crop(
+ 
+ 
+ def validate_chunked_output_format(cfg: Any) -> None:
+-    save_cfg = getattr(getattr(cfg, "inference", None), "save_prediction", None)
+-    formats = [str(fmt).lower() for fmt in getattr(save_cfg, "output_formats", ["h5"])]
+-    unsupported_formats = [fmt for fmt in formats if fmt not in {"h5", "hdf5"}]
+-    if unsupported_formats:
++    inference_cfg = getattr(cfg, "inference", None)
++    backend = str(getattr(inference_cfg, "backend", "h5")).lower()
++    if backend not in {"h5", "hdf5"}:
+         raise ValueError(
+             "Chunked inference writes a single streamed HDF5 output only; "
+-            f"unsupported save_prediction.output_formats={unsupported_formats}."
++            f"unsupported inference.backend={backend!r}."
+         )
+ 
+ 
+diff --git a/connectomics/inference/chunked.py b/connectomics/inference/chunked.py
+index 30e9860..2122767 100644
+--- a/connectomics/inference/chunked.py
++++ b/connectomics/inference/chunked.py
+@@ -439,7 +439,7 @@ def run_chunked_prediction_inference(
+     chunks = build_chunk_grid(final_shape, chunk_shape)
+     output_path = Path(output_path)
+     output_path.parent.mkdir(parents=True, exist_ok=True)
+-    compression = getattr(getattr(cfg.inference, "save_prediction", None), "compression", "gzip")
++    compression = getattr(cfg.inference, "compression", "gzip")
+     compression = None if compression in (None, "", "none") else compression
+     h5_spatial_chunks = resolve_h5_spatial_chunks(final_shape)
+ 
+diff --git a/connectomics/inference/output.py b/connectomics/inference/output.py
+index 8a711a2..1794521 100644
+--- a/connectomics/inference/output.py
++++ b/connectomics/inference/output.py
+@@ -112,11 +112,7 @@ def _resolve_mode_configs(
+ ) -> tuple[Any, Any, str | None]:
+     """Resolve merged runtime inference/data/output configuration."""
+     inference_cfg = getattr(cfg, "inference", None)
+-    output_dir_value = None
+-    if inference_cfg is not None:
+-        save_pred_cfg = getattr(inference_cfg, "save_prediction", None)
+-        if save_pred_cfg is not None:
+-            output_dir_value = getattr(save_pred_cfg, "output_path", None)
++    output_dir_value = getattr(inference_cfg, "output_path", None) if inference_cfg is not None else None
+ 
+     # Resolve data config: prefer stage-specific data (cfg.test.data / cfg.tune.data),
+     # fall back to cfg.data (post-stage-resolution)
+@@ -225,22 +221,18 @@ def apply_prediction_transform(cfg: Config | DictConfig, data: np.ndarray) -> np
+ 
+ 
+ def apply_storage_dtype_transform(cfg: Config | DictConfig, data: np.ndarray) -> np.ndarray:
+-    """Apply save/cache-only dtype conversion."""
++    """Apply save/cache-only dtype conversion. Skip when ``inference.dtype`` is unset."""
+     if not hasattr(cfg, "inference"):
+         return data
+ 
+-    save_inference_cfg = getattr(cfg.inference, "save_inference", None)
+-    save_prediction_cfg = getattr(cfg.inference, "save_prediction", None)
+-    storage_dtype = (
+-        getattr(save_inference_cfg, "dtype", None) if save_inference_cfg is not None else None
+-    )
+-    if storage_dtype is None and save_prediction_cfg is not None:
+-        storage_dtype = getattr(save_prediction_cfg, "storage_dtype", None)
++    storage_dtype = getattr(cfg.inference, "dtype", None)
++    if storage_dtype is None:
++        return data
+ 
+     return _convert_intensity_dtype(
+         data,
+         storage_dtype,
+-        config_name="inference.save_inference.dtype",
++        config_name="inference.dtype",
+     )
+ 
+ 
+@@ -303,15 +295,8 @@ def write_outputs(
+         filename = filenames[idx]
+         sample = np.squeeze(sample)
+ 
+-        save_inference_cfg = getattr(inference_cfg, "save_inference", None)
+-        if save_inference_cfg is not None:
+-            output_formats = [str(getattr(save_inference_cfg, "backend", "h5"))]
+-        else:
+-            output_formats = ["h5"]
+-        if save_inference_cfg is None and hasattr(inference_cfg, "save_prediction"):
+-            save_pred_cfg = inference_cfg.save_prediction
+-            if hasattr(save_pred_cfg, "output_formats") and save_pred_cfg.output_formats:
+-                output_formats = save_pred_cfg.output_formats
++        backend = str(getattr(inference_cfg, "backend", "h5"))
++        output_formats = [backend]
+ 
+         sample = apply_storage_dtype_transform(cfg, sample)
+ 
+diff --git a/connectomics/inference/stage.py b/connectomics/inference/stage.py
+index 65735b0..5ae2968 100644
+--- a/connectomics/inference/stage.py
++++ b/connectomics/inference/stage.py
+@@ -62,7 +62,7 @@ def run_prediction_inference(
+         data = apply_prediction_transform(manager.cfg, data)
+         data = apply_storage_dtype_transform(manager.cfg, data)
+         compression = _normalize_compression(
+-            getattr(getattr(manager.cfg.inference, "save_prediction", None), "compression", "gzip")
++            getattr(manager.cfg.inference, "compression", "gzip")
+         )
+         write_prediction_artifact(
+             output_path,
+diff --git a/connectomics/runtime/cache_resolver.py b/connectomics/runtime/cache_resolver.py
+index 571c971..694139c 100644
+--- a/connectomics/runtime/cache_resolver.py
++++ b/connectomics/runtime/cache_resolver.py
+@@ -176,10 +176,7 @@ def has_cached_predictions_in_output_dir(
+     cfg: Config, mode: str, checkpoint_path: str | None = None
+ ) -> bool:
+     """Return True if all expected TTA prediction files exist in the output directory."""
+-    save_pred_cfg = getattr(cfg.inference, "save_prediction", None)
+-    if save_pred_cfg is None:
+-        return False
+-    output_dir = getattr(save_pred_cfg, "output_path", None)
++    output_dir = getattr(cfg.inference, "output_path", None)
+     output_dirs = [output_dir] if output_dir else []
+     if mode == "tune":
+         tune_output_dir = getattr(
+@@ -221,10 +218,6 @@ def preflight_test_cache_hit(
+     cfg: Config, datamodule: Any, checkpoint_path: str | None = None
+ ) -> tuple[bool, str | None, int]:
+     """Check if test outputs already exist so inference and ckpt restore can be skipped."""
+-    save_pred_cfg = getattr(cfg.inference, "save_prediction", None)
+-    if save_pred_cfg is None:
+-        return False, None, 0
+-
+     explicit_prediction = resolve_tta_result_path_override(cfg)
+     if isinstance(explicit_prediction, str) and explicit_prediction.strip():
+         pred_file = Path(explicit_prediction).expanduser()
+@@ -244,7 +237,7 @@ def preflight_test_cache_hit(
+             "Falling back to normal cache/inference flow."
+         )
+ 
+-    output_dir_value = getattr(save_pred_cfg, "output_path", None)
++    output_dir_value = getattr(cfg.inference, "output_path", None)
+     if not output_dir_value:
+         return False, None, 0
+ 
+@@ -303,10 +296,7 @@ def try_cache_only_test_execution(
+     data_cfg = getattr(cfg, "data", None)
+     if data_cfg is None:
+         return False
+-    save_pred_cfg = getattr(cfg.inference, "save_prediction", None)
+-    if save_pred_cfg is None:
+-        return False
+-    output_dir_value = getattr(save_pred_cfg, "output_path", None)
++    output_dir_value = getattr(cfg.inference, "output_path", None)
+     test_image = getattr(getattr(data_cfg, "test", None), "image", None)
+     if not output_dir_value or not test_image:
+         return False
+@@ -404,14 +394,17 @@ def try_cache_only_test_execution(
+         )
+ 
+     print("Cache-only decode/postprocess/save path (evaluation disabled)")
++    decoding_cfg = getattr(cfg, "decoding", None)
++    save_results = bool(getattr(decoding_cfg, "save_results", True))
+     decoding_result = run_decoding_stage(cfg, predictions_np)
+     if decoding_result.has_decoding_config:
+-        write_decoded_outputs(
+-            cfg,
+-            decoding_result.postprocessed,
+-            filenames,
+-            suffix="prediction",
+-        )
++        if save_results:
++            write_decoded_outputs(
++                cfg,
++                decoding_result.postprocessed,
++                filenames,
++                suffix="prediction",
++            )
+     else:
+         print("Skipping postprocessing (no decoding configuration)")
+         print("Skipping final prediction save (no decoding configuration)")
+@@ -466,6 +459,8 @@ def _try_cache_only_intermediate_eval(
+     final_suffix = final_prediction_output_tag(cfg, checkpoint_path=checkpoint_path)
+     inference_cfg = getattr(cfg, "inference", None)
+     evaluation_cfg = getattr(cfg, "evaluation", None)
++    decoding_cfg = getattr(cfg, "decoding", None)
++    save_results = bool(getattr(decoding_cfg, "save_results", True))
+ 
+     for idx, pred_file in enumerate(resolved_files):
+         volume_name = filenames[idx]
+@@ -482,12 +477,13 @@ def _try_cache_only_intermediate_eval(
+ 
+         decoding_result = run_decoding_stage(cfg, predictions_np)
+         if decoding_result.has_decoding_config:
+-            write_decoded_outputs(
+-                cfg,
+-                decoding_result.postprocessed,
+-                [volume_name],
+-                suffix=final_suffix,
+-            )
++            if save_results:
++                write_decoded_outputs(
++                    cfg,
++                    decoding_result.postprocessed,
++                    [volume_name],
++                    suffix=final_suffix,
++                )
+         else:
+             print("  Skipping postprocessing (no decoding configuration)")
+ 
+diff --git a/connectomics/runtime/checkpoint_dispatch.py b/connectomics/runtime/checkpoint_dispatch.py
+index 7dd8e29..34cd20c 100644
+--- a/connectomics/runtime/checkpoint_dispatch.py
++++ b/connectomics/runtime/checkpoint_dispatch.py
+@@ -48,19 +48,18 @@ def configure_checkpoint_output_paths(args: Any, cfg: Config) -> tuple[Path | No
+ 
+         tuning_dir = output_base / tuning_folder_name
+         tuning_prediction_dir = tuning_dir / "predictions"
+-        save_pred_cfg = cfg.inference.save_prediction
+         if getattr(cfg, "tune", None) is not None:
+             cfg.tune.output.output_dir = str(tuning_dir)
+             cfg.tune.output.output_pred = str(tuning_prediction_dir)
+-        save_pred_cfg.output_path = str(output_base / results_folder_name)
+-        save_pred_cfg.cache_suffix = intermediate_prediction_cache_suffix(
++        cfg.inference.output_path = str(output_base / results_folder_name)
++        cfg.inference.cache_suffix = intermediate_prediction_cache_suffix(
+             cfg, checkpoint_path=args.checkpoint
+         )
+ 
+         if args.mode == "tune-test":
+             print(f"Tuning prediction output: {tuning_prediction_dir}")
+-            print(f"Test output: {save_pred_cfg.output_path}")
+-            print(f"Test cache suffix: {save_pred_cfg.cache_suffix}")
++            print(f"Test output: {cfg.inference.output_path}")
++            print(f"Test cache suffix: {cfg.inference.cache_suffix}")
+ 
+         return output_base, str(tuning_dir)
+ 
+@@ -69,8 +68,8 @@ def configure_checkpoint_output_paths(args: Any, cfg: Config) -> tuple[Path | No
+         results_folder_name = f"results_{step_suffix}"
+         print(f"Using checkpoint {step_suffix} - output will be saved to: {results_folder_name}")
+ 
+-    cfg.inference.save_prediction.output_path = str(output_base / results_folder_name)
+-    return output_base, cfg.inference.save_prediction.output_path
++    cfg.inference.output_path = str(output_base / results_folder_name)
++    return output_base, cfg.inference.output_path
+ 
+ 
+ def setup_runtime_directories(args: Any, cfg: Config) -> tuple[Path, Path]:
+diff --git a/connectomics/runtime/cli.py b/connectomics/runtime/cli.py
+index 191dcca..ea0b61a 100644
+--- a/connectomics/runtime/cli.py
++++ b/connectomics/runtime/cli.py
+@@ -177,11 +177,10 @@ def setup_config(args) -> Config:
+     else:
+         cfg.monitor.checkpoint.dirpath = str(Path(cfg.monitor.checkpoint.dirpath))
+ 
+-    save_pred_cfg = cfg.inference.save_prediction
+-    if not getattr(save_pred_cfg, "output_path", None):
+-        save_pred_cfg.output_path = str(Path(output_folder) / "results")
++    if not getattr(cfg.inference, "output_path", None):
++        cfg.inference.output_path = str(Path(output_folder) / "results")
+     else:
+-        save_pred_cfg.output_path = str(Path(save_pred_cfg.output_path))
++        cfg.inference.output_path = str(Path(cfg.inference.output_path))
+ 
+     cfg.monitor.checkpoint.use_timestamp = False
+ 
+diff --git a/connectomics/runtime/dispatch.py b/connectomics/runtime/dispatch.py
+index 85bba96..8356413 100644
+--- a/connectomics/runtime/dispatch.py
++++ b/connectomics/runtime/dispatch.py
+@@ -182,7 +182,7 @@ def _run_test(
+     print("=" * 60)
+ 
+     cfg = resolve_test_stage_runtime(cfg)
+-    cfg.inference.save_prediction.cache_suffix = resolve_prediction_cache_suffix(
++    cfg.inference.cache_suffix = resolve_prediction_cache_suffix(
+         cfg,
+         args.mode,
+         checkpoint_path=args.checkpoint,
+@@ -228,7 +228,7 @@ def _run_test(
+         print("=" * 80)
+ 
+         cfg = load_and_apply_best_params(cfg, checkpoint_path=args.checkpoint)
+-        cfg.inference.save_prediction.cache_suffix = resolve_prediction_cache_suffix(
++        cfg.inference.cache_suffix = resolve_prediction_cache_suffix(
+             cfg,
+             args.mode,
+             checkpoint_path=args.checkpoint,
+@@ -263,7 +263,7 @@ def dispatch_runtime(args: Any, cfg: Config) -> None:
+     configure_matmul_precision(cfg)
+ 
+     if args.mode in ["test", "tune", "tune-test"]:
+-        cfg.inference.save_prediction.cache_suffix = resolve_prediction_cache_suffix(cfg, args.mode)
++        cfg.inference.cache_suffix = resolve_prediction_cache_suffix(cfg, args.mode)
+ 
+     if args.mode == "train":
+         from . import preflight_check, print_preflight_issues
+diff --git a/connectomics/runtime/output_naming.py b/connectomics/runtime/output_naming.py
+index 5fdf8bc..39eb9b4 100644
+--- a/connectomics/runtime/output_naming.py
++++ b/connectomics/runtime/output_naming.py
+@@ -4,7 +4,7 @@ from __future__ import annotations
+ 
+ import re
+ from pathlib import Path
+-from typing import Optional
++from typing import Any, Optional
+ 
+ from ..config import Config
+ from ..utils.model_outputs import get_inference_select_channel, resolve_output_head
+@@ -73,8 +73,8 @@ def format_output_head_tag(cfg: Config, *, output_head: Optional[str] = None) ->
+     return f"_head-{safe_head}"
+ 
+ 
+-def format_decode_tag(cfg: Config) -> str:
+-    """Return a compact decoding-parameter tag for final prediction filenames."""
++def _format_one_decode_step(step) -> str:
++    """Encode a single decode step as ``{name}_{kwargs_tokens}`` (no leading underscore)."""
+ 
+     def _sanitize_decode_component(text: str) -> str:
+         safe_text = re.sub(r"[^A-Za-z0-9._=]+", "-", text)
+@@ -142,6 +142,31 @@ def format_decode_tag(cfg: Config) -> str:
+             return [format(value, "g")]
+         return [str(value)]
+ 
++    name = getattr(step, "name", None) or (step.get("name") if isinstance(step, dict) else None)
++    if not name:
++        return ""
++    short = name.replace("decode_", "")
++    kwargs = getattr(step, "kwargs", None)
++    if kwargs is None and isinstance(step, dict):
++        kwargs = step.get("kwargs", {})
++
++    value_tokens = _flatten_decode_values(kwargs) if kwargs is not None else []
++    if not value_tokens:
++        return short
++    kwargs_tag = _sanitize_decode_component("-".join(value_tokens))
++    return f"{short}_{kwargs_tag}" if kwargs_tag else short
++
++
++def format_intermediate_decode_suffix(cfg: Config, step) -> str:
++    """Return per-step intermediate suffix, e.g. ``_decoding_affinity_cc_numba-0-0.75``."""
++    encoded = _format_one_decode_step(step)
++    if not encoded:
++        return ""
++    return f"_decoding_{encoded}"
++
++
++def format_decode_tag(cfg: Config) -> str:
++    """Return a compact decoding-parameter tag for final prediction filenames."""
+     decoding_cfg = getattr(cfg, "decoding", None)
+     if decoding_cfg is None:
+         return ""
+@@ -154,25 +179,7 @@ def format_decode_tag(cfg: Config) -> str:
+     except TypeError:
+         steps = [decoding]
+ 
+-    parts = []
+-    for step in steps:
+-        name = getattr(step, "name", None) or (step.get("name") if isinstance(step, dict) else None)
+-        if not name:
+-            continue
+-
+-        short = name.replace("decode_", "")
+-        kwargs = getattr(step, "kwargs", None)
+-        if kwargs is None and isinstance(step, dict):
+-            kwargs = step.get("kwargs", {})
+-
+-        value_tokens = _flatten_decode_values(kwargs) if kwargs is not None else []
+-        if not value_tokens:
+-            parts.append(short)
+-            continue
+-
+-        kwargs_tag = _sanitize_decode_component("-".join(value_tokens))
+-        parts.append(f"{short}_{kwargs_tag}" if kwargs_tag else short)
+-
++    parts = [encoded for encoded in (_format_one_decode_step(step) for step in steps) if encoded]
+     if not parts:
+         return ""
+     return "_" + "__".join(parts)
+@@ -269,6 +276,23 @@ def final_prediction_output_tag(
+     return f"x{n}{head}{ch}{ckpt}{label}{dec}{suffix}"
+ 
+ 
++def intermediate_decode_step_output_tag(
++    cfg: Config,
++    step: Any,
++    spatial_dims: int = 3,
++    checkpoint_path: Optional[str | Path] = None,
++    output_head: Optional[str] = None,
++) -> str:
++    """Return the per-step intermediate output tag used by ``decoding.save_intermediate``."""
++    n = compute_tta_passes(cfg, spatial_dims=spatial_dims)
++    head = format_output_head_tag(cfg, output_head=output_head)
++    ch = format_select_channel_tag(cfg)
++    ckpt = format_checkpoint_name_tag(checkpoint_path)
++    step_tag = format_intermediate_decode_suffix(cfg, step)
++    suffix = format_decoding_output_suffix_tag(cfg)
++    return f"x{n}{head}{ch}{ckpt}{step_tag}{suffix}"
++
++
+ def final_prediction_decoded_glob_suffix(
+     cfg: Config,
+     spatial_dims: int = 3,
+@@ -448,8 +472,7 @@ def resolve_prediction_cache_suffix(
+ ) -> str:
+     """Return the expected prediction cache suffix for the current runtime mode."""
+     inference_cfg = getattr(cfg, "inference", None)
+-    save_prediction_cfg = getattr(inference_cfg, "save_prediction", None)
+-    configured_suffix = getattr(save_prediction_cfg, "cache_suffix", "_x1_prediction.h5")
++    configured_suffix = getattr(inference_cfg, "cache_suffix", "_x1_prediction.h5")
+ 
+     if mode in ("tune", "tune-test"):
+         return intermediate_prediction_cache_suffix(
+@@ -484,6 +507,8 @@ __all__ = [
+     "format_chunked_raw_cache_tag",
+     "format_decode_tag",
+     "format_decoding_output_suffix_tag",
++    "format_intermediate_decode_suffix",
++    "intermediate_decode_step_output_tag",
+     "format_output_head_tag",
+     "format_select_channel_tag",
+     "final_prediction_decoded_glob_suffix",
+diff --git a/connectomics/runtime/tune_runner.py b/connectomics/runtime/tune_runner.py
+index f0abeee..8a6c5f4 100644
+--- a/connectomics/runtime/tune_runner.py
++++ b/connectomics/runtime/tune_runner.py
+@@ -74,7 +74,7 @@ def _resolve_tuning_output_dir(cfg, fallback_prediction_dir: str | Path | None)
+         return Path(fallback_prediction_dir).parent / "tuning"
+     raise ValueError(
+         "Missing tuning output directory. Set tune.output.output_dir "
+-        "or inference.save_prediction.output_path."
++        "or inference.output_path."
+     )
+ 
+ 
+@@ -121,31 +121,19 @@ def temporary_tuning_inference_overrides(
+ 
+     backups = []
+     for inference_cfg in inference_cfgs:
+-        save_prediction_cfg = getattr(inference_cfg, "save_prediction", None)
+-        if save_prediction_cfg is None:
+-            raise ValueError("Missing inference.save_prediction configuration required for tuning")
+-
+         backups.append(
+             {
+                 "inference_cfg": inference_cfg,
+-                "save_prediction_enabled": bool(getattr(save_prediction_cfg, "enabled", False)),
+-                "save_prediction_cache_suffix": getattr(
+-                    save_prediction_cfg,
+-                    "cache_suffix",
+-                    "_x1_prediction.h5",
+-                ),
+-                "save_prediction_output_path": getattr(
+-                    save_prediction_cfg,
+-                    "output_path",
+-                    None,
+-                ),
++                "save_results": bool(getattr(inference_cfg, "save_results", False)),
++                "cache_suffix": getattr(inference_cfg, "cache_suffix", "_x1_prediction.h5"),
++                "output_path": getattr(inference_cfg, "output_path", None),
+             }
+         )
+ 
+-        save_prediction_cfg.enabled = True
+-        save_prediction_cfg.cache_suffix = suffix
++        inference_cfg.save_results = True
++        inference_cfg.cache_suffix = suffix
+         if prediction_output_path is not None:
+-            save_prediction_cfg.output_path = str(prediction_output_path)
++            inference_cfg.output_path = str(prediction_output_path)
+ 
+     decoding_backups = [
+         (owner, deepcopy(getattr(owner, "decoding", None))) for owner in decoding_owners
+@@ -166,10 +154,9 @@ def temporary_tuning_inference_overrides(
+     finally:
+         for backup in backups:
+             inference_cfg = backup["inference_cfg"]
+-            save_prediction_cfg = inference_cfg.save_prediction
+-            save_prediction_cfg.enabled = backup["save_prediction_enabled"]
+-            save_prediction_cfg.cache_suffix = backup["save_prediction_cache_suffix"]
+-            save_prediction_cfg.output_path = backup["save_prediction_output_path"]
++            inference_cfg.save_results = backup["save_results"]
++            inference_cfg.cache_suffix = backup["cache_suffix"]
++            inference_cfg.output_path = backup["output_path"]
+ 
+         for owner, decoding in decoding_backups:
+             owner.decoding = decoding
+@@ -192,13 +179,13 @@ def run_tuning(model, trainer_or_factory, cfg, checkpoint_path=None):
+ 
+     tune_output_cfg = getattr(getattr(cfg, "tune", None), "output", None)
+     primary_output_pred_dir = getattr(tune_output_cfg, "output_pred", None)
+-    fallback_output_pred_dir = getattr(cfg.inference.save_prediction, "output_path", None)
++    fallback_output_pred_dir = getattr(cfg.inference, "output_path", None)
+     if not primary_output_pred_dir:
+         primary_output_pred_dir = fallback_output_pred_dir
+     if not primary_output_pred_dir:
+         raise ValueError(
+             "Missing tuning prediction output path. Set tune.output.output_pred "
+-            "or inference.save_prediction.output_path."
++            "or inference.output_path."
+         )
+     predictions_dir = Path(primary_output_pred_dir)
+     inference_write_dir = Path(fallback_output_pred_dir or primary_output_pred_dir)
+@@ -440,7 +427,7 @@ def run_tuning(model, trainer_or_factory, cfg, checkpoint_path=None):
+ 
+ def load_and_apply_best_params(cfg, checkpoint_path=None):
+     """Load tuned parameters and apply them to the merged runtime decoding config."""
+-    output_pred_dir = getattr(cfg.inference.save_prediction, "output_path", None)
++    output_pred_dir = getattr(cfg.inference, "output_path", None)
+     output_dir = _resolve_tuning_output_dir(cfg, output_pred_dir)
+     best_params_file = _resolve_existing_best_params_file(
+         cfg,
+@@ -515,10 +502,7 @@ def try_skip_tune_with_cached_results(cfg, checkpoint_path: str | None) -> bool:
+     in a prior test run, not the result of an Optuna sweep. Only an existing
+     best-params YAML proves tuning has converged.
+     """
+-    save_pred_cfg = getattr(cfg.inference, "save_prediction", None)
+-    if save_pred_cfg is None:
+-        return False
+-    output_pred_dir = getattr(save_pred_cfg, "output_path", None)
++    output_pred_dir = getattr(cfg.inference, "output_path", None)
+ 
+     try:
+         tuning_dir = _resolve_tuning_output_dir(cfg, output_pred_dir)
+diff --git a/connectomics/training/lightning/model.py b/connectomics/training/lightning/model.py
+index 3e730cf..2ef0611 100644
+--- a/connectomics/training/lightning/model.py
++++ b/connectomics/training/lightning/model.py
+@@ -512,8 +512,8 @@ class ConnectomicsModule(pl.LightningModule):
+     ) -> tuple[str, Optional[str], str, List[str]]:
+         """Determine output dir/cache suffix from merged runtime inference config."""
+         mode = "test"
+-        save_pred_cfg = self._get_runtime_inference_config().save_prediction
+-        output_dir_value = getattr(save_pred_cfg, "output_path", None)
++        inference_cfg = self._get_runtime_inference_config()
++        output_dir_value = getattr(inference_cfg, "output_path", None)
+         cache_suffix = resolve_prediction_cache_suffix(
+             self.cfg,
+             mode=mode,
+diff --git a/connectomics/training/lightning/test_pipeline.py b/connectomics/training/lightning/test_pipeline.py
+index f3eb635..a08e853 100644
+--- a/connectomics/training/lightning/test_pipeline.py
++++ b/connectomics/training/lightning/test_pipeline.py
+@@ -31,6 +31,7 @@ from ...inference.lazy import (
+ )
+ from ...runtime.output_naming import (
+     final_prediction_output_tag,
++    intermediate_decode_step_output_tag,
+     intermediate_prediction_cache_suffix,
+     is_tta_cache_suffix,
+ )
+@@ -98,7 +99,6 @@ class TestContext:
+     evaluation_enabled: bool = False
+     prediction_threshold: float = 0.5
+     instance_iou_threshold: float = 0.5
+-    save_prediction_cfg: Any = None
+     filenames: List[str] = field(default_factory=list)
+     output_dir_value: Optional[str] = None
+     cache_suffix: str = "_x1_prediction.h5"
+@@ -125,7 +125,6 @@ class TestContext:
+             )
+ 
+         mode, output_dir_value, cache_suffix, filenames = module._resolve_test_output_config(batch)
+-        save_prediction_cfg = inference_cfg.save_prediction
+ 
+         return TestContext(
+             cfg=module.cfg,
+@@ -136,7 +135,6 @@ class TestContext:
+             evaluation_enabled=evaluation_enabled,
+             prediction_threshold=prediction_threshold,
+             instance_iou_threshold=instance_iou_threshold,
+-            save_prediction_cfg=save_prediction_cfg,
+             filenames=filenames,
+             output_dir_value=output_dir_value,
+             cache_suffix=cache_suffix,
+@@ -302,7 +300,21 @@ def _process_decoding_postprocessing(
+     save_final_predictions: bool,
+ ) -> np.ndarray:
+     logger.info("[STAGE: Decoding Instances]")
+-    result = run_decoding_stage(module.cfg, predictions_np)
++    decoding_cfg = getattr(module.cfg, "decoding", None)
++    save_intermediate = bool(getattr(decoding_cfg, "save_intermediate", False))
++    save_results = bool(getattr(decoding_cfg, "save_results", True))
++
++    on_step_complete = None
++    if save_intermediate:
++        ckpt_path = module._get_prediction_checkpoint_path()
++
++        def on_step_complete(batch_idx: int, step: Any, sample: np.ndarray) -> None:
++            suffix = intermediate_decode_step_output_tag(
++                module.cfg, step, checkpoint_path=ckpt_path
++            )
++            write_decoded_outputs(module.cfg, sample, filenames, suffix=suffix)
++
++    result = run_decoding_stage(module.cfg, predictions_np, on_step_complete=on_step_complete)
+     decoded_predictions = result.decoded
+     logger.info(f"Decoding completed ({result.duration_s:.1f}s)")
+ 
+@@ -329,7 +341,7 @@ def _process_decoding_postprocessing(
+             max_summary_voxels,
+         )
+ 
+-    if save_final_predictions:
++    if save_final_predictions and save_results:
+         logger.info("[STAGE: Saving Final Predictions]")
+         save_start = time.time()
+         write_decoded_outputs(
+@@ -488,7 +500,6 @@ def run_test_step(module, batch: Dict[str, torch.Tensor], batch_idx: int) -> STE
+     filenames = ctx.filenames
+     output_dir_value = ctx.output_dir_value
+     cache_suffix = ctx.cache_suffix
+-    save_prediction_cfg = ctx.save_prediction_cfg
+     mode = "tune" if getattr(module, "_tune_mode", False) else "test"
+     lazy_sample = _is_lazy_test_sample(batch)
+ 
+@@ -541,7 +552,7 @@ def run_test_step(module, batch: Dict[str, torch.Tensor], batch_idx: int) -> STE
+     if (
+         distributed_single_volume_sharding
+         and not merge_heads
+-        and bool(getattr(save_prediction_cfg, "save_all_heads", False))
++        and bool(getattr(ctx.inference_cfg, "save_all_heads", False))
+     ):
+         extra_head_names = [
+             head_name
+@@ -551,7 +562,7 @@ def run_test_step(module, batch: Dict[str, torch.Tensor], batch_idx: int) -> STE
+         if extra_head_names:
+             raise RuntimeError(
+                 "Distributed single-volume inference sharding does not support "
+-                "inference.save_prediction.save_all_heads=true unless all requested heads "
++                "inference.save_all_heads=true unless all requested heads "
+                 "are included in inference.output_heads for merged inference."
+             )
+ 
+@@ -611,6 +622,18 @@ def run_test_step(module, batch: Dict[str, torch.Tensor], batch_idx: int) -> STE
+                 "(already saved after those crops)"
+             )
+             reference_spatial_shape = tuple(int(v) for v in predictions_np.shape[-3:])
++        decode_after = bool(getattr(getattr(module.cfg, "decoding", None), "enabled", True))
++        if not decode_after:
++            if _evaluation_context_from_module(module).is_enabled:
++                logger.warning(
++                    "Skipping evaluation because decoding.enabled=false produced "
++                    "only raw predictions."
++                )
++            del predictions_np
++            _log_volume_header(volume_name, "VOLUME COMPLETE")
++            _cleanup_inference_memory(module, "cached intermediate prediction", release_model=True)
++            _distributed_tta_barrier(module)
++            return torch.tensor(0.0, device=module.device)
+         decoded_predictions = _process_decoding_postprocessing(
+             module,
+             predictions_np,
+@@ -681,7 +704,7 @@ def run_test_step(module, batch: Dict[str, torch.Tensor], batch_idx: int) -> STE
+         if not output_dir_value:
+             raise RuntimeError(
+                 "Chunked inference writes a streamed final volume and requires "
+-                "inference.save_prediction.output_path."
++                "inference.output_path."
+             )
+ 
+         _log_volume_header(volume_name, "CHUNKED INFERENCE PLAN")
+@@ -926,7 +949,7 @@ def run_test_step(module, batch: Dict[str, torch.Tensor], batch_idx: int) -> STE
+     logger.info(f"    Max:    {predictions_np.max():.6f}")
+     logger.info(f"    Mean:   {predictions_np.mean():.6f}")
+ 
+-    save_intermediate = bool(getattr(inference_cfg.save_prediction, "enabled", False))
++    save_intermediate = bool(getattr(inference_cfg, "save_results", False))
+     if save_intermediate:
+         logger.info("[STAGE: Saving Intermediate Predictions]")
+         save_start = time.time()
+@@ -939,7 +962,7 @@ def run_test_step(module, batch: Dict[str, torch.Tensor], batch_idx: int) -> STE
+             output_head=selected_output_head,
+         )
+ 
+-        save_all_heads = bool(getattr(inference_cfg.save_prediction, "save_all_heads", False))
++        save_all_heads = bool(getattr(inference_cfg, "save_all_heads", False))
+         model_head_names = get_model_head_names(module.cfg)
+         # When heads are already merged into predictions_np, the single saved file
+         # covers every head — skip the redundant per-head re-prediction loop.
+@@ -991,6 +1014,19 @@ def run_test_step(module, batch: Dict[str, torch.Tensor], batch_idx: int) -> STE
+         _distributed_tta_barrier(module)
+         return torch.tensor(0.0, device=module.device)
+ 
++    decode_after = bool(getattr(getattr(module.cfg, "decoding", None), "enabled", True))
++    if not decode_after:
++        if _evaluation_context_from_module(module).is_enabled:
++            logger.warning(
++                "Skipping evaluation because decoding.enabled=false produced "
++                "only raw predictions."
++            )
++        del predictions_np
++        _log_volume_header(volume_name, "VOLUME COMPLETE")
++        _cleanup_inference_memory(module, "whole-volume inference", release_model=True)
++        _distributed_tta_barrier(module)
++        return torch.tensor(0.0, device=module.device)
++
+     decoded_predictions = _process_decoding_postprocessing(
+         module,
+         predictions_np,
+diff --git a/scripts/validate_tutorial_configs.py b/scripts/validate_tutorial_configs.py
+index c99820f..9d45e93 100644
+--- a/scripts/validate_tutorial_configs.py
++++ b/scripts/validate_tutorial_configs.py
+@@ -50,10 +50,23 @@ for _root in (
+             (_root + ("strategy",), f"Use `{_root_path}.execution.strategy`."),
+             (_root + ("do_eval",), f"Use `{_root_path}.execution.do_eval`."),
+             (_root + ("sliding_window",), f"Use `{_root_path}.window`."),
+-            (_root + ("save_prediction",), f"Use `{_root_path}.save_inference`."),
++            (_root + ("save",), f"Use `{_root_path}.save_results` (with sibling output_path/dtype/backend)."),
++            (_root + ("save_prediction",), f"Use `{_root_path}.save_results`."),
++            (_root + ("save_inference",), f"Use `{_root_path}.save_results`."),
+         ]
+     )
+ 
++for _root in (
++    ("decoding",),
++    ("default", "decoding"),
++    ("test", "decoding"),
++    ("tune", "decoding"),
++):
++    _root_path = ".".join(_root)
++    LEGACY_PATTERNS.append(
++        (_root + ("save",), f"Use `{_root_path}.save_results` and `{_root_path}.save_intermediate`."),
++    )
++
+ CUSTOM_WORKFLOW_ROOTS = {"large_decode", "abiss_large"}
+ 
+ 
+diff --git a/tests/unit/test_connectomics_module.py b/tests/unit/test_connectomics_module.py
+index 71e317b..dbd9621 100644
+--- a/tests/unit/test_connectomics_module.py
++++ b/tests/unit/test_connectomics_module.py
+@@ -348,20 +348,20 @@ def test_runtime_inference_config_uses_merged_root_config():
+     """Runtime inference config should come from cfg.inference only."""
+     cfg = _base_config()
+     cfg.test = HydraTestConfig()
+-    cfg.inference.save_prediction.enabled = True
+-    cfg.test.inference.save_prediction.enabled = False
++    cfg.inference.save_results = True
++    cfg.test.inference.save_results = False
+ 
+     module = ConnectomicsModule(cfg, model=SimpleModel())
+ 
+     runtime_cfg = module._get_runtime_inference_config()
+-    assert runtime_cfg.save_prediction.enabled is True
++    assert runtime_cfg.save_results is True
+ 
+ 
+ def test_resolve_test_output_config_uses_runtime_inference_output_path(monkeypatch):
+-    """Output path should come from cfg.inference.save_prediction."""
++    """Output path should come from cfg.inference."""
+     cfg = _base_config()
+-    cfg.inference.save_prediction.output_path = "/tmp/test_results"
+-    cfg.inference.save_prediction.cache_suffix = "_x1_prediction.h5"
++    cfg.inference.output_path = "/tmp/test_results"
++    cfg.inference.cache_suffix = "_x1_prediction.h5"
+     module = ConnectomicsModule(cfg, model=SimpleModel())
+ 
+     monkeypatch.setattr(
+@@ -381,8 +381,8 @@ def test_resolve_test_output_config_uses_runtime_inference_output_path(monkeypat
+ 
+ def test_resolve_test_output_config_uses_current_tta_suffix_when_tta_is_enabled(monkeypatch):
+     cfg = _base_config()
+-    cfg.inference.save_prediction.output_path = "/tmp/test_results"
+-    cfg.inference.save_prediction.cache_suffix = "_x1_prediction.h5"
++    cfg.inference.output_path = "/tmp/test_results"
++    cfg.inference.cache_suffix = "_x1_prediction.h5"
+     cfg.inference.test_time_augmentation.enabled = True
+     cfg.inference.test_time_augmentation.flip_axes = [0, 1, 2]
+     cfg.inference.test_time_augmentation.rotation90_axes = [[1, 2]]
+@@ -405,8 +405,8 @@ def test_resolve_test_output_config_uses_current_tta_suffix_when_tta_is_enabled(
+ 
+ def test_resolve_test_output_config_includes_checkpoint_name_in_tta_suffix(monkeypatch):
+     cfg = _base_config()
+-    cfg.inference.save_prediction.output_path = "/tmp/test_results"
+-    cfg.inference.save_prediction.cache_suffix = "_x1_prediction.h5"
++    cfg.inference.output_path = "/tmp/test_results"
++    cfg.inference.cache_suffix = "_x1_prediction.h5"
+     cfg.inference.test_time_augmentation.enabled = True
+     cfg.inference.test_time_augmentation.flip_axes = [0, 1, 2]
+     cfg.inference.test_time_augmentation.rotation90_axes = [[1, 2]]
+@@ -437,8 +437,8 @@ def test_resolve_test_output_config_includes_output_head_in_tta_suffix(monkeypat
+         "sdt": {"out_channels": 1, "num_blocks": 0},
+     }
+     cfg.inference.model.head = "sdt"
+-    cfg.inference.save_prediction.output_path = "/tmp/test_results"
+-    cfg.inference.save_prediction.cache_suffix = "_x1_prediction.h5"
++    cfg.inference.output_path = "/tmp/test_results"
++    cfg.inference.cache_suffix = "_x1_prediction.h5"
+     cfg.inference.test_time_augmentation.enabled = True
+     cfg.inference.test_time_augmentation.flip_axes = None
+     cfg.inference.test_time_augmentation.rotation90_axes = None
+@@ -460,9 +460,9 @@ def test_resolve_test_output_config_includes_output_head_in_tta_suffix(monkeypat
+ 
+ 
+ def test_save_metrics_to_file_uses_runtime_inference_output_path(tmp_path):
+-    """Metrics should be written under cfg.inference.save_prediction.output_path."""
++    """Metrics should be written under cfg.inference.output_path."""
+     cfg = _base_config()
+-    cfg.inference.save_prediction.output_path = str(tmp_path)
++    cfg.inference.output_path = str(tmp_path)
+     module = ConnectomicsModule(cfg, model=SimpleModel())
+ 
+     save_metrics_to_file(
+@@ -478,7 +478,7 @@ def test_save_metrics_to_file_uses_runtime_inference_output_path(tmp_path):
+ 
+ def test_save_metrics_to_file_matches_final_prediction_tag(tmp_path):
+     cfg = _base_config()
+-    cfg.inference.save_prediction.output_path = str(tmp_path)
++    cfg.inference.output_path = str(tmp_path)
+     cfg.inference.model.select_channel = [0, 1, 2]
+     cfg.decoding.steps = [
+         {
+@@ -567,7 +567,7 @@ def test_load_cached_predictions_prefers_final_prediction_for_checkpoint_tagged_
+ 
+ def test_load_cached_predictions_does_not_pick_unrelated_tta_channel_cache(tmp_path, monkeypatch):
+     cfg = _base_config()
+-    cfg.inference.save_prediction.cache_suffix = "_x1_ch4-6-9_prediction_waterz_t0.4.h5"
++    cfg.inference.cache_suffix = "_x1_ch4-6-9_prediction_waterz_t0.4.h5"
+     cfg.inference.model.select_channel = [4, 6, 9]
+     module = ConnectomicsModule(cfg, model=SimpleModel())
+     unrelated_tta_file = tmp_path / "sample_tta_x1_ch0-1-2_prediction.h5"
+diff --git a/tests/unit/test_decoding_pipeline.py b/tests/unit/test_decoding_pipeline.py
+index a754108..b57a6dc 100644
+--- a/tests/unit/test_decoding_pipeline.py
++++ b/tests/unit/test_decoding_pipeline.py
+@@ -30,7 +30,7 @@ class _Mode:
+ @pytest.fixture
+ def affinity_with_redundant_channels() -> np.ndarray:
+     """Create 6-channel affinity with meaningful short-range and noisy extra channels."""
+-    aff = np.zeros((6, 16, 16, 16), dtype=np.float32)
++    aff: np.ndarray = np.zeros((6, 16, 16, 16), dtype=np.float32)
+     aff[:3, 2:10, 2:10, 2:10] = 0.9
+     aff[:3, 11:15, 11:15, 11:15] = 0.9
+ 
+@@ -44,6 +44,7 @@ def test_builtin_decoders_are_registered():
+     names = set(list_decoders())
+     assert "decode_affinity_cc" in names
+     assert "decode_distance_watershed" in names
++    assert "decode_binary_contour_distance_watershed" in names
+     assert "decode_instance_binary_contour_distance" in names
+     assert "decode_abiss" in names
+ 
+@@ -85,6 +86,78 @@ def test_decode_pipeline_object_mode_matches_direct_decoder(affinity_with_redund
+     np.testing.assert_array_equal(seg_pipeline, seg_direct_short)
+ 
+ 
++def test_binary_contour_distance_alias_matches_canonical_on_banis_channels():
++    predictions = np.zeros((7, 8, 8, 8), dtype=np.float32)
++    predictions[:3, 2:6, 2:6, 2:6] = 1.0
++    predictions[2, 3, 3, 3] = 0.6
++    predictions[6, 2:6, 2:6, 2:6] = 1.0
++    kwargs = {
++        "binary_channels": [0, 1, 2],
++        "binary_channel_reduction": "min",
++        "contour_channels": None,
++        "distance_channels": [6],
++        "binary_threshold": [0.9, 0.85],
++        "contour_threshold": None,
++        "distance_threshold": [0.5, -0.5],
++        "min_instance_size": 0,
++        "min_seed_size": 0,
++        "prediction_scale": 1,
++    }
++
++    seg_alias = apply_decode_pipeline(
++        predictions,
++        [{"name": "decode_binary_contour_distance_watershed", "kwargs": kwargs}],
++    )
++    seg_canonical = apply_decode_pipeline(
++        predictions,
++        [{"name": "decode_instance_binary_contour_distance", "kwargs": kwargs}],
++    )
++
++    np.testing.assert_array_equal(seg_alias, seg_canonical)
++    assert seg_alias[3, 3, 3] == 0
++
++
++def test_decode_pipeline_on_step_complete_called_per_step():
++    """Per-step callback fires once per (batch, step) with the step's output array."""
++    registry = DecoderRegistry()
++    registry.register("step_a", lambda data, **kw: data + 1)
++    registry.register("step_b", lambda data, **kw: data * 2)
++
++    data = np.zeros((1, 2, 2, 2), dtype=np.float32)
++    captured: list[tuple[int, str, np.ndarray]] = []
++
++    def on_step(batch_idx, step, sample):
++        name = step.name if hasattr(step, "name") else step["name"]
++        captured.append((batch_idx, name, sample.copy()))
++
++    decode_modes = [{"name": "step_a", "kwargs": {}}, {"name": "step_b", "kwargs": {}}]
++    final = apply_decode_pipeline(data, decode_modes, registry=registry, on_step_complete=on_step)
++
++    assert [(b, n) for b, n, _ in captured] == [(0, "step_a"), (0, "step_b")]
++    np.testing.assert_array_equal(captured[0][2], data + 1)
++    np.testing.assert_array_equal(captured[1][2], (data + 1) * 2)
++    np.testing.assert_array_equal(final, (data + 1) * 2)
++
++
++def test_decode_pipeline_on_step_complete_single_step_matches_final():
++    """For a one-step pipeline the callback's array equals the final output."""
++    registry = DecoderRegistry()
++    registry.register("only", lambda data, **kw: data + 7)
++
++    data = np.zeros((1, 2, 2, 2), dtype=np.float32)
++    captured = []
++
++    final = apply_decode_pipeline(
++        data,
++        [{"name": "only", "kwargs": {}}],
++        registry=registry,
++        on_step_complete=lambda b, s, x: captured.append(x.copy()),
++    )
++
++    assert len(captured) == 1
++    np.testing.assert_array_equal(captured[0], final)
++
++
+ def test_decode_pipeline_unknown_decoder_raises(affinity_with_redundant_channels):
+     decode_modes = [{"name": "decode_not_exists", "kwargs": {}}]
+     with pytest.raises(ValueError, match="Unknown decode function"):
+diff --git a/tests/unit/test_hydra_config.py b/tests/unit/test_hydra_config.py
+index 0107214..3664ff8 100644
+--- a/tests/unit/test_hydra_config.py
++++ b/tests/unit/test_hydra_config.py
+@@ -727,8 +727,7 @@ def test_enabled_flags_require_explicit_opt_in(tmp_path):
+ inference:
+   test_time_augmentation:
+     flip_axes: all
+-  save_inference:
+-    backend: h5
++  backend: h5
+ evaluation:
+   metrics: [dice]
+ monitor:
+@@ -747,7 +746,7 @@ optimization:
+     cfg = resolve_default_profiles(cfg, mode="train")
+ 
+     assert cfg.inference.test_time_augmentation.enabled is False
+-    assert cfg.inference.save_prediction.enabled is False
++    assert cfg.inference.save_results is False
+     assert cfg.evaluation.enabled is False
+     assert cfg.monitor.logging.images.enabled is True
+     assert cfg.optimization.ema.enabled is False
+@@ -774,10 +773,9 @@ inference:
+     chunk_size: [1008, 1008, 1350]
+     halo: [0, 0, 0]
+     axes: all
+-  save_inference:
+-    enabled: true
+-    backend: h5
+-    dtype: float16
++  save_results: true
++  backend: h5
++  dtype: float16
+ decoding:
+   enabled: false
+ """.strip())
+@@ -792,9 +790,9 @@ decoding:
+     assert cfg.inference.chunking.enabled is True
+     assert cfg.inference.chunking.output_mode == "raw_prediction"
+     assert cfg.inference.chunking.chunk_size == [1008, 1008, 1350]
+-    assert cfg.inference.save_prediction.enabled is True
+-    assert cfg.inference.save_prediction.output_formats == ["h5"]
+-    assert cfg.inference.save_prediction.storage_dtype == "float16"
++    assert cfg.inference.save_results is True
++    assert cfg.inference.backend == "h5"
++    assert cfg.inference.dtype == "float16"
+     assert cfg.decoding.enabled is False
+ 
+ 
+@@ -807,7 +805,9 @@ decoding:
+         ("strategy: chunked", "inference.execution.strategy"),
+         ("do_eval: false", "inference.execution.do_eval"),
+         ("sliding_window:\n    lazy_load: true", "inference.window"),
+-        ("save_prediction:\n    enabled: true", "inference.save_inference"),
++        ("save_prediction:\n    enabled: true", "inference.save_results"),
++        ("save_inference:\n    enabled: true", "inference.save_results"),
++        ("save:\n    enabled: true", "inference.save_results"),
+     ],
+ )
+ def test_inference_runtime_aliases_are_rejected_in_yaml(tmp_path, alias_yaml, canonical_path):
+@@ -830,12 +830,12 @@ default:
+       enabled: true
+ """.strip())
+ 
+-    with pytest.raises(ValueError, match=r"default\.inference\.save_inference"):
++    with pytest.raises(ValueError, match=r"default\.inference\.save_results"):
+         load_config(config_yaml)
+ 
+ 
+ def test_inference_runtime_aliases_are_rejected_in_dict_and_cli():
+-    with pytest.raises(ValueError, match=r"inference\.save_inference"):
++    with pytest.raises(ValueError, match=r"inference\.save_results"):
+         from_dict({"inference": {"save_prediction": {"enabled": True}}})
+ 
+     with pytest.raises(ValueError, match=r"inference\.window"):
+diff --git a/tests/unit/test_inference_stage.py b/tests/unit/test_inference_stage.py
+index 4a4c18a..bf8aff8 100644
+--- a/tests/unit/test_inference_stage.py
++++ b/tests/unit/test_inference_stage.py
+@@ -37,7 +37,7 @@ def test_run_prediction_inference_writes_raw_artifact_metadata(tmp_path):
+     cfg = Config()
+     cfg.model.arch.type = "mednext"
+     cfg.data.data_transform.val_transpose = [2, 1, 0]
+-    cfg.inference.save_inference.dtype = "float16"
++    cfg.inference.dtype = "float16"
+     cfg.inference.model.select_channel = [0, 1]
+ 
+     prediction = torch.arange(1 * 2 * 3 * 4 * 5, dtype=torch.float32).reshape(1, 2, 3, 4, 5)
+diff --git a/tests/unit/test_lit_utils.py b/tests/unit/test_lit_utils.py
+index 75e5eb5..a611a70 100644
+--- a/tests/unit/test_lit_utils.py
++++ b/tests/unit/test_lit_utils.py
+@@ -214,7 +214,7 @@ def test_extract_best_score_from_checkpoint():
+ 
+ def test_resolve_prediction_cache_suffix_uses_current_tta_plan_for_test_mode():
+     cfg = Config()
+-    cfg.inference.save_prediction.cache_suffix = "_x1_prediction.h5"
++    cfg.inference.cache_suffix = "_x1_prediction.h5"
+     cfg.inference.test_time_augmentation.enabled = True
+     cfg.inference.test_time_augmentation.flip_axes = [1, 2]
+     cfg.inference.test_time_augmentation.rotation90_axes = [[1, 2]]
+@@ -224,7 +224,7 @@ def test_resolve_prediction_cache_suffix_uses_current_tta_plan_for_test_mode():
+ 
+ def test_resolve_prediction_cache_suffix_preserves_non_tta_test_suffix_when_tta_disabled():
+     cfg = Config()
+-    cfg.inference.save_prediction.cache_suffix = "_x1_prediction.h5"
++    cfg.inference.cache_suffix = "_x1_prediction.h5"
+     cfg.inference.test_time_augmentation.enabled = False
+ 
+     assert resolve_prediction_cache_suffix(cfg, mode="test") == "_x1_prediction.h5"
+@@ -232,7 +232,7 @@ def test_resolve_prediction_cache_suffix_preserves_non_tta_test_suffix_when_tta_
+ 
+ def test_resolve_prediction_cache_suffix_includes_checkpoint_name_for_tta_test_mode():
+     cfg = Config()
+-    cfg.inference.save_prediction.cache_suffix = "_x1_prediction.h5"
++    cfg.inference.cache_suffix = "_x1_prediction.h5"
+     cfg.inference.test_time_augmentation.enabled = True
+     cfg.inference.test_time_augmentation.flip_axes = [1, 2]
+     cfg.inference.test_time_augmentation.rotation90_axes = [[1, 2]]
+diff --git a/tests/unit/test_main_runtime_stage_switch.py b/tests/unit/test_main_runtime_stage_switch.py
+index 9c87097..92bc50d 100644
+--- a/tests/unit/test_main_runtime_stage_switch.py
++++ b/tests/unit/test_main_runtime_stage_switch.py
+@@ -255,7 +255,7 @@ def test_has_assigned_test_shard_returns_false_for_empty_slice(tmp_path, monkeyp
+ def test_tune_cache_only_preserves_checkpoint_tag_for_tuning_suffix(tmp_path, monkeypatch):
+     cfg = Config()
+     cfg.tune = TuneConfig()
+-    cfg.inference.save_prediction.output_path = str(tmp_path / "results")
++    cfg.inference.output_path = str(tmp_path / "results")
+ 
+     args = _make_args(tmp_path / "config.yaml", mode="tune")
+     args.checkpoint = "outputs/run/checkpoints/step-step=00050000.ckpt"
+@@ -327,14 +327,14 @@ def test_checkpoint_tune_uses_tuning_prediction_folder(tmp_path):
+     assert tuning_dir == str(expected_tuning_dir)
+     assert cfg.tune.output.output_dir == str(expected_tuning_dir)
+     assert cfg.tune.output.output_pred == str(expected_tuning_dir / "predictions")
+-    assert cfg.inference.save_prediction.output_path == str(expected_results_dir)
++    assert cfg.inference.output_path == str(expected_results_dir)
+ 
+ 
+ def test_test_stage_sync_preserves_checkpoint_prediction_output_path(tmp_path):
+     cfg = Config()
+-    cfg.inference.save_inference.enabled = True
+-    cfg.inference.save_inference.backend = "h5"
+-    cfg.inference.save_inference.dtype = "float16"
++    cfg.inference.save_results = True
++    cfg.inference.backend = "h5"
++    cfg.inference.dtype = "float16"
+     args = _make_args(tmp_path / "config.yaml", mode="test")
+     args.checkpoint = str(
+         tmp_path
+@@ -350,20 +350,20 @@ def test_test_stage_sync_preserves_checkpoint_prediction_output_path(tmp_path):
+         tmp_path / "outputs" / "nisb_base_banis" / "20260427_095218" / "results_step=00200000"
+     )
+ 
+-    assert cfg.inference.save_prediction.output_path == str(expected_results_dir)
++    assert cfg.inference.output_path == str(expected_results_dir)
+ 
+     cfg = resolve_test_stage_runtime(cfg)
+ 
+-    assert cfg.inference.save_prediction.enabled is True
+-    assert cfg.inference.save_prediction.output_formats == ["h5"]
+-    assert cfg.inference.save_prediction.storage_dtype == "float16"
+-    assert cfg.inference.save_prediction.output_path == str(expected_results_dir)
++    assert cfg.inference.save_results is True
++    assert cfg.inference.backend == "h5"
++    assert cfg.inference.dtype == "float16"
++    assert cfg.inference.output_path == str(expected_results_dir)
+ 
+ 
+ def test_tune_cache_detection_uses_tuning_folder_then_result_fallback(tmp_path):
+     cfg = Config()
+     cfg.tune = TuneConfig()
+-    cfg.inference.save_prediction.output_path = str(tmp_path / "results_step=00050000")
++    cfg.inference.output_path = str(tmp_path / "results_step=00050000")
+     cfg.tune.output.output_pred = str(tmp_path / "tuning_step=00050000" / "predictions")
+     cfg.data.val.image = str(tmp_path / "images" / "img.h5")
+ 
+@@ -381,7 +381,7 @@ def test_tune_cache_detection_uses_tuning_folder_then_result_fallback(tmp_path):
+     )
+ 
+     results_pred = (
+-        Path(cfg.inference.save_prediction.output_path)
++        Path(cfg.inference.output_path)
+         / "img_tta_x1_ckpt-step=00050000_prediction.h5"
+     )
+     results_pred.parent.mkdir(parents=True, exist_ok=True)
+diff --git a/tests/unit/test_nnunet_preprocessing.py b/tests/unit/test_nnunet_preprocessing.py
+index 8544347..184621b 100644
+--- a/tests/unit/test_nnunet_preprocessing.py
++++ b/tests/unit/test_nnunet_preprocessing.py
+@@ -87,7 +87,7 @@ def test_write_outputs_restores_to_input_space(tmp_path):
+ 
+     cfg = Config()
+     cfg.test = HydraTestConfig()
+-    cfg.inference.save_prediction.output_path = str(tmp_path)
++    cfg.inference.output_path = str(tmp_path)
+     cfg.test.data.nnunet_preprocessing.enabled = True
+     cfg.test.data.nnunet_preprocessing.restore_to_input_space = True
+ 
+diff --git a/tests/unit/test_optuna_tuner.py b/tests/unit/test_optuna_tuner.py
+index 310f3ce..2f90060 100644
+--- a/tests/unit/test_optuna_tuner.py
++++ b/tests/unit/test_optuna_tuner.py
+@@ -31,9 +31,9 @@ class _DummyTrainer:
+         self.observed = {
+             "datamodule": datamodule,
+             "ckpt_path": ckpt_path,
+-            "save_prediction_enabled": inference_cfg.save_prediction.enabled,
+-            "cache_suffix": inference_cfg.save_prediction.cache_suffix,
+-            "output_path": inference_cfg.save_prediction.output_path,
++            "save_enabled": inference_cfg.save_results,
++            "cache_suffix": inference_cfg.cache_suffix,
++            "output_path": inference_cfg.output_path,
+             "decoding": model.cfg.decoding,
+             "evaluation_enabled": model.cfg.evaluation.enabled,
+         }
+@@ -58,10 +58,10 @@ class _DummyTrial:
+ def test_run_tuning_uses_intermediate_only_inference_overrides(monkeypatch, tmp_path):
+     cfg = Config()
+     cfg.tune = TuneConfig()
+-    cfg.inference.save_prediction.output_path = str(tmp_path / "results")
++    cfg.inference.output_path = str(tmp_path / "results")
+     cfg.tune.output.output_pred = str(tmp_path / "tuning" / "predictions")
+-    cfg.inference.save_prediction.enabled = False
+-    cfg.inference.save_prediction.cache_suffix = "_x1_prediction.h5"
++    cfg.inference.save_results = False
++    cfg.inference.cache_suffix = "_x1_prediction.h5"
+     cfg.decoding.steps = [{"name": "decode_semantic", "kwargs": {"threshold": 0.8}}]
+     cfg.evaluation.enabled = True
+     cfg.data.val.image = str(tmp_path / "images" / "volume_0_input.h5")
+@@ -113,15 +113,15 @@ def test_run_tuning_uses_intermediate_only_inference_overrides(monkeypatch, tmp_
+ 
+     assert trainer.observed["datamodule"]["mode"] == "tune"
+     assert trainer.observed["ckpt_path"] == "checkpoint.ckpt"
+-    assert trainer.observed["save_prediction_enabled"] is True
++    assert trainer.observed["save_enabled"] is True
+     assert trainer.observed["output_path"] == str(tmp_path / "results")
+     assert trainer.observed["cache_suffix"] == "_tta_x1_ckpt-checkpoint_prediction.h5"
+     assert trainer.observed["decoding"] is None
+     assert trainer.observed["evaluation_enabled"] is False
+ 
+-    assert cfg.inference.save_prediction.enabled is False
+-    assert cfg.inference.save_prediction.output_path == str(tmp_path / "results")
+-    assert cfg.inference.save_prediction.cache_suffix == "_x1_prediction.h5"
++    assert cfg.inference.save_results is False
++    assert cfg.inference.output_path == str(tmp_path / "results")
++    assert cfg.inference.cache_suffix == "_x1_prediction.h5"
+     assert cfg.decoding.steps == [{"name": "decode_semantic", "kwargs": {"threshold": 0.8}}]
+     assert cfg.evaluation.enabled is True
+ 
+@@ -133,7 +133,7 @@ def test_run_tuning_uses_intermediate_only_inference_overrides(monkeypatch, tmp_
+ def test_run_tuning_ignores_stale_test_prediction_cache_when_tuning(monkeypatch, tmp_path):
+     cfg = Config()
+     cfg.tune = TuneConfig()
+-    cfg.inference.save_prediction.output_path = str(tmp_path / "results")
++    cfg.inference.output_path = str(tmp_path / "results")
+     cfg.tune.output.output_pred = str(tmp_path / "tuning" / "predictions")
+     cfg.data.val.image = str(tmp_path / "images" / "train-input.tif")
+     cfg.data.val.label = str(tmp_path / "labels" / "train-labels.h5")
+@@ -193,7 +193,7 @@ def test_run_tuning_ignores_stale_test_prediction_cache_when_tuning(monkeypatch,
+ def test_run_tuning_uses_result_prediction_cache_when_tuning_folder_missing(monkeypatch, tmp_path):
+     cfg = Config()
+     cfg.tune = TuneConfig()
+-    cfg.inference.save_prediction.output_path = str(tmp_path / "results")
++    cfg.inference.output_path = str(tmp_path / "results")
+     cfg.tune.output.output_pred = str(tmp_path / "tuning" / "predictions")
+     cfg.data.val.image = str(tmp_path / "images" / "train-input.tif")
+     cfg.data.val.label = str(tmp_path / "labels" / "train-labels.h5")
+@@ -245,7 +245,7 @@ def test_run_tuning_uses_result_prediction_cache_when_tuning_folder_missing(monk
+ def test_run_tuning_prefers_tuning_prediction_cache_over_result_cache(monkeypatch, tmp_path):
+     cfg = Config()
+     cfg.tune = TuneConfig()
+-    cfg.inference.save_prediction.output_path = str(tmp_path / "results")
++    cfg.inference.output_path = str(tmp_path / "results")
+     cfg.tune.output.output_pred = str(tmp_path / "tuning" / "predictions")
+     cfg.data.val.image = str(tmp_path / "images" / "train-input.tif")
+     cfg.data.val.label = str(tmp_path / "labels" / "train-labels.h5")
+@@ -304,7 +304,7 @@ def test_run_tuning_prefers_tuning_prediction_cache_over_result_cache(monkeypatc
+ def test_run_tuning_requires_val_labels_in_tune_mode(monkeypatch, tmp_path):
+     cfg = Config()
+     cfg.tune = TuneConfig()
+-    cfg.inference.save_prediction.output_path = str(tmp_path / "results")
++    cfg.inference.output_path = str(tmp_path / "results")
+     cfg.data.val.image = str(tmp_path / "images" / "val_input.h5")
+     cfg.data.test.label = str(tmp_path / "labels" / "test_*.h5")
+ 
+@@ -340,7 +340,7 @@ def test_run_tuning_requires_val_labels_in_tune_mode(monkeypatch, tmp_path):
+ def test_run_tuning_logs_existing_best_params_yaml(monkeypatch, tmp_path, caplog):
+     cfg = Config()
+     cfg.tune = TuneConfig()
+-    cfg.inference.save_prediction.output_path = str(tmp_path / "results")
++    cfg.inference.output_path = str(tmp_path / "results")
+ 
+     tuning_dir = tmp_path / "tuning"
+     tuning_dir.mkdir(parents=True, exist_ok=True)
+@@ -366,7 +366,7 @@ def test_run_tuning_logs_existing_best_params_yaml(monkeypatch, tmp_path, caplog
+ 
+ def test_load_and_apply_best_params_prefers_checkpoint_aware_file(tmp_path):
+     cfg = Config()
+-    cfg.inference.save_prediction.output_path = str(tmp_path / "results")
++    cfg.inference.output_path = str(tmp_path / "results")
+     cfg.decoding.steps = [{"name": "decode_waterz", "kwargs": {"thresholds": 0.4}}]
+ 
+     tuning_dir = tmp_path / "tuning"
+@@ -393,7 +393,7 @@ def test_load_and_apply_best_params_prefers_checkpoint_aware_file(tmp_path):
+ 
+ def test_load_and_apply_best_params_falls_back_to_legacy_filename(tmp_path):
+     cfg = Config()
+-    cfg.inference.save_prediction.output_path = str(tmp_path / "results")
++    cfg.inference.output_path = str(tmp_path / "results")
+     cfg.decoding.steps = [{"name": "decode_waterz", "kwargs": {"thresholds": 0.4}}]
+ 
+     tuning_dir = tmp_path / "tuning"
+diff --git a/tests/unit/test_prediction_transform.py b/tests/unit/test_prediction_transform.py
+index 8e3aaa7..3852b62 100644
+--- a/tests/unit/test_prediction_transform.py
++++ b/tests/unit/test_prediction_transform.py
+@@ -5,7 +5,7 @@ import numpy as np
+ from connectomics.inference.output import apply_prediction_transform, apply_storage_dtype_transform
+ 
+ 
+-def test_prediction_transform_applies_independent_of_save_prediction():
++def test_prediction_transform_applies_independent_of_save():
+     cfg = SimpleNamespace(
+         inference=SimpleNamespace(
+             prediction_transform=SimpleNamespace(
+@@ -13,7 +13,6 @@ def test_prediction_transform_applies_independent_of_save_prediction():
+                 intensity_scale=2.0,
+                 intensity_dtype="float16",
+             ),
+-            save_prediction=SimpleNamespace(),
+         )
+     )
+     data = np.array([0.25, 0.5], dtype=np.float32)
+@@ -28,7 +27,6 @@ def test_disabled_prediction_transform_keeps_raw_predictions():
+     cfg = SimpleNamespace(
+         inference=SimpleNamespace(
+             prediction_transform=SimpleNamespace(enabled=False),
+-            save_prediction=SimpleNamespace(),
+         )
+     )
+     data = np.array([0.25, 0.5], dtype=np.float32)
+@@ -39,11 +37,11 @@ def test_disabled_prediction_transform_keeps_raw_predictions():
+     np.testing.assert_array_equal(transformed, data)
+ 
+ 
+-def test_storage_dtype_transform_is_save_side_only():
++def test_storage_dtype_transform_casts_when_dtype_specified():
+     cfg = SimpleNamespace(
+         inference=SimpleNamespace(
+             prediction_transform=SimpleNamespace(enabled=False),
+-            save_inference=SimpleNamespace(dtype="float16"),
++            dtype="float16",
+         )
+     )
+     data = np.array([0.25, 0.5], dtype=np.float32)
+@@ -52,3 +50,18 @@ def test_storage_dtype_transform_is_save_side_only():
+ 
+     assert encoded.dtype == np.float16
+     np.testing.assert_allclose(encoded.astype(np.float32), data)
++
++
++def test_storage_dtype_transform_skips_when_dtype_unspecified():
++    cfg = SimpleNamespace(
++        inference=SimpleNamespace(
++            prediction_transform=SimpleNamespace(enabled=False),
++            dtype=None,
++        )
++    )
++    data = np.array([0.25, 0.5], dtype=np.float32)
++
++    encoded = apply_storage_dtype_transform(cfg, data)
++
++    assert encoded is data
++    assert encoded.dtype == np.float32
+diff --git a/tests/unit/test_test_pipeline_multi_volume_eval.py b/tests/unit/test_test_pipeline_multi_volume_eval.py
+index ce4141b..1491c00 100644
+--- a/tests/unit/test_test_pipeline_multi_volume_eval.py
++++ b/tests/unit/test_test_pipeline_multi_volume_eval.py
+@@ -834,8 +834,8 @@ class _SaveAllHeadsModule:
+             "sdt": {"out_channels": 1, "num_blocks": 0},
+         }
+         self.cfg.inference.model.head = "affinity"
+-        self.cfg.inference.save_prediction.enabled = True
+-        self.cfg.inference.save_prediction.save_all_heads = True
++        self.cfg.inference.save_results = True
++        self.cfg.inference.save_all_heads = True
+         self.inference_manager = _SaveAllHeadsInferenceManager()
+ 
+     def _get_runtime_inference_config(self):
+diff --git a/tutorials/mitoEM/H.yaml b/tutorials/mitoEM/H.yaml
+index 65b5782..ad694fb 100644
+--- a/tutorials/mitoEM/H.yaml
++++ b/tutorials/mitoEM/H.yaml
+@@ -19,8 +19,7 @@ train:
+ 
+ test:
+   inference:
+-    save_inference:
+-      output_path: outputs/mitoem30h_mednext_sdt_multitask/results/
++    output_path: outputs/mitoem30h_mednext_sdt_multitask/results/
+   data:
+     test:
+       image: EM30-H/im_test.h5
+diff --git a/tutorials/mitoEM/HR.yaml b/tutorials/mitoEM/HR.yaml
+index e625a2e..7af326c 100644
+--- a/tutorials/mitoEM/HR.yaml
++++ b/tutorials/mitoEM/HR.yaml
+@@ -19,8 +19,7 @@ train:
+ 
+ test:
+   inference:
+-    save_inference:
+-      output_path: outputs/mitoem30hr_mednext_sdt_multitask/results/
++    output_path: outputs/mitoem30hr_mednext_sdt_multitask/results/
+   data:
+     test:
+       image: [EM30-H/im_test.h5, EM30-R/im_test.h5]
+diff --git a/tutorials/mitoEM/R.yaml b/tutorials/mitoEM/R.yaml
+index b196397..652be38 100644
+--- a/tutorials/mitoEM/R.yaml
++++ b/tutorials/mitoEM/R.yaml
+@@ -19,8 +19,7 @@ train:
+ 
+ test:
+   inference:
+-    save_inference:
+-      output_path: outputs/mitoem30r_mednext_sdt_multitask/results/
++    output_path: outputs/mitoem30r_mednext_sdt_multitask/results/
+   data:
+     test:
+       image: EM30-R/im_test.h5
+diff --git a/tutorials/mitoEM/common.yaml b/tutorials/mitoEM/common.yaml
+index 30784e8..118b8cf 100644
+--- a/tutorials/mitoEM/common.yaml
++++ b/tutorials/mitoEM/common.yaml
+@@ -97,9 +97,8 @@ default:
+       enabled: false
+       flip_axes: all
+       ensemble_mode: min
+-    save_inference:
+-      enabled: true
+-      dtype: float32
++    save_results: true
++    dtype: float32
+ 
+   decoding:
+     steps:
+diff --git a/tutorials/mito_betaseg.yaml b/tutorials/mito_betaseg.yaml
+index edc7a3a..9604251 100644
+--- a/tutorials/mito_betaseg.yaml
++++ b/tutorials/mito_betaseg.yaml
+@@ -107,8 +107,7 @@ default:
+       enabled: false
+       flip_axes: all
+       ensemble_mode: min
+-    save_inference:
+-      enabled: true
++    save_results: true
+ 
+   decoding:
+     steps:
+diff --git a/tutorials/mito_betaseg_banis_v0.yaml b/tutorials/mito_betaseg_banis_v0.yaml
+index 6eed6d8..6aeee42 100644
+--- a/tutorials/mito_betaseg_banis_v0.yaml
++++ b/tutorials/mito_betaseg_banis_v0.yaml
+@@ -76,8 +76,8 @@ default:
+       targets:
+       - name: affinity
+         kwargs:
+-          # 3 short-range + 3 long-range@10. decode_affinity_cc consumes the
+-          # first 3 channels in axis0/axis1/axis2 order.
++          # 3 short-range + 3 long-range@10. Watershed decoding uses the first
++          # 3 channels in axis0/axis1/axis2 order as foreground.
+           offsets: ["1-0-0", "0-1-0", "0-0-1", "10-0-0", "0-10-0", "0-0-10"]
+           affinity_mode: banis
+       # SDT defaults match BANIS (alpha=0.8, bg_value=-1.0).
+@@ -91,12 +91,11 @@ default:
+     execution:
+       strategy: whole_volume
+     model:
+-      # Merge both heads so TTA channel_activations and select_channel address
+-      # the concatenated 7-channel output (aff[0:6] + sdt[6:7]).
++      # Merge both heads so TTA channel_activations address the concatenated
++      # 7-channel output (aff[0:6] + sdt[6:7]).
+       head: "aff,sdt"
+-      # Keep only short-range affinities for connected-component decoding (matches
+-      # BANIS-mito full_cube_inference default prediction_channels=3).
+-      select_channel: [0, 1, 2]
++      # Keep the full aff+sdt tensor so binary+distance watershed can use
++      # affinity foreground channels plus SDT channel 6.
+       channel_activations:
+       # BANIS: scale_sigmoid(x) = sigmoid(0.2 * x) on aff; tanh on SDT.
+       - {channels: "0:6", activation: scale_sigmoid}
+@@ -111,20 +110,28 @@ default:
+       keep_input_on_cpu: false
+     test_time_augmentation:
+       enabled: false
+-    save_inference:
+-      enabled: true
+-      dtype: float16
+-      backend: h5
++    save_results: true
++    dtype: float16
++    backend: h5
+ 
+   decoding:
+     steps:
+-    - name: decode_affinity_cc
++    - name: decode_binary_contour_distance_watershed
+       kwargs:
+-        # BANIS sweeps thresholds; pick a single mid-range value matching the
+-        # NISB reference. affinity_mode=banis stores edges at the source voxel.
+-        threshold: 0.5
+-        backend: numba
+-        edge_offset: 0
++        binary_channels: [0, 1, 2]
++        binary_channel_reduction: min
++        contour_channels:
++        distance_channels: [6]
++        binary_threshold:
++        - 0.9
++        - 0.85
++        contour_threshold:
++        distance_threshold:
++        - 0.5
++        - -0.5
++        min_instance_size: 100
++        min_seed_size: 20
++        prediction_scale: 1
+ 
+   evaluation:
+     enabled: true
+diff --git a/tutorials/mito_betaseg_banis_v1.yaml b/tutorials/mito_betaseg_banis_v1.yaml
+index d45ad9b..bcfbdf4 100644
+--- a/tutorials/mito_betaseg_banis_v1.yaml
++++ b/tutorials/mito_betaseg_banis_v1.yaml
+@@ -128,19 +128,26 @@ default:
+       enabled: false
+       flip_axes: all
+       ensemble_mode: min
+-    save_inference:
+-      enabled: true
++    save_results: true
+ 
+   decoding:
+     steps:
+-    - name: decode_distance_watershed
++    - name: decode_binary_contour_distance_watershed
+       kwargs:
++        binary_channels: [0, 1, 2]
++        binary_channel_reduction: min
++        contour_channels:
+         distance_channels: [6]
+-        distance_threshold: [0.5, 0]
+-        min_seed_size: 100
+-        min_instance_size: 50
+-        use_fast_edt: true
+-        edt_parallel: 8
++        binary_threshold:
++        - 0.9
++        - 0.85
++        contour_threshold:
++        distance_threshold:
++        - 0.5
++        - -0.5
++        min_instance_size: 100
++        min_seed_size: 20
++        prediction_scale: 1
+     postprocessing:
+       enabled: true
+   evaluation:
+diff --git a/tutorials/mito_betaseg_banis_v2.yaml b/tutorials/mito_betaseg_banis_v2.yaml
+index 4dd1fc4..0d2860c 100644
+--- a/tutorials/mito_betaseg_banis_v2.yaml
++++ b/tutorials/mito_betaseg_banis_v2.yaml
+@@ -146,19 +146,26 @@ default:
+       enabled: false
+       flip_axes: all
+       ensemble_mode: min
+-    save_inference:
+-      enabled: true
++    save_results: true
+ 
+   decoding:
+     steps:
+-    - name: decode_distance_watershed
++    - name: decode_binary_contour_distance_watershed
+       kwargs:
++        binary_channels: [0, 1, 2]
++        binary_channel_reduction: min
++        contour_channels:
+         distance_channels: [6]
+-        distance_threshold: [0.5, 0]
+-        min_seed_size: 100
+-        min_instance_size: 50
+-        use_fast_edt: true
+-        edt_parallel: 8
++        binary_threshold:
++        - 0.9
++        - 0.85
++        contour_threshold:
++        distance_threshold:
++        - 0.5
++        - -0.5
++        min_instance_size: 100
++        min_seed_size: 20
++        prediction_scale: 1
+     postprocessing:
+       enabled: true
+   evaluation:
+diff --git a/tutorials/mito_mitolab.yaml b/tutorials/mito_mitolab.yaml
+index 2c94197..ac28dfc 100644
+--- a/tutorials/mito_mitolab.yaml
++++ b/tutorials/mito_mitolab.yaml
+@@ -73,8 +73,7 @@ default:
+       enabled: true
+       intensity_scale: 255
+       intensity_dtype: uint8
+-    save_inference:
+-      enabled: true
++    save_results: true
+ 
+ train:
+   system:
+@@ -131,8 +130,7 @@ train:
+ 
+ test:
+   inference:
+-    save_inference:
+-      output_path: outputs/cem-mitolab_mednext2d/results/
++    output_path: outputs/cem-mitolab_mednext2d/results/
+   data:
+     test:
+       image: datasets/cem-mitolab/test.json
+diff --git a/tutorials/neuron_liconn_mit.yaml b/tutorials/neuron_liconn_mit.yaml
+index b15f387..4319439 100644
+--- a/tutorials/neuron_liconn_mit.yaml
++++ b/tutorials/neuron_liconn_mit.yaml
+@@ -82,8 +82,7 @@ default:
+       enabled: false
+     model:
+       crop_pad: [23, 32, 119, 128, 119, 128]
+-    save_inference:
+-      enabled: true
++    save_results: true
+ 
+   decoding:
+     steps:
+diff --git a/tutorials/neuron_liconn_mit_x2.yaml b/tutorials/neuron_liconn_mit_x2.yaml
+index a67e5a9..ae57e6d 100644
+--- a/tutorials/neuron_liconn_mit_x2.yaml
++++ b/tutorials/neuron_liconn_mit_x2.yaml
+@@ -390,13 +390,12 @@ test:
+       sw_device: cuda
+       output_device: cpu
+ 
+-    save_inference:
+-      enabled: true
+-      backend: h5
+-      output_path: /orcd/scratch/bcs/002/mansour/train_liconn/outputs/results_axons/
+-      # float32 for full precision affinities; use float16 to halve storage
+-      dtype: float32
+-      compression: gzip
++    save_results: true
++    backend: h5
++    output_path: /orcd/scratch/bcs/002/mansour/train_liconn/outputs/results_axons/
++    # float32 for full precision affinities; use float16 to halve storage
++    dtype: float32
++    compression: gzip
+ 
+   evaluation:
+     enabled: false   # no ground truth — cannot compute metrics
+diff --git a/tutorials/neuron_nisb/9nm_base.yaml b/tutorials/neuron_nisb/9nm_base.yaml
+index 96bf119..f868d3f 100644
+--- a/tutorials/neuron_nisb/9nm_base.yaml
++++ b/tutorials/neuron_nisb/9nm_base.yaml
+@@ -113,10 +113,9 @@ default:
+       blending: gaussian
+       sigma_scale: 0.25
+       padding_mode: replicate
+-    save_inference:
+-      enabled: true
+-      backend: h5
+-      dtype: float32
++    save_results: true
++    backend: h5
++    dtype: float32
+     test_time_augmentation:
+       enabled: false
+       flip_axes:
+@@ -196,8 +195,7 @@ train:
+ 
+ test:
+   inference:
+-    save_inference:
+-      output_path: outputs/neuron_nisb_9nm_base_mednext_l_sdt_multitask/results/
++    output_path: outputs/neuron_nisb_9nm_base_mednext_l_sdt_multitask/results/
+   data:
+     test:
+       image: /projects/weilab/dataset/nisb/base/test/seed*/data.zarr/img
+diff --git a/tutorials/neuron_nisb/9nm_base_aff6_head1_banis.yaml b/tutorials/neuron_nisb/9nm_base_aff6_head1_banis.yaml
+index 103af08..a4c8993 100644
+--- a/tutorials/neuron_nisb/9nm_base_aff6_head1_banis.yaml
++++ b/tutorials/neuron_nisb/9nm_base_aff6_head1_banis.yaml
+@@ -114,10 +114,9 @@ default:
+       blending: gaussian
+       sigma_scale: 0.25
+       padding_mode: replicate
+-    save_inference:
+-      enabled: true
+-      backend: h5
+-      dtype: float16
++    save_results: true
++    backend: h5
++    dtype: float16
+     test_time_augmentation:
+       enabled: false
+ 
+diff --git a/tutorials/neuron_nisb/9nm_base_aff6_head1_banis_erosion2.yaml b/tutorials/neuron_nisb/9nm_base_aff6_head1_banis_erosion2.yaml
+index cf56f9a..f30614c 100644
+--- a/tutorials/neuron_nisb/9nm_base_aff6_head1_banis_erosion2.yaml
++++ b/tutorials/neuron_nisb/9nm_base_aff6_head1_banis_erosion2.yaml
+@@ -109,10 +109,9 @@ default:
+       blending: gaussian
+       sigma_scale: 0.25
+       padding_mode: replicate
+-    save_inference:
+-      enabled: true
+-      backend: h5
+-      dtype: float32
++    save_results: true
++    backend: h5
++    dtype: float32
+     test_time_augmentation:
+       enabled: false
+ 
+diff --git a/tutorials/neuron_nisb/9nm_base_aff9.yaml b/tutorials/neuron_nisb/9nm_base_aff9.yaml
+index 5e207e4..0ac1462 100644
+--- a/tutorials/neuron_nisb/9nm_base_aff9.yaml
++++ b/tutorials/neuron_nisb/9nm_base_aff9.yaml
+@@ -102,10 +102,9 @@ default:
+       blending: gaussian
+       sigma_scale: 0.25
+       padding_mode: replicate
+-    save_inference:
+-      enabled: true
+-      backend: h5
+-      dtype: float32
++    save_results: true
++    backend: h5
++    dtype: float32
+     test_time_augmentation:
+       enabled: false
+       flip_axes:
+@@ -194,8 +193,7 @@ train:
+ 
+ test:
+   inference:
+-    save_inference:
+-      output_path: outputs/neuron_nisb_9nm_base_mednext_l_aff9_multitask/results/
++    output_path: outputs/neuron_nisb_9nm_base_mednext_l_aff9_multitask/results/
+   data:
+     test:
+       image: /projects/weilab/dataset/nisb/base/test/seed*/data.zarr/img
+diff --git a/tutorials/neuron_nisb/9nm_base_aff9_head1.yaml b/tutorials/neuron_nisb/9nm_base_aff9_head1.yaml
+index 50a5348..6eb027b 100644
+--- a/tutorials/neuron_nisb/9nm_base_aff9_head1.yaml
++++ b/tutorials/neuron_nisb/9nm_base_aff9_head1.yaml
+@@ -56,8 +56,7 @@ default:
+       output_device: cpu
+       window_size: [32, 256, 256]
+       sw_batch_size: 1
+-    save_inference:
+-      enabled: true
++    save_results: true
+     test_time_augmentation:
+       enabled: true
+       ensemble_mode: mean
+diff --git a/tutorials/neuron_nisb/9nm_base_aff9_head3.yaml b/tutorials/neuron_nisb/9nm_base_aff9_head3.yaml
+index ea0c3ce..7bcb8eb 100644
+--- a/tutorials/neuron_nisb/9nm_base_aff9_head3.yaml
++++ b/tutorials/neuron_nisb/9nm_base_aff9_head3.yaml
+@@ -88,9 +88,8 @@ default:
+       output_device: cpu
+       window_size: [32, 256, 256]
+       sw_batch_size: 1
+-    save_inference:
+-      enabled: true
+-      save_all_heads: true
++    save_results: true
++    save_all_heads: true
+     test_time_augmentation:
+       enabled: true
+       ensemble_mode: mean
+diff --git a/tutorials/neuron_nisb/9nm_liconn.yaml b/tutorials/neuron_nisb/9nm_liconn.yaml
+index b50b758..1080ae8 100644
+--- a/tutorials/neuron_nisb/9nm_liconn.yaml
++++ b/tutorials/neuron_nisb/9nm_liconn.yaml
+@@ -48,8 +48,7 @@ train:
+ 
+ test:
+   inference:
+-    save_inference:
+-      output_path: outputs/neuron_nisb_9nm_liconn_mednext_b_sdt/results_seed101/
++    output_path: outputs/neuron_nisb_9nm_liconn_mednext_b_sdt/results_seed101/
+   data:
+     test:
+       path: /projects/weilab/dataset/nisb/liconn/test/
+diff --git a/tutorials/neuron_nisb/base_banis.yaml b/tutorials/neuron_nisb/base_banis.yaml
+index 64803bb..e337b5b 100644
+--- a/tutorials/neuron_nisb/base_banis.yaml
++++ b/tutorials/neuron_nisb/base_banis.yaml
+@@ -81,22 +81,24 @@ default:
+       # Match lib/banis patched_inference: 128^3 windows, 50% overlap,
+       # snap-to-edge grid, and distance-transform blending.
+       window_size: [128, 128, 128]
+-      sw_batch_size: 6
++      sw_batch_size: 8
+       overlap: 0.5
+       blending: distance_transform
+       # BANIS-style boundary handling: snap last window to image_size-roi_size
+       # (no whole-volume padding). Honored by the lazy sliding-window path
+       # (connectomics/inference/lazy.py) when lazy_load=true.
+       snap_to_edge: true
+-    save_inference:
+-      enabled: true
+-      backend: h5
+-      dtype: float16
++    save_results: true
++    backend: h5
+     test_time_augmentation:
+       enabled: false
+ 
+   decoding:
+     enabled: true
++    # Optional per-volume affinity mask: zeros out affinity channels at
++    # masked-out voxels before decoding. Top-level DecodingConfig field —
++    # not a decoder-step kwarg.
++    affinity_mask_path: outputs/nisb_base_banis/20260427_095218/results_step=00200000/affinity_mask.h5
+     steps:
+     - name: decode_affinity_cc
+       kwargs:
+diff --git a/tutorials/neuron_nisb/base_banis_chunk.yaml b/tutorials/neuron_nisb/base_banis_chunk.yaml
+index 2b6962f..bb7a59e 100644
+--- a/tutorials/neuron_nisb/base_banis_chunk.yaml
++++ b/tutorials/neuron_nisb/base_banis_chunk.yaml
+@@ -143,10 +143,9 @@ default:
+       chunk_size: [1008, 1008, 1350]
+       halo: [0, 0, 0]
+       axes: all
+-    save_inference:
+-      enabled: true
+-      backend: h5
+-      dtype: float16
++    save_results: true
++    backend: h5
++    dtype: float16
+     test_time_augmentation:
+       enabled: false
+ 
+diff --git a/tutorials/neuron_nisb/base_banis_crop.yaml b/tutorials/neuron_nisb/base_banis_crop.yaml
+index a1d1fa2..10b69af 100644
+--- a/tutorials/neuron_nisb/base_banis_crop.yaml
++++ b/tutorials/neuron_nisb/base_banis_crop.yaml
+@@ -1,271 +1,27 @@
+ _base_:
+-- ../../connectomics/config/all_profiles.yaml
++- base_banis.yaml
+ 
+-experiment_name: nisb_base_banis
+-description: BANIS train_base_long reproduction target (9nm, 6-channel affinity, MedNeXt-S/k3, 128-cube,
+-  200k steps)
++experiment_name: nisb_base_banis_crop
++description: BANIS reproduction on a small cropped test volume.
+ 
+ default:
+-  system:
+-    num_gpus: -1
+-    num_workers: -1
+-  model:
+-    arch:
+-      type: mednext
+-    input_size: [128, 128, 128]
+-    output_size: [128, 128, 128]
+-    in_channels: 1
+-    out_channels: 6
+-    loss:
+-      deep_supervision: false
+-      losses:
+-      - function: WeightedBCEWithLogitsLoss
+-        weight: 1.0
+-    mednext:
+-      size: S
+-      kernel_size: 3
+-      dim: 3d
+-      checkpoint_style: outside_block
+-  data:
+-    dataloader:
+-      profile: lazy
+-      patch_size: [128, 128, 128]
+-      # BANIS reads small_size + long_range on the trailing side, computes
+-      # affinities, then crops back to small_size. Canonical form is
+-      # [pre0, pre1, pre2, post0, post1, post2]; legacy length-3
+-      # [a, b, c] is treated as trailing-only.
+-      target_context: [0, 0, 0, 10, 10, 10]
+-      batch_size: 4
+-      use_cache: false
+-      use_preloaded_cache_train: false
+-      use_preloaded_cache_val: false
+-      val_random_sampling: true
+-    image_transform:
+-      normalize: "divide-255"
+-    # Match BANIS target semantics:
+-    # - 6 channels only: short-range + long-range@10
+-    # - source zarr is XYZ and stays XYZ, matching lib/banis
+-    # - decode_affinity_cc expects the first 3 channels in axis0, axis1, axis2 order
+-    label_transform:
+-      erosion: 0
+-      relabel_connected_components: true
+-      relabel_connectivity: 6
+-      targets:
+-      - name: affinity
+-        kwargs:
+-          offsets: ["1-0-0", "0-1-0", "0-0-1", "10-0-0", "0-10-0", "0-0-10"]
+-          affinity_mode: banis
+-    augmentation:
+-      # BANIS augmentation defaults:
+-      # drop_slice_prob=0.05, shift_slice_prob=0.05, intensity_aug=true,
+-      # noise_scale=0.5, affine=0.5
+-      axis_permute:
+-        enabled: true
+-        prob: 1.0
+-      rotate90_all:
+-        enabled: true
+-        prob: 1.0
+-      flip:
+-        enabled: true
+-        prob: 0.5
+-        spatial_axis: [0, 1, 2]
+-      slice_drop:
+-        enabled: true
+-        prob: 0.5
+-        slice_prob: 0.05
+-        spatial_axis: [0, 1, 2]
+-        fill_value: 0.0
+-      slice_shift:
+-        enabled: true
+-        prob: 0.5
+-        slice_prob: 0.05
+-        shift_magnitude: 10
+-        spatial_axis: [0, 1, 2]
+-        wrap: true
+-      affine:
+-        enabled: true
+-        prob: 0.5
+-        rotate_range: [3.141592653589793, 3.141592653589793, 3.141592653589793]
+-        scale_range: [0.2, 0.2, 0.2]
+-        shear_range: [0.5, 0.5, 0.5]
+-      intensity:
+-        enabled: true
+-        banis_style: true
+-        mul_add_prob: 0.5
+-        mul_range: [0.9, 1.1]
+-        add_range: [-0.1, 0.1]
+-        gaussian_noise_prob: 0.5
+-        gaussian_noise_std: 0.5
+-  inference:
+-    model:
+-      # Keep only short-range affinities. In XYZ mode the first three channels
+-      # already match decoder axis0, axis1, axis2 order.
+-      select_channel: [0, 1, 2]
+-      output_dtype: float16
+-      channel_activations:
+-      - {channels: ":", activation: scale_sigmoid}
+-    execution:
+-      strategy: whole_volume
+-    window:
+-      lazy_load: true
+-      distributed_sharding: true
+-      distributed_reduce_chunk_mb: 128
+-      keep_input_on_cpu: true
+-      sw_device: cuda
+-      output_device: cpu
+-      # 144 = 128 (training patch) + 16 voxels of real surrounding-volume
+-      # context per axis. Default gaussian blending de-emphasizes the outer
+-      # band, so the central 128³ region carries the signal while the model
+-      # still sees extra context for boundary affinities. Cleaner than
+-      # per-window target_context oversample + central crop. Must remain a
+-      # multiple of MedNeXt's 16-voxel stride.
+-      window_size: [144, 144, 144]
+-      sw_batch_size: 2
+-      overlap: 0.5
+-      blending: gaussian
+-      sigma_scale: 0.25
+-      padding_mode: replicate
+-      # BANIS-style boundary handling: snap last window to image_size-roi_size
+-      # (no whole-volume padding). Honored by the lazy sliding-window path
+-      # (connectomics/inference/lazy.py) when lazy_load=true.
+-      snap_to_edge: true
+-    save_inference:
+-      enabled: true
+-      backend: h5
+-      dtype: float16
+-    test_time_augmentation:
+-      enabled: false
+   decoding:
+-    enabled: true
+-    steps:
+-    - name: decode_affinity_cc
+-      kwargs:
+-        threshold: 0.65
+-        backend: numba
+-        # affinity_mode=banis stores edges at the source voxel.
+-        edge_offset: 0
+-
++    affinity_mask_path: ""
+   evaluation:
+-    enabled: true
+     metrics: [adapted_rand]
+ 
+-train:
+-  optimization:
+-    optimizer:
+-      name: AdamW
+-      lr: 0.001
+-      weight_decay: 0.01
+-      betas: [0.9, 0.999]
+-      eps: 1.0e-8
+-    scheduler:
+-      name: CosineAnnealingLR
+-      interval: step
+-      frequency: 1
+-      min_lr: 0.0
+-      params:
+-        t_max: 200000
+-    max_epochs: 1000
+-    max_steps: 200000
+-    n_steps_per_epoch: 5000
+-    val_check_interval: 5000
+-    val_check_interval_unit: step
+-    # BANIS uses limit_val_batches=100 with batch_size=8.
+-    val_steps_per_epoch: 100
+-    gradient_clip_val: 1.0
+-    accumulate_grad_batches: 1
+-    precision: "16-mixed"
+-    log_every_n_steps: 100
+-    num_sanity_val_steps: 0
+-    ema:
+-      enabled: false
+-  data:
+-    train:
+-      path: /projects/weilab/dataset/nisb/base/train
+-      image: seed*/data.zarr/img
+-      label: seed*/data.zarr/seg
+-      resolution: [9, 9, 20]
+-    val:
+-      path: /projects/weilab/dataset/nisb/base/val
+-      image: seed100/data.zarr/img
+-      label: seed100/data.zarr/seg
+-      resolution: [9, 9, 20]
+-  monitor:
+-    logging:
+-      scalar:
+-        loss: [train_loss_total_epoch, val_loss_total]
+-        loss_every_n_steps: 100
+-      images:
+-        max_images: 8
+-        num_slices: 2
+-        log_every_n_epochs: 1
+-        channel_mode: all
+-    checkpoint:
+-      monitor: val_loss_total
+-      mode: min
+-      save_top_k: 3
+-      save_every_n_steps: 50000
+-      save_on_train_epoch_end: false
+-      save_last: true
+-      checkpoint_filename: "{epoch:03d}-{val_loss_total:.4f}"
+-      dirpath: outputs/nisb_base_banis/checkpoints/
+-
+ test:
+-  system:
+-    # Lazy sliding-window sharding splits one large volume across ranks and only
+-    # rank 0 decodes/saves after accumulator reduction.
+-    num_gpus: -1
+   data:
+     test:
+-      #path: dev/nisb/data/seed101/
+-      path: dev/nisb/data/seed0/
++      path: dev/nisb/data/seed101/
+       image: img_crop_988-988-575_x1024_y1024_z200.h5
+       label: seg_crop_988-988-575_x1024_y1024_z200.h5
+       resolution: [9, 9, 20]
+ 
+-# ============================================================================
+-# Parameter tuning for decode_affinity_cc threshold (--mode tune)
+-# ============================================================================
+ tune:
+   data:
+     val:
+-      path: dev/nisb/data/seed0/
++      path: dev/nisb/data/seed101/
+       image: img_crop_988-988-575_x1024_y1024_z200.h5
+       label: seg_crop_988-988-575_x1024_y1024_z200.h5
+       resolution: [9, 9, 20]
+-
+-
+-  enabled: true
+-  n_trials: 10
+-  study_name: nisb_base_banis_cc_crop_tuning
+-  load_if_exists: true
+-
+-  sampler:
+-    name: TPE
+-    kwargs:
+-      n_startup_trials: 10
+-
+-  optimization:
+-    mode: single
+-    single_objective:
+-      metric: adapted_rand
+-      direction: minimize
+-
+-  output:
+-    save_study: true
+-
+-  logging:
+-    verbose: true
+-    show_progress_bar: true
+-
+-  parameter_space:
+-    decoding:
+-      function_name: decode_affinity_cc
+-      defaults:
+-        backend: numba
+-        edge_offset: 0
+-      parameters:
+-        threshold:
+-          type: float
+-          range: [0.1, 0.7]
+-          step: 0.05
+-          description: "Affinity binarization threshold for connected components"
+diff --git a/tutorials/neuron_nisb/base_banis_v2.yaml b/tutorials/neuron_nisb/base_banis_v2.yaml
+index 898dacd..5e5d739 100644
+--- a/tutorials/neuron_nisb/base_banis_v2.yaml
++++ b/tutorials/neuron_nisb/base_banis_v2.yaml
+@@ -46,8 +46,7 @@ default:
+     model:
+       head: aff_r1
+       select_channel: [0, 1, 2]
+-    save_inference:
+-      save_all_heads: true
++    save_all_heads: true
+ 
+ train:
+   monitor:
+diff --git a/tutorials/neuron_nisb/common.yaml b/tutorials/neuron_nisb/common.yaml
+index 461bad6..ba129b1 100644
+--- a/tutorials/neuron_nisb/common.yaml
++++ b/tutorials/neuron_nisb/common.yaml
+@@ -35,8 +35,7 @@ default:
+       keep_input_on_cpu: true
+       sw_device: cuda
+       output_device: cpu
+-    save_inference:
+-      enabled: true
++    save_results: true
+     test_time_augmentation:
+       enabled: true
+       ensemble_mode: mean
+diff --git a/tutorials/neuron_snemi/neuron_snemi.yaml b/tutorials/neuron_snemi/neuron_snemi.yaml
+index 90209f3..d794b50 100644
+--- a/tutorials/neuron_snemi/neuron_snemi.yaml
++++ b/tutorials/neuron_snemi/neuron_snemi.yaml
+@@ -40,8 +40,7 @@ default:
+       patch_first_local: true
+       flip_axes: all
+       rotation90_axes: [[1, 2]]
+-    save_inference:
+-      enabled: true
++    save_results: true
+ 
+   decoding:
+     steps:
+diff --git a/tutorials/neuron_snemi/neuron_snemi_sdt.yaml b/tutorials/neuron_snemi/neuron_snemi_sdt.yaml
+index bdb3ab2..ca73e08 100644
+--- a/tutorials/neuron_snemi/neuron_snemi_sdt.yaml
++++ b/tutorials/neuron_snemi/neuron_snemi_sdt.yaml
+@@ -50,8 +50,7 @@ default:
+     model:
+       # crop_pad + affinity_crop[(9,0),(9,0),(9,0)] = pad_size [16,80,80]
+       crop_pad: [7, 16, 71, 80, 71, 80]
+-    save_inference:
+-      enabled: true
++    save_results: true
+ 
+   decoding:
+     steps:
+diff --git a/tutorials/neuron_snemi/neuron_snemi_sdt_multitask.yaml b/tutorials/neuron_snemi/neuron_snemi_sdt_multitask.yaml
+index 60dfdde..e6dac1c 100644
+--- a/tutorials/neuron_snemi/neuron_snemi_sdt_multitask.yaml
++++ b/tutorials/neuron_snemi/neuron_snemi_sdt_multitask.yaml
+@@ -100,8 +100,7 @@ default:
+       flip_axes: all
+       rotation90_axes: [[1, 2]]
+       ensemble_mode: min
+-    save_inference:
+-      enabled: true
++    save_results: true
+ 
+   decoding:
+     steps:
+diff --git a/tutorials/syn_cremi.yaml b/tutorials/syn_cremi.yaml
+index f0eb88e..639a49f 100644
+--- a/tutorials/syn_cremi.yaml
++++ b/tutorials/syn_cremi.yaml
+@@ -122,10 +122,9 @@ default:
+       enabled: true
+       flip_axes: all
+       ensemble_mode: mean
+-    save_inference:
+-      enabled: true
+-      dtype: float32
+-      backend: h5
++    save_results: true
++    dtype: float32
++    backend: h5
+ 
+ train:
+   system:
+@@ -189,8 +188,7 @@ train:
+ 
+ test:
+   inference:
+-    save_inference:
+-      output_path: outputs/rsunet_cremi_synapse_cleft/results/
++    output_path: outputs/rsunet_cremi_synapse_cleft/results/
+   data:
+     test:
+       # For local evaluation (labels available): use training volumes
+diff --git a/tutorials/vesicle_xm.yaml b/tutorials/vesicle_xm.yaml
+index b1a7ac0..2c0a958 100644
+--- a/tutorials/vesicle_xm.yaml
++++ b/tutorials/vesicle_xm.yaml
+@@ -29,8 +29,7 @@ default:
+       rotation90_axes: [[1, 2]]
+     window:
+       window_size: [32, 128, 128]
+-    save_inference:
+-      enabled: true
++    save_results: true
+   decoding:
+     steps:
+     - name: decode_instance_binary_contour_distance

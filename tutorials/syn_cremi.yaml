@@ -122,10 +122,9 @@ default:
       enabled: true
       flip_axes: all
       ensemble_mode: mean
-    save_inference:
-      enabled: true
-      dtype: float32
-      backend: h5
+    save_results: true
+    save_dtype: float32
+    save_backend: h5
 
 train:
   system:
@@ -189,8 +188,7 @@ train:
 
 test:
   inference:
-    save_inference:
-      output_path: outputs/rsunet_cremi_synapse_cleft/results/
+    save_path: outputs/rsunet_cremi_synapse_cleft/results/
   data:
     test:
       # For local evaluation (labels available): use training volumes

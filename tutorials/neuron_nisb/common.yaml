@@ -35,8 +35,7 @@ default:
       keep_input_on_cpu: true
       sw_device: cuda
       output_device: cpu
-    save_inference:
-      enabled: true
+    save_results: true
     test_time_augmentation:
       enabled: true
       ensemble_mode: mean
@@ -91,8 +90,7 @@ tune:
       metric: adapted_rand
       direction: minimize
 
-  output:
-    save_study: true
+  save_study: true
 
   logging:
     verbose: true

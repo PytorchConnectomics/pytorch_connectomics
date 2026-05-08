@@ -727,8 +727,7 @@ def test_enabled_flags_require_explicit_opt_in(tmp_path):
 inference:
   test_time_augmentation:
     flip_axes: all
-  save_inference:
-    backend: h5
+  save_backend: h5
 evaluation:
   metrics: [dice]
 monitor:
@@ -747,7 +746,7 @@ optimization:
     cfg = resolve_default_profiles(cfg, mode="train")
 
     assert cfg.inference.test_time_augmentation.enabled is False
-    assert cfg.inference.save_prediction.enabled is False
+    assert cfg.inference.save_results is False
     assert cfg.evaluation.enabled is False
     assert cfg.monitor.logging.images.enabled is True
     assert cfg.optimization.ema.enabled is False
@@ -774,10 +773,9 @@ inference:
     chunk_size: [1008, 1008, 1350]
     halo: [0, 0, 0]
     axes: all
-  save_inference:
-    enabled: true
-    backend: h5
-    dtype: float16
+  save_results: true
+  save_backend: h5
+  save_dtype: float16
 decoding:
   enabled: false
 """.strip())
@@ -792,9 +790,9 @@ decoding:
     assert cfg.inference.chunking.enabled is True
     assert cfg.inference.chunking.output_mode == "raw_prediction"
     assert cfg.inference.chunking.chunk_size == [1008, 1008, 1350]
-    assert cfg.inference.save_prediction.enabled is True
-    assert cfg.inference.save_prediction.output_formats == ["h5"]
-    assert cfg.inference.save_prediction.storage_dtype == "float16"
+    assert cfg.inference.save_results is True
+    assert cfg.inference.save_backend == "h5"
+    assert cfg.inference.save_dtype == "float16"
     assert cfg.decoding.enabled is False
 
 
@@ -807,7 +805,9 @@ decoding:
         ("strategy: chunked", "inference.execution.strategy"),
         ("do_eval: false", "inference.execution.do_eval"),
         ("sliding_window:\n    lazy_load: true", "inference.window"),
-        ("save_prediction:\n    enabled: true", "inference.save_inference"),
+        ("save_prediction:\n    enabled: true", "inference.save_results"),
+        ("save_inference:\n    enabled: true", "inference.save_results"),
+        ("save:\n    enabled: true", "inference.save_results"),
     ],
 )
 def test_inference_runtime_aliases_are_rejected_in_yaml(tmp_path, alias_yaml, canonical_path):
@@ -830,12 +830,12 @@ default:
       enabled: true
 """.strip())
 
-    with pytest.raises(ValueError, match=r"default\.inference\.save_inference"):
+    with pytest.raises(ValueError, match=r"default\.inference\.save_results"):
         load_config(config_yaml)
 
 
 def test_inference_runtime_aliases_are_rejected_in_dict_and_cli():
-    with pytest.raises(ValueError, match=r"inference\.save_inference"):
+    with pytest.raises(ValueError, match=r"inference\.save_results"):
         from_dict({"inference": {"save_prediction": {"enabled": True}}})
 
     with pytest.raises(ValueError, match=r"inference\.window"):

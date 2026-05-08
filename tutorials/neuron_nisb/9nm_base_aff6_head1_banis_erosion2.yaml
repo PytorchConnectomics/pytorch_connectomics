@@ -109,10 +109,9 @@ default:
       blending: gaussian
       sigma_scale: 0.25
       padding_mode: replicate
-    save_inference:
-      enabled: true
-      backend: h5
-      dtype: float32
+    save_results: true
+    save_backend: h5
+    save_dtype: float32
     test_time_augmentation:
       enabled: false
 

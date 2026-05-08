@@ -88,9 +88,8 @@ default:
       output_device: cpu
       window_size: [32, 256, 256]
       sw_batch_size: 1
-    save_inference:
-      enabled: true
-      save_all_heads: true
+    save_results: true
+    save_all_heads: true
     test_time_augmentation:
       enabled: true
       ensemble_mode: mean
@@ -175,8 +174,7 @@ tune:
       metric: adapted_rand
       direction: minimize
 
-  output:
-    save_study: true
+  save_study: true
 
   logging:
     verbose: true

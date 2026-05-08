@@ -62,7 +62,7 @@ def run_prediction_inference(
         data = apply_prediction_transform(manager.cfg, data)
         data = apply_storage_dtype_transform(manager.cfg, data)
         compression = _normalize_compression(
-            getattr(getattr(manager.cfg.inference, "save_prediction", None), "compression", "gzip")
+            getattr(manager.cfg.inference, "save_compression", "gzip")
         )
         write_prediction_artifact(
             output_path,

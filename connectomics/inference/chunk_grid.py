@@ -102,13 +102,12 @@ def resolve_global_prediction_crop(
 
 
 def validate_chunked_output_format(cfg: Any) -> None:
-    save_cfg = getattr(getattr(cfg, "inference", None), "save_prediction", None)
-    formats = [str(fmt).lower() for fmt in getattr(save_cfg, "output_formats", ["h5"])]
-    unsupported_formats = [fmt for fmt in formats if fmt not in {"h5", "hdf5"}]
-    if unsupported_formats:
+    inference_cfg = getattr(cfg, "inference", None)
+    backend = str(getattr(inference_cfg, "save_backend", "h5")).lower()
+    if backend not in {"h5", "hdf5"}:
         raise ValueError(
             "Chunked inference writes a single streamed HDF5 output only; "
-            f"unsupported save_prediction.output_formats={unsupported_formats}."
+            f"unsupported inference.save_backend={backend!r}."
         )
 
 

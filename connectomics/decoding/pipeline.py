@@ -82,8 +82,16 @@ def apply_decode_pipeline(
     data: np.ndarray,
     decode_modes: Sequence[Any] | None,
     registry: DecoderRegistry | None = None,
+    *,
+    on_step_complete: Any = None,
 ) -> np.ndarray:
-    """Apply configured decode steps to prediction data."""
+    """Apply configured decode steps to prediction data.
+
+    ``on_step_complete``, if provided, is invoked as
+    ``on_step_complete(batch_idx, step, sample)`` after each decoder step
+    runs, with the step's output array. Used by the decoding stage to write
+    per-step intermediates without keeping them all in memory.
+    """
     if not decode_modes:
         return data
 
@@ -121,6 +129,9 @@ def apply_decode_pipeline(
             except Exception as exc:
                 raise RuntimeError(f"Error applying decode function '{step.name}': {exc}") from exc
 
+            if on_step_complete is not None:
+                on_step_complete(batch_idx, step, sample)
+
         results.append(sample)
 
     if len(results) == 1:
@@ -142,7 +153,13 @@ def resolve_decode_modes_from_cfg(cfg: Any) -> Sequence[Any] | None:
     return None
 
 
-def apply_decode_mode(cfg: Any, data: np.ndarray, *, verbose: bool = True) -> np.ndarray:
+def apply_decode_mode(
+    cfg: Any,
+    data: np.ndarray,
+    *,
+    verbose: bool = True,
+    on_step_complete: Any = None,
+) -> np.ndarray:
     """Apply decode pipeline resolved from top-level ``decoding``."""
     decode_modes = resolve_decode_modes_from_cfg(cfg)
     if not decode_modes:
@@ -153,4 +170,4 @@ def apply_decode_mode(cfg: Any, data: np.ndarray, *, verbose: bool = True) -> np
     if verbose:
         logger.info("Using decoding: %s", decode_modes)
 
-    return apply_decode_pipeline(data, decode_modes)
+    return apply_decode_pipeline(data, decode_modes, on_step_complete=on_step_complete)

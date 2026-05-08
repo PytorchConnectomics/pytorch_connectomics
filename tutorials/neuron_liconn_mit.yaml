@@ -82,8 +82,7 @@ default:
       enabled: false
     model:
       crop_pad: [23, 32, 119, 128, 119, 128]
-    save_inference:
-      enabled: true
+    save_results: true
 
   decoding:
     steps:

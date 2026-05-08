@@ -50,8 +50,7 @@ default:
     model:
       # crop_pad + affinity_crop[(9,0),(9,0),(9,0)] = pad_size [16,80,80]
       crop_pad: [7, 16, 71, 80, 71, 80]
-    save_inference:
-      enabled: true
+    save_results: true
 
   decoding:
     steps:

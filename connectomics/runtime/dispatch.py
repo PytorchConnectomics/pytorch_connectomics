@@ -182,7 +182,7 @@ def _run_test(
     print("=" * 60)
 
     cfg = resolve_test_stage_runtime(cfg)
-    cfg.inference.save_prediction.cache_suffix = resolve_prediction_cache_suffix(
+    cfg.inference.save_cache_suffix = resolve_prediction_cache_suffix(
         cfg,
         args.mode,
         checkpoint_path=args.checkpoint,
@@ -228,7 +228,7 @@ def _run_test(
         print("=" * 80)
 
         cfg = load_and_apply_best_params(cfg, checkpoint_path=args.checkpoint)
-        cfg.inference.save_prediction.cache_suffix = resolve_prediction_cache_suffix(
+        cfg.inference.save_cache_suffix = resolve_prediction_cache_suffix(
             cfg,
             args.mode,
             checkpoint_path=args.checkpoint,
@@ -263,7 +263,7 @@ def dispatch_runtime(args: Any, cfg: Config) -> None:
     configure_matmul_precision(cfg)
 
     if args.mode in ["test", "tune", "tune-test"]:
-        cfg.inference.save_prediction.cache_suffix = resolve_prediction_cache_suffix(cfg, args.mode)
+        cfg.inference.save_cache_suffix = resolve_prediction_cache_suffix(cfg, args.mode)
 
     if args.mode == "train":
         from . import preflight_check, print_preflight_issues
@@ -297,7 +297,7 @@ def dispatch_runtime(args: Any, cfg: Config) -> None:
         if try_skip_tune_with_cached_results(cfg, checkpoint_path=args.checkpoint):
             return
 
-    saved_prediction_path = getattr(getattr(cfg, "decoding", None), "input_prediction_path", "")
+    saved_prediction_path = getattr(getattr(cfg, "decoding", None), "load_prediction_path", "")
     has_saved_prediction = bool(
         saved_prediction_path
         and isinstance(saved_prediction_path, str)

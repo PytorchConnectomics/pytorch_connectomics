@@ -255,7 +255,7 @@ def test_has_assigned_test_shard_returns_false_for_empty_slice(tmp_path, monkeyp
 def test_tune_cache_only_preserves_checkpoint_tag_for_tuning_suffix(tmp_path, monkeypatch):
     cfg = Config()
     cfg.tune = TuneConfig()
-    cfg.inference.save_prediction.output_path = str(tmp_path / "results")
+    cfg.inference.save_path = str(tmp_path / "results")
 
     args = _make_args(tmp_path / "config.yaml", mode="tune")
     args.checkpoint = "outputs/run/checkpoints/step-step=00050000.ckpt"
@@ -325,16 +325,16 @@ def test_checkpoint_tune_uses_tuning_prediction_folder(tmp_path):
     expected_results_dir = expected_output_base / "results_step=00050000"
     assert output_base == expected_output_base
     assert tuning_dir == str(expected_tuning_dir)
-    assert cfg.tune.output.output_dir == str(expected_tuning_dir)
-    assert cfg.tune.output.output_pred == str(expected_tuning_dir / "predictions")
-    assert cfg.inference.save_prediction.output_path == str(expected_results_dir)
+    assert cfg.tune.save_path == str(expected_tuning_dir)
+    assert cfg.tune.save_predictions_path == str(expected_tuning_dir / "predictions")
+    assert cfg.inference.save_path == str(expected_results_dir)
 
 
 def test_test_stage_sync_preserves_checkpoint_prediction_output_path(tmp_path):
     cfg = Config()
-    cfg.inference.save_inference.enabled = True
-    cfg.inference.save_inference.backend = "h5"
-    cfg.inference.save_inference.dtype = "float16"
+    cfg.inference.save_results = True
+    cfg.inference.save_backend = "h5"
+    cfg.inference.save_dtype = "float16"
     args = _make_args(tmp_path / "config.yaml", mode="test")
     args.checkpoint = str(
         tmp_path
@@ -350,22 +350,22 @@ def test_test_stage_sync_preserves_checkpoint_prediction_output_path(tmp_path):
         tmp_path / "outputs" / "nisb_base_banis" / "20260427_095218" / "results_step=00200000"
     )
 
-    assert cfg.inference.save_prediction.output_path == str(expected_results_dir)
+    assert cfg.inference.save_path == str(expected_results_dir)
 
     cfg = resolve_test_stage_runtime(cfg)
 
-    assert cfg.inference.save_prediction.enabled is True
-    assert cfg.inference.save_prediction.output_formats == ["h5"]
-    assert cfg.inference.save_prediction.storage_dtype == "float16"
-    assert cfg.inference.save_prediction.output_path == str(expected_results_dir)
+    assert cfg.inference.save_results is True
+    assert cfg.inference.save_backend == "h5"
+    assert cfg.inference.save_dtype == "float16"
+    assert cfg.inference.save_path == str(expected_results_dir)
 
 
 def test_tune_cache_detection_uses_tuning_folder_then_result_fallback(tmp_path):
     cfg = Config()
     cfg.tune = TuneConfig()
-    cfg.inference.save_prediction.output_path = str(tmp_path / "results_step=00050000")
-    cfg.tune.output.output_pred = str(tmp_path / "tuning_step=00050000" / "predictions")
-    cfg.data.val.image = str(tmp_path / "images" / "img.h5")
+    cfg.inference.save_path = str(tmp_path / "results_step=00050000")
+    cfg.tune.save_predictions_path = str(tmp_path / "tuning_step=00050000" / "predictions")
+    cfg.data.val.image = str(tmp_path / "images" / "volume_a.h5")
 
     image_path = Path(cfg.data.val.image)
     image_path.parent.mkdir(parents=True, exist_ok=True)
@@ -380,10 +380,8 @@ def test_tune_cache_detection_uses_tuning_folder_then_result_fallback(tmp_path):
         is False
     )
 
-    results_pred = (
-        Path(cfg.inference.save_prediction.output_path)
-        / "img_tta_x1_ckpt-step=00050000_prediction.h5"
-    )
+    # Per-volume layout: <save_path>/<volume_stem>/raw_x1.h5
+    results_pred = Path(cfg.inference.save_path) / "volume_a" / "raw_x1.h5"
     results_pred.parent.mkdir(parents=True, exist_ok=True)
     write_hdf5(str(results_pred), np.zeros((1, 1, 1), dtype=np.float32), dataset="main")
 
@@ -396,7 +394,7 @@ def test_tune_cache_detection_uses_tuning_folder_then_result_fallback(tmp_path):
         is True
     )
 
-    tuning_pred = Path(cfg.tune.output.output_pred) / "img_tta_x1_ckpt-step=00050000_prediction.h5"
+    tuning_pred = Path(cfg.tune.save_predictions_path) / "volume_a" / "raw_x1.h5"
     tuning_pred.parent.mkdir(parents=True, exist_ok=True)
     write_hdf5(str(tuning_pred), np.zeros((1, 1, 1), dtype=np.float32), dataset="main")
 

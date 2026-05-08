@@ -87,7 +87,7 @@ def test_write_outputs_restores_to_input_space(tmp_path):
 
     cfg = Config()
     cfg.test = HydraTestConfig()
-    cfg.inference.save_prediction.output_path = str(tmp_path)
+    cfg.inference.save_path = str(tmp_path)
     cfg.test.data.nnunet_preprocessing.enabled = True
     cfg.test.data.nnunet_preprocessing.restore_to_input_space = True
 
@@ -100,5 +100,6 @@ def test_write_outputs_restores_to_input_space(tmp_path):
         batch_meta=[result["image_meta_dict"]],
     )
 
-    saved = read_hdf5(str(tmp_path / "toy_volume_prediction.h5"), dataset="main")
+    # Per-volume layout: <save_path>/<volume_stem>/<artifact>.h5
+    saved = read_hdf5(str(tmp_path / "toy_volume" / "prediction.h5"), dataset="main")
     assert saved.shape == (5, 7, 9)

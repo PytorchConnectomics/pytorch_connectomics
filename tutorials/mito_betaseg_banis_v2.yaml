@@ -146,19 +146,26 @@ default:
       enabled: false
       flip_axes: all
       ensemble_mode: min
-    save_inference:
-      enabled: true
+    save_results: true
 
   decoding:
     steps:
-    - name: decode_distance_watershed
+    - name: decode_binary_contour_distance_watershed
       kwargs:
+        binary_channels: [0, 1, 2]
+        binary_channel_reduction: min
+        contour_channels:
         distance_channels: [6]
-        distance_threshold: [0.5, 0]
-        min_seed_size: 100
-        min_instance_size: 50
-        use_fast_edt: true
-        edt_parallel: 8
+        binary_threshold:
+        - 0.9
+        - 0.85
+        contour_threshold:
+        distance_threshold:
+        - 0.5
+        - -0.5
+        min_instance_size: 100
+        min_seed_size: 20
+        prediction_scale: 1
     postprocessing:
       enabled: true
   evaluation:

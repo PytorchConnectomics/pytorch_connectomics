@@ -74,9 +74,12 @@ def test_resolve_output_filenames_supports_string_image_paths_without_meta():
 
 def test_resolve_output_filenames_supports_single_lazy_string_image_path():
     cfg = Config()
-    batch = {"image": "/tmp/input_e.zarr/img"}
+    batch = {"image": "/data/seed101/input_e.zarr/img"}
 
-    assert resolve_output_filenames(cfg, batch, global_step=9) == ["img"]
+    # Per-volume layout: when the filename stem is uninformative (`img`)
+    # and the immediate parent is a container directory (`*.zarr`), the
+    # resolver walks past the container to the enclosing dataset dir.
+    assert resolve_output_filenames(cfg, batch, global_step=9) == ["seed101"]
 
 
 def test_distributed_evaluation_sampler_partitions_without_duplicates():

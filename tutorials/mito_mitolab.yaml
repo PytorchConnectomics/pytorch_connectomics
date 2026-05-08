@@ -73,8 +73,7 @@ default:
       enabled: true
       intensity_scale: 255
       intensity_dtype: uint8
-    save_inference:
-      enabled: true
+    save_results: true
 
 train:
   system:
@@ -131,8 +130,7 @@ train:
 
 test:
   inference:
-    save_inference:
-      output_path: outputs/cem-mitolab_mednext2d/results/
+    save_path: outputs/cem-mitolab_mednext2d/results/
   data:
     test:
       image: datasets/cem-mitolab/test.json

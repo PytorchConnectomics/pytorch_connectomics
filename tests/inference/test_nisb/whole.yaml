@@ -1,0 +1,15 @@
+# Whole-volume inference variant of the parallel-inference consistency
+# test. Pair with `chunked.yaml`; both share `base.yaml`.
+#
+# This variant runs the full sliding-window grid against the entire
+# 1024x1024x200 crop in one accumulator, with no chunked staging.
+
+_base_:
+  - base.yaml
+
+experiment_name: test_nisb_consistency_whole
+
+default:
+  inference:
+    execution:
+      strategy: whole_volume

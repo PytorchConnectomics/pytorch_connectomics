@@ -102,10 +102,9 @@ default:
       blending: gaussian
       sigma_scale: 0.25
       padding_mode: replicate
-    save_inference:
-      enabled: true
-      backend: h5
-      dtype: float32
+    save_results: true
+    save_backend: h5
+    save_dtype: float32
     test_time_augmentation:
       enabled: false
       flip_axes:
@@ -194,8 +193,7 @@ train:
 
 test:
   inference:
-    save_inference:
-      output_path: outputs/neuron_nisb_9nm_base_mednext_l_aff9_multitask/results/
+    save_path: outputs/neuron_nisb_9nm_base_mednext_l_aff9_multitask/results/
   data:
     test:
       image: /projects/weilab/dataset/nisb/base/test/seed*/data.zarr/img

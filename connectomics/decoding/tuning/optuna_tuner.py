@@ -100,8 +100,12 @@ def _resolve_tuning_prediction_files(
     if not image_files:
         raise FileNotFoundError(f"No image files found matching pattern: {tune_image_pattern}")
 
+    # Per-volume layout: <predictions_dir>/<volume_stem>/<cache_suffix>
+    from connectomics.runtime.output_naming import _stem_from_image_path
+
     expected_files = [
-        predictions_dir / f"{Path(str(path)).stem}{cache_suffix}" for path in image_files
+        predictions_dir / _stem_from_image_path(str(path)) / cache_suffix
+        for path in image_files
     ]
     existing_files = [str(path) for path in expected_files if path.exists()]
     return existing_files, [str(path) for path in expected_files]
@@ -783,8 +787,8 @@ class OptunaDecodingTuner:
 
         # Resolve storage: auto-generate SQLite path when save_study=True
         storage = getattr(self.tune_cfg, "storage", None)
-        if not storage and getattr(self.tune_cfg.output, "save_study", False):
-            output_dir = getattr(self.tune_cfg.output, "output_dir", None)
+        if not storage and getattr(self.tune_cfg, "save_study", False):
+            output_dir = getattr(self.tune_cfg, "save_path", None)
             if output_dir:
                 db_path = Path(output_dir) / tuning_study_db_filename(
                     self.cfg,
@@ -1477,7 +1481,7 @@ class OptunaDecodingTuner:
 
     def _save_results(self, study: optuna.Study):
         """Save optimization results to disk."""
-        output_dir = Path(self.tune_cfg.output.output_dir)
+        output_dir = Path(self.tune_cfg.save_path)
         output_dir.mkdir(parents=True, exist_ok=True)
 
         # Save best parameters
@@ -1529,7 +1533,7 @@ class OptunaDecodingTuner:
         logger.info("Best parameters saved to: %s", best_params_file)
 
         # Save study if requested
-        if self.tune_cfg.output.save_study:
+        if self.tune_cfg.save_study:
             resolved = getattr(self, "_resolved_storage", None)
             if resolved:
                 logger.info("Study persisted to database: %s", resolved)

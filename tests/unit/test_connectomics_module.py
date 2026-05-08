@@ -348,20 +348,20 @@ def test_runtime_inference_config_uses_merged_root_config():
     """Runtime inference config should come from cfg.inference only."""
     cfg = _base_config()
     cfg.test = HydraTestConfig()
-    cfg.inference.save_prediction.enabled = True
-    cfg.test.inference.save_prediction.enabled = False
+    cfg.inference.save_results = True
+    cfg.test.inference.save_results = False
 
     module = ConnectomicsModule(cfg, model=SimpleModel())
 
     runtime_cfg = module._get_runtime_inference_config()
-    assert runtime_cfg.save_prediction.enabled is True
+    assert runtime_cfg.save_results is True
 
 
 def test_resolve_test_output_config_uses_runtime_inference_output_path(monkeypatch):
-    """Output path should come from cfg.inference.save_prediction."""
+    """Output path should come from cfg.inference."""
     cfg = _base_config()
-    cfg.inference.save_prediction.output_path = "/tmp/test_results"
-    cfg.inference.save_prediction.cache_suffix = "_x1_prediction.h5"
+    cfg.inference.save_path = "/tmp/test_results"
+    cfg.inference.save_cache_suffix = "raw_x1.h5"
     module = ConnectomicsModule(cfg, model=SimpleModel())
 
     monkeypatch.setattr(
@@ -375,14 +375,14 @@ def test_resolve_test_output_config_uses_runtime_inference_output_path(monkeypat
 
     assert mode == "test"
     assert output_dir == "/tmp/test_results"
-    assert cache_suffix == "_x1_prediction.h5"
+    assert cache_suffix == "raw_x1.h5"
     assert filenames == ["sample_a"]
 
 
 def test_resolve_test_output_config_uses_current_tta_suffix_when_tta_is_enabled(monkeypatch):
     cfg = _base_config()
-    cfg.inference.save_prediction.output_path = "/tmp/test_results"
-    cfg.inference.save_prediction.cache_suffix = "_x1_prediction.h5"
+    cfg.inference.save_path = "/tmp/test_results"
+    cfg.inference.save_cache_suffix = "raw_x1.h5"
     cfg.inference.test_time_augmentation.enabled = True
     cfg.inference.test_time_augmentation.flip_axes = [0, 1, 2]
     cfg.inference.test_time_augmentation.rotation90_axes = [[1, 2]]
@@ -399,14 +399,14 @@ def test_resolve_test_output_config_uses_current_tta_suffix_when_tta_is_enabled(
 
     assert mode == "test"
     assert output_dir == "/tmp/test_results"
-    assert cache_suffix == "_tta_x12_prediction.h5"
+    assert cache_suffix == "raw_x12.h5"
     assert filenames == ["sample_a"]
 
 
 def test_resolve_test_output_config_includes_checkpoint_name_in_tta_suffix(monkeypatch):
     cfg = _base_config()
-    cfg.inference.save_prediction.output_path = "/tmp/test_results"
-    cfg.inference.save_prediction.cache_suffix = "_x1_prediction.h5"
+    cfg.inference.save_path = "/tmp/test_results"
+    cfg.inference.save_cache_suffix = "raw_x1.h5"
     cfg.inference.test_time_augmentation.enabled = True
     cfg.inference.test_time_augmentation.flip_axes = [0, 1, 2]
     cfg.inference.test_time_augmentation.rotation90_axes = [[1, 2]]
@@ -424,7 +424,7 @@ def test_resolve_test_output_config_includes_checkpoint_name_in_tta_suffix(monke
 
     assert mode == "test"
     assert output_dir == "/tmp/test_results"
-    assert cache_suffix == "_tta_x12_ckpt-best_prediction.h5"
+    assert cache_suffix == "raw_x12.h5"
     assert filenames == ["sample_a"]
 
 
@@ -437,8 +437,8 @@ def test_resolve_test_output_config_includes_output_head_in_tta_suffix(monkeypat
         "sdt": {"out_channels": 1, "num_blocks": 0},
     }
     cfg.inference.model.head = "sdt"
-    cfg.inference.save_prediction.output_path = "/tmp/test_results"
-    cfg.inference.save_prediction.cache_suffix = "_x1_prediction.h5"
+    cfg.inference.save_path = "/tmp/test_results"
+    cfg.inference.save_cache_suffix = "raw_x1.h5"
     cfg.inference.test_time_augmentation.enabled = True
     cfg.inference.test_time_augmentation.flip_axes = None
     cfg.inference.test_time_augmentation.rotation90_axes = None
@@ -455,14 +455,14 @@ def test_resolve_test_output_config_includes_output_head_in_tta_suffix(monkeypat
 
     assert mode == "test"
     assert output_dir == "/tmp/test_results"
-    assert cache_suffix == "_tta_x1_head-sdt_prediction.h5"
+    assert cache_suffix == "raw_x1_head-sdt.h5"
     assert filenames == ["sample_a"]
 
 
 def test_save_metrics_to_file_uses_runtime_inference_output_path(tmp_path):
-    """Metrics should be written under cfg.inference.save_prediction.output_path."""
+    """Metrics should be written under cfg.inference.save_path."""
     cfg = _base_config()
-    cfg.inference.save_prediction.output_path = str(tmp_path)
+    cfg.inference.save_path = str(tmp_path)
     module = ConnectomicsModule(cfg, model=SimpleModel())
 
     save_metrics_to_file(
@@ -473,12 +473,13 @@ def test_save_metrics_to_file_uses_runtime_inference_output_path(tmp_path):
         },
     )
 
-    assert (tmp_path / "evaluation_metrics_vol0_x1_prediction.txt").exists()
+    # Per-volume layout: eval files live under <save_path>/<volume_name>/.
+    assert (tmp_path / "vol0" / "eval_prediction_x1.txt").exists()
 
 
 def test_save_metrics_to_file_matches_final_prediction_tag(tmp_path):
     cfg = _base_config()
-    cfg.inference.save_prediction.output_path = str(tmp_path)
+    cfg.inference.save_path = str(tmp_path)
     cfg.inference.model.select_channel = [0, 1, 2]
     cfg.decoding.steps = [
         {
@@ -502,21 +503,27 @@ def test_save_metrics_to_file_matches_final_prediction_tag(tmp_path):
 
     assert (
         tmp_path
-        / "evaluation_metrics_test-input_x1_ch0-1-2_ckpt-best_decoding_waterz_aff50_his256-0.4.txt"
+        / "test-input"
+        / "eval_decoded_x1_ch0-1-2_waterz_aff50_his256-0.4.txt"
     ).exists()
 
+    # decode_experiments.tsv is a cross-volume log at the save_path root.
     tsv_path = tmp_path / "decode_experiments.tsv"
     assert tsv_path.exists()
     lines = tsv_path.read_text().strip().splitlines()
     assert "input_tta_prediction_name" in lines[0]
-    assert "test-input_tta_x1_ch0-1-2_ckpt-best_prediction.h5" in lines[1]
+    # Per-volume layout: tta cache filename no longer carries `<volume>_` prefix.
+    assert "raw_x1_ch0-1-2.h5" in lines[1]
 
 
 def test_load_cached_predictions_reads_existing_prediction_files(tmp_path, monkeypatch):
     """Existing cached predictions should load without falling back to inference."""
     cfg = _base_config()
     module = ConnectomicsModule(cfg, model=SimpleModel())
-    pred_file = tmp_path / "sample_x1_prediction.h5"
+    # Per-volume layout: <output_dir>/<volume_stem>/<artifact>.h5.
+    volume_dir = tmp_path / "sample"
+    volume_dir.mkdir()
+    pred_file = volume_dir / "raw_x1.h5"
     pred_file.write_text("stub")
 
     expected = np.ones((1, 4, 4, 4), dtype=np.float32)
@@ -527,12 +534,12 @@ def test_load_cached_predictions_reads_existing_prediction_files(tmp_path, monke
     predictions, loaded, suffix = module._load_cached_predictions(
         str(tmp_path),
         ["sample"],
-        "_x1_prediction.h5",
+        "raw_x1.h5",
         "test",
     )
 
     assert loaded is True
-    assert suffix == "_x1_prediction.h5"
+    assert suffix == "raw_x1.h5"
     assert predictions.shape == (1, 4, 4, 4)
 
 
@@ -545,7 +552,10 @@ def test_load_cached_predictions_prefers_final_prediction_for_checkpoint_tagged_
     cfg.inference.test_time_augmentation.rotation90_axes = [[1, 2]]
     module = ConnectomicsModule(cfg, model=SimpleModel())
     module._prediction_checkpoint_path = "/tmp/checkpoints/best.ckpt"
-    pred_file = tmp_path / "sample_x12_ckpt-best_prediction.h5"
+    # Per-volume layout
+    volume_dir = tmp_path / "sample"
+    volume_dir.mkdir()
+    pred_file = volume_dir / "raw_x12.h5"
     pred_file.write_text("stub")
 
     expected = np.ones((1, 4, 4, 4), dtype=np.float32)
@@ -556,18 +566,18 @@ def test_load_cached_predictions_prefers_final_prediction_for_checkpoint_tagged_
     predictions, loaded, suffix = module._load_cached_predictions(
         str(tmp_path),
         ["sample"],
-        "_tta_x12_ckpt-best_prediction.h5",
+        "raw_x12.h5",
         "test",
     )
 
     assert loaded is True
-    assert suffix == "_x12_ckpt-best_prediction.h5"
+    assert suffix == "raw_x12.h5"
     assert predictions.shape == (1, 4, 4, 4)
 
 
 def test_load_cached_predictions_does_not_pick_unrelated_tta_channel_cache(tmp_path, monkeypatch):
     cfg = _base_config()
-    cfg.inference.save_prediction.cache_suffix = "_x1_ch4-6-9_prediction_waterz_t0.4.h5"
+    cfg.inference.save_cache_suffix = "_x1_ch4-6-9_prediction_waterz_t0.4.h5"
     cfg.inference.model.select_channel = [4, 6, 9]
     module = ConnectomicsModule(cfg, model=SimpleModel())
     unrelated_tta_file = tmp_path / "sample_tta_x1_ch0-1-2_prediction.h5"
@@ -611,13 +621,13 @@ def test_load_cached_predictions_does_not_pick_legacy_tta_cache_when_checkpoint_
     predictions, loaded, suffix = module._load_cached_predictions(
         str(tmp_path),
         ["sample"],
-        "_x1_prediction.h5",
+        "raw_x1.h5",
         "test",
     )
 
     assert predictions is None
     assert loaded is False
-    assert suffix == "_x1_prediction.h5"
+    assert suffix == "raw_x1.h5"
 
 
 def test_on_test_epoch_end_logs_aggregated_metrics_once():

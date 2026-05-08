@@ -48,19 +48,18 @@ def configure_checkpoint_output_paths(args: Any, cfg: Config) -> tuple[Path | No
 
         tuning_dir = output_base / tuning_folder_name
         tuning_prediction_dir = tuning_dir / "predictions"
-        save_pred_cfg = cfg.inference.save_prediction
         if getattr(cfg, "tune", None) is not None:
-            cfg.tune.output.output_dir = str(tuning_dir)
-            cfg.tune.output.output_pred = str(tuning_prediction_dir)
-        save_pred_cfg.output_path = str(output_base / results_folder_name)
-        save_pred_cfg.cache_suffix = intermediate_prediction_cache_suffix(
+            cfg.tune.save_path = str(tuning_dir)
+            cfg.tune.save_predictions_path = str(tuning_prediction_dir)
+        cfg.inference.save_path = str(output_base / results_folder_name)
+        cfg.inference.save_cache_suffix = intermediate_prediction_cache_suffix(
             cfg, checkpoint_path=args.checkpoint
         )
 
         if args.mode == "tune-test":
             print(f"Tuning prediction output: {tuning_prediction_dir}")
-            print(f"Test output: {save_pred_cfg.output_path}")
-            print(f"Test cache suffix: {save_pred_cfg.cache_suffix}")
+            print(f"Test output: {cfg.inference.save_path}")
+            print(f"Test cache suffix: {cfg.inference.save_cache_suffix}")
 
         return output_base, str(tuning_dir)
 
@@ -69,8 +68,8 @@ def configure_checkpoint_output_paths(args: Any, cfg: Config) -> tuple[Path | No
         results_folder_name = f"results_{step_suffix}"
         print(f"Using checkpoint {step_suffix} - output will be saved to: {results_folder_name}")
 
-    cfg.inference.save_prediction.output_path = str(output_base / results_folder_name)
-    return output_base, cfg.inference.save_prediction.output_path
+    cfg.inference.save_path = str(output_base / results_folder_name)
+    return output_base, cfg.inference.save_path
 
 
 def setup_runtime_directories(args: Any, cfg: Config) -> tuple[Path, Path]:

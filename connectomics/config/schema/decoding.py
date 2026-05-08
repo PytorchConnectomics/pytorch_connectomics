@@ -103,9 +103,21 @@ class DecodingConfig:
     """Decoded-output orchestration configuration."""
 
     enabled: bool = True
+    # Save the per-step output of each decoder in `steps`. Off by default;
+    # only useful for debugging chained decoders. Elided when len(steps)==1
+    # because the per-step output equals the final result.
+    save_intermediate: bool = False
+    # Save the final decoded (and optionally postprocessed) artifact.
+    save_results: bool = True
+    # Optional override for the decoded-artifact write directory. Defaults to
+    # ``inference.save_path`` when unset.
+    save_path: str = ""
+    # Optional user-controlled filename suffix appended to decoded outputs.
+    save_suffix: str = ""
     steps: List[DecodeModeConfig] = field(default_factory=list)
-    output_suffix: str = ""
     postprocessing: PostprocessingConfig = field(default_factory=PostprocessingConfig)
-    output_path: str = ""
-    input_prediction_path: str = ""
+    # Optional explicit raw-prediction file (.h5). If set, pipeline loads
+    # this file and proceeds to decoding (decode-only mode).
+    load_prediction_path: str = ""
+    affinity_mask_path: str = ""
     tuning: Optional[DecodingTuningConfig] = None

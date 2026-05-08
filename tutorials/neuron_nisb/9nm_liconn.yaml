@@ -48,8 +48,7 @@ train:
 
 test:
   inference:
-    save_inference:
-      output_path: outputs/neuron_nisb_9nm_liconn_mednext_b_sdt/results_seed101/
+    save_path: outputs/neuron_nisb_9nm_liconn_mednext_b_sdt/results_seed101/
   data:
     test:
       path: /projects/weilab/dataset/nisb/liconn/test/

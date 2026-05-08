@@ -19,8 +19,7 @@ train:
 
 test:
   inference:
-    save_inference:
-      output_path: outputs/mitoem30r_mednext_sdt_multitask/results/
+    save_path: outputs/mitoem30r_mednext_sdt_multitask/results/
   data:
     test:
       image: EM30-R/im_test.h5

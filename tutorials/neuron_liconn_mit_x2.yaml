@@ -390,13 +390,12 @@ test:
       sw_device: cuda
       output_device: cpu
 
-    save_inference:
-      enabled: true
-      backend: h5
-      output_path: /orcd/scratch/bcs/002/mansour/train_liconn/outputs/results_axons/
-      # float32 for full precision affinities; use float16 to halve storage
-      dtype: float32
-      compression: gzip
+    save_results: true
+    save_backend: h5
+    save_path: /orcd/scratch/bcs/002/mansour/train_liconn/outputs/results_axons/
+    # float32 for full precision affinities; use float16 to halve storage
+    save_dtype: float32
+    save_compression: gzip
 
   evaluation:
     enabled: false   # no ground truth — cannot compute metrics

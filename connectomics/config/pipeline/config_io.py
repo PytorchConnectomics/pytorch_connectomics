@@ -117,10 +117,43 @@ _INFERENCE_RUNTIME_ALIAS_REPLACEMENTS = {
     "strategy": "execution.strategy",
     "do_eval": "execution.do_eval",
     "sliding_window": "window",
-    "save_prediction": "save_inference",
+    # Storage-leaf renames (v3 naming convention).
+    "save": "save_results",
+    "save_prediction": "save_results",
+    "save_inference": "save_results",
+    "output_path": "save_path",
+    "cache_suffix": "save_cache_suffix",
+    "dtype": "save_dtype",
+    "backend": "save_backend",
+    "compression": "save_compression",
+    # Deleted dead fields.
+    "chunks": "save_path (`chunks` was unused; field removed)",
+    "write_mode": "save_path (`write_mode` was unused; field removed)",
+    # Load-leaf rename.
+    "tta_result_path": "load_tta_path",
 }
 
 _INFERENCE_CONFIG_ROOTS = ("inference", "default.inference", "test.inference", "tune.inference")
+
+_DECODING_RUNTIME_ALIAS_REPLACEMENTS = {
+    "output_path": "save_path",
+    "output_suffix": "save_suffix",
+    "input_prediction_path": "load_prediction_path",
+}
+
+_DECODING_CONFIG_ROOTS = ("decoding", "default.decoding", "test.decoding", "tune.decoding")
+
+# `tune.output:` block was hoisted; reject the entire sub-block.
+_TUNE_OUTPUT_FIELD_REPLACEMENTS = {
+    "output_dir": "save_path",
+    "output_pred": "save_predictions_path",
+    "cache_suffix": "save_cache_suffix",
+    "save_all_trials": "save_all_trials",
+    "save_best_segmentation": "save_best_segmentation",
+    "save_study": "save_study",
+    "visualizations": "save_visualizations",
+    "report": "save_report",
+}
 
 
 def _path_is_or_descendant(path: str, prefix: str) -> bool:
@@ -128,7 +161,7 @@ def _path_is_or_descendant(path: str, prefix: str) -> bool:
 
 
 def _reject_inference_runtime_alias_paths(explicit_field_paths: set[str]) -> None:
-    """Reject YAML use of internal inference runtime aliases.
+    """Reject YAML use of internal inference runtime aliases and renamed leaves.
 
     The aliases stay on the dataclass because runtime code still consumes one
     synced representation after load. User-facing YAML must configure the
@@ -142,6 +175,33 @@ def _reject_inference_runtime_alias_paths(explicit_field_paths: set[str]) -> Non
                     f"`{alias_path}` is an internal runtime alias and cannot be set in YAML. "
                     f"Use `{root}.{canonical_tail}` instead."
                 )
+
+    for root in _DECODING_CONFIG_ROOTS:
+        for alias, canonical_tail in _DECODING_RUNTIME_ALIAS_REPLACEMENTS.items():
+            alias_path = f"{root}.{alias}"
+            if any(_path_is_or_descendant(path, alias_path) for path in explicit_field_paths):
+                raise ValueError(
+                    f"`{alias_path}` was renamed. "
+                    f"Use `{root}.{canonical_tail}` instead."
+                )
+
+    # tune.output:* sub-block hoisted to tune.save_*
+    for tune_root in ("tune", "default.tune"):
+        block = f"{tune_root}.output"
+        if any(_path_is_or_descendant(path, block) for path in explicit_field_paths):
+            # Find the most specific complaint
+            for alias, canonical_tail in _TUNE_OUTPUT_FIELD_REPLACEMENTS.items():
+                alias_path = f"{block}.{alias}"
+                if any(_path_is_or_descendant(path, alias_path) for path in explicit_field_paths):
+                    raise ValueError(
+                        f"`{alias_path}` was hoisted. "
+                        f"Use `{tune_root}.{canonical_tail}` instead."
+                    )
+            raise ValueError(
+                f"`{block}` block was removed. Hoist its fields to "
+                f"`{tune_root}.save_*` siblings (e.g. output_dir → save_path, "
+                "output_pred → save_predictions_path)."
+            )
 
 
 def _reject_inference_runtime_alias_config(conf: DictConfig) -> None:

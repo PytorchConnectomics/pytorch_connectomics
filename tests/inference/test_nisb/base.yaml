@@ -1,0 +1,62 @@
+# Shared base for the parallel-inference consistency test.
+#
+# Inherits everything from `tutorials/neuron_nisb/base_banis_crop.yaml`
+# (model, dataloader, augmentation, training-time fields, and the small
+# 1024x1024x200 crop volume under `dev/nisb/data/seed0/`).
+#
+# This file only normalizes the inference-side knobs that have to match
+# byte-for-byte between the `whole.yaml` and `chunked.yaml` variants:
+#   - same sliding-window grid (window_size 128, overlap 0.5, gaussian
+#     blending, replicate padding, snap_to_edge true) — already what
+#     `base_banis_crop.yaml` sets, repeated here so it is obvious which
+#     fields the two variants are supposed to share
+#   - decoding + evaluation disabled (we compare *raw predictions*; the
+#     decoded segmentation has its own equality story driven by
+#     `decode_affinity_cc` and is out of scope)
+#   - distributed_sharding off, num_gpus 1, fp32 prediction storage —
+#     so single-rank consistency is the first thing to verify; switch
+#     these on later to reproduce the exact runtime the bug appears in
+#
+# `whole.yaml` and `chunked.yaml` are the only files that change
+# `inference.execution.strategy` and (for the chunked variant) add the
+# `inference.chunking` block.
+
+_base_:
+  - ../../../tutorials/neuron_nisb/base_banis_crop.yaml
+
+experiment_name: test_nisb_consistency_base
+description: >-
+  Shared base for whole-volume vs chunked inference consistency check
+  on the 1024x1024x200 NISB crop. Not meant to be run directly.
+
+default:
+  system:
+    num_gpus: 1
+    num_workers: 4
+  inference:
+    window:
+      # Single-rank deterministic comparison; flip to true once the
+      # single-rank case is consistent.
+      distributed_sharding: false
+      window_size: [128, 128, 128]
+      sw_batch_size: 6
+      overlap: 0.5
+      blending: gaussian
+      sigma_scale: 0.25
+      padding_mode: replicate
+      snap_to_edge: true
+      lazy_load: true
+      keep_input_on_cpu: true
+      sw_device: cuda
+      output_device: cpu
+    save_results: true
+    save_backend: h5
+    save_dtype: float16
+    test_time_augmentation:
+      enabled: false
+
+  decoding:
+    enabled: false
+
+  evaluation:
+    enabled: false
