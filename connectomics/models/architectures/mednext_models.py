@@ -10,7 +10,7 @@ Reference:
     https://arxiv.org/abs/2303.09975
 
 Installation:
-    pip install -e /projects/weilab/weidf/lib/MedNeXt
+    pip install git+https://github.com/MIC-DKFZ/MedNeXt.git
 """
 
 from __future__ import annotations
@@ -295,11 +295,8 @@ def _check_mednext_available():
     """Check if MedNeXt is installed."""
     if not MEDNEXT_AVAILABLE:
         raise ImportError(
-            "MedNeXt is not installed.\n"
-            "Install from: /projects/weilab/weidf/lib/MedNeXt\n"
-            "Run: pip install -e /projects/weilab/weidf/lib/MedNeXt\n"
-            "Or add to PYTHONPATH: export PYTHONPATH=/projects/weilab/weidf/lib/MedNeXt:"
-            "$PYTHONPATH"
+            "MedNeXt is not installed. Install with:\n"
+            "    pip install git+https://github.com/MIC-DKFZ/MedNeXt.git"
         )
 
 
@@ -511,7 +508,7 @@ def upkern_load_weights(
     except ImportError:
         raise ImportError(
             "UpKern utility not found in MedNeXt installation.\n"
-            "Ensure MedNeXt is properly installed from /projects/weilab/weidf/lib/MedNeXt"
+            "Reinstall: pip install git+https://github.com/MIC-DKFZ/MedNeXt.git"
         )
 
     # Extract the actual MedNeXt models from wrappers
