@@ -379,6 +379,19 @@ def build_mednext(cfg) -> ConnectomicsModel:
         deep_supervision=deep_supervision,
     )
 
+    # Optional activation checkpointing. The upstream create_mednext_v1 only
+    # hard-codes this for sizes M/L; expose it for S/B by setting the flag on
+    # the constructed module (the checkpoint paths are guarded by the same
+    # attribute the constructor would have set).
+    checkpoint_style = getattr(cfg.model.mednext, "checkpoint_style", None)
+    if checkpoint_style is not None:
+        if checkpoint_style != "outside_block":
+            raise ValueError(
+                "model.mednext.checkpoint_style must be None or 'outside_block', "
+                f"got: {checkpoint_style!r}"
+            )
+        model.outside_block_checkpointing = True
+
     if head_cfg:
         return MedNeXtMultiHeadWrapper(model, head_cfg, primary_head=primary_head)
     return MedNeXtWrapper(model, deep_supervision=deep_supervision)
