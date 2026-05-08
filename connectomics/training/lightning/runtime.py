@@ -9,17 +9,19 @@ from typing import Optional
 logger = logging.getLogger(__name__)
 
 
-def _resolve_resume_run_directory(resume_checkpoint_path: str, checkpoint_subdir: str) -> Path:
-    """
-    Infer the run directory for a resumed training job from the checkpoint path.
+CHECKPOINT_LEAF = "checkpoints"
 
-    If the checkpoint already lives under a folder named like the configured
-    checkpoint subdirectory (usually ``checkpoints``), reuse that run
-    directory. Otherwise, treat the checkpoint's parent as the run directory
-    and continue saving checkpoints into ``<parent>/<checkpoint_subdir>``.
+
+def _resolve_resume_run_directory(resume_checkpoint_path: str) -> Path:
+    """Infer the run directory for a resumed training job from a checkpoint path.
+
+    If the checkpoint lives under a ``checkpoints/`` directory, reuse the
+    parent run directory. Otherwise, treat the checkpoint's parent as the
+    run directory and continue saving checkpoints into
+    ``<parent>/checkpoints``.
     """
     checkpoint_path = Path(resume_checkpoint_path).expanduser()
-    if checkpoint_path.parent.name == checkpoint_subdir:
+    if checkpoint_path.parent.name == CHECKPOINT_LEAF:
         return checkpoint_path.parent.parent
     return checkpoint_path.parent
 
@@ -27,37 +29,42 @@ def _resolve_resume_run_directory(resume_checkpoint_path: str, checkpoint_subdir
 def setup_run_directory(
     mode: str,
     cfg,
-    checkpoint_dirpath: str,
+    checkpoint_save_path: str,
     resume_checkpoint_path: Optional[str] = None,
 ):
-    """
-    Setup run directory with timestamp for training mode.
-    Handles DDP subprocess coordination via timestamp files.
+    """Setup run directory for the requested mode.
+
+    Train-mode rule (formalised):
+        ``<output_base>/<start_timestamp>/checkpoints/``
+    where ``<output_base>`` is the value of
+    ``cfg.monitor.checkpoint.save_path`` (the user-facing field is the
+    base, never the leaf). DDP subprocess coordination uses
+    ``<output_base>/.latest_timestamp``.
+
+    Test/tune-mode rule: the caller (``checkpoint_dispatch``) already
+    resolved the per-checkpoint output directory and passes it here as
+    ``checkpoint_save_path``; this function just mkdirs it.
 
     Args:
         mode: 'train', 'test', 'tune', or 'tune-test'
-        cfg: Config object (will be modified in-place for training mode)
-        checkpoint_dirpath: Path to checkpoint/output directory from config
-        resume_checkpoint_path: Checkpoint path for in-place training resume
+        cfg: Config object (modified in-place for training mode)
+        checkpoint_save_path: Train mode = output base; test/tune mode = the
+            already-resolved per-checkpoint output directory.
+        resume_checkpoint_path: Checkpoint path for in-place training resume.
 
     Returns:
-        Path: Run directory (timestamped for train, created for tune modes, dummy for test)
+        Path: Run directory (timestamped for train, created for tune/test).
     """
     import os
     from datetime import datetime
 
     from ...config import save_config
 
-    checkpoint_dir = Path(checkpoint_dirpath)
-    checkpoint_subdir = checkpoint_dir.name or "checkpoints"
-    output_base = checkpoint_dir.parent
-
     if mode == "train":
+        output_base = Path(checkpoint_save_path)
         resume_run_dir = None
         if resume_checkpoint_path:
-            resume_run_dir = _resolve_resume_run_directory(
-                resume_checkpoint_path, checkpoint_subdir
-            )
+            resume_run_dir = _resolve_resume_run_directory(resume_checkpoint_path)
             output_base = resume_run_dir.parent
 
         # Check if this is a DDP re-launch (LOCAL_RANK is set by PyTorch Lightning)
@@ -75,8 +82,8 @@ def setup_run_directory(
                 run_dir = output_base / timestamp
                 logger.info(f"Run directory: {run_dir}")
 
-            checkpoint_path = run_dir / checkpoint_subdir
-            cfg.monitor.checkpoint.dirpath = str(checkpoint_path)
+            checkpoint_path = run_dir / CHECKPOINT_LEAF
+            cfg.monitor.checkpoint.save_path = str(checkpoint_path)
 
             checkpoint_path.mkdir(parents=True, exist_ok=True)
 
@@ -101,8 +108,8 @@ def setup_run_directory(
             if timestamp_file.exists():
                 timestamp = timestamp_file.read_text().strip()
                 run_dir = output_base / timestamp
-                checkpoint_path = run_dir / checkpoint_subdir
-                cfg.monitor.checkpoint.dirpath = str(checkpoint_path)
+                checkpoint_path = run_dir / CHECKPOINT_LEAF
+                cfg.monitor.checkpoint.save_path = str(checkpoint_path)
                 logger.info(f"[DDP Rank {local_rank}] Using run directory: {run_dir}")
             else:
                 raise RuntimeError(
@@ -110,17 +117,17 @@ def setup_run_directory(
                 )
     elif mode in ["tune", "tune-test"]:
         # For tune modes, create the directory for Optuna outputs
-        run_dir = Path(checkpoint_dirpath)
+        run_dir = Path(checkpoint_save_path)
         run_dir.mkdir(parents=True, exist_ok=True)
         logger.info(f"Tuning output directory: {run_dir}")
     elif mode == "test":
         # For test mode, create the results directory
-        run_dir = Path(checkpoint_dirpath)
+        run_dir = Path(checkpoint_save_path)
         run_dir.mkdir(parents=True, exist_ok=True)
         logger.info(f"Test output directory: {run_dir}")
     else:
         # Fallback for unknown modes
-        run_dir = output_base / f"{mode}_run"
+        run_dir = Path(checkpoint_save_path).parent / f"{mode}_run"
         logger.info(f"Running in {mode} mode")
 
     return run_dir

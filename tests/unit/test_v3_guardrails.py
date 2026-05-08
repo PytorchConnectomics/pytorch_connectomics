@@ -89,6 +89,38 @@ def test_config_load_raises_on_unknown_top_level_key(tmp_path):
         load_config(config_yaml)
 
 
+def test_checkpoint_config_renames_dirpath_to_save_path():
+    from connectomics.config.schema.monitor import CheckpointConfig
+
+    cc = CheckpointConfig()
+    assert hasattr(cc, "save_path")
+    assert not hasattr(cc, "dirpath")
+    assert not hasattr(cc, "use_timestamp")
+
+
+@pytest.mark.parametrize(
+    "legacy_yaml, expected_message",
+    [
+        (
+            "monitor:\n  checkpoint:\n    dirpath: outputs/x/checkpoints\n",
+            "monitor.checkpoint.dirpath",
+        ),
+        (
+            "monitor:\n  checkpoint:\n    use_timestamp: false\n",
+            "monitor.checkpoint.use_timestamp",
+        ),
+    ],
+)
+def test_load_config_rejects_legacy_checkpoint_keys(tmp_path, legacy_yaml, expected_message):
+    from connectomics.config import load_config
+
+    config_yaml = tmp_path / "legacy.yaml"
+    config_yaml.write_text(legacy_yaml)
+
+    with pytest.raises(ValueError, match=expected_message):
+        load_config(config_yaml)
+
+
 def test_connectomics_config_public_api_snapshot():
     import connectomics.config as config
 

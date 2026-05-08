@@ -13,7 +13,7 @@ from connectomics.inference.lazy import (
     lazy_predict_region,
     lazy_predict_volume,
 )
-from connectomics.inference.sliding import build_sliding_importance_map
+from connectomics.inference.window import build_sliding_importance_map
 
 
 def _identity_forward(x: torch.Tensor) -> torch.Tensor:
@@ -52,7 +52,7 @@ def test_lazy_sliding_window_matches_eager_inference(tmp_path):
     cfg.model.output_size = [2, 3, 3]
     cfg.inference.sliding_window.window_size = [2, 3, 3]
     cfg.inference.sliding_window.overlap = 0.5
-    cfg.inference.sliding_window.blending = "gaussian"
+    cfg.inference.sliding_window.blending = "bump"
 
     image_path = tmp_path / "lazy_eager_match.h5"
     volume = np.arange(4 * 5 * 6, dtype=np.float32).reshape(4, 5, 6)
@@ -69,7 +69,6 @@ def test_distance_transform_blending_matches_banis_weight_map():
     importance = build_sliding_importance_map(
         (5, 5, 5),
         mode="distance_transform",
-        sigma_scale=0.125,
         device="cpu",
         dtype=torch.float32,
     )
@@ -226,7 +225,7 @@ def test_lazy_sliding_window_matches_eager_with_x2_resize(tmp_path):
     cfg.model.output_size = [4, 4, 4]
     cfg.inference.sliding_window.window_size = [4, 4, 4]
     cfg.inference.sliding_window.overlap = 0.5
-    cfg.inference.sliding_window.blending = "gaussian"
+    cfg.inference.sliding_window.blending = "bump"
 
     image_path = tmp_path / "lazy_resize_match.h5"
     volume = np.linspace(0.0, 1.0, num=4 * 4 * 4, dtype=np.float32).reshape(4, 4, 4)

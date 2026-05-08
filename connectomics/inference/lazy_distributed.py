@@ -18,8 +18,13 @@ def is_distributed_window_sharding_enabled(cfg) -> bool:
     if sliding_cfg is None:
         return False
     is_dist, _rank, world_size = distributed_context()
+    dataloader_cfg = getattr(getattr(cfg, "data", None), "dataloader", None)
+    is_lazy = bool(
+        getattr(dataloader_cfg, "use_lazy_zarr", False)
+        or getattr(dataloader_cfg, "use_lazy_h5", False)
+    )
     return bool(
-        getattr(sliding_cfg, "lazy_load", False)
+        is_lazy
         and getattr(sliding_cfg, "distributed_sharding", False)
         and is_dist
         and world_size > 1
@@ -124,9 +129,50 @@ def validate_distributed_patch_shard(
         )
 
 
+def make_accumulator_reduce_hook(
+    *,
+    reduction_device: torch.device,
+    chunk_mb: int,
+):
+    """Return a hook that reduces (value, weight) accumulators to rank 0.
+
+    Contract:
+      hook(value, weight) -> tuple[Tensor, Tensor] | None
+
+    On rank 0 the hook returns the reduced ``(value, weight)`` pair;
+    on every other rank it returns ``None`` so the engine can short-
+    circuit normalization. The hook collapses the ``(None, None)``
+    case from ``reduce_cpu_tensor_to_rank_zero`` into a single ``None``
+    — see ``plan_v2_review`` finding 1.
+    """
+    def _hook(
+        value: torch.Tensor, weight: torch.Tensor
+    ) -> Optional[tuple[torch.Tensor, torch.Tensor]]:
+        reduced_value = reduce_cpu_tensor_to_rank_zero(
+            value,
+            op=torch.distributed.ReduceOp.SUM,
+            reduction_device=reduction_device,
+            chunk_mb=chunk_mb,
+            name="value accumulator",
+        )
+        reduced_weight = reduce_cpu_tensor_to_rank_zero(
+            weight,
+            op=torch.distributed.ReduceOp.SUM,
+            reduction_device=reduction_device,
+            chunk_mb=chunk_mb,
+            name="weight accumulator",
+        )
+        if reduced_value is None or reduced_weight is None:
+            return None
+        return reduced_value, reduced_weight
+
+    return _hook
+
+
 __all__ = [
     "distributed_context",
     "distributed_reduction_device",
+    "make_accumulator_reduce_hook",
     "is_distributed_window_sharding_enabled",
     "reduce_cpu_tensor_to_rank_zero",
     "validate_distributed_patch_shard",

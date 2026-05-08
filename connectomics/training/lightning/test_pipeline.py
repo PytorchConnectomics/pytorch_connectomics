@@ -683,7 +683,7 @@ def run_test_step(module, batch: Dict[str, torch.Tensor], batch_idx: int) -> STE
         if not lazy_sample:
             raise RuntimeError(
                 "inference.strategy=chunked requires lazy test data "
-                "(set data.dataloader.profile=lazy / sliding_window.lazy_load=true)."
+                "(set data.dataloader.profile=lazy)."
             )
         if mode == "tune":
             raise RuntimeError(
@@ -860,7 +860,7 @@ def run_test_step(module, batch: Dict[str, torch.Tensor], batch_idx: int) -> STE
         roi_size = getattr(sw_cfg, "window_size", "N/A")
         overlap = getattr(sw_cfg, "overlap", "N/A")
         sw_batch = getattr(sw_cfg, "sw_batch_size", "N/A")
-        blending = getattr(sw_cfg, "blending", "gaussian")
+        blending = getattr(sw_cfg, "blending", "bump")
         logger.info(f"Sliding window ROI: {roi_size}")
         logger.info(f"Overlap:            {overlap}")
         logger.info(f"SW batch size:      {sw_batch}")

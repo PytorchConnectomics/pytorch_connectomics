@@ -58,18 +58,16 @@ class SlidingWindowConfig:
     window_size: Optional[List[int]] = None  # None = fallback to data.dataloader.patch_size
     sw_batch_size: Optional[int] = None  # If None, falls back to data.dataloader.batch_size
     overlap: float = 0.5
-    blending: str = "gaussian"  # "constant", "gaussian", or "distance_transform" (lazy only)
-    sigma_scale: float = 0.125
+    blending: str = "bump"  # "constant", "bump", or "distance_transform" (lazy only)
     padding_mode: str = "reflect"
     cval: float = 0.0
     keep_input_on_cpu: bool = False  # Move full volume to CPU between sliding-window batches
-    lazy_load: bool = False  # Stream ROIs from disk instead of materializing the full volume
-    distributed_sharding: bool = False  # Split lazy sliding windows across DDP ranks
+    distributed_sharding: bool = False  # Split sliding windows across DDP ranks (lazy reader only)
     distributed_reduce_chunk_mb: int = 128  # Chunk size for rank-0 accumulator reductions
     sw_device: Optional[str] = None
     output_device: Optional[str] = None
-    # BANIS-style boundary handling (opt-in). When either is set, a custom
-    # inferer replaces MONAI's SlidingWindowInferer.
+    # BANIS-style boundary handling (opt-in), honored by the lazy
+    # sliding-window path; the eager path ignores both.
     # snap_to_edge: place last window at image_size-roi_size so every window
     # fits inside the volume; no whole-volume padding.
     # target_context: per-axis voxels added on each side of the window before
@@ -81,7 +79,7 @@ class SlidingWindowConfig:
     # Per-axis voxel count to zero out at each border of the per-window
     # importance map after Gaussian/constant construction. Discards window
     # border predictions from the weighted average. Honored by the lazy
-    # sliding-window path; ignored by the eager MONAI path.
+    # sliding-window path; ignored by the eager engine.
     border_mask: List[int] = field(default_factory=list)
 
 
@@ -288,11 +286,9 @@ def sync_inference_runtime_aliases(cfg: object) -> None:
                     "sw_batch_size",
                     "overlap",
                     "blending",
-                    "sigma_scale",
                     "padding_mode",
                     "cval",
                     "keep_input_on_cpu",
-                    "lazy_load",
                     "distributed_sharding",
                     "distributed_reduce_chunk_mb",
                     "sw_device",

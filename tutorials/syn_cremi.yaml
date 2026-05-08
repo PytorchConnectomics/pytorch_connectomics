@@ -112,8 +112,7 @@ default:
       - 256
       sw_batch_size: 4
       overlap: 0.5
-      blending: gaussian
-      sigma_scale: 0.25
+      blending: bump
       padding_mode: reflect
     model:
       channel_activations:
@@ -171,7 +170,7 @@ train:
       monitor: train_loss_total_epoch
       save_top_k: 3
       save_every_n_epochs: 10
-      dirpath: outputs/rsunet_cremi_synapse_cleft/checkpoints/
+      save_path: outputs/rsunet_cremi_synapse_cleft
       checkpoint_filename: epoch={epoch:03d}-step={step:07d}-loss={train_loss_total_epoch:.4f}
     early_stopping:
       enabled: false

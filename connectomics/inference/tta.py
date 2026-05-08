@@ -13,8 +13,7 @@ from typing import Any, Optional
 import numpy as np
 import torch
 import torch.nn.functional as F
-from monai.data.utils import dense_patch_slices
-from monai.inferers.utils import _get_scan_interval
+from .window import compute_scan_interval as _get_scan_interval, dense_patch_slices
 
 from ..utils.channel_slices import resolve_channel_indices
 from ..utils.model_outputs import (
@@ -24,7 +23,7 @@ from ..utils.model_outputs import (
     resolve_output_head,
     select_output_tensor,
 )
-from .sliding import (
+from .window import (
     _extract_padded_patch_batch,
     _resolve_sliding_window_runtime,
     build_sliding_accumulator_weight_maps,
@@ -845,9 +844,6 @@ class TTAPredictor:
             value_importance_map, weight_importance_map = build_sliding_accumulator_weight_maps(
                 tuple(int(v) for v in roi_size),
                 mode=runtime["mode"],
-                sigma_scale=(
-                    runtime["overlap"] if runtime["mode"] == "constant" else runtime["sigma_scale"]
-                ),
                 device=accumulation_device,
                 value_dtype=output_dtype,
             )

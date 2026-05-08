@@ -765,7 +765,7 @@ inference:
   execution:
     strategy: chunked
   window:
-    lazy_load: true
+    keep_input_on_cpu: true
     window_size: [144, 144, 144]
   chunking:
     enabled: true
@@ -783,7 +783,7 @@ decoding:
     cfg = load_config(config_yaml)
 
     assert cfg.inference.strategy == "chunked"
-    assert cfg.inference.sliding_window.lazy_load is True
+    assert cfg.inference.sliding_window.keep_input_on_cpu is True
     assert cfg.inference.sliding_window.window_size == [144, 144, 144]
     assert cfg.inference.model.output_dtype == "float16"
     assert cfg.inference.select_channel == [0, 1, 2]
@@ -804,7 +804,7 @@ decoding:
         ("crop_pad: [1, 1, 1]", "inference.model.crop_pad"),
         ("strategy: chunked", "inference.execution.strategy"),
         ("do_eval: false", "inference.execution.do_eval"),
-        ("sliding_window:\n    lazy_load: true", "inference.window"),
+        ("sliding_window:\n    overlap: 0.5", "inference.window"),
         ("save_prediction:\n    enabled: true", "inference.save_results"),
         ("save_inference:\n    enabled: true", "inference.save_results"),
         ("save:\n    enabled: true", "inference.save_results"),
@@ -839,7 +839,7 @@ def test_inference_runtime_aliases_are_rejected_in_dict_and_cli():
         from_dict({"inference": {"save_prediction": {"enabled": True}}})
 
     with pytest.raises(ValueError, match=r"inference\.window"):
-        update_from_cli(Config(), ["inference.sliding_window.lazy_load=true"])
+        update_from_cli(Config(), ["inference.sliding_window.overlap=0.5"])
 
 
 def test_removed_shared_stage_is_rejected(tmp_path):

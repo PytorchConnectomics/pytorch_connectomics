@@ -8,7 +8,7 @@ from typing import Any
 
 from ..config import Config
 from ..training.lightning.runtime import setup_run_directory
-from .output_naming import intermediate_prediction_cache_suffix
+from .output_naming import format_checkpoint_dir_suffix, intermediate_prediction_cache_suffix
 
 
 def get_output_base_from_checkpoint(checkpoint_path: str) -> Path:
@@ -24,59 +24,65 @@ def get_output_base_from_checkpoint(checkpoint_path: str) -> Path:
 
 
 def extract_step_from_checkpoint(checkpoint_path: str) -> str:
-    """Extract ``step=<N>`` from a checkpoint filename."""
+    """Extract ``step=<N>`` from a checkpoint filename (legacy helper)."""
     match = re.search(r"step=(\d+)", Path(checkpoint_path).stem)
     return f"step={match.group(1)}" if match else ""
 
 
 def configure_checkpoint_output_paths(args: Any, cfg: Config) -> tuple[Path | None, str | None]:
-    """Resolve mode-specific output directories derived from a checkpoint path."""
+    """Resolve mode-specific output directories derived from a checkpoint path.
+
+    Layout (formalised):
+
+    ``<ckpt_run_dir>/test_<ckpt_stem>/``     for ``--mode test``.
+    ``<ckpt_run_dir>/tune_<ckpt_stem>/``     for ``--mode tune``.
+    Both for ``--mode tune-test``, with predictions cached under the
+    test directory.
+
+    The ``<ckpt_stem>`` is the sanitised stem of the checkpoint
+    filename (see ``format_checkpoint_dir_suffix``). Examples:
+    ``test_step=00050000``, ``test_last``, ``test_epoch=001-train_loss=0.1234``.
+    Step-less checkpoints (``last.ckpt``) reuse the same directory
+    across re-trains by design — the same physical ``last.ckpt`` is
+    being tested.
+    """
     if args.mode not in ["test", "tune", "tune-test"] or not args.checkpoint:
         return None, None
 
     output_base = get_output_base_from_checkpoint(args.checkpoint)
     output_base.mkdir(parents=True, exist_ok=True)
-    step_suffix = extract_step_from_checkpoint(args.checkpoint)
+    ckpt_tag = format_checkpoint_dir_suffix(args.checkpoint)
 
-    if args.mode in ["tune", "tune-test"]:
-        if step_suffix:
-            results_folder_name = f"results_{step_suffix}"
-            tuning_folder_name = f"tuning_{step_suffix}"
-        else:
-            results_folder_name = "results"
-            tuning_folder_name = "tuning"
+    test_dir = output_base / f"test_{ckpt_tag}"
+    tune_dir = output_base / f"tune_{ckpt_tag}"
+    tune_prediction_dir = tune_dir / "predictions"
 
-        tuning_dir = output_base / tuning_folder_name
-        tuning_prediction_dir = tuning_dir / "predictions"
-        if getattr(cfg, "tune", None) is not None:
-            cfg.tune.save_path = str(tuning_dir)
-            cfg.tune.save_predictions_path = str(tuning_prediction_dir)
-        cfg.inference.save_path = str(output_base / results_folder_name)
-        cfg.inference.save_cache_suffix = intermediate_prediction_cache_suffix(
-            cfg, checkpoint_path=args.checkpoint
-        )
+    if args.mode == "test":
+        cfg.inference.save_path = str(test_dir)
+        return output_base, str(test_dir)
 
-        if args.mode == "tune-test":
-            print(f"Tuning prediction output: {tuning_prediction_dir}")
-            print(f"Test output: {cfg.inference.save_path}")
-            print(f"Test cache suffix: {cfg.inference.save_cache_suffix}")
+    # tune or tune-test
+    if getattr(cfg, "tune", None) is not None:
+        cfg.tune.save_path = str(tune_dir)
+        cfg.tune.save_predictions_path = str(tune_prediction_dir)
+    cfg.inference.save_path = str(test_dir if args.mode == "tune-test" else tune_prediction_dir)
+    cfg.inference.save_cache_suffix = intermediate_prediction_cache_suffix(
+        cfg, checkpoint_path=args.checkpoint
+    )
 
-        return output_base, str(tuning_dir)
+    if args.mode == "tune-test":
+        print(f"Tuning prediction output: {tune_prediction_dir}")
+        print(f"Test output: {cfg.inference.save_path}")
+        print(f"Test cache suffix: {cfg.inference.save_cache_suffix}")
 
-    results_folder_name = "results"
-    if step_suffix:
-        results_folder_name = f"results_{step_suffix}"
-        print(f"Using checkpoint {step_suffix} - output will be saved to: {results_folder_name}")
-
-    cfg.inference.save_path = str(output_base / results_folder_name)
-    return output_base, cfg.inference.save_path
+    return output_base, str(tune_dir)
 
 
 def setup_runtime_directories(args: Any, cfg: Config) -> tuple[Path, Path]:
     """Create the run directory and return ``(run_dir, output_base)``."""
-    output_base, dirpath = configure_checkpoint_output_paths(args, cfg)
-    if output_base is not None and dirpath is not None:
-        run_dir = setup_run_directory(args.mode, cfg, dirpath)
+    output_base, save_path = configure_checkpoint_output_paths(args, cfg)
+    if output_base is not None and save_path is not None:
+        run_dir = setup_run_directory(args.mode, cfg, save_path)
         print(f"Output base: {output_base}")
         return run_dir, output_base
 
@@ -87,7 +93,7 @@ def setup_runtime_directories(args: Any, cfg: Config) -> tuple[Path, Path]:
     run_dir = setup_run_directory(
         args.mode,
         cfg,
-        cfg.monitor.checkpoint.dirpath,
+        cfg.monitor.checkpoint.save_path,
         resume_checkpoint_path=resume_checkpoint_path,
     )
     return run_dir, run_dir.parent

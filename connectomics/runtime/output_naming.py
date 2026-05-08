@@ -390,8 +390,14 @@ def format_chunked_raw_cache_tag(cfg: Config) -> str:
     return "_" + "_".join(parts)
 
 
-def format_checkpoint_name_tag(checkpoint_path: Optional[str | Path]) -> str:
-    """Return a compact checkpoint tag for prediction cache filenames."""
+def _sanitized_checkpoint_stem(checkpoint_path: Optional[str | Path]) -> str:
+    """Return the sanitised stem of a checkpoint path, or empty string.
+
+    Collapses Lightning's ``auto_insert_metric_name=True`` artifact
+    (``step-step=N`` → ``step=N``) and replaces non-portable characters
+    with ``-``. Shared by checkpoint directory naming and prediction
+    cache filename tagging so both stay consistent.
+    """
     if checkpoint_path is None:
         return ""
 
@@ -403,16 +409,30 @@ def format_checkpoint_name_tag(checkpoint_path: Optional[str | Path]) -> str:
     if not stem:
         return ""
 
-    # PyTorch Lightning's default auto_insert_metric_name=True turns a template
-    # like "step-{step:08d}" into "step-step=00050000". Artifact names should
-    # use the canonical metric assignment token regardless of that filename
-    # template duplication.
     stem = re.sub(r"(^|-)([A-Za-z_][A-Za-z0-9_]*)-\2=", r"\1\2=", stem)
-    safe_stem = re.sub(r"[^A-Za-z0-9._=-]+", "-", stem).strip("-")
+    return re.sub(r"[^A-Za-z0-9._=-]+", "-", stem).strip("-")
+
+
+def format_checkpoint_name_tag(checkpoint_path: Optional[str | Path]) -> str:
+    """Return a compact checkpoint tag for prediction cache filenames."""
+    safe_stem = _sanitized_checkpoint_stem(checkpoint_path)
     if not safe_stem:
         return ""
-
     return f"_ckpt-{safe_stem}"
+
+
+def format_checkpoint_dir_suffix(checkpoint_path: Optional[str | Path]) -> str:
+    """Return a sanitised, filesystem-safe tag for a checkpoint path.
+
+    Used by ``checkpoint_dispatch`` to build per-checkpoint directory
+    names (e.g. ``test_step=00050000``, ``test_last``). Same sanitiser
+    as :func:`format_checkpoint_name_tag` minus the leading ``_ckpt-``
+    prefix.
+    """
+    safe_stem = _sanitized_checkpoint_stem(checkpoint_path)
+    if not safe_stem:
+        return "ckpt"
+    return safe_stem
 
 
 def final_prediction_output_tag(
@@ -652,6 +672,7 @@ def is_raw_cache_suffix(suffix: str | None) -> bool:
 
 __all__ = [
     "compute_tta_passes",
+    "format_checkpoint_dir_suffix",
     "format_checkpoint_name_tag",
     "format_chunked_raw_cache_tag",
     "format_decode_tag",

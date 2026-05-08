@@ -116,7 +116,7 @@ tensorboard-run experiment timestamp port='6006':
 # Time limits: short=12h, medium=2d, long=5d
 # CPU-only convenience wrapper for single-task jobs.
 #   just slurm short 8 0 "python scripts/downsample_nisb.py --splits train"
-slurm partition num_cpu num_gpu cmd constraint='' mem='32G' nodelist='' reservation='' exclude='':
+slurm partition num_cpu num_gpu cmd constraint='' mem='32G' nodelist='' reservation='' exclude='g001,g002':
     #!/usr/bin/env bash
     constraint_flag=""
     if [ -n "{{constraint}}" ]; then

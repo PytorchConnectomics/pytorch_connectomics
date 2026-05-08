@@ -202,7 +202,7 @@ class TestE2ETraining:
         cfg.system.num_workers = 0
 
         cfg.optimization.max_epochs = 1  # Just 1 epoch
-        cfg.monitor.checkpoint.dirpath = str(temp_dir / "checkpoints")
+        cfg.monitor.checkpoint.save_path = str(temp_dir)
 
         # Create module
         module = ConnectomicsModule(cfg)

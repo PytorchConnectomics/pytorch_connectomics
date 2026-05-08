@@ -104,8 +104,7 @@ default:
       window_size: [128, 128, 128]
       sw_batch_size: 1
       overlap: 0.5
-      blending: gaussian
-      sigma_scale: 0.25
+      blending: bump
       padding_mode: replicate
       keep_input_on_cpu: false
     test_time_augmentation:
@@ -197,7 +196,7 @@ train:
       save_on_train_epoch_end: false
       save_last: true
       checkpoint_filename: "{epoch:03d}-{val_loss_total:.4f}"
-      dirpath: outputs/mito_betaseg_banis_v0/checkpoints/
+      save_path: outputs/mito_betaseg_banis_v0
 
 test:
   data:
