@@ -17,7 +17,7 @@ The codebase follows a clean separation of concerns:
 
 ### V2/V3 Architecture Contract
 
-The codebase enforces an explicit contract from the v2/v3 refactor (see `.agent/architecture/`):
+The codebase enforces an explicit contract from the v2/v3 refactor:
 
 1. **One canonical owner per concept.** No backward-compatibility shims, no facade re-exports, no duplicate import paths.
 2. **Strict config.** Unknown top-level keys **raise** at load time. Removed fields raise. `getattr(cfg.x, "y", default)` ghost reads on undeclared fields are forbidden.
@@ -719,9 +719,7 @@ scheduler:
 - ✅ **Custom models → MONAI/MedNeXt/RSUNet/nnUNet**: complete
 - ✅ **V2 layout refactor** (Codex): complete — package boundaries, schema dataclasses,
   stage scaffolding
-- ✅ **V3 boundary/contract refactor** (PR 0–11): mostly complete — see
-  `.agent/architecture/v3_plan.md` (plan), `v3_audit.md`
-  (audit), `v3_audit_rebuttal.md` (corrections)
+- ✅ **V3 boundary/contract refactor** (PR 0–11): mostly complete
 
 ### Codebase Metrics
 - **Total Python files**: ~155 (connectomics module)
@@ -733,8 +731,7 @@ scheduler:
 
 ### V3 Refactor Status (post-PR 11)
 
-The architectural skeleton is correct; behavioral cleanup partial. See
-`.agent/architecture/` for full audit trail.
+The architectural skeleton is correct; behavioral cleanup partial.
 
 **Landed cleanly:**
 - Boundary fixes: decoding↛training, inference↛decoding, config↛data execution
@@ -782,7 +779,7 @@ Authoritative list lives in `setup.py`/`pyproject.toml`. Highlights:
 
 - **Core (auto-installed)**: torch≥1.8, pytorch-lightning≥2.0, monai≥0.9.1, torchmetrics, omegaconf≥2.1, numpy≥1.23, scipy, scikit-image, h5py, opencv-python, einops, cc3d, kimimaro, mahotas, fastremap, tensorboard, tqdm.
 - **Extras**: `[full]` (tifffile, wandb, jupyter, gputil), `[optim]` (optuna), `[wandb]`, `[tiff]`, `[viz]` (neuroglancer), `[metrics]` (funlib.evaluate, manual: `pip install git+https://github.com/funkelab/funlib.evaluate.git`), `[dev]` (pytest, pytest-benchmark), `[docs]` (sphinx).
-- **External**: MedNeXt at `/projects/weilab/weidf/lib/MedNeXt` (`from nnunet_mednext import create_mednext_v1`); graceful fallback if missing. See `.agent/integrations/mednext.md`.
+- **External**: MedNeXt at `/projects/weilab/weidf/lib/MedNeXt` (`from nnunet_mednext import create_mednext_v1`); graceful fallback if missing.
 
 ## Common Issues
 
@@ -794,7 +791,6 @@ Authoritative list lives in `setup.py`/`pyproject.toml`. Highlights:
 ## Further Reading
 
 ### Documentation Files
-- **.agent/\*.md**: Internal knowledge base; many project-specific reference docs live here.
 - **README.md**: Project overview and quick start
 - **QUICKSTART.md**: 5-minute setup guide
 - **TROUBLESHOOTING.md**: Common issues and solutions

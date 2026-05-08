@@ -11,8 +11,6 @@ Reference:
 
 Installation:
     pip install -e /projects/weilab/weidf/lib/MedNeXt
-
-See .agent/integrations/mednext.md for detailed documentation.
 """
 
 from __future__ import annotations
@@ -301,8 +299,7 @@ def _check_mednext_available():
             "Install from: /projects/weilab/weidf/lib/MedNeXt\n"
             "Run: pip install -e /projects/weilab/weidf/lib/MedNeXt\n"
             "Or add to PYTHONPATH: export PYTHONPATH=/projects/weilab/weidf/lib/MedNeXt:"
-            "$PYTHONPATH\n"
-            "\nSee .agent/integrations/mednext.md for detailed setup instructions."
+            "$PYTHONPATH"
         )
 
 
@@ -346,8 +343,6 @@ def build_mednext(cfg) -> ConnectomicsModel:
             kernel_size: 3
           loss:
             deep_supervision: true
-
-    See .agent/integrations/mednext.md for complete documentation.
     """
     _check_mednext_available()
 
@@ -436,8 +431,6 @@ def build_mednext_custom(cfg) -> ConnectomicsModel:
             deep_supervision: true
             block_counts: [3, 4, 4, 4, 4, 4, 4, 4, 3]
             checkpoint_style: outside_block
-
-    See .agent/integrations/mednext.md for complete parameter documentation.
     """
     _check_mednext_available()
     head_cfg, primary_head = _get_mednext_heads_cfg(cfg)
