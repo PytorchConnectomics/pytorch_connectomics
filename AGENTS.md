@@ -2,8 +2,7 @@
 
 This file is the Codex/OpenAI coding-agent memory for this repository. Claude
 startup memory lives in `CLAUDE.md`; when the two differ, treat this file as the
-Codex execution contract and use `CLAUDE.md` plus `.agent/architecture/` as deeper
-background.
+Codex execution contract and `CLAUDE.md` as deeper background.
 
 ## Project
 
@@ -21,10 +20,7 @@ Core stack:
 ## Refactor Contract
 
 The v2/v3 refactor is a clean-break architecture. Backward compatibility is
-intentionally out of scope unless the user explicitly asks for it. The relevant
-planning and review docs live under `.agent/architecture/`: `v3_plan.md`
-(current contract), `v3_audit.md` (implementation audit), and
-`v3_audit_rebuttal.md` (audit corrections).
+intentionally out of scope unless the user explicitly asks for it.
 
 Mandatory rules:
 - One canonical owner per concept. Delete duplicate import paths, facade
