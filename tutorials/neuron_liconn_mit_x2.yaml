@@ -202,10 +202,9 @@ default:
       #   Z: 15+1=16, 16+0=16 | Y: 63+1=64, 64+0=64 | X: 63+1=64, 64+0=64
       crop_pad: [15, 16, 63, 64, 63, 64]
     window:
-      lazy_load: true
       # Large overlap for smooth predictions on big volumes
       overlap: 0.5
-      blending: gaussian
+      blending: bump
       keep_input_on_cpu: true     # keep raw volume on CPU to save GPU memory
       sw_device: cuda
       output_device: cpu
@@ -352,7 +351,7 @@ train:
         log_every_n_epochs: 5
         channel_mode: all
     checkpoint:
-      dirpath: /orcd/scratch/bcs/002/mansour/train_liconn/outputs/checkpoints/
+      save_path: /orcd/scratch/bcs/002/mansour/train_liconn/outputs
       monitor: val_loss_total
       mode: min
       save_top_k: 3
@@ -382,10 +381,9 @@ test:
       # = [64,256,256]/[32,128,128] = [2.0,2.0,2.0].  LazyVolumeAccessor reads
       # ~[32,128,128] raw patches from disk and upsamples them 2x via grid_sample,
       # so the model sees [64,256,256] — same transform as training's Resized().
-      lazy_load: true
       window_size: [64, 256, 256]
       overlap: 0.5
-      blending: gaussian
+      blending: bump
       keep_input_on_cpu: true
       sw_device: cuda
       output_device: cpu

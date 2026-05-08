@@ -15,7 +15,7 @@ import torch.nn as nn
 from omegaconf import DictConfig
 
 from ..config import Config
-from .sliding import build_sliding_inferer, is_2d_inference_mode
+from .window import build_sliding_inferer, is_2d_inference_mode
 from .tta import TTAPredictor
 
 logger = logging.getLogger(__name__)
@@ -85,14 +85,26 @@ class InferenceManager:
         return self.tta.is_distributed_sharding_enabled()
 
     def is_distributed_window_sharding_enabled(self) -> bool:
-        """Return whether lazy sliding-window sharding is active for this process."""
+        """Return whether lazy sliding-window sharding is active for this process.
+
+        Gated on (a) ``inference.sliding_window.distributed_sharding=True``,
+        (b) DDP active with ``world_size > 1``, and (c) the data path being
+        lazy (``data.dataloader.use_lazy_zarr`` or ``use_lazy_h5``). Eager
+        test data must never trip this gate; otherwise ranks would skip
+        postprocessing without ever having reduced an accumulator.
+        """
         sliding_cfg = getattr(getattr(self.cfg, "inference", None), "sliding_window", None)
         if sliding_cfg is None:
             return False
+        dataloader_cfg = getattr(getattr(self.cfg, "data", None), "dataloader", None)
+        is_lazy = bool(
+            getattr(dataloader_cfg, "use_lazy_zarr", False)
+            or getattr(dataloader_cfg, "use_lazy_h5", False)
+        )
         is_dist = torch.distributed.is_available() and torch.distributed.is_initialized()
         world_size = torch.distributed.get_world_size() if is_dist else 1
         return bool(
-            getattr(sliding_cfg, "lazy_load", False)
+            is_lazy
             and getattr(sliding_cfg, "distributed_sharding", False)
             and is_dist
             and world_size > 1

@@ -6,7 +6,7 @@ experiment_name: mitoem30h_mednext_sdt_multitask
 train:
   monitor:
     checkpoint:
-      dirpath: outputs/mitoem30h_mednext_sdt_multitask/checkpoints/
+      save_path: outputs/mitoem30h_mednext_sdt_multitask
   data:
     train:
       image: [EM30-H/im_train.h5]

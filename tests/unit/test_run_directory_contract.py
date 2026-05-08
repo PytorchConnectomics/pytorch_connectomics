@@ -18,39 +18,38 @@ from connectomics.training.lightning.runtime import (
 
 def test_setup_run_directory_train_creates_timestamped_layout(tmp_path):
     cfg = Config()
-    checkpoint_dir = tmp_path / "outputs" / "exp" / "checkpoints"
+    output_base = tmp_path / "outputs" / "exp"
 
-    run_dir = setup_run_directory("train", cfg, str(checkpoint_dir))
+    run_dir = setup_run_directory("train", cfg, str(output_base))
 
-    assert run_dir.parent == checkpoint_dir.parent
+    assert run_dir.parent == output_base
     assert re.fullmatch(r"\d{8}_\d{6}", run_dir.name)
     assert (run_dir / "checkpoints").exists()
     assert (run_dir / "config.yaml").exists()
 
-    timestamp_file = checkpoint_dir.parent / ".latest_timestamp"
+    timestamp_file = output_base / ".latest_timestamp"
     assert timestamp_file.exists()
     assert timestamp_file.read_text().strip() == run_dir.name
-    assert Path(cfg.monitor.checkpoint.dirpath) == run_dir / "checkpoints"
+    assert Path(cfg.monitor.checkpoint.save_path) == run_dir / "checkpoints"
 
 
 def test_setup_run_directory_train_ddp_reuses_timestamp_file(tmp_path, monkeypatch):
     cfg = Config()
-    checkpoint_dir = tmp_path / "outputs" / "exp" / "checkpoints"
-    output_base = checkpoint_dir.parent
+    output_base = tmp_path / "outputs" / "exp"
     output_base.mkdir(parents=True, exist_ok=True)
 
     timestamp = "20250208_112233"
     (output_base / ".latest_timestamp").write_text(timestamp)
     monkeypatch.setenv("LOCAL_RANK", "1")
 
-    run_dir = setup_run_directory("train", cfg, str(checkpoint_dir))
+    run_dir = setup_run_directory("train", cfg, str(output_base))
     assert run_dir == output_base / timestamp
-    assert Path(cfg.monitor.checkpoint.dirpath) == run_dir / "checkpoints"
+    assert Path(cfg.monitor.checkpoint.save_path) == run_dir / "checkpoints"
 
 
 def test_setup_run_directory_train_resume_reuses_existing_run_directory(tmp_path):
     cfg = Config()
-    configured_checkpoint_dir = tmp_path / "outputs" / "exp" / "checkpoints"
+    configured_output_base = tmp_path / "outputs" / "exp"
     existing_run_dir = tmp_path / "outputs" / "exp" / "20250306_164756"
     existing_checkpoint_dir = existing_run_dir / "checkpoints"
     existing_checkpoint_dir.mkdir(parents=True, exist_ok=True)
@@ -60,12 +59,12 @@ def test_setup_run_directory_train_resume_reuses_existing_run_directory(tmp_path
     run_dir = setup_run_directory(
         "train",
         cfg,
-        str(configured_checkpoint_dir),
+        str(configured_output_base),
         resume_checkpoint_path=str(resume_checkpoint),
     )
 
     assert run_dir == existing_run_dir
-    assert Path(cfg.monitor.checkpoint.dirpath) == existing_checkpoint_dir
+    assert Path(cfg.monitor.checkpoint.save_path) == existing_checkpoint_dir
     assert (existing_run_dir / "config.yaml").exists()
 
     timestamp_file = existing_run_dir.parent / ".latest_timestamp"

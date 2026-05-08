@@ -26,8 +26,7 @@ def _make_args(checkpoint: str, mode: str = "test"):
 
 
 def test_test_mode_save_path_derives_from_checkpoint(tmp_path):
-    """In test mode, configure_checkpoint_output_paths writes a results_step=<NNN> dir
-    under the checkpoint's run directory."""
+    """Test mode: ``<run_dir>/test_<ckpt_stem>/``."""
     run_dir = tmp_path / "outputs" / "exp" / "20260101_000000"
     ckpt_dir = run_dir / "checkpoints"
     ckpt_dir.mkdir(parents=True)
@@ -39,11 +38,11 @@ def test_test_mode_save_path_derives_from_checkpoint(tmp_path):
 
     configure_checkpoint_output_paths(args, cfg)
 
-    assert cfg.inference.save_path == str(run_dir / "results_step=00200000")
+    assert cfg.inference.save_path == str(run_dir / "test_step=00200000")
 
 
 def test_tune_mode_save_paths_derive_from_checkpoint(tmp_path):
-    """Tune mode populates both tune.save_path and tune.save_predictions_path."""
+    """Tune mode: ``<run_dir>/tune_<ckpt_stem>/`` with predictions subdir."""
     run_dir = tmp_path / "outputs" / "exp" / "20260101_000000"
     ckpt_dir = run_dir / "checkpoints"
     ckpt_dir.mkdir(parents=True)
@@ -56,11 +55,56 @@ def test_tune_mode_save_paths_derive_from_checkpoint(tmp_path):
 
     configure_checkpoint_output_paths(args, cfg)
 
-    assert cfg.tune.save_path == str(run_dir / "tuning_step=00050000")
+    assert cfg.tune.save_path == str(run_dir / "tune_step=00050000")
     assert cfg.tune.save_predictions_path == str(
-        run_dir / "tuning_step=00050000" / "predictions"
+        run_dir / "tune_step=00050000" / "predictions"
     )
-    assert cfg.inference.save_path == str(run_dir / "results_step=00050000")
+    # In pure tune mode, cached intermediate predictions live under the
+    # tune dir (no separate top-level test artifact dir).
+    assert cfg.inference.save_path == str(
+        run_dir / "tune_step=00050000" / "predictions"
+    )
+
+
+def test_tune_test_mode_writes_both_dirs(tmp_path):
+    """tune-test mode populates both test_<stem> and tune_<stem>."""
+    run_dir = tmp_path / "outputs" / "exp" / "20260101_000000"
+    ckpt_dir = run_dir / "checkpoints"
+    ckpt_dir.mkdir(parents=True)
+    ckpt_path = ckpt_dir / "step=00050000.ckpt"
+    ckpt_path.touch()
+
+    cfg = Config()
+    cfg.tune = TuneConfig()
+    args = _make_args(str(ckpt_path), mode="tune-test")
+
+    configure_checkpoint_output_paths(args, cfg)
+
+    assert cfg.tune.save_path == str(run_dir / "tune_step=00050000")
+    assert cfg.inference.save_path == str(run_dir / "test_step=00050000")
+
+
+@pytest.mark.parametrize(
+    "ckpt_name, expected_test_dir",
+    [
+        ("step=00050000.ckpt", "test_step=00050000"),
+        ("last.ckpt", "test_last"),
+        ("last-v2.ckpt", "test_last-v2"),
+        ("epoch=001-train_loss=0.1234.ckpt", "test_epoch=001-train_loss=0.1234"),
+    ],
+)
+def test_test_dir_includes_sanitised_ckpt_stem(tmp_path, ckpt_name, expected_test_dir):
+    run_dir = tmp_path / "outputs" / "exp" / "20260101_000000"
+    ckpt_dir = run_dir / "checkpoints"
+    ckpt_dir.mkdir(parents=True)
+    ckpt_path = ckpt_dir / ckpt_name
+    ckpt_path.touch()
+
+    cfg = Config()
+    args = _make_args(str(ckpt_path), mode="test")
+    configure_checkpoint_output_paths(args, cfg)
+
+    assert cfg.inference.save_path == str(run_dir / expected_test_dir)
 
 
 def test_resolve_dataset_volume_stems_explicit_string():

@@ -113,11 +113,9 @@ class ConnectomicsModule(pl.LightningModule):
         else:
             self._init_losses(cfg)
 
-        self.inference_manager = InferenceManager(
-            cfg=cfg,
-            model=self.model,
-            forward_fn=self.forward,
-        )
+        # Inference manager is built lazily on first access so train-only runs
+        # do not validate inference-only knobs (e.g. window blending) at init.
+        self._inference_manager: InferenceManager | None = None
 
         self.debug_manager = DebugManager(model=self.model)
 
@@ -213,6 +211,21 @@ class ConnectomicsModule(pl.LightningModule):
         if inference_cfg is None:
             raise ValueError("Missing runtime cfg.inference configuration")
         return inference_cfg
+
+    @property
+    def inference_manager(self) -> InferenceManager:
+        """Lazily build the inference manager on first access.
+
+        Train-only runs never trigger this and therefore never validate
+        inference-only knobs (e.g., ``inference.window.blending``).
+        """
+        if self._inference_manager is None:
+            self._inference_manager = InferenceManager(
+                cfg=self.cfg,
+                model=self.model,
+                forward_fn=self.forward,
+            )
+        return self._inference_manager
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """

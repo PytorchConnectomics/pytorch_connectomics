@@ -10,24 +10,31 @@ default:
     profile: all-gpu-cpu
   model:
     arch:
-      profile: monai_unet
+      type: mednext
     input_size: [112, 112, 112]
     output_size: [112, 112, 112]
-    monai:
-      dropout: 0.1
+    mednext:
+      size: S
+      kernel_size: 3
+      dim: 3d
+    loss:
+      deep_supervision: false
   data:
     dataloader:
       profile: cached
       patch_size: [112, 112, 112]
       batch_size: 8
     augmentation:
-      profile: aug_standard
+      profile: aug_strong
   inference:
     window:
-      window_size: [112, 112, 112]      
+      window_size: [112, 112, 112]
+      overlap: 0.5
+      blending: bump
+      sw_batch_size: 8
     test_time_augmentation:
       enabled: true
-      flip_axes: all      
+      flip_axes: all
 
   evaluation:
     enabled: true
@@ -41,8 +48,17 @@ train:
       resolution: [5, 5, 5]
   optimization:
     profile: warmup_cosine_lr
+    optimizer:
+      name: AdamW
+      lr: 1.0e-3
+      weight_decay: 0.01
+      betas: [0.9, 0.999]
+      eps: 1.0e-8
     n_steps_per_epoch: 1000
-    max_epochs: 100
+    max_epochs: 150
+    precision: "16-mixed"
+    gradient_clip_val: 1.0
+    num_sanity_val_steps: 0
 
   monitor:
     logging:
@@ -55,6 +71,9 @@ train:
     checkpoint:
       save_top_k: 3
       monitor: train_loss_total_epoch
+      save_last: true
+      checkpoint_filename: "{epoch:03d}-{train_loss_total_epoch:.4f}"
+      save_path: outputs/mito_lucchi++
     
 test:
   data:

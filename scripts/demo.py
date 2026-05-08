@@ -167,14 +167,13 @@ def create_demo_config():
         ),
         monitor=MonitorConfig(
             checkpoint=CheckpointConfig(
-                dirpath="outputs/demo/checkpoints",
+                save_path="outputs/demo",
                 checkpoint_filename="demo-{epoch:02d}-{step:06d}",
                 monitor="train_loss_total_epoch",
                 mode="min",
                 save_top_k=1,
                 save_last=False,
                 save_every_n_epochs=1,
-                use_timestamp=False,
             ),
             early_stopping=EarlyStoppingConfig(
                 enabled=False,  # Disable for demo
@@ -317,7 +316,7 @@ def run_demo():
     from pytorch_lightning.callbacks import ModelCheckpoint, RichProgressBar
 
     # Create output directory
-    output_dir = Path(cfg.monitor.checkpoint.dirpath).parent
+    output_dir = Path(cfg.monitor.checkpoint.save_path)
     output_dir.mkdir(parents=True, exist_ok=True)
 
     callbacks = [

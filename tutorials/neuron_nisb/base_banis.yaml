@@ -70,7 +70,6 @@ default:
     execution:
       strategy: whole_volume
     window:
-      lazy_load: true
       # Single-GPU tutorial path. Distributed sliding-window sharding splits
       # windows across DDP ranks, but each rank still owns full-volume value and
       # weight accumulators before reducing to rank 0.
@@ -86,7 +85,7 @@ default:
       blending: distance_transform
       # BANIS-style boundary handling: snap last window to image_size-roi_size
       # (no whole-volume padding). Honored by the lazy sliding-window path
-      # (connectomics/inference/lazy.py) when lazy_load=true.
+      # (connectomics/inference/lazy.py).
       snap_to_edge: true
     save_results: true
     save_backend: h5
@@ -170,7 +169,7 @@ train:
       save_on_train_epoch_end: false
       save_last: true
       checkpoint_filename: "{epoch:03d}-{val_loss_total:.4f}"
-      dirpath: outputs/nisb_base_banis/checkpoints/
+      save_path: outputs/nisb_base_banis
 
 test:
   system:

@@ -79,8 +79,8 @@ def test_setup_config_applies_overrides_and_fast_dev_run(tmp_path):
 
     updated = setup_config(args)
 
-    expected_dir = f"outputs/{cfg_path.stem}/checkpoints"
-    assert Path(updated.monitor.checkpoint.dirpath).as_posix() == expected_dir
+    expected_base = f"outputs/{cfg_path.stem}"
+    assert Path(updated.monitor.checkpoint.save_path).as_posix() == expected_base
     assert updated.optimization.optimizer.lr == 0.01
     assert updated.optimization.max_epochs == 5
     assert updated.data.dataloader.batch_size == 2

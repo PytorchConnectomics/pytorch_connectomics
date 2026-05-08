@@ -5,7 +5,7 @@ import torch
 
 import connectomics.inference.tta as tta_module
 from connectomics.config import Config
-from connectomics.inference.sliding import build_sliding_inferer
+from connectomics.inference.window import build_sliding_inferer
 from connectomics.inference.tta import TTAPredictor
 from connectomics.runtime.output_naming import compute_tta_passes
 

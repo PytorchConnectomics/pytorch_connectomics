@@ -74,7 +74,7 @@ default:
       window_size: [64, 256, 256]
       sw_batch_size: 1
       overlap: 0.5
-      blending: gaussian
+      blending: bump
       keep_input_on_cpu: true
       sw_device: cuda
       output_device: cpu

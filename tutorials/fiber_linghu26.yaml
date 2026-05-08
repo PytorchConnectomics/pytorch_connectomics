@@ -111,8 +111,7 @@ default:
       - 128
       - 128
       overlap: 0.5
-      blending: gaussian
-      sigma_scale: 0.25
+      blending: bump
       padding_mode: reflect
     test_time_augmentation:
       enabled: true

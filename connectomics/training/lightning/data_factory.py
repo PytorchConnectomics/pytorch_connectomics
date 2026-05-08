@@ -389,9 +389,13 @@ def create_datamodule(
     # Build transforms
     train_transforms = build_train_transforms(cfg)
     val_transforms = build_val_transforms(cfg)
+    dataloader_cfg = cfg.data.dataloader
     lazy_test_inference = bool(
         mode in ["test", "tune"]
-        and getattr(getattr(cfg.inference, "sliding_window", None), "lazy_load", False)
+        and (
+            getattr(dataloader_cfg, "use_lazy_zarr", False)
+            or getattr(dataloader_cfg, "use_lazy_h5", False)
+        )
     )
     if lazy_test_inference:
         test_transforms = Compose([])
@@ -1110,8 +1114,11 @@ def create_datamodule(
         distributed_window_sharding = bool(
             mode in ["test", "tune"]
             and sliding_cfg is not None
-            and getattr(sliding_cfg, "lazy_load", False)
             and getattr(sliding_cfg, "distributed_sharding", False)
+            and (
+                getattr(cfg.data.dataloader, "use_lazy_zarr", False)
+                or getattr(cfg.data.dataloader, "use_lazy_h5", False)
+            )
         )
         distributed_chunked_raw_sharding = bool(
             mode in ["test", "tune"]

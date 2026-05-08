@@ -89,8 +89,7 @@ default:
       window_size: [32, 256, 256]
       sw_batch_size: 1
       overlap: 0.5
-      blending: gaussian
-      sigma_scale: 0.25
+      blending: bump
       padding_mode: replicate
       keep_input_on_cpu: false
     test_time_augmentation:

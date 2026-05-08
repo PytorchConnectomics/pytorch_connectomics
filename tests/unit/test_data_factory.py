@@ -68,12 +68,13 @@ def test_build_test_transforms_derives_scale_factors_from_patch_resize():
     assert resize_transforms[1].scale_factors == [2.0, 2.0, 2.0]
 
 
-def test_create_datamodule_test_lazy_load_keeps_paths_unloaded(tmp_path):
+def test_create_datamodule_test_lazy_profile_keeps_paths_unloaded(tmp_path):
     image_path = tmp_path / "lazy_input.h5"
     image_path.touch()
 
     cfg = Config()
-    cfg.inference.sliding_window.lazy_load = True
+    cfg.data.dataloader.use_lazy_zarr = True
+    cfg.data.dataloader.use_lazy_h5 = True
     cfg.data.test.image = str(image_path)
     cfg.system.num_workers = 0
     cfg.data.dataloader.batch_size = 1
@@ -94,7 +95,8 @@ def test_create_datamodule_chunked_raw_replicates_single_test_volume_without_win
     cfg.inference.strategy = "chunked"
     cfg.inference.chunking.enabled = True
     cfg.inference.chunking.output_mode = "raw_prediction"
-    cfg.inference.sliding_window.lazy_load = True
+    cfg.data.dataloader.use_lazy_zarr = True
+    cfg.data.dataloader.use_lazy_h5 = True
     cfg.inference.sliding_window.distributed_sharding = False
     cfg.data.test.image = str(image_path)
     cfg.system.num_workers = 0

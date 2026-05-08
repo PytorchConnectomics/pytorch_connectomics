@@ -14,4 +14,4 @@ default:
 train:
   monitor:
     checkpoint:
-      dirpath: outputs/nisb_base_banis_erosion2/checkpoints/
+      save_path: outputs/nisb_base_banis_erosion2

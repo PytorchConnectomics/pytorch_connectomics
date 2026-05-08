@@ -129,7 +129,7 @@ def test_maybe_limit_test_devices_keeps_distributed_tta_sharding_for_single_volu
 def test_maybe_limit_test_devices_keeps_distributed_window_sharding_for_single_volume_tests():
     cfg = Config()
     cfg.system.num_gpus = 4
-    cfg.inference.sliding_window.lazy_load = True
+    cfg.data.dataloader.use_lazy_zarr = True
     cfg.inference.sliding_window.distributed_sharding = True
 
     changed = maybe_limit_test_devices(cfg, _DummyTestDataModule(volume_count=1))
@@ -155,7 +155,7 @@ def test_maybe_limit_test_devices_keeps_chunked_raw_for_single_volume_tests():
 def test_maybe_limit_test_devices_disables_distributed_window_sharding_for_multi_volume_tests():
     cfg = Config()
     cfg.system.num_gpus = 4
-    cfg.inference.sliding_window.lazy_load = True
+    cfg.data.dataloader.use_lazy_zarr = True
     cfg.inference.sliding_window.distributed_sharding = True
 
     changed = maybe_limit_test_devices(cfg, _DummyTestDataModule(volume_count=2))
@@ -321,13 +321,14 @@ def test_checkpoint_tune_uses_tuning_prediction_folder(tmp_path):
     output_base, tuning_dir = configure_checkpoint_output_paths(args, cfg)
 
     expected_output_base = tmp_path / "outputs" / "nisb_base_banis" / "20260427_095218"
-    expected_tuning_dir = expected_output_base / "tuning_step=00050000"
-    expected_results_dir = expected_output_base / "results_step=00050000"
+    expected_tuning_dir = expected_output_base / "tune_step=00050000"
+    expected_predictions_dir = expected_tuning_dir / "predictions"
     assert output_base == expected_output_base
     assert tuning_dir == str(expected_tuning_dir)
     assert cfg.tune.save_path == str(expected_tuning_dir)
-    assert cfg.tune.save_predictions_path == str(expected_tuning_dir / "predictions")
-    assert cfg.inference.save_path == str(expected_results_dir)
+    assert cfg.tune.save_predictions_path == str(expected_predictions_dir)
+    # Pure tune mode: cached intermediate predictions live under the tune dir.
+    assert cfg.inference.save_path == str(expected_predictions_dir)
 
 
 def test_test_stage_sync_preserves_checkpoint_prediction_output_path(tmp_path):
@@ -346,25 +347,25 @@ def test_test_stage_sync_preserves_checkpoint_prediction_output_path(tmp_path):
     )
 
     configure_checkpoint_output_paths(args, cfg)
-    expected_results_dir = (
-        tmp_path / "outputs" / "nisb_base_banis" / "20260427_095218" / "results_step=00200000"
+    expected_test_dir = (
+        tmp_path / "outputs" / "nisb_base_banis" / "20260427_095218" / "test_step=00200000"
     )
 
-    assert cfg.inference.save_path == str(expected_results_dir)
+    assert cfg.inference.save_path == str(expected_test_dir)
 
     cfg = resolve_test_stage_runtime(cfg)
 
     assert cfg.inference.save_results is True
     assert cfg.inference.save_backend == "h5"
     assert cfg.inference.save_dtype == "float16"
-    assert cfg.inference.save_path == str(expected_results_dir)
+    assert cfg.inference.save_path == str(expected_test_dir)
 
 
 def test_tune_cache_detection_uses_tuning_folder_then_result_fallback(tmp_path):
     cfg = Config()
     cfg.tune = TuneConfig()
-    cfg.inference.save_path = str(tmp_path / "results_step=00050000")
-    cfg.tune.save_predictions_path = str(tmp_path / "tuning_step=00050000" / "predictions")
+    cfg.inference.save_path = str(tmp_path / "test_step=00050000")
+    cfg.tune.save_predictions_path = str(tmp_path / "tune_step=00050000" / "predictions")
     cfg.data.val.image = str(tmp_path / "images" / "volume_a.h5")
 
     image_path = Path(cfg.data.val.image)

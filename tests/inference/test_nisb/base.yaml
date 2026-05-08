@@ -41,11 +41,9 @@ default:
       window_size: [128, 128, 128]
       sw_batch_size: 6
       overlap: 0.5
-      blending: gaussian
-      sigma_scale: 0.25
+      blending: bump
       padding_mode: replicate
       snap_to_edge: true
-      lazy_load: true
       keep_input_on_cpu: true
       sw_device: cuda
       output_device: cpu

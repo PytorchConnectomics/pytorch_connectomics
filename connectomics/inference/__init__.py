@@ -18,7 +18,7 @@ from .output import (
     resolve_output_filenames,
     write_outputs,
 )
-from .sliding import (
+from .window import (
     build_sliding_inferer,
     is_2d_inference_mode,
     resolve_inferer_overlap,

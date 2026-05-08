@@ -3,8 +3,8 @@ _base_:
 
 experiment_name: nisb_base_banis_v2_erosion2
 description: >-
-  v2 multi-head training setup with label erosion=2 for stronger boundary
-  separation.
+  v2 affinity+SDT two-head training setup with label erosion=2 for stronger
+  boundary separation.
 
 default:
   data:
@@ -16,4 +16,4 @@ default:
 train:
   monitor:
     checkpoint:
-      dirpath: outputs/nisb_base_banis_v2_erosion2/checkpoints/
+      save_path: outputs/nisb_base_banis_v2_erosion2

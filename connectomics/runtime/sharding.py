@@ -57,9 +57,13 @@ def maybe_limit_test_devices(cfg: Config, datamodule: Any) -> bool:
         getattr(tta_cfg, "enabled", False) and getattr(tta_cfg, "distributed_sharding", False)
     )
     sliding_cfg = getattr(getattr(cfg, "inference", None), "sliding_window", None)
+    dataloader_cfg = getattr(getattr(cfg, "data", None), "dataloader", None)
+    is_lazy = bool(
+        getattr(dataloader_cfg, "use_lazy_zarr", False)
+        or getattr(dataloader_cfg, "use_lazy_h5", False)
+    )
     distributed_window_sharding = bool(
-        getattr(sliding_cfg, "lazy_load", False)
-        and getattr(sliding_cfg, "distributed_sharding", False)
+        is_lazy and getattr(sliding_cfg, "distributed_sharding", False)
     )
     inference_cfg = getattr(cfg, "inference", None)
     chunking_cfg = getattr(inference_cfg, "chunking", None)

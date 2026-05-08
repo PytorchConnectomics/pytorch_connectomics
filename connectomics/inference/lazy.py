@@ -4,13 +4,13 @@ from __future__ import annotations
 
 import itertools
 import math
-from typing import Optional, Sequence
+from typing import Callable, Optional, Sequence
 
 import numpy as np
 import torch
 import torch.nn.functional as F
-from monai.data.utils import dense_patch_slices
-from monai.inferers.utils import _get_scan_interval
+from .window import dense_patch_slices
+from .window import compute_scan_interval as _get_scan_interval  # in-house
 
 try:
     from tqdm.auto import tqdm
@@ -25,9 +25,8 @@ from .lazy_distributed import distributed_reduction_device as _distributed_reduc
 from .lazy_distributed import (
     is_distributed_window_sharding_enabled as _is_distributed_window_sharding_enabled,
 )
-from .lazy_distributed import reduce_cpu_tensor_to_rank_zero as _reduce_cpu_tensor_to_rank_zero
 from .lazy_distributed import validate_distributed_patch_shard as _validate_distributed_patch_shard
-from .sliding import (
+from .window import (
     apply_border_mask,
     build_sliding_accumulator_weight_maps,
     normalize_weighted_accumulator,
@@ -818,6 +817,9 @@ def _lazy_sliding_window(
     device: torch.device | str,
     requested_head: Optional[str],
     enable_distributed_window_sharding: bool,
+    accumulator_reduce: Optional[
+        Callable[[torch.Tensor, torch.Tensor], Optional[tuple[torch.Tensor, torch.Tensor]]]
+    ] = None,
     progress_desc: str,
 ) -> torch.Tensor:
     """Lazy sliding-window inference over a bounded ZYX region.
@@ -849,8 +851,7 @@ def _lazy_sliding_window(
             or getattr(getattr(cfg, "data", None), "dataloader", None).batch_size
         ),
     )
-    blend_mode = str(getattr(sliding_cfg, "blending", "gaussian")).strip().lower()
-    sigma_scale = float(getattr(sliding_cfg, "sigma_scale", 0.125))
+    blend_mode = str(getattr(sliding_cfg, "blending", "bump")).strip().lower()
     outer_pad_mode = getattr(sliding_cfg, "padding_mode", "constant")
     outer_pad_value = float(getattr(sliding_cfg, "cval", 0.0))
     snap_to_edge = bool(getattr(sliding_cfg, "snap_to_edge", False))
@@ -867,7 +868,6 @@ def _lazy_sliding_window(
     accumulation_device = torch.device("cpu")
     _is_dist, rank, world_size = _distributed_context()
     reduction_device = _distributed_reduction_device(infer_device)
-    reduce_chunk_mb = int(getattr(sliding_cfg, "distributed_reduce_chunk_mb", 128) or 128)
 
     with _build_accessor(cfg, image_path, kind="image", mode="test") as image_accessor:
         bounds_shape = tuple(int(v) for v in image_accessor.padded_spatial_shape)
@@ -938,7 +938,6 @@ def _lazy_sliding_window(
         value_importance_map, weight_importance_map = build_sliding_accumulator_weight_maps(
             tuple(int(v) for v in roi_size),
             mode=blend_mode,
-            sigma_scale=overlap if blend_mode == "constant" else sigma_scale,
             device=accumulation_device,
             value_dtype=output_dtype,
         )
@@ -1058,32 +1057,15 @@ def _lazy_sliding_window(
                     f"No lazy sliding-window patches were generated for {image_path}{rank_suffix}."
                 )
 
-            if enable_distributed_window_sharding:
-                reduced_value = _reduce_cpu_tensor_to_rank_zero(
-                    value_accumulator,
-                    op=torch.distributed.ReduceOp.SUM,
-                    reduction_device=reduction_device,
-                    chunk_mb=reduce_chunk_mb,
-                    name="value accumulator",
-                )
-                reduced_weight = _reduce_cpu_tensor_to_rank_zero(
-                    weight_accumulator,
-                    op=torch.distributed.ReduceOp.SUM,
-                    reduction_device=reduction_device,
-                    chunk_mb=reduce_chunk_mb,
-                    name="weight accumulator",
-                )
-                if rank != 0:
+            if accumulator_reduce is not None:
+                reduced = accumulator_reduce(value_accumulator, weight_accumulator)
+                if reduced is None:
+                    # Non-root rank: reduction has been performed; nothing
+                    # more to do here.
                     return torch.empty(
                         0, device=infer_device if infer_device.type == "cuda" else "cpu"
                     )
-                if reduced_value is None or reduced_weight is None:
-                    raise RuntimeError(
-                        "Distributed lazy sliding-window reduction did not return rank-0 "
-                        "accumulators."
-                    )
-                value_accumulator = reduced_value
-                weight_accumulator = reduced_weight
+                value_accumulator, weight_accumulator = reduced
 
             value_accumulator = normalize_weighted_accumulator(
                 value_accumulator, weight_accumulator
@@ -1140,6 +1122,21 @@ def lazy_predict_volume(
     requested_head: Optional[str] = None,
 ) -> torch.Tensor:
     """Run lazy sliding-window inference directly from disk-backed volumes."""
+    distributed = _is_distributed_window_sharding_enabled(cfg)
+    accumulator_reduce = None
+    if distributed:
+        from .lazy_distributed import (
+            distributed_reduction_device,
+            make_accumulator_reduce_hook,
+        )
+
+        sliding_cfg = getattr(getattr(cfg, "inference", None), "sliding_window", None)
+        chunk_mb = int(getattr(sliding_cfg, "distributed_reduce_chunk_mb", 128) or 128)
+        infer_device = torch.device(device) if not isinstance(device, torch.device) else device
+        accumulator_reduce = make_accumulator_reduce_hook(
+            reduction_device=distributed_reduction_device(infer_device),
+            chunk_mb=chunk_mb,
+        )
     return _lazy_sliding_window(
         cfg,
         forward_fn,
@@ -1150,6 +1147,7 @@ def lazy_predict_volume(
         mask_align_to_image=mask_align_to_image,
         device=device,
         requested_head=requested_head,
-        enable_distributed_window_sharding=_is_distributed_window_sharding_enabled(cfg),
+        enable_distributed_window_sharding=distributed,
+        accumulator_reduce=accumulator_reduce,
         progress_desc="Lazy sliding-window",
     )

@@ -164,25 +164,21 @@ def parse_args():
     return parser.parse_args()
 
 
+def _default_train_output_base(config_path: Path) -> str:
+    """Return the default train-mode output base derived from the YAML stem.
+
+    Train-mode runtime layers ``<timestamp>/checkpoints`` on top of this
+    value (see ``training.lightning.runtime.setup_run_directory``).
+    """
+    return f"outputs/{config_path.stem}"
+
+
 def setup_config(args) -> Config:
     """Load, merge, validate, and return the runtime config for the requested mode."""
     logger.info("Loading config: %s", args.config)
     cfg = load_config(args.config)
 
     config_path = Path(args.config)
-    output_folder = f"outputs/{config_path.stem}/"
-
-    if not getattr(cfg.monitor.checkpoint, "dirpath", None):
-        cfg.monitor.checkpoint.dirpath = str(Path(output_folder) / "checkpoints")
-    else:
-        cfg.monitor.checkpoint.dirpath = str(Path(cfg.monitor.checkpoint.dirpath))
-
-    if not getattr(cfg.inference, "save_path", None):
-        cfg.inference.save_path = str(Path(output_folder) / "results")
-    else:
-        cfg.inference.save_path = str(Path(cfg.inference.save_path))
-
-    cfg.monitor.checkpoint.use_timestamp = False
 
     if args.overrides:
         logger.info("Applying %d CLI overrides", len(args.overrides))
@@ -190,6 +186,23 @@ def setup_config(args) -> Config:
 
     cfg = resolve_default_profiles(cfg, mode=args.mode)
     cfg = resolve_data_paths(cfg)
+
+    # Resolve monitor.checkpoint.save_path after profile/stage resolution so
+    # default-stage merges cannot overwrite the YAML-stem default.
+    if not getattr(cfg.monitor.checkpoint, "save_path", None):
+        cfg.monitor.checkpoint.save_path = _default_train_output_base(config_path)
+    else:
+        cfg.monitor.checkpoint.save_path = str(Path(cfg.monitor.checkpoint.save_path))
+
+    # Train mode does not run inference, so cfg.inference.save_path is left
+    # empty. Test/tune modes with --checkpoint receive their save_path from
+    # configure_checkpoint_output_paths. The remaining case is the decode-only
+    # / no-checkpoint test/tune flow (e.g. cfg.decoding.load_prediction_path
+    # is set); give it a deterministic YAML-stem default so decoded outputs
+    # and evaluation reports do not silently fall back to cwd or to the
+    # input prediction's parent dir.
+    if args.mode != "train" and not getattr(cfg.inference, "save_path", None):
+        cfg.inference.save_path = _default_train_output_base(config_path)
 
     if cfg.tune is not None:
         if args.tune_trials is not None:

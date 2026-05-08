@@ -3,48 +3,58 @@ _base_:
 
 experiment_name: nisb_base_banis_v2
 description: >-
-  v1 plus separate short- and long-range affinity heads. The r1 head is used
-  for decoding; the r10 head supplies long-range training signal and is saved
-  for diagnostics.
+  v1 plus an auxiliary skeleton-aware distance transform head. The affinity
+  head keeps the proven 6-channel r1+r10 supervision from v1; the SDT head
+  adds boundary/bottleneck signal for false-merge reduction. Decoding still
+  uses only short-range channels 0:3 from the affinity head.
 
 default:
   model:
-    primary_head: aff_r1
+    out_channels: 7
+    primary_head: aff
     heads:
-      aff_r1:
-        out_channels: 3
+      aff:
+        out_channels: 6
         num_blocks: 1
         hidden_channels: 16
-        target_slice: "0:3"
-      aff_r10:
-        out_channels: 3
+        target_slice: "0:6"
+      sdt:
+        out_channels: 1
         num_blocks: 1
         hidden_channels: 16
-        target_slice: "3:6"
+        target_slice: "6:7"
     loss:
       deep_supervision: false
       losses:
-        # Keep per-channel balance inside each head; otherwise sparse long-range
-        # positives are still dominated by easy negatives.
+        # Keep r1 and r10 in one affinity head so the V2 experiment preserves
+        # the V1 affinity learning path; SDT is the only new auxiliary task.
         - function: PerChannelBCEWithLogitsLoss
           weight: 1.0
-          pred_head: aff_r1
-          target_slice: "0:3"
+          pred_head: aff
+          target_slice: "0:6"
           kwargs:
             auto_pos_weight: true
             max_pos_weight: 10.0
-        - function: PerChannelBCEWithLogitsLoss
-          weight: 1.0
-          pred_head: aff_r10
-          target_slice: "3:6"
+        - function: SmoothL1Loss
+          weight: 10.0
+          pred_head: sdt
+          target_slice: "6:7"
           kwargs:
-            auto_pos_weight: true
-            max_pos_weight: 10.0
-      loss_balancing:
-        strategy: uncertainty
+            tanh: true
+  data:
+    label_transform:
+      targets:
+        - name: affinity
+          kwargs:
+            offsets: ["1-0-0", "0-1-0", "0-0-1", "10-0-0", "0-10-0", "0-0-10"]
+            affinity_mode: banis
+        - name: skeleton_aware_edt
+          kwargs:
+            alpha: 0.8
+            bg_value: -1.0
   inference:
     model:
-      head: aff_r1
+      head: aff
       select_channel: [0, 1, 2]
     save_all_heads: true
 
@@ -59,11 +69,9 @@ train:
           - train_loss_term_0_weighted
           - train_loss_term_1_raw
           - train_loss_term_1_weighted
-          - term_0_weight_epoch
-          - term_1_weight_epoch
         loss_every_n_steps: 100
       images:
         head: all
         channel_mode: all
     checkpoint:
-      dirpath: outputs/nisb_base_banis_v2/checkpoints/
+      save_path: outputs/nisb_base_banis_v2
