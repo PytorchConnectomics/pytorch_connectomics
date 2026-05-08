@@ -39,7 +39,7 @@ Requires Python 3.8+, PyTorch 1.8+. Install PyTorch separately for your CUDA ver
 pip install -e .              # core
 pip install -e .[full]        # +tifffile/wandb/jupyter/gputil
 # extras: [optim] [wandb] [tiff] [viz] [metrics] [dev] [docs]
-pip install -e /projects/weilab/weidf/lib/MedNeXt   # optional MedNeXt
+pip install git+https://github.com/MIC-DKFZ/MedNeXt.git   # optional MedNeXt
 ```
 
 ## Development Commands
@@ -779,7 +779,7 @@ Authoritative list lives in `setup.py`/`pyproject.toml`. Highlights:
 
 - **Core (auto-installed)**: torch≥1.8, pytorch-lightning≥2.0, monai≥0.9.1, torchmetrics, omegaconf≥2.1, numpy≥1.23, scipy, scikit-image, h5py, opencv-python, einops, cc3d, kimimaro, mahotas, fastremap, tensorboard, tqdm.
 - **Extras**: `[full]` (tifffile, wandb, jupyter, gputil), `[optim]` (optuna), `[wandb]`, `[tiff]`, `[viz]` (neuroglancer), `[metrics]` (funlib.evaluate, manual: `pip install git+https://github.com/funkelab/funlib.evaluate.git`), `[dev]` (pytest, pytest-benchmark), `[docs]` (sphinx).
-- **External**: MedNeXt at `/projects/weilab/weidf/lib/MedNeXt` (`from nnunet_mednext import create_mednext_v1`); graceful fallback if missing.
+- **External**: MedNeXt (`pip install git+https://github.com/MIC-DKFZ/MedNeXt.git`, exposes `from nnunet_mednext import create_mednext_v1`); graceful fallback if missing.
 
 ## Common Issues
 
