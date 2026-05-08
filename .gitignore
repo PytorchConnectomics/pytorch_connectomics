@@ -159,3 +159,4 @@ lib/
 dev/
 .codex
 .claude
+.agent/
