@@ -10,14 +10,11 @@ This directory contains the Sphinx documentation for PyTorch Connectomics.
 # Activate your environment
 conda activate pytc
 
-# Install documentation dependencies
+# Install documentation dependencies (includes pytorch-sphinx-theme)
 pip install -r requirements.txt
 
-# Install PyTorch Sphinx theme
-git clone https://github.com/pytorch/pytorch_sphinx_theme.git
-cd pytorch_sphinx_theme
-pip install -e .
-cd ..
+# Install the package so autodoc can `import connectomics`
+pip install ..
 ```
 
 ### Build Documentation

@@ -10,7 +10,6 @@ docs/
 ├── UPDATING_DOCS.md            # This file - comprehensive update guide
 ├── Makefile                    # Build commands
 ├── requirements.txt            # Documentation dependencies
-├── environment_docs.yml        # Conda environment for docs
 └── source/                     # Documentation source files
     ├── conf.py                 # Sphinx configuration
     ├── index.rst              # Main documentation page
@@ -48,12 +47,7 @@ conda activate pytc  # or your environment name
 # Install documentation requirements
 cd docs
 pip install -r requirements.txt
-
-# Install PyTorch Sphinx theme
-git clone https://github.com/pytorch/pytorch_sphinx_theme.git
-cd pytorch_sphinx_theme
-pip install -e .
-cd ..
+# Theme installs from docs/requirements.txt
 ```
 
 ### 2. Install PyTorch Connectomics
@@ -289,9 +283,8 @@ pip install -e .
 
 **Solution**: Install pytorch_sphinx_theme:
 ```bash
-git clone https://github.com/pytorch/pytorch_sphinx_theme.git
-cd pytorch_sphinx_theme
-pip install -e .
+# Theme is pinned in docs/requirements.txt
+pip install -r docs/requirements.txt
 ```
 
 ### Issue: Broken cross-references
@@ -350,7 +343,6 @@ The documentation is automatically built and deployed to ReadTheDocs when pushed
 
 - `.readthedocs.yml` (if exists) - ReadTheDocs config
 - `docs/requirements.txt` - Dependencies for ReadTheDocs build
-- `docs/environment_docs.yml` - Conda environment
 
 ### Manual Trigger
 
