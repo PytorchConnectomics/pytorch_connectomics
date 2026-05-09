@@ -15,6 +15,7 @@ The implementation delegates to specialized modules:
 
 from __future__ import annotations
 
+import hashlib
 import logging
 import os
 import warnings
@@ -26,7 +27,7 @@ import pytorch_lightning as pl
 import torch
 import torch.nn as nn
 import torchmetrics
-from omegaconf import DictConfig
+from omegaconf import DictConfig, OmegaConf
 from pytorch_lightning.utilities.types import STEP_OUTPUT
 
 # Import existing components
@@ -96,14 +97,20 @@ class ConnectomicsModule(pl.LightningModule):
     ):
         super().__init__()
         self.cfg = cfg
-        self.save_hyperparameters(ignore=["model"])
+        self.save_hyperparameters(ignore=["cfg", "model"])
 
         # Build model
         self.model = model if model is not None else self._build_model(cfg)
 
+        self.loss_functions: nn.ModuleList
+        self.loss_weights: List[float]
+        self.loss_metadata: List[Any]
+        self.loss_weighter: Optional[nn.Module]
+        self.loss_orchestrator: Optional[LossOrchestrator]
+
         # Skip loss/optimizer setup for decode-only mode
         if skip_loss:
-            self.loss_functions = []
+            self.loss_functions = nn.ModuleList()
             self.loss_weights = []
             self.loss_metadata = []
             self.loss_weighter = None
@@ -235,6 +242,41 @@ class ConnectomicsModule(pl.LightningModule):
         """
         return self.model(x)
 
+    def on_save_checkpoint(self, checkpoint: Dict[str, Any]) -> None:
+        """Persist primitive PyTC metadata without embedding config objects."""
+        hyper_parameters = checkpoint.get("hyper_parameters")
+        if isinstance(hyper_parameters, dict):
+            hyper_parameters.pop("cfg", None)
+            hyper_parameters.pop("model", None)
+
+        checkpoint["pytc_metadata"] = self._checkpoint_metadata()
+
+    def _checkpoint_metadata(self) -> Dict[str, Any]:
+        metadata = {
+            "format_version": 1,
+            "config_embedded": False,
+            "config_hash": self._checkpoint_config_hash(self.cfg),
+        }
+
+        arch_cfg = getattr(getattr(self.cfg, "model", None), "arch", None)
+        arch_type = getattr(arch_cfg, "type", None)
+        if isinstance(arch_type, str):
+            metadata["model_arch"] = arch_type
+
+        return metadata
+
+    @staticmethod
+    def _checkpoint_config_hash(cfg: Union[Config, DictConfig]) -> Optional[str]:
+        try:
+            if isinstance(cfg, DictConfig):
+                yaml_str = OmegaConf.to_yaml(cfg, resolve=True)
+            else:
+                yaml_str = OmegaConf.to_yaml(OmegaConf.structured(cfg), resolve=True)
+            return hashlib.md5(yaml_str.encode()).hexdigest()[:8]
+        except Exception:
+            logger.debug("Unable to compute checkpoint config hash", exc_info=True)
+            return None
+
     def load_state_dict(self, state_dict: Dict[str, torch.Tensor], strict: bool = True):
         """Load checkpoint state with compatibility filtering for stale loss-function buffers."""
         if strict and isinstance(state_dict, dict):
@@ -287,12 +329,16 @@ class ConnectomicsModule(pl.LightningModule):
             )
             return float(default)
 
+    def _require_loss_orchestrator(self) -> LossOrchestrator:
+        if self.loss_orchestrator is None:
+            raise RuntimeError("Loss orchestration is unavailable when skip_loss=True")
+        return self.loss_orchestrator
+
     def _has_multiple_supervised_loss_tasks(self) -> bool:
         """Infer multi-task supervised setup from compiled explicit loss terms."""
+        loss_orchestrator = self._require_loss_orchestrator()
         pred_target_terms = [
-            term
-            for term in self.loss_orchestrator.loss_term_specs
-            if term.call_kind == "pred_target"
+            term for term in loss_orchestrator.loss_term_specs if term.call_kind == "pred_target"
         ]
         return len(pred_target_terms) > 1
 
@@ -332,7 +378,8 @@ class ConnectomicsModule(pl.LightningModule):
 
         primary_head = getattr(self.cfg.model, "primary_head", None)
         matching_slices = []
-        for term in self.loss_orchestrator.loss_term_specs:
+        loss_orchestrator = self._require_loss_orchestrator()
+        for term in loss_orchestrator.loss_term_specs:
             if term.call_kind != "pred_target":
                 continue
             resolved_head = term.pred_head if term.pred_head is not None else primary_head
@@ -380,7 +427,8 @@ class ConnectomicsModule(pl.LightningModule):
             raise ValueError(
                 "Multiclass metric computation requires either a single class-index target "
                 "channel or the same number of one-hot channels as the prediction. "
-                f"Got prediction.shape={tuple(prediction.shape)} and target.shape={tuple(target.shape)}."
+                f"Got prediction.shape={tuple(prediction.shape)} and "
+                f"target.shape={tuple(target.shape)}."
             )
         return preds, targets
 
@@ -732,7 +780,8 @@ class ConnectomicsModule(pl.LightningModule):
 
             if all_exist and len(existing_predictions) == len(filenames):
                 logger.info(
-                    "All prediction files exist (%s). Loading %d predictions and skipping inference.",
+                    "All prediction files exist (%s). Loading %d predictions and "
+                    "skipping inference.",
                     try_suffix,
                     len(existing_predictions),
                 )
@@ -833,14 +882,15 @@ class ConnectomicsModule(pl.LightningModule):
         target_mask: Optional[torch.Tensor] = None,
     ):
         """Compute loss handling both standard and deep supervision outputs."""
+        loss_orchestrator = self._require_loss_orchestrator()
         is_deep_supervision = isinstance(outputs, dict) and any(
             k.startswith("ds_") for k in outputs.keys()
         )
         if is_deep_supervision:
-            return self.loss_orchestrator.compute_deep_supervision_loss(
+            return loss_orchestrator.compute_deep_supervision_loss(
                 outputs, labels, stage=stage, mask=mask, target_mask=target_mask
             )
-        return self.loss_orchestrator.compute_standard_loss(
+        return loss_orchestrator.compute_standard_loss(
             outputs, labels, stage=stage, mask=mask, target_mask=target_mask
         )
 
