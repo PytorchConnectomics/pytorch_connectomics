@@ -258,6 +258,17 @@ class TestCheckpointing:
         assert ckpt_path.exists()
         assert ckpt_path.stat().st_size > 0
 
+        checkpoint = torch.load(ckpt_path, map_location="cpu", weights_only=True)
+        hparams = checkpoint.get("hyper_parameters", {})
+        assert "cfg" not in hparams
+        assert "model" not in hparams
+
+        metadata = checkpoint["pytc_metadata"]
+        assert metadata["format_version"] == 1
+        assert metadata["config_embedded"] is False
+        assert metadata["model_arch"] == minimal_config.model.arch.type
+        assert isinstance(metadata["config_hash"], str)
+
     def test_checkpoint_load(self, minimal_config, temp_dir):
         """Test checkpoint loading."""
         # Create and save module
