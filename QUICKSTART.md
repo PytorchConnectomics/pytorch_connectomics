@@ -10,62 +10,17 @@ Get PyTorch Connectomics running in **5 minutes**! 🚀
 
 ---
 
-## Step 1: Install (Choose ONE method)
-
-### 🚀 Method A: One-Command Install (Recommended)
+## Step 1: Install
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/zudi-lin/pytorch_connectomics/v2.0/quickstart.sh | bash
-```
-
-That's it! The script will:
-- ✅ Install conda (if needed)
-- ✅ Detect your CUDA version
-- ✅ Install PyTorch + PyTorch Connectomics
-- ✅ Verify installation
-
-**Time:** 2-3 minutes
-
----
-
-### 🐍 Method B: Python Script (More Control)
-
-```bash
-# Clone repository
-git clone https://github.com/zudi-lin/pytorch_connectomics.git
+curl -fsSL https://raw.githubusercontent.com/zudi-lin/pytorch_connectomics/master/quickstart.sh | bash
 cd pytorch_connectomics
-
-# Run installer
-python install.py
-
-# Activate environment
 conda activate pytc
 ```
 
-**Time:** 2-3 minutes
-
----
-
-### 🛠️ Method C: Manual Installation
-
-```bash
-# Create conda environment
-conda create -n pytc python=3.10 -y
-conda activate pytc
-
-# Install pre-built packages (avoids compilation)
-conda install -c conda-forge numpy=1.23 h5py cython connected-components-3d mahotas -y
-
-# Install PyTorch (adjust for your CUDA version)
-pip install torch torchvision --index-url https://download.pytorch.org/whl/cu121
-
-# Install PyTorch Connectomics
-git clone https://github.com/zudi-lin/pytorch_connectomics.git
-cd pytorch_connectomics
-pip install -e . --no-build-isolation
-```
-
-**Time:** 3-5 minutes
+For CUDA-specific options, manual install, or installing via an AI
+coding agent (Claude Code / Codex), see
+[INSTALLATION.md](INSTALLATION.md).
 
 ---
 
@@ -129,32 +84,14 @@ tensorboard --logdir outputs/lucchi++_monai_unet
 
 ## Common Issues
 
-### Issue: "No module named 'connectomics'"
-
-**Solution:**
-```bash
-conda activate pytc
-pip install -e . --no-build-isolation
-```
+For installation problems, see
+[INSTALLATION.md](INSTALLATION.md#common-install-issues).
 
 ### Issue: "CUDA out of memory"
 
 **Solution:** Reduce batch size in config:
 ```bash
 python scripts/main.py --config tutorials/lucchi.yaml data.dataloader.batch_size=1
-```
-
-### Issue: "Could not find CUDA"
-
-**Solution 1:** Install CPU-only version:
-```bash
-python install.py --cpu-only
-```
-
-**Solution 2:** Load CUDA module (HPC clusters):
-```bash
-module load cuda/12.1
-python install.py --cuda 12.1
 ```
 
 ---

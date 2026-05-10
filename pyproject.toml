@@ -109,7 +109,6 @@ Homepage = "https://github.com/zudi-lin/pytorch_connectomics"
 Documentation = "https://connectomics.readthedocs.io"
 Repository = "https://github.com/zudi-lin/pytorch_connectomics"
 "Bug Tracker" = "https://github.com/zudi-lin/pytorch_connectomics/issues"
-Changelog = "https://github.com/zudi-lin/pytorch_connectomics/blob/master/RELEASE_NOTES.md"
 
 [project.scripts]
 pytc-demo = "connectomics.utils.demo:run_demo"
