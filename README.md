@@ -11,20 +11,21 @@
     <a href="https://arxiv.org/abs/2112.05754"><img src="https://img.shields.io/badge/arXiv-2112.05754-FF7F50.svg" /></a>
 </p>
 
-**Modern deep learning for connectomics.** Train, run inference, decode, and evaluate segmentation pipelines on large EM volumes — from a single GPU to multi-node clusters.
+**Modern deep learning for 2D / 3D connectomics.** Train, run inference, decode, and evaluate segmentation pipelines on large EM volumes — from a single GPU to multi-node clusters.
 
 ---
 
 ## What you can segment
 
-| Structure       | Datasets                                    | Tutorial config                                                  |
-|-----------------|---------------------------------------------|------------------------------------------------------------------|
-| Mitochondria    | Lucchi++, MitoEM, MitoLab, BetaSeg          | `mito_lucchi++`, `mitoEM/*`, `mito_mitolab`, `mito_betaseg`      |
-| Neurons         | SNEMI3D, BANIS, ExM-MIT                  | `neuron_snemi/*`, `neuron_nisb/*`, `neuron_exm_mit`           |
-| Synapses        | CREMI                                       | `syn_cremi`                                                      |
-| Nuclei          | NucMM-Z                                     | `nuc_nucmm-z`                                                    |
-| Vesicles        | XM                                          | `vesicle_xm`                                                     |
-| Fibers          | Linghu26                                    | `fiber_linghu26`                                                 |
+| Scale           | Structure       | Datasets                                    | Tutorial config                                                  |
+|-----------------|-----------------|---------------------------------------------|------------------------------------------------------------------|
+| Tissue-scale    | Blood vessel    | —                                           | (coming)                                                         |
+| Tissue-scale    | Nuclei          | NucMM-Z                                     | `nuc_nucmm-z`                                                    |
+| Cell-scale      | Neurons         | SNEMI3D, BANIS, ExM-MIT                  | `neuron_snemi/*`, `neuron_nisb/*`, `neuron_exm_mit`           |
+| Cell-scale      | Synapses        | CREMI                                       | `syn_cremi`                                                      |
+| Cell-scale      | Fibers          | Linghu26                                    | `fiber_linghu26`                                                 |
+| Organelle-scale | Mitochondria    | Lucchi++, MitoEM, MitoLab, BetaSeg          | `mito_lucchi++`, `mitoEM/*`, `mito_mitolab`, `mito_betaseg`      |
+| Organelle-scale | Vesicles        | XM                                          | `vesicle_xm`                                                     |
 
 Sample data downloads in <1 min for `lucchi++`, `snemi`, `mitoem`, `cremi` (`just download <name>`).
 
@@ -173,21 +174,13 @@ python scripts/main.py --config <cfg> data.dataloader.batch_size=4 optimization.
 
 ## Acknowledgments
 
-Built on:
-[PyTorch Lightning](https://lightning.ai/) ·
-[MONAI](https://monai.io/) ·
-[MedNeXt](https://github.com/PytorchConnectomics/MedNeXt) ·
-[nnU-Net](https://github.com/MIC-DKFZ/nnUNet) ·
-[Cellpose](https://github.com/MouseLand/cellpose) ·
-[Zarr](https://zarr.dev/) ·
-[HDF5](https://www.h5py.org/) ·
-[cc3d](https://github.com/seung-lab/connected-components-3d) ·
-[waterz](https://github.com/funkey/waterz) ·
-[abiss](https://github.com/seung-lab/abiss) ·
-[Optuna](https://optuna.org/) ·
-[Hydra](https://hydra.cc/).
+PyTC stands on the work of many open-source projects. Organized by what they enable here:
 
-Special thanks to [Claude Code](https://claude.com/claude-code) and [Codex](https://github.com/openai/codex), with [ccc-agent-flow](https://github.com/donglaiw/ccc-agent-flow) as the collaboration orchestrator.
+- **High-performance pipeline** — [PyTorch Lightning](https://lightning.ai/), [MONAI](https://monai.io/), [Zarr](https://zarr.dev/), [HDF5](https://www.h5py.org/)
+- **State-of-the-art models** — [Swin UNETR](https://docs.monai.io/en/stable/networks.html#swinunetr), [MedNeXt](https://github.com/PytorchConnectomics/MedNeXt), [nnU-Net](https://github.com/MIC-DKFZ/nnUNet), [Cellpose](https://github.com/MouseLand/cellpose)
+- **Effective decoding** — [cc3d](https://github.com/seung-lab/connected-components-3d), [waterz](https://github.com/funkey/waterz), [abiss](https://github.com/seung-lab/abiss)
+- **Reproducible experiments** — [Hydra](https://hydra.cc/), [Optuna](https://optuna.org/)
+- **Agent-driven development** — [Claude Code](https://claude.com/claude-code), [Codex](https://github.com/openai/codex), orchestrated via [ccc-agent-flow](https://github.com/donglaiw/ccc-agent-flow)
 
 ---
 
