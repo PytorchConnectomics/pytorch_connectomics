@@ -1,81 +1,150 @@
 CREMI (Synaptic Cleft Detection)
 ==================================
 
-This tutorial provides step-by-step guidance for synaptic cleft detection
-with `CREMI <https://cremi.org>`_ benchmark datasets. We consider the task
-as a semantic segmentation task and predict the synapse pixels with
-encoder-decoder ConvNets similar to the models used in affinity prediction
-in :doc:`../neuron/snemi3d`. The evaluation of the synapse detection
-results is based on the F1 score and average distance. See
-`CREMI metrics <https://cremi.org/metrics/>`_ for more details.
+This tutorial reproduces synaptic cleft detection on the
+`CREMI Challenge <https://cremi.org>`_ dataset using
+``tutorials/syn_cremi.yaml``. The task is binary semantic segmentation
+of cleft pixels with an anisotropic RSUNet, evaluated with the CREMI
+distance metric and Jaccard.
 
-    .. note::
+Goal
+----
 
-        We preform re-alignment of the original CREMI image stacks and also remove the crack artifacts. Please reverse the alignment before submitting the test prediction to the CREMI challenge.
+The pipeline pins the following setup (encoded in
+``tutorials/syn_cremi.yaml``):
 
-Script needed for this tutorial can be found at ``pytorch_connectomics/scripts/``. Modern *YAML* examples live under
-``pytorch_connectomics/tutorials/``, with structured defaults under ``pytorch_connectomics/connectomics/config/``.
-Synaptic cleft detection uses the Lightning data factory, which selects datasets from
-:mod:`connectomics.data.datasets` based on the ``data`` config.
+- **Input** ``[18, 256, 256]`` patches at native CREMI resolution
+  ``40 × 4 × 4`` nm.
+- **Model** RSUNet with anisotropic down-sampling
+  (``down_factors: [[1,2,2]] * 4``, ``depth_2d=1``,
+  ``kernel_2d=[1,3,3]``), filters ``[32, 64, 96, 128, 160]``, batch
+  norm, ELU activation. Single-channel cleft output.
+- **Loss** ``WeightedBCEWithLogitsLoss`` (weight 1.0) plus
+  ``DiceLoss`` (weight 1.0, sigmoid input).
+- **Augmentation** flip + rotate + elastic + intensity (Gaussian
+  noise, intensity shift, contrast) + EM-specific
+  (``misalignment``, ``missing_section``, ``motion_blur``) — the
+  full ``aug_em_*`` suite enabled inline.
+- **Sampling** rejection sampling at ``size_thres=1000``, ``p=0.95``
+  to focus on patches with synaptic clefts; preloaded cache for
+  train and val.
+- **Optimization** AdamW @ ``lr=1e-3``, ``weight_decay=0.01``,
+  cosine to ``min_lr=1e-5`` over ``max_steps=150_000``,
+  ``precision=bf16-mixed``, EMA enabled with ``decay=0.999`` and
+  ``warmup_steps=500`` (``validate_with_ema=true``).
+- **Inference** sliding window 18 × 256 × 256, 50 % overlap, bump
+  blending, reflect padding; sigmoid activation on the cleft
+  channel; TTA enabled with ``flip_axes: all``, ``ensemble_mode: mean``.
+- **Metrics** ``cremi_distance`` and ``jaccard``.
 
-.. figure:: ../../_static/img/cremi_qual.png
-    :align: center
-    :width: 800px
+1 - Get the data
+^^^^^^^^^^^^^^^^
 
-Qualitative results of the synaptic cleft prediction (red segments) on the CREMI challenge test volumes. The three images from left to right are
-cropped from volume A+, B+, and C+, respectively.
+Download from the
+`CREMI challenge page <https://cremi.org/>`_ or the Harvard RC mirror:
 
-1 - Get the dataset
-^^^^^^^^^^^^^^^^^^^^^
+.. code-block:: bash
 
-Download the dataset from the `challenge page <https://cremi.org/>`_, or the Harvard RC server:
-
-.. code-block:: none
-
+    mkdir -p datasets/corrected && cd datasets/corrected
     wget http://rhoana.rc.fas.harvard.edu/dataset/cremi.zip
+    unzip cremi.zip
 
-Or execute the following snippet in the root directory:
+The config expects re-aligned, crack-corrected versions of the original
+CREMI volumes:
+
+.. code-block:: text
+
+    datasets/corrected/
+        im_A.h5,  im_B.h5,  im_C.h5         # training volumes
+        syn_A.h5, syn_B.h5, syn_C.h5        # cleft labels
+        im_A+.h5, im_B+.h5, im_C+.h5        # held-out test (no labels)
 
     .. note::
-        If you use the original CREMI challenge datasets or the data processed by yourself, the file names can be different from the default ones. In such case, please change the corresponding entries, including ``IMAGE_NAME``, ``LABEL_NAME`` and ``INPUT_PATH`` in the `CREMI config file <https://github.com/zudi-lin/pytorch_connectomics/blob/master/configs/CREMI-Synaptic-Cleft.yaml>`_.
+
+        The training pipeline reads the re-aligned volumes (``im_*.h5``
+        without the ``+``); the ``+`` variants are the held-out
+        challenge test set used only for submission. We perform
+        re-alignment of the original CREMI image stacks and remove the
+        crack artifacts. Reverse the alignment before submitting test
+        predictions to the CREMI challenge.
 
 2 - Run training
-^^^^^^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^^
 
-For the CREMI dataset that has multiple volumes, our framework can take a list of volumes and
-conduct training/inference at the same time.
+.. code-block:: bash
 
-.. code-block:: none
+    conda activate pytc
+    python scripts/main.py --config tutorials/syn_cremi.yaml
 
-    source activate py3_torch
-    python -u scripts/main.py \
-    --config-base configs/CREMI/CREMI-Base.yaml \
-    --config-file configs/CREMI/CREMI-Foreground-UNet.yaml
+The config does not pin ``system.num_gpus``, so it inherits the
+``all-gpu-cpu`` default. Override at the CLI if needed:
 
-Or if using multiple GPUs for higher performance:
+.. code-block:: bash
 
-.. code-block:: none
+    python scripts/main.py --config tutorials/syn_cremi.yaml \
+        system.num_gpus=4
 
-    source activate py3_torch
-    CUDA_VISIBLE_DEVICES=0,1,2,3 python -u -m torch.distributed.run \
-    --nproc_per_node=4 --master_port=2345 scripts/main.py --distributed \
-    --config-base configs/CREMI/CREMI-Base_multiGPU.yaml \
-    --config-file configs/CREMI/CREMI-Foreground-UNet.yaml
+Training schedule:
 
+- **Step-based**: ``max_steps=150_000``, ``n_steps_per_epoch=1280``.
+- Cosine LR over 150 k steps to ``min_lr=1e-5``.
+- EMA shadow weights with ``decay=0.999``;
+  ``validate_with_ema=true`` so checkpoint metrics are computed on the
+  EMA model.
+- ``checkpoint.monitor=train_loss_total_epoch``, ``save_top_k=3``,
+  saved every 10 epochs.
 
-3 - Visualize the training progress
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Outputs land in
+``outputs/rsunet_cremi_synapse_cleft/<timestamp>/``.
 
-.. code-block:: none
+Monitor with TensorBoard:
 
-    tensorboard --logdir outputs/CREMI_Binary_UNet
+.. code-block:: bash
 
-4 - Run inference
-^^^^^^^^^^^^^^^^^^
+    just tensorboard rsunet_cremi_synapse_cleft
 
-.. code-block:: none
+3 - Inference, decoding, evaluation
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-    python -u scripts/main.py \
-    --inference --config-base configs/CREMI/CREMI-Base.yaml \
-    --config-file configs/CREMI/CREMI-Foreground-UNet.yaml \
-    --checkpoint outputs/CREMI_Binary_UNet/volume_100000.pth.tar
+Run the combined ``test`` mode:
+
+.. code-block:: bash
+
+    python scripts/main.py --config tutorials/syn_cremi.yaml \
+        --mode test \
+        --checkpoint outputs/rsunet_cremi_synapse_cleft/<timestamp>/checkpoints/last.ckpt
+
+What happens, in order:
+
+1. **Inference**. Sliding window 18 × 256 × 256, 50 % overlap, bump
+   blending, reflect padding. TTA on (``flip_axes: all``,
+   ``ensemble_mode: mean``) — predictions averaged across all flip
+   variants. Sigmoid on the cleft channel. The raw probability map
+   is saved as ``test_im_prediction.h5`` under
+   ``outputs/rsunet_cremi_synapse_cleft/<timestamp>/results/``,
+   ``save_dtype: float32``.
+2. **Decoding**. The cleft mask is the binarized probability; no
+   instance-level decoder is run for this task.
+3. **Evaluation**. ``cremi_distance`` (the official CREMI cleft
+   metric) and Jaccard against ``syn_*.h5``.
+
+For CREMI challenge submission, switch ``test.data.test`` to point at
+the held-out volumes (``im_A+.h5`` / ``im_B+.h5`` / ``im_C+.h5``) — the
+config has the lines commented in for easy switching. The
+``+`` volumes have no public labels, so ``evaluation.enabled`` should
+be set to ``false`` for that run; the produced HDF5 should be
+re-aligned back to the original CREMI coordinate system before
+uploading.
+
+4 - Reference behavior
+^^^^^^^^^^^^^^^^^^^^^^^^
+
+- **Training loss** is the BCE + Dice sum; both terms drop together
+  as the cleft mask becomes well-calibrated. EMA validation generally
+  produces a slightly better Jaccard than non-EMA late in training.
+- **Inference** on a 1250 × 1250 × 125 CREMI volume with TTA takes
+  several minutes on a single A100/H100; without TTA it is roughly
+  8× faster.
+- **CREMI distance** is the headline metric for the challenge; under
+  the canonical pin set it lands in the same ballpark as published
+  RSUNet baselines after the full 150 k-step schedule completes.

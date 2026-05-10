@@ -1,116 +1,161 @@
 EM-R50 (Synaptic Polarity Detection)
 ======================================
 
-This tutorial provides step-by-step guidance for synaptic polarity
-detection with the EM-R50 dataset released by
-`Lin et al. <http://www.ecva.net/papers/eccv_2020/papers_ECCV/papers/123630103.pdf>`__
-in 2020. This task differs from synaptic cleft detection in two ways:
-this one requires distinguishing different synapses, while cleft
-detection only needs the binary foreground mask for evaluation; and the
-polarity detection task requires separated pre-synaptic and post-synaptic
-masks. The evaluation metric is an IoU-based F1 score. The sparsity and
-diversity of synapses make this task challenging.
+This tutorial covers synaptic **polarity** detection — predicting
+separated pre-synaptic and post-synaptic masks so the signal flow
+between neurons can be traced. The dataset was released by
+`Lin et al. (2020) <http://www.ecva.net/papers/eccv_2020/papers_ECCV/papers/123630103.pdf>`__
+from Layer II/III of the primary visual cortex of an adult rat.
+
+Unlike the cleft-detection task, polarity detection requires
+distinguishing individual synapses *and* assigning a side (pre /
+post) to each. The model outputs three channels — pre-synaptic,
+post-synaptic, and synaptic (union) — and a connected-components
+post-processor groups them into per-synapse instances.
 
     .. note::
-        We tackle the task using a bottom-up approach that first generates the segmentation masks of synaptic regions and then apply post-processing algorithms like connected component labeling to separate individual synapses. Our segmentation model uses a model target of three channels. The three channels are **pre-synaptic region**, **post-synaptic region** and **synaptic region** (union of the first two channels), respectively.
+        A dedicated EM-R50 tutorial config does not yet ship under
+        ``tutorials/`` in the modern (v2/v3) PyTC layout. The decoder
+        and target-generation building blocks are present
+        (``polarity2instance`` decoder; ``seg_to_polarity`` target),
+        but a canonical end-to-end YAML is a follow-up. The recipe
+        below shows how to assemble one from the existing CREMI
+        cleft-detection config (``tutorials/syn_cremi.yaml``) plus
+        the polarity-specific pieces.
 
-All the scripts needed for this tutorial can be found at ``pytorch_connectomics/scripts/``.
-Synaptic partner datasets are configured through ``data.train``/``data.val``/``data.test`` and loaded by
-:func:`connectomics.training.lightning.create_datamodule`.
+Goal
+----
 
-.. figure:: ../../_static/img/polarity_qual.png
-    :align: center
-    :width: 800px
+The intended pipeline:
 
-Qualitative results of the synaptic polarity prediction on the EM-R50 dataset. The three-channel outputs that consist of pre-synaptic region, post-synaptic region and their
-union (synaptic region) are visualizd in color on the EM images. The single flows from the magenta sides to the cyan sides between neurons.
+- **Model output** 3 channels — pre-synaptic, post-synaptic, and
+  synaptic-union.
+- **Target generation** ``seg_to_polarity`` over instance labels;
+  set ``exclusive=true`` if pre / post should never overlap (uses
+  softmax) or ``false`` for the standard non-exclusive BCE setup
+  (channels predicted independently with sigmoid).
+- **Loss** ``WeightedBCEWithLogitsLoss`` with rejection sampling on
+  the foreground (synapses are sparse), or ``WeightedCE`` for the
+  exclusive variant.
+- **Decoder** ``polarity2instance`` — connected-components on the
+  synaptic-union channel, then voting on pre / post per instance.
+- **Metric** an IoU-based F1 score on instance-matched pairs.
 
-1 - Get the dataset
-^^^^^^^^^^^^^^^^^^^^^
+1 - Get the data
+^^^^^^^^^^^^^^^^
 
-Download the example dataset for synaptic polarity detection from our server:
+.. code-block:: bash
 
-.. code-block:: none
-
+    mkdir -p datasets/jwr15 && cd datasets/jwr15
     wget http://rhoana.rc.fas.harvard.edu/dataset/jwr15_synapse.zip
+    unzip jwr15_synapse.zip
 
-2 - Run training
-^^^^^^^^^^^^^^^^^^
+2 - Building a v2 config (template)
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-The training and inference script can take a list of volumes (or a long string of paths that can be separated by `'@'`)
-in either the yaml config file or by command-line arguments.
+Start from ``tutorials/syn_cremi.yaml`` and apply three changes:
 
-.. code-block:: none
-
-    source activate py3_torch
-    python -u scripts/main.py \
-    --config-base configs/JWR15/synapse/JWR15-Synapse-Base.yaml \
-    --config-file configs/JWR15/synapse/JWR15-Synapse-BCE.yaml
-..
-
-   .. tip::
-    We add **higher weights** to the foreground pixels and apply **rejection sampling** to reject samples without synapes during training to heavily penalize false negatives. This is beneficial for down-stream proofreading and analysis as correcting false positives is much easier than finding missing synapses in the vast volumes.
-
-3 - Visualize the training progress
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-.. code-block:: none
-
-    tensorboard --logdir outputs/Synaptic_Polarity_UNet
-
-4 - Run inference
-^^^^^^^^^^^^^^^^^^
-
-.. code-block:: none
-
-    source activate py3_torch
-    CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 python -u scripts/main.py \
-    --config-file configs/Synaptic-Polarity.yaml --inference \
-    --checkpoint outputs/Synaptic_Polarity_UNet/volume_100000.pth.tar
-
-..
-
-   .. note::
-    The path to images for inference/testing are not specified in the configuration file. Please change the ``INFERENCE.IMAGE_NAME`` option in ``configs/Synaptic-Polarity.yaml``.
-
-5 - Post-process
-^^^^^^^^^^^^^^^^^
-
-Then convert the predicted probability into segmentation masks in post-processing. Specifically,
-we use :func:`connectomics.utils.process.polarity2instance` to convert the predictions into instance or semantic
-masks based on the downstream application.
-
-6 - Learning exclusive polarity masks
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-The tutorial shown above predicts three channels *independently* with binary cross-entropy losses (BCE) using
-the following model configurations:
+(a) **Switch the model output to 3 channels** and use a non-exclusive
+BCE loss (or ``WeightedCE`` if you prefer exclusive masks):
 
 .. code-block:: yaml
 
-    MODEL:
-      TARGET_OPT: ["1"]
-      LOSS_OPTION: [["WeightedBCEWithLogitsLoss"]]
-      LOSS_WEIGHT: [[1.0]]
-      WEIGHT_OPT: [["1"]]
-      OUTPUT_ACT: [["none"]]
-    INFERENCE:
-      OUTPUT_ACT: ["sigmoid"]
+    default:
+      model:
+        out_channels: 3
+        loss:
+          losses:
+          - function: WeightedBCEWithLogitsLoss
+            weight: 1.0
+            kwargs: {reduction: mean}
+            pred_slice: "0:3"
+            target_slice: "0:3"
 
-Because the three channels are not exclusive, overlap can happen between pre- and post-synaptic masks. Therefore we
-also provide a config file to conduct standard semantic segmentation with exclusive masks. The main configurations are
+(b) **Drive target generation through the polarity helper.** In your
+``data.label_transform`` block, generate the 3-channel polarity
+target from instance labels by post-processing your label volume
+through ``connectomics.data.processing.target.seg_to_polarity``
+(invoke from a small data-preparation script ahead of training, or
+add it as a custom processing step). Disable the cleft binary path
+that ships in ``syn_cremi.yaml``.
+
+(c) **Add the polarity decoder** under ``decoding.steps``:
 
 .. code-block:: yaml
 
-    MODEL:
-      TARGET_OPT: ["1-1"] # exclusive pos and neg masks
-      LOSS_OPTION: [["WeightedCE"]]
-      LOSS_KWARGS_KEY: [[["class_weight"]]]
-      LOSS_KWARGS_VAL: [[[[1.0, 10.0, 10.0]]]] # class weights
-      LOSS_WEIGHT: [[1.0]]
-      OUTPUT_ACT: [["none"]]
-    INFERENCE:
-      OUTPUT_ACT: ["softmax"]
+    decoding:
+      steps:
+      - name: polarity2instance
+        kwargs:
+          # default: non-exclusive (independent BCE channels);
+          # set true if you trained with WeightedCE / softmax.
+          exclusive: false
 
-The prediction of the non-exclusive synaptic masks can also be converted into instance masks to identify individual
-synapse instances using :func:`connectomics.utils.process.polarity2instance` with the option ``exclusive=True``.
+The rest of the CREMI config (RSUNet, anisotropic 18 × 256 × 256
+patches, sliding-window inference, EMA, augmentation profile) carries
+over.
+
+    .. tip::
+        Synapses are sparse, so add **rejection sampling** to focus
+        training on patches that contain foreground:
+
+        .. code-block:: yaml
+
+            data:
+              dataloader:
+                reject_sampling:
+                  size_thres: 1000
+                  p: 0.95
+
+        This is what ``syn_cremi.yaml`` already does for cleft
+        detection; keep it for polarity training.
+
+3 - Run training
+^^^^^^^^^^^^^^^^
+
+Once your config is assembled (e.g. saved as
+``tutorials/syn_em_r50.yaml``):
+
+.. code-block:: bash
+
+    conda activate pytc
+    python scripts/main.py --config tutorials/syn_em_r50.yaml
+
+4 - Inference, decoding, evaluation
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+.. code-block:: bash
+
+    python scripts/main.py --config tutorials/syn_em_r50.yaml \
+        --mode test \
+        --checkpoint outputs/<exp>/<timestamp>/checkpoints/last.ckpt
+
+The decoding stage runs ``polarity2instance``, which converts the
+3-channel probability map into per-synapse instance masks with a
+recorded side (pre vs. post). For programmatic use:
+
+.. code-block:: python
+
+    from connectomics.decoding import polarity2instance
+    # volume: (3, D, H, W) prediction, channels = [pre, post, syn]
+    instances = polarity2instance(volume)
+
+The ``exclusive=True`` variant interprets the channels as a softmax
+output over {background, pre, post} and uses a different connected-
+component path; pass ``exclusive=True`` to ``polarity2instance`` if
+your model was trained with ``WeightedCE``.
+
+5 - Reference behavior
+^^^^^^^^^^^^^^^^^^^^^^^^
+
+- **Training loss** is dominated by the synaptic-union channel
+  early on; the pre / post channels improve as the model learns
+  spatial directionality, typically after the first cosine
+  decay phase. Rejection sampling plus higher foreground weights
+  is essential — without it, pre and post collapse to all-zeros.
+- **Inference** is identical to the CREMI flow (same RSUNet, same
+  sliding window). The decoder runs in CPU and is fast.
+- **Reporting** the published EM-R50 F1 is computed against the
+  Lin et al. 2020 evaluation script. Comparable code lives in the
+  upstream paper repo; contact the maintainers if you intend to
+  benchmark formally.

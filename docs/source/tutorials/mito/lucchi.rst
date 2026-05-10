@@ -1,145 +1,141 @@
 Lucchi++ (Semantic Segmentation)
 ==================================
 
-This tutorial provides step-by-step guidance for mitochondria segmentation
-with the EM benchmark dataset released by
-`Lucchi et al. (2012) <https://cvlab.epfl.ch/research/page-90578-en-html/research-medical-em-mitochondria-index-php/>`__.
-We approach the task as a **semantic segmentation** task and predict the
-mitochondria pixels with encoder-decoder ConvNets similar to the models
-used for affinity prediction in :doc:`../neuron/snemi3d`. The evaluation of
-the mitochondria segmentation results is based on the F1 score and
-Intersection over Union (IoU).
+This tutorial reproduces binary mitochondria segmentation on the Lucchi++
+EM benchmark using ``tutorials/mito_lucchi++.yaml``. The task is treated
+as **semantic segmentation** — predict the mitochondria foreground mask
+with an encoder-decoder network. Evaluation is the Jaccard / IoU score.
 
-    .. note:: Unlike other EM connectomics datasets used in these tutorials, the dataset released by Lucchi et al. is an isotropic dataset, which means the spatial resolution along all three axes is the same. Therefore a completely 3D U-Net and data augmentation along x-z and y-z planes (alongside the standard practice of applying augmentation along the x-y plane) is applied.
+The dataset was released by Lucchi et al. and is isotropic at 5 nm
+across all three axes, so the recipe uses a fully-3D MedNeXt with
+isotropic 112³ patches.
 
-The scripts needed for this tutorial can be found at ``scripts/main.py``. The corresponding configuration file is ``tutorials/monai_lucchi++.yaml``.
+Goal
+----
 
-.. figure:: ../../_static/img/lucchi_qual.png
-    :align: center
-    :width: 800px
+The pipeline pins the following setup:
 
-A benchmark model's qualitative results on the Lucchi dataset, presented without any post-processing
+- **Input** ``[112, 112, 112]`` patches, isotropic 5 × 5 × 5 nm.
+- **Model** MedNeXt-S, kernel size 3, 3D, no deep supervision.
+- **Pipeline** ``pipeline_profile: binary`` (single foreground channel).
+- **Dataloader** cached profile, batch size 8, ``aug_strong``
+  augmentation profile.
+- **Optimization** ``warmup_cosine_lr`` profile, AdamW @
+  ``lr=1e-3``, ``weight_decay=0.01``, 150 epochs × 1000 steps,
+  ``precision=16-mixed``, gradient clip 1.0.
+- **Inference** sliding window 112³ with 50 % overlap, bump blending,
+  ``sw_batch_size=8``, TTA enabled with all-axis flips.
+- **Metric** ``jaccard``.
 
-0 - Setup environment
-^^^^^^^^^^^^^^^^^^^^^
-
-Activate the PyTorch Connectomics environment:
-
-.. code-block:: bash
-
-    source /projects/weilab/weidf/lib/miniconda3/bin/activate pytc
+Each of these is encoded directly in ``tutorials/mito_lucchi++.yaml``;
+do not change them in passing.
 
 1 - Get the data
 ^^^^^^^^^^^^^^^^
 
-The Lucchi++ dataset is available at:
+Lucchi++ is the relabeled version of the original Lucchi 2012 dataset
+released by Casser et al.; download from the EPFL CVLab page or your
+local mirror. After unpacking you should have HDF5 volumes:
 
-.. code-block:: bash
+.. code-block:: text
 
-    /projects/weilab/weidf/lib/pytorch_connectomics/datasets/Lucchi++
+    datasets/lucchi++/
+        train_im.h5
+        train_mito.h5
+        test_im.h5
+        test_mito.h5
 
-For description of the data please check `the author page <https://www.epfl.ch/labs/cvlab/data/data-em/>`_.
+The config reads from ``datasets/lucchi++/`` relative to the repo
+root. Edit the ``train.data.train`` and ``test.data.test`` blocks in
+``tutorials/mito_lucchi++.yaml`` if you stage data elsewhere.
 
-2 - Visualize the data
-^^^^^^^^^^^^^^^^^^^^^^
+For the upstream description see the
+`EPFL CVLab page <https://www.epfl.ch/labs/cvlab/data/data-em/>`_.
 
-Before training, you can visualize the dataset using Neuroglancer:
-
-.. code-block:: bash
-
-    just visualize tutorials/monai_lucchi++.yaml --mode train
-
-This will launch a Neuroglancer instance to explore the training data.
-
-3 - Run training
+2 - Run training
 ^^^^^^^^^^^^^^^^
 
-**On SLURM cluster** (recommended for multi-GPU training):
+.. code-block:: bash
+
+    conda activate pytc
+    python scripts/main.py --config tutorials/mito_lucchi++.yaml
+
+The config sets ``system.profile: all-gpu-cpu``, so PyTC fans out
+across every visible GPU. Override at the CLI if needed:
 
 .. code-block:: bash
 
-    just slurm weilab 8 4 "train monai lucchi++"
+    python scripts/main.py --config tutorials/mito_lucchi++.yaml \
+        system.num_gpus=4 data.dataloader.batch_size=4
 
-This launches a training job on the ``weilab`` partition with 8 GPUs and 4 CPUs per GPU.
+Training schedule:
 
-**On local machine** (single or multi-GPU):
+- **Epoch-based**: 150 epochs × 1000 steps = 150 k optimizer steps.
+- ``warmup_cosine_lr`` profile: linear warmup, then cosine decay.
+- ``checkpoint.monitor=train_loss_total_epoch`` (no held-out
+  validation split — Lucchi++ is small and the public test split is
+  used for final reporting).
+- Image previews logged every 10 epochs to TensorBoard.
 
-.. code-block:: bash
+Outputs land in ``outputs/mito_lucchi++/<timestamp>/`` (the
+``save_path`` baked into ``train.monitor.checkpoint``).
 
-    just train monai lucchi++
-
-The training script automatically uses PyTorch Lightning with distributed data-parallel (DDP) training for multiple GPUs, enabling synchronized batch normalization (SyncBN) and efficient distributed training.
-
-4 - Monitor training progress
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-You can monitor the training progress with TensorBoard:
-
-.. code-block:: bash
-
-    just tensorboard monai_lucchi++
-
-This will launch TensorBoard and display training metrics, losses, and validation results in real-time.
-
-5 - Test the model
-^^^^^^^^^^^^^^^^^^
-
-After training completes, test the model on the test set:
+Monitor with TensorBoard:
 
 .. code-block:: bash
 
-    just test monai lucchi++ outputs/lucchi++_monai_unet/20251012_011259/checkpoints/last.ckpt
+    just tensorboard mito_lucchi++
 
-Replace the checkpoint path with your actual trained model checkpoint. The checkpoint is typically saved in ``outputs/lucchi++_monai_unet/{timestamp}/checkpoints/last.ckpt``.
+3 - Inference, decoding, evaluation
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-6 - Visualize results
-^^^^^^^^^^^^^^^^^^^^^
-
-After testing, visualize the prediction results using Neuroglancer:
+Run the combined ``test`` mode against the trained checkpoint:
 
 .. code-block:: bash
 
-    just visualize tutorials/monai_lucchi++.yaml test --port 5005 \
-        --volumes pred:image:outputs/lucchi++_monai_unet/results/test_im_prediction.h5:5-5-5
+    python scripts/main.py --config tutorials/mito_lucchi++.yaml \
+        --mode test \
+        --checkpoint outputs/mito_lucchi++/<timestamp>/checkpoints/last.ckpt
 
-This will launch a Neuroglancer instance on port 5005 displaying the predicted segmentation overlaid on the test images.
+What happens, in order:
 
-.. note::
-    - ``pred``: Layer name in Neuroglancer
-    - ``image``: Volume type (can be ``image`` for raw data or ``segmentation`` for labels)
-    - Path to the prediction HDF5 file
-    - ``5-5-5``: Voxel resolution in nm (z-y-x)
+1. **Inference**. Sliding window 112³ with 50 % overlap, bump
+   blending, ``sw_batch_size=8``. TTA is on by default
+   (``flip_axes: all``), so Lucchi++ is predicted with 8× flip
+   augmentations averaged. Saves the raw foreground probability as
+   ``test_im_prediction.h5`` in
+   ``outputs/mito_lucchi++/<timestamp>/results_step=<N>/``.
+2. **Decoding**. The ``binary`` pipeline profile keeps the
+   probability map without further post-processing (foreground mask is
+   thresholded inside evaluation).
+3. **Evaluation**. Jaccard / IoU against
+   ``datasets/lucchi++/test_mito.h5``; the result is written next to
+   the prediction.
 
-7 - Run evaluation
-^^^^^^^^^^^^^^^^^^
+To disable TTA (faster but slightly weaker), override:
 
-Since the ground-truth label of the test set is public, we can run the evaluation locally:
+.. code-block:: bash
 
-.. code-block:: python
+    python scripts/main.py --config tutorials/mito_lucchi++.yaml \
+        --mode test --checkpoint <ckpt> \
+        inference.test_time_augmentation.enabled=false
 
-    from connectomics.metrics import adapted_rand
-    from connectomics.data.io import read_hdf5
+4 - Reference behavior
+^^^^^^^^^^^^^^^^^^^^^^^^
 
-    # Load prediction and ground truth
-    pred = read_hdf5('outputs/lucchi++_monai_unet/results/test_im_prediction.h5')
-    gt = read_hdf5('datasets/Lucchi++/test_label.h5')
+A few sanity-check signals:
 
-    # Prepare for evaluation
-    pred = (pred / 255).astype(np.uint8)  # output is casted to uint8 with range [0,255]
-    gt = (gt != 0).astype(np.uint8)
-    thres = [0.4, 0.6, 0.8]  # evaluate at multiple thresholds
-    scores = get_binary_jaccard(pred, gt, thres)
+- **Training loss** drops sharply through the warmup (~5 epochs), then
+  descends slowly through cosine decay. With MedNeXt-S on 112³
+  isotropic patches the loss usually plateaus after epoch ~80.
+- **Inference** is fast on Lucchi++ (165 × 1024 × 768 test volume)
+  with TTA: tens of seconds on an A100/H100, low single-digit minutes
+  on an L40S.
+- **Jaccard / IoU** lands in the same ballpark as the published
+  benchmarks for this dataset; the dominant lever beyond training
+  duration is whether TTA is enabled.
 
-The prediction can be further improved by conducting median filtering to remove noise:
-
-.. code-block:: python
-
-    from connectomics.utils.evaluate import get_binary_jaccard
-    from connectomics.utils.process import binarize_and_median
-
-    pred = (pred / 255).astype(np.uint8)  # output is casted to uint8 with range [0,255]
-    pred = binarize_and_median(pred, size=(7,7,7), thres=0.8)
-    gt = (gt != 0).astype(np.uint8)
-    scores = get_binary_jaccard(pred, gt)  # prediction is already binarized
-
-Our pretrained model achieves a foreground IoU and IoU of **0.892** and **0.943** on the test set, respectively. The results are better or on par with state-of-the-art approaches. Please check `BENCHMARK.md <https://github.com/zudi-lin/pytorch_connectomics/blob/master/BENCHMARK.md>`_ for detailed performance comparison and the pre-trained models.
+For a multi-task variant that adds a signed distance transform head,
+see the sibling configs under ``tutorials/`` (``mito_betaseg.yaml`` and
+``mito_betaseg_banis_v{0,1,2}.yaml`` use this style on a different
+dataset).

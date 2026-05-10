@@ -1,147 +1,190 @@
 MitoEM (Instance Segmentation)
 ================================
 
-This tutorial provides step-by-step guidance for mitochondria segmentation
-with the
+This tutorial reproduces 3D mitochondria **instance segmentation** on
+the
 `MitoEM <https://donglaiw.github.io/page/mitoEM/index.html>`_ dataset
 released by
 `Wei et al. <https://donglaiw.github.io/paper/2020_miccai_mitoEM.pdf>`__
-in 2020. We approach the task as a 3D **instance segmentation** task and
-provide three different configurations of the model output. We utilize the
-``UNet3D`` model similar to the one used in :doc:`../neuron/snemi3d`. The
-evaluation of the segmentation results is based on AP-75 (average
-precision with an IoU threshold of 0.75).
+in 2020. The recipe lives under ``tutorials/mitoEM/`` with two
+dataset-specific entry points (``R.yaml`` for MitoEM-Rat,
+``H.yaml`` for MitoEM-Human, ``HR.yaml`` for joint training) sharing
+``common.yaml``.
 
-.. figure:: ../../_static/img/mito_complex.png
-    :align: center
-    :width: 800px
+The pipeline is multi-task: predict short-range affinity, long-range
+affinity (radius 5), and a skeleton-aware EDT head, then decode with a
+distance-watershed step. Evaluation uses Adapted Rand and Variation of
+Information.
 
-Complex mitochondria in the MitoEM dataset:(**a**) mitochondria-on-a-string (MOAS), and (**b**) dense tangle of touching instances. Those challenging cases are prevalent but not covered in previous datasets.
+Goal
+----
 
-    .. note:: The MitoEM dataset has two sub-datasets **MitoEM-Rat** and **MitoEM-Human** based on the source of the tissues. Three training configuration files on **MitoEM-Rat** are provided in ``pytorch_connectomics/configs/MitoEM/`` for different learning setting as described in this `paper <https://donglaiw.github.io/paper/2020_miccai_mitoEM.pdf>`_.
+The pipeline pins the following setup (encoded in
+``tutorials/mitoEM/common.yaml`` and inherited by ``R.yaml`` /
+``H.yaml`` / ``HR.yaml``):
 
-..
+- **Input** ``[32, 256, 256]`` patches at native MitoEM resolution
+  ``30 × 8 × 8`` nm.
+- **Model** MedNeXt-M, kernel size 3, ``checkpoint_style:
+  outside_block``, three output heads:
 
-   .. note:: Since the dataset is very large and cannot always be directly loaded into memory, use lazy HDF5/Zarr loading or filename-based datasets from :mod:`connectomics.data.datasets` instead of the removed ``TileDataset`` path.
+  - ``aff_r1`` — 3-channel short-range affinity at offsets
+    ``(0, 0, 1) / (0, 1, 0) / (1, 0, 0)``;
+  - ``aff_r5`` — 3-channel long-range affinity at offsets
+    ``(0, 0, 5) / (0, 5, 0) / (5, 0, 0)``;
+  - ``sdt`` — 1-channel skeleton-aware EDT head.
 
-..
+- **Loss** per-channel BCE on each affinity head plus a SmoothL1
+  (``tanh: true``) on the EDT head, balanced by ``uncertainty``
+  loss-balancing.
+- **Augmentation** ``aug_em_neuron_fast`` profile with rotations on
+  all three axes.
+- **Optimization** ``warmup_cosine_lr`` profile, 200 epochs × 1000
+  steps, ``accumulate_grad_batches=4``, ``precision=bf16-mixed``.
+- **Inference** sliding window 32 × 256 × 256, ``sw_batch_size=1``,
+  50 % overlap, bump blending, replicate-padding mode; head set to
+  ``aff_r1`` for the saved primary output.
+- **Decoder** ``decode_distance_watershed`` over the EDT channel
+  (``distance_channels=[6]``, ``distance_threshold=[0.5, 0]``,
+  ``min_seed_size=100``, ``min_instance_size=50``).
+- **Metric** ``adapted_rand`` + ``voi``.
 
-    .. note:: A benchmark evaluation with validation data and pretrained weights is provided for users at `this Colab notebook <https://colab.research.google.com/drive/1ll3a0F2VbmmKBTQ_RBqSrEsU3gpTUdam>`_.
+1 - Get the data
+^^^^^^^^^^^^^^^^
 
-1 - Dataset introduction
+The MitoEM dataset is publicly available at the
+`project page <https://donglaiw.github.io/page/mitoEM/index.html>`_ and
+the `MitoEM Challenge <https://mitoem.grand-challenge.org/>`_. On the
+lab cluster it is staged at:
+
+.. code-block:: text
+
+    /projects/weilab/dataset/mito/mitoEM/
+        EM30-R/                  # rat
+            im_train.h5,  mito_train-v2.h5
+            im_val.h5,    mito_val-v2.h5
+            im_test.h5,   mito_test-v2.h5
+        EM30-H/                  # human
+            (same layout)
+
+Each split is a 4096 × 4096 × {400|100|500} HDF5 stack at
+30 × 8 × 8 nm. The ``train.data.root_path`` field in
+``common.yaml`` points at this directory; override at the CLI if you
+stage data elsewhere.
+
+The test labels for MitoEM challenge submission are not publicly
+released; ``mito_test-v2.h5`` here refers to the locally maintained
+v2 labels for offline development.
+
+2 - Run training
+^^^^^^^^^^^^^^^^
+
+Pick the dataset variant and run:
+
+.. code-block:: bash
+
+    conda activate pytc
+
+    # MitoEM-Rat
+    python scripts/main.py --config tutorials/mitoEM/R.yaml
+
+    # MitoEM-Human
+    python scripts/main.py --config tutorials/mitoEM/H.yaml
+
+    # Joint (rat + human in the same training run)
+    python scripts/main.py --config tutorials/mitoEM/HR.yaml
+
+The config sets ``system.num_gpus: -1`` and ``system.num_workers: -1``,
+so PyTC fans out across every visible GPU.
+
+Training schedule:
+
+- ``max_epochs=200``, ``n_steps_per_epoch=1000`` → 200 k optimizer
+  steps total.
+- ``accumulate_grad_batches=4`` with ``batch_size=1`` per GPU →
+  effective batch size 4 × num_gpus.
+- ``checkpoint.monitor=val_loss_total`` with ``mode=min``,
+  ``save_top_k=3``.
+- Image previews on the ``aff_r1`` head every 10 epochs.
+
+Outputs land in
+``outputs/mitoem30{r,h,hr}_mednext_sdt_multitask/<timestamp>/``.
+
+Monitor with TensorBoard:
+
+.. code-block:: bash
+
+    just tensorboard mitoem30r_mednext_sdt_multitask
+
+3 - Inference, decoding, evaluation
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Run the combined ``test`` mode:
+
+.. code-block:: bash
+
+    python scripts/main.py --config tutorials/mitoEM/R.yaml \
+        --mode test \
+        --checkpoint outputs/mitoem30r_mednext_sdt_multitask/<timestamp>/checkpoints/last.ckpt
+
+What happens, in order:
+
+1. **Inference**. Sliding window 32 × 256 × 256, 50 % overlap, bump
+   blending, ``padding_mode=replicate``. The primary head ``aff_r1``
+   is selected at save time, and per-channel sigmoid is applied. The
+   raw 7-channel multi-head prediction is saved as
+   ``test_im_prediction.h5``.
+2. **Decoding**. ``decode_distance_watershed`` runs on the EDT
+   channel (channel 6), seeded at distance > 0.5, growing until the
+   distance hits 0, with seeds < 100 voxels and instances < 50 voxels
+   filtered out. The fast EDT path is enabled with
+   ``edt_parallel=8``.
+3. **Evaluation**. Adapted Rand and Variation of Information against
+   the test labels; written next to the segmentation.
+
+To swap in the ``aff_r5`` head as the primary inference output:
+
+.. code-block:: bash
+
+    python scripts/main.py --config tutorials/mitoEM/R.yaml \
+        --mode test --checkpoint <ckpt> \
+        inference.model.head=aff_r5
+
+4 - Submitting to the MitoEM Challenge
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+The Grand Challenge accepts segmentation HDF5 volumes. After ``--mode
+test`` produces the segmentation under ``outputs/.../results_step=<N>/``,
+follow the formatting rules at
+https://mitoem.grand-challenge.org/ and submit. Performance on the
+challenge test split is only computable on the Grand Challenge website
+because public ground truth is not released for that split.
+
+Per-volume offline evaluation on the **validation** split (provided in
+``EM30-{R,H}/mito_val-v2.h5``) uses the same ``adapted_rand + voi``
+metrics described above; just point ``test.data.test`` at the val
+volumes.
+
+5 - Reference behavior
 ^^^^^^^^^^^^^^^^^^^^^^^^
 
-The dataset is publicly available at both the `project <https://donglaiw.github.io/page/mitoEM/index.html>`_ page and
-the `MitoEM Challenge <https://mitoem.grand-challenge.org/>`_ page. To provide a brief description of the dataset:
+A few sanity-check signals:
 
-- ``im``: includes 1,000 single-channel ``*.png`` files (**4096x4096**) of raw EM images (with a spatial resolution of **30x8x8** nm).
-  The 1,000 images are splited into 400, 100 and 500 slices for training, validation and inference, respectively.
-
-- ``mito_train/``: includes 400 single-channel ``*.png`` files (**4096x4096**) of instance labels for training. Similarly, the ``mito_val/`` folder contains 100 slices for validation. The ground-truth annotation of the test set (rest 500 slices) is not publicly provided but can be evaluated online at the `MitoEM challenge page <https://mitoem.grand-challenge.org>`_.
-
-2 - Model configuration
-^^^^^^^^^^^^^^^^^^^^^^^
-
-Multiple ``*.yaml`` configuration files are provided at ``configs/MitoEM`` for different learning targets:
-
-- ``MitoEM-R-A.yaml``: output 3 channels for predicting the affinty between voxels.
-
-- ``MitoEM-R-AC.yaml``: output 4 channels for predicting both affinity and instance contour.
-
-- ``MitoEM-R-BC.yaml``: output 2 channels for predicting both the binary foreground mask and instance contour.
-
-The lattermost configuration achieves the best overall performance according to our `experiments <https://donglaiw.github.io/paper/2020_miccai_mitoEM.pdf>`_. This tutorial will move forward using this configuration file.
-
-3 - Run training
-^^^^^^^^^^^^^^^^
-
-.. code-block:: bash
-
-    python -u scripts/main.py \
-    --config-base configs/MitoEM/MitoEM-R-Base.yaml \
-    --config-file configs/MitoEM/MitoEM-R-BC.yaml
-
-..
-
-    .. note:: By default the path of images and labels are not specified. To run the training scripts, please revise the ``DATASET.IMAGE_NAME``, ``DATASET.LABEL_NAME``, ``DATASET.OUTPUT_PATH`` and ``DATASET.INPUT_PATH`` options in ``configs/MitoEM/MitoEM-R-*.yaml``. The options can also be given as command-line arguments without changing of the ``yaml`` configuration files.
-
-4 (*optional*) - Visualize the training progress
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-.. code-block:: bash
-
-    tensorboard --logdir outputs/MitoEM_R_BC/
-
-5 - Run inference
-^^^^^^^^^^^^^^^^^
-
-.. code-block:: bash
-
-    python -u scripts/main.py \
-    --config-base configs/MitoEM/MitoEM-R-Base.yaml \
-    --config-file configs/MitoEM/MitoEM-R-BC.yaml --inference \
-    --checkpoint outputs/MitoEM_R_BC/checkpoint_100000.pth.tar
-
-..
-
-   .. note:: If training on personal data, please change the ``INFERENCE.IMAGE_NAME`` ``INFERENCE.OUTPUT_PATH`` ``INFERENCE.OUTPUT_NAME`` options in ``configs/MitoEM-R-*.yaml`` based on your own data path.
-
-6 - Post-process
-^^^^^^^^^^^^^^^^
-
-The post-processing step requires merging output volumes and applying watershed segmentation. As mentioned before, the dataset is very large and cannot be directly loaded into memory for processing. Therefore our code run prediction on smaller chunks sequentially, which produces multiple ``*.h5`` files with the coordinate information. To merge the chunks into a single volume and apply the segmentation algorithm:
-
-.. code-block:: python
-
-    import glob
-    import numpy as np
-    from connectomics.data.io import read_hdf5
-    from connectomics.utils.process import bc_watershed
-
-    output_files = 'outputs/MitoEM_R_BC/test/*.h5' # output folder with chunks
-    chunks = glob.glob(output_files)
-
-    # Mitochondria Segmentation
-    vol_shape = (2, 500, 4096, 4096) # MitoEM test set
-    pred = np.ones(vol_shape, dtype=np.uint8)
-    for x in chunks:
-        pos = x.strip().split("/")[-1]
-        print("process chunk: ", pos)
-        pos = pos.split("_")[1].split("-")
-        pos = list(map(int, pos))
-        chunk = readvol(x)
-        pred[:, pos[0]:pos[1], pos[2]:pos[3], pos[4]:pos[5]] = chunk
-
-    # This function process the array in numpy.float64 format.
-    # Please allocate enough memory for processing.
-    segm = bc_watershed(pred, thres1=0.85, thres2=0.6, thres3=0.8, thres_small=1024)
-
-..
-
-   .. note:: The decoding parameters for the watershed step are a set of reasonable thresholds but not optimal given different segmentation models. We suggest conducting a hyper-parameter search on the validation set to decide the decoding parameters.
-
-The generated segmentation map should be ready for submission to the `MitoEM <https://mitoem.grand-challenge.org/>`_ challenge website for evaluation. Please note that this tutorial only outlines training on **MitoEM-Rat** subset. Results on the **MitoEM-Human** subset, which can be generated using a similar pipeline as above, also need to be provided for online evaluation.
-
-7 (*optional*)- Evaluate on the validation set
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-Performance on the MitoEM test data subset can only be evaluated on the Grand Challenge website. Users are encouraged to experiment with the metric code on the validation data subset to optimize performance and understand the Challenge's evaluation process. Evaluation is performed with the ``demo.py`` file provided by the `mAP_3Dvolume <https://github.com/ygCoconut/mAP_3Dvolume/tree/master>`__ repository. The ground truth ``.h5`` file can be generated from the 2D images using the following script:
-
-.. code-block:: python
-
-  import glob
-  import numpy as np
-  from connectomics.data.io import read_hdf5, write_hdf5
-
-  gt_path = "datasets/MitoEM_R/mito_val/*.tif"
-  files = sorted(glob.glob(gt_path))
-
-  data = []
-  for i, file in enumerate(files):
-      print("process chunk: ", i)
-      data.append(readvol(file))
-
-  data = np.array(data)
-  writeh5("validation_gt.h5", data)
-
-The resulting scores can then be obtained by executing ``python demo.py -gt {path to validation ground truth}.h5 -p {path to segmentation result}.h5``
+- **Training loss** has three components (``aff_r1``, ``aff_r5``,
+  ``sdt``) and uncertainty-balanced weights. The
+  ``train_loss_term_*_weighted`` scalars logged in TensorBoard are the
+  most informative — uncertainty balancing typically pushes the
+  ``aff_r5`` term down faster than ``aff_r1`` because the long-range
+  task is harder.
+- **Validation loss** is checked at every epoch boundary; the
+  best-3 checkpoints by ``val_loss_total`` are kept.
+- **Inference** on the 4096 × 4096 × 500 test volume is the dominant
+  cost; expect roughly 1-2 hours on a single A100/H100 with
+  ``sw_batch_size=1``.
+- **Decoder threshold** (``distance_threshold[0]``) is the primary
+  knob for over- / under-segmentation. The default 0.5 is a
+  reasonable starting point; lower (e.g. 0.3) yields more seeds.
+- **Adapted Rand** below ~0.05 on the validation split is in the
+  ballpark of the published MitoEM-Rat baseline. The challenge uses
+  AP-75 (average precision at IoU 0.75), which is computed by the
+  Grand Challenge submission system.
