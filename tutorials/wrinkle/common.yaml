@@ -1,0 +1,100 @@
+_base_:
+  - ../../connectomics/config/all_profiles.yaml
+
+experiment_name: wrinkle_unet2d
+description: Wrinkle 2D binary segmentation (v2 port of v1 misc/Wrinkle-Deeplab-Binary-2D)
+
+# Translation note: v1 used DeepLabv3c+ResNet101. v2 does not ship a DeepLab
+# wrapper, so this port substitutes a 2D MONAI BasicUNet. Same loss
+# (WeightedBCE + Dice), same input size, same label dilation. Tune the
+# architecture if the wrinkle structures benefit from atrous-conv style
+# capacity that DeepLab provided.
+
+default:
+  system:
+    profile: all-gpu-cpu
+  model:
+    arch:
+      profile: monai_basic_unet3d
+    input_size: [1, 385, 385]
+    output_size: [1, 385, 385]
+    out_channels: 1
+    monai:
+      filters: [32, 64, 128, 256, 512]
+      norm: group
+    loss:
+      losses:
+        - {function: WeightedBCEWithLogitsLoss, weight: 1.0, kwargs: {reduction: mean}}
+        - {function: DiceLoss, weight: 0.5, kwargs: {sigmoid: true, smooth_nr: 1.0e-5, smooth_dr: 1.0e-5}}
+  data:
+    image_transform:
+      normalize: "0-1"
+    dataloader:
+      profile: filename
+      patch_size: [1, 385, 385]
+      batch_size: 4
+      reject_sampling:
+        size_thres: 100
+        p: 1.0
+    data_transform:
+      pad_size: [0, 32, 32]
+      pad_mode: reflect
+    label_transform:
+      # v1 LABEL_DILATION: 3 — widen the thin wrinkle annotations so the
+      # binary target is not single-voxel thin.
+      dilation: 3
+      targets:
+        - name: binary
+    augmentation:
+      profile: aug_light
+      # v1 turned off the smoothing augmentation because it deforms thin
+      # wrinkle structures.
+      smooth:
+        enabled: false
+  inference:
+    model:
+      channel_activations:
+        - {channels: "0:1", activation: sigmoid}
+    window:
+      window_size: [1, 385, 385]
+      sw_batch_size: 16
+      overlap: 0.5
+      blending: bump
+      padding_mode: reflect
+    save_results: true
+    save_backend: h5
+
+  evaluation:
+    enabled: true
+    metrics: [jaccard, dice]
+
+train:
+  optimization:
+    profile: warmup_cosine_lr
+    optimizer:
+      name: AdamW
+      lr: 1.0e-3
+      weight_decay: 0.01
+    max_steps: 100000
+    n_steps_per_epoch: 1000
+    precision: "16-mixed"
+    gradient_clip_val: 1.0
+  data:
+    train:
+      path: datasets/Wrinkle/train
+      image: images/**/*.png
+      label: wrinkles/**/*.png
+  monitor:
+    checkpoint:
+      monitor: train_loss_total_epoch
+      save_top_k: 3
+      save_last: true
+      save_path: outputs/wrinkle_unet2d
+
+test:
+  data:
+    test:
+      path: datasets/Wrinkle
+      image: test_path.txt
+  inference:
+    save_path: outputs/wrinkle_unet2d/test
