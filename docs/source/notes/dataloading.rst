@@ -69,7 +69,7 @@ Rejection sampling in the dataloader is applied for the following two purposes:
 
 **1 - Adding more attention to sparse targets**
 
-For some datasets/tasks, the foreground mask is sparse in the volume (*e.g.*, `synapse detection <../tutorials/synapse.html>`_).
+For some datasets/tasks, the foreground mask is sparse in the volume (*e.g.*, `synapse detection <../tutorials/synapse/index.html>`_).
 Therefore we perform reject sampling to decrease the ratio of (all completely avoid) regions without foreground pixels.
 Such a design lets the model pay more attention to the foreground pixels to alleviate false negatives (but may introduce
 more false positives). Configure rejection sampling under ``data.dataloader``:

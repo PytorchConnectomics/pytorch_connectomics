@@ -99,7 +99,7 @@ Then copy the printed viewer address to your browser (best with Chrome) to visua
 3 - Using neuroglancer with a local dataset
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-The local dataset can be TIFF or HDF5 formats. In this example we use the `SNEMI <../tutorials/neuron.html>`_ neuron 
+The local dataset can be TIFF or HDF5 formats. In this example we use the `SNEMI <../tutorials/neuron/snemi3d.html>`_ neuron
 segmentation dataset for demonstration.
 
 .. code-block:: python
@@ -401,7 +401,7 @@ analysis. The following code snippet shows an example to display the overlay of 
 
 .. image :: ../_static/img/ng_rgb.png
 
-Visualization of EM images overlay with synaptic polarity prediction. See `synapse detection <../tutorials/synapse.html#synaptic-polarity-detection>`_ for details.
+Visualization of EM images overlay with synaptic polarity prediction. See `synapse detection <../tutorials/synapse/em_r50.html>`_ for details.
 
 8. Visualize Point Annotations
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
