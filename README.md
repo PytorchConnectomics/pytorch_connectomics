@@ -142,7 +142,7 @@ synapses, vesicles, fibers, nuclei).
 }
 ```
 
-Maintained by Harvard's [Visual Computing Group](https://vcg.seas.harvard.edu/).
+Actively developed and maintained by [Donglai Wei's group](https://donglaiw.github.io/) at Boston College.
 Supported by NSF IIS-1835231, IIS-2124179, IIS-2239688.
 
 **MIT License** — see [LICENSE](LICENSE).
