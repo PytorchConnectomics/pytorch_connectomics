@@ -122,7 +122,6 @@ Documentation
    notes/installation
    notes/config
    notes/dataloading
-   notes/migration
    notes/faq
 
 .. toctree::
