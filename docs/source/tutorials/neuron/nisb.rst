@@ -1,5 +1,5 @@
-NISB / BANIS
-==============
+NISB
+======
 
 This tutorial reproduces the BANIS ``train_base_long`` neuron-segmentation
 result on the NISB dataset using
