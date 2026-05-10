@@ -36,6 +36,46 @@ _slurm-time-limit partition:
 setup-slurm:
     bash scripts/setup_slurm.sh
 
+# Install PyTorch Connectomics into a conda env (default: pytc).
+#   just install              # creates/uses env "pytc"
+#   just install my_env       # creates/uses env "my_env"
+install env_name="pytc":
+    python install.py --install-type basic --python 3.11 --env-name "{{env_name}}"
+
+# Drive the install through a local Claude Code session (interactive).
+# Prerequisite: claude CLI installed and authenticated.
+install-claude:
+    claude "$(cat INSTALL_PROMPT.md)"
+
+# Drive the install through a local Codex CLI session (interactive).
+# Prerequisite: codex CLI installed and authenticated.
+install-codex:
+    codex "$(cat INSTALL_PROMPT.md)"
+
+# Drive "add a dataset" through Claude Code (interactive).
+add-dataset-claude:
+    claude "$(cat ADD_DATASET_PROMPT.md)"
+
+# Drive "add a dataset" through Codex CLI (interactive).
+add-dataset-codex:
+    codex "$(cat ADD_DATASET_PROMPT.md)"
+
+# Drive "add an architecture" through Claude Code (interactive).
+add-arch-claude:
+    claude "$(cat ADD_ARCH_PROMPT.md)"
+
+# Drive "add an architecture" through Codex CLI (interactive).
+add-arch-codex:
+    codex "$(cat ADD_ARCH_PROMPT.md)"
+
+# Drive "debug a failing tutorial" through Claude Code (interactive).
+debug-tutorial-claude:
+    claude "$(cat DEBUG_TUTORIAL_PROMPT.md)"
+
+# Drive "debug a failing tutorial" through Codex CLI (interactive).
+debug-tutorial-codex:
+    codex "$(cat DEBUG_TUTORIAL_PROMPT.md)"
+
 # Download dataset(s) (e.g., just download lucchi++, just download all)
 # Available: lucchi++, snemi, mitoem, cremi
 download +datasets:

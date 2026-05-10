@@ -148,3 +148,22 @@ format churn into focused refactors.
 - Do not create new branches unless explicitly asked.
 - Commit logically: one milestone or concern per commit. Include exact
   validation commands and results in PR/commit summaries when relevant.
+
+## Agent Task Prompts
+
+The repo ships short, focused prompts that drive coding agents through
+common workflows. Each is wired to a `just` recipe that mirrors the
+existing `install-claude` / `install-codex` pattern.
+
+| Prompt | Recipe (Claude) | Recipe (Codex) | What it does |
+|---|---|---|---|
+| `INSTALL_PROMPT.md` | `just install-claude` | `just install-codex` | Install PyTC into a conda env |
+| `ADD_DATASET_PROMPT.md` | `just add-dataset-claude` | `just add-dataset-codex` | Add a new EM volume / dataset |
+| `ADD_ARCH_PROMPT.md` | `just add-arch-claude` | `just add-arch-codex` | Register a new model architecture |
+| `DEBUG_TUTORIAL_PROMPT.md` | `just debug-tutorial-claude` | `just debug-tutorial-codex` | Diagnose a failing tutorial run |
+
+For repo-wide intent → files lookup ("where do I look to add X?"), see
+`CLAUDE.md` § *Agent Quick Reference*.
+
+Recipes are interactive (no `--print`); they expect an authenticated
+`claude` or `codex` CLI on PATH.

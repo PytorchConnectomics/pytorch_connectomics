@@ -13,54 +13,157 @@
 
 **Modern deep learning for connectomics.** Train, run inference, decode, and evaluate segmentation pipelines on large EM volumes — from a single GPU to multi-node clusters.
 
-Built on **[Lightning](https://lightning.ai/)** (orchestration) + **[MONAI](https://monai.io/)** (medical imaging) + **[Hydra](https://hydra.cc/)** (configs).
+---
+
+## What you can segment
+
+| Structure       | Datasets                                    | Tutorial config                                                  |
+|-----------------|---------------------------------------------|------------------------------------------------------------------|
+| Mitochondria    | Lucchi++, MitoEM, MitoLab, BetaSeg          | `mito_lucchi++`, `mitoEM/*`, `mito_mitolab`, `mito_betaseg`      |
+| Neurons         | SNEMI3D, BANIS, LiConn-MIT                  | `neuron_snemi/*`, `neuron_nisb/*`, `neuron_liconn_mit`           |
+| Synapses        | CREMI                                       | `syn_cremi`                                                      |
+| Nuclei          | NucMM-Z                                     | `nuc_nucmm-z`                                                    |
+| Vesicles        | XM                                          | `vesicle_xm`                                                     |
+| Fibers          | Linghu26                                    | `fiber_linghu26`                                                 |
+
+Sample data downloads in <1 min for `lucchi++`, `snemi`, `mitoem`, `cremi` (`just download <name>`).
 
 ---
 
-## Quick Start
+## Benchmarks
+
+Headline metric per public benchmark. Full tables, training curves, and pretrained
+checkpoints live in **[`docs/benchmarks/`](docs/benchmarks/)**.
+
+| Dataset   | Task                    | Architecture       | Metric          | Score |
+|-----------|-------------------------|--------------------|-----------------|-------|
+| Lucchi++  | Mito — semantic         | Swin UNETR         | Jaccard ↑       | —     |
+| MitoEM-R  | Mito — instance         | MedNeXt-L + waterz | AP ↑            | —     |
+| SNEMI3D   | Neurons — instance      | RSUNet + waterz    | adapted Rand ↓  | —     |
+| BANIS     | Neurons — instance      | MedNeXt-M + abiss  | NERL ↑          | —     |
+| CREMI     | Synapse — semantic      | MONAI U-Net        | F1 ↑            | —     |
+
+<!-- Maintainer TODO: replace "—" with current scores from the latest released
+checkpoints, prune rows you don't have data for, and link the docs/benchmarks/
+folder once it exists. -->
+
+---
+
+## Quick Start [[more details]](QUICKSTART.md)
+
+Pick one install path, then **[verify](#verify)**.
+
+### a) Auto installation
 
 ```bash
-# Install (one command)
 curl -fsSL https://raw.githubusercontent.com/zudi-lin/pytorch_connectomics/refs/heads/master/quickstart.sh | bash
+cd pytorch_connectomics
 conda activate pytc
+```
 
-# Verify
+### b) LLM-assisted installation
+
+```bash
+git clone https://github.com/zudi-lin/pytorch_connectomics.git
+cd pytorch_connectomics
+just install-claude          # or: just install-codex
+conda activate pytc
+```
+
+Reads [`INSTALL_PROMPT.md`](INSTALL_PROMPT.md) and lets the agent drive `install.py`.
+Requires an authenticated `claude` or `codex` CLI.
+
+### c) Manual installation
+
+```bash
+git clone https://github.com/zudi-lin/pytorch_connectomics.git
+cd pytorch_connectomics
+python install.py --install-type basic --python 3.11 --env-name pytc
+conda activate pytc
+```
+
+See **[INSTALLATION.md](INSTALLATION.md)** for CUDA versions, extras, and troubleshooting.
+
+### Verify
+
+```bash
 python scripts/main.py --demo
 ```
 
-Need a manual install or specific CUDA version? See **[INSTALLATION.md](INSTALLATION.md)**.
+---
 
-### Run a tutorial
+## Recipes
+
+**1. Train + evaluate on a built-in benchmark** — sample data is tiny:
 
 ```bash
-just download lucchi++              # ~50 MB sample data
-just train mito_lucchi++            # train from scratch
-just test  mito_lucchi++ <ckpt>     # inference + decoding + evaluation
+just download lucchi++              # ~50 MB
+just train     mito_lucchi++        # train from scratch
+just test      mito_lucchi++ <ckpt> # infer + decode + evaluate
 just tensorboard mito_lucchi++      # monitor
 ```
 
----
-
-## Pipeline
-
-PyTC is organized as five composable stages, each with its own config section
-and entry point:
-
-```
-train   →   infer   →   decode   →   evaluate
-                          ↘
-                          tune  (Optuna search over decode/postproc params)
-```
-
-A single CLI dispatches them all:
+**2. Train on your own EM volume** — copy the closest tutorial, point at your data:
 
 ```bash
-python scripts/main.py --config tutorials/mito_lucchi++.yaml                       # train
-python scripts/main.py --config <cfg> --mode test --checkpoint <ckpt>              # infer + decode + evaluate
-python scripts/main.py --config <cfg> --mode tune --checkpoint <ckpt>              # decode-param search
+cp tutorials/mito_lucchi++.yaml tutorials/my_mito.yaml
+# edit data.{train,val}.{image,label} paths inside my_mito.yaml
+just train my_mito
 ```
 
-Override anything from the CLI:
+…or override on the CLI without copying:
+
+```bash
+python scripts/main.py --config tutorials/mito_lucchi++.yaml \
+    data.train.image=/path/to/train.h5 \
+    data.train.label=/path/to/label.h5
+```
+
+**3. Fine-tune from a published checkpoint:**
+
+```bash
+just resume my_mito <pretrained.ckpt>
+```
+
+**4. Predict on a new volume (no labels needed):**
+
+```bash
+just test my_mito <ckpt> evaluation.enabled=false
+```
+
+**5. Sweep decode params with Optuna:**
+
+```bash
+python scripts/main.py --config tutorials/mito_lucchi++.yaml \
+    --mode tune --checkpoint <ckpt>
+```
+
+**6. Drive a workflow with a coding agent** — agent reads a prompt
+and runs the steps for you (interactive):
+
+```bash
+just add-dataset-claude       # or: just add-dataset-codex
+just add-arch-claude          # or: just add-arch-codex
+just debug-tutorial-claude    # or: just debug-tutorial-codex
+```
+
+Requires an authenticated `claude` or `codex` CLI.
+
+---
+
+## Under the hood
+
+Five composable stages, each with its own config section and entry point.
+Data flows left-to-right; each stage owns one transformation:
+
+```
+EM volume ─[train]─▶ checkpoint ─[infer]─▶ representation ─[decode]─▶ instances ─[evaluate]─▶ metrics
+                                            (aff / dist / flow)       (cc3d / waterz / abiss)   (Rand / VOI / NERL)
+                                                                              ▲
+                                                                        [tune]┘  Optuna over decode params
+```
+
+Single CLI dispatches all of them; any field is overridable from the command line:
 
 ```bash
 python scripts/main.py --config <cfg> data.dataloader.batch_size=4 optimization.max_epochs=200
@@ -68,66 +171,23 @@ python scripts/main.py --config <cfg> data.dataloader.batch_size=4 optimization.
 
 ---
 
-## Features
+## Acknowledgments
 
-- **State-of-the-art models** — MONAI (BasicUNet3D, UNet, UNETR, Swin UNETR), MedNeXt (S/B/M/L), nnU-Net, RSUNet
-- **Distributed by default** — DDP multi-GPU, mixed precision (FP16/BF16), gradient accumulation, persistent workers
-- **Big volumes** — chunked sliding-window inference, lazy zarr/HDF5 loading, streamed decode + CC stitching
-- **Decoders** — waterz (with `aff85_his256` scoring), distance watershed, connected components, ABISS, dust merge
-- **Tuning** — Optuna search over decode params; auto-logged to `decode_experiments.tsv`
-- **Composable configs** — Hydra/OmegaConf with profile registries, strict-key validation, CLI overrides
+Built on:
+[PyTorch Lightning](https://lightning.ai/) ·
+[MONAI](https://monai.io/) ·
+[MedNeXt](https://github.com/PytorchConnectomics/MedNeXt) ·
+[nnU-Net](https://github.com/MIC-DKFZ/nnUNet) ·
+[Cellpose](https://github.com/MouseLand/cellpose) ·
+[Zarr](https://zarr.dev/) ·
+[HDF5](https://www.h5py.org/) ·
+[cc3d](https://github.com/seung-lab/connected-components-3d) ·
+[waterz](https://github.com/funkey/waterz) ·
+[abiss](https://github.com/seung-lab/abiss) ·
+[Optuna](https://optuna.org/) ·
+[Hydra](https://hydra.cc/).
 
----
-
-## Minimal Config
-
-```yaml
-model:
-  arch: { type: monai_unet }
-  in_channels: 1
-  out_channels: 1
-  loss:
-    losses:
-      - { function: DiceLoss, weight: 1.0 }
-
-data:
-  train: { image: train.h5, label: train_mask.h5 }
-  val:   { image: val.h5,   label: val_mask.h5 }
-  dataloader: { batch_size: 2, patch_size: [128, 128, 128] }
-
-optimization:
-  optimizer: { name: AdamW, lr: 1e-4 }
-  max_epochs: 100
-  precision: "16-mixed"
-
-decoding:
-  - template: decoding_waterz   # instance segmentation via waterz
-
-evaluation:
-  enabled: true
-  metrics: [adapted_rand, voi]
-```
-
-See [`tutorials/`](tutorials/) for 16 dataset-specific configs (mitochondria, neurons,
-synapses, vesicles, fibers, nuclei).
-
----
-
-## Documentation
-
-- 🚀 [Quick Start](QUICKSTART.md) — get running in 5 minutes
-- 📦 [Installation](INSTALLATION.md) — detailed setup
-- 📚 [Full docs](https://connectomics.readthedocs.io)
-- 🔧 [Troubleshooting](TROUBLESHOOTING.md)
-- 👨‍💻 [Developer guide](CLAUDE.md) — architecture, contributing, refactor history
-
----
-
-## Community
-
-- 💬 **[Slack](https://join.slack.com/t/pytorchconnectomics/shared_invite/zt-obufj5d1-v5_NndNS5yog8vhxy4L12w)** — friendly help
-- 🐛 **[Issues](https://github.com/zudi-lin/pytorch_connectomics/issues)**
-- 📄 **Paper:** [arXiv:2112.05754](https://arxiv.org/abs/2112.05754)
+Special thanks to [Claude Code](https://claude.com/claude-code) and [Codex](https://github.com/openai/codex), with [ccc-agent-flow](https://github.com/donglaiw/ccc-agent-flow) as the collaboration orchestrator.
 
 ---
 
