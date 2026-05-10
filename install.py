@@ -256,6 +256,7 @@ def install_pytorch_connectomics(
     skip_prompts: bool = False,
     pip_options: str = "",
     install_type: str = "basic",
+    force_recreate: bool = False,
 ) -> bool:
     """Main installation function."""
 
@@ -281,6 +282,14 @@ def install_pytorch_connectomics(
 
     if current_env:
         print_info(f"Detected active conda environment: {Colors.BOLD}{current_env}{Colors.ENDC}")
+        if force_recreate and current_env == env_name:
+            # Refuse the dangerous combination: removing an env from inside it
+            # leaves conda in an inconsistent state on most platforms.
+            print_error(
+                f"--force-recreate cannot wipe the currently-active env '{env_name}'. "
+                "Run `conda deactivate` first, then rerun this command."
+            )
+            return False
         if not skip_prompts:
             use_current_env = prompt_yes_no(
                 f"Install in current environment '{current_env}' instead of creating '{env_name}'?",
@@ -348,24 +357,42 @@ def install_pytorch_connectomics(
     # Create or use existing environment
     if use_current_env:
         # Skip environment creation, use current one
-        print_header("Step 1/5: Using Existing Environment")
+        print_header("Step 1/6: Using Existing Environment")
         print_success(f"Using environment: {env_name}")
-    else:
-        # Check if environment exists
-        if env_exists(env_name):
-            print_warning(f"Environment '{env_name}' already exists")
-            if not skip_prompts and not prompt_yes_no("Remove and recreate?"):
-                print_info("Installation cancelled")
-                return False
+    elif env_exists(env_name):
+        # Default to reusing the existing env. Recreate only when the user
+        # explicitly opts in via --force-recreate, or interactively confirms.
+        print_warning(f"Environment '{env_name}' already exists")
+        recreate = False
+        if force_recreate:
+            recreate = True
+            print_info("--force-recreate set; will remove and recreate")
+        elif not skip_prompts:
+            recreate = prompt_yes_no("Remove and recreate?", default=False)
 
+        if recreate:
             print_info(f"Removing existing environment '{env_name}'...")
             code, _, _ = run_command(f"conda env remove -n {env_name} -y", check=False)
             if code != 0:
                 print_error(f"Failed to remove environment '{env_name}'")
                 return False
 
+            print_header("Step 1/6: Creating Conda Environment")
+            print_info(f"Creating environment '{env_name}' with Python {python_version}...")
+            code, _, stderr = run_command(
+                f"conda create -n {env_name} python={python_version} -y", check=False
+            )
+            if code != 0:
+                print_error(f"Failed to create conda environment: {stderr}")
+                return False
+            print_success(f"Environment '{env_name}' created")
+        else:
+            print_header("Step 1/6: Reusing Existing Environment")
+            print_info("Reusing existing env. Pass --force-recreate to wipe and recreate.")
+            print_success(f"Using environment: {env_name}")
+    else:
         # Create environment
-        print_header("Step 1/5: Creating Conda Environment")
+        print_header("Step 1/6: Creating Conda Environment")
         print_info(f"Creating environment '{env_name}' with Python {python_version}...")
         code, _, stderr = run_command(
             f"conda create -n {env_name} python={python_version} -y", check=False
@@ -382,7 +409,7 @@ def install_pytorch_connectomics(
         return False
 
     # Install scientific packages via conda (pre-built binaries, no compilation)
-    print_header("Step 2/5: Installing Scientific Packages")
+    print_header("Step 2/6: Installing Scientific Packages")
     print_info("Installing pre-built packages via conda-forge...")
     print_info("This step is CRITICAL to avoid compilation errors...")
 
@@ -423,75 +450,12 @@ def install_pytorch_connectomics(
         print_success(f"Core packages installed: {', '.join(to_install)}")
     else:
         print_success("All core packages already installed")
-    
-    # CRITICAL: Reinstall cc3d to match current numpy version
-    # This prevents "numpy.dtype size changed" binary incompatibility errors
-    print_info("Reinstalling cc3d to match current numpy version...")
-    code, _, stderr = run_command(
-        f"conda run -n {env_name} pip uninstall -y connected-components-3d", check=False
-    )
-    code, _, stderr = run_command(
-        f"conda run -n {env_name} pip install --no-cache-dir connected-components-3d", check=False
-    )
-    if code != 0:
-        print_warning("Failed to reinstall cc3d; may have binary incompatibility issues")
-        if stderr.strip():
-            print_warning(stderr.strip())
-    else:
-        print_success("cc3d reinstalled successfully")
 
-    # Group 2: Optional scientific packages (nice to have, but slow to install)
-    optional_packages = ["scipy", "scikit-learn", "scikit-image", "opencv"]
-
-    # Check which optional packages are already installed
-    opt_already_installed = []
-    opt_to_install = []
-
-    print_info("Checking optional packages...")
-    for pkg in optional_packages:
-        is_installed, version = check_package_installed(pkg, env_name)
-        if is_installed:
-            opt_already_installed.append(f"{pkg} ({version})")
-        else:
-            opt_to_install.append(pkg)
-
-    if opt_already_installed:
-        print_success(f"Optional packages already installed: {', '.join(opt_already_installed)}")
-
-    if opt_to_install:
-        # Prompt user - conda can be very slow for optional packages
-        install_optional = False
-        if skip_prompts:
-            print_info("Skipping optional packages (will be installed by pip if needed)")
-        else:
-            print_warning(f"Optional packages to install: {', '.join(opt_to_install)}")
-            print_warning(
-                "Note: Installing these via conda can take 5-10 minutes due to dependency resolution"
-            )
-            print_info("They will be automatically installed via pip later if needed (faster)")
-            install_optional = prompt_yes_no(
-                "Install optional packages via conda now?", default=False
-            )
-
-        if install_optional:
-            print_info(f"Installing optional packages: {', '.join(opt_to_install)}")
-            print_info("This may take several minutes...")
-            code, _, stderr = run_command(
-                f"conda install -n {env_name} -c conda-forge {' '.join(opt_to_install)} -y",
-                check=False,
-            )
-            if code != 0:
-                print_warning("Some optional conda packages failed to install")
-                print_info("These will be installed via pip if needed...")
-            else:
-                print_success(f"Optional packages installed: {', '.join(opt_to_install)}")
-        else:
-            print_info("Skipping optional packages - pip will install them if needed")
-    else:
-        print_success("All optional packages already installed")
+    # cc3d ABI probe runs after `pip install -e .` (the editable install can pull
+    # a different numpy as a transitive dep, which is the actual ABI-break case).
 
     # Install PyTorch
-    print_header("Step 3/5: Installing PyTorch")
+    print_header("Step 3/6: Installing PyTorch")
     print_info(f"Running: {pytorch_install}")
 
     # Use conda run to execute in the environment
@@ -502,7 +466,7 @@ def install_pytorch_connectomics(
     print_success("PyTorch installed")
 
     # Install PyTorch Connectomics
-    print_header("Step 4/5: Installing PyTorch Connectomics")
+    print_header("Step 4/6: Installing PyTorch Connectomics")
     print_info(f"Installing package in editable mode ({install_type} installation)...")
 
     # Build pip install command with appropriate extras
@@ -523,7 +487,34 @@ def install_pytorch_connectomics(
             return False
     print_success("PyTorch Connectomics installed")
 
-    # Install just (command runner) for all installation types
+    # cc3d ABI probe: only repair on actual import failure (numpy ABI mismatch).
+    # Runs after `pip install -e .` so the probe sees pip's final numpy choice.
+    print_info("Verifying cc3d ABI compatibility against installed numpy...")
+    code, _, _ = run_command(
+        f'conda run -n {env_name} python -c "import cc3d"', check=False
+    )
+    if code != 0:
+        print_warning("cc3d import failed; reinstalling against current numpy ABI...")
+        run_command(
+            f"conda run -n {env_name} pip uninstall -y connected-components-3d", check=False
+        )
+        code, _, stderr = run_command(
+            f"conda run -n {env_name} pip install --no-cache-dir connected-components-3d",
+            check=False,
+        )
+        if code != 0:
+            print_warning(
+                "cc3d reinstall failed. See INSTALLATION.md "
+                "'ABI mismatch on import cc3d' for the manual workaround."
+            )
+            if stderr.strip():
+                print_warning(stderr.strip())
+        else:
+            print_success("cc3d reinstalled against current numpy")
+    else:
+        print_success("cc3d ABI is consistent with installed numpy")
+
+    # Install just (command runner used by README tutorial commands)
     print_header("Step 5/6: Installing Command Runner (just)")
     print_info("Installing just command runner via conda...")
 
@@ -633,6 +624,12 @@ Examples:
         default="basic",
         help="Installation type: basic (core only), dev (with dev tools), full (all features) (default: basic)",
     )
+    parser.add_argument(
+        "--force-recreate",
+        action="store_true",
+        help="If the target conda env already exists, remove and recreate it. "
+        "Default is to reuse an existing env.",
+    )
 
     args = parser.parse_args()
 
@@ -652,6 +649,7 @@ Examples:
         skip_prompts=not args.interactive,
         pip_options=args.pip_options,
         install_type=args.install_type,
+        force_recreate=args.force_recreate,
     )
 
     sys.exit(0 if success else 1)
