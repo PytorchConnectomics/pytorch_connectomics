@@ -129,9 +129,9 @@ Documentation
    :maxdepth: 1
    :caption: Tutorials
 
-   tutorials/neuron
-   tutorials/mito
-   tutorials/synapse
+   tutorials/neuron/index
+   tutorials/mito/index
+   tutorials/synapse/index
    tutorials/artifact
 
 .. toctree::

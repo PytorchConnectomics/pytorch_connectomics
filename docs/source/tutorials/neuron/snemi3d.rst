@@ -1,14 +1,11 @@
-Neuron Segmentation
-=====================
+SNEMI3D
+=========
 
-This tutorial provides step-by-step guidance for neuron segmentation with SENMI3D benchmark datasets.
-Dense neuron segmentation in electronic microscopy (EM) images belongs to the category of **instance segmentation**.
-The methodology is to first predict the affinity map (the connectivity of each pixel to neighboring pixels)
-with an encoder-decoder ConvNets and then generate the segmentation map using a standard
-segmentation algorithm (*e.g.*, watershed).
-
-The evaluation of segmentation results is based on the `Rand Index <https://en.wikipedia.org/wiki/Rand_index>`_
-and `Variation of Information <https://en.wikipedia.org/wiki/Variation_of_information>`_.
+This tutorial provides step-by-step guidance for neuron segmentation with the
+SNEMI3D benchmark dataset. The methodology is to first predict the affinity
+map (the connectivity of each pixel to neighboring pixels) with an
+encoder-decoder ConvNet and then generate the segmentation map using a
+standard segmentation algorithm (*e.g.*, watershed).
 
     .. tip::
         Before running neuron segmentation, please take a look at the `notebooks <https://github.com/zudi-lin/pytorch_connectomics/tree/master/notebooks>`_ to get familiar with the datasets and available utility functions in this package.
@@ -24,7 +21,7 @@ The affinity value between two neighboring pixels (voxels) is 1 if they belong t
 they belong to different instances or at least one of them is a background pixel (voxel). An affinity map can
 be regarded as a more informative version of boundary map as it contains the affinity to two directions in 2D inputs and three directions (`z`, `y` and `x` axes) in 3D inputs.
 
-.. figure:: ../_static/img/snemi_affinity.png
+.. figure:: ../../_static/img/snemi_affinity.png
     :align: center
     :width: 800px
 

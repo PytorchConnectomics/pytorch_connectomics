@@ -419,7 +419,7 @@ Next Steps
 After installation:
 
 1. Read the `Configuration Guide <config.html>`_ to learn about Hydra configs
-2. Follow the `Tutorials <../tutorials/neuron.html>`_ for hands-on examples
+2. Follow the `Tutorials <../tutorials/neuron/index.html>`_ for hands-on examples
 3. Check the `Data Loading Guide <dataloading.html>`_ for dataset preparation
 4. Explore the `API Reference <../modules/model.html>`_ for advanced usage
 
