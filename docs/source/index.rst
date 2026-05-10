@@ -132,6 +132,7 @@ Documentation
    tutorials/neuron/index
    tutorials/mito/index
    tutorials/synapse/index
+   tutorials/wrinkle
    tutorials/artifact
 
 .. toctree::
