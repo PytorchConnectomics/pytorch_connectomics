@@ -1,205 +1,218 @@
 SNEMI3D
 =========
 
-This tutorial provides step-by-step guidance for neuron segmentation with the
-SNEMI3D benchmark dataset. The methodology is to first predict the affinity
-map (the connectivity of each pixel to neighboring pixels) with an
-encoder-decoder ConvNet and then generate the segmentation map using a
-standard segmentation algorithm (*e.g.*, watershed).
+This tutorial reproduces the DeepEM-style neuron segmentation result on
+the SNEMI3D challenge dataset using
+``tutorials/neuron_snemi/neuron_snemi.yaml``. It is a modernization of
+the affinity-learning recipe from Lee et al. 2017, with current
+optimization and stability tricks but the same short-range affinity
+target and waterz-based agglomeration.
 
-    .. tip::
-        Before running neuron segmentation, please take a look at the `notebooks <https://github.com/zudi-lin/pytorch_connectomics/tree/master/notebooks>`_ to get familiar with the datasets and available utility functions in this package.
+References:
 
-The main script to run the training and inference is ``pytorch_connectomics/scripts/main.py``.
-Affinity targets are generated through the configured Lightning data module and the current
-dataset implementations in :mod:`connectomics.data.datasets`.
+- Paper: `Superhuman Accuracy on the SNEMI3D Connectomics Challenge
+  <https://arxiv.org/abs/1706.00120>`_ (Lee et al., 2017).
+- Codebase: `seung-lab/DeepEM <https://github.com/seung-lab/DeepEM>`_.
 
-Neighboring affinity learning
--------------------------------
+Goal
+----
 
-The affinity value between two neighboring pixels (voxels) is 1 if they belong to the same instance and 0 if
-they belong to different instances or at least one of them is a background pixel (voxel). An affinity map can
-be regarded as a more informative version of boundary map as it contains the affinity to two directions in 2D inputs and three directions (`z`, `y` and `x` axes) in 3D inputs.
+The pipeline pins the following BANIS-equivalent setup for SNEMI3D:
 
-.. figure:: ../../_static/img/snemi_affinity.png
-    :align: center
-    :width: 800px
+- **Input** ``[16, 224, 224]`` patches, anisotropic spacing ``30 × 6 × 6``
+  nm; pad ``[8, 128, 128]`` for symmetric inference context.
+- **Model** RSUNet (Recursive Symmetric UNet, the DeepEM architecture).
+- **Target** 12-channel affinity (``aff12``): short-range plus long-range
+  (the ``pipeline_profile: aff12`` in ``all_profiles.yaml``). At inference
+  we keep only channels 0-2 (axis-0/1/2 short-range) for waterz.
+- **Optimization** profile ``warmup_cosine_lr``, 100 epochs × 1000
+  steps/epoch.
+- **Inference** sliding window 16 × 224 × 224, ``sw_batch_size=16``;
+  ``crop_pad=[7, 8, 127, 128, 127, 128]`` puts the affinity output back on
+  the original image support after symmetric padding.
+- **Decoder** ``decoding_waterz`` template at ``thresholds=0.5``,
+  ``merge_function=aff85_his256``, ``aff_threshold=[0.1, 0.999]``, plus
+  dust merge / best-buddy / one-sided post-processing — the standard
+  DeepEM-style agglomerative watershed.
+- **Metric** Adapted Rand (``adapted_rand``).
 
-The figure above shows examples of EM images, segmentation and affinity map from the SNEMI3D dataset. Since the
-3D affinity map has 3 channels, we can visualize them as RGB images.
+Each of these is encoded directly in
+``tutorials/neuron_snemi/neuron_snemi.yaml``; do not change them in
+passing. Two sibling configs are also provided for comparison:
 
+- ``neuron_snemi_sdt.yaml`` — affinity + signed distance transform.
+- ``neuron_snemi_sdt_multitask.yaml`` — joint multi-task variant.
 
-    .. tip:: A notebook for visualizing results is provided for users in the `Github repository <https://github.com/zudi-lin/pytorch_connectomics/tree/master/notebooks/tutorial_benchmarks/snemi_benchmark.ipynb>`_. Users are able to download this notebook and produce evaluation results using a pretrained benchmark. Due to incompatiability with Colab and neuroglancer, it is recommended that users utilize a personal computer/HPC with at least 12GB of video RAM.
+This page covers ``neuron_snemi.yaml`` only.
 
 1 - Get the data
 ^^^^^^^^^^^^^^^^^^
 
-.. code-block:: none
+The challenge data is available from the
+`SNEMI3D challenge page <http://brainiac2.mit.edu/SNEMI3D/>`_ or the
+Harvard RC mirror:
 
+.. code-block:: bash
+
+    mkdir -p datasets/SNEMI && cd datasets/SNEMI
     wget http://rhoana.rc.fas.harvard.edu/dataset/snemi.zip
+    unzip snemi.zip
 
-..
+After unpacking, you should have:
 
-   .. tip::
-    As of April 9, 2024, unzipping the above folder will create an ``image`` and ``seg`` folder. It is recommended that these two folders be placed under datasets/SNEMI3D or that ``configs/SNEMI/SNEMI-Base.yaml`` be changed to point to the appropriate dataset paths.
+.. code-block:: text
 
-For description of the SNEMI dataset please check `this page <https://vcg.github.io/newbie-wiki/build/html/data/data_em.html>`_.
+    datasets/SNEMI/
+        train-input.tif       # 100 slices, anisotropic 30 × 6 × 6 nm
+        train-labels.tif      # dense neuron instance labels
+        test-input.tif        # held-out volume (no public labels)
+        test-labels.h5        # provided locally for offline evaluation
 
-    .. note::
-
-        Since for a region with dense masks, most affinity values are 1, in practice, we usually widen the instance border (erode the instance mask) to deal with the class imbalance problem and let the model make more conservative predictions to prevent merge error. This is done by setting ``MODEL.LABEL_EROSION = 1``.
+The config reads from ``datasets/SNEMI/`` relative to the repo root.
+Paths under ``train.data.train`` and ``test.data.test`` in
+``neuron_snemi.yaml`` can be edited if you stage data elsewhere.
 
 2 - Run training
 ^^^^^^^^^^^^^^^^^^
 
-Provide the **YAML** configuration files to run training:
+.. code-block:: bash
 
-.. code-block:: none
+    conda activate pytc
+    python scripts/main.py --config tutorials/neuron_snemi/neuron_snemi.yaml
 
-   source activate py3_torch
-   python -u scripts/main.py \
-   --config-base configs/SNEMI/SNEMI-Base.yaml \
-   --config-file configs/SNEMI/SNEMI-Affinity-UNet.yaml
+The config sets ``system.profile: all-gpu-cpu``, so PyTC uses every
+visible GPU. Override at the CLI if needed:
 
-Or if using multiple GPUs for higher performance:
+.. code-block:: bash
 
-.. code-block:: none
+    python scripts/main.py --config tutorials/neuron_snemi/neuron_snemi.yaml \
+        system.num_gpus=4 data.dataloader.batch_size=2
 
-    CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 python -u -m torch.distributed.run \
-    --nproc_per_node=2 --master_port=1234 scripts/main.py --distributed \
-    --config-base configs/SNEMI/SNEMI-Base_multiGPU.yaml \
-    --config-file configs/SNEMI/SNEMI-Affinity-UNet.yaml
+Training schedule:
 
-The configuration files for training can be found in ``configs/SNEMI/``.
-We usually create a ``datasets/`` folder under ``pytorch_connectomics`` and put the SNEMI dataset there.
-Please modify the following options according to your system configuration and data storage:
+- **Epoch-based**: ``max_epochs=100``, ``n_steps_per_epoch=1000`` →
+  100 k optimizer steps total.
+- ``warmup_cosine_lr`` profile: linear warmup, then cosine decay.
+- ``checkpoint.monitor=train_loss_total_epoch``, ``save_top_k=3`` (no
+  validation loss is monitored — SNEMI3D has no public test labels and
+  the training labels are dense, so the recipe reports the
+  best-train-loss epochs rather than holding out a validation split).
+- Image previews logged every 10 epochs.
 
-- ``IMAGE_NAME``: name of the 3D image file (HDF5 or TIFF)
-- ``LABEL_NAME``: name of the 3D label file (HDF5 or TIFF)
-- ``INPUT_PATH``: directory path to both input files above
-- ``OUTPUT_PATH``: path to save outputs (checkpoints and Tensorboard events)
-- ``NUM_GPUS``: number of GPUs
-- ``NUM_CPUS``: number of CPU cores (for data loading)
+Monitor with TensorBoard:
 
-    .. tip::
+.. code-block:: bash
 
-        By default, we use multi-process distributed training with one GPU per process (and multiple CPUs for data loading). The model is wrapped with `DistributedDataParallel <https://pytorch.org/tutorials/intermediate/ddp_tutorial.html>`_ (DDP). For more benefits of DDP, check `this tutorial <https://pytorch.org/tutorials/intermediate/ddp_tutorial.html>`_. Please note that official synchronized batch normalization (SyncBN) in PyTorch is only supported with DDP.
+    just tensorboard rsunet_snemi_lee2017_modern
 
-We also support `data parallel <https://pytorch.org/docs/stable/generated/torch.nn.DataParallel.html>`_ (DP) training.
-If the training command above does not work for your system, please use:
+The output directory is keyed off ``experiment_name``, so you'll see
+``outputs/rsunet_snemi_lee2017_modern/<timestamp>/...``.
 
-.. code-block:: none
+3 - Inference, decoding, evaluation
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-    CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 python -u scripts/main.py \
-    --config-base configs/SNEMI/SNEMI-Base.yaml \
-    --config-file configs/SNEMI/SNEMI-Affinity-UNet.yaml
+Run the combined ``test`` mode against the trained checkpoint. This
+exercises inference, waterz decoding, and adapted-Rand evaluation
+end-to-end:
 
-DDP training is our default settings because features like automatic mixed-precision training and synchronized batch
-normalization are better supported for DDP. Besides, DP usually has an imbalanced GPU memory usage.
+.. code-block:: bash
 
-3 - Run training with pretrained model (*optional*)
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    python scripts/main.py --config tutorials/neuron_snemi/neuron_snemi.yaml \
+        --mode test \
+        --checkpoint outputs/rsunet_snemi_lee2017_modern/<timestamp>/checkpoints/last.ckpt
 
-(*Optional*) To run training starting from pretrained weights, add a checkpoint file:
+What happens, in order:
 
-.. code-block:: none
+1. **Inference** (``connectomics.inference.stage``). Sliding window
+   16 × 224 × 224, ``sw_batch_size=16``, symmetric pad of
+   ``[8, 128, 128]`` (cropped back via ``crop_pad`` after prediction so
+   the saved affinity occupies the original image support). Model runs
+   on GPU; default activations from the model wrapper. Saves the raw
+   12-channel affinity as ``test_im_prediction.h5`` in
+   ``outputs/.../results_step=<N>/``.
 
-    CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 python -u -m torch.distributed.run \
-    --nproc_per_node=2 --master_port=1234 scripts/main.py --distributed \
-    --config-base configs/SNEMI/SNEMI-Base.yaml \
-    --config-file configs/SNEMI/SNEMI-Affinity-UNet.yaml \
-    --checkpoint /path/to/checkpoint/checkpoint_xxxxx.pth.tar
+2. **Decoding** (``connectomics.decoding.stage``). Selects the
+   short-range affinities (channels 0-2; ``aff=1`` neighborhood), then
+   runs waterz with the DeepEM-style settings:
 
-4 - Visualize the training progress
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   - ``merge_function: aff85_his256``
+   - ``aff_threshold: [0.1, 0.999]``
+   - ``thresholds: 0.5``
+   - dust merge ON (``dust_merge_size=800``,
+     ``dust_merge_affinity=0.3``, ``dust_remove_size=600``)
+   - best-buddy on, ``one_sided_threshold=0.8``,
+     ``one_sided_min_size=100``
 
-We use Tensorboard to visualize the training process. Specify ``--logdir`` with your own experiment directory, which can be different
-from the default one.
+3. **Evaluation** (``connectomics.evaluation.stage``). Computes
+   Adapted Rand against ``datasets/SNEMI/test-labels.h5``.
 
-.. code-block:: none
+The combined output (segmentation + metrics) lands under
+``outputs/.../results_step=<N>/``.
 
-    tensorboard --logdir outputs/SNEMI_UNet/
+To switch to the long-range affinity selection (``aff=3`` in DeepEM),
+override at the CLI:
 
-To visualize the training process and generate a **public link** to share the results with collaborators, we
-use `tensorboard dev <https://tensorboard.dev/>`_. Similar to local visualization, we specify ``--logdir`` with the experiment
-directory (which can be different from the default one).
+.. code-block:: bash
 
-.. code-block:: none
+    python scripts/main.py --config tutorials/neuron_snemi/neuron_snemi.yaml \
+        --mode test --checkpoint <ckpt> \
+        inference.model.select_channel='[6, 9, 4]'
 
-    tensorboard dev upload --logdir outputs/SNEMI_UNet/
+Test-time augmentation (8× via flips + 90° rotations in xy) is
+disabled by default in the config; flip
+``inference.test_time_augmentation.enabled=true`` for the
+``patch_first_local`` flow used by DeepEM.
 
-Please refer this `example <https://colab.research.google.com/github/tensorflow/tensorboard/blob/master/docs/tbdev_getting_started.ipynb#scrollTo=oKW8V5chyx6e>`_ Google Colab
-notebook for a step-by-step tutorial. Please also note that Tensorboard Dev `does not suppport <https://github.com/tensorflow/tensorboard/issues/3585/>`_ images
-in the visualization with public link as of 12 October, 2021.
-
-5 - Inference of affinity map
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-Run inference on image volumes (add ``--inference``). During inference the model can use larger batch sizes or take bigger inputs.
-Test-time augmentation is also applied by default. We do not use distributed data-parallel during inference as the back-propagation
-is not needed.
-
-.. code-block:: none
-
-    python -u scripts/main.py --config-base configs/SNEMI/SNEMI-Base.yaml \
-    --config-file configs/SNEMI/SNEMI-Affinity-UNet.yaml --inference \
-    --checkpoint outputs/SNEMI_UNet/checkpoint_100000.pth.tar
-
-6 - Get segmentation
+4 - Tune the decoder
 ^^^^^^^^^^^^^^^^^^^^^^
 
-The last step is to generate segmentation (with external post processing packages) and run
-evaluation. First download the ``waterz`` package `here <https://github.com/zudi-lin/waterz>`_:
+The waterz threshold and merge function dominate downstream Rand error.
+``--mode tune`` runs an Optuna search on the ``test`` volume (since
+SNEMI3D has no separate validation volume) with adapted Rand as the
+objective:
 
-.. code-block:: none
+.. code-block:: bash
 
-    git clone https://github.com/zudi-lin/waterz.git
-    cd waterz
-    pip install --editable .
-    pip install waterz
+    python scripts/main.py --config tutorials/neuron_snemi/neuron_snemi.yaml \
+        --mode tune \
+        --checkpoint outputs/rsunet_snemi_lee2017_modern/<timestamp>/checkpoints/last.ckpt
 
-Follow the instructions on the repository to install the ``waterz`` package. We will use the ``waterz.waterz`` API to generate segmentation from the affinity maps. The API takes in as arguments.
+Configuration (under the ``tune:`` block):
 
-- ``affinities``. This is the affinity map generated by our model in the previous step. The values in the affinity map is expected to be between ``aff_threshold[0]`` and ``aff_threshold[1]``. The affinity values should be float between 0 and 1 but the affinity map prediicted by the model are between 0 and 255 in uint8 (to save storage). Hence before using the affinity map we need to *divide it by 255*.
-- ``aff_thresholds``. The values in the affinity maps will be constrained to lie between these thresholds. Recommended values are ``[0.05,0.995]``.
-- ``seg_thresholds``. This is an array of segmentation threshold values. Recommended values are ``[0.1,0.3,0.6]``. The API will produce a segmentation volume for each segmentation threshold in the array.
-- ``merge_function``. The function that will be used while merging the nodes of the region adjacency graph. Recommended value for this parameter is  ``"aff50_his256"``.
-- ``seg_gt``. This is the ground-truth segmentation used for evaluating the segmentation result. If ground truth is not available, this parameter is supposed to be ``None``. If the ground truth is available, the API prints the *Rand* and *VOI* scores.
+- ``profile: tune_waterz`` (TPE sampler, study persisted as
+  ``snemi_waterz_tuning``).
+- 25 trials, 300 s timeout each.
+- Search space:
 
-.. code-block:: python
+  - ``merge_function`` ∈ ``{aff85_his256, aff75_his256, aff50_his256,
+    aff25_his256, aff15_his256}``
+  - ``thresholds`` ∈ ``[0.1, 0.9]`` step 0.1
+  - ``aff_threshold[0]`` ∈ ``[0.0, 0.5]`` step 0.1
+  - ``aff_threshold[1]`` ∈ ``[0.7, 1.0]`` step 0.1
 
-    import waterz
-    import numpy as np
+The search reuses the same checkpoint and saved affinity; only the
+decode + evaluate stages run per trial, so each trial is fast.
 
-    # affinities is a [3, depth, height, width] numpy array of uint8 if predicted by PyTC
-    affinities = ... # model prediction
+5 - Reference behavior
+^^^^^^^^^^^^^^^^^^^^^^^^
 
-    affinities = affinities / 255.0
-    # The affinity values in the model prediction are in the interval [0,255] and the affinity thresholds provided constraint them
-    # in the interval [0.05,0.995] hence we divide it by 255 in order to scale it.
+A few sanity-check signals during reproduction:
 
-    # evaluation: vi/rand
-    seg_gt = None # segmentation ground truth. If available, the prediction is evaluated against this ground truth and Rand and VI scores are produced.
+- **Training loss** (``train_loss_total_epoch``) drops sharply through
+  the warmup phase, then descends slowly through cosine decay. With
+  RSUNet on the 12-channel affinity target it usually plateaus by
+  epoch ~60.
+- **Inference** is fast on SNEMI3D (a 100×1024×1024 volume) because of
+  the small sliding-window grid; expect well under a minute per
+  inference on a single A100/H100, low single-digit minutes on an
+  L40S.
+- **Adapted Rand** is the headline number; under the canonical pin
+  set it should land in the same range as the DeepEM paper after
+  threshold tuning. The single best lever is ``thresholds`` followed
+  by ``merge_function``; ``aff_threshold`` boundaries matter mostly at
+  low (<0.05) or high (>0.99) settings.
 
-    aff_thresholds = [0.05, 0.995]
-    seg_thresholds = [0.1, 0.3, 0.6]
-
-    seg = waterz.waterz(affinities, seg_thresholds, merge_function='aff50_his256',
-              aff_threshold=aff_thresholds, gt=seg_gt)
-
-    # seg will be an array of shape [3,depth,height,width]. Since there are 3 segmentation thresholds, we get a result of shape
-    # [depth,height,width] for each threshold.
-
-Optionally, the ``zwatershed`` package can also be used to process the affinity map into
-segmentation. See details `here <https://github.com/zudi-lin/zwatershed>`_.
-
-
-Long-range affinity learning
-------------------------------
-
-ToDo
-
-Semi-supervised affinity learning
------------------------------------
-
-ToDo
+For the underlying mechanics (affinity learning, waterz post-processing
+internals), see the
+`DeepEM repository <https://github.com/seung-lab/DeepEM>`_ and the
+`paper <https://arxiv.org/abs/1706.00120>`_.

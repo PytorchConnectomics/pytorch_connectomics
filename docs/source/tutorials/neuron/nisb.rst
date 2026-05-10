@@ -8,6 +8,16 @@ affinity model (MedNeXt-S / kernel 3) trained for 200 k steps on
 128-cube patches, decoded with affinity-threshold connected components,
 and evaluated with the NERL skeleton metric.
 
+Reference:
+
+- Codebase: `StructuralNeurobiologyLab/banis
+  <https://github.com/StructuralNeurobiologyLab/banis>`_ — the upstream
+  BANIS pipeline this configuration mirrors. Affinity offset semantics
+  (``affinity_mode: banis``, source-voxel storage, ``edge_offset: 0``),
+  patched-inference geometry (128³ windows, 50 % overlap,
+  ``snap_to_edge`` boundary handling, distance-transform blending), and
+  the ``train_base_long`` schedule are all matched against this repo.
+
 If you only need a different starting point, the same directory ships
 several variants:
 
