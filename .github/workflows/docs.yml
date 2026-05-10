@@ -1,35 +1,61 @@
 name: Documentation
 
+# Build Sphinx docs and publish to gh-pages on push to master.
+# Mirrors the .readthedocs.yaml pin set so GitHub Pages stays aligned
+# with the ReadTheDocs build (Python 3.11, docs/requirements.txt + pip
+# install .).
+#
+# After the first successful run, set the GitHub Pages source under
+# Settings -> Pages -> Branch: gh-pages, folder: / (root). The site
+# will be served at https://pytorchconnectomics.github.io/pytorch_connectomics/.
+
 on:
   push:
-    branches: [ main, master, v2.0 ]
-  pull_request:
-    branches: [ main, master, v2.0 ]
+    branches: [master]
+    paths:
+      - 'docs/**'
+      - '.readthedocs.yaml'
+      - 'pyproject.toml'
+      - 'setup.py'
+      - '.github/workflows/docs.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
 
 jobs:
-  build-docs:
-    runs-on: ubuntu-latest
+  build-and-deploy:
+    runs-on: ubuntu-22.04
     steps:
-    - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
-    - name: Set up Python
-      uses: actions/setup-python@v4
-      with:
-        python-version: '3.10'
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
 
-    - name: Install dependencies
-      run: |
-        python -m pip install --upgrade pip
-        pip install -e .[docs]
+      - name: Install docs toolchain
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r docs/requirements.txt
+          pip install .
 
-    - name: Build documentation
-      run: |
-        cd docs
-        make html
+      - name: Build Sphinx HTML
+        run: |
+          python -m sphinx -T -b html -d docs/_build/doctrees -D language=en docs/source docs/build/html
 
-    - name: Deploy to GitHub Pages
-      if: github.event_name == 'push' && github.ref == 'refs/heads/master'
-      uses: peaceiris/actions-gh-pages@v3
-      with:
-        github_token: ${{ secrets.GITHUB_TOKEN }}
-        publish_dir: ./docs/build/html
+      - name: Add .nojekyll marker
+        # Copy the in-repo marker into the publish dir so GitHub Pages
+        # does not run Jekyll over Sphinx output (Jekyll would mangle
+        # paths starting with `_`, e.g. `_static/`, `_sources/`).
+        run: cp docs/.nojekyll docs/build/html/.nojekyll
+
+      - name: Deploy to gh-pages
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_branch: gh-pages
+          publish_dir: ./docs/build/html
+          enable_jekyll: false
+          force_orphan: true
+          commit_message: 'docs: deploy ${{ github.sha }}'
