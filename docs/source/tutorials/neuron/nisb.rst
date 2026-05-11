@@ -1,6 +1,8 @@
 NISB
 ======
 
+.. include:: _intro.rst
+
 This tutorial reproduces the BANIS ``train_base_long`` neuron-segmentation
 result on the NISB dataset using
 ``tutorials/neuron_nisb/base_banis.yaml``. The target is a 9 nm, 6-channel

@@ -1,6 +1,8 @@
 MitoEM (Instance Segmentation)
 ================================
 
+.. include:: _intro.rst
+
 This tutorial reproduces 3D mitochondria **instance segmentation** on
 the
 `MitoEM <https://donglaiw.github.io/page/mitoEM/index.html>`_ dataset

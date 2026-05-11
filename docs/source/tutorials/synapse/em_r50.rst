@@ -1,6 +1,8 @@
 EM-R50 (Synaptic Polarity Detection)
 ======================================
 
+.. include:: _intro.rst
+
 This tutorial covers synaptic **polarity** detection — predicting
 separated pre-synaptic and post-synaptic masks so the signal flow
 between neurons can be traced. The dataset was released by

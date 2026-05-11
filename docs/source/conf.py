@@ -104,7 +104,12 @@ language = "en"
 # List of patterns, relative to source directory, that match files and
 # directories to ignore when looking for source files.
 # These patterns also affect html_static_path and html_extra_path
-exclude_patterns = ['_build', 'Thumbs.db', '.DS_Store']
+exclude_patterns = ['_build', 'Thumbs.db', '.DS_Store', '**/_intro.rst']
+
+# Section labels from `.. include::`-ed snippets would otherwise collide
+# across pages (same heading appears in every dataset subpage). Prefixing
+# with the document name keeps autosectionlabel happy under -W.
+autosectionlabel_prefix_document = True
 
 # The reST default role (used for this markup: `text`) to use for all
 # documents.
@@ -152,10 +157,11 @@ html_theme = 'pytorch_sphinx_theme'
 # html_theme_path = [pytorch_sphinx_theme.get_html_theme_path()]
 
 html_theme_options = {
-    'collapse_navigation': False,
+    'collapse_navigation': True,
     'display_version': True,
     'logo_only': True,
     'navigation_with_keys': True,
+    'navigation_depth': 3,
 }
 
 # Add any paths that contain custom themes here, relative to this directory.
