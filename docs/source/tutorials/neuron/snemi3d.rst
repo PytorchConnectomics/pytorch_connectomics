@@ -1,6 +1,8 @@
 SNEMI3D
 =========
 
+.. include:: _intro.rst
+
 This tutorial reproduces the DeepEM-style neuron segmentation result on
 the SNEMI3D challenge dataset using
 ``tutorials/neuron_snemi/neuron_snemi.yaml``. It is a modernization of

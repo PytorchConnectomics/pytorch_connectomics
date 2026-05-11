@@ -1,6 +1,8 @@
 CREMI (Synaptic Cleft Detection)
 ==================================
 
+.. include:: _intro.rst
+
 This tutorial reproduces synaptic cleft detection on the
 `CREMI Challenge <https://cremi.org>`_ dataset using
 ``tutorials/syn_cremi.yaml``. The task is binary semantic segmentation

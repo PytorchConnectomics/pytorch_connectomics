@@ -126,7 +126,7 @@ Documentation
 
 .. toctree::
    :glob:
-   :maxdepth: 1
+   :maxdepth: 2
    :caption: Tutorials
 
    tutorials/neuron/index

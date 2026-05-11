@@ -1,6 +1,8 @@
 Lucchi++ (Semantic Segmentation)
 ==================================
 
+.. include:: _intro.rst
+
 This tutorial reproduces binary mitochondria segmentation on the Lucchi++
 EM benchmark using ``tutorials/mito_lucchi++.yaml``. The task is treated
 as **semantic segmentation** — predict the mitochondria foreground mask
