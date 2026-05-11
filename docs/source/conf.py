@@ -106,11 +106,6 @@ language = "en"
 # These patterns also affect html_static_path and html_extra_path
 exclude_patterns = ['_build', 'Thumbs.db', '.DS_Store', '**/_intro.rst']
 
-# Section labels from `.. include::`-ed snippets would otherwise collide
-# across pages (same heading appears in every dataset subpage). Prefixing
-# with the document name keeps autosectionlabel happy under -W.
-autosectionlabel_prefix_document = True
-
 # The reST default role (used for this markup: `text`) to use for all
 # documents.
 #
@@ -404,8 +399,10 @@ napoleon_attr_annotations = True
 # -- A patch that turns-off cross refs for type annotations ------------------
 
 
-# replaces pending_xref node with desc_type for type annotations
-sphinx.domains.python.type_to_xref = lambda t, e=None: addnodes.desc_type(
+# replaces pending_xref node with desc_type for type annotations.
+# Absorb **kwargs so we tolerate signature changes in Sphinx
+# (5.x added `suppress_prefix=True`; later versions may add more).
+sphinx.domains.python.type_to_xref = lambda t, e=None, **kwargs: addnodes.desc_type(
     "", nodes.Text(t))
 
 # -- Autosummary patch to get list of a classes, funcs automatically ----------
