@@ -392,6 +392,21 @@ def dust_removal_sweep(pred, gt):
     return best_thresh, best_are, sweep
 
 
+class _Tee:
+    """Mirror writes to multiple file handles (stdout + report file)."""
+
+    def __init__(self, *streams):
+        self.streams = streams
+
+    def write(self, s):
+        for st in self.streams:
+            st.write(s)
+
+    def flush(self):
+        for st in self.streams:
+            st.flush()
+
+
 def main():
     parser = argparse.ArgumentParser(description="Analyze segmentation vs ground truth")
     parser.add_argument("pred", nargs="?", default=str(PRED_H5), help="Prediction H5 file")
@@ -399,13 +414,41 @@ def main():
     parser.add_argument("--out", default=None,
                         help="Path for the intermediate-results .npz "
                              "(default: <pred>.analysis.npz)")
+    parser.add_argument("--report", default=None,
+                        help="Path for the text report "
+                             "(default: <pred>.analysis.txt)")
     parser.add_argument("--no-dump", action="store_true",
                         help="Skip writing the intermediate-results .npz.")
+    parser.add_argument("--no-report", action="store_true",
+                        help="Skip writing the text report.")
     args = parser.parse_args()
 
     pred_path = Path(args.pred)
     gt_path = Path(args.gt)
 
+    # Tee stdout into a report file so the printed analysis is also persisted
+    # alongside the prediction.
+    report_path = None
+    report_file = None
+    if not args.no_report:
+        report_path = (
+            Path(args.report) if args.report
+            else pred_path.with_suffix(pred_path.suffix + ".analysis.txt")
+        )
+        report_path.parent.mkdir(parents=True, exist_ok=True)
+        report_file = open(report_path, "w")
+        sys.stdout = _Tee(sys.__stdout__, report_file)
+
+    try:
+        _run_analysis(pred_path, gt_path, args)
+    finally:
+        if report_file is not None:
+            sys.stdout = sys.__stdout__
+            report_file.close()
+            print(f"Wrote text report to: {report_path}")
+
+
+def _run_analysis(pred_path, gt_path, args):
     print(f"Loading prediction: {pred_path}")
     pred = load_vol(pred_path)
     print(f"Loading ground truth: {gt_path}")
