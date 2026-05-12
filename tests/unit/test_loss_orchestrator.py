@@ -139,10 +139,12 @@ def _expected_pos_weight(target: torch.Tensor) -> torch.Tensor:
 def test_create_loss_attaches_metadata_for_supervised_and_regularization_losses():
     weighted_bce = create_loss("WeightedBCEWithLogitsLoss")
     weighted_mse = create_loss("WeightedMSELoss")
+    soft_cldice = create_loss("SoftClDiceLoss")
     binary_reg = create_loss("BinaryRegularization")
 
     weighted_bce_meta = weighted_bce._connectomics_loss_metadata
     weighted_meta = weighted_mse._connectomics_loss_metadata
+    soft_cldice_meta = soft_cldice._connectomics_loss_metadata
     reg_meta = binary_reg._connectomics_loss_metadata
 
     assert weighted_bce_meta.name == "WeightedBCEWithLogitsLoss"
@@ -152,6 +154,10 @@ def test_create_loss_attaches_metadata_for_supervised_and_regularization_losses(
     assert weighted_meta.name == "WeightedMSELoss"
     assert weighted_meta.call_kind == "pred_target"
     assert weighted_meta.spatial_weight_arg == "weight"
+
+    assert soft_cldice_meta.name == "SoftClDiceLoss"
+    assert soft_cldice_meta.call_kind == "pred_target"
+    assert soft_cldice_meta.spatial_weight_arg == "weight"
 
     assert reg_meta.name == "BinaryRegularization"
     assert reg_meta.call_kind == "pred_only"
