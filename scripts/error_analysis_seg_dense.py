@@ -1,18 +1,31 @@
-"""Analyze waterz segmentation vs ground truth on SNEMI test set.
+"""Dense instance segmentation error analysis vs ground truth.
 
-Examines:
+Reports:
 1. Segment size distributions (prediction vs GT)
 2. Over/under-segmentation analysis via IoU
 3. False split / false merge error counts
 4. Oracle study — ARE improvement per GT segment
 5. Effect of size-based dust removal on adapted rand error
 
-Usage:
-    python crackit/snemi/analyze_seg.py <pred.h5> [gt.h5]
-    python crackit/snemi/analyze_seg.py  # uses default paths
+Side effect: writes ``<pred>.analysis.npz`` next to the prediction file
+holding the intermediate arrays (full overlap matrix, IoU vector, oracle
+results, dust sweep) so reviewers and follow-up tooling can answer
+ad-hoc questions without recomputing.
 
-See also:
-    test_merge_dust.py — compares Python vs C++ merge_dust implementations
+Dump keys (see ``main``):
+    contingency_pairs   (N, 2) int64  unique (gt_id, pred_id)
+    contingency_counts  (N,)   int64  voxel overlap per pair
+    gt_ids, gt_sizes               foreground GT ids and sizes
+    pred_ids, pred_sizes           foreground pred ids and sizes
+    gt_best_pred                (n_gt, 5)  [gt, pred, gt_size, pred_size, overlap]
+                                           — from seg_to_iou(gt, pred)
+    gt_best_pred_iou           (n_gt,)
+    baseline_are, baseline_prec, baseline_rec
+    oracle_gt_ids, oracle_are, oracle_delta
+    dust_thresholds, dust_n_segs, dust_are, dust_prec, dust_rec
+
+Usage:
+    python scripts/error_analysis_seg_dense.py <pred.h5> [gt.h5] [--out <npz>] [--no-dump]
 """
 
 import argparse
@@ -165,7 +178,7 @@ def overlap_analysis(pred, gt, bb_gt=None, split_iou=0.5):
 
     print(f"{'='*60}")
 
-    return bb_gt
+    return bb_gt, gt2pred, iou_vals
 
 
 def count_split_merge_errors(pred, gt):
@@ -302,6 +315,12 @@ def count_split_merge_errors(pred, gt):
         "false_merge_gt": len(merged_gt_ids),
         "split_details": split_details,
         "merge_groups": merge_groups,
+        "unique_pairs": unique_pairs,
+        "pair_counts": pair_counts,
+        "gt_ids": gt_ids,
+        "gt_counts": gt_counts,
+        "pred_ids": pred_ids,
+        "pred_counts": pred_counts,
     }
 
 
@@ -333,7 +352,7 @@ def oracle_study(pred, gt, top_k=20):
         print(f"  ...  {len(results) - top_k} more")
 
     print(f"{'='*60}")
-    return results
+    return results, are_base
 
 
 def dust_removal_sweep(pred, gt):
@@ -345,8 +364,10 @@ def dust_removal_sweep(pred, gt):
     print(f"  {'Threshold':>10s}  {'Segments':>8s}  {'ARE':>8s}  {'Prec':>8s}  {'Rec':>8s}")
     print(f"  {'-'*46}")
 
+    rows = []
     are, prec, rec = adapted_rand(pred, gt, all_stats=True)
     n_segs = len(np.unique(pred)) - 1
+    rows.append((0, n_segs, are, prec, rec))
     print(f"  {'0 (base)':>10s}  {n_segs:>8d}  {are:>8.4f}  {prec:>8.4f}  {rec:>8.4f}")
 
     best_are = are
@@ -356,6 +377,7 @@ def dust_removal_sweep(pred, gt):
         cleaned = remove_small_objects(pred, min_size=thresh)
         n_segs = len(np.unique(cleaned)) - 1
         are_t, prec_t, rec_t = adapted_rand(cleaned, gt, all_stats=True)
+        rows.append((thresh, n_segs, are_t, prec_t, rec_t))
         marker = " *" if are_t < best_are else ""
         print(f"  {thresh:>10d}  {n_segs:>8d}  {are_t:>8.4f}  {prec_t:>8.4f}  {rec_t:>8.4f}{marker}")
         if are_t < best_are:
@@ -363,13 +385,22 @@ def dust_removal_sweep(pred, gt):
             best_thresh = thresh
 
     print(f"\n  Best: threshold={best_thresh}, ARE={best_are:.4f}")
-    return best_thresh, best_are
+    sweep = np.array(rows, dtype=[
+        ("threshold", "i8"), ("n_segs", "i8"),
+        ("are", "f8"), ("prec", "f8"), ("rec", "f8"),
+    ])
+    return best_thresh, best_are, sweep
 
 
 def main():
     parser = argparse.ArgumentParser(description="Analyze segmentation vs ground truth")
     parser.add_argument("pred", nargs="?", default=str(PRED_H5), help="Prediction H5 file")
     parser.add_argument("gt", nargs="?", default=str(GT_H5), help="Ground truth H5 file")
+    parser.add_argument("--out", default=None,
+                        help="Path for the intermediate-results .npz "
+                             "(default: <pred>.analysis.npz)")
+    parser.add_argument("--no-dump", action="store_true",
+                        help="Skip writing the intermediate-results .npz.")
     args = parser.parse_args()
 
     pred_path = Path(args.pred)
@@ -400,16 +431,16 @@ def main():
     print(f"  Precision: {prec:.4f}, Recall: {rec:.4f}")
 
     # 3. Overlap analysis (only seg_to_iou(gt, pred) — fast)
-    bb_gt = overlap_analysis(pred, gt)
+    bb_gt, gt2pred, gt_iou = overlap_analysis(pred, gt)
 
     # 4. Split/merge error counts (direct overlap matrix)
     error_info = count_split_merge_errors(pred, gt)
 
     # 5. Oracle study
-    oracle_study(pred, gt)
+    oracle_results, oracle_baseline = oracle_study(pred, gt)
 
     # 6. Simple dust removal
-    best_dust_thresh, best_dust_are = dust_removal_sweep(pred, gt)
+    best_dust_thresh, best_dust_are, dust_sweep = dust_removal_sweep(pred, gt)
 
     # Summary
     print(f"\n{'='*60}")
@@ -417,6 +448,43 @@ def main():
     print(f"  Baseline ARE:          {are:.4f}  (Prec={prec:.4f} Rec={rec:.4f})")
     print(f"  Best dust removal:     {best_dust_are:.4f}  (thresh={best_dust_thresh})")
     print(f"{'='*60}")
+
+    if args.no_dump:
+        return
+
+    out_path = Path(args.out) if args.out else pred_path.with_suffix(
+        pred_path.suffix + ".analysis.npz"
+    )
+    oracle_arr = (
+        np.array(oracle_results, dtype=[("gt", "i8"), ("are", "f8"), ("delta", "f8")])
+        if len(oracle_results) else
+        np.empty(0, dtype=[("gt", "i8"), ("are", "f8"), ("delta", "f8")])
+    )
+    np.savez_compressed(
+        out_path,
+        pred_path=str(pred_path),
+        gt_path=str(gt_path),
+        shape=np.array(pred.shape, dtype=np.int64),
+        # contingency table from count_split_merge_errors
+        contingency_pairs=error_info["unique_pairs"].astype(np.int64),
+        contingency_counts=error_info["pair_counts"].astype(np.int64),
+        gt_ids=error_info["gt_ids"].astype(np.int64),
+        gt_sizes=error_info["gt_counts"].astype(np.int64),
+        pred_ids=error_info["pred_ids"].astype(np.int64),
+        pred_sizes=error_info["pred_counts"].astype(np.int64),
+        # seg_to_iou(gt, pred) — best pred per GT
+        gt_best_pred=gt2pred.astype(np.int64),
+        gt_best_pred_iou=gt_iou.astype(np.float64),
+        # scalar baseline
+        baseline_are=np.float64(are),
+        baseline_prec=np.float64(prec),
+        baseline_rec=np.float64(rec),
+        oracle_baseline_are=np.float64(oracle_baseline),
+        # oracle and dust sweep
+        oracle=oracle_arr,
+        dust_sweep=dust_sweep,
+    )
+    print(f"\nDumped intermediate results to: {out_path}")
 
 
 if __name__ == "__main__":
