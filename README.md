@@ -38,7 +38,7 @@ checkpoints live in **[`docs/benchmarks/`](docs/benchmarks/)**.
 
 | Dataset   | Task                    | Architecture       | Metric          | Score |
 |-----------|-------------------------|--------------------|-----------------|-------|
-| Lucchi++  | Mito — semantic         | Swin UNETR         | Jaccard ↑       | —     |
+| Lucchi++  | Mito — semantic         | MedNeXt-S          | Jaccard ↑       | 0.935 |
 | MitoEM-R  | Mito — instance         | MedNeXt-L + waterz | AP ↑            | —     |
 | SNEMI3D   | Neurons — instance      | RSUNet + waterz    | adapted Rand ↓  | —     |
 | BANIS     | Neurons — instance      | MedNeXt-M + abiss  | NERL ↑          | —     |

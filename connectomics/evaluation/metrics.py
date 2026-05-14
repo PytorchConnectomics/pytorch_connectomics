@@ -197,7 +197,7 @@ def compute_binary_metrics(
         logger.info("%sJaccard: %.6f", volume_prefix, jaccard_value.item())
         metrics_dict["jaccard"] = jaccard_value.item()
         if jaccard_metric is not None:
-            jaccard_metric.update(pred_binary, labels_binary)
+            jaccard_metric.update(pred_binary.cpu(), labels_binary.cpu())
 
     dice_metric = context.metric("dice")
     if context.metric_requested("dice"):
@@ -205,7 +205,7 @@ def compute_binary_metrics(
         logger.info("%sDice: %.6f", volume_prefix, dice_value.item())
         metrics_dict["dice"] = dice_value.item()
         if dice_metric is not None:
-            dice_metric.update(pred_binary, labels_binary)
+            dice_metric.update(pred_binary.cpu(), labels_binary.cpu())
 
     accuracy_metric = context.metric("accuracy")
     if context.metric_requested("accuracy"):
@@ -217,7 +217,7 @@ def compute_binary_metrics(
         logger.info("%sAccuracy: %.6f", volume_prefix, accuracy_value.item())
         metrics_dict["accuracy"] = accuracy_value.item()
         if accuracy_metric is not None:
-            accuracy_metric.update(pred_binary, labels_binary)
+            accuracy_metric.update(pred_binary.cpu(), labels_binary.cpu())
 
 
 __all__ = [
