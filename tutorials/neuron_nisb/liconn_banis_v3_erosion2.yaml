@@ -1,0 +1,43 @@
+_base_:
+  - base_banis_v3_erosion2.yaml
+
+experiment_name: nisb_liconn_banis_v3_erosion2
+description: >-
+  v3 setup (per-channel BCE + EMA, erosion=2, MedNeXt-L/k3) trained
+  on the LICONN NISB volume at /projects/weilab/dataset/nisb/liconn.
+  Train seeds 0-4, val seed5, test seed6 — same data.zarr/img,
+  data.zarr/seg, skeleton.pkl layout as base NISB.
+
+train:
+  monitor:
+    checkpoint:
+      save_path: outputs/nisb_liconn_banis_v3_erosion2
+  data:
+    train:
+      path: /projects/weilab/dataset/nisb/liconn/train
+      image: seed*/data.zarr/img
+      label: seed*/data.zarr/seg
+      resolution: [18, 18, 25]
+    val:
+      path: /projects/weilab/dataset/nisb/liconn/val
+      image: seed5/data.zarr/img
+      label: seed5/data.zarr/seg
+      resolution: [18, 18, 25]
+
+test:
+  data:
+    test:
+      path: /projects/weilab/dataset/nisb/liconn/test/seed6/
+      skeleton: /projects/weilab/dataset/nisb/liconn/test/seed6/skeleton.pkl
+      image: data.zarr/img
+      label: data.zarr/seg
+      resolution: [18, 18, 25]
+
+tune:
+  data:
+    val:
+      path: /projects/weilab/dataset/nisb/liconn/val/seed5/
+      skeleton: /projects/weilab/dataset/nisb/liconn/val/seed5/skeleton.pkl
+      image: data.zarr/img
+      label: data.zarr/seg
+      resolution: [18, 18, 25]
