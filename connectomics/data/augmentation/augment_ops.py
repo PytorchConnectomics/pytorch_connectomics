@@ -187,6 +187,53 @@ def fill_sections(
     return _assign_along_axis(img, depth_axis, indices, fill_value)
 
 
+def replace_lost_sections(
+    img: np.ndarray,
+    indices: np.ndarray,
+    mode: str = "random_neighbor",
+    neighbor_directions: Optional[np.ndarray] = None,
+    depth_axis: int = 0,
+) -> np.ndarray:
+    """Replace lost sections from neighboring source sections.
+
+    The output shape is preserved. Replacements are read from the original
+    input so adjacent lost sections do not cascade through already replaced
+    sections.
+    """
+    if mode not in {"previous", "next", "random_neighbor", "interpolate"}:
+        raise ValueError(
+            "Lost-section mode must be one of "
+            "'previous', 'next', 'random_neighbor', or 'interpolate'. "
+            f"Got {mode!r}."
+        )
+
+    depth_first = _move_depth_axis_to_front(img, depth_axis)
+    depth = depth_first.shape[0]
+    out = depth_first.copy()
+    source = depth_first
+    raw_indices = np.atleast_1d(indices).astype(np.int64).tolist()
+    clean_indices = [idx for idx in raw_indices if 0 < idx < depth - 1]
+
+    if neighbor_directions is None:
+        neighbor_directions = np.full(len(clean_indices), -1, dtype=np.int64)
+
+    for offset, idx in enumerate(clean_indices):
+        if mode == "previous":
+            replacement = source[idx - 1]
+        elif mode == "next":
+            replacement = source[idx + 1]
+        elif mode == "interpolate":
+            replacement = 0.5 * (
+                source[idx - 1].astype(np.float32) + source[idx + 1].astype(np.float32)
+            )
+        else:
+            direction = int(neighbor_directions[offset])
+            replacement = source[idx - 1] if direction < 0 else source[idx + 1]
+        out[idx] = replacement
+
+    return _restore_depth_axis(out, depth_axis)
+
+
 def permute_spatial_axes(
     img: np.ndarray,
     permutation: np.ndarray,
@@ -513,7 +560,8 @@ def smart_normalize(
 
     Args:
         volume: numpy array to normalize
-        mode: 'none', 'normal' (z-score), '0-1' (min-max), 'divide', or 'divide-K' (e.g. 'divide-255')
+        mode: 'none', 'normal' (z-score), '0-1' (min-max), 'divide',
+            or 'divide-K' (e.g. 'divide-255')
         divide_value: divisor when mode='divide'. Ignored when mode is 'divide-K' form.
         clip_percentile_low: lower percentile for clipping (0.0 = no clip)
         clip_percentile_high: upper percentile for clipping (1.0 = no clip)
