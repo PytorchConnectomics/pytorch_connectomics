@@ -99,6 +99,46 @@ class DecodingTuningConfig:
 
 
 @dataclass
+class AffinityQCConfig:
+    """Pre-decoding QC over the affinity prediction.
+
+    When enabled, the decoding stage scans the prediction array, identifies
+    outlier slabs along the last spatial axis (per-slice mean drift), and
+    builds a (X, Y, Z) uint8 keep/drop mask consumed via ``affinity_mask_path``.
+    """
+
+    enabled: bool = False
+    # ``post_save`` scans the in-memory prediction inside the decoding stage.
+    # ``streaming`` accumulates per-Z stats inline during chunked inference
+    # stitching (requires ``inference.strategy == "chunked"``); the mask is
+    # built right after stitching and ``decoding.affinity_mask_path`` is wired
+    # automatically, so the decoding stage's QC step becomes a no-op.
+    mode: str = "post_save"
+    # Source image (zarr or h5). Required for the XY-border + low-intensity
+    # check; empty disables that check (z-cut detection still runs).
+    image_path: str = ""
+    # Output mask h5. If empty, defaults to ``<save_root>/affinity_mask.h5``
+    # where ``save_root`` = ``decoding.save_path`` or ``inference.save_path``.
+    mask_path: str = ""
+    # Markdown report path. Empty → ``<save_root>/affinity_qc_report.md``.
+    report_path: str = ""
+    # Stride over Z for the coarse per-slice scan.
+    z_stride: int = 10
+    # How many sampled slices on each Z edge to summarize for drift detection.
+    k_edge: int = 20
+    # Stride-1 refinement window on each Z edge for low_z/high_z resolution.
+    refine_window: int = 30
+    # Slice-mean drift threshold below interior baseline to declare a slice bad.
+    drift_thresh: float = 0.05
+    # XY-border ring width for the intensity-cue check.
+    border_width: int = 32
+    # Image-intensity threshold marking background voxels for the border check.
+    bg_thresh: int = 30
+    # Sampled z-slices for the XY-border + intensity check.
+    n_z_border: int = 8
+
+
+@dataclass
 class DecodingConfig:
     """Decoded-output orchestration configuration."""
 
@@ -120,4 +160,5 @@ class DecodingConfig:
     # this file and proceeds to decoding (decode-only mode).
     load_prediction_path: str = ""
     affinity_mask_path: str = ""
+    affinity_qc: AffinityQCConfig = field(default_factory=AffinityQCConfig)
     tuning: Optional[DecodingTuningConfig] = None

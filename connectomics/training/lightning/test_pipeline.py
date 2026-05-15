@@ -15,6 +15,7 @@ import torch
 from pytorch_lightning.utilities.types import STEP_OUTPUT
 
 from ...decoding import run_decoding_stage, write_decoded_outputs
+from ...decoding.qc import begin_streaming_qc, finish_streaming_qc
 from ...decoding.streamed_chunked import run_chunked_affinity_cc_inference
 from ...evaluation import EvaluationContext, evaluation_metric_requested, run_evaluation_stage
 from ...inference import (
@@ -24,6 +25,7 @@ from ...inference import (
     run_prediction_inference,
     write_outputs,
 )
+from ...inference.chunk_grid import resolve_global_prediction_crop
 from ...inference.lazy import (
     get_lazy_image_reference_shape,
     lazy_predict_volume,
@@ -725,6 +727,13 @@ def run_test_step(module, batch: Dict[str, torch.Tensor], batch_idx: int) -> STE
             volume_dir = output_dir / filenames[0]
             volume_dir.mkdir(parents=True, exist_ok=True)
             output_path = volume_dir / raw_filename
+            crop_pad = resolve_global_prediction_crop(module.cfg)
+            qc_acc = begin_streaming_qc(
+                module.cfg,
+                channel_count=int(module.cfg.model.out_channels),
+                z_extent=int(reference_image_shape[-3])
+                - int(crop_pad[0][0]) - int(crop_pad[0][1]),
+            )
             output_path = run_chunked_prediction_inference(
                 module.cfg,
                 module.forward,
@@ -735,7 +744,14 @@ def run_test_step(module, batch: Dict[str, torch.Tensor], batch_idx: int) -> STE
                 mask_path=mask_path,
                 mask_align_to_image=mask_align_to_image,
                 requested_head=selected_output_head,
+                qc_streaming_callback=qc_acc,
             )
+            should_finalize_qc = True
+            if torch.distributed.is_available() and torch.distributed.is_initialized():
+                if torch.distributed.get_world_size() > 1 and torch.distributed.get_rank() != 0:
+                    should_finalize_qc = False
+            if qc_acc is not None and should_finalize_qc:
+                finish_streaming_qc(module.cfg, qc_acc)
             inference_duration = time.time() - inference_start
             logger.info(
                 "Chunked raw prediction inference completed in %.2f minutes (%.1fs)",
