@@ -15,6 +15,7 @@ from connectomics.data.augmentation.transforms import (
     RandCopyPasted,
     RandCutBlurd,
     RandCutNoised,
+    RandLostSectiond,
     RandMisAlignmentd,
     RandMissingPartsd,
     RandMissingSectiond,
@@ -308,6 +309,73 @@ class TestRandMissingSectiond:
         assert torch.equal(result["image"], sample_data_dict["image"])
 
 
+class TestRandLostSectiond:
+    """Test RandLostSectiond transform."""
+
+    def test_basic_functionality(self):
+        """Lost sections are replaced from neighbors without changing shape."""
+        image = torch.arange(8, dtype=torch.float32).view(1, 8, 1, 1).expand(1, 8, 8, 8).clone()
+        transform = RandLostSectiond(
+            keys=["image"],
+            prob=1.0,
+            num_sections=2,
+            mode="previous",
+        )
+        transform.set_random_state(seed=0)
+
+        result = transform({"image": image.clone()})
+
+        assert result["image"].shape == image.shape
+        changed = (result["image"][0] != image[0]).any(dim=(1, 2))
+        changed_indices = torch.nonzero(changed, as_tuple=False).flatten().tolist()
+        assert len(changed_indices) == 2
+        for idx in changed_indices:
+            assert 0 < idx < image.shape[1] - 1
+            assert torch.equal(result["image"][0, idx], image[0, idx - 1])
+
+    def test_respects_boundaries(self):
+        """First and last sections are never selected as lost sections."""
+        image = torch.arange(8, dtype=torch.float32).view(1, 8, 1, 1).expand(1, 8, 8, 8).clone()
+        transform = RandLostSectiond(
+            keys=["image"],
+            prob=1.0,
+            num_sections=6,
+            mode="next",
+        )
+        transform.set_random_state(seed=1)
+
+        result = transform({"image": image.clone()})
+
+        assert torch.equal(result["image"][0, 0], image[0, 0])
+        assert torch.equal(result["image"][0, -1], image[0, -1])
+
+    def test_probability_control(self):
+        """Test probability control."""
+        image = torch.randn(1, 8, 8, 8)
+        transform = RandLostSectiond(keys=["image"], prob=0.0, num_sections=2)
+
+        result = transform({"image": image.clone()})
+
+        assert torch.equal(result["image"], image)
+
+    def test_channel_first_image_uses_depth_axis(self):
+        """Channel-first 3D images should use z, not channel, as the depth axis."""
+        image = torch.arange(8, dtype=torch.float32).view(1, 8, 1, 1).expand(1, 8, 8, 8).clone()
+        transform = RandLostSectiond(
+            keys=["image"],
+            prob=1.0,
+            num_sections=1,
+            mode="previous",
+        )
+        transform.set_random_state(seed=2)
+
+        result = transform({"image": image.clone()})
+
+        changed = (result["image"][0] != image[0]).any(dim=(1, 2))
+        assert changed.sum().item() == 1
+        assert result["image"].shape == image.shape
+
+
 class TestRandMissingPartsd:
     """Test RandMissingPartsd transform."""
 
@@ -399,6 +467,20 @@ def test_missing_section_builder_targets_image_only():
 
     assert len(missing_section) == 1
     assert missing_section[0].keys == ("image",)
+
+
+def test_lost_section_builder_targets_image_only():
+    """Lost-section artifact augmentation should not modify labels."""
+    cfg = AugmentationConfig()
+    cfg.lost_section.enabled = True
+    cfg.lost_section.prob = 1.0
+    cfg.lost_section.num_sections = 1
+
+    transforms = _build_augmentations(cfg, keys=["image", "label"])
+    lost_section = [t for t in transforms if isinstance(t, RandLostSectiond)]
+
+    assert len(lost_section) == 1
+    assert lost_section[0].keys == ("image",)
 
 
 def test_misalignment_builder_targets_image_only():
@@ -695,19 +777,23 @@ def test_defect_mutex_wraps_in_oneof():
     cfg.misalignment.prob = 1.0
     cfg.missing_section.enabled = True
     cfg.missing_section.prob = 1.0
+    cfg.lost_section.enabled = True
+    cfg.lost_section.prob = 1.0
     cfg.motion_blur.enabled = True
     cfg.motion_blur.prob = 1.0
 
     transforms = _build_augmentations(cfg, keys=["image", "label"])
     oneof = [t for t in transforms if isinstance(t, OneOf)]
     assert len(oneof) == 1
-    assert len(oneof[0].transforms) == 3
+    assert len(oneof[0].transforms) == 4
 
     # No individual defect transforms should appear outside OneOf
     individual = [
         t
         for t in transforms
-        if isinstance(t, (RandMisAlignmentd, RandMissingSectiond, RandMotionBlurd))
+        if isinstance(
+            t, (RandMisAlignmentd, RandMissingSectiond, RandLostSectiond, RandMotionBlurd)
+        )
     ]
     assert len(individual) == 0
 
@@ -722,13 +808,19 @@ def test_defect_mutex_false_keeps_independent():
     cfg.misalignment.prob = 1.0
     cfg.missing_section.enabled = True
     cfg.missing_section.prob = 1.0
+    cfg.lost_section.enabled = True
+    cfg.lost_section.prob = 1.0
 
     transforms = _build_augmentations(cfg, keys=["image", "label"])
     oneof = [t for t in transforms if isinstance(t, OneOf)]
     assert len(oneof) == 0
 
-    individual = [t for t in transforms if isinstance(t, (RandMisAlignmentd, RandMissingSectiond))]
-    assert len(individual) == 2
+    individual = [
+        t
+        for t in transforms
+        if isinstance(t, (RandMisAlignmentd, RandMissingSectiond, RandLostSectiond))
+    ]
+    assert len(individual) == 3
 
 
 def test_banis_slice_defects_ignore_mutex():

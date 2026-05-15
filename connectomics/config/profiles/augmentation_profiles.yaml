@@ -135,7 +135,7 @@ augmentation_profiles:
   # ---------------------------------------------------------------------------
   # Use for: neuron affinity learning on anisotropic EM data (e.g. SNEMI3D).
   # Matches DeepEM (Lee et al. 2017) augmentation recipe:
-  #   - Defect mutex: only one of slice_shift_z/slice_drop_z/motion_blur per sample
+  #   - Defect mutex: one selected imaging defect per sample
   #   - Elastic deformation (DeepEM Warp)
   #   - Aggressive ±50% contrast/brightness (DeepEM MixedGrayscale2D)
   # Tuned for small training volumes with long training schedules.
@@ -173,6 +173,11 @@ augmentation_profiles:
       full_section_prob: 0.5
       partial_ratio_range: [0.25, 0.75]
       fill_value_range: [0.0, 1.0]
+    lost_section:
+      enabled: true
+      prob: 1.0
+      num_sections: 1
+      mode: random_neighbor
     motion_blur:
       enabled: true
       prob: 1.0
@@ -221,6 +226,11 @@ augmentation_profiles:
       full_section_prob: 0.5
       partial_ratio_range: [0.25, 0.75]
       fill_value_range: [0.0, 1.0]
+    lost_section:
+      enabled: true
+      prob: 1.0
+      num_sections: 1
+      mode: random_neighbor
     missing_parts:
       enabled: true
       prob: 0.2
