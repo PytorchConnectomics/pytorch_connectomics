@@ -8,10 +8,9 @@ description: >-
   Train seeds 0-4, val seed5, test seed6 — same data.zarr/img,
   data.zarr/seg, skeleton.pkl layout as base NISB.
 
+save_path: outputs/nisb_liconn_banis_v3_erosion2
+
 train:
-  monitor:
-    checkpoint:
-      save_path: outputs/nisb_liconn_banis_v3_erosion2
   data:
     train:
       path: /projects/weilab/dataset/nisb/liconn/train

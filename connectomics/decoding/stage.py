@@ -183,6 +183,9 @@ def run_decoding_stage(
         predictions = predictions[0]
     has_decoding_cfg = bool(resolve_decode_modes_from_cfg(cfg))
     if has_decoding_cfg:
+        from .qc import run_affinity_qc
+
+        run_affinity_qc(cfg, predictions)
         predictions = _maybe_apply_affinity_mask(cfg, predictions)
     decoded = apply_decode_mode(cfg, predictions, on_step_complete=on_step_complete)
     postprocessed = apply_decoding_postprocessing(cfg, decoded) if has_decoding_cfg else decoded

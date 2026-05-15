@@ -112,6 +112,7 @@ def _stitch_chunk_prediction_files(
     h5_spatial_chunks: tuple[int, int, int],
     checkpoint_path: str | Path | None,
     requested_head: str | None,
+    qc_streaming_callback: Any = None,
 ) -> Path:
     """Stitch per-rank chunk artifacts into the canonical CZYX raw prediction H5."""
     import h5py
@@ -160,14 +161,7 @@ def _stitch_chunk_prediction_files(
                     local_z1 = min(local_z0 + slab_depth, expected_spatial[0])
                     global_z0 = int(chunk.start[0]) + local_z0
                     global_z1 = int(chunk.start[0]) + local_z1
-                    dataset[
-                        (
-                            slice(None),
-                            slice(global_z0, global_z1),
-                            slice(int(chunk.start[1]), int(chunk.stop[1])),
-                            slice(int(chunk.start[2]), int(chunk.stop[2])),
-                        )
-                    ] = source[
+                    slab = source[
                         (
                             slice(None),
                             slice(local_z0, local_z1),
@@ -175,6 +169,18 @@ def _stitch_chunk_prediction_files(
                             slice(None),
                         )
                     ]
+                    dataset[
+                        (
+                            slice(None),
+                            slice(global_z0, global_z1),
+                            slice(int(chunk.start[1]), int(chunk.stop[1])),
+                            slice(int(chunk.start[2]), int(chunk.stop[2])),
+                        )
+                    ] = slab
+                    if qc_streaming_callback is not None:
+                        qc_streaming_callback.update(
+                            slab, z_offset=global_z0, z_axis=1
+                        )
 
     write_prediction_artifact(
         output_path,
@@ -234,6 +240,7 @@ def _run_chunked_prediction_per_rank(
     h5_spatial_chunks: tuple[int, int, int],
     rank: int,
     world_size: int,
+    qc_streaming_callback: Any = None,
 ) -> Path:
     """Per-rank chunked raw inference. Each rank writes its own per-chunk h5 files.
 
@@ -400,6 +407,7 @@ def _run_chunked_prediction_per_rank(
             h5_spatial_chunks=h5_spatial_chunks,
             checkpoint_path=checkpoint_path,
             requested_head=requested_head,
+            qc_streaming_callback=qc_streaming_callback,
         )
         logger.info("Stitched chunked raw prediction wrote %s", output_path)
 
@@ -417,6 +425,7 @@ def run_chunked_prediction_inference(
     mask_path: str | None = None,
     mask_align_to_image: bool = False,
     requested_head: str | None = None,
+    qc_streaming_callback: Any = None,
 ) -> Path:
     """Run chunked lazy inference and stream raw predictions into one HDF5 volume."""
     validate_chunked_output_format(cfg)
@@ -466,6 +475,7 @@ def run_chunked_prediction_inference(
             h5_spatial_chunks=h5_spatial_chunks,
             rank=rank,
             world_size=world_size,
+            qc_streaming_callback=qc_streaming_callback,
         )
 
     logger.info(
@@ -529,10 +539,18 @@ def run_chunked_prediction_inference(
     channel_count = int(first_core_pred.shape[0])
     transform_cfg = getattr(cfg.inference, "prediction_transform", None)
 
+    def _stream_qc(chunk_obj, arr) -> None:
+        if qc_streaming_callback is None:
+            return
+        z0 = int(chunk_obj.slices[0].start)
+        qc_streaming_callback.update(arr, z_offset=z0, z_axis=1)
+
     def write_chunks(dataset) -> None:
         dataset[(slice(None), *first_chunk.slices)] = first_core_pred
+        _stream_qc(first_chunk, first_core_pred)
         for chunk, core_pred in prediction_iter:
             dataset[(slice(None), *chunk.slices)] = core_pred
+            _stream_qc(chunk, core_pred)
 
     write_prediction_artifact(
         output_path,

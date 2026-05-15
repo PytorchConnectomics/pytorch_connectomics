@@ -286,6 +286,32 @@ def validate_runtime_coherence(cfg) -> None:
                 "Use MedNeXt/RSUNet or disable deep supervision."
             )
 
+    decoding_cfg = getattr(cfg, "decoding", None)
+    qc_cfg = getattr(decoding_cfg, "affinity_qc", None)
+    if qc_cfg is not None and getattr(qc_cfg, "enabled", False):
+        mode = getattr(qc_cfg, "mode", "post_save")
+        valid_modes = {"post_save", "streaming"}
+        if mode not in valid_modes:
+            raise ValueError(
+                f"decoding.affinity_qc.mode must be one of {sorted(valid_modes)}, "
+                f"got {mode!r}."
+            )
+        if mode == "streaming":
+            strategy = getattr(getattr(cfg, "inference", None), "strategy", "")
+            if strategy != "chunked":
+                raise ValueError(
+                    "decoding.affinity_qc.mode='streaming' requires "
+                    f"inference.strategy='chunked' (got {strategy!r}). Switch to "
+                    "post_save mode or enable chunked inference."
+                )
+            image_path = getattr(qc_cfg, "image_path", "") or ""
+            affinity_mask_path = getattr(decoding_cfg, "affinity_mask_path", "") or ""
+            if not image_path and not affinity_mask_path:
+                raise ValueError(
+                    "decoding.affinity_qc.mode='streaming' requires either "
+                    "decoding.affinity_qc.image_path or decoding.affinity_mask_path."
+                )
+
 
 def preflight_check(cfg) -> list:
     """Run pre-flight checks before training."""
