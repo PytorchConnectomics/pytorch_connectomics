@@ -2,7 +2,6 @@
 
 from .context import EvaluationContext
 from .curvilinear import evaluate_directory, evaluate_file_pair
-from .nerl import import_em_erl
 from .report import (
     compute_test_metrics,
     configured_evaluation_metrics,
@@ -18,7 +17,6 @@ __all__ = [
     "compute_test_metrics",
     "configured_evaluation_metrics",
     "evaluation_metric_requested",
-    "import_em_erl",
     "log_test_epoch_metrics",
     "run_evaluation_stage",
     "save_metrics_to_file",

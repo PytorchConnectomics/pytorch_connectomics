@@ -8,8 +8,8 @@ import torch
 
 from connectomics.config import Config
 from connectomics.evaluation import EvaluationContext, compute_test_metrics, run_evaluation_stage
-from connectomics.evaluation.nerl import import_em_erl
 from connectomics.inference.output import resolve_output_filenames
+from connectomics.metrics.nerl import import_em_erl
 from connectomics.training.lightning.test_pipeline import (
     _apply_predecode_prediction_crops,
     _predict_output_head,

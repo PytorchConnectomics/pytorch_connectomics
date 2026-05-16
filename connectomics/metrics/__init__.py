@@ -4,6 +4,7 @@ Evaluation metrics for PyTorch Connectomics.
 This package provides comprehensive evaluation metrics:
 - metrics_seg.py: Segmentation metrics (Adapted Rand, VOI, instance matching)
 - metrics_skel.py: Skeleton-based metrics for curvilinear structures
+- nerl.py: NERL scoring helpers backed by em_erl
 
 Note: PyTorch Lightning handles training monitoring and logging.
 
@@ -25,6 +26,13 @@ from .metrics_seg import (
     matching_criteria,
 )
 from .metrics_skel import evaluate_image_pair
+from .nerl import (
+    NerlGraphOptions,
+    NerlScoreResult,
+    compute_nerl_score,
+    compute_nerl_score_details,
+    import_em_erl,
+)
 
 __all__ = [
     # Segmentation metrics (numpy)
@@ -39,4 +47,10 @@ __all__ = [
     "InstanceAccuracySimple",
     # Skeleton metrics
     "evaluate_image_pair",
+    # NERL metrics
+    "NerlGraphOptions",
+    "NerlScoreResult",
+    "compute_nerl_score",
+    "compute_nerl_score_details",
+    "import_em_erl",
 ]

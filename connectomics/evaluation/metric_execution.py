@@ -1,4 +1,4 @@
-"""Evaluation metric helpers."""
+"""Evaluation metric execution helpers."""
 
 from __future__ import annotations
 
