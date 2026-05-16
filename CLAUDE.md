@@ -11,8 +11,8 @@ PyTorch Connectomics (PyTC) is a modern deep learning framework for automatic an
 Map of common user intents → authoritative source files. Use this
 table first; jump straight to the listed paths instead of grepping.
 This is the single source of truth for agent navigation; the prompt
-files at the repo root (`INSTALL_PROMPT.md`, `ADD_DATASET_PROMPT.md`,
-`ADD_ARCH_PROMPT.md`, `DEBUG_TUTORIAL_PROMPT.md`) are thin wrappers
+files under `prompts/` (`prompts/INSTALL.md`, `prompts/ADD_DATASET.md`,
+`prompts/ADD_ARCH.md`, `prompts/DEBUG_TUTORIAL.md`) are thin wrappers
 that point back at it.
 
 | Intent | Authoritative source | Concrete example |
@@ -27,7 +27,7 @@ that point back at it.
 | Change augmentation | `connectomics/data/augmentation/build.py`; profile YAMLs in `config/profiles/augmentation_*.yaml` | `data/augmentation/transforms.py` |
 | Change postprocess | `connectomics/decoding/postprocess.py`; templates in `config/templates/decoding_*.yaml` | `decoding/streamed_chunked.py` |
 | Add a tutorial config | `tutorials/<name>.yaml`; validate with `python scripts/validate_tutorial_configs.py --glob 'tutorials/<name>.yaml'` (note: `--glob` is additive over the default `tutorials/*.yaml`; filter output for the new path before fixing anything) | `tutorials/mito_lucchi++.yaml` |
-| Debug a failing tutorial | `DEBUG_TUTORIAL_PROMPT.md`; reproduce with `python scripts/main.py --config <yaml> --fast-dev-run` | `python scripts/main.py --config <yaml> --fast-dev-run` |
+| Debug a failing tutorial | `prompts/DEBUG_TUTORIAL.md`; reproduce with `python scripts/main.py --config <yaml> --fast-dev-run` | `python scripts/main.py --config <yaml> --fast-dev-run` |
 
 When a new intent class shows up, add a row here rather than scattering
 pointers across READMEs.

@@ -157,10 +157,10 @@ existing `install-claude` / `install-codex` pattern.
 
 | Prompt | Recipe (Claude) | Recipe (Codex) | What it does |
 |---|---|---|---|
-| `INSTALL_PROMPT.md` | `just install-claude` | `just install-codex` | Install PyTC into a conda env |
-| `ADD_DATASET_PROMPT.md` | `just add-dataset-claude` | `just add-dataset-codex` | Add a new EM volume / dataset |
-| `ADD_ARCH_PROMPT.md` | `just add-arch-claude` | `just add-arch-codex` | Register a new model architecture |
-| `DEBUG_TUTORIAL_PROMPT.md` | `just debug-tutorial-claude` | `just debug-tutorial-codex` | Diagnose a failing tutorial run |
+| `prompts/INSTALL.md` | `just install-claude` | `just install-codex` | Install PyTC into a conda env |
+| `prompts/ADD_DATASET.md` | `just add-dataset-claude` | `just add-dataset-codex` | Add a new EM volume / dataset |
+| `prompts/ADD_ARCH.md` | `just add-arch-claude` | `just add-arch-codex` | Register a new model architecture |
+| `prompts/DEBUG_TUTORIAL.md` | `just debug-tutorial-claude` | `just debug-tutorial-codex` | Diagnose a failing tutorial run |
 
 For repo-wide intent → files lookup ("where do I look to add X?"), see
 `CLAUDE.md` § *Agent Quick Reference*.
