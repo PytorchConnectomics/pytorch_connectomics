@@ -9,8 +9,8 @@ import torch
 from connectomics.config import Config, validate_config
 from connectomics.data.io import write_hdf5
 from connectomics.decoding.streamed_chunked import UnionFind, _union_face_pairs
+from connectomics.chunked.chunk_grid import build_chunk_grid
 from connectomics.inference.chunk_grid import (
-    build_chunk_grid,
     resolve_global_prediction_crop,
     validate_chunked_output_format,
 )

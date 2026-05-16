@@ -11,7 +11,7 @@ description: >
     - Run selected stages after prepare:
       python scripts/run_abiss_large.py --config tutorials/waterz_decoding_large_abiss.yaml --skip-prepare --stages watershed remap_watershed
 
-  This workflow does not use scripts/decode_large.py. ABISS already manages its own
+  This workflow does not use `waterz_decode_large`. ABISS already manages its own
   chunk hierarchy and chunked watershed / agglomeration.
 
 abiss_large:

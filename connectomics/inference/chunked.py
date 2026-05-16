@@ -14,9 +14,8 @@ from .artifact import (
     build_prediction_artifact_metadata,
     write_prediction_artifact,
 )
+from ..chunked.chunk_grid import ChunkRef, build_chunk_grid
 from .chunk_grid import (
-    ChunkRef,
-    build_chunk_grid,
     resolve_chunk_shape,
     resolve_global_prediction_crop,
     resolve_h5_spatial_chunks,
