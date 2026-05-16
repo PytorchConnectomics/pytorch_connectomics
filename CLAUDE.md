@@ -299,7 +299,8 @@ tutorials/                          # Example configurations (16 canonical YAMLs
 │                                   #   vesicle_xm, fiber_linghu26, minimal, waterz_decoding
 └── waterz_decoding_large{,_abiss}.yaml  # Custom large-volume workflow YAMLs
                                     #   (top-level `large_decode:`/`abiss_large:` keys;
-                                    #   bypass structured Config; consumed by scripts/decode_large.py)
+                                    #   bypass structured Config; consumed by the
+                                    #   `waterz_decode_large` console script in lib/waterz/)
 
 tests/                              # Test suite
 ├── unit/                           # Unit tests
@@ -698,9 +699,12 @@ scheduler:
 
 ### Entry Points
 - `scripts/main.py`: Primary entry — parse → setup config → `runtime.dispatch`
-- `scripts/decode_large.py`: Custom large-volume decode workflow (consumes
-  `large_decode:`/`abiss_large:` top-level keys in `tutorials/waterz_decoding_large*.yaml`;
-  these YAMLs intentionally bypass the structured `Config` schema)
+- `waterz_decode_large` (console script from `lib/waterz/`, module
+  `waterz.cli.decode_large`): Custom large-volume decode workflow (consumes
+  `large_decode:` top-level keys in `tutorials/waterz_decoding_large*.yaml`
+  and `tutorials/neuron_nisb/*_waterz_large_decode.yaml`; these YAMLs
+  intentionally bypass the structured `Config` schema). Install via
+  `pip install -e lib/waterz/`.
 
 ## Development Guidelines
 
@@ -769,8 +773,9 @@ The architectural skeleton is correct; behavioral cleanup partial.
   cache resolution, sharding, preflight, torch-safe-globals
 - Tutorial migration: 38/40 canonical tutorials load through `Config`; the 2
   exceptions (`tutorials/waterz_decoding_large{,_abiss}.yaml`) are custom
-  workflow YAMLs consumed by `scripts/decode_large.py` and intentionally bypass
-  the structured schema (validator skips via `CUSTOM_WORKFLOW_ROOTS`)
+  workflow YAMLs consumed by the `waterz_decode_large` console script (from
+  `lib/waterz/`) and intentionally bypass the structured schema (validator
+  skips via `CUSTOM_WORKFLOW_ROOTS`)
 - Architecture rename: `nnunet_pretrained` → `nnunet`
 - Lazy decoder registration via `_BUILTINS_REGISTERED` flag
 - Public API trim with snapshot tests

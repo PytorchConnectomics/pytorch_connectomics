@@ -1,9 +1,13 @@
-"""Public chunk-grid helpers shared by chunked inference and streamed decoding."""
+"""Inference-specific chunk-grid helpers.
+
+The shared chunk-grid primitives (``ChunkRef``, ``build_chunk_grid``) live
+in :mod:`connectomics.chunked.chunk_grid`. This module owns only the
+inference-side helpers that read the structured :class:`Config` (crop_pad,
+affinity offsets, save_backend, chunking output mode, h5 chunk sizes).
+"""
 
 from __future__ import annotations
 
-from dataclasses import dataclass
-from itertools import product
 from typing import Any, Sequence
 
 from ..data.processing.affinity import (
@@ -13,34 +17,6 @@ from ..data.processing.affinity import (
 )
 from ..utils.channel_slices import resolve_channel_indices
 from ..utils.model_outputs import get_inference_select_channel
-
-
-@dataclass(frozen=True)
-class ChunkRef:
-    index: tuple[int, int, int]
-    start: tuple[int, int, int]
-    stop: tuple[int, int, int]
-
-    @property
-    def key(self) -> str:
-        z, y, x = self.index
-        return f"z{z}_y{y}_x{x}"
-
-    @property
-    def slices(self) -> tuple[slice, slice, slice]:
-        return tuple(slice(self.start[axis], self.stop[axis]) for axis in range(3))
-
-
-def build_chunk_grid(volume_shape: Sequence[int], chunk_shape: Sequence[int]) -> list[ChunkRef]:
-    volume = tuple(int(v) for v in volume_shape)
-    chunk = tuple(int(v) for v in chunk_shape)
-    counts = tuple((volume[axis] + chunk[axis] - 1) // chunk[axis] for axis in range(3))
-    result: list[ChunkRef] = []
-    for index in product(*(range(count) for count in counts)):
-        start = tuple(index[axis] * chunk[axis] for axis in range(3))
-        stop = tuple(min(start[axis] + chunk[axis], volume[axis]) for axis in range(3))
-        result.append(ChunkRef(index=tuple(int(v) for v in index), start=start, stop=stop))
-    return result
 
 
 def normalize_crop_pad(value: Any) -> tuple[tuple[int, int], tuple[int, int], tuple[int, int]]:
@@ -136,8 +112,6 @@ def resolve_chunk_output_mode(cfg: Any) -> str:
 
 
 __all__ = [
-    "ChunkRef",
-    "build_chunk_grid",
     "normalize_crop_pad",
     "resolve_selected_affinity_offsets",
     "resolve_global_prediction_crop",
