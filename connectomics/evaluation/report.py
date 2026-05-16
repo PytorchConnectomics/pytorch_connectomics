@@ -14,7 +14,7 @@ import torchmetrics
 from ..decoding.experiment_log import log_decode_experiment
 from ..runtime.output_naming import final_prediction_output_tag
 from .context import EvaluationContext
-from .metrics import (
+from .metric_execution import (
     align_metric_tensors,
     compute_binary_metrics,
     compute_instance_metrics,

@@ -167,6 +167,14 @@ def _expand_glob_or_list(value: Any) -> list[str]:
     return [text]
 
 
+def _cfg_value(cfg_obj: Any, key: str, default: Any = None) -> Any:
+    if cfg_obj is None:
+        return default
+    if isinstance(cfg_obj, dict):
+        return cfg_obj.get(key, default)
+    return getattr(cfg_obj, key, default)
+
+
 def _compute_segmentation_metric(
     segmentation: np.ndarray,
     ground_truth: np.ndarray | None,
@@ -184,7 +192,7 @@ def _compute_segmentation_metric(
     if metric_name == "nerl":
         if nerl_context is None:
             raise ValueError("metric='nerl' requires a nerl_context payload entry")
-        from connectomics.evaluation.nerl import compute_nerl_score
+        from connectomics.metrics.nerl import compute_nerl_score
 
         skeletons = nerl_context["skeleton_values"]
         skeleton_value = skeletons[volume_index] if skeletons else None
@@ -193,9 +201,11 @@ def _compute_segmentation_metric(
         return compute_nerl_score(
             segmentation,
             skeleton_value,
-            evaluation_cfg=nerl_context.get("evaluation_cfg"),
             skeleton_mask_value=skeleton_mask_value,
             resolution=nerl_context.get("resolution"),
+            merge_threshold=nerl_context.get("merge_threshold", 1),
+            chunk_num=nerl_context.get("chunk_num", 1),
+            graph_options=nerl_context.get("graph_options"),
         )
 
     if ground_truth is None:
@@ -625,11 +635,41 @@ class OptunaDecodingTuner:
             test_data_cfg = getattr(getattr(self.cfg, "data", None), "test", None)
             resolution = getattr(test_data_cfg, "resolution", None)
 
+        from connectomics.metrics.nerl import NerlGraphOptions
+
         return {
             "skeleton_values": skeleton_values,
             "skeleton_mask_values": skeleton_mask_values,
-            "evaluation_cfg": evaluation_cfg,
             "resolution": resolution,
+            "merge_threshold": int(_cfg_value(evaluation_cfg, "nerl_merge_threshold", 1)),
+            "chunk_num": int(_cfg_value(evaluation_cfg, "nerl_chunk_num", 1)),
+            "graph_options": NerlGraphOptions(
+                skeleton_id_attribute=_cfg_value(
+                    evaluation_cfg,
+                    "nerl_skeleton_id_attribute",
+                    "id",
+                ),
+                skeleton_position_attribute=_cfg_value(
+                    evaluation_cfg,
+                    "nerl_skeleton_position_attribute",
+                    "index_position",
+                ),
+                skeleton_edge_length_attribute=_cfg_value(
+                    evaluation_cfg,
+                    "nerl_skeleton_edge_length_attribute",
+                    "edge_length",
+                ),
+                skeleton_position_order=_cfg_value(
+                    evaluation_cfg,
+                    "nerl_skeleton_position_order",
+                    "xyz",
+                ),
+                prediction_position_order=_cfg_value(
+                    evaluation_cfg,
+                    "nerl_prediction_position_order",
+                    None,
+                ),
+            ),
         }
 
     def _get_trial_timeout_seconds(self) -> float | None:

@@ -1,4 +1,4 @@
-"""Neurite ERL evaluation helpers."""
+"""NERL evaluation-stage integration."""
 
 from __future__ import annotations
 
@@ -9,6 +9,7 @@ from typing import Any, Dict
 import numpy as np
 
 from ..config.pipeline.dict_utils import cfg_get
+from ..metrics.nerl import NerlGraphOptions, compute_nerl_score_details
 from .context import EvaluationContext
 
 logger = logging.getLogger(__name__)
@@ -36,275 +37,39 @@ def select_volume_config_value(value: Any, volume_name: str | None) -> Any:
     return value
 
 
-def import_em_erl():
-    try:
-        from em_erl import ERLGraph, compute_erl_score, compute_segment_lut
-
-        return ERLGraph, compute_erl_score, compute_segment_lut
-    except ModuleNotFoundError:
-        import sys
-
-        repo_root = Path(__file__).resolve().parents[2]
-        em_erl_root = repo_root / "lib" / "em_erl"
-        if em_erl_root.exists():
-            sys.path.insert(0, str(em_erl_root))
-        from em_erl import ERLGraph, compute_erl_score, compute_segment_lut
-
-        return ERLGraph, compute_erl_score, compute_segment_lut
-
-
-def reorder_coordinate_axes(
-    coords: np.ndarray,
-    *,
-    source_order: str,
-    target_order: str | None,
-) -> np.ndarray:
-    source_order = str(source_order).lower()
-    target_order = source_order if target_order is None else str(target_order).lower()
-    valid_axes = {"x", "y", "z"}
-    if len(source_order) != 3 or set(source_order) != valid_axes:
-        raise ValueError(f"Invalid skeleton coordinate order: {source_order!r}")
-    if len(target_order) != 3 or set(target_order) != valid_axes:
-        raise ValueError(f"Invalid prediction coordinate order: {target_order!r}")
-    axis_indices = [source_order.index(axis) for axis in target_order]
-    return np.asarray(coords)[:, axis_indices]
-
-
-def networkx_skeleton_to_erl_graph(skeleton: Any, evaluation_cfg: Any):
-    ERLGraph, _, _ = import_em_erl()
-
-    id_attr = cfg_value(evaluation_cfg, "nerl_skeleton_id_attribute", "id")
-    pos_attr = cfg_value(
-        evaluation_cfg,
-        "nerl_skeleton_position_attribute",
-        "index_position",
-    )
-    edge_len_attr = cfg_value(
-        evaluation_cfg,
-        "nerl_skeleton_edge_length_attribute",
-        "edge_length",
-    )
-    source_order = cfg_value(
-        evaluation_cfg,
-        "nerl_skeleton_position_order",
-        "xyz",
-    )
-    target_order = cfg_value(
-        evaluation_cfg,
-        "nerl_prediction_position_order",
-        None,
-    )
-
-    node_ids = list(skeleton.nodes)
-    if not node_ids:
-        raise ValueError("NERL skeleton has no nodes")
-
-    raw_skeleton_ids = []
-    node_coords = []
-    for node_id in node_ids:
-        node_data = skeleton.nodes[node_id]
-        raw_skeleton_ids.append(node_data[id_attr])
-        node_coords.append(node_data[pos_attr])
-
-    skeleton_ids = list(dict.fromkeys(raw_skeleton_ids))
-    skeleton_index_by_id = {skeleton_id: i for i, skeleton_id in enumerate(skeleton_ids)}
-    node_index_by_id = {node_id: i for i, node_id in enumerate(node_ids)}
-    node_skeleton_index = np.asarray(
-        [skeleton_index_by_id[skeleton_id] for skeleton_id in raw_skeleton_ids],
-        dtype=np.uint32,
-    )
-    node_coords_arr = reorder_coordinate_axes(
-        np.asarray(node_coords, dtype=np.float32),
-        source_order=source_order,
-        target_order=target_order,
-    )
-
-    edge_buckets: list[list[tuple[int, int, float]]] = [[] for _ in skeleton_ids]
-    skeleton_len = np.zeros(len(skeleton_ids), dtype=np.float64)
-    for u, v, edge_data in skeleton.edges(data=True):
-        if u not in node_index_by_id or v not in node_index_by_id:
-            continue
-        u_idx = node_index_by_id[u]
-        v_idx = node_index_by_id[v]
-        skel_idx = int(node_skeleton_index[u_idx])
-        if skel_idx != int(node_skeleton_index[v_idx]):
-            continue
-        if edge_len_attr in edge_data:
-            edge_len = float(edge_data[edge_len_attr])
-        else:
-            edge_len = float(np.linalg.norm(node_coords_arr[u_idx] - node_coords_arr[v_idx]))
-        edge_buckets[skel_idx].append((u_idx, v_idx, edge_len))
-        skeleton_len[skel_idx] += edge_len
-
-    edge_ptr = [0]
-    edge_u = []
-    edge_v = []
-    edge_len = []
-    for bucket in edge_buckets:
-        for u_idx, v_idx, length in bucket:
-            edge_u.append(u_idx)
-            edge_v.append(v_idx)
-            edge_len.append(length)
-        edge_ptr.append(len(edge_u))
-
-    return ERLGraph(
-        skeleton_id=np.asarray(skeleton_ids),
-        skeleton_len=skeleton_len,
-        node_skeleton_index=node_skeleton_index,
-        node_coords_zyx=node_coords_arr,
-        edge_u=np.asarray(edge_u, dtype=np.uint32),
-        edge_v=np.asarray(edge_v, dtype=np.uint32),
-        edge_len=np.asarray(edge_len, dtype=np.float32),
-        edge_ptr=np.asarray(edge_ptr, dtype=np.uint64),
+def _nerl_graph_options(evaluation_cfg: Any) -> NerlGraphOptions:
+    return NerlGraphOptions(
+        skeleton_id_attribute=cfg_value(evaluation_cfg, "nerl_skeleton_id_attribute", "id"),
+        skeleton_position_attribute=cfg_value(
+            evaluation_cfg,
+            "nerl_skeleton_position_attribute",
+            "index_position",
+        ),
+        skeleton_edge_length_attribute=cfg_value(
+            evaluation_cfg,
+            "nerl_skeleton_edge_length_attribute",
+            "edge_length",
+        ),
+        skeleton_position_order=cfg_value(
+            evaluation_cfg,
+            "nerl_skeleton_position_order",
+            "xyz",
+        ),
+        prediction_position_order=cfg_value(
+            evaluation_cfg,
+            "nerl_prediction_position_order",
+            None,
+        ),
     )
 
 
-_ERL_CACHE_FIELDS = (
-    "skeleton_id",
-    "skeleton_len",
-    "node_skeleton_index",
-    "node_coords_zyx",
-    "edge_u",
-    "edge_v",
-    "edge_len",
-    "edge_ptr",
-)
-
-
-def _erl_cache_path(source: Path) -> Path:
-    return source.with_suffix(source.suffix + ".erl_cache.npz")
-
-
-def _save_erl_cache(graph: Any, voxel_coords: bool, cache_path: Path) -> None:
-    try:
-        np.savez_compressed(
-            cache_path,
-            voxel_coords=np.asarray(int(voxel_coords)),
-            **{name: getattr(graph, name) for name in _ERL_CACHE_FIELDS},
-        )
-    except OSError as exc:
-        logger.warning("Failed to write ERLGraph cache %s: %s", cache_path, exc)
-
-
-def _load_erl_cache(cache_path: Path) -> tuple[Any, bool]:
-    ERLGraph, _, _ = import_em_erl()
-    data = np.load(cache_path, allow_pickle=False)
-    voxel_coords = bool(int(np.asarray(data["voxel_coords"]).item()))
-    graph = ERLGraph(**{name: data[name] for name in _ERL_CACHE_FIELDS})
-    return graph, voxel_coords
-
-
-def load_nerl_graph(graph_source: Any, evaluation_cfg: Any):
-    ERLGraph, _, _ = import_em_erl()
-    if isinstance(graph_source, ERLGraph):
-        return graph_source, False
-    if hasattr(graph_source, "node_coords_zyx") and hasattr(graph_source, "edge_ptr"):
-        return graph_source, False
-
-    graph_path = Path(graph_source)
-    suffix = graph_path.suffix.lower()
-    if suffix == ".npz":
-        return ERLGraph.from_npz(graph_path), False
-    if suffix in {".pkl", ".pickle"}:
-        cache_path = _erl_cache_path(graph_path)
-        if cache_path.exists() and cache_path.stat().st_mtime >= graph_path.stat().st_mtime:
-            try:
-                return _load_erl_cache(cache_path)
-            except (KeyError, OSError, ValueError) as exc:
-                logger.warning("Ignoring corrupt ERLGraph cache %s: %s", cache_path, exc)
-
-        import pickle
-
-        with open(graph_path, "rb") as f:
-            skeleton = pickle.load(f)
-        graph = networkx_skeleton_to_erl_graph(skeleton, evaluation_cfg)
-        _save_erl_cache(graph, True, cache_path)
-        return graph, True
-    raise ValueError(
-        "data.test.skeleton must be an ERLGraph .npz or "
-        f"NetworkX skeleton pickle, got {graph_path}"
-    )
-
-
-def nerl_node_positions(
-    context: EvaluationContext,
-    graph: Any,
-    voxel_coords: bool,
-    evaluation_cfg: Any,
-) -> np.ndarray:
-    if voxel_coords:
-        return np.asarray(graph.node_coords_zyx, dtype=np.int64)
-
+def _nerl_resolution(context: EvaluationContext, evaluation_cfg: Any) -> Any:
     resolution = cfg_value(evaluation_cfg, "nerl_resolution", None)
-    if resolution is None:
-        data_cfg = getattr(context.cfg, "data", None)
-        test_cfg = getattr(data_cfg, "test", None)
-        resolution = getattr(test_cfg, "resolution", None)
-    return graph.get_nodes_position(resolution)
-
-
-def prepare_nerl_segmentation(decoded_predictions: np.ndarray) -> np.ndarray:
-    seg = np.asarray(decoded_predictions)
-    while seg.ndim > 3 and seg.shape[0] == 1:
-        seg = seg[0]
-    if seg.ndim > 3:
-        singleton_axes = tuple(i for i, size in enumerate(seg.shape) if size == 1)
-        if singleton_axes:
-            seg = np.squeeze(seg, axis=singleton_axes)
-    if seg.ndim != 3:
-        raise ValueError(f"NERL expects a 3D decoded instance volume, got shape {seg.shape}")
-    if not np.issubdtype(seg.dtype, np.integer):
-        seg = seg.astype(np.uint32, copy=False)
-    return seg
-
-
-def extract_nerl_score_outputs(score: Any) -> tuple[float, float, int, np.ndarray]:
-    """Return aggregate and per-GT ERL values from an em_erl score object."""
-    score_erl = np.asarray(score.erl)
-    if score_erl.ndim > 1:
-        score_erl = score_erl[0]
-
-    pred_erl = getattr(score, "pred_erl", None)
-    gt_erl = getattr(score, "gt_erl", None)
-    if pred_erl is None:
-        pred_erl = score_erl[0]
-    if gt_erl is None:
-        gt_erl = score_erl[1]
-    num_skeletons = int(score_erl[2]) if score_erl.size > 2 else int(len(score.skeleton_len))
-
-    per_gt_erl = None
-    for attr_name in (
-        "per_gt_erl",
-        "gt_segment_erl",
-        "skeleton_erl_pair",
-        "skeleton_erl_pairs",
-    ):
-        attr_value = getattr(score, attr_name, None)
-        if attr_value is not None:
-            per_gt_erl = np.asarray(attr_value, dtype=np.float64)
-            break
-
-    if per_gt_erl is None:
-        skeleton_pred_erl = getattr(score, "skeleton_pred_erl", None)
-        if skeleton_pred_erl is None:
-            skeleton_pred_erl = score.skeleton_erl
-        skeleton_gt_erl = getattr(score, "skeleton_gt_erl", None)
-        if skeleton_gt_erl is None:
-            skeleton_gt_erl = score.skeleton_len
-
-        skeleton_pred_erl = np.asarray(skeleton_pred_erl, dtype=np.float64)
-        skeleton_gt_erl = np.asarray(skeleton_gt_erl, dtype=np.float64)
-        if skeleton_pred_erl.ndim == 2 and skeleton_pred_erl.shape[1] >= 2:
-            per_gt_erl = skeleton_pred_erl[:, :2]
-        else:
-            per_gt_erl = np.column_stack([skeleton_pred_erl, skeleton_gt_erl])
-
-    if per_gt_erl.ndim == 1:
-        per_gt_erl = per_gt_erl.reshape(0, 2) if per_gt_erl.size == 0 else per_gt_erl.reshape(1, -1)
-    if per_gt_erl.ndim != 2 or per_gt_erl.shape[1] != 2:
-        raise ValueError(f"NERL per-GT ERL array must have shape [N, 2], got {per_gt_erl.shape}")
-
-    return float(pred_erl), float(gt_erl), num_skeletons, per_gt_erl
+    if resolution is not None:
+        return resolution
+    data_cfg = getattr(context.cfg, "data", None)
+    test_cfg = getattr(data_cfg, "test", None)
+    return getattr(test_cfg, "resolution", None)
 
 
 def compute_nerl_metrics(
@@ -332,51 +97,35 @@ def compute_nerl_metrics(
         getattr(test_data_cfg, "skeleton_mask", None),
         volume_name,
     )
-    _, compute_erl_score, compute_segment_lut = import_em_erl()
-    erl_graph, voxel_coords = load_nerl_graph(graph_value, evaluation_cfg)
-    node_positions = nerl_node_positions(context, erl_graph, voxel_coords, evaluation_cfg)
-    segment = prepare_nerl_segmentation(decoded_predictions)
-
-    merge_threshold = int(cfg_value(evaluation_cfg, "nerl_merge_threshold", 1))
-    chunk_num = int(cfg_value(evaluation_cfg, "nerl_chunk_num", 1))
-    node_segment_lut, mask_segment_id = compute_segment_lut(
-        segment,
-        node_positions,
-        mask=mask_value,
-        chunk_num=chunk_num,
-        data_type=segment.dtype,
+    result = compute_nerl_score_details(
+        decoded_predictions,
+        graph_value,
+        skeleton_mask_value=mask_value,
+        resolution=_nerl_resolution(context, evaluation_cfg),
+        merge_threshold=int(cfg_value(evaluation_cfg, "nerl_merge_threshold", 1)),
+        chunk_num=int(cfg_value(evaluation_cfg, "nerl_chunk_num", 1)),
+        graph_options=_nerl_graph_options(evaluation_cfg),
     )
 
-    score = compute_erl_score(
-        erl_graph,
-        node_segment_lut,
-        mask_segment_id,
-        merge_threshold=merge_threshold,
-    )
-    score.compute_erl()
+    logger.info("%sNERL: %.6f", volume_prefix, result.nerl)
+    logger.info("%s  Pred ERL: %.6f", volume_prefix, result.pred_erl)
+    logger.info("%s  GT ERL: %.6f", volume_prefix, result.gt_erl)
+    logger.info("%s  # Skeletons: %d", volume_prefix, result.num_skeletons)
 
-    pred_erl, gt_erl, num_skeletons, per_gt_erl = extract_nerl_score_outputs(score)
-    nerl = pred_erl / gt_erl if gt_erl > 0 else float("nan")
-
-    logger.info("%sNERL: %.6f", volume_prefix, nerl)
-    logger.info("%s  Pred ERL: %.6f", volume_prefix, pred_erl)
-    logger.info("%s  GT ERL: %.6f", volume_prefix, gt_erl)
-    logger.info("%s  # Skeletons: %d", volume_prefix, num_skeletons)
-
-    metrics_dict["nerl"] = nerl
-    metrics_dict["nerl_pred_erl"] = pred_erl
-    metrics_dict["nerl_gt_erl"] = gt_erl
-    metrics_dict["nerl_erl"] = pred_erl
-    metrics_dict["nerl_max_erl"] = gt_erl
-    metrics_dict["nerl_num_skeletons"] = num_skeletons
+    metrics_dict["nerl"] = result.nerl
+    metrics_dict["nerl_pred_erl"] = result.pred_erl
+    metrics_dict["nerl_gt_erl"] = result.gt_erl
+    metrics_dict["nerl_erl"] = result.pred_erl
+    metrics_dict["nerl_max_erl"] = result.gt_erl
+    metrics_dict["nerl_num_skeletons"] = result.num_skeletons
     metrics_dict["nerl_graph"] = str(graph_value)
-    metrics_dict["nerl_gt_segment_ids"] = np.asarray(erl_graph.skeleton_id)
-    metrics_dict["nerl_per_gt_erl"] = per_gt_erl
+    metrics_dict["nerl_gt_segment_ids"] = np.asarray(result.graph.skeleton_id)
+    metrics_dict["nerl_per_gt_erl"] = result.per_gt_erl
 
     try:
         context.log_metric(
             "test_nerl",
-            float(nerl),
+            float(result.nerl),
             on_step=False,
             on_epoch=True,
             prog_bar=True,
@@ -387,61 +136,8 @@ def compute_nerl_metrics(
         logger.debug("Failed to log test_nerl metric: %s", exc)
 
 
-def compute_nerl_score(
-    segmentation: np.ndarray,
-    skeleton_value: Any,
-    *,
-    evaluation_cfg: Any,
-    skeleton_mask_value: Any = None,
-    resolution: Any = None,
-) -> tuple[float, float, float]:
-    """Standalone NERL scoring for a single segmentation/skeleton pair.
-
-    Returns ``(nerl, pred_erl, gt_erl)``. Same machinery as
-    :func:`compute_nerl_metrics` but free of ``EvaluationContext`` /
-    metrics-dict side effects, so it can be used by the Optuna tuner.
-    """
-    _, compute_erl_score, compute_segment_lut = import_em_erl()
-    erl_graph, voxel_coords = load_nerl_graph(skeleton_value, evaluation_cfg)
-    if voxel_coords:
-        node_positions = np.asarray(erl_graph.node_coords_zyx, dtype=np.int64)
-    else:
-        if resolution is None:
-            resolution = cfg_value(evaluation_cfg, "nerl_resolution", None)
-        node_positions = erl_graph.get_nodes_position(resolution)
-
-    segment = prepare_nerl_segmentation(segmentation)
-    merge_threshold = int(cfg_value(evaluation_cfg, "nerl_merge_threshold", 1))
-    chunk_num = int(cfg_value(evaluation_cfg, "nerl_chunk_num", 1))
-    node_segment_lut, mask_segment_id = compute_segment_lut(
-        segment,
-        node_positions,
-        mask=skeleton_mask_value,
-        chunk_num=chunk_num,
-        data_type=segment.dtype,
-    )
-    score = compute_erl_score(
-        erl_graph,
-        node_segment_lut,
-        mask_segment_id,
-        merge_threshold=merge_threshold,
-    )
-    score.compute_erl()
-    pred_erl, gt_erl, _num, _per_gt = extract_nerl_score_outputs(score)
-    nerl = pred_erl / gt_erl if gt_erl > 0 else float("nan")
-    return float(nerl), float(pred_erl), float(gt_erl)
-
-
 __all__ = [
     "compute_nerl_metrics",
-    "compute_nerl_score",
-    "extract_nerl_score_outputs",
     "cfg_value",
-    "import_em_erl",
-    "load_nerl_graph",
-    "networkx_skeleton_to_erl_graph",
-    "nerl_node_positions",
-    "prepare_nerl_segmentation",
-    "reorder_coordinate_axes",
     "select_volume_config_value",
 ]
