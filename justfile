@@ -45,36 +45,36 @@ install env_name="pytc":
 # Drive the install through a local Claude Code session (interactive).
 # Prerequisite: claude CLI installed and authenticated.
 install-claude:
-    claude "$(cat INSTALL_PROMPT.md)"
+    claude "$(cat prompts/INSTALL.md)"
 
 # Drive the install through a local Codex CLI session (interactive).
 # Prerequisite: codex CLI installed and authenticated.
 install-codex:
-    codex "$(cat INSTALL_PROMPT.md)"
+    codex "$(cat prompts/INSTALL.md)"
 
 # Drive "add a dataset" through Claude Code (interactive).
 add-dataset-claude:
-    claude "$(cat ADD_DATASET_PROMPT.md)"
+    claude "$(cat prompts/ADD_DATASET.md)"
 
 # Drive "add a dataset" through Codex CLI (interactive).
 add-dataset-codex:
-    codex "$(cat ADD_DATASET_PROMPT.md)"
+    codex "$(cat prompts/ADD_DATASET.md)"
 
 # Drive "add an architecture" through Claude Code (interactive).
 add-arch-claude:
-    claude "$(cat ADD_ARCH_PROMPT.md)"
+    claude "$(cat prompts/ADD_ARCH.md)"
 
 # Drive "add an architecture" through Codex CLI (interactive).
 add-arch-codex:
-    codex "$(cat ADD_ARCH_PROMPT.md)"
+    codex "$(cat prompts/ADD_ARCH.md)"
 
 # Drive "debug a failing tutorial" through Claude Code (interactive).
 debug-tutorial-claude:
-    claude "$(cat DEBUG_TUTORIAL_PROMPT.md)"
+    claude "$(cat prompts/DEBUG_TUTORIAL.md)"
 
 # Drive "debug a failing tutorial" through Codex CLI (interactive).
 debug-tutorial-codex:
-    codex "$(cat DEBUG_TUTORIAL_PROMPT.md)"
+    codex "$(cat prompts/DEBUG_TUTORIAL.md)"
 
 # Download dataset(s) (e.g., just download lucchi++, just download all)
 # Available: lucchi++, snemi, mitoem, cremi

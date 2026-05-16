@@ -71,7 +71,7 @@ just install-claude          # or: just install-codex
 conda activate pytc
 ```
 
-Reads [`INSTALL_PROMPT.md`](INSTALL_PROMPT.md) and lets the agent drive `install.py`.
+Reads [`prompts/INSTALL.md`](prompts/INSTALL.md) and lets the agent drive `install.py`.
 Requires an authenticated `claude` or `codex` CLI.
 
 ### c) Manual installation
