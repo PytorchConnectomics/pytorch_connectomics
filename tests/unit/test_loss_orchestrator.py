@@ -176,6 +176,34 @@ def test_weighted_bce_rejects_unknown_loss_kwargs():
         create_loss("WeightedBCEWithLogitsLoss", unknown_kwarg=True)
 
 
+def test_soft_cldice_with_sigmoid_runs_through_orchestrator():
+    loss_fn = create_loss("SoftClDiceLoss", mode="binary", num_iters=1, sigmoid=True)
+    orchestrator = LossOrchestrator(
+        cfg=_cfg(
+            losses=[
+                {
+                    "weight": 1.0,
+                },
+            ]
+        ),
+        loss_functions=nn.ModuleList([loss_fn]),
+        loss_weights=[1.0],
+        enable_nan_detection=False,
+        debug_on_nan=False,
+    )
+
+    outputs = torch.randn(1, 1, 4, 8, 8, requires_grad=True)
+    labels = (torch.rand(1, 1, 4, 8, 8) > 0.5).float()
+
+    total_loss, loss_dict = orchestrator.compute_standard_loss(outputs, labels, stage="train")
+    total_loss.backward()
+
+    assert torch.isfinite(total_loss)
+    assert "train_loss_total" in loss_dict
+    assert outputs.grad is not None
+    assert torch.all(torch.isfinite(outputs.grad))
+
+
 def test_loss_orchestrator_requires_explicit_losses():
     with pytest.raises(ValueError, match="model\\.loss\\.losses is required"):
         LossOrchestrator(
