@@ -11,7 +11,6 @@ from connectomics.config.schema.stages import TuneConfig
 from connectomics.runtime.cache_resolver import resolve_cached_prediction_files
 from connectomics.runtime.cli import setup_config
 from connectomics.runtime.output_naming import (
-    final_prediction_decoded_glob_suffix,
     final_prediction_output_tag,
     format_checkpoint_name_tag,
     format_decode_tag,
@@ -377,7 +376,6 @@ def test_cache_resolver_ignores_whole_volume_raw_for_chunked_raw_config(tmp_path
             cfg, checkpoint_path=checkpoint
         ),
         preferred_decoded_suffix=final_prediction_output_tag(cfg, checkpoint_path=checkpoint),
-        decoded_glob_suffix=final_prediction_decoded_glob_suffix(cfg, checkpoint_path=checkpoint),
     )
 
     assert cache_hit is False
@@ -418,7 +416,6 @@ def test_cache_resolver_prefers_decoded_final_over_large_raw_intermediate(tmp_pa
             cfg, checkpoint_path=checkpoint
         ),
         preferred_decoded_suffix=final_suffix,
-        decoded_glob_suffix=final_prediction_decoded_glob_suffix(cfg, checkpoint_path=checkpoint),
     )
 
     assert cache_hit is True
@@ -504,13 +501,6 @@ def test_decoding_output_suffix_disambiguates_final_prediction_cache_glob():
             checkpoint_path="/tmp/checkpoints/step-step=00050000.ckpt",
         )
         == "decoded_x1_ch0-1-2_affinity_cc_numba-0-0.7_chunk-raw-v1.h5"
-    )
-    assert (
-        final_prediction_decoded_glob_suffix(
-            cfg,
-            checkpoint_path="/tmp/checkpoints/step-step=00050000.ckpt",
-        )
-        == "decoded_x1_ch0-1-2_affinity_cc_numba-0-0.7*_chunk-raw-v1.h5"
     )
 
 

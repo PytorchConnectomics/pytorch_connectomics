@@ -10,7 +10,6 @@ import torch
 
 from ..config import Config
 from .output_naming import (
-    final_prediction_decoded_glob_suffix,
     final_prediction_output_tag,
     intermediate_prediction_cache_suffix,
     intermediate_prediction_cache_suffix_candidates,
@@ -26,15 +25,8 @@ def resolve_cached_prediction_files(
     cache_suffix: str,
     fallback_tta_suffixes: list[str] | None = None,
     preferred_decoded_suffix: str | None = None,
-    decoded_glob_suffix: str | None = None,
 ) -> tuple[bool, str | None, list[Path]]:
-    """Resolve cached prediction files, preferring any decoded final file.
-
-    When ``decoded_glob_suffix`` is provided, the resolver first looks for a
-    pre-existing decoded final file matching that glob (regardless of decoding
-    kwargs). This avoids reloading multi-GB intermediate predictions when a
-    usable final segmentation is already on disk.
-    """
+    """Resolve cached prediction files, preferring the exact decoded final file."""
     if not filenames:
         return False, None, []
 
@@ -51,20 +43,6 @@ def resolve_cached_prediction_files(
             resolved_files.append(pred_file)
         if all_exist and len(resolved_files) == len(filenames):
             return True, preferred_decoded_suffix, resolved_files
-
-    if decoded_glob_suffix:
-        decoded_files: list[Path] = []
-        for filename in filenames:
-            volume_dir = output_dir / filename
-            matches = sorted(volume_dir.glob(decoded_glob_suffix))
-            usable = [m for m in matches if is_valid_hdf5_prediction_file(m)]
-            if not usable:
-                decoded_files = []
-                break
-            decoded_files.append(usable[-1])
-        if decoded_files and len(decoded_files) == len(filenames):
-            chosen_suffix = decoded_files[0].name
-            return True, chosen_suffix, decoded_files
 
     suffixes_to_try = [cache_suffix]
     if not is_raw_cache_suffix(cache_suffix) and fallback_tta_suffixes:
@@ -265,9 +243,6 @@ def preflight_test_cache_hit(
             cfg, checkpoint_path=checkpoint_path
         ),
         preferred_decoded_suffix=final_prediction_output_tag(cfg, checkpoint_path=checkpoint_path),
-        decoded_glob_suffix=final_prediction_decoded_glob_suffix(
-            cfg, checkpoint_path=checkpoint_path
-        ),
     )
     if not cache_hit:
         return False, None, len(filenames)
@@ -335,9 +310,6 @@ def try_cache_only_test_execution(
             cfg, checkpoint_path=checkpoint_path
         ),
         preferred_decoded_suffix=final_prediction_output_tag(cfg, checkpoint_path=checkpoint_path),
-        decoded_glob_suffix=final_prediction_decoded_glob_suffix(
-            cfg, checkpoint_path=checkpoint_path
-        ),
     )
     if not cache_hit:
         return False
