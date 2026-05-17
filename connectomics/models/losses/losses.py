@@ -47,6 +47,7 @@ def _reduce_weighted_tensor(
 def _soft_erode_pool(prob: torch.Tensor) -> torch.Tensor:
     """Differentiable morphological erosion using min-pool via max-pool."""
     if prob.ndim == 5:
+        # Use an axis-aligned cross (3x1x1, 1x3x1, 1x1x3), matching clDice-style soft morphology.
         p1 = -F.max_pool3d(-prob, kernel_size=(3, 1, 1), stride=1, padding=(1, 0, 0))
         p2 = -F.max_pool3d(-prob, kernel_size=(1, 3, 1), stride=1, padding=(0, 1, 0))
         p3 = -F.max_pool3d(-prob, kernel_size=(1, 1, 3), stride=1, padding=(0, 0, 1))
@@ -354,7 +355,24 @@ class SoftClDiceLoss(nn.Module):
     """
     Soft clDice loss using differentiable skeletonization.
 
-    This loss expects probability maps (sigmoid/softmax outputs), not logits.
+    Supports optional activation on logits (`sigmoid=True` or `softmax=True`),
+    MONAI-style, before topology computation.
+    Targets must be dense maps (one-hot or soft labels); single-channel class-index
+    targets are accepted and converted to one-hot for multi-class predictions.
+
+    Args:
+        num_iters: Number of soft-skeleton erosion iterations.
+        mode: ``"binary"`` (single foreground channel) or ``"multi"`` (all classes except
+            ``background_index``).
+        reduction: ``"none"``, ``"mean"``, or ``"sum"``.
+        smooth: Smoothing constant in topology precision/sensitivity fractions.
+        foreground_channel: Foreground channel index used in ``mode="binary"`` when C>1.
+        background_index: Background channel index excluded in ``mode="multi"``.
+        sigmoid: Apply sigmoid activation to predictions inside ``forward``.
+        softmax: Apply softmax activation to predictions inside ``forward``.
+        clamp_probabilities: Clamp predictions/targets to ``[0, 1]`` before skeletonization.
+        validate_inputs: When True, enforce probability-range and minimal spatial-size checks.
+        validation_tolerance: Tolerance used by probability-range checks.
     """
 
     def __init__(
@@ -362,11 +380,14 @@ class SoftClDiceLoss(nn.Module):
         num_iters: int = 5,
         mode: str = "binary",
         reduction: str = "mean",
-        smooth: float = 1e-6,
+        smooth: float = 1.0,
         foreground_channel: int = 1,
         background_index: int = 0,
+        sigmoid: bool = False,
+        softmax: bool = False,
         clamp_probabilities: bool = False,
-        use_fused_cuda: bool = False,
+        validate_inputs: bool = True,
+        validation_tolerance: float = 1e-5,
     ):
         super().__init__()
         if num_iters < 0:
@@ -377,6 +398,10 @@ class SoftClDiceLoss(nn.Module):
             raise ValueError(f"reduction must be 'none', 'mean', or 'sum', got {reduction!r}")
         if smooth <= 0:
             raise ValueError(f"smooth must be > 0, got {smooth}")
+        if sigmoid and softmax:
+            raise ValueError("sigmoid and softmax are mutually exclusive")
+        if validation_tolerance < 0:
+            raise ValueError(f"validation_tolerance must be >= 0, got {validation_tolerance}")
 
         self.num_iters = int(num_iters)
         self.mode = mode
@@ -384,8 +409,11 @@ class SoftClDiceLoss(nn.Module):
         self.smooth = float(smooth)
         self.foreground_channel = int(foreground_channel)
         self.background_index = int(background_index)
+        self.sigmoid = bool(sigmoid)
+        self.softmax = bool(softmax)
         self.clamp_probabilities = bool(clamp_probabilities)
-        self.use_fused_cuda = bool(use_fused_cuda)
+        self.validate_inputs = bool(validate_inputs)
+        self.validation_tolerance = float(validation_tolerance)
 
     def _prepare_target(self, target: torch.Tensor, pred: torch.Tensor) -> torch.Tensor:
         if target.ndim == pred.ndim - 1:
@@ -420,6 +448,38 @@ class SoftClDiceLoss(nn.Module):
             f"target_channels={target.shape[1]}, pred_channels={pred.shape[1]}"
         )
 
+    def _apply_activation(self, pred: torch.Tensor) -> torch.Tensor:
+        if self.sigmoid:
+            return torch.sigmoid(pred)
+        if self.softmax:
+            if pred.shape[1] < 2:
+                raise ValueError("softmax=True requires prediction with at least 2 channels")
+            return F.softmax(pred, dim=1)
+        return pred
+
+    def _validate_probability_range(self, tensor: torch.Tensor, name: str) -> None:
+        if not self.validate_inputs:
+            return
+        tol = self.validation_tolerance
+        min_val = float(tensor.min().item())
+        max_val = float(tensor.max().item())
+        if min_val < -tol or max_val > (1.0 + tol):
+            raise ValueError(
+                f"{name} must be probabilities in [0, 1] (tolerance={tol}), "
+                f"got min={min_val:.6f}, max={max_val:.6f}. "
+                "Pass sigmoid=True/softmax=True for logits."
+            )
+
+    def _validate_spatial_shape(self, pred: torch.Tensor) -> None:
+        if not self.validate_inputs:
+            return
+        spatial_shape = tuple(pred.shape[2:])
+        if any(dim < 3 for dim in spatial_shape):
+            raise ValueError(
+                "SoftClDiceLoss expects each spatial dimension >= 3 for stable morphology, "
+                f"got spatial shape {spatial_shape}"
+            )
+
     def _select_foreground_channels(
         self, pred: torch.Tensor, target: torch.Tensor
     ) -> tuple[torch.Tensor, torch.Tensor, List[int]]:
@@ -428,7 +488,8 @@ class SoftClDiceLoss(nn.Module):
             fg_idx = 0 if channels == 1 else self.foreground_channel
             if fg_idx < 0 or fg_idx >= channels:
                 raise ValueError(
-                    f"foreground_channel={self.foreground_channel} is invalid for {channels} channels"
+                    f"foreground_channel={self.foreground_channel} is invalid "
+                    f"for {channels} channels"
                 )
             return pred[:, fg_idx : fg_idx + 1], target[:, fg_idx : fg_idx + 1], [fg_idx]
 
@@ -485,31 +546,31 @@ class SoftClDiceLoss(nn.Module):
             return torch.index_select(weight, dim=1, index=index_tensor)
 
         raise ValueError(
-            "Weight channel count must be 1, foreground-channel count, or prediction-channel count; "
+            "Weight channel count must be 1, foreground-channel count, "
+            "or prediction-channel count; "
             f"got {weight.shape[1]}"
         )
-
-    def _soft_skeletonize(self, prob: torch.Tensor) -> torch.Tensor:
-        if self.use_fused_cuda and prob.is_cuda:
-            connectomics_ops = getattr(torch.ops, "connectomics", None)
-            fused_op = getattr(connectomics_ops, "soft_skeletonize", None)
-            if fused_op is not None:
-                try:
-                    return fused_op(prob, self.num_iters)
-                except (RuntimeError, TypeError):
-                    pass
-        return _soft_skeletonize_pool(prob, self.num_iters)
 
     def forward(
         self,
         pred: torch.Tensor,
         target: torch.Tensor,
-        weight: torch.Tensor = None,
+        weight: torch.Tensor | None = None,
     ) -> torch.Tensor:
         if pred.ndim not in {4, 5}:
             raise ValueError(f"SoftClDiceLoss expects 4D/5D tensors, got {tuple(pred.shape)}")
 
+        pred = self._apply_activation(pred)
         target = self._prepare_target(target, pred)
+
+        if self.clamp_probabilities:
+            pred = pred.clamp(0.0, 1.0)
+            target = target.clamp(0.0, 1.0)
+
+        self._validate_spatial_shape(pred)
+        self._validate_probability_range(pred, "pred")
+        self._validate_probability_range(target, "target")
+
         pred_fg, target_fg, foreground_indices = self._select_foreground_channels(pred, target)
 
         if self.clamp_probabilities:
@@ -522,8 +583,8 @@ class SoftClDiceLoss(nn.Module):
             if self.clamp_probabilities:
                 fg_weight = fg_weight.clamp_min(0.0)
 
-        pred_skeleton = self._soft_skeletonize(pred_fg)
-        target_skeleton = self._soft_skeletonize(target_fg)
+        pred_skeleton = _soft_skeletonize_pool(pred_fg, self.num_iters)
+        target_skeleton = _soft_skeletonize_pool(target_fg, self.num_iters)
 
         if fg_weight is not None:
             pred_eval = pred_fg * fg_weight
@@ -725,11 +786,11 @@ class GANLoss(nn.Module):
 
 __all__ = [
     "CrossEntropyLossWrapper",
-    "WeightedBCEWithLogitsLoss",
-    "PerChannelBCEWithLogitsLoss",
-    "SoftClDiceLoss",
-    "WeightedMSELoss",
-    "WeightedMAELoss",
-    "SmoothL1Loss",
     "GANLoss",
+    "PerChannelBCEWithLogitsLoss",
+    "SmoothL1Loss",
+    "SoftClDiceLoss",
+    "WeightedBCEWithLogitsLoss",
+    "WeightedMAELoss",
+    "WeightedMSELoss",
 ]
