@@ -2,9 +2,9 @@
 
 For each chunk: read segmentation crop, run kimimaro on it, rasterize
 the resulting per-instance skeleton vertices back into a same-shape
-uint32 volume where each skeleton voxel stores its instance ID and
-non-skeleton voxels are 0. The output is consumed by
-``connectomics.data.processing.distance.skeleton_aware_edt_from_skeleton_vol``
+volume (matching the input dtype) where each skeleton voxel stores
+its instance ID and non-skeleton voxels are 0. The output is consumed
+by ``connectomics.data.processing.distance.skeleton_aware_edt_from_skeleton_vol``
 at training time.
 
 Tradeoff: skeletons of neurites crossing chunk boundaries are split.
@@ -42,8 +42,9 @@ class SkeletonVolumeProcessor(ChunkedProcessor):
     """Chunked variant of
     :func:`connectomics.data.processing.distance.precompute_skeleton_volume`.
 
-    Output dtype is uint32 (matches the single-process function's
-    rasterization, where each voxel holds an instance ID).
+    Output dtype matches the input segmentation dtype (each voxel holds
+    an instance ID, so the source dtype is by construction wide enough).
+    Callers can override via ``config.output_dtype`` if needed.
     """
 
     config_class = SkeletonVolumeConfig
@@ -53,8 +54,6 @@ class SkeletonVolumeProcessor(ChunkedProcessor):
             raise TypeError(
                 f"config must be SkeletonVolumeConfig, got {type(config).__name__}."
             )
-        if config.output_dtype is None:
-            config.output_dtype = "uint32"
         super().__init__(config)
 
     def process_chunk(self, chunk_data: np.ndarray, chunk: ChunkRef) -> np.ndarray:
@@ -76,10 +75,10 @@ class SkeletonVolumeProcessor(ChunkedProcessor):
         # Skeletonize the (possibly halo-extended) chunk.
         vertices_by_id = _batch_skeletonize(chunk_data, resolution, max_parallel=1)
 
-        # Rasterize into a chunk-shape uint32 volume. Vertices outside the
-        # inner region (i.e. in the halo) are dropped; vertices inside the
-        # inner region are translated by -inner_offset.
-        out = np.zeros(out_shape, dtype=np.uint32)
+        # Rasterize into a chunk-shape volume matching the input dtype.
+        # Vertices outside the inner region (i.e. in the halo) are dropped;
+        # vertices inside the inner region are translated by -inner_offset.
+        out = np.zeros(out_shape, dtype=chunk_data.dtype)
         inner_lo = np.asarray(inner_offset, dtype=np.int64)
         inner_hi = inner_lo + np.asarray(out_shape, dtype=np.int64)
         for inst_id, verts in vertices_by_id.items():
