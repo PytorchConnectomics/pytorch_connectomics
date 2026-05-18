@@ -48,7 +48,10 @@ default:
     # - decode_affinity_cc expects the first 3 channels in axis0, axis1, axis2 order
     label_transform:
       erosion: 0
-      relabel_connected_components: true
+      # Keep label IDs stable across crops so precomputed label_aux
+      # (e.g. seg_skeleton for skeleton_aware_edt in v2+) matches the
+      # runtime label per-instance.
+      relabel_connected_components: false
       relabel_connectivity: 6
       targets:
       - name: affinity
