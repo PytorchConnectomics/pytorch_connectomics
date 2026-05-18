@@ -77,6 +77,7 @@ def reorder_coordinate_axes(
 def networkx_skeleton_to_erl_graph(
     skeleton: Any,
     options: NerlGraphOptions | None = None,
+    resolution: Any = None,
 ):
     ERLGraph, _, _ = import_em_erl()
     options = options or NerlGraphOptions()
@@ -105,6 +106,13 @@ def networkx_skeleton_to_erl_graph(
         target_order=options.prediction_position_order,
     )
 
+    edge_coords = node_coords_arr
+    if resolution is not None:
+        res = np.asarray(resolution, dtype=np.float64).reshape(-1)
+        if res.size != 3:
+            raise ValueError(f"NERL resolution must have 3 elements, got {res.size}")
+        edge_coords = node_coords_arr.astype(np.float64) * res
+
     edge_buckets: list[list[tuple[int, int, float]]] = [[] for _ in skeleton_ids]
     skeleton_len = np.zeros(len(skeleton_ids), dtype=np.float64)
     for u, v, edge_data in skeleton.edges(data=True):
@@ -118,7 +126,7 @@ def networkx_skeleton_to_erl_graph(
         if options.skeleton_edge_length_attribute in edge_data:
             edge_len = float(edge_data[options.skeleton_edge_length_attribute])
         else:
-            edge_len = float(np.linalg.norm(node_coords_arr[u_idx] - node_coords_arr[v_idx]))
+            edge_len = float(np.linalg.norm(edge_coords[u_idx] - edge_coords[v_idx]))
         edge_buckets[skel_idx].append((u_idx, v_idx, edge_len))
         skeleton_len[skel_idx] += edge_len
 
@@ -157,8 +165,15 @@ _ERL_CACHE_FIELDS = (
 )
 
 
-def _erl_cache_path(source: Path) -> Path:
-    return source.with_suffix(source.suffix + ".erl_cache.npz")
+def _resolution_cache_tag(resolution: Any) -> str:
+    if resolution is None:
+        return "vox"
+    res = np.asarray(resolution, dtype=np.float64).reshape(-1)
+    return "res" + "_".join(f"{r:g}" for r in res)
+
+
+def _erl_cache_path(source: Path, resolution: Any = None) -> Path:
+    return source.with_suffix(source.suffix + f".erl_cache.{_resolution_cache_tag(resolution)}.npz")
 
 
 def _save_erl_cache(graph: Any, voxel_coords: bool, cache_path: Path) -> None:
@@ -183,6 +198,7 @@ def _load_erl_cache(cache_path: Path) -> tuple[Any, bool]:
 def load_nerl_graph(
     graph_source: Any,
     graph_options: NerlGraphOptions | None = None,
+    resolution: Any = None,
 ):
     ERLGraph, _, _ = import_em_erl()
     if isinstance(graph_source, ERLGraph):
@@ -195,7 +211,7 @@ def load_nerl_graph(
     if suffix == ".npz":
         return ERLGraph.from_npz(graph_path), False
     if suffix in {".pkl", ".pickle"}:
-        cache_path = _erl_cache_path(graph_path)
+        cache_path = _erl_cache_path(graph_path, resolution)
         if cache_path.exists() and cache_path.stat().st_mtime >= graph_path.stat().st_mtime:
             try:
                 return _load_erl_cache(cache_path)
@@ -206,7 +222,7 @@ def load_nerl_graph(
 
         with open(graph_path, "rb") as f:
             skeleton = pickle.load(f)
-        graph = networkx_skeleton_to_erl_graph(skeleton, graph_options)
+        graph = networkx_skeleton_to_erl_graph(skeleton, graph_options, resolution=resolution)
         _save_erl_cache(graph, True, cache_path)
         return graph, True
     raise ValueError(
@@ -290,7 +306,7 @@ def compute_nerl_score_details(
 ) -> NerlScoreResult:
     """Compute detailed NERL output for one segmentation/skeleton pair."""
     _, compute_erl_score, compute_segment_lut = import_em_erl()
-    erl_graph, voxel_coords = load_nerl_graph(skeleton_value, graph_options)
+    erl_graph, voxel_coords = load_nerl_graph(skeleton_value, graph_options, resolution=resolution)
     if voxel_coords:
         node_positions = np.asarray(erl_graph.node_coords_zyx, dtype=np.int64)
     else:
