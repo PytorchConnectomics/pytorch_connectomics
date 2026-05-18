@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import multiprocessing
 from pathlib import Path
 from typing import Any, Dict
 
@@ -63,6 +64,13 @@ def _nerl_graph_options(evaluation_cfg: Any) -> NerlGraphOptions:
     )
 
 
+def _resolve_num_workers(value: int) -> int:
+    """Resolve ``nerl_num_workers``: ``-1`` means use all available CPUs."""
+    if value < 0:
+        return max(1, multiprocessing.cpu_count())
+    return max(1, value)
+
+
 def _nerl_resolution(context: EvaluationContext, evaluation_cfg: Any) -> Any:
     resolution = cfg_value(evaluation_cfg, "nerl_resolution", None)
     if resolution is not None:
@@ -104,6 +112,9 @@ def compute_nerl_metrics(
         resolution=_nerl_resolution(context, evaluation_cfg),
         merge_threshold=int(cfg_value(evaluation_cfg, "nerl_merge_threshold", 1)),
         chunk_num=int(cfg_value(evaluation_cfg, "nerl_chunk_num", 1)),
+        num_workers=_resolve_num_workers(
+            int(cfg_value(evaluation_cfg, "nerl_num_workers", -1))
+        ),
         graph_options=_nerl_graph_options(evaluation_cfg),
     )
 

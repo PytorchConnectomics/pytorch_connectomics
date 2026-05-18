@@ -10,7 +10,6 @@ import torch
 
 from ..config import Config
 from .output_naming import (
-    final_prediction_decoded_glob_suffix,
     final_prediction_output_tag,
     intermediate_prediction_cache_suffix,
     intermediate_prediction_cache_suffix_candidates,
@@ -26,14 +25,14 @@ def resolve_cached_prediction_files(
     cache_suffix: str,
     fallback_tta_suffixes: list[str] | None = None,
     preferred_decoded_suffix: str | None = None,
-    decoded_glob_suffix: str | None = None,
 ) -> tuple[bool, str | None, list[Path]]:
-    """Resolve cached prediction files, preferring any decoded final file.
+    """Resolve cached prediction files, preferring the exact decoded final file.
 
-    When ``decoded_glob_suffix`` is provided, the resolver first looks for a
-    pre-existing decoded final file matching that glob (regardless of decoding
-    kwargs). This avoids reloading multi-GB intermediate predictions when a
-    usable final segmentation is already on disk.
+    Only the exact ``preferred_decoded_suffix`` is reused. A previous variant
+    accepted a permissive ``decoded_glob_suffix`` that returned any matching
+    decoded file regardless of decoding kwargs (thresholds, etc.) — that
+    silently produced eval outputs whose filenames advertised new kwargs while
+    the numbers came from a cached decode with old kwargs.
     """
     if not filenames:
         return False, None, []
@@ -52,20 +51,6 @@ def resolve_cached_prediction_files(
         if all_exist and len(resolved_files) == len(filenames):
             return True, preferred_decoded_suffix, resolved_files
 
-    if decoded_glob_suffix:
-        decoded_files: list[Path] = []
-        for filename in filenames:
-            volume_dir = output_dir / filename
-            matches = sorted(volume_dir.glob(decoded_glob_suffix))
-            usable = [m for m in matches if is_valid_hdf5_prediction_file(m)]
-            if not usable:
-                decoded_files = []
-                break
-            decoded_files.append(usable[-1])
-        if decoded_files and len(decoded_files) == len(filenames):
-            chosen_suffix = decoded_files[0].name
-            return True, chosen_suffix, decoded_files
-
     suffixes_to_try = [cache_suffix]
     if not is_raw_cache_suffix(cache_suffix) and fallback_tta_suffixes:
         for try_suffix in fallback_tta_suffixes:
@@ -73,16 +58,16 @@ def resolve_cached_prediction_files(
                 suffixes_to_try.append(try_suffix)
 
     for try_suffix in suffixes_to_try:
-        resolved_files: list[Path] = []
+        candidate_files: list[Path] = []
         all_exist = True
         for filename in filenames:
             pred_file = output_dir / filename / try_suffix
             if not os.path.exists(pred_file) or not is_valid_hdf5_prediction_file(pred_file):
                 all_exist = False
                 break
-            resolved_files.append(pred_file)
-        if all_exist and len(resolved_files) == len(filenames):
-            return True, try_suffix, resolved_files
+            candidate_files.append(pred_file)
+        if all_exist and len(candidate_files) == len(filenames):
+            return True, try_suffix, candidate_files
 
     return False, None, []
 
@@ -178,6 +163,12 @@ def has_cached_predictions_in_output_dir(
     if mode == "tune":
         tune_output_dir = getattr(getattr(cfg, "tune", None), "save_predictions_path", None)
         output_dirs = [path for path in (tune_output_dir, output_dir) if path]
+        if checkpoint_path:
+            from .checkpoint_dispatch import get_checkpoint_test_output_dir
+
+            checkpoint_test_dir = get_checkpoint_test_output_dir(checkpoint_path)
+            if checkpoint_test_dir is not None:
+                output_dirs.append(checkpoint_test_dir)
     if not output_dirs:
         return False
 
@@ -265,9 +256,6 @@ def preflight_test_cache_hit(
             cfg, checkpoint_path=checkpoint_path
         ),
         preferred_decoded_suffix=final_prediction_output_tag(cfg, checkpoint_path=checkpoint_path),
-        decoded_glob_suffix=final_prediction_decoded_glob_suffix(
-            cfg, checkpoint_path=checkpoint_path
-        ),
     )
     if not cache_hit:
         return False, None, len(filenames)
@@ -287,8 +275,8 @@ def is_test_evaluation_enabled(cfg: Config) -> bool:
 def try_cache_only_test_execution(
     cfg: Config,
     mode: str,
-    shard_id: int = None,
-    num_shards: int = None,
+    shard_id: int | None = None,
+    num_shards: int | None = None,
     checkpoint_path: str | None = None,
 ) -> bool:
     """Run cache-only test path before model/trainer/datamodule creation when possible."""
@@ -335,9 +323,6 @@ def try_cache_only_test_execution(
             cfg, checkpoint_path=checkpoint_path
         ),
         preferred_decoded_suffix=final_prediction_output_tag(cfg, checkpoint_path=checkpoint_path),
-        decoded_glob_suffix=final_prediction_decoded_glob_suffix(
-            cfg, checkpoint_path=checkpoint_path
-        ),
     )
     if not cache_hit:
         return False
@@ -469,7 +454,10 @@ def _try_cache_only_intermediate_eval(
         try:
             predictions_np = read_volume(str(pred_file), dataset="main")
         except Exception as exc:
-            print(f"  WARNING: failed to read {pred_file.name}: {exc}; falling back to trainer.test().")
+            print(
+                f"  WARNING: failed to read {pred_file.name}: {exc}; "
+                "falling back to trainer.test()."
+            )
             return False
 
         if predictions_np.ndim < 4:
