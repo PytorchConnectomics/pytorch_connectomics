@@ -47,7 +47,6 @@ from ...metrics.metrics_seg import (
 from ...models import build_model
 from ...models.losses import create_loss, get_loss_metadata_for_module
 from ...runtime.output_naming import (
-    final_prediction_decoded_glob_suffix,
     final_prediction_output_tag,
     intermediate_prediction_cache_suffix,
     intermediate_prediction_cache_suffix_candidates,
@@ -719,47 +718,13 @@ class ConnectomicsModule(pl.LightningModule):
                     )
                 return predictions_np, True, final_suffix
 
-        # Glob fallback: any pre-existing decoded final file matching the same
-        # TTA/head/channel/checkpoint prefix lets us skip a multi-GB
-        # intermediate prediction reload + redecode, even if the current
-        # config's decoding kwargs differ from the cached file.
-        decoded_glob = final_prediction_decoded_glob_suffix(
-            self.cfg,
-            checkpoint_path=self._get_prediction_checkpoint_path(),
-        )
-        decoded_files: list[Path] = []
-        for filename in filenames:
-            matches = sorted((output_dir / filename).glob(decoded_glob))
-            if not matches:
-                decoded_files = []
-                break
-            decoded_files.append(matches[-1])
-        if decoded_files and len(decoded_files) == len(filenames):
-            try:
-                preds = [read_volume(str(p), dataset="main") for p in decoded_files]
-            except Exception as e:
-                logger.warning(
-                    f"Failed to load decoded glob match {decoded_files[0]}: {e}; "
-                    f"falling back to exact suffix matching."
-                )
-                preds = None
-            if preds is not None:
-                logger.info(
-                    "Loaded existing decoded final prediction(s) via glob fallback "
-                    "(%s); skipping inference and decoding.",
-                    decoded_files[0].name,
-                )
-                if len(preds) == 1:
-                    predictions_np = preds[0]
-                    if predictions_np.ndim < 4:
-                        predictions_np = predictions_np[np.newaxis, ...]
-                else:
-                    predictions_np = np.stack(
-                        [p[np.newaxis, ...] if p.ndim < 4 else p for p in preds],
-                        axis=0,
-                    )
-                chosen_suffix = decoded_files[0].name
-                return predictions_np, True, chosen_suffix
+        # NOTE: a permissive glob fallback used to live here that loaded any
+        # decoded file matching the TTA/head/channel/checkpoint prefix, even
+        # when the current config's decoder kwargs (thresholds, etc.) differed
+        # from the cached file. That silently produced eval outputs whose
+        # filenames advertised the *new* kwargs but whose numbers came from
+        # the *cached* decode. Removed: only exact-suffix decoded matches are
+        # reused; mismatched kwargs trigger a re-decode from the raw cache.
 
         for try_suffix in suffixes_to_try:
             existing_predictions = []
