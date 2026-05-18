@@ -506,6 +506,92 @@ def build_affinity_mask(
     )
 
 
+def apply_affinity_mask_from_spec(predictions: np.ndarray, spec: dict) -> tuple[int, int]:
+    """Apply an affinity mask in-place using only the spec, skipping the full mask load.
+
+    Equivalent to building a mask via :func:`build_affinity_mask` with the same
+    parameters and then zeroing every prediction voxel where the mask is 0, but
+    without materializing the (X, Y, Z) mask array. ``predictions`` is modified
+    in place; the (zero, total) prediction-voxel counts are returned for logging.
+
+    ``spec`` requires keys ``low_z``, ``high_z``, ``border_width``, ``bg_thresh``,
+    ``image_path`` (a zarr 3D/4D source for the border-intensity check).
+    ``axis_order`` is optional and must be ``"XYZ"`` if present.
+
+    The two rules from :func:`build_affinity_mask` are applied:
+
+    - Z-gate: contiguous slice writes zero everything outside ``[low_z, high_z)``.
+    - Border + intensity: only the outer XY ring of width ``border_width`` is
+      read from the source image; voxels with intensity <= ``bg_thresh`` are
+      zeroed across all channels. Corners are zeroed twice (idempotent).
+    """
+    if predictions.ndim != 4:
+        raise ValueError(
+            f"apply_affinity_mask_from_spec expects 4D predictions, got {predictions.shape}"
+        )
+    axis_order = str(spec.get("axis_order", "XYZ"))
+    if axis_order != "XYZ":
+        raise ValueError(f"unsupported axis_order={axis_order!r}; only 'XYZ' is supported")
+
+    _C, X, Y, Z = predictions.shape
+    low_z = int(spec["low_z"])
+    high_z = int(spec["high_z"])
+    border_width = int(spec["border_width"])
+    bg_thresh = int(spec["bg_thresh"])
+    image_path = spec.get("image_path") or spec.get("source_image") or ""
+    if not (0 <= low_z <= high_z <= Z):
+        raise ValueError(f"invalid z range [{low_z}, {high_z}) for Z={Z}")
+
+    n_total_pred = int(predictions.size)
+    n_zero_voxels = 0  # counts in mask-volume coords (X*Y*Z), not predictions
+
+    # Z-gate: contiguous slice writes.
+    if low_z > 0:
+        predictions[:, :, :, :low_z] = 0
+        n_zero_voxels += X * Y * low_z
+    if high_z < Z:
+        predictions[:, :, :, high_z:] = 0
+        n_zero_voxels += X * Y * (Z - high_z)
+
+    # Border + intensity.
+    if border_width > 0 and bg_thresh > 0 and image_path and high_z > low_z:
+        bw = border_width
+        if bw * 2 > X or bw * 2 > Y:
+            raise ValueError(
+                f"border_width={bw} too large for shape (X={X}, Y={Y})"
+            )
+        import zarr
+
+        img = zarr.open(image_path, mode="r")
+        if img.ndim == 4:
+            def read_strip(xs: slice, ys: slice) -> np.ndarray:
+                return np.asarray(img[xs, ys, low_z:high_z, 0])
+        elif img.ndim == 3:
+            def read_strip(xs: slice, ys: slice) -> np.ndarray:
+                return np.asarray(img[xs, ys, low_z:high_z])
+        else:
+            raise ValueError(f"image must be 3D or 4D, got shape {img.shape}")
+
+        strips = [
+            (slice(0, bw), slice(None, None)),                       # left X edge
+            (slice(X - bw, X), slice(None, None)),                   # right X edge
+            (slice(bw, X - bw), slice(0, bw)),                       # left Y edge (no corner dup)
+            (slice(bw, X - bw), slice(Y - bw, Y)),                   # right Y edge (no corner dup)
+        ]
+        for sx, sy in strips:
+            img_strip = read_strip(sx, sy)
+            zero_strip = img_strip <= bg_thresh
+            if not zero_strip.any():
+                continue
+            # pred_view is a basic-slice view of predictions, so the fancy-index
+            # assignment below writes through to predictions.
+            pred_view = predictions[:, sx, sy, low_z:high_z]
+            pred_view[:, zero_strip] = 0
+            n_zero_voxels += int(zero_strip.sum())
+
+    return n_zero_voxels, X * Y * Z
+
+
 def _cfg_get(cfg: Any, name: str, default: Any = None) -> Any:
     if cfg is None:
         return default
