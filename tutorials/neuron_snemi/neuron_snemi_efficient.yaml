@@ -1,8 +1,10 @@
-experiment_name: mednext_s_snemi_deepem
+experiment_name: mednext_s_snemi_deepem_efficient
 description: >
   SNEMI3D neuron affinity learning using the DeepEM 12-affinity target setup
   with MedNeXt-S, DeepEM-style EM augmentation, AdamW warmup/cosine training,
-  deep supervision, EMA, bf16 mixed precision, and TTA-ready inference.
+  EMA, bf16 mixed precision, and TTA-ready inference. This efficient variant
+  disables deep supervision and gradient accumulation, and uses a shorter
+  100-epoch schedule with 200 optimizer steps per epoch.
 
 _base_:
 - ../../connectomics/config/all_profiles.yaml
@@ -22,7 +24,7 @@ default:
       dim: 3d
       checkpoint_style: outside_block
     loss:
-      deep_supervision: true
+      deep_supervision: false
   data:
     # DeepEM split: top 80 z-slices for train, bottom 20 for validation.
     split_enabled: true
@@ -116,9 +118,9 @@ train:
 
   optimization:
     profile: warmup_cosine_lr
-    max_epochs: 200
-    n_steps_per_epoch: 1000
-    accumulate_grad_batches: 4
+    max_epochs: 100
+    n_steps_per_epoch: 200
+    accumulate_grad_batches: 1
     precision: "bf16-mixed"
     gradient_clip_val: 1.0
     ema:
