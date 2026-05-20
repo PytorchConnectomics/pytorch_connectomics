@@ -95,7 +95,7 @@ def test_is_test_evaluation_enabled_supports_mapping_or_dataclass_config():
 
 class _DummyTestDataModule:
     def __init__(self, volume_count: int):
-        self.test_data_dicts = [{} for _ in range(volume_count)]
+        self.test_data_dicts: list[dict[str, object]] = [{} for _ in range(volume_count)]
 
 
 def test_maybe_limit_test_devices_disables_distributed_tta_sharding_for_multi_volume_tests():
@@ -404,6 +404,55 @@ def test_tune_cache_detection_uses_tuning_folder_then_result_fallback(tmp_path):
             cfg,
             mode="tune",
             checkpoint_path="step-step=00050000.ckpt",
+        )
+        is True
+    )
+
+
+def test_tune_cache_detection_checks_checkpoint_test_folder(tmp_path):
+    cfg = Config()
+    cfg.tune = TuneConfig()
+    cfg.data.val.image = str(tmp_path / "images" / "volume_a.h5")
+    Path(cfg.data.val.image).parent.mkdir(parents=True, exist_ok=True)
+    Path(cfg.data.val.image).touch()
+
+    args = _make_args(tmp_path / "config.yaml", mode="tune")
+    args.checkpoint = str(
+        tmp_path
+        / "outputs"
+        / "nisb_base_banis"
+        / "20260427_095218"
+        / "checkpoints"
+        / "step=00050000.ckpt"
+    )
+    configure_checkpoint_output_paths(args, cfg)
+
+    assert (
+        has_cached_predictions_in_output_dir(
+            cfg,
+            mode="tune",
+            checkpoint_path=args.checkpoint,
+        )
+        is False
+    )
+
+    test_pred = (
+        tmp_path
+        / "outputs"
+        / "nisb_base_banis"
+        / "20260427_095218"
+        / "test_step=00050000"
+        / "volume_a"
+        / "raw_x1.h5"
+    )
+    test_pred.parent.mkdir(parents=True, exist_ok=True)
+    write_hdf5(str(test_pred), np.zeros((1, 1, 1), dtype=np.float32), dataset="main")
+
+    assert (
+        has_cached_predictions_in_output_dir(
+            cfg,
+            mode="tune",
+            checkpoint_path=args.checkpoint,
         )
         is True
     )
