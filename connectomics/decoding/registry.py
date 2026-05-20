@@ -81,6 +81,7 @@ def register_builtin_decoders() -> None:
         decode_distance_watershed,
         decode_instance_binary_contour_distance,
     )
+    from .decoders.segmentation_grow import segmentation_grow
     from .decoders.synapse import polarity2instance
     from .decoders.waterz import decode_waterz
 
@@ -100,6 +101,7 @@ def register_builtin_decoders() -> None:
     register_decoder("branch_merge", branch_merge, overwrite=True)
     register_decoder("branch_split", branch_split, overwrite=True)
     register_decoder("longrange_guided_split", longrange_guided_split, overwrite=True)
+    register_decoder("segmentation_grow", segmentation_grow, overwrite=True)
     register_decoder("decode_abiss", decode_abiss, overwrite=True)
     register_decoder("polarity2instance", polarity2instance, overwrite=True)
     _BUILTINS_REGISTERED = True

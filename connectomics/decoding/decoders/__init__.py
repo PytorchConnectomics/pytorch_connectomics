@@ -11,6 +11,7 @@ _LAZY_DECODERS = {
     "decode_instance_binary_contour_distance": "connectomics.decoding.decoders.segmentation",
     "decode_waterz": "connectomics.decoding.decoders.waterz",
     "longrange_guided_split": "connectomics.decoding.decoders.longrange_guided_split",
+    "segmentation_grow": "connectomics.decoding.decoders.segmentation_grow",
     "polarity2instance": "connectomics.decoding.decoders.synapse",
 }
 
@@ -31,6 +32,7 @@ __all__ = [
     "decode_affinity_cc",
     "decode_waterz",
     "longrange_guided_split",
+    "segmentation_grow",
     "branch_merge",
     "branch_split",
     "polarity2instance",

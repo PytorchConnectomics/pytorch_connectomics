@@ -45,6 +45,7 @@ def test_builtin_decoders_are_registered():
     assert "branch_merge" in names
     assert "branch_split" in names
     assert "longrange_guided_split" in names
+    assert "segmentation_grow" in names
     assert "decode_affinity_cc" in names
     assert "decode_distance_watershed" in names
     assert "decode_binary_contour_distance_watershed" in names
