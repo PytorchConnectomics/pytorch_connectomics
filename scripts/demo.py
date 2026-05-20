@@ -316,7 +316,7 @@ def run_demo():
     from pytorch_lightning.callbacks import ModelCheckpoint, RichProgressBar
 
     # Create output directory
-    output_dir = Path(cfg.monitor.checkpoint.save_path)
+    output_dir = Path(cfg.save_path)
     output_dir.mkdir(parents=True, exist_ok=True)
 
     callbacks = [

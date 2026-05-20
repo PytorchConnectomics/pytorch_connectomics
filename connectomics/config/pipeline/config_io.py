@@ -144,7 +144,14 @@ _DECODING_RUNTIME_ALIAS_REPLACEMENTS = {
 _DECODING_CONFIG_ROOTS = ("decoding", "default.decoding", "test.decoding", "tune.decoding")
 
 _MONITOR_CHECKPOINT_RENAMES = {
-    "dirpath": "save_path",
+    "dirpath": (
+        "field hoisted. Use top-level `save_path` instead "
+        "(sibling of `monitor`, `inference`, `decoding`, `tune`)."
+    ),
+    "save_path": (
+        "field hoisted. Use top-level `save_path` instead "
+        "(sibling of `monitor`, `inference`, `decoding`, `tune`)."
+    ),
     "use_timestamp": (
         "field removed. Train mode is always timestamped; "
         "test/tune modes are never timestamped."
@@ -202,7 +209,7 @@ def _reject_inference_runtime_alias_paths(explicit_field_paths: set[str]) -> Non
         for alias, replacement in _MONITOR_CHECKPOINT_RENAMES.items():
             alias_path = f"{root}.{alias}"
             if any(_path_is_or_descendant(path, alias_path) for path in explicit_field_paths):
-                if replacement.startswith("field removed"):
+                if replacement.startswith("field "):
                     raise ValueError(f"`{alias_path}` {replacement}")
                 raise ValueError(
                     f"`{alias_path}` was renamed. "

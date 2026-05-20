@@ -10,6 +10,8 @@ description: Wrinkle 2D binary segmentation (v2 port of v1 misc/Wrinkle-Deeplab-
 # architecture if the wrinkle structures benefit from atrous-conv style
 # capacity that DeepLab provided.
 
+save_path: outputs/wrinkle_unet2d
+
 default:
   system:
     profile: all-gpu-cpu
@@ -89,7 +91,6 @@ train:
       monitor: train_loss_total_epoch
       save_top_k: 3
       save_last: true
-      save_path: outputs/wrinkle_unet2d
 
 test:
   data:
