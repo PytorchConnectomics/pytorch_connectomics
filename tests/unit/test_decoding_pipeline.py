@@ -158,6 +158,27 @@ def test_decode_pipeline_on_step_complete_single_step_matches_final():
     np.testing.assert_array_equal(captured[0], final)
 
 
+def test_decode_pipeline_can_pass_original_input_to_correction_step():
+    """Correction decoders can receive current seg plus original affinities."""
+    registry = DecoderRegistry()
+    registry.register("make_seg", lambda data, **kw: np.zeros(data.shape[1:], dtype=np.uint64))
+
+    def correction(seg, affinities=None):
+        assert affinities is not None
+        return seg + (affinities[0] > 0).astype(np.uint64)
+
+    registry.register("correction", correction)
+    data = np.ones((3, 4, 4, 4), dtype=np.float32)
+    decode_modes = [
+        {"name": "make_seg", "kwargs": {}},
+        {"name": "correction", "kwargs": {"use_original_input": True}},
+    ]
+
+    final = apply_decode_pipeline(data, decode_modes, registry=registry)
+
+    np.testing.assert_array_equal(final, np.ones((4, 4, 4), dtype=np.uint64))
+
+
 def test_decode_pipeline_unknown_decoder_raises(affinity_with_redundant_channels):
     decode_modes = [{"name": "decode_not_exists", "kwargs": {}}]
     with pytest.raises(ValueError, match="Unknown decode function"):
