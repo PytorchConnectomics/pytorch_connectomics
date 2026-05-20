@@ -176,6 +176,17 @@ def _maybe_apply_affinity_mask(cfg: Any, predictions: np.ndarray) -> np.ndarray:
     if spec is not None:
         from .qc.affinity import apply_affinity_mask_from_spec
 
+        src_image = spec.get("image_path") or spec.get("source_image") or ""
+        if src_image:
+            import zarr
+
+            src_shape = tuple(zarr.open(src_image, mode="r").shape[:3])
+            if src_shape != tuple(predictions.shape[1:]):
+                raise ValueError(
+                    f"affinity_mask spec was built for source_image shape "
+                    f"{src_shape}; current predictions have spatial shape "
+                    f"{tuple(predictions.shape[1:])} ({mask_path})"
+                )
         if spec["high_z"] - spec["low_z"] > predictions.shape[-1]:
             raise ValueError(
                 f"affinity_mask spec z range exceeds prediction z extent: "
