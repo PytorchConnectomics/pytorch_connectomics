@@ -9,7 +9,7 @@ save_path: outputs/nisb_base_banis_erosion2
 default:
   data:
     dataloader:
-      batch_size: 2
+      batch_size: 4
     label_transform:
       erosion: 2
 
