@@ -355,7 +355,9 @@ def update_from_cli(cfg: Config, overrides: List[str]) -> Config:
     """
     Update config from command-line overrides.
 
-    Supports dot notation: ['data.dataloader.batch_size=4', 'model.arch.type=unet3d']
+    Supports dot notation and list indexing:
+        - 'data.dataloader.batch_size=4'
+        - 'decoding.steps[0].kwargs.threshold=0.74'
 
     Args:
         cfg: Base Config object
@@ -364,13 +366,70 @@ def update_from_cli(cfg: Config, overrides: List[str]) -> Config:
     Returns:
         Updated Config object
     """
+    prior_merge_context = getattr(cfg, "_merge_context", None)
+    prior_explicit_paths: set[str] = set()
+    if isinstance(prior_merge_context, MergeContext):
+        prior_explicit_paths = set(prior_merge_context.explicit_field_paths)
+
     cfg_omega = OmegaConf.structured(cfg)
-    cli_conf = OmegaConf.from_dotlist(overrides)
-    _reject_inference_runtime_alias_config(cli_conf)
-    merged = OmegaConf.merge(cfg_omega, cli_conf)
-    cfg = OmegaConf.to_object(merged)
+
+    plain: List[str] = []
+    indexed: List[Tuple[str, str]] = []
+    for ov in overrides:
+        key, sep, value = ov.partition("=")
+        if not sep:
+            raise ValueError(f"Override missing '=': {ov!r}")
+        if "[" in key:
+            indexed.append((key, value))
+        else:
+            plain.append(ov)
+
+    cli_explicit_paths: set[str] = set()
+
+    if plain:
+        cli_conf = OmegaConf.from_dotlist(plain)
+        _reject_inference_runtime_alias_config(cli_conf)
+        cli_explicit_paths.update(_collect_explicit_paths(cli_conf))
+        cfg_omega = OmegaConf.merge(cfg_omega, cli_conf)
+
+    for key, raw_value in indexed:
+        parsed = OmegaConf.create(f"v: {raw_value}").v
+        OmegaConf.update(cfg_omega, key, parsed, merge=True)
+        cli_explicit_paths.update(_expand_indexed_key_paths(key))
+
+    cfg = OmegaConf.to_object(cfg_omega)
+
+    merge_context = getattr(cfg, "_merge_context", None)
+    if not isinstance(merge_context, MergeContext):
+        merge_context = MergeContext()
+        setattr(cfg, "_merge_context", merge_context)
+    merge_context.explicit_field_paths = prior_explicit_paths | cli_explicit_paths
+
     sync_inference_runtime_aliases(cfg)
     return cfg
+
+
+def _expand_indexed_key_paths(key: str) -> set[str]:
+    """Expand a dotted+bracketed CLI key into all prefix paths it touches.
+
+    Mirrors ``_collect_explicit_paths`` output so that downstream stage
+    resolution sees the leaf and every ancestor as explicit.
+    """
+    paths: set[str] = set()
+    parts = key.split(".")
+    acc = ""
+    for part in parts:
+        # Split a token like ``steps[0][1]`` into ``steps`` + ``[0]`` + ``[1]``.
+        bracket_split = re.split(r"(\[\d+\])", part)
+        for piece in bracket_split:
+            if not piece:
+                continue
+            if piece.startswith("["):
+                acc = f"{acc}{piece}"
+            else:
+                acc = f"{acc}.{piece}" if acc else piece
+            paths.add(acc)
+    return paths
 
 
 # ---------------------------------------------------------------------------
