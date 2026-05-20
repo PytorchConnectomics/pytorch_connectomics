@@ -1,0 +1,12 @@
+_base_:
+  - base_banis_v3_erosion2.yaml
+
+experiment_name: nisb_base_banis_v3_erosion2_aff10
+description: >-
+  v3_erosion2 with long-range (aff=10) affinity channels selected at decode
+  time: select_channel: [3, 4, 5] instead of [0, 1, 2].
+
+default:
+  inference:
+    model:
+      select_channel: [3, 4, 5]
