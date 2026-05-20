@@ -8,6 +8,8 @@ description: >-
   adds boundary/bottleneck signal for false-merge reduction. Decoding still
   uses only short-range channels 0:3 from the affinity head.
 
+save_path: outputs/nisb_base_banis_v2
+
 default:
   model:
     out_channels: 7
@@ -73,5 +75,3 @@ train:
       images:
         head: all
         channel_mode: all
-    checkpoint:
-      save_path: outputs/nisb_base_banis_v2

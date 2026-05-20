@@ -4,6 +4,8 @@ description: Binary mitochondria segmentation on Lucchi++ EM dataset
 _base_:
   - ../connectomics/config/all_profiles.yaml
 
+save_path: outputs/mito_lucchi++
+
 default:
   pipeline_profile: binary
   system:
@@ -74,7 +76,6 @@ train:
       monitor: train_loss_total_epoch
       save_last: true
       checkpoint_filename: "{epoch:03d}-{train_loss_total_epoch:.4f}"
-      save_path: outputs/mito_lucchi++
     
 test:
   data:

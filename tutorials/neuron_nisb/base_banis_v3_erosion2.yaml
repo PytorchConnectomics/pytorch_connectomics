@@ -6,6 +6,8 @@ description: >-
   v3 training setup: v1 loss/EMA plus label erosion=2, using MedNeXt-L/k3
   for higher-capacity affinity prediction.
 
+save_path: outputs/nisb_base_banis_v3_erosion2
+
 default:
   model:
     arch:
@@ -19,7 +21,3 @@ default:
     label_transform:
       erosion: 2
 
-train:
-  monitor:
-    checkpoint:
-      save_path: outputs/nisb_base_banis_v3_erosion2

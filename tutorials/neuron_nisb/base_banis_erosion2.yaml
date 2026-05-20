@@ -4,6 +4,8 @@ _base_:
 experiment_name: nisb_base_banis_erosion2
 description: BANIS train_base_long reproduction target with label erosion=2
 
+save_path: outputs/nisb_base_banis_erosion2
+
 default:
   data:
     dataloader:
@@ -11,7 +13,3 @@ default:
     label_transform:
       erosion: 2
 
-train:
-  monitor:
-    checkpoint:
-      save_path: outputs/nisb_base_banis_erosion2
