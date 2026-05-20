@@ -1,12 +1,12 @@
-experiment_name: nisb_base_banis_v1_erosion2_waterz_large_decode
+experiment_name: nisb_base_banis_v3_erosion2_waterz_large_decode
 description: >
   Chunked large-volume waterz decoding for the
-  nisb_base_banis_v1_erosion2/20260427_022126 whole-volume BANIS affinities.
+  nisb_base_banis_v3_erosion2/20260508_224029 whole-volume BANIS affinities
+  (MedNeXt-L/k3 with label erosion=2). Baseline for comparison: the v3
+  cc3d run at threshold 0.66 reaches NERL = 0.601 on seed101.
 
   This workflow is consumed by the `waterz_decode_large` console script
   (installed via `pip install -e lib/waterz/`), not scripts/main.py.
-  It expects the latest per-volume output naming layout under the run's
-  test_step=00200000/seed101 directory.
 
   Source affinity H5 is XYZ-stored (matches the cc3d / pipeline decoder
   inputs); the in-memory axis transpose is handled by
@@ -16,16 +16,19 @@ description: >
   diagnosis of the prior catastrophic-merge bug this config fixes.
 
   Usage:
-    waterz_decode_large --config tutorials/neuron_nisb/base_banis_v1_erosion2_waterz_large_decode.yaml --init-only
-    waterz_decode_large --config tutorials/neuron_nisb/base_banis_v1_erosion2_waterz_large_decode.yaml --sbatch
-    waterz_decode_large --config tutorials/neuron_nisb/base_banis_v1_erosion2_waterz_large_decode.yaml --wait --assemble
+    waterz_decode_large --config tutorials/neuron_nisb/base_banis_v3_erosion2_waterz_large_decode.yaml --init-only
+    waterz_decode_large --config tutorials/neuron_nisb/base_banis_v3_erosion2_waterz_large_decode.yaml --sbatch
+    waterz_decode_large --config tutorials/neuron_nisb/base_banis_v3_erosion2_waterz_large_decode.yaml --wait --assemble
 
 large_decode:
   # Input affinity file (HDF5 dataset "main", shape (3, 3000, 3000, 1350) =
-  # (C, X, Y, Z), float16) — XYZ-stored, same file consumed by cc3d.
-  affinity_path: outputs/nisb_base_banis_v1_erosion2/20260427_022126/test_step=00200000/seed101/raw_x1_ch0-1-2.h5
+  # (C, X, Y, Z), float16) — XYZ-stored, same file consumed by cc3d
+  # (the matched cc3d-0.66 run produced NERL = 0.601).
+  affinity_path: outputs/nisb_base_banis_v3_erosion2/20260508_224029/test_step=00200000/seed101/raw_x1_ch0-1-2.h5
   affinity_dataset: main
   # 3D uint8 keep/drop mask in the same XYZ spatial layout as the affinity.
+  # Shared with the v1/erosion2 run — the mask is derived from the original
+  # model prediction QC, not the v3-specific affinities.
   affinity_mask_path: outputs/nisb_base_banis/20260427_095218/test_step=00200000/affinity_mask.h5
   affinity_mask_dataset: main
 
@@ -45,10 +48,8 @@ large_decode:
   output_layout: xyz
   channel_order: xyz
 
-  # Shared workflow directory for chunk task state and final assembly. The
-  # ``_v2`` suffix preserves the prior (broken-axis-order) run at the
-  # original directory for direct before/after comparison.
-  workflow_root: outputs/nisb_base_banis_v1_erosion2/20260427_022126/test_step=00200000/seed101/waterz_large_decode_t07_parallel_v2
+  # Shared workflow directory for chunk task state and final assembly.
+  workflow_root: outputs/nisb_base_banis_v3_erosion2/20260508_224029/test_step=00200000/seed101/waterz_large_decode_t07_parallel
 
   # Chunk geometry is always in waterz (Z, Y, X) order, regardless of the
   # source H5 layout. For this 3000x3000x1350 (XYZ) volume that means listing
@@ -103,6 +104,6 @@ large_decode:
 
   # Output.
   write_output: true
-  output_path: outputs/nisb_base_banis_v1_erosion2/20260427_022126/test_step=00200000/seed101/waterz_large_decode_t07_parallel_v2/assembled.h5
+  output_path: outputs/nisb_base_banis_v3_erosion2/20260508_224029/test_step=00200000/seed101/waterz_large_decode_t07_parallel/assembled.h5
   compression: gzip
   compression_level: 4
