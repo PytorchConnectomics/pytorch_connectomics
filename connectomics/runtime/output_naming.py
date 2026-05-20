@@ -9,7 +9,6 @@ from typing import Any, Optional
 from ..config import Config
 from ..utils.model_outputs import get_inference_select_channel, resolve_output_head
 
-
 _UNINFORMATIVE_STEMS = {"img", "image", "raw", "em", "main", "data"}
 
 # Container-style directory suffixes that should be skipped when walking up
@@ -143,10 +142,7 @@ def resolve_dataset_volume_stems(cfg: Config, mode: str) -> list[str]:
     # coincide with the volume identity dir (e.g. NISB's `seed101/data.zarr/img`),
     # making the resolver fall back to "volume" while the writer still wrote
     # under "seed101".
-    return [
-        _stem_from_image_path(p) or f"volume_{idx}"
-        for idx, p in enumerate(image_paths)
-    ]
+    return [_stem_from_image_path(p) or f"volume_{idx}" for idx, p in enumerate(image_paths)]
 
 
 def resolve_volume_save_dir(cfg: Config, mode: str, volume_stem: str) -> Path:
@@ -257,10 +253,23 @@ def _format_one_decode_step(step) -> str:
         ],
         "use_aff_uint8": [],
         "use_seg_uint32": [],
+        "use_original_input": ["original_input_kwarg"],
     }
     gate_labels = {
         "use_aff_uint8": "aff8",
         "use_seg_uint32": "seg32",
+        "use_original_input": "orig",
+    }
+    ignored_decode_tag_keys = {
+        "candidate_output_path",
+        "decision_output_path",
+        "guide_affinity_path",
+        "guide_prediction_path",
+        "guide_seg_path",
+        "primary_affinity_path",
+        "receive_context",
+        "report_dir",
+        "tag",
     }
 
     def _flatten_decode_values(value) -> list[str]:
@@ -275,6 +284,8 @@ def _format_one_decode_step(step) -> str:
 
             result: list[str] = []
             for key, nested_value in sorted(value_dict.items()):
+                if key in ignored_decode_tag_keys:
+                    continue
                 if key in gated_keys:
                     if key in gated_value_groups and nested_value is True:
                         if key in gate_labels:
@@ -305,6 +316,12 @@ def _format_one_decode_step(step) -> str:
     kwargs = getattr(step, "kwargs", None)
     if kwargs is None and isinstance(step, dict):
         kwargs = step.get("kwargs", {})
+    if hasattr(kwargs, "items"):
+        explicit_tag = dict(kwargs).get("tag")
+        if explicit_tag:
+            safe_tag = _sanitize_decode_component(str(explicit_tag))
+            if safe_tag:
+                return safe_tag
 
     value_tokens = _flatten_decode_values(kwargs) if kwargs is not None else []
     if not value_tokens:
@@ -606,10 +623,13 @@ def tuning_best_params_filename(
     output_head: Optional[str] = None,
 ) -> str:
     """Return the checkpoint/channel-aware best-params filename for tune outputs."""
-    return (
-        "best_params_"
-        f"{tuning_artifact_tag(cfg, spatial_dims=spatial_dims, checkpoint_path=checkpoint_path, output_head=output_head)}.yaml"
+    tag = tuning_artifact_tag(
+        cfg,
+        spatial_dims=spatial_dims,
+        checkpoint_path=checkpoint_path,
+        output_head=output_head,
     )
+    return f"best_params_{tag}.yaml"
 
 
 def tuning_best_params_filename_candidates(
@@ -644,10 +664,13 @@ def tuning_study_db_filename(
     safe_study = re.sub(r"[^A-Za-z0-9._=-]+", "-", str(study_name)).strip("-")
     if not safe_study:
         safe_study = "parameter_optimization"
-    return (
-        f"{safe_study}_"
-        f"{tuning_artifact_tag(cfg, spatial_dims=spatial_dims, checkpoint_path=checkpoint_path, output_head=output_head)}.db"
+    tag = tuning_artifact_tag(
+        cfg,
+        spatial_dims=spatial_dims,
+        checkpoint_path=checkpoint_path,
+        output_head=output_head,
     )
+    return f"{safe_study}_{tag}.db"
 
 
 def resolve_prediction_cache_suffix(

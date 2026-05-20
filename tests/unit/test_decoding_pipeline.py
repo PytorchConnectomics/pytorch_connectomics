@@ -42,6 +42,9 @@ def affinity_with_redundant_channels() -> np.ndarray:
 
 def test_builtin_decoders_are_registered():
     names = set(list_decoders())
+    assert "branch_merge" in names
+    assert "branch_split" in names
+    assert "longrange_guided_split" in names
     assert "decode_affinity_cc" in names
     assert "decode_distance_watershed" in names
     assert "decode_binary_contour_distance_watershed" in names
@@ -177,6 +180,29 @@ def test_decode_pipeline_can_pass_original_input_to_correction_step():
     final = apply_decode_pipeline(data, decode_modes, registry=registry)
 
     np.testing.assert_array_equal(final, np.ones((4, 4, 4), dtype=np.uint64))
+
+
+def test_branch_split_uses_seed_components_as_independent_decoder():
+    from connectomics.decoding.decoders.branch_split import branch_split
+
+    seg = np.zeros((4, 8, 8), dtype=np.uint64)
+    seg[:, 1:7, 1:7] = 1
+    seeds = np.zeros_like(seg)
+    seeds[:, 1:7, 1:3] = 10
+    seeds[:, 1:7, 5:7] = 20
+
+    split = branch_split(
+        seg,
+        seed_seg=seeds,
+        min_parent_size=1,
+        min_seed_size=1,
+        min_seed_fraction=0.0,
+    )
+
+    assert set(np.unique(split)) == {0, 1, 2}
+    assert np.all(split[:, 1:7, 1:3] == 1)
+    assert np.all(split[:, 1:7, 5:7] == 2)
+    assert np.all(split[seg == 1] > 0)
 
 
 def test_decode_pipeline_unknown_decoder_raises(affinity_with_redundant_channels):
