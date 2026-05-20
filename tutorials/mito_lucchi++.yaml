@@ -26,7 +26,7 @@ default:
     dataloader:
       profile: cached
       patch_size: [112, 112, 112]
-      batch_size: 2
+      batch_size: 4
     augmentation:
       profile: aug_strong
   inference:
