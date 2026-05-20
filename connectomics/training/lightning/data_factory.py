@@ -607,8 +607,6 @@ def create_datamodule(
             test_image_paths = expand_file_paths(split.image)
         else:
             # Decode-only: derive filename from decoding.load_prediction_path
-            from pathlib import Path
-
             pred_stem = Path(_saved).stem if _saved else "decoded"
             test_image_paths = [pred_stem]
             logger.info(f"Decode-only mode: using filename from input_prediction_path: {pred_stem}")
@@ -685,7 +683,6 @@ def create_datamodule(
             logger.info("Auto-computing iter_num from volume size...")
 
             from ...data.datasets.sampling import compute_total_samples
-            from ...data.io import get_vol_shape
 
             # Get volume sizes
             volume_sizes = []
