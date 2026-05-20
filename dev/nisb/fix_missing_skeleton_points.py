@@ -223,7 +223,7 @@ def create_or_open_zarr_output(
     )
     arr.attrs.update(
         {
-            "writer": "dev/nisb/fix_missing_skeleton.py",
+            "writer": "dev/nisb/fix_missing_skeleton_points.py",
             "chunk_shape": [int(v) for v in chunk_shape],
         }
     )
