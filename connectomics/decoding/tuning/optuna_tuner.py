@@ -928,6 +928,24 @@ class OptunaDecodingTuner:
             direction=direction,
         )
 
+        # Fail orphan RUNNING trials inherited from a previous process (e.g.
+        # SLURM TIMEOUT mid-trial). GridSampler treats RUNNING trials as
+        # already-taken, so their grid points would be skipped forever unless
+        # we release them here.
+        if self.tune_cfg.load_if_exists:
+            for trial in study.get_trials(
+                deepcopy=False, states=(optuna.trial.TrialState.RUNNING,)
+            ):
+                study._storage.set_trial_state_values(
+                    trial._trial_id, optuna.trial.TrialState.FAIL
+                )
+                logger.info(
+                    "Released orphan RUNNING trial #%d (params=%s) as FAIL so its "
+                    "grid point can be re-sampled.",
+                    trial.number,
+                    trial.params,
+                )
+
         # Seed the first trial with known-good defaults so TPE has a strong
         # baseline from the start instead of wasting early trials on random configs.
         default_params = self._build_default_trial_params()
