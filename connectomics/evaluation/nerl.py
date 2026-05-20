@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import logging
 import multiprocessing
+import os
 from pathlib import Path
 from typing import Any, Dict
 
@@ -65,9 +66,17 @@ def _nerl_graph_options(evaluation_cfg: Any) -> NerlGraphOptions:
 
 
 def _resolve_num_workers(value: int) -> int:
-    """Resolve ``nerl_num_workers``: ``-1`` means use all available CPUs."""
+    """Resolve ``nerl_num_workers``: ``-1`` means use all available CPUs.
+
+    Why: ``multiprocessing.cpu_count()`` returns the host's total cores, ignoring
+    slurm/cgroup CPU pinning. Under ``srun --cpus-per-task=N`` that oversubscribes
+    the allocation. ``os.sched_getaffinity(0)`` respects the cgroup mask.
+    """
     if value < 0:
-        return max(1, multiprocessing.cpu_count())
+        try:
+            return max(1, len(os.sched_getaffinity(0)))
+        except (AttributeError, OSError):
+            return max(1, multiprocessing.cpu_count())
     return max(1, value)
 
 
