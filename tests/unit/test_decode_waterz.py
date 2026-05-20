@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import numpy as np
+import pytest
 
 from connectomics.decoding.decoders import waterz as waterz_decoder
 
@@ -13,8 +14,10 @@ class _FakeWaterzModule:
     def __init__(self):
         self.merge_segments_calls = []
         self.waterz_calls = []
+        self.threshold_calls = []
 
     def waterz(self, affs, thresholds, **kwargs):
+        self.threshold_calls.append(list(thresholds))
         self.waterz_calls.append(kwargs.copy())
         seg = np.zeros(affs.shape[1:], dtype=np.uint64)
         seg[:, :, :2] = 1
@@ -26,8 +29,7 @@ class _FakeWaterzModule:
             return [(seg.copy(), list(rg)) for _ in thresholds]
         return [seg.copy() for _ in thresholds]
 
-    def merge_segments(self, seg, rg_affs, id1, id2, counts,
-                       size_th, weight_th, dust_th):
+    def merge_segments(self, seg, rg_affs, id1, id2, counts, size_th, weight_th, dust_th):
         self.merge_segments_calls.append(
             {
                 "seg_shape": seg.shape,
@@ -68,14 +70,16 @@ def test_decode_waterz_reuses_agglomeration_graph_for_dust(monkeypatch):
     dust_calls = []
 
     def _fake_dust_merge(seg, rg, *, is_uint8, size_th, weight_th, dust_th):
-        dust_calls.append({
-            "seg_shape": seg.shape,
-            "rg": rg,
-            "is_uint8": is_uint8,
-            "size_th": size_th,
-            "weight_th": weight_th,
-            "dust_th": dust_th,
-        })
+        dust_calls.append(
+            {
+                "seg_shape": seg.shape,
+                "rg": rg,
+                "is_uint8": is_uint8,
+                "size_th": size_th,
+                "weight_th": weight_th,
+                "dust_th": dust_th,
+            }
+        )
 
     monkeypatch.setattr(waterz_decoder, "dust_merge_from_region_graph", _fake_dust_merge)
 
@@ -97,3 +101,33 @@ def test_decode_waterz_reuses_agglomeration_graph_for_dust(monkeypatch):
     assert call["size_th"] == 100
     assert call["weight_th"] == 0.3
     assert call["dust_th"] == 50
+
+
+def test_decode_waterz_rejects_embedded_branch_merge(monkeypatch):
+    fake_waterz = _FakeWaterzModule()
+    monkeypatch.setattr(waterz_decoder, "waterz", fake_waterz)
+    monkeypatch.setattr(waterz_decoder, "WATERZ_AVAILABLE", True)
+
+    with pytest.raises(ValueError, match="separate decoding step"):
+        waterz_decoder.decode_waterz(
+            np.ones((3, 4, 4, 4), dtype=np.float32),
+            thresholds=0.4,
+            branch_merge=True,
+        )
+
+
+def test_decode_waterz_return_all_thresholds_keeps_float_keys_with_uint8(monkeypatch):
+    fake_waterz = _FakeWaterzModule()
+    monkeypatch.setattr(waterz_decoder, "waterz", fake_waterz)
+    monkeypatch.setattr(waterz_decoder, "WATERZ_AVAILABLE", True)
+
+    results = waterz_decoder.decode_waterz(
+        np.ones((3, 4, 4, 4), dtype=np.float32),
+        thresholds=[0.3, 0.4],
+        use_aff_uint8=True,
+        return_all_thresholds=True,
+        dust_merge=False,
+    )
+
+    assert sorted(results.keys()) == [0.3, 0.4]
+    assert fake_waterz.threshold_calls == [[76, 102]]
