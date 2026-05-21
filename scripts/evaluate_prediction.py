@@ -204,6 +204,7 @@ def evaluate_nerl(
     skeleton_mask_dataset: str | None,
     resolution: list[float] | None,
     chunk_num: int,
+    num_workers: int,
     merge_threshold: int,
     skeleton_id_attribute: str,
     skeleton_position_attribute: str,
@@ -227,6 +228,7 @@ def evaluate_nerl(
         node_positions = graph.get_nodes_position(resolution)
 
     resolved_chunk_num = _resolve_chunk_num(int(chunk_num))
+    resolved_num_workers = _resolve_chunk_num(int(num_workers))
     node_segment_lut, mask_segment_id = compute_segment_lut(
         prediction,
         node_positions,
@@ -235,6 +237,7 @@ def evaluate_nerl(
         data_type=np.uint64,
         segment_dataset=prediction_dataset,
         mask_dataset=skeleton_mask_dataset,
+        num_workers=resolved_num_workers,
     )
     score = compute_erl_score(
         graph,
@@ -343,6 +346,7 @@ def evaluate_prediction(
             skeleton_mask_dataset=kwargs.get("skeleton_mask_dataset"),
             resolution=kwargs.get("resolution"),
             chunk_num=int(kwargs.get("chunk_num", -1)),
+            num_workers=int(kwargs.get("num_workers", 1)),
             merge_threshold=int(kwargs.get("merge_threshold", 1)),
             skeleton_id_attribute=kwargs.get("skeleton_id_attribute", "id"),
             skeleton_position_attribute=kwargs.get(
@@ -414,6 +418,15 @@ def parse_args() -> argparse.Namespace:
             "-1 uses SLURM_CPUS_PER_TASK, then os.cpu_count()."
         ),
     )
+    parser.add_argument(
+        "--num-workers",
+        type=int,
+        default=-1,
+        help=(
+            "Worker processes for NERL skeleton-point sampling. "
+            "-1 uses SLURM_CPUS_PER_TASK, then os.cpu_count(); 1 = serial."
+        ),
+    )
     parser.add_argument("--merge-threshold", type=int, default=1)
     parser.add_argument("--skeleton-mask", default=None)
     parser.add_argument("--skeleton-mask-dataset", default=None)
@@ -451,6 +464,7 @@ def main() -> None:
         instance_iou_threshold=args.instance_iou_threshold,
         resolution=args.resolution,
         chunk_num=args.chunk_num,
+        num_workers=args.num_workers,
         merge_threshold=args.merge_threshold,
         skeleton_mask=args.skeleton_mask,
         skeleton_mask_dataset=args.skeleton_mask_dataset,
