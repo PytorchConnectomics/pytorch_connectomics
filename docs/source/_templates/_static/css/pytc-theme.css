@@ -242,3 +242,51 @@ so make sure not to go above that value */
   }
 }
 /* docsearch end */
+
+/* Sidebar tutorial hierarchy: chevron on parents, indented + bordered children */
+
+/* Bold any L1 item that has children (i.e. a nested <ul>) and append a
+   downward chevron so it reads as a group header at a glance. */
+.pytorch-menu-vertical .toctree-l1:has(> ul) > a {
+  font-weight: 600;
+  position: relative;
+  padding-right: 2rem;
+}
+.pytorch-menu-vertical .toctree-l1:has(> ul) > a::after {
+  content: "▾";
+  position: absolute;
+  right: 1rem;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 0.7em;
+  opacity: 0.55;
+}
+
+/* Inset the child <ul> with a subtle PyTorch-orange rail so the
+   parent → child relationship is visually obvious. */
+.pytorch-menu-vertical .toctree-l1 > ul {
+  border-left: 2px solid rgba(238, 76, 44, 0.18);
+  margin-left: 1.25rem;
+  padding-left: 0.25rem;
+}
+
+/* Children: lighter weight, deeper indent. */
+.pytorch-menu-vertical .toctree-l2 > a {
+  font-weight: 400;
+  padding-left: 1.25rem;
+}
+
+/* Active page highlight: filled bar + orange left border. */
+.pytorch-menu-vertical .toctree-l2.current > a,
+.pytorch-menu-vertical .toctree-l2 > a.current {
+  background-color: rgba(238, 76, 44, 0.08);
+  border-left: 3px solid #ee4c2c;
+  font-weight: 600;
+}
+
+/* Hover affordance on every nav link. */
+.pytorch-menu-vertical .toctree-l1 > a:hover,
+.pytorch-menu-vertical .toctree-l2 > a:hover {
+  background-color: rgba(0, 0, 0, 0.04);
+}
+/* sidebar hierarchy end */
