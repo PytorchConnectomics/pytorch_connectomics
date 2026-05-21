@@ -243,31 +243,53 @@ so make sure not to go above that value */
 }
 /* docsearch end */
 
-/* Sidebar tutorial hierarchy: chevron on parents, indented + bordered children */
+/* Sidebar accordion: parents toggle children on click; chevron flips ▸→▾.
 
-/* Bold any L1 item that has children (i.e. a nested <ul>) and append a
-   downward chevron so it reads as a group header at a glance. */
+   State model:
+     - Default: L2 children hidden (display:none).
+     - Sphinx adds `.current` to the L1 on the path to the active page →
+       that section auto-expands on load.
+     - JS toggles `.expanded` / `.collapsed` on click. `.collapsed` wins
+       over `.current` so the user can fold the active section too. */
+
 .pytorch-menu-vertical .toctree-l1:has(> ul) > a {
   font-weight: 600;
   position: relative;
   padding-right: 2rem;
+  cursor: pointer;
 }
 .pytorch-menu-vertical .toctree-l1:has(> ul) > a::after {
-  content: "▾";
+  content: "▸";
   position: absolute;
   right: 1rem;
   top: 50%;
-  transform: translateY(-50%);
-  font-size: 0.7em;
-  opacity: 0.55;
+  transform: translateY(-50%) rotate(0deg);
+  font-size: 0.75em;
+  opacity: 0.6;
+  transition: transform 0.15s ease;
+}
+.pytorch-menu-vertical .toctree-l1.current:has(> ul) > a::after,
+.pytorch-menu-vertical .toctree-l1.expanded:has(> ul) > a::after {
+  transform: translateY(-50%) rotate(90deg);
+}
+.pytorch-menu-vertical .toctree-l1.collapsed:has(> ul) > a::after {
+  transform: translateY(-50%) rotate(0deg) !important;
 }
 
-/* Inset the child <ul> with a subtle PyTorch-orange rail so the
-   parent → child relationship is visually obvious. */
+/* Hide L2 children by default; reveal for .current or .expanded; an
+   explicit .collapsed (user folded it) wins over everything. */
 .pytorch-menu-vertical .toctree-l1 > ul {
+  display: none;
   border-left: 2px solid rgba(238, 76, 44, 0.18);
   margin-left: 1.25rem;
   padding-left: 0.25rem;
+}
+.pytorch-menu-vertical .toctree-l1.current > ul,
+.pytorch-menu-vertical .toctree-l1.expanded > ul {
+  display: block;
+}
+.pytorch-menu-vertical .toctree-l1.collapsed > ul {
+  display: none !important;
 }
 
 /* Children: lighter weight, deeper indent. */
@@ -276,7 +298,7 @@ so make sure not to go above that value */
   padding-left: 1.25rem;
 }
 
-/* Active page highlight: filled bar + orange left border. */
+/* Active page highlight. */
 .pytorch-menu-vertical .toctree-l2.current > a,
 .pytorch-menu-vertical .toctree-l2 > a.current {
   background-color: rgba(238, 76, 44, 0.08);
@@ -284,9 +306,8 @@ so make sure not to go above that value */
   font-weight: 600;
 }
 
-/* Hover affordance on every nav link. */
 .pytorch-menu-vertical .toctree-l1 > a:hover,
 .pytorch-menu-vertical .toctree-l2 > a:hover {
   background-color: rgba(0, 0, 0, 0.04);
 }
-/* sidebar hierarchy end */
+/* sidebar accordion end */
