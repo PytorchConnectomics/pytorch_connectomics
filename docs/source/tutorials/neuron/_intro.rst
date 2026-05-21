@@ -3,7 +3,7 @@ canonical pipeline first predicts an affinity map (the connectivity of each
 voxel to its neighbors) with an encoder-decoder, then converts the affinity
 map into a segmentation via watershed or a similar algorithm.
 
-This section covers two benchmarks:
+This section covers three benchmarks:
 
 - :doc:`SNEMI3D <snemi3d>` — the classic small isotropic-anisotropic
   benchmark, used for end-to-end affinity training and waterz
@@ -14,3 +14,6 @@ This section covers two benchmarks:
   benchmark evaluated with the **NERL** skeleton metric. Reproduction
   targets in ``tutorials/neuron_nisb/`` mirror the upstream BANIS
   pipeline.
+- :doc:`LICONN <liconn>` — the LICONN volume variant of the NISB
+  benchmark; reuses the BANIS-style affinity pipeline and adds an
+  affinity-mask QC step for the LICONN-specific border artifacts.
