@@ -1,0 +1,115 @@
+_base_:
+  - base_banis+.yaml
+
+experiment_name: nisb_base_banis+_zebrafinch
+description: >-
+  Apply the base_banis+ MedNeXt-L/k3 affinity model (trained on NISB at 9nm)
+  to the zebrafinch im_align_10nm tiled PNG volume via chunked inference.
+  Source layout: 5700 z-sections (0000..5699), each section is a 3x3 grid of
+  4096x4096 PNG tiles named {row}_{column}.png (uint8, mode L). Effective
+  full volume is 5700 x 12288 x 12288 (ZYX).
+
+save_path: outputs/nisb_base_banis+_zebrafinch
+
+default:
+  inference:
+    model:
+      # Keep only short-range affinities (axis0, axis1, axis2 in XYZ order).
+      select_channel: [0, 1, 2]
+      output_dtype: float16
+      channel_activations:
+        - {channels: ":", activation: scale_sigmoid}
+    execution:
+      strategy: chunked
+    window:
+      distributed_sharding: false
+      distributed_reduce_chunk_mb: 128
+      keep_input_on_cpu: true
+      sw_device: cuda
+      output_device: cpu
+      # 144 = 128 (training patch) + 16 voxels of context. Default bump blending
+      # de-emphasizes the outer band. Must remain a multiple of MedNeXt's
+      # 16-voxel stride.
+      window_size: [144, 144, 144]
+      sw_batch_size: 2
+      overlap: 0.5
+      blending: bump
+      padding_mode: replicate
+      # BANIS-style boundary handling: snap last window to image_size-roi_size.
+      snap_to_edge: true
+    chunking:
+      enabled: true
+      # raw_prediction parallelizes chunks across DDP ranks (idx % world_size).
+      output_mode: raw_prediction
+      # window stride = 144 * (1 - 0.5) = 72. Internal chunk starts must be
+      # multiples of 72; 1008 = 14 * 72. For 5700 x 12288 x 12288 this gives
+      # roughly 6 x 13 x 13 = ~1014 chunks; the last chunk along each axis is
+      # smaller because the full extent is not divisible by 1008.
+      chunk_size: [1008, 1008, 1008]
+      halo: [0, 0, 0]
+      axes: all
+    save_results: true
+    save_backend: h5
+    save_dtype: float16
+    test_time_augmentation:
+      enabled: false
+
+  decoding:
+    enabled: true
+    # Tag participates in decoded-output filenames so chunked variants do not
+    # collide with prior runs.
+    save_suffix: zebrafinch_chunk_raw_grid1008_halo0
+    # Empty string = no affinity QC mask (the inherited base_banis path is
+    # NISB-specific and does not apply to zebrafinch).
+    affinity_mask_path: ""
+    steps:
+      - name: decode_affinity_cc
+        kwargs:
+          threshold: 0.75
+          backend: numba
+          edge_offset: 0
+
+  evaluation:
+    enabled: false
+
+test:
+  system:
+    # raw_prediction chunking parallelizes across ranks.
+    num_gpus: -1
+  decoding:
+    # Override the NISB-specific QC mask inherited from base_banis' test stage;
+    # it does not apply to zebrafinch. Empty string = no affinity mask.
+    affinity_mask_path: ""
+  data:
+    test:
+      # Tile-reader input for the zebrafinch im_align_10nm PNG pyramid.
+      # Source layout under /projects/weilab/dataset/zebrafinch/im_align_10nm/
+      #   <section:04d>/{row}_{column}.png  with row,column in 0..2 and
+      #   tile_size = [4096, 4096], dtype = uint8 (mode L). Effective volume
+      #   shape (ZYX) = 5700 x 12288 x 12288.
+      #
+      # Canonical tile metadata (consumed by TileLoaderd in
+      # connectomics/data/io/transforms.py) lives in im_align_10nm.json with
+      # the shape:
+      #   {
+      #     "image": ["im_align_10nm/0000/{row}_{column}.png", ...,
+      #               "im_align_10nm/5699/{row}_{column}.png"],
+      #     "depth": 5700, "height": 12288, "width": 12288,
+      #     "tile_size": [4096, 4096],
+      #     "dtype": "uint8",
+      #     "tile_st": [0, 0],
+      #     "tile_ratio": 1.0
+      #   }
+      #
+      # NOTE on wiring: the framework already ships the tile primitives
+      # (connectomics/data/io/tiles.py::reconstruct_volume_from_tiles and the
+      # TileLoaderd MONAI transform), but the chunked-inference path uses
+      # LazyVolumeAccessor (connectomics/inference/lazy.py), which currently
+      # only opens h5/zarr/tiff. To run this config end-to-end you either
+      # (a) extend LazyVolumeAccessor with a tile/JSON backend that reads the
+      # JSON above and stitches PNG tiles on demand, or (b) pre-stitch the
+      # tiles into a single h5/zarr volume and point image: at it.
+      dataset_type: tile
+      path: /projects/weilab/dataset/zebrafinch
+      json: im_align_10nm.json
+      resolution: [10, 10, 10]
