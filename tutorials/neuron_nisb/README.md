@@ -11,4 +11,4 @@ for per-prediction error analysis.
 | YAML | Deep learning | Decoding | NERL |
 |---|---|---|---|
 | `base_banis.yaml` | [BANIS](https://github.com/jasonkena/banis) reproduction (MedNeXt-S/k3, 6-ch affinity, 50k steps) | cc3d | 24.4% |
-| `base_banis+.yaml` | +ML ops (MedNeXt-L/k3, PerChannelBCE + EMA, erosion=2, 200k steps) | cc3d @ val-selected threshold (0.66) | 60.1% |
+| `base_banis+.yaml` | +ML ops (MedNeXt-L/k3, PerChannelBCE + EMA, erosion=2, 200k steps) | cc3d | 60.1% |
