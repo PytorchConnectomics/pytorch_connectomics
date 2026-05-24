@@ -3,7 +3,7 @@ _base_:
 
 experiment_name: nisb_base_banis
 description: BANIS train_base_long reproduction target (9nm, 6-channel affinity, MedNeXt-S/k3, 128-cube,
-  200k steps)
+  50k steps)
 
 save_path: outputs/nisb_base_banis
 
@@ -125,9 +125,9 @@ train:
       frequency: 1
       min_lr: 0.0
       params:
-        t_max: 200000
+        t_max: 50000
     max_epochs: 1000
-    max_steps: 200000
+    max_steps: 50000
     n_steps_per_epoch: 5000
     val_check_interval: 5000
     val_check_interval_unit: step
