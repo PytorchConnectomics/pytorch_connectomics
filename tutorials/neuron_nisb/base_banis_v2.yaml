@@ -1,5 +1,5 @@
 _base_:
-  - base_banis_v1.yaml
+  - base_banis_opt.yaml
 
 experiment_name: nisb_base_banis_v2
 description: >-

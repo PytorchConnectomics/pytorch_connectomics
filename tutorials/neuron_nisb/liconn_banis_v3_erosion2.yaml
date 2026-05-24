@@ -1,5 +1,5 @@
 _base_:
-  - base_banis_v3_erosion2.yaml
+  - base_banis+.yaml
 
 experiment_name: nisb_liconn_banis_v3_erosion2
 description: >-
