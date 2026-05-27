@@ -115,8 +115,11 @@ pytc-demo = "connectomics.utils.demo:run_demo"
 pytc-download = "connectomics.utils.download:main"
 
 [tool.setuptools]
-packages = ["connectomics"]
 include-package-data = true
+
+[tool.setuptools.packages.find]
+include = ["connectomics*"]
+namespaces = false
 
 [tool.setuptools.package-data]
 connectomics = ["py.typed"]
