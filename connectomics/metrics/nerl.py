@@ -154,7 +154,7 @@ def networkx_skeleton_to_erl_graph(
         edge_coords = node_coords_arr.astype(np.float64) * res
 
     edge_buckets: list[list[tuple[int, int, float]]] = [[] for _ in skeleton_ids]
-    skeleton_len = np.zeros(len(skeleton_ids), dtype=np.float64)
+    skeleton_len: np.ndarray = np.zeros(len(skeleton_ids), dtype=np.float64)
     for u, v, edge_data in skeleton.edges(data=True):
         if u not in node_index_by_id or v not in node_index_by_id:
             continue
@@ -173,12 +173,12 @@ def networkx_skeleton_to_erl_graph(
     edge_ptr = [0]
     edge_u = []
     edge_v = []
-    edge_len = []
+    edge_lens: list[float] = []
     for bucket in edge_buckets:
         for u_idx, v_idx, length in bucket:
             edge_u.append(u_idx)
             edge_v.append(v_idx)
-            edge_len.append(length)
+            edge_lens.append(length)
         edge_ptr.append(len(edge_u))
 
     return ERLGraph(
@@ -188,7 +188,7 @@ def networkx_skeleton_to_erl_graph(
         node_coords_zyx=node_coords_arr,
         edge_u=np.asarray(edge_u, dtype=np.uint32),
         edge_v=np.asarray(edge_v, dtype=np.uint32),
-        edge_len=np.asarray(edge_len, dtype=np.float32),
+        edge_len=np.asarray(edge_lens, dtype=np.float32),
         edge_ptr=np.asarray(edge_ptr, dtype=np.uint64),
     )
 
