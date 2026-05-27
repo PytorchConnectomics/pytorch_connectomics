@@ -16,7 +16,7 @@ from .output_naming import (
     is_raw_cache_suffix,
     resolve_prediction_cache_suffix,
 )
-from .sharding import resolve_test_image_paths
+from .sharding import is_chunked_raw_inference, resolve_test_image_paths
 
 
 def resolve_cached_prediction_files(
@@ -26,7 +26,14 @@ def resolve_cached_prediction_files(
     fallback_tta_suffixes: list[str] | None = None,
     preferred_decoded_suffix: str | None = None,
 ) -> tuple[bool, str | None, list[Path]]:
-    """Resolve cached prediction files, preferring the exact decoded final file."""
+    """Resolve cached prediction files, preferring the exact decoded final file.
+
+    Only the exact ``preferred_decoded_suffix`` is reused. A previous variant
+    accepted a permissive ``decoded_glob_suffix`` that returned any matching
+    decoded file regardless of decoding kwargs (thresholds, etc.) — that
+    silently produced eval outputs whose filenames advertised new kwargs while
+    the numbers came from a cached decode with old kwargs.
+    """
     if not filenames:
         return False, None, []
 
@@ -51,16 +58,16 @@ def resolve_cached_prediction_files(
                 suffixes_to_try.append(try_suffix)
 
     for try_suffix in suffixes_to_try:
-        resolved_files: list[Path] = []
+        candidate_files: list[Path] = []
         all_exist = True
         for filename in filenames:
             pred_file = output_dir / filename / try_suffix
             if not os.path.exists(pred_file) or not is_valid_hdf5_prediction_file(pred_file):
                 all_exist = False
                 break
-            resolved_files.append(pred_file)
-        if all_exist and len(resolved_files) == len(filenames):
-            return True, try_suffix, resolved_files
+            candidate_files.append(pred_file)
+        if all_exist and len(candidate_files) == len(filenames):
+            return True, try_suffix, candidate_files
 
     return False, None, []
 
@@ -156,6 +163,12 @@ def has_cached_predictions_in_output_dir(
     if mode == "tune":
         tune_output_dir = getattr(getattr(cfg, "tune", None), "save_predictions_path", None)
         output_dirs = [path for path in (tune_output_dir, output_dir) if path]
+        if checkpoint_path:
+            from .checkpoint_dispatch import get_checkpoint_test_output_dir
+
+            checkpoint_test_dir = get_checkpoint_test_output_dir(checkpoint_path)
+            if checkpoint_test_dir is not None:
+                output_dirs.append(checkpoint_test_dir)
     if not output_dirs:
         return False
 
@@ -262,12 +275,19 @@ def is_test_evaluation_enabled(cfg: Config) -> bool:
 def try_cache_only_test_execution(
     cfg: Config,
     mode: str,
-    shard_id: int = None,
-    num_shards: int = None,
+    shard_id: int | None = None,
+    num_shards: int | None = None,
     checkpoint_path: str | None = None,
 ) -> bool:
     """Run cache-only test path before model/trainer/datamodule creation when possible."""
     if mode != "test":
+        return False
+    # Chunked raw-prediction inference caches per chunk (skip-on-exists lives
+    # inside the chunked path) and shards by chunk grid, not by whole volume.
+    # The whole-volume cache-only path here does not model per-chunk artifacts,
+    # and under --shard-id/--num-shards its volume sharding would strand every
+    # shard but shard 0 for a single-volume input. Let the chunked path own it.
+    if is_chunked_raw_inference(cfg):
         return False
     data_cfg = getattr(cfg, "data", None)
     if data_cfg is None:
@@ -441,7 +461,10 @@ def _try_cache_only_intermediate_eval(
         try:
             predictions_np = read_volume(str(pred_file), dataset="main")
         except Exception as exc:
-            print(f"  WARNING: failed to read {pred_file.name}: {exc}; falling back to trainer.test().")
+            print(
+                f"  WARNING: failed to read {pred_file.name}: {exc}; "
+                "falling back to trainer.test()."
+            )
             return False
 
         if predictions_np.ndim < 4:

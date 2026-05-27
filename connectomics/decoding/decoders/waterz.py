@@ -21,7 +21,7 @@ logger = logging.getLogger(__name__)
 
 try:
     import waterz
-    from waterz import merge_function_to_scoring, dust_merge_from_region_graph
+    from waterz import dust_merge_from_region_graph, merge_function_to_scoring
 
     WATERZ_AVAILABLE = True
 except ImportError:
@@ -34,6 +34,7 @@ def decode_waterz(
     merge_function: str = "aff50_his256",
     aff_threshold: Tuple[float, float] = (0.0001, 0.9999),
     channel_order: str = "xyz",
+    edge_offset: int = 1,
     use_aff_uint8: bool = False,
     use_seg_uint32: bool = False,
     compute_fragments: bool = False,
@@ -45,12 +46,6 @@ def decode_waterz(
     dust_merge_size: int = 0,
     dust_merge_affinity: float = 0.0,
     dust_remove_size: int = 0,
-    branch_merge: bool = False,
-    iou_threshold: float = 0.5,
-    best_buddy: bool = True,
-    one_sided_threshold: float = 0.8,
-    one_sided_min_size: int = 100,
-    affinity_threshold: float = 0.0,
     return_all_thresholds: bool = False,
     **kwargs: Any,
 ) -> "np.ndarray | Dict[float, np.ndarray]":
@@ -94,6 +89,14 @@ def decode_waterz(
             (e.g. offsets ``["0-0-1", "0-1-0", "1-0-0"]``), set this to
             ``"xyz"`` and the channels will be transposed automatically.
             Default: ``"xyz"``
+        edge_offset: Index of edge ``v ↔ v+1`` along each axis, relative to
+            source voxel ``v``. ``1`` = destination-index (waterz / zwatershed
+            / abiss / ``affinity_mode=deepem``; aff stored at ``v+1``).
+            ``0`` = source-index (BANIS's ``comp_affinities`` /
+            ``affinity_mode=banis``; aff stored at ``v``). When ``0``, each
+            channel is rolled by +1 along its corresponding spatial axis
+            after channel reorder, converting BANIS source-stored affinities
+            to waterz-native destination-stored layout. Default: ``1``.
         use_aff_uint8: Convert float affinities to uint8 before waterz.
             Saves 4x memory and runs the entire C++ pipeline in integer
             arithmetic.  Lossless for ``HistogramQuantileAffinity`` with
@@ -120,19 +123,6 @@ def decode_waterz(
         dust_remove_size: After dust merge, remove any remaining segments
             smaller than this (e.g. isolated fragments with no neighbors
             to merge into).  0 to disable. Default: 0
-        branch_merge: Enable branch merge postprocessing.  Resolves false
-            splits by analyzing segment continuity across z-slices using
-            IOU overlap, best-buddy matching, and one-sided IOU.
-            Default: False
-        iou_threshold: Full Jaccard IOU threshold for branch merge.
-            Default: 0.5
-        best_buddy: Enable mutual best-match merge.  Default: True
-        one_sided_threshold: One-sided IOU threshold
-            (``overlap / min(size0, size1)``).  0 to disable.  Default: 0.8
-        one_sided_min_size: Minimum segment size in slice for one-sided
-            merge.  Default: 100
-        affinity_threshold: Minimum mean z-boundary affinity for a merge.
-            0 to disable.  Default: 0.0
         return_all_thresholds: If True and multiple thresholds are given,
             return a dict mapping each threshold to its segmentation.
             Otherwise return only the last threshold's result. Default: False
@@ -181,12 +171,50 @@ def decode_waterz(
     if predictions.shape[0] < 3:
         raise ValueError(f"Expected >= 3 affinity channels, got {predictions.shape[0]}.")
 
+    branch_merge_requested = bool(kwargs.pop("branch_merge", False))
+    branch_merge_keys = {
+        "iou_threshold",
+        "best_buddy",
+        "one_sided_threshold",
+        "one_sided_min_size",
+        "affinity_threshold",
+    }
+    for key in branch_merge_keys:
+        kwargs.pop(key, None)
+    if branch_merge_requested:
+        raise ValueError(
+            "decode_waterz no longer runs branch_merge. Add a separate "
+            "decoding step with name: branch_merge."
+        )
+
     from waterz._uint8 import prepare_affinities, scale_aff_threshold, scale_thresholds
 
     # Prepare affinities: dtype normalisation, channel reorder, contiguous
     affs, is_uint8 = prepare_affinities(
-        predictions, channel_order=channel_order, use_aff_uint8=use_aff_uint8,
+        predictions,
+        channel_order=channel_order,
+        use_aff_uint8=use_aff_uint8,
     )
+
+    # Convert source-stored (BANIS) -> destination-stored (waterz native).
+    # affs has shape (3, Z, Y, X); channel c maps to spatial axis c of the
+    # (Z, Y, X) volume, so rolling channel c by +1 along its corresponding
+    # spatial axis lands the edge value at the destination voxel v+1.
+    if int(edge_offset) == 0:
+        for c in range(3):
+            rolled = np.roll(affs[c], shift=1, axis=c)
+            boundary: List[Any] = [slice(None)] * 3
+            boundary[c] = 0
+            rolled[tuple(boundary)] = 0
+            affs[c] = rolled
+    elif int(edge_offset) != 1:
+        raise ValueError(
+            f"edge_offset must be 0 (source/BANIS) or 1 (destination/waterz), got {edge_offset}."
+        )
+
+    # Keep public result keys in the caller-provided threshold scale even when
+    # uint8 execution requires scaled internal waterz thresholds.
+    threshold_keys = scale_thresholds(thresholds, is_uint8=False)
 
     # Scale float [0,1] parameters to [0,255] for uint8
     thresholds_list = scale_thresholds(thresholds, is_uint8)
@@ -236,7 +264,9 @@ def decode_waterz(
 
         # Strip weak-boundary voxels so dust merge sees true core sizes.
         if boundary_threshold > 0:
-            n_removed = waterz.strip_boundary(seg, affs, threshold=boundary_threshold, channels="xy")
+            n_removed = waterz.strip_boundary(
+                seg, affs, threshold=boundary_threshold, channels="xy"
+            )
             logger.info("boundary_threshold=%s: zeroed %d voxels", boundary_threshold, n_removed)
 
         # Size+affinity dust merge reusing the agglomeration's region graph
@@ -244,31 +274,13 @@ def decode_waterz(
         if do_dust_merge:
             seg = seg.astype(np.uint64, copy=False)
             dust_merge_from_region_graph(
-                seg, region_graph,
+                seg,
+                region_graph,
                 is_uint8=is_uint8,
                 size_th=dust_merge_size,
                 weight_th=dust_merge_affinity,
                 dust_th=dust_remove_size,
             )
-        # Branch merge: resolve false splits via z-slice IOU analysis
-        if branch_merge:
-            from .branch_merge import branch_merge as _branch_merge
-
-            n_before = len(np.unique(seg)) - (1 if 0 in seg else 0)
-            logger.info("branch_merge: starting on %d segments", n_before)
-            seg = _branch_merge(
-                seg,
-                affinities=affs,
-                iou_threshold=iou_threshold,
-                best_buddy=best_buddy,
-                one_sided_threshold=one_sided_threshold,
-                one_sided_min_size=one_sided_min_size,
-                affinity_threshold=affinity_threshold,
-                channel_order="zyx",  # already converted above
-            )
-            n_after = len(np.unique(seg)) - (1 if 0 in seg else 0)
-            logger.info("branch_merge: %d -> %d segments", n_before, n_after)
-
         if min_instance_size > 0:
             from ..utils import remove_small_instances
 
@@ -277,7 +289,7 @@ def decode_waterz(
 
     # Return results
     if return_all_thresholds and len(thresholds_list) > 1:
-        return {round(t, 10): s for t, s in zip(thresholds_list, processed)}
+        return {round(t, 10): s for t, s in zip(threshold_keys, processed)}
 
     # Return last threshold result
     return processed[-1]

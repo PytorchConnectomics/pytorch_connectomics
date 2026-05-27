@@ -5,6 +5,8 @@ experiment_name: nisb_base_banis_chunk
 description: BANIS train_base_long reproduction target with chunked inference (9nm, 6-channel affinity,
   MedNeXt-S/k3, 128-cube, 200k steps)
 
+save_path: outputs/nisb_base_banis
+
 default:
   system:
     num_gpus: -1
@@ -224,7 +226,6 @@ train:
       save_on_train_epoch_end: false
       save_last: true
       checkpoint_filename: "{epoch:03d}-{val_loss_total:.4f}"
-      save_path: outputs/nisb_base_banis
 
 test:
   system:

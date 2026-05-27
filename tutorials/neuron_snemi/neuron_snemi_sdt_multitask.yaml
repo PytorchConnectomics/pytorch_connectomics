@@ -120,12 +120,6 @@ default:
         dust_merge_size: 800
         dust_merge_affinity: 0.3
         dust_remove_size: 600
-        branch_merge: false
-        iou_threshold: 0.5
-        best_buddy: true
-        one_sided_threshold: 0.8
-        one_sided_min_size: 100
-
     postprocessing:
       enabled: true
   evaluation:

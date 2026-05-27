@@ -4,11 +4,14 @@ from importlib import import_module
 
 _LAZY_DECODERS = {
     "branch_merge": "connectomics.decoding.decoders.branch_merge",
+    "branch_split": "connectomics.decoding.decoders.branch_split",
     "decode_abiss": "connectomics.decoding.decoders.abiss",
     "decode_affinity_cc": "connectomics.decoding.decoders.segmentation",
     "decode_distance_watershed": "connectomics.decoding.decoders.segmentation",
     "decode_instance_binary_contour_distance": "connectomics.decoding.decoders.segmentation",
     "decode_waterz": "connectomics.decoding.decoders.waterz",
+    "longrange_guided_split": "connectomics.decoding.decoders.longrange_guided_split",
+    "segmentation_grow": "connectomics.decoding.decoders.segmentation_grow",
     "polarity2instance": "connectomics.decoding.decoders.synapse",
 }
 
@@ -28,7 +31,10 @@ __all__ = [
     "decode_distance_watershed",
     "decode_affinity_cc",
     "decode_waterz",
+    "longrange_guided_split",
+    "segmentation_grow",
     "branch_merge",
+    "branch_split",
     "polarity2instance",
     "decode_abiss",
 ]

@@ -101,11 +101,76 @@ def _compute_z_extents(seg: np.ndarray) -> Tuple[Dict[int, int], Dict[int, int]]
     return z_first, z_last
 
 
+def _load_h5_dataset(path: str, dataset: str = "main") -> np.ndarray:
+    import h5py
+
+    with h5py.File(path, "r") as f:
+        if dataset in f:
+            return f[dataset][...]
+        keys = [key for key in f.keys() if hasattr(f[key], "shape")]
+        if len(keys) == 1:
+            return f[keys[0]][...]
+        raise ValueError(
+            f"{path}: expected dataset '{dataset}' or exactly one dataset, got {list(f.keys())}"
+        )
+
+
 # ---------------------------------------------------------------------------
-# Slice overlap computation — delegates to waterz.face_merge.slice_overlaps
+# Slice overlap computation
 # ---------------------------------------------------------------------------
 
-from waterz.face_merge import slice_overlaps as _slice_overlaps
+try:
+    from waterz.face_merge import slice_overlaps as _waterz_slice_overlaps
+except ImportError:  # pragma: no cover - exercised when waterz is unavailable.
+    _waterz_slice_overlaps = None
+
+
+def _fallback_slice_overlaps(
+    seg0: np.ndarray,
+    seg1: np.ndarray,
+    z_aff: Optional[np.ndarray] = None,
+) -> np.ndarray:
+    """Pure-numpy fallback for ``waterz.face_merge.slice_overlaps``.
+
+    Columns are ``id0, id1, size0, size1, overlap, mean_affinity``.
+    """
+    flat0 = np.asarray(seg0).ravel()
+    flat1 = np.asarray(seg1).ravel()
+    mask = (flat0 != 0) & (flat1 != 0)
+    if not mask.any():
+        return np.empty((0, 6), dtype=np.float64)
+
+    pair_values = np.stack([flat0[mask], flat1[mask]], axis=1)
+    pairs, inverse, counts = np.unique(pair_values, axis=0, return_inverse=True, return_counts=True)
+
+    ids0, counts0 = np.unique(flat0[flat0 != 0], return_counts=True)
+    ids1, counts1 = np.unique(flat1[flat1 != 0], return_counts=True)
+    sizes0 = dict(zip(ids0.tolist(), counts0.tolist()))
+    sizes1 = dict(zip(ids1.tolist(), counts1.tolist()))
+
+    overlaps = np.empty((len(pairs), 6), dtype=np.float64)
+    overlaps[:, 0] = pairs[:, 0]
+    overlaps[:, 1] = pairs[:, 1]
+    overlaps[:, 2] = [sizes0[int(label)] for label in pairs[:, 0]]
+    overlaps[:, 3] = [sizes1[int(label)] for label in pairs[:, 1]]
+    overlaps[:, 4] = counts
+    if z_aff is None:
+        overlaps[:, 5] = 0.0
+    else:
+        aff_values = np.asarray(z_aff, dtype=np.float64).ravel()[mask]
+        aff_sums = np.bincount(inverse, weights=aff_values, minlength=len(pairs))
+        overlaps[:, 5] = aff_sums / np.maximum(counts, 1)
+    return overlaps
+
+
+def _slice_overlaps(
+    seg0: np.ndarray,
+    seg1: np.ndarray,
+    z_aff: Optional[np.ndarray] = None,
+) -> np.ndarray:
+    if _waterz_slice_overlaps is not None:
+        return _waterz_slice_overlaps(seg0, seg1, z_aff)
+    return _fallback_slice_overlaps(seg0, seg1, z_aff)
 
 
 # ---------------------------------------------------------------------------
@@ -146,11 +211,13 @@ def _bbox_touch_mask(
         bbox_ok = id0_ends | id1_starts
 
     if min_segment_size > 0:
-        size_ok = np.array([
-            seg_sizes.get(int(overlaps[i, 0]), 0) >= min_segment_size
-            and seg_sizes.get(int(overlaps[i, 1]), 0) >= min_segment_size
-            for i in range(len(overlaps))
-        ])
+        size_ok = np.array(
+            [
+                seg_sizes.get(int(overlaps[i, 0]), 0) >= min_segment_size
+                and seg_sizes.get(int(overlaps[i, 1]), 0) >= min_segment_size
+                for i in range(len(overlaps))
+            ]
+        )
         bbox_ok &= size_ok
 
     return bbox_ok
@@ -306,6 +373,8 @@ def branch_merge(
     seg: np.ndarray,
     affinities: Optional[np.ndarray] = None,
     *,
+    affinity_path: str = "",
+    affinity_dataset: str = "main",
     iou_threshold: float = 0.5,
     singleton_size_ratio: float = 0.5,
     best_buddy: bool = True,
@@ -327,6 +396,11 @@ def branch_merge(
     affinities : ndarray, shape (C, Z, Y, X), optional
         Raw affinity predictions with C >= 3 short-range channels.
         Used for boundary affinity validation when *affinity_threshold* > 0.
+    affinity_path : str
+        Optional HDF5 file containing affinity predictions. Used only when
+        *affinities* is not provided.
+    affinity_dataset : str
+        Dataset name inside *affinity_path*. Default: ``"main"``.
     iou_threshold : float
         Stage 1 threshold.  Segment pairs with full Jaccard IOU above
         this value at bbox boundaries are merged.  Default: 0.5
@@ -358,6 +432,9 @@ def branch_merge(
     if n_slices < 2:
         return seg.copy()
 
+    if affinities is None and affinity_path:
+        affinities = _load_h5_dataset(affinity_path, affinity_dataset)
+
     # Compute z-extent for each segment (first/last z-slice)
     logger.info("Computing z-extents for bbox-touch filter...")
     z_first, z_last = _compute_z_extents(seg)
@@ -368,9 +445,7 @@ def branch_merge(
     if affinities is not None and affinity_threshold > 0:
         affinities = np.asarray(affinities, dtype=np.float32)
         if affinities.ndim != 4 or affinities.shape[0] < 3:
-            raise ValueError(
-                f"Expected affinities (C>=3, Z, Y, X), got {affinities.shape}"
-            )
+            raise ValueError(f"Expected affinities (C>=3, Z, Y, X), got {affinities.shape}")
         if channel_order.lower() == "xyz":
             z_ch = affinities[2]
         else:
@@ -391,8 +466,12 @@ def branch_merge(
     for z in range(n_slices - 1):
         ovl = _slice_overlaps(seg[z], seg[z + 1], z_affs[z])
         all_overlaps.append(ovl)
-        bbox_masks_strict.append(_bbox_touch_mask(ovl, z, z_first, z_last, seg_sizes, 0, strict=True))
-        bbox_masks_relaxed.append(_bbox_touch_mask(ovl, z, z_first, z_last, seg_sizes, 0, strict=False))
+        bbox_masks_strict.append(
+            _bbox_touch_mask(ovl, z, z_first, z_last, seg_sizes, 0, strict=True)
+        )
+        bbox_masks_relaxed.append(
+            _bbox_touch_mask(ovl, z, z_first, z_last, seg_sizes, 0, strict=False)
+        )
 
     uf = _UnionFind()
 
@@ -400,8 +479,13 @@ def branch_merge(
     s1_count = 0
     for ovl, bmask in zip(all_overlaps, bbox_masks_relaxed):
         s1_count += _stage1_iou(
-            ovl, uf, iou_threshold, affinity_threshold, has_aff,
-            bbox_mask=bmask, singleton_size_ratio=singleton_size_ratio,
+            ovl,
+            uf,
+            iou_threshold,
+            affinity_threshold,
+            has_aff,
+            bbox_mask=bmask,
+            singleton_size_ratio=singleton_size_ratio,
         )
     logger.info("Stage 1 (IOU >= %.2f, bbox-touch): %d merges", iou_threshold, s1_count)
 
@@ -417,11 +501,17 @@ def branch_merge(
     if one_sided_threshold > 0:
         for ovl, bmask in zip(all_overlaps, bbox_masks_relaxed):
             s3_count += _stage3_one_sided(
-                ovl, uf, one_sided_threshold, one_sided_min_size,
-                affinity_threshold, has_aff, bmask,
+                ovl,
+                uf,
+                one_sided_threshold,
+                one_sided_min_size,
+                affinity_threshold,
+                has_aff,
+                bmask,
             )
-        logger.info("Stage 3 (one-sided >= %.2f, bbox-touch): %d merges",
-                     one_sided_threshold, s3_count)
+        logger.info(
+            "Stage 3 (one-sided >= %.2f, bbox-touch): %d merges", one_sided_threshold, s3_count
+        )
 
     total = s1_count + s2_count + s3_count
     if total == 0:
