@@ -16,7 +16,7 @@ from .output_naming import (
     is_raw_cache_suffix,
     resolve_prediction_cache_suffix,
 )
-from .sharding import resolve_test_image_paths
+from .sharding import is_chunked_raw_inference, resolve_test_image_paths
 
 
 def resolve_cached_prediction_files(
@@ -281,6 +281,13 @@ def try_cache_only_test_execution(
 ) -> bool:
     """Run cache-only test path before model/trainer/datamodule creation when possible."""
     if mode != "test":
+        return False
+    # Chunked raw-prediction inference caches per chunk (skip-on-exists lives
+    # inside the chunked path) and shards by chunk grid, not by whole volume.
+    # The whole-volume cache-only path here does not model per-chunk artifacts,
+    # and under --shard-id/--num-shards its volume sharding would strand every
+    # shard but shard 0 for a single-volume input. Let the chunked path own it.
+    if is_chunked_raw_inference(cfg):
         return False
     data_cfg = getattr(cfg, "data", None)
     if data_cfg is None:
