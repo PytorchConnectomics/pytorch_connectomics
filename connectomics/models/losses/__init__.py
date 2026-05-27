@@ -16,6 +16,7 @@ from .build import (
 # Connectomics-specific losses (for direct use if needed)
 from .losses import (
     GANLoss,
+    SoftClDiceLoss,
     WeightedMAELoss,
     WeightedMSELoss,
 )
@@ -42,9 +43,10 @@ __all__ = [
     "get_loss_metadata",
     "get_loss_metadata_for_module",
     # Custom losses
-    "WeightedMSELoss",
-    "WeightedMAELoss",
     "GANLoss",
+    "SoftClDiceLoss",
+    "WeightedMAELoss",
+    "WeightedMSELoss",
     # Regularization losses
     "BinaryRegularization",
     "ForegroundDistanceConsistency",

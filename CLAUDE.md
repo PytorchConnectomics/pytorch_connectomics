@@ -11,8 +11,8 @@ PyTorch Connectomics (PyTC) is a modern deep learning framework for automatic an
 Map of common user intents → authoritative source files. Use this
 table first; jump straight to the listed paths instead of grepping.
 This is the single source of truth for agent navigation; the prompt
-files at the repo root (`INSTALL_PROMPT.md`, `ADD_DATASET_PROMPT.md`,
-`ADD_ARCH_PROMPT.md`, `DEBUG_TUTORIAL_PROMPT.md`) are thin wrappers
+files under `prompts/` (`prompts/INSTALL.md`, `prompts/ADD_DATASET.md`,
+`prompts/ADD_ARCH.md`, `prompts/DEBUG_TUTORIAL.md`) are thin wrappers
 that point back at it.
 
 | Intent | Authoritative source | Concrete example |
@@ -27,7 +27,7 @@ that point back at it.
 | Change augmentation | `connectomics/data/augmentation/build.py`; profile YAMLs in `config/profiles/augmentation_*.yaml` | `data/augmentation/transforms.py` |
 | Change postprocess | `connectomics/decoding/postprocess.py`; templates in `config/templates/decoding_*.yaml` | `decoding/streamed_chunked.py` |
 | Add a tutorial config | `tutorials/<name>.yaml`; validate with `python scripts/validate_tutorial_configs.py --glob 'tutorials/<name>.yaml'` (note: `--glob` is additive over the default `tutorials/*.yaml`; filter output for the new path before fixing anything) | `tutorials/mito_lucchi++.yaml` |
-| Debug a failing tutorial | `DEBUG_TUTORIAL_PROMPT.md`; reproduce with `python scripts/main.py --config <yaml> --fast-dev-run` | `python scripts/main.py --config <yaml> --fast-dev-run` |
+| Debug a failing tutorial | `prompts/DEBUG_TUTORIAL.md`; reproduce with `python scripts/main.py --config <yaml> --fast-dev-run` | `python scripts/main.py --config <yaml> --fast-dev-run` |
 
 When a new intent class shows up, add a row here rather than scattering
 pointers across READMEs.
@@ -299,7 +299,8 @@ tutorials/                          # Example configurations (16 canonical YAMLs
 │                                   #   vesicle_xm, fiber_linghu26, minimal, waterz_decoding
 └── waterz_decoding_large{,_abiss}.yaml  # Custom large-volume workflow YAMLs
                                     #   (top-level `large_decode:`/`abiss_large:` keys;
-                                    #   bypass structured Config; consumed by scripts/decode_large.py)
+                                    #   bypass structured Config; consumed by the
+                                    #   `waterz_decode_large` console script in lib/waterz/)
 
 tests/                              # Test suite
 ├── unit/                           # Unit tests
@@ -698,9 +699,12 @@ scheduler:
 
 ### Entry Points
 - `scripts/main.py`: Primary entry — parse → setup config → `runtime.dispatch`
-- `scripts/decode_large.py`: Custom large-volume decode workflow (consumes
-  `large_decode:`/`abiss_large:` top-level keys in `tutorials/waterz_decoding_large*.yaml`;
-  these YAMLs intentionally bypass the structured `Config` schema)
+- `waterz_decode_large` (console script from `lib/waterz/`, module
+  `waterz.cli.decode_large`): Custom large-volume decode workflow (consumes
+  `large_decode:` top-level keys in `tutorials/waterz_decoding_large*.yaml`
+  and `tutorials/neuron_nisb/*_waterz_large_decode.yaml`; these YAMLs
+  intentionally bypass the structured `Config` schema). Install via
+  `pip install -e lib/waterz/`.
 
 ## Development Guidelines
 
@@ -769,8 +773,9 @@ The architectural skeleton is correct; behavioral cleanup partial.
   cache resolution, sharding, preflight, torch-safe-globals
 - Tutorial migration: 38/40 canonical tutorials load through `Config`; the 2
   exceptions (`tutorials/waterz_decoding_large{,_abiss}.yaml`) are custom
-  workflow YAMLs consumed by `scripts/decode_large.py` and intentionally bypass
-  the structured schema (validator skips via `CUSTOM_WORKFLOW_ROOTS`)
+  workflow YAMLs consumed by the `waterz_decode_large` console script (from
+  `lib/waterz/`) and intentionally bypass the structured schema (validator
+  skips via `CUSTOM_WORKFLOW_ROOTS`)
 - Architecture rename: `nnunet_pretrained` → `nnunet`
 - Lazy decoder registration via `_BUILTINS_REGISTERED` flag
 - Public API trim with snapshot tests

@@ -38,7 +38,7 @@ checkpoints live in **[`docs/benchmarks/`](docs/benchmarks/)**.
 
 | Dataset   | Task                    | Architecture       | Metric          | Score |
 |-----------|-------------------------|--------------------|-----------------|-------|
-| Lucchi++  | Mito — semantic         | Swin UNETR         | Jaccard ↑       | —     |
+| Lucchi++  | Mito — semantic         | MedNeXt-S          | Jaccard ↑       | [0.935](https://huggingface.co/pytc/tutorial/tree/main/mito_lucchi++) |
 | MitoEM-R  | Mito — instance         | MedNeXt-L + waterz | AP ↑            | —     |
 | SNEMI3D   | Neurons — instance      | RSUNet + waterz    | adapted Rand ↓  | —     |
 | BANIS     | Neurons — instance      | MedNeXt-M + abiss  | NERL ↑          | —     |
@@ -71,7 +71,7 @@ just install-claude          # or: just install-codex
 conda activate pytc
 ```
 
-Reads [`INSTALL_PROMPT.md`](INSTALL_PROMPT.md) and lets the agent drive `install.py`.
+Reads [`prompts/INSTALL.md`](prompts/INSTALL.md) and lets the agent drive `install.py`.
 Requires an authenticated `claude` or `codex` CLI.
 
 ### c) Manual installation

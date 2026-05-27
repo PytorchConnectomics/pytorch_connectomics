@@ -1,10 +1,12 @@
 _base_:
-  - base_banis_v1.yaml
+  - base_banis_opt.yaml
 
 experiment_name: nisb_base_banis_v3_erosion2
 description: >-
   v3 training setup: v1 loss/EMA plus label erosion=2, using MedNeXt-L/k3
   for higher-capacity affinity prediction.
+
+save_path: outputs/nisb_base_banis_v3_erosion2
 
 default:
   model:
@@ -19,7 +21,3 @@ default:
     label_transform:
       erosion: 2
 
-train:
-  monitor:
-    checkpoint:
-      save_path: outputs/nisb_base_banis_v3_erosion2

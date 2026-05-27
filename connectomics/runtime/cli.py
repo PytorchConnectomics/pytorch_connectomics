@@ -185,14 +185,23 @@ def setup_config(args) -> Config:
         cfg = update_from_cli(cfg, args.overrides)
 
     cfg = resolve_default_profiles(cfg, mode=args.mode)
+
+    # Re-apply CLI overrides after stage resolution: pre-resolution lets
+    # `default.X` / `<mode>.X` overrides propagate into top-level X via the
+    # stage merge, while post-resolution ensures any top-level CLI override
+    # wins over the YAML-explicit `default.X` value that would otherwise
+    # clobber it.
+    if args.overrides:
+        cfg = update_from_cli(cfg, args.overrides)
+
     cfg = resolve_data_paths(cfg)
 
-    # Resolve monitor.checkpoint.save_path after profile/stage resolution so
+    # Resolve top-level save_path after profile/stage resolution so
     # default-stage merges cannot overwrite the YAML-stem default.
-    if not getattr(cfg.monitor.checkpoint, "save_path", None):
-        cfg.monitor.checkpoint.save_path = _default_train_output_base(config_path)
+    if not getattr(cfg, "save_path", None):
+        cfg.save_path = _default_train_output_base(config_path)
     else:
-        cfg.monitor.checkpoint.save_path = str(Path(cfg.monitor.checkpoint.save_path))
+        cfg.save_path = str(Path(cfg.save_path))
 
     # Train mode does not run inference, so cfg.inference.save_path is left
     # empty. Test/tune modes with --checkpoint receive their save_path from

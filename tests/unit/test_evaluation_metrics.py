@@ -6,7 +6,10 @@ import torch
 
 from connectomics.config import Config
 from connectomics.evaluation import EvaluationContext, compute_test_metrics
-from connectomics.evaluation.metrics import compute_binary_metrics, is_instance_segmentation
+from connectomics.evaluation.metric_execution import (
+    compute_binary_metrics,
+    is_instance_segmentation,
+)
 
 
 class _NoMetricContext:

@@ -342,6 +342,16 @@ class MissingSectionConfig:
 
 
 @dataclass
+class LostSectionConfig:
+    """Lost section augmentation configuration."""
+
+    enabled: bool = False
+    prob: float = 0.0
+    num_sections: Any = 1
+    mode: str = "random_neighbor"
+
+
+@dataclass
 class SliceShiftConfig:
     """BANIS-style independent per-slice shift augmentation."""
 
@@ -500,6 +510,7 @@ class AugmentationConfig:
     # Backward-compatible aliases for legacy z-only artifact names.
     misalignment: MisalignmentConfig = field(default_factory=MisalignmentConfig)
     missing_section: MissingSectionConfig = field(default_factory=MissingSectionConfig)
+    lost_section: LostSectionConfig = field(default_factory=LostSectionConfig)
     motion_blur: MotionBlurConfig = field(default_factory=MotionBlurConfig)
     cut_noise: CutNoiseConfig = field(default_factory=CutNoiseConfig)
     cut_blur: CutBlurConfig = field(default_factory=CutBlurConfig)

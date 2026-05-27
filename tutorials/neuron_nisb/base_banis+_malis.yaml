@@ -1,0 +1,33 @@
+_base_:
+  - base_banis+.yaml
+
+experiment_name: nisb_base_banis_v3_erosion2_malis
+description: >-
+  v3_erosion2 setup plus an additional MALIS structured loss on the
+  short-range affinity channels (0..2). Matches the BANIS source-stored
+  affinity offsets ["1-0-0", "0-1-0", "0-0-1"] so the MALIS neighborhood
+  lines up channel-for-channel with the target tensor.
+
+save_path: outputs/nisb_base_banis_v3_erosion2_malis
+
+default:
+  model:
+    loss:
+      # YAML list overrides are replace-not-merge, so the v1 base's
+      # PerChannelBCEWithLogitsLoss term is restated here verbatim and the
+      # MALIS term is appended.
+      losses:
+        - function: PerChannelBCEWithLogitsLoss
+          weight: 1.0
+          kwargs:
+            auto_pos_weight: true
+            max_pos_weight: 10.0
+        - function: MalisLoss
+          weight: 1.0
+          pred_slice: "0:3"
+          target_slice: "0:3"
+          kwargs:
+            nhood: [[1, 0, 0], [0, 1, 0], [0, 0, 1]]
+            sigmoid: true
+            reduction: mean
+            # malis_crop_size: 64  # symmetric; or e.g. [32, 64, 64] for asymmetric. See lib/malis/INVESTIGATION.md.

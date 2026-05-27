@@ -40,6 +40,7 @@ from .transforms import (
     RandCutBlurd,
     RandCutNoised,
     RandElasticd,
+    RandLostSectiond,
     RandMisAlignmentd,
     RandMissingPartsd,
     RandMissingSectiond,
@@ -927,6 +928,16 @@ def _build_augmentations(aug_cfg: AugmentationConfig, keys: list[str], do_2d: bo
                 full_section_prob=aug_cfg.slice_drop_z.full_section_prob,
                 partial_ratio_range=aug_cfg.slice_drop_z.partial_ratio_range,
                 fill_value_range=aug_cfg.slice_drop_z.fill_value_range,
+            )
+        )
+
+    if aug_cfg.lost_section.enabled:
+        defect_transforms.append(
+            RandLostSectiond(
+                keys=["image"],
+                prob=aug_cfg.lost_section.prob,
+                num_sections=aug_cfg.lost_section.num_sections,
+                mode=aug_cfg.lost_section.mode,
             )
         )
 

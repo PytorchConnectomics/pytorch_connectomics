@@ -116,13 +116,51 @@ def apply_decoding_postprocessing(cfg: Any, data: np.ndarray) -> np.ndarray:
     return output
 
 
+_AFFINITY_MASK_SPEC_ATTRS = ("low_z", "high_z", "border_width", "bg_thresh", "source_image")
+
+
+def _read_affinity_mask_spec(mask_path: str) -> dict | None:
+    """Return the affinity-mask spec from the h5 file's attrs, or None.
+
+    Files produced by :func:`connectomics.decoding.qc.build_affinity_mask` carry
+    the mask spec on the ``main`` dataset's ``attrs``. When all required attrs
+    are present (and ``axis_order`` is the expected XYZ), the spec is enough to
+    apply the mask without reading the full mask volume.
+    """
+    import h5py
+
+    with h5py.File(mask_path, "r") as f:
+        if "main" not in f:
+            return None
+        attrs = dict(f["main"].attrs)
+    if not all(k in attrs for k in _AFFINITY_MASK_SPEC_ATTRS):
+        return None
+    axis_order = str(attrs.get("axis_order", "XYZ"))
+    if axis_order != "XYZ":
+        return None
+    return {
+        "low_z": int(attrs["low_z"]),
+        "high_z": int(attrs["high_z"]),
+        "border_width": int(attrs["border_width"]),
+        "bg_thresh": int(attrs["bg_thresh"]),
+        "image_path": str(attrs["source_image"]),
+        "axis_order": axis_order,
+    }
+
+
 def _maybe_apply_affinity_mask(cfg: Any, predictions: np.ndarray) -> np.ndarray:
     """Zero affinity channels at masked-out voxels per ``decoding.affinity_mask_path``.
 
-    The mask file must contain a single 3D ``uint8`` dataset matching the spatial
-    shape of ``predictions[0]`` (the affinity volume). 0 = drop, 1 = keep. Mask is
-    broadcast across the channel dimension; voxels where ``mask==0`` get zeroed
-    so that connected-components decoders sever all outgoing edges there.
+    Two code paths:
+
+    - **Spec fast path** (preferred): if the mask h5 was produced by
+      :func:`build_affinity_mask`, its dataset ``attrs`` carry the spec
+      (``low_z``, ``high_z``, ``border_width``, ``bg_thresh``, ``source_image``).
+      We apply the rules directly via slice writes + a tiny border-strip read
+      from the source image, skipping the multi-GB mask load entirely.
+    - **Legacy slow path**: if the spec attrs are missing (older files or
+      external producers), fall back to reading the full ``(X, Y, Z) uint8``
+      mask and zeroing per channel via boolean fancy indexing.
     """
     decoding_cfg = _cfg_get(cfg, "decoding", None)
     mask_path = _cfg_get(decoding_cfg, "affinity_mask_path", "") or ""
@@ -133,6 +171,39 @@ def _maybe_apply_affinity_mask(cfg: Any, predictions: np.ndarray) -> np.ndarray:
             "affinity_mask_path requires 4D predictions (C, *spatial); "
             f"got shape {predictions.shape}"
         )
+
+    spec = _read_affinity_mask_spec(mask_path)
+    if spec is not None:
+        from .qc.affinity import apply_affinity_mask_from_spec
+
+        src_image = spec.get("image_path") or spec.get("source_image") or ""
+        if src_image:
+            import zarr
+
+            src_shape = tuple(zarr.open(src_image, mode="r").shape[:3])
+            if src_shape != tuple(predictions.shape[1:]):
+                raise ValueError(
+                    f"affinity_mask spec was built for source_image shape "
+                    f"{src_shape}; current predictions have spatial shape "
+                    f"{tuple(predictions.shape[1:])} ({mask_path})"
+                )
+        if spec["high_z"] - spec["low_z"] > predictions.shape[-1]:
+            raise ValueError(
+                f"affinity_mask spec z range exceeds prediction z extent: "
+                f"[{spec['low_z']}, {spec['high_z']}) vs Z={predictions.shape[-1]}"
+            )
+        t0 = time.time()
+        n_zero, n_total = apply_affinity_mask_from_spec(predictions, spec)
+        logger.info(
+            "Applied affinity mask via spec %s in %.2fs: z=[%d,%d) "
+            "border_width=%d bg_thresh=%d zeroed=%d/%d (%.2f%%) across %d channels",
+            mask_path, time.time() - t0,
+            spec["low_z"], spec["high_z"], spec["border_width"], spec["bg_thresh"],
+            n_zero, n_total, 100.0 * n_zero / max(n_total, 1),
+            predictions.shape[0],
+        )
+        return predictions
+
     import h5py
 
     with h5py.File(mask_path, "r") as f:
@@ -155,7 +226,8 @@ def _maybe_apply_affinity_mask(cfg: Any, predictions: np.ndarray) -> np.ndarray:
     n_zero = int(zero_idx.sum())
     n_total = int(zero_idx.size)
     logger.info(
-        "Applying affinity mask %s: zeroing %d/%d voxels (%.2f%%) across %d channels",
+        "Applying affinity mask (legacy load) %s: zeroing %d/%d voxels "
+        "(%.2f%%) across %d channels",
         mask_path,
         n_zero,
         n_total,
@@ -183,6 +255,9 @@ def run_decoding_stage(
         predictions = predictions[0]
     has_decoding_cfg = bool(resolve_decode_modes_from_cfg(cfg))
     if has_decoding_cfg:
+        from .qc import run_affinity_qc
+
+        run_affinity_qc(cfg, predictions)
         predictions = _maybe_apply_affinity_mask(cfg, predictions)
     decoded = apply_decode_mode(cfg, predictions, on_step_complete=on_step_complete)
     postprocessed = apply_decoding_postprocessing(cfg, decoded) if has_decoding_cfg else decoded

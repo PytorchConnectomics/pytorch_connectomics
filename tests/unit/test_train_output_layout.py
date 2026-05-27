@@ -48,7 +48,7 @@ def test_setup_config_default_save_path_is_yaml_stem(tmp_path):
 
     cfg = setup_config(_make_args(cfg_path))
 
-    assert Path(cfg.monitor.checkpoint.save_path).as_posix() == "outputs/lucchi"
+    assert Path(cfg.save_path).as_posix() == "outputs/lucchi"
     # Train mode does not auto-set inference.save_path.
     assert cfg.inference.save_path == ""
 
@@ -63,9 +63,9 @@ def test_train_layout_uses_yaml_stem_and_timestamp(tmp_path, monkeypatch):
     save_config(cfg, cfg_path)
 
     cfg = setup_config(_make_args(cfg_path))
-    setup_run_directory("train", cfg, cfg.monitor.checkpoint.save_path)
+    setup_run_directory("train", cfg, cfg.save_path)
 
-    cp = Path(cfg.monitor.checkpoint.save_path)
+    cp = Path(cfg.save_path)
     assert cp.name == "checkpoints"
     assert re.fullmatch(r"\d{8}_\d{6}", cp.parent.name)
     assert cp.parent.parent.name == "lucchi"
@@ -88,5 +88,5 @@ def test_decode_only_test_mode_defaults_inference_save_path(tmp_path):
     cfg = setup_config(_make_args(cfg_path, mode="test"))
 
     assert cfg.inference.save_path == "outputs/decode_only"
-    # Sanity: monitor.checkpoint.save_path also follows the YAML-stem rule.
-    assert cfg.monitor.checkpoint.save_path == "outputs/decode_only"
+    # Sanity: top-level save_path also follows the YAML-stem rule.
+    assert cfg.save_path == "outputs/decode_only"

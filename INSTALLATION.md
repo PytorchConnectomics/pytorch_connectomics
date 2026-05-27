@@ -97,20 +97,20 @@ without `just` are shown below).
 
 ### Default: interactive (recommended)
 
-The agent reads `INSTALL_PROMPT.md`, runs `install.py`, and asks for
+The agent reads `prompts/INSTALL.md`, runs `install.py`, and asks for
 your approval on each shell command before executing it. Use this
 when you want a guided install without typing the commands yourself.
 
 ```bash
-just install-claude     # opens claude with INSTALL_PROMPT.md
+just install-claude     # opens claude with prompts/INSTALL.md
 # or, without just:
-claude "$(cat INSTALL_PROMPT.md)"
+claude "$(cat prompts/INSTALL.md)"
 ```
 
 ```bash
-just install-codex      # opens codex with INSTALL_PROMPT.md
+just install-codex      # opens codex with prompts/INSTALL.md
 # or, without just:
-codex "$(cat INSTALL_PROMPT.md)"
+codex "$(cat prompts/INSTALL.md)"
 ```
 
 You will see prompts for `conda create -n pytc python=3.11`, the
@@ -126,9 +126,9 @@ shared workstations or development boxes that hold private data.
 
 ```bash
 claude -p --permission-mode bypassPermissions --allowedTools "Bash(*)" \
-       "$(cat INSTALL_PROMPT.md)"
+       "$(cat prompts/INSTALL.md)"
 
-codex exec --dangerously-bypass-approvals-and-sandbox - < INSTALL_PROMPT.md
+codex exec --dangerously-bypass-approvals-and-sandbox - < prompts/INSTALL.md
 ```
 
 ---

@@ -15,6 +15,7 @@ class EvaluationConfig:
     nerl_resolution: Optional[List[float]] = None
     nerl_merge_threshold: int = 1
     nerl_chunk_num: int = 1
+    nerl_num_workers: int = 1
     nerl_skeleton_id_attribute: str = "id"
     nerl_skeleton_position_attribute: str = "index_position"
     nerl_skeleton_edge_length_attribute: str = "edge_length"

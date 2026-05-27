@@ -375,10 +375,24 @@ def create_datamodule(
                 list_datasets()
                 raise FileNotFoundError(f"Training data not found: {cfg.data.train.image}")
 
+    def _dataset_type_for_mode() -> str | None:
+        if mode == "test":
+            return (
+                getattr(cfg.data.test, "dataset_type", None)
+                or getattr(cfg.data.train, "dataset_type", None)
+                or getattr(cfg.data.val, "dataset_type", None)
+            )
+        if mode == "tune":
+            return getattr(cfg.data.val, "dataset_type", None) or getattr(
+                cfg.data.train, "dataset_type", None
+            )
+        return getattr(cfg.data.train, "dataset_type", None) or getattr(
+            cfg.data.val, "dataset_type", None
+        )
+
     # Check dataset type early
-    dataset_type = getattr(cfg.data.train, "dataset_type", None) or getattr(
-        cfg.data.val, "dataset_type", None
-    )
+    dataset_type = _dataset_type_for_mode()
+    dataset_type_name = str(dataset_type).lower() if dataset_type else None
 
     # Auto-precompute label_aux (skeleton/SDT) before building transforms so the
     # active splits include label_aux in their load/crop pipeline.
@@ -395,6 +409,7 @@ def create_datamodule(
         and (
             getattr(dataloader_cfg, "use_lazy_zarr", False)
             or getattr(dataloader_cfg, "use_lazy_h5", False)
+            or dataset_type_name == "tile"
         )
     )
     if lazy_test_inference:
@@ -595,20 +610,27 @@ def create_datamodule(
     test_data_dicts = None
     if mode == "test":
         split = cfg.data.test
+        split_dataset_type = str(getattr(split, "dataset_type", "") or "").lower()
         # Skip image validation when using decoding.load_prediction_path (decode-only)
         _saved = getattr(getattr(cfg, "decoding", None), "load_prediction_path", "")
-        if not split.image and not _saved:
+        if split_dataset_type == "tile":
+            tile_source = split.json or split.image
+            if not tile_source:
+                raise ValueError(
+                    "Tile test mode requires data.test.image or data.test.json to be set."
+                )
+            logger.info(f"Creating test tile dataset from: {tile_source}")
+            test_image_paths = expand_file_paths(tile_source)
+        elif not split.image and not _saved:
             raise ValueError(
                 "Test mode requires data.test.image to be set.\n"
                 f"Current resolved image = {split.image}"
             )
-        if split.image:
+        elif split.image:
             logger.info(f"Creating test dataset from: {split.image}")
             test_image_paths = expand_file_paths(split.image)
         else:
             # Decode-only: derive filename from decoding.load_prediction_path
-            from pathlib import Path
-
             pred_stem = Path(_saved).stem if _saved else "decoded"
             test_image_paths = [pred_stem]
             logger.info(f"Decode-only mode: using filename from input_prediction_path: {pred_stem}")
@@ -618,16 +640,25 @@ def create_datamodule(
         test_mask_paths = expand_file_paths(split.mask) if split.mask else None
     elif mode == "tune":
         split = cfg.data.val
-        if not split.image:
+        split_dataset_type = str(getattr(split, "dataset_type", "") or "").lower()
+        if split_dataset_type == "tile":
+            tile_source = split.json or split.image
+            if not tile_source:
+                raise ValueError(
+                    "Tile tune mode requires data.val.image or data.val.json to be set."
+                )
+            logger.info(f"Creating tune tile dataset from: {tile_source}")
+            test_image_paths = expand_file_paths(tile_source)
+        elif not split.image:
             raise ValueError(
                 "Tune mode requires data.val.image to be set.\n"
                 f"Current resolved val.image = {getattr(cfg.data.val, 'image', None)}"
             )
+        else:
+            logger.info(f"Creating tune dataset from: {split.image}")
 
-        logger.info(f"Creating tune dataset from: {split.image}")
-
-        # Expand glob patterns for tune data
-        test_image_paths = expand_file_paths(split.image)
+            # Expand glob patterns for tune data
+            test_image_paths = expand_file_paths(split.image)
         test_label_paths = expand_file_paths(split.label) if split.label else None
         test_label_aux_paths = expand_file_paths(split.label_aux) if split.label_aux else None
         test_mask_paths = expand_file_paths(split.mask) if split.mask else None
@@ -685,7 +716,6 @@ def create_datamodule(
             logger.info("Auto-computing iter_num from volume size...")
 
             from ...data.datasets.sampling import compute_total_samples
-            from ...data.io import get_vol_shape
 
             # Get volume sizes
             volume_sizes = []
