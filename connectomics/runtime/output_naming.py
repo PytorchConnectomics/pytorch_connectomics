@@ -297,7 +297,7 @@ def _format_one_decode_step(step) -> str:
                 result.extend(_flatten_decode_values(nested_value))
             return result
         if isinstance(value, (list, tuple)):
-            result: list[str] = []
+            result = []
             for nested_value in value:
                 result.extend(_flatten_decode_values(nested_value))
             return result
@@ -316,7 +316,7 @@ def _format_one_decode_step(step) -> str:
     kwargs = getattr(step, "kwargs", None)
     if kwargs is None and isinstance(step, dict):
         kwargs = step.get("kwargs", {})
-    if hasattr(kwargs, "items"):
+    if kwargs is not None and hasattr(kwargs, "items"):
         explicit_tag = dict(kwargs).get("tag")
         if explicit_tag:
             safe_tag = _sanitize_decode_component(str(explicit_tag))
