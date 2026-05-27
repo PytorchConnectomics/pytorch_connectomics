@@ -506,7 +506,7 @@ def _batch_skeletonize(
 
     try:
         skeletons = kimimaro.skeletonize(
-            label.astype(np.uint32),
+            label,
             teasar_params=config["teasar_params"],
             anisotropy=config["anisotropy"],
             dust_threshold=config["dust_threshold"],
@@ -663,7 +663,7 @@ def precompute_skeleton_volume(
     print(f"  One-time computation...", flush=True)
 
     t0 = time.time()
-    skeleton_vertices = _batch_skeletonize(label.astype(np.uint32), resolution)
+    skeleton_vertices = _batch_skeletonize(label, resolution)
     elapsed_skel = time.time() - t0
     print(f"  Skeletonization done in {elapsed_skel:.1f}s: {len(skeleton_vertices)} skeletons")
 

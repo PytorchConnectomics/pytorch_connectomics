@@ -21,6 +21,7 @@ from ...evaluation import EvaluationContext, evaluation_metric_requested, run_ev
 from ...inference import (
     apply_prediction_transform,
     is_chunked_inference_enabled,
+    is_external_chunk_sharding_enabled,
     run_chunked_prediction_inference,
     run_prediction_inference,
     write_outputs,
@@ -310,11 +311,13 @@ def _process_decoding_postprocessing(
     if save_intermediate:
         ckpt_path = module._get_prediction_checkpoint_path()
 
-        def on_step_complete(batch_idx: int, step: Any, sample: np.ndarray) -> None:
+        def _on_decode_step_complete(batch_idx: int, step: Any, sample: np.ndarray) -> None:
             suffix = intermediate_decode_step_output_tag(
                 module.cfg, step, checkpoint_path=ckpt_path
             )
             write_decoded_outputs(module.cfg, sample, filenames, suffix=suffix)
+
+        on_step_complete = _on_decode_step_complete
 
     result = run_decoding_stage(module.cfg, predictions_np, on_step_complete=on_step_complete)
     decoded_predictions = result.decoded
@@ -728,11 +731,17 @@ def run_test_step(module, batch: Dict[str, torch.Tensor], batch_idx: int) -> STE
             volume_dir.mkdir(parents=True, exist_ok=True)
             output_path = volume_dir / raw_filename
             crop_pad = resolve_global_prediction_crop(module.cfg)
-            qc_acc = begin_streaming_qc(
-                module.cfg,
-                channel_count=int(module.cfg.model.out_channels),
-                z_extent=int(reference_image_shape[-3])
-                - int(crop_pad[0][0]) - int(crop_pad[0][1]),
+            external_chunk_shard = is_external_chunk_sharding_enabled(module.cfg)
+            qc_acc = (
+                None
+                if external_chunk_shard
+                else begin_streaming_qc(
+                    module.cfg,
+                    channel_count=int(module.cfg.model.out_channels),
+                    z_extent=int(reference_image_shape[-3])
+                    - int(crop_pad[0][0])
+                    - int(crop_pad[0][1]),
+                )
             )
             output_path = run_chunked_prediction_inference(
                 module.cfg,
@@ -746,6 +755,15 @@ def run_test_step(module, batch: Dict[str, torch.Tensor], batch_idx: int) -> STE
                 requested_head=selected_output_head,
                 qc_streaming_callback=qc_acc,
             )
+            if external_chunk_shard:
+                logger.info(
+                    "Naive chunk shard completed; wrote assigned chunk files under %s. "
+                    "Run scripts/stitch_chunked_prediction.py after all shards finish.",
+                    output_path,
+                )
+                _cleanup_inference_memory(module, "naive chunk raw shard", release_model=True)
+                _log_volume_header(volume_name, "VOLUME COMPLETE")
+                return torch.tensor(0.0, device=module.device)
             should_finalize_qc = True
             if torch.distributed.is_available() and torch.distributed.is_initialized():
                 if torch.distributed.get_world_size() > 1 and torch.distributed.get_rank() != 0:

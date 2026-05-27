@@ -30,7 +30,7 @@ def test_setup_run_directory_train_creates_timestamped_layout(tmp_path):
     timestamp_file = output_base / ".latest_timestamp"
     assert timestamp_file.exists()
     assert timestamp_file.read_text().strip() == run_dir.name
-    assert Path(cfg.monitor.checkpoint.save_path) == run_dir / "checkpoints"
+    assert Path(cfg.save_path) == run_dir / "checkpoints"
 
 
 def test_setup_run_directory_train_ddp_reuses_timestamp_file(tmp_path, monkeypatch):
@@ -44,7 +44,7 @@ def test_setup_run_directory_train_ddp_reuses_timestamp_file(tmp_path, monkeypat
 
     run_dir = setup_run_directory("train", cfg, str(output_base))
     assert run_dir == output_base / timestamp
-    assert Path(cfg.monitor.checkpoint.save_path) == run_dir / "checkpoints"
+    assert Path(cfg.save_path) == run_dir / "checkpoints"
 
 
 def test_setup_run_directory_train_resume_reuses_existing_run_directory(tmp_path):
@@ -64,7 +64,7 @@ def test_setup_run_directory_train_resume_reuses_existing_run_directory(tmp_path
     )
 
     assert run_dir == existing_run_dir
-    assert Path(cfg.monitor.checkpoint.save_path) == existing_checkpoint_dir
+    assert Path(cfg.save_path) == existing_checkpoint_dir
     assert (existing_run_dir / "config.yaml").exists()
 
     timestamp_file = existing_run_dir.parent / ".latest_timestamp"

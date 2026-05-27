@@ -31,9 +31,12 @@ def log_decode_experiment(
 
     steps = normalize_decode_modes(decode_modes)
     decode_params: dict[str, Any] = {}
+    step_names: list[str] = []
     for step in steps:
-        decode_params["decoder"] = step.name
+        step_names.append(step.name)
         decode_params.update(step.kwargs)
+    decode_params["decoder"] = "+".join(step_names)
+    step_name_set = set(step_names)
 
     input_tta_prediction_name = (
         f"{volume_name}{intermediate_prediction_cache_suffix(cfg, checkpoint_path=checkpoint_path)}"
@@ -56,13 +59,21 @@ def log_decode_experiment(
         param_keys.append("boundary_threshold")
     if decode_params.get("dust_merge") and decode_params.get("dust_merge_size", 0) > 0:
         param_keys += ["dust_merge_size", "dust_merge_affinity", "dust_remove_size"]
-    if decode_params.get("branch_merge"):
+    if "branch_merge" in step_name_set or decode_params.get("branch_merge"):
         param_keys += [
-            "branch_merge",
             "iou_threshold",
             "best_buddy",
             "one_sided_threshold",
             "one_sided_min_size",
+        ]
+    if "branch_split" in step_name_set:
+        param_keys += [
+            "seed_affinity_threshold",
+            "min_parent_size",
+            "min_seed_size",
+            "min_seed_fraction",
+            "max_seed_fraction",
+            "max_splits_per_parent",
         ]
     metric_keys = [
         "adapted_rand_error",

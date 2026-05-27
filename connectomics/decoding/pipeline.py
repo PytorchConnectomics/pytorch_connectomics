@@ -65,6 +65,32 @@ def normalize_decode_modes(decode_modes: Iterable[Any]) -> List[DecodeStep]:
     return steps
 
 
+def _invert_axis_permutation(perm: Sequence[int]) -> List[int]:
+    inv = [0, 0, 0]
+    for i, p in enumerate(perm):
+        inv[int(p)] = i
+    return inv
+
+
+def _apply_spatial_transpose(arr: np.ndarray, perm: Sequence[int]) -> np.ndarray:
+    """Permute the trailing 3 spatial axes by ``perm`` (a permutation of [0,1,2]).
+
+    Accepts 3D ``(Z, Y, X)`` or 4D ``(C, Z, Y, X)`` arrays so this hook can
+    run both before a decoder (4D affinity input) and on its 3D segmentation
+    output (for the inverse transpose).
+    """
+    perm = tuple(int(p) for p in perm)
+    if sorted(perm) != [0, 1, 2]:
+        raise ValueError(f"spatial_transpose must be a permutation of [0, 1, 2], got {list(perm)}")
+    if arr.ndim == 3:
+        return np.ascontiguousarray(np.transpose(arr, perm))
+    if arr.ndim == 4:
+        return np.ascontiguousarray(np.transpose(arr, (0, perm[0] + 1, perm[1] + 1, perm[2] + 1)))
+    raise ValueError(
+        f"spatial_transpose expects a 3D or 4D array, got {arr.ndim}D with shape {arr.shape}."
+    )
+
+
 def _prepare_batched_input(data: np.ndarray) -> Tuple[np.ndarray, int]:
     arr = np.asarray(data)
     if arr.ndim == 5:
@@ -106,6 +132,7 @@ def apply_decode_pipeline(
     results: List[np.ndarray] = []
     for batch_idx in range(batch_size):
         sample = batched[batch_idx]
+        original_sample = sample
         for step in steps:
             try:
                 decoder = registry.get(step.name)
@@ -125,7 +152,23 @@ def apply_decode_pipeline(
                             num_channels=int(sample.shape[0]),
                             context=f"decode kwargs {step.name}.{key}",
                         )
+                spatial_transpose = decoder_kwargs.pop("spatial_transpose", None)
+                use_original_input = bool(decoder_kwargs.pop("use_original_input", False))
+                original_input_kwarg = decoder_kwargs.pop("original_input_kwarg", "affinities")
+                if spatial_transpose:
+                    sample = _apply_spatial_transpose(sample, spatial_transpose)
+                if use_original_input:
+                    original_for_decoder = original_sample
+                    if spatial_transpose:
+                        original_for_decoder = _apply_spatial_transpose(
+                            original_for_decoder, spatial_transpose
+                        )
+                    decoder_kwargs[original_input_kwarg] = original_for_decoder
                 sample = decoder(sample, **decoder_kwargs)
+                if spatial_transpose:
+                    sample = _apply_spatial_transpose(
+                        sample, _invert_axis_permutation(spatial_transpose)
+                    )
             except Exception as exc:
                 raise RuntimeError(f"Error applying decode function '{step.name}': {exc}") from exc
 

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import math
 import warnings
 from contextlib import contextmanager
 from copy import deepcopy
@@ -20,12 +21,26 @@ from ..decoding.tuning.optuna_tuner import (
     _resolve_existing_best_params_file,
     _resolve_tuning_prediction_files,
 )
+from .checkpoint_dispatch import get_checkpoint_test_output_dir
 from .output_naming import (
     intermediate_prediction_cache_suffix,
+    resolve_dataset_volume_stems,
     tuning_best_params_filename_candidates,
 )
 
 logger = logging.getLogger(__name__)
+
+
+def _best_params_file_has_nonfinite_value(path: Path) -> bool:
+    """Return True when a saved best-params file contains inf/nan best_value."""
+    try:
+        params = OmegaConf.load(path)
+        best_value = params.get("best_value") if hasattr(params, "get") else None
+        if best_value is None:
+            return False
+        return not math.isfinite(float(best_value))
+    except (TypeError, ValueError):
+        return False
 
 
 def _unique_prediction_dirs(*paths: str | Path | None) -> list[Path]:
@@ -62,20 +77,42 @@ def _resolve_first_complete_tuning_prediction_cache(
     return None, [], expected_from_first_dir
 
 
+def _resolve_tuning_volume_subdir(cfg) -> str:
+    """Return the per-volume subdir name for tune outputs.
+
+    Mirrors the test-mode per-volume layout: best_params YAML and the Optuna
+    SQLite study DB land under ``<tune_dir>/<volume_stem>/`` so multiple
+    val volumes (or repeated runs across different val datasets) don't
+    collide. Joins multiple stems with ``+`` and returns ``""`` when no
+    stems can be resolved (e.g. ``data.val.image`` is empty).
+    """
+    stems = resolve_dataset_volume_stems(cfg, mode="tune")
+    cleaned = [s for s in stems if s]
+    if not cleaned:
+        return ""
+    return "+".join(cleaned)
+
+
 def _resolve_tuning_output_dir(cfg, fallback_prediction_dir: str | Path | None) -> Path:
     tune_cfg = getattr(cfg, "tune", None)
     configured_output_dir = getattr(tune_cfg, "save_path", None)
     if configured_output_dir:
-        return Path(configured_output_dir)
-    configured_prediction_dir = getattr(tune_cfg, "save_predictions_path", None)
-    if configured_prediction_dir:
-        return Path(configured_prediction_dir).parent
-    if fallback_prediction_dir:
-        return Path(fallback_prediction_dir).parent / "tuning"
-    raise ValueError(
-        "Missing tuning output directory. Set tune.save_path "
-        "or inference.save_path."
-    )
+        base = Path(configured_output_dir)
+    else:
+        configured_prediction_dir = getattr(tune_cfg, "save_predictions_path", None)
+        if configured_prediction_dir:
+            base = Path(configured_prediction_dir).parent
+        elif fallback_prediction_dir:
+            base = Path(fallback_prediction_dir).parent / "tuning"
+        else:
+            raise ValueError(
+                "Missing tuning output directory. Set tune.save_path or inference.save_path."
+            )
+
+    volume_subdir = _resolve_tuning_volume_subdir(cfg)
+    if volume_subdir and base.name != volume_subdir:
+        base = base / volume_subdir
+    return base
 
 
 @contextmanager
@@ -125,7 +162,9 @@ def temporary_tuning_inference_overrides(
             {
                 "inference_cfg": inference_cfg,
                 "save_results": bool(getattr(inference_cfg, "save_results", False)),
-                "save_cache_suffix": getattr(inference_cfg, "save_cache_suffix", "_x1_prediction.h5"),
+                "save_cache_suffix": getattr(
+                    inference_cfg, "save_cache_suffix", "_x1_prediction.h5"
+                ),
                 "save_path": getattr(inference_cfg, "save_path", None),
             }
         )
@@ -189,8 +228,13 @@ def run_tuning(model, trainer_or_factory, cfg, checkpoint_path=None):
         )
     predictions_dir = Path(primary_output_pred_dir)
     inference_write_dir = Path(fallback_output_pred_dir or primary_output_pred_dir)
+    prediction_checkpoint_path = (
+        getattr(model, "_prediction_checkpoint_path", None) if model is not None else None
+    ) or checkpoint_path
+    checkpoint_test_dir = get_checkpoint_test_output_dir(prediction_checkpoint_path)
     prediction_search_dirs = _unique_prediction_dirs(
         predictions_dir,
+        checkpoint_test_dir,
         inference_write_dir,
     )
     inference_write_dir.mkdir(parents=True, exist_ok=True)
@@ -200,9 +244,6 @@ def run_tuning(model, trainer_or_factory, cfg, checkpoint_path=None):
 
     cfg.tune.save_path = str(output_dir)
     cfg.tune.save_predictions_path = str(predictions_dir)
-    prediction_checkpoint_path = (
-        getattr(model, "_prediction_checkpoint_path", None) if model is not None else None
-    ) or checkpoint_path
     best_params_file = _resolve_best_params_file(
         cfg,
         output_dir,
@@ -213,6 +254,16 @@ def run_tuning(model, trainer_or_factory, cfg, checkpoint_path=None):
         output_dir,
         checkpoint_path=prediction_checkpoint_path,
     )
+
+    if existing_best_params_file is not None and _best_params_file_has_nonfinite_value(
+        existing_best_params_file
+    ):
+        logger.warning(
+            "Ignoring existing best parameters at %s because best_value is non-finite. "
+            "Tuning will re-run.",
+            existing_best_params_file,
+        )
+        existing_best_params_file = None
 
     if existing_best_params_file is not None:
         logger.info(
@@ -228,7 +279,7 @@ def run_tuning(model, trainer_or_factory, cfg, checkpoint_path=None):
     from connectomics.data.io import read_volume
     from connectomics.training.lightning import create_datamodule
 
-    logger.info("[1/4] Running inference on tuning dataset...")
+    logger.info("[1/4] Resolving prediction cache for tuning dataset...")
 
     tune_data = cfg.data
     cache_suffix = intermediate_prediction_cache_suffix(
@@ -256,7 +307,8 @@ def run_tuning(model, trainer_or_factory, cfg, checkpoint_path=None):
         )
     else:
         logger.info(
-            "No complete tuning prediction cache found in %s.",
+            "No complete tuning prediction cache found in %s. Running inference to "
+            "generate raw predictions.",
             ", ".join(str(path) for path in prediction_search_dirs),
         )
 

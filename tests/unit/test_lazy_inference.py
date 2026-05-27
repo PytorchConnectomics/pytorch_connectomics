@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+import json
+
+import imageio.v2 as imageio
 import numpy as np
 import torch
 
@@ -8,10 +11,12 @@ from connectomics.data.augmentation.build import build_test_transforms
 from connectomics.data.io import write_hdf5
 from connectomics.inference import InferenceManager
 from connectomics.inference.lazy import (
+    LazyVolumeAccessor,
     _build_intersecting_window_slices,
     _build_window_slices,
     lazy_predict_region,
     lazy_predict_volume,
+    load_lazy_volume,
 )
 from connectomics.inference.window import build_sliding_importance_map
 
@@ -100,6 +105,56 @@ def test_lazy_model_output_dtype_controls_accumulators(tmp_path):
         torch.from_numpy(volume).unsqueeze(0).unsqueeze(0),
         atol=5.0e-4,
     )
+
+
+def test_lazy_tile_accessor_reads_cross_tile_patch_and_infers_missing_json(tmp_path):
+    volume = np.arange(2 * 4 * 6, dtype=np.uint8).reshape(2, 4, 6)
+    tile_root = tmp_path / "im_align_10nm"
+    for z in range(volume.shape[0]):
+        section_dir = tile_root / f"{z:04d}"
+        section_dir.mkdir(parents=True)
+        for row in range(2):
+            for col in range(2):
+                y0 = row * 2
+                x0 = col * 3
+                imageio.imwrite(
+                    section_dir / f"{row}_{col}.png", volume[z, y0 : y0 + 2, x0 : x0 + 3]
+                )
+
+    missing_json_path = tmp_path / "im_align_10nm.json"
+    with LazyVolumeAccessor(
+        str(missing_json_path),
+        kind="image",
+        normalize_mode="none",
+    ) as accessor:
+        patch = accessor.read_patch(
+            (0, 1, 2),
+            (2, 2, 3),
+            outer_pad_mode="constant",
+            outer_pad_value=0.0,
+        )
+
+    expected = volume[0:2, 1:3, 2:5].astype(np.float32)
+    assert patch.shape == (1, 2, 2, 3)
+    assert np.array_equal(patch[0], expected)
+
+    metadata_path = tmp_path / "explicit_tiles.json"
+    metadata = {
+        "image": [f"im_align_10nm/{z:04d}/{{row}}_{{column}}.png" for z in range(2)],
+        "depth": 2,
+        "height": 4,
+        "width": 6,
+        "tile_size": [2, 3],
+        "dtype": "uint8",
+        "tile_st": [0, 0],
+        "tile_ratio": 1.0,
+    }
+    metadata_path.write_text(json.dumps(metadata), encoding="utf-8")
+
+    cfg = _make_cfg()
+    loaded = load_lazy_volume(cfg, str(metadata_path), kind="image", mode="test")
+
+    assert np.array_equal(loaded, volume[np.newaxis].astype(np.float32))
 
 
 def test_lazy_region_matches_full_volume_global_window_grid(tmp_path):

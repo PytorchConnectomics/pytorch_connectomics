@@ -6,6 +6,7 @@ import pytest
 from monai.transforms import Compose, Resized
 
 from connectomics.config import Config
+from connectomics.config.pipeline.config_io import resolve_data_paths
 from connectomics.data.augmentation.build import build_test_transforms, build_val_transforms
 from connectomics.data.augmentation.transforms import ResizeByFactord
 from connectomics.training.lightning.data_factory import create_datamodule
@@ -83,6 +84,36 @@ def test_create_datamodule_test_lazy_profile_keeps_paths_unloaded(tmp_path):
     batch = next(iter(datamodule.test_dataloader()))
 
     assert batch["image"] == [str(image_path)]
+
+
+def test_resolve_data_paths_resolves_test_json(tmp_path):
+    cfg = Config()
+    cfg.data.test.path = str(tmp_path)
+    cfg.data.test.json = "tiles.json"
+
+    resolve_data_paths(cfg)
+
+    assert cfg.data.test.json == str(tmp_path / "tiles.json")
+
+
+def test_create_datamodule_test_tile_uses_json_as_lazy_image(tmp_path):
+    metadata_path = tmp_path / "im_align_10nm.json"
+
+    cfg = Config()
+    cfg.data.test.dataset_type = "tile"
+    cfg.data.test.json = str(metadata_path)
+    cfg.data.test.name = "im_align_10nm"
+    cfg.inference.strategy = "chunked"
+    cfg.inference.chunking.enabled = True
+    cfg.inference.chunking.output_mode = "raw_prediction"
+    cfg.system.num_workers = 0
+    cfg.data.dataloader.batch_size = 1
+
+    datamodule = create_datamodule(cfg, mode="test")
+    batch = next(iter(datamodule.test_dataloader()))
+
+    assert batch["image"] == [str(metadata_path)]
+    assert datamodule.distributed_chunked_raw_sharding is True
 
 
 def test_create_datamodule_chunked_raw_replicates_single_test_volume_without_window_sharding(

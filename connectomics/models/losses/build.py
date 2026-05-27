@@ -28,11 +28,13 @@ from .losses import (
     CrossEntropyLossWrapper,
     GANLoss,
     PerChannelBCEWithLogitsLoss,
+    SoftClDiceLoss,
     SmoothL1Loss,
     WeightedBCEWithLogitsLoss,
     WeightedMAELoss,
     WeightedMSELoss,
 )
+from .malis import MalisLoss
 from .metadata import (
     LossMetadata,
     attach_loss_metadata,
@@ -70,8 +72,10 @@ def _get_loss_registry() -> Dict[str, type[nn.Module]]:
         # Custom connectomics losses
         "WeightedBCEWithLogitsLoss": WeightedBCEWithLogitsLoss,
         "PerChannelBCEWithLogitsLoss": PerChannelBCEWithLogitsLoss,
+        "SoftClDiceLoss": SoftClDiceLoss,
         "WeightedMSELoss": WeightedMSELoss,
         "WeightedMAELoss": WeightedMAELoss,
+        "MalisLoss": MalisLoss,
         "GANLoss": GANLoss,
         # Regularization losses
         "BinaryRegularization": BinaryRegularization,

@@ -23,6 +23,7 @@ from .distance import (
     skeleton_aware_distance_transform,
     skeleton_aware_edt_from_skeleton_vol,
 )
+from .lsd import seg_to_lsd
 from .quantize import decode_quantize, energy_quantize
 from .segment import seg_selection
 from .target import (
@@ -360,6 +361,64 @@ class SegToSmallObjectd(MapTransform):
         for key in self.key_iterator(d):
             if key in d:
                 d[key] = seg_to_small_seg(d[key], threshold=self.threshold)
+        return d
+
+
+class SegToLocalShapeDescriptord(MapTransform):
+    """Convert segmentation to Local Shape Descriptors (LSDs).
+
+    Produces a per-voxel descriptor of local segment shape — 10 channels in
+    3D ([0,1,2] mean offset, [3,4,5] variance, [6,7,8] Pearson, [9] size),
+    6 channels in 2D. ``components`` can subset the output.
+
+    Args:
+        keys: Keys to transform.
+        sigma: Neighborhood radius in source voxel units (scalar or per-axis
+            tuple). No default — typical connectomics value is ~80.
+        components: Optional digit string selecting which channels to compute
+            (e.g. ``"0129"`` for mean offset + size in 3D).
+        voxel_size: Per-axis voxel resolution; defaults to 1.
+        mode: ``"gaussian"`` or ``"sphere"``.
+        downsample: Integer downsampling factor for speed (default 1).
+        allow_missing_keys: Whether to allow missing keys.
+    """
+
+    def __init__(
+        self,
+        keys: KeysCollection,
+        sigma: Union[float, Sequence[float]],
+        components: Optional[str] = None,
+        voxel_size: Optional[Sequence[int]] = None,
+        mode: str = "gaussian",
+        downsample: int = 1,
+        allow_missing_keys: bool = False,
+    ) -> None:
+        super().__init__(keys, allow_missing_keys)
+        self.sigma = sigma
+        self.components = components
+        self.voxel_size = voxel_size
+        self.mode = mode
+        self.downsample = int(downsample)
+
+    def __call__(self, data: Dict[str, Any]) -> Dict[str, Any]:
+        d = dict(data)
+        for key in self.key_iterator(d):
+            if key not in d:
+                continue
+            label = d[key]
+            if isinstance(label, torch.Tensor):
+                label = label.detach().cpu().numpy()
+            # Handle the leading singleton channel that MONAI commonly inserts.
+            if label.ndim == 4 and label.shape[0] == 1:
+                label = label[0]
+            d[key] = seg_to_lsd(
+                label,
+                sigma=self.sigma,
+                components=self.components,
+                voxel_size=self.voxel_size,
+                mode=self.mode,
+                downsample=self.downsample,
+            )
         return d
 
 
@@ -714,6 +773,7 @@ class MultiTaskLabelTransformd(MapTransform):
         "small_object": seg_to_small_seg,
         "energy_quantize": energy_quantize,
         "decode_quantize": decode_quantize,
+        "lsd": seg_to_lsd,
     }
     _TASK_DEFAULTS: Dict[str, Dict[str, Any]] = {
         "binary": {},
@@ -739,6 +799,17 @@ class MultiTaskLabelTransformd(MapTransform):
         "small_object": {"threshold": 100},
         "energy_quantize": {"levels": 10},
         "decode_quantize": {"mode": "max"},
+        # LSD defaults: full 10-channel 3D descriptor, gaussian mode, no
+        # downsampling, isotropic voxel size 1. ``sigma`` MUST be set by the
+        # caller — there's no universally sensible default; for connectomics
+        # values around 80 (in source voxel units) are typical.
+        "lsd": {
+            "sigma": None,
+            "components": None,
+            "voxel_size": None,
+            "mode": "gaussian",
+            "downsample": 1,
+        },
     }
     _TASK_CONFIG_ONLY_KWARGS: Dict[str, set[str]] = {}
 
@@ -812,6 +883,11 @@ class MultiTaskLabelTransformd(MapTransform):
             if name == "affinity" and "affinity_mode" not in config_kwargs:
                 raise ValueError(
                     "Affinity target requires kwargs.affinity_mode: 'deepem' or 'banis'."
+                )
+            if name == "lsd" and config_kwargs.get("sigma") is None:
+                raise ValueError(
+                    "LSD target requires kwargs.sigma (scalar or per-axis tuple "
+                    "in source voxel units; typical connectomics value ~80)."
                 )
             call_kwargs = {
                 key: value
@@ -1021,6 +1097,7 @@ __all__ = [
     "SegToFlowFieldd",
     "SegToSynapticPolarityd",
     "SegToSmallObjectd",
+    "SegToLocalShapeDescriptord",
     "ComputeBinaryRatioWeightd",
     "ComputeUNet3DWeightd",
     "SegErosiond",

@@ -6,20 +6,19 @@ from typing import List, Optional, Tuple
 
 @dataclass
 class CheckpointConfig:
-    """Model checkpointing configuration.
+    """Model checkpointing configuration (checkpoint-specific knobs only).
 
-    `save_path` is the base directory for this run's checkpoint files.
-    In train mode, the runtime layer appends `<timestamp>/checkpoints`
-    (e.g. ``outputs/lucchi/20250508_103000/checkpoints/``). In test/tune
-    modes the field is unused — those modes derive output paths from
-    ``--checkpoint``.
+    The run output base lives at the top-level ``Config.save_path``
+    (sibling of ``monitor``, ``inference``, ``decoding``, ``tune``). The
+    runtime layer composes ``<save_path>/<timestamp>/checkpoints`` for
+    train mode; test/tune modes derive their output dir from
+    ``--checkpoint`` and ignore ``save_path``.
     """
 
     monitor: str = "val_loss"
     mode: str = "min"  # "min" or "max"
     save_top_k: int = 3
     save_last: bool = True
-    save_path: Optional[str] = None
     filename: Optional[str] = None
     checkpoint_filename: str = "{epoch:03d}-{train_loss_total_epoch:.4f}"
     save_every_n_epochs: int = 1

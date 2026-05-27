@@ -165,7 +165,7 @@
         toctree is empty. Skip building this for now.
         #}
         {% if 'singlehtml' not in builder %}
-        {% set global_toc = toctree(maxdepth=1,
+        {% set global_toc = toctree(maxdepth=2,
         collapse=theme_collapse_navigation|tobool,
         includehidden=theme_includehidden|tobool,
         titles_only=theme_titles_only|tobool) %}
@@ -424,6 +424,25 @@
       // Add class to links that have code blocks, since we cannot create links in code blocks
       $("article.pytorch-article a span.pre").each(function (e) {
         $(this).closest("a").addClass("has-code");
+      });
+
+      // Sidebar accordion: click an L1 parent (that has children) to toggle
+      // .expanded / .collapsed instead of navigating. .current is set by
+      // Sphinx on the active section so it starts open by default; the
+      // explicit .collapsed class lets the user fold even the active one.
+      $('.pytorch-menu-vertical .toctree-l1 > a').each(function () {
+        var $a = $(this);
+        var $li = $a.parent();
+        var $ul = $li.children('ul');
+        if ($ul.length === 0) return;
+        $a.on('click', function (e) {
+          e.preventDefault();
+          if ($ul.is(':visible')) {
+            $li.addClass('collapsed').removeClass('expanded');
+          } else {
+            $li.addClass('expanded').removeClass('collapsed');
+          }
+        });
       });
     })
   </script>
