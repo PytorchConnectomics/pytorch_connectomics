@@ -1,5 +1,5 @@
 _base_:
-  - base_banis_v3_erosion2.yaml
+  - base_banis+.yaml
 
 experiment_name: nisb_liconn_banis_v3_erosion2
 description: >-
@@ -31,6 +31,8 @@ test:
       image: data.zarr/img
       label: data.zarr/seg
       resolution: [18, 18, 25]
+  decoding:
+    affinity_mask_path: outputs/nisb_liconn_banis_v3_erosion2/20260515_103647/test_step=00200000/seed6/affinity_mask.h5
 
 tune:
   data:

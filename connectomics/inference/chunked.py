@@ -7,14 +7,13 @@ import logging
 from pathlib import Path
 from typing import Any
 
-import numpy as np
 import torch
 
+from ..chunked.chunk_grid import ChunkRef, build_chunk_grid
 from .artifact import (
     build_prediction_artifact_metadata,
     write_prediction_artifact,
 )
-from ..chunked.chunk_grid import ChunkRef, build_chunk_grid
 from .chunk_grid import (
     resolve_chunk_shape,
     resolve_global_prediction_crop,
@@ -55,6 +54,31 @@ def _chunk_file_path(chunks_dir: Path, chunk: ChunkRef) -> Path:
 def _distributed_barrier() -> None:
     if torch.distributed.is_available() and torch.distributed.is_initialized():
         torch.distributed.barrier()
+
+
+def _resolve_external_chunk_shard(cfg: Any) -> tuple[int, int] | None:
+    chunking_cfg = getattr(getattr(cfg, "inference", None), "chunking", None)
+    if chunking_cfg is None:
+        return None
+    shard_id = getattr(chunking_cfg, "shard_id", None)
+    num_shards = getattr(chunking_cfg, "num_shards", None)
+    if shard_id is None and num_shards is None:
+        return None
+    if shard_id is None or num_shards is None:
+        raise ValueError("Both inference.chunking.shard_id and num_shards must be set together.")
+    shard_id = int(shard_id)
+    num_shards = int(num_shards)
+    if num_shards <= 0:
+        raise ValueError(f"inference.chunking.num_shards must be positive, got {num_shards}.")
+    if shard_id < 0 or shard_id >= num_shards:
+        raise ValueError(
+            f"inference.chunking.shard_id={shard_id} out of range for num_shards={num_shards}."
+        )
+    return shard_id, num_shards
+
+
+def is_external_chunk_sharding_enabled(cfg: Any) -> bool:
+    return _resolve_external_chunk_shard(cfg) is not None
 
 
 def _write_chunk_index(
@@ -177,9 +201,7 @@ def _stitch_chunk_prediction_files(
                         )
                     ] = slab
                     if qc_streaming_callback is not None:
-                        qc_streaming_callback.update(
-                            slab, z_offset=global_z0, z_axis=1
-                        )
+                        qc_streaming_callback.update(slab, z_offset=global_z0, z_axis=1)
 
     write_prediction_artifact(
         output_path,
@@ -240,6 +262,8 @@ def _run_chunked_prediction_per_rank(
     rank: int,
     world_size: int,
     qc_streaming_callback: Any = None,
+    stitch_output: bool = True,
+    use_distributed_barrier: bool = True,
 ) -> Path:
     """Per-rank chunked raw inference. Each rank writes its own per-chunk h5 files.
 
@@ -369,7 +393,8 @@ def _run_chunked_prediction_per_rank(
 
         del pred, core_pred
 
-    _distributed_barrier()
+    if use_distributed_barrier:
+        _distributed_barrier()
 
     if rank == 0:
         index_path = _write_chunk_index(
@@ -385,11 +410,14 @@ def _run_chunked_prediction_per_rank(
             world_size=world_size,
         )
         logger.info(
-            "Per-rank chunked raw prediction wrote %d chunks to %s; index=%s",
+            "Chunked raw prediction shard wrote chunk metadata for %d chunks to %s; index=%s",
             len(chunks),
             chunks_dir,
             index_path,
         )
+        if not stitch_output:
+            return chunks_dir
+
         logger.info("Stitching %d per-rank chunks into %s", len(chunks), output_path)
         _stitch_chunk_prediction_files(
             cfg=cfg,
@@ -450,6 +478,35 @@ def run_chunked_prediction_inference(
     compression = getattr(cfg.inference, "save_compression", "gzip")
     compression = None if compression in (None, "", "none") else compression
     h5_spatial_chunks = resolve_h5_spatial_chunks(final_shape)
+
+    external_shard = _resolve_external_chunk_shard(cfg)
+    if external_shard is not None:
+        shard_id, num_shards = external_shard
+        return _run_chunked_prediction_per_rank(
+            cfg=cfg,
+            forward_fn=forward_fn,
+            image_path=image_path,
+            output_path=output_path,
+            checkpoint_path=checkpoint_path,
+            mask_path=mask_path,
+            mask_align_to_image=mask_align_to_image,
+            requested_head=requested_head,
+            device=device,
+            chunks=chunks,
+            input_shape=input_shape,
+            final_shape=final_shape,
+            crop_pad=crop_pad,
+            crop_before=crop_before,
+            chunk_shape=chunk_shape,
+            halo=halo,
+            compression=compression,
+            h5_spatial_chunks=h5_spatial_chunks,
+            rank=shard_id,
+            world_size=num_shards,
+            qc_streaming_callback=None,
+            stitch_output=False,
+            use_distributed_barrier=False,
+        )
 
     rank, world_size = _resolve_distributed_rank()
     if world_size > 1:
@@ -544,9 +601,13 @@ def run_chunked_prediction_inference(
         z0 = int(chunk_obj.slices[0].start)
         qc_streaming_callback.update(arr, z_offset=z0, z_axis=1)
 
-    def write_chunks(dataset) -> None:
-        dataset[(slice(None), *first_chunk.slices)] = first_core_pred
-        _stream_qc(first_chunk, first_core_pred)
+    def write_chunks(
+        dataset,
+        initial_chunk=first_chunk,
+        initial_core_pred=first_core_pred,
+    ) -> None:
+        dataset[(slice(None), *initial_chunk.slices)] = initial_core_pred
+        _stream_qc(initial_chunk, initial_core_pred)
         for chunk, core_pred in prediction_iter:
             dataset[(slice(None), *chunk.slices)] = core_pred
             _stream_qc(chunk, core_pred)
@@ -589,6 +650,7 @@ def run_chunked_prediction_inference(
 
 __all__ = [
     "ChunkRef",
+    "is_external_chunk_sharding_enabled",
     "is_chunked_inference_enabled",
     "run_chunked_prediction_inference",
 ]

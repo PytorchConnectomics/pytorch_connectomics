@@ -97,13 +97,15 @@ def test_config_load_raises_on_unknown_top_level_key(tmp_path):
         load_config(config_yaml)
 
 
-def test_checkpoint_config_renames_dirpath_to_save_path():
+def test_save_path_hoisted_to_top_level():
+    from connectomics.config import Config
     from connectomics.config.schema.monitor import CheckpointConfig
 
     cc = CheckpointConfig()
-    assert hasattr(cc, "save_path")
+    assert not hasattr(cc, "save_path")
     assert not hasattr(cc, "dirpath")
     assert not hasattr(cc, "use_timestamp")
+    assert hasattr(Config(), "save_path")
 
 
 @pytest.mark.parametrize(
@@ -112,6 +114,10 @@ def test_checkpoint_config_renames_dirpath_to_save_path():
         (
             "monitor:\n  checkpoint:\n    dirpath: outputs/x/checkpoints\n",
             "monitor.checkpoint.dirpath",
+        ),
+        (
+            "monitor:\n  checkpoint:\n    save_path: outputs/x\n",
+            "monitor.checkpoint.save_path",
         ),
         (
             "monitor:\n  checkpoint:\n    use_timestamp: false\n",

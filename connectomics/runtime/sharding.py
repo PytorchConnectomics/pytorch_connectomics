@@ -13,6 +13,45 @@ from ..config.pipeline import resolve_data_paths
 from .output_naming import compute_tta_passes
 
 
+def is_chunked_raw_inference(cfg: Config) -> bool:
+    inference_cfg = getattr(cfg, "inference", None)
+    chunking_cfg = getattr(inference_cfg, "chunking", None)
+    return bool(
+        str(getattr(inference_cfg, "strategy", "whole_volume")).lower() == "chunked"
+        and getattr(chunking_cfg, "enabled", False)
+        and str(getattr(chunking_cfg, "output_mode", "decoded")).lower() == "raw_prediction"
+    )
+
+
+def maybe_enable_naive_chunk_sharding(args: Any, cfg: Config) -> bool:
+    """Map --shard-id/--num-shards to chunk-grid sharding for one-volume raw inference."""
+    shard_id = getattr(args, "shard_id", None)
+    num_shards = getattr(args, "num_shards", None)
+    if shard_id is None and num_shards is None:
+        return False
+    if not is_chunked_raw_inference(cfg):
+        return False
+    if shard_id is None or num_shards is None:
+        raise ValueError("--shard-id and --num-shards must be provided together.")
+
+    shard_id = int(shard_id)
+    num_shards = int(num_shards)
+    if num_shards <= 0:
+        raise ValueError(f"--num-shards must be positive, got {num_shards}.")
+    if shard_id < 0 or shard_id >= num_shards:
+        raise ValueError(f"--shard-id={shard_id} out of range for --num-shards={num_shards}.")
+
+    chunking_cfg = cfg.inference.chunking
+    chunking_cfg.shard_id = shard_id
+    chunking_cfg.num_shards = num_shards
+    cfg.system.num_gpus = 1 if torch.cuda.is_available() else 0
+    print(
+        "  INFO: Naive chunk sharding enabled for chunked raw inference "
+        f"(shard {shard_id}/{num_shards}); this job will not use torch.distributed."
+    )
+    return True
+
+
 def resolve_test_stage_runtime(cfg: Config) -> Config:
     """Switch runtime config to test stage and re-resolve resource sentinels."""
     cfg = resolve_default_profiles(cfg, mode="test")
@@ -65,13 +104,7 @@ def maybe_limit_test_devices(cfg: Config, datamodule: Any) -> bool:
     distributed_window_sharding = bool(
         is_lazy and getattr(sliding_cfg, "distributed_sharding", False)
     )
-    inference_cfg = getattr(cfg, "inference", None)
-    chunking_cfg = getattr(inference_cfg, "chunking", None)
-    distributed_chunked_raw = bool(
-        str(getattr(inference_cfg, "strategy", "whole_volume")).lower() == "chunked"
-        and getattr(chunking_cfg, "enabled", False)
-        and str(getattr(chunking_cfg, "output_mode", "decoded")).lower() == "raw_prediction"
-    )
+    distributed_chunked_raw = is_chunked_raw_inference(cfg)
     if distributed_tta_sharding and test_volume_count != 1:
         print(
             "  WARNING: Disabling distributed TTA sharding for multi-volume test datasets. "
@@ -177,6 +210,9 @@ def maybe_enable_independent_test_sharding(args: Any, cfg: Config) -> bool:
     num_shards = getattr(args, "num_shards", None)
     source = None
 
+    if is_chunked_raw_inference(cfg) and shard_id is not None and num_shards is not None:
+        return False
+
     if shard_id is not None and num_shards is not None and int(num_shards) > 1:
         source = "explicit shard arguments"
     else:
@@ -214,6 +250,8 @@ def has_assigned_test_shard(cfg: Config, args: Any) -> bool:
     shard_id = getattr(args, "shard_id", None)
     num_shards = getattr(args, "num_shards", None)
     if shard_id is None or num_shards is None:
+        return True
+    if is_chunked_raw_inference(cfg):
         return True
 
     test_image_paths = resolve_test_image_paths(cfg)
@@ -256,7 +294,9 @@ def shard_test_datamodule(datamodule: Any, shard_id: int, num_shards: int):
 __all__ = [
     "estimate_tta_total_passes",
     "has_assigned_test_shard",
+    "is_chunked_raw_inference",
     "maybe_enable_independent_test_sharding",
+    "maybe_enable_naive_chunk_sharding",
     "maybe_limit_test_devices",
     "resolve_test_image_paths",
     "resolve_test_rank_shard_from_env",

@@ -718,6 +718,14 @@ class ConnectomicsModule(pl.LightningModule):
                     )
                 return predictions_np, True, final_suffix
 
+        # NOTE: a permissive glob fallback used to live here that loaded any
+        # decoded file matching the TTA/head/channel/checkpoint prefix, even
+        # when the current config's decoder kwargs (thresholds, etc.) differed
+        # from the cached file. That silently produced eval outputs whose
+        # filenames advertised the *new* kwargs but whose numbers came from
+        # the *cached* decode. Removed: only exact-suffix decoded matches are
+        # reused; mismatched kwargs trigger a re-decode from the raw cache.
+
         for try_suffix in suffixes_to_try:
             existing_predictions = []
             all_exist = True

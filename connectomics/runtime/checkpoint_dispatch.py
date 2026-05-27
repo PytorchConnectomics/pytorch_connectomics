@@ -23,6 +23,18 @@ def get_output_base_from_checkpoint(checkpoint_path: str) -> Path:
     return ckpt_path.parent.parent / ckpt_path.stem
 
 
+def get_checkpoint_test_output_dir(checkpoint_path: str | Path | None) -> Path | None:
+    """Return the checkpoint-derived ``test_<ckpt_stem>`` output directory."""
+    if checkpoint_path is None:
+        return None
+    checkpoint_text = str(checkpoint_path).strip()
+    if not checkpoint_text:
+        return None
+    output_base = get_output_base_from_checkpoint(checkpoint_text)
+    ckpt_tag = format_checkpoint_dir_suffix(checkpoint_text)
+    return output_base / f"test_{ckpt_tag}"
+
+
 def extract_step_from_checkpoint(checkpoint_path: str) -> str:
     """Extract ``step=<N>`` from a checkpoint filename (legacy helper)."""
     match = re.search(r"step=(\d+)", Path(checkpoint_path).stem)
@@ -93,7 +105,7 @@ def setup_runtime_directories(args: Any, cfg: Config) -> tuple[Path, Path]:
     run_dir = setup_run_directory(
         args.mode,
         cfg,
-        cfg.monitor.checkpoint.save_path,
+        cfg.save_path,
         resume_checkpoint_path=resume_checkpoint_path,
     )
     return run_dir, run_dir.parent
@@ -102,6 +114,7 @@ def setup_runtime_directories(args: Any, cfg: Config) -> tuple[Path, Path]:
 __all__ = [
     "configure_checkpoint_output_paths",
     "extract_step_from_checkpoint",
+    "get_checkpoint_test_output_dir",
     "get_output_base_from_checkpoint",
     "setup_runtime_directories",
 ]

@@ -31,7 +31,7 @@ from omegaconf import DictConfig, OmegaConf
 try:
     import optuna
     from optuna.pruners import HyperbandPruner, MedianPruner
-    from optuna.samplers import CmaEsSampler, RandomSampler, TPESampler
+    from optuna.samplers import CmaEsSampler, GridSampler, RandomSampler, TPESampler
 
     OPTUNA_AVAILABLE = True
 except ImportError:
@@ -104,8 +104,7 @@ def _resolve_tuning_prediction_files(
     from connectomics.runtime.output_naming import _stem_from_image_path
 
     expected_files = [
-        predictions_dir / _stem_from_image_path(str(path)) / cache_suffix
-        for path in image_files
+        predictions_dir / _stem_from_image_path(str(path)) / cache_suffix for path in image_files
     ]
     existing_files = [str(path) for path in expected_files if path.exists()]
     return existing_files, [str(path) for path in expected_files]
@@ -175,6 +174,13 @@ def _cfg_value(cfg_obj: Any, key: str, default: Any = None) -> Any:
     return getattr(cfg_obj, key, default)
 
 
+def _resolve_nerl_num_workers(value: int) -> int:
+    """Resolve ``nerl_num_workers``: ``-1`` means use all available CPUs."""
+    if value < 0:
+        return max(1, mp.cpu_count())
+    return max(1, value)
+
+
 def _compute_segmentation_metric(
     segmentation: np.ndarray,
     ground_truth: np.ndarray | None,
@@ -205,6 +211,7 @@ def _compute_segmentation_metric(
             resolution=nerl_context.get("resolution"),
             merge_threshold=nerl_context.get("merge_threshold", 1),
             chunk_num=nerl_context.get("chunk_num", 1),
+            num_workers=nerl_context.get("num_workers", 1),
             graph_options=nerl_context.get("graph_options"),
         )
 
@@ -219,6 +226,30 @@ def _compute_segmentation_metric(
         return float(are_val), float(prec_val), float(rec_val)
 
     raise ValueError(f"Unknown metric: {metric_name}")
+
+
+def _decode_with_pipeline_spatial_transpose(
+    decoder_fn,
+    predictions: np.ndarray,
+    decoding_params: Dict[str, Any],
+) -> np.ndarray | Dict[float, np.ndarray]:
+    """Run a decoder while honoring the pipeline-level spatial_transpose kwarg."""
+    params = dict(decoding_params)
+    spatial_transpose = params.pop("spatial_transpose", None)
+    if spatial_transpose is None:
+        return decoder_fn(predictions, **params)
+
+    from ..pipeline import _apply_spatial_transpose, _invert_axis_permutation
+
+    transposed = _apply_spatial_transpose(predictions, spatial_transpose)
+    result = decoder_fn(transposed, **params)
+    inverse = _invert_axis_permutation(spatial_transpose)
+    if isinstance(result, dict):
+        return {
+            threshold: _apply_spatial_transpose(segmentation, inverse)
+            for threshold, segmentation in result.items()
+        }
+    return _apply_spatial_transpose(result, inverse)
 
 
 def _evaluate_standard_trial_payload(
@@ -242,7 +273,14 @@ def _evaluate_standard_trial_payload(
         mask_vol = mask_list[vol_idx] if mask_list else None
 
         try:
-            segmentation = decoder_fn(pred_vol, **decoding_params)
+            decoded = _decode_with_pipeline_spatial_transpose(
+                decoder_fn,
+                pred_vol,
+                decoding_params,
+            )
+            if isinstance(decoded, dict):
+                raise TypeError("Decoder returned a dict for a standard trial")
+            segmentation = decoded
         except Exception as exc:
             raise RuntimeError(
                 f"Decoding failed for volume {vol_idx} with params={decoding_params!r}"
@@ -310,7 +348,11 @@ def _evaluate_batch_trial_payload(
         mask_vol = mask_list[vol_idx] if mask_list else None
 
         try:
-            results = decoder_fn(pred_vol, **batch_params)
+            results = _decode_with_pipeline_spatial_transpose(
+                decoder_fn,
+                pred_vol,
+                batch_params,
+            )
         except Exception as exc:
             raise RuntimeError(
                 f"Batch decoding failed for volume {vol_idx} with params={batch_params!r}"
@@ -347,25 +389,31 @@ def _evaluate_batch_trial_payload(
     for candidate in candidate_values:
         if not candidate_are[candidate]:
             continue
-        avg_metric = float(np.mean(candidate_are[candidate]))
+        finite_values = [value for value in candidate_are[candidate] if np.isfinite(value)]
+        if not finite_values:
+            continue
+        avg_metric = float(np.mean(finite_values))
         if (direction == "minimize" and avg_metric < best_metric) or (
             direction == "maximize" and avg_metric > best_metric
         ):
             best_metric = avg_metric
             best_candidate = candidate
 
+    best_prec_values = candidate_prec.get(best_candidate, [])
+    best_rec_values = candidate_rec.get(best_candidate, [])
+
     return {
         "best_metric": best_metric,
         "best_candidate": best_candidate,
-        "avg_precision": float(np.mean(candidate_prec.get(best_candidate, [0.0]))),
-        "avg_recall": float(np.mean(candidate_rec.get(best_candidate, [0.0]))),
+        "avg_precision": float(np.mean(best_prec_values)) if best_prec_values else 0.0,
+        "avg_recall": float(np.mean(best_rec_values)) if best_rec_values else 0.0,
         "per_vol_are": list(candidate_are.get(best_candidate, [])),
         "per_vol_precision": list(candidate_prec.get(best_candidate, [])),
         "per_vol_recall": list(candidate_rec.get(best_candidate, [])),
         "per_candidate_metric": {
-            candidate: float(np.mean(values))
+            candidate: float(np.mean([value for value in values if np.isfinite(value)]))
             for candidate, values in candidate_are.items()
-            if values
+            if values and any(np.isfinite(value) for value in values)
         },
     }
 
@@ -392,7 +440,7 @@ def _trial_evaluation_worker(send_conn, evaluation_kind: str, payload: Dict[str,
         send_conn.close()
 
 
-def _get_trial_process_context() -> mp.context.BaseContext:
+def _get_trial_process_context() -> Any:
     """Choose a multiprocessing start method for timeout-enforced trials."""
     methods = ("fork", "spawn")
     if torch.cuda.is_available() and torch.cuda.is_initialized():
@@ -493,17 +541,27 @@ class OptunaDecodingTuner:
             # Multi-volume mode: evaluate each volume independently and average
             self.predictions_list = predictions
             self.ground_truth_list = (
-                ground_truth if isinstance(ground_truth, list) else [ground_truth]
+                ground_truth
+                if isinstance(ground_truth, list)
+                else [self._load_data(ground_truth, "ground_truth")]
             )
             self.mask_list = (
                 mask
                 if isinstance(mask, list)
-                else ([mask] * len(self.predictions_list) if mask is not None else None)
+                else (
+                    [self._load_data(mask, "mask")] * len(self.predictions_list)
+                    if mask is not None
+                    else None
+                )
             )
             self.multi_volume = True
             logger.info("Multi-volume mode: %d volumes", len(self.predictions_list))
         else:
             # Single-volume mode
+            if isinstance(ground_truth, list):
+                raise ValueError("Single-volume predictions require a single ground_truth value")
+            if isinstance(mask, list):
+                raise ValueError("Single-volume predictions require a single mask value")
             loaded_pred = self._load_data(predictions, "predictions")
             loaded_gt = self._load_data(ground_truth, "ground_truth")
             loaded_mask = self._load_data(mask, "mask") if mask is not None else None
@@ -516,13 +574,15 @@ class OptunaDecodingTuner:
         self._validate_data()
 
         # Extract tune-only optimization config through local handles.
-        self.tune_cfg = getattr(cfg, "tune", None)
-        if self.tune_cfg is None:
+        tune_cfg = getattr(cfg, "tune", None)
+        if tune_cfg is None:
             raise ValueError("Missing tune configuration required for Optuna tuning")
+        self.tune_cfg: Any = tune_cfg
 
-        self.param_space_cfg = getattr(self.tune_cfg, "parameter_space", None)
-        if self.param_space_cfg is None:
+        param_space_cfg = getattr(self.tune_cfg, "parameter_space", None)
+        if param_space_cfg is None:
             raise ValueError("Missing tune.parameter_space configuration for Optuna tuning")
+        self.param_space_cfg: Any = param_space_cfg
 
         self._nerl_context = self._build_nerl_context()
 
@@ -600,11 +660,23 @@ class OptunaDecodingTuner:
         """Resolve skeleton/evaluation_cfg required for NERL-driven tuning."""
         opt_cfg = getattr(self.tune_cfg, "optimization", None)
         single_obj = (
-            opt_cfg.get("single_objective") if isinstance(opt_cfg, dict) else getattr(opt_cfg, "single_objective", None)
-        ) if opt_cfg is not None else None
+            (
+                opt_cfg.get("single_objective")
+                if isinstance(opt_cfg, dict)
+                else getattr(opt_cfg, "single_objective", None)
+            )
+            if opt_cfg is not None
+            else None
+        )
         metric = (
-            single_obj.get("metric") if isinstance(single_obj, dict) else getattr(single_obj, "metric", None)
-        ) if single_obj is not None else None
+            (
+                single_obj.get("metric")
+                if isinstance(single_obj, dict)
+                else getattr(single_obj, "metric", None)
+            )
+            if single_obj is not None
+            else None
+        )
         if metric != "nerl":
             return None
 
@@ -643,6 +715,9 @@ class OptunaDecodingTuner:
             "resolution": resolution,
             "merge_threshold": int(_cfg_value(evaluation_cfg, "nerl_merge_threshold", 1)),
             "chunk_num": int(_cfg_value(evaluation_cfg, "nerl_chunk_num", 1)),
+            "num_workers": _resolve_nerl_num_workers(
+                int(_cfg_value(evaluation_cfg, "nerl_num_workers", -1))
+            ),
             "graph_options": NerlGraphOptions(
                 skeleton_id_attribute=_cfg_value(
                     evaluation_cfg,
@@ -853,6 +928,24 @@ class OptunaDecodingTuner:
             direction=direction,
         )
 
+        # Fail orphan RUNNING trials inherited from a previous process (e.g.
+        # SLURM TIMEOUT mid-trial). GridSampler treats RUNNING trials as
+        # already-taken, so their grid points would be skipped forever unless
+        # we release them here.
+        if self.tune_cfg.load_if_exists:
+            for trial in study.get_trials(
+                deepcopy=False, states=(optuna.trial.TrialState.RUNNING,)
+            ):
+                study._storage.set_trial_state_values(
+                    trial._trial_id, optuna.trial.TrialState.FAIL
+                )
+                logger.info(
+                    "Released orphan RUNNING trial #%d (params=%s) as FAIL so its "
+                    "grid point can be re-sampled.",
+                    trial.number,
+                    trial.params,
+                )
+
         # Seed the first trial with known-good defaults so TPE has a strong
         # baseline from the start instead of wasting early trials on random configs.
         default_params = self._build_default_trial_params()
@@ -889,6 +982,12 @@ class OptunaDecodingTuner:
             show_progress_bar=getattr(self.tune_cfg.logging, "show_progress_bar", True),
         )
 
+        if not np.isfinite(float(study.best_value)):
+            raise RuntimeError(
+                "Tuning completed without a finite objective value. "
+                "Check decoder failures, trial timeouts, and metric inputs before reusing results."
+            )
+
         # Print results
         self._print_results(study)
 
@@ -901,7 +1000,9 @@ class OptunaDecodingTuner:
         """Create Optuna sampler from config."""
         sampler_cfg = self.tune_cfg.sampler
         sampler_name = sampler_cfg["name"]
-        sampler_kwargs = getattr(sampler_cfg, "kwargs", {})
+        # sampler_cfg may be a plain dict (TuneConfig.sampler is Dict[str, Any]),
+        # so attribute access would silently return the default and drop kwargs.
+        sampler_kwargs = sampler_cfg.get("kwargs", {}) or {}
 
         # Convert OmegaConf to dict
         if isinstance(sampler_kwargs, DictConfig):
@@ -913,6 +1014,8 @@ class OptunaDecodingTuner:
             return CmaEsSampler(**sampler_kwargs)
         elif sampler_name == "Random":
             return RandomSampler(**sampler_kwargs)
+        elif sampler_name == "Grid":
+            return GridSampler(**sampler_kwargs)
         else:
             raise ValueError(f"Unknown sampler: {sampler_name}")
 

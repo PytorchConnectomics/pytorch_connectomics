@@ -40,6 +40,46 @@ class NerlScoreResult:
     graph: Any
 
 
+def _materialize_for_parallel(segment, mask, num_workers):
+    """Write ndarray inputs to temp HDF5 so em_erl's multi-process path can use them.
+
+    em_erl's parallel `compute_segment_lut` requires path-based inputs because
+    workers each open their own VolumeSource. When the caller hands us an
+    in-memory ndarray (as the test pipeline does) we materialize it to a
+    NamedTemporaryFile here so the parallel path is actually exercised. Returns
+    `(seg_arg, mask_arg, tempfiles_to_cleanup)`.
+    """
+    if num_workers <= 1:
+        return segment, mask, []
+
+    import os
+    import tempfile
+
+    import h5py
+
+    # Cluster $TMPDIR/$HOME often lives on a network FS where HDF5 POSIX
+    # file locking returns ENOSPC even when there's plenty of space. Prefer
+    # /dev/shm (tmpfs in RAM) when available; otherwise fall back to the
+    # default temp dir.
+    temp_dir = "/dev/shm" if os.path.isdir("/dev/shm") and os.access("/dev/shm", os.W_OK) else None
+
+    tempfiles = []
+
+    def _maybe_write(arr, prefix):
+        if not isinstance(arr, np.ndarray):
+            return arr
+        fh = tempfile.NamedTemporaryFile(suffix=".h5", prefix=prefix, dir=temp_dir, delete=False)
+        fh.close()
+        with h5py.File(fh.name, "w") as fid:
+            fid.create_dataset("main", data=np.ascontiguousarray(arr))
+        tempfiles.append(fh.name)
+        return fh.name
+
+    seg_arg = _maybe_write(segment, "nerl_seg_")
+    mask_arg = _maybe_write(mask, "nerl_mask_") if mask is not None else None
+    return seg_arg, mask_arg, tempfiles
+
+
 def import_em_erl():
     try:
         from em_erl import ERLGraph, compute_erl_score, compute_segment_lut
@@ -286,6 +326,7 @@ def compute_nerl_score_details(
     resolution: Any = None,
     merge_threshold: int = 1,
     chunk_num: int = 1,
+    num_workers: int = 1,
     graph_options: NerlGraphOptions | None = None,
 ) -> NerlScoreResult:
     """Compute detailed NERL output for one segmentation/skeleton pair."""
@@ -297,13 +338,24 @@ def compute_nerl_score_details(
         node_positions = erl_graph.get_nodes_position(resolution)
 
     segment = prepare_nerl_segmentation(segmentation)
-    node_segment_lut, mask_segment_id = compute_segment_lut(
-        segment,
-        node_positions,
-        mask=skeleton_mask_value,
-        chunk_num=int(chunk_num),
-        data_type=segment.dtype,
+    seg_arg, mask_arg, _tempfiles = _materialize_for_parallel(
+        segment, skeleton_mask_value, int(num_workers)
     )
+    try:
+        node_segment_lut, mask_segment_id = compute_segment_lut(
+            seg_arg,
+            node_positions,
+            mask=mask_arg,
+            chunk_num=int(chunk_num),
+            data_type=segment.dtype,
+            num_workers=int(num_workers),
+        )
+    finally:
+        for path in _tempfiles:
+            try:
+                Path(path).unlink()
+            except OSError:
+                pass
     score = compute_erl_score(
         erl_graph,
         node_segment_lut,
@@ -331,6 +383,7 @@ def compute_nerl_score(
     resolution: Any = None,
     merge_threshold: int = 1,
     chunk_num: int = 1,
+    num_workers: int = 1,
     graph_options: NerlGraphOptions | None = None,
 ) -> tuple[float, float, float]:
     """Return ``(nerl, pred_erl, gt_erl)`` for one segmentation/skeleton pair."""
@@ -341,6 +394,7 @@ def compute_nerl_score(
         resolution=resolution,
         merge_threshold=merge_threshold,
         chunk_num=chunk_num,
+        num_workers=num_workers,
         graph_options=graph_options,
     )
     return result.nerl, result.pred_erl, result.gt_erl

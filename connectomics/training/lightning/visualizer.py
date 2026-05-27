@@ -336,7 +336,7 @@ class Visualizer:
         if mask is not None and mask.numel() > 0:
             for i in range(min(mask.shape[1], self.max_channels)):
                 # Show mask in cyan for better visibility
-                mask_channel = mask[:, i : i + 1]
+                mask_channel = mask[:, i : i + 1].float()
                 mask_rgb = torch.cat(
                     [
                         torch.zeros_like(mask_channel),  # R=0

@@ -20,6 +20,7 @@ from connectomics.runtime.dispatch import dispatch_runtime
 from connectomics.runtime.sharding import (
     has_assigned_test_shard,
     maybe_enable_independent_test_sharding,
+    maybe_enable_naive_chunk_sharding,
     maybe_limit_test_devices,
     resolve_test_stage_runtime,
 )
@@ -95,7 +96,7 @@ def test_is_test_evaluation_enabled_supports_mapping_or_dataclass_config():
 
 class _DummyTestDataModule:
     def __init__(self, volume_count: int):
-        self.test_data_dicts = [{} for _ in range(volume_count)]
+        self.test_data_dicts: list[dict[str, object]] = [{} for _ in range(volume_count)]
 
 
 def test_maybe_limit_test_devices_disables_distributed_tta_sharding_for_multi_volume_tests():
@@ -252,6 +253,26 @@ def test_has_assigned_test_shard_returns_false_for_empty_slice(tmp_path, monkeyp
     assert has_assigned_test_shard(cfg, args) is False
 
 
+def test_naive_chunk_sharding_claims_explicit_shard_args_without_volume_sharding(tmp_path):
+    args = _make_args(tmp_path / "config.yaml")
+    args.shard_id = 1
+    args.num_shards = 4
+    cfg = Config()
+    cfg.system.num_gpus = 8
+    cfg.inference.strategy = "chunked"
+    cfg.inference.chunking.enabled = True
+    cfg.inference.chunking.output_mode = "raw_prediction"
+
+    changed = maybe_enable_naive_chunk_sharding(args, cfg)
+
+    assert changed is True
+    assert cfg.inference.chunking.shard_id == 1
+    assert cfg.inference.chunking.num_shards == 4
+    assert cfg.system.num_gpus == (1 if torch.cuda.is_available() else 0)
+    assert maybe_enable_independent_test_sharding(args, cfg) is False
+    assert has_assigned_test_shard(cfg, args) is True
+
+
 def test_tune_cache_only_preserves_checkpoint_tag_for_tuning_suffix(tmp_path, monkeypatch):
     cfg = Config()
     cfg.tune = TuneConfig()
@@ -404,6 +425,55 @@ def test_tune_cache_detection_uses_tuning_folder_then_result_fallback(tmp_path):
             cfg,
             mode="tune",
             checkpoint_path="step-step=00050000.ckpt",
+        )
+        is True
+    )
+
+
+def test_tune_cache_detection_checks_checkpoint_test_folder(tmp_path):
+    cfg = Config()
+    cfg.tune = TuneConfig()
+    cfg.data.val.image = str(tmp_path / "images" / "volume_a.h5")
+    Path(cfg.data.val.image).parent.mkdir(parents=True, exist_ok=True)
+    Path(cfg.data.val.image).touch()
+
+    args = _make_args(tmp_path / "config.yaml", mode="tune")
+    args.checkpoint = str(
+        tmp_path
+        / "outputs"
+        / "nisb_base_banis"
+        / "20260427_095218"
+        / "checkpoints"
+        / "step=00050000.ckpt"
+    )
+    configure_checkpoint_output_paths(args, cfg)
+
+    assert (
+        has_cached_predictions_in_output_dir(
+            cfg,
+            mode="tune",
+            checkpoint_path=args.checkpoint,
+        )
+        is False
+    )
+
+    test_pred = (
+        tmp_path
+        / "outputs"
+        / "nisb_base_banis"
+        / "20260427_095218"
+        / "test_step=00050000"
+        / "volume_a"
+        / "raw_x1.h5"
+    )
+    test_pred.parent.mkdir(parents=True, exist_ok=True)
+    write_hdf5(str(test_pred), np.zeros((1, 1, 1), dtype=np.float32), dataset="main")
+
+    assert (
+        has_cached_predictions_in_output_dir(
+            cfg,
+            mode="tune",
+            checkpoint_path=args.checkpoint,
         )
         is True
     )

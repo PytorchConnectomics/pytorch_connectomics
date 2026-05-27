@@ -1,5 +1,5 @@
 _base_:
-  - base_banis_v1.yaml
+  - base_banis_opt.yaml
 
 experiment_name: nisb_base_banis_v2
 description: >-
@@ -7,6 +7,8 @@ description: >-
   head keeps the proven 6-channel r1+r10 supervision from v1; the SDT head
   adds boundary/bottleneck signal for false-merge reduction. Decoding still
   uses only short-range channels 0:3 from the affinity head.
+
+save_path: outputs/nisb_base_banis_v2
 
 default:
   model:
@@ -73,5 +75,3 @@ train:
       images:
         head: all
         channel_mode: all
-    checkpoint:
-      save_path: outputs/nisb_base_banis_v2

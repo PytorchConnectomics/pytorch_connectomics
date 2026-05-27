@@ -1,6 +1,8 @@
 experiment_name: minimal_demo
 description: Minimal training config for quick startup and UX onboarding.
 
+save_path: outputs/minimal
+
 default:
   model:
     arch:
@@ -41,7 +43,6 @@ train:
       lr: 1e-4
   monitor:
     checkpoint:
-      save_path: outputs/minimal
       save_top_k: 1
       save_last: true
   system:

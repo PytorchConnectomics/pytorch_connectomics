@@ -9,6 +9,7 @@ from .artifact import (
 )
 from .chunked import (
     is_chunked_inference_enabled,
+    is_external_chunk_sharding_enabled,
     run_chunked_prediction_inference,
 )
 from .manager import InferenceManager
@@ -18,14 +19,14 @@ from .output import (
     resolve_output_filenames,
     write_outputs,
 )
+from .stage import run_prediction_inference
+from .tta import TTAPredictor
 from .window import (
     build_sliding_inferer,
     is_2d_inference_mode,
     resolve_inferer_overlap,
     resolve_inferer_roi_size,
 )
-from .stage import run_prediction_inference
-from .tta import TTAPredictor
 
 __all__ = [
     "InferenceManager",
@@ -35,6 +36,7 @@ __all__ = [
     "write_prediction_artifact",
     "write_prediction_artifact_attrs",
     "run_prediction_inference",
+    "is_external_chunk_sharding_enabled",
     "is_chunked_inference_enabled",
     "run_chunked_prediction_inference",
     "apply_prediction_transform",
