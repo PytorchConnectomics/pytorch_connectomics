@@ -43,6 +43,7 @@ _LOSS_METADATA_BY_NAME = {
     ),
     "WeightedMSELoss": LossMetadata("WeightedMSELoss", spatial_weight_arg="weight"),
     "WeightedMAELoss": LossMetadata("WeightedMAELoss", spatial_weight_arg="weight"),
+    "MalisLoss": LossMetadata("MalisLoss", spatial_weight_arg="mask"),
     # GAN is not compatible with the generic supervised orchestrator path
     "GANLoss": LossMetadata("GANLoss", call_kind="unsupported", target_kind="none"),
     # Regularization losses
