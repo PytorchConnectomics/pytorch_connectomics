@@ -30,3 +30,4 @@ default:
             nhood: [[1, 0, 0], [0, 1, 0], [0, 0, 1]]
             sigmoid: true
             reduction: mean
+            # malis_crop_size: 64  # symmetric; or e.g. [32, 64, 64] for asymmetric. See lib/malis/INVESTIGATION.md.

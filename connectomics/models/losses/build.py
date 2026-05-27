@@ -33,6 +33,7 @@ from .losses import (
     WeightedMAELoss,
     WeightedMSELoss,
 )
+from .malis import MalisLoss
 from .metadata import (
     LossMetadata,
     attach_loss_metadata,
@@ -72,6 +73,7 @@ def _get_loss_registry() -> Dict[str, type[nn.Module]]:
         "PerChannelBCEWithLogitsLoss": PerChannelBCEWithLogitsLoss,
         "WeightedMSELoss": WeightedMSELoss,
         "WeightedMAELoss": WeightedMAELoss,
+        "MalisLoss": MalisLoss,
         "GANLoss": GANLoss,
         # Regularization losses
         "BinaryRegularization": BinaryRegularization,
