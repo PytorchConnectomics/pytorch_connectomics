@@ -41,6 +41,7 @@ _LOSS_METADATA_BY_NAME = {
     "PerChannelBCEWithLogitsLoss": LossMetadata(
         "PerChannelBCEWithLogitsLoss", spatial_weight_arg="weight"
     ),
+    "SoftClDiceLoss": LossMetadata("SoftClDiceLoss", spatial_weight_arg="weight"),
     "WeightedMSELoss": LossMetadata("WeightedMSELoss", spatial_weight_arg="weight"),
     "WeightedMAELoss": LossMetadata("WeightedMAELoss", spatial_weight_arg="weight"),
     "MalisLoss": LossMetadata("MalisLoss", spatial_weight_arg="mask"),
