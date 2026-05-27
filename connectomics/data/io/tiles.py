@@ -26,6 +26,7 @@ def reconstruct_volume_from_tiles(
     tile_ratio: float = 1.0,
     is_image: bool = True,
     background_value: int = 128,
+    num_workers: int = 1,
 ) -> np.ndarray:
     """Construct a volume from image tiles.
 
@@ -39,6 +40,10 @@ def reconstruct_volume_from_tiles(
         tile_ratio: Scale factor for tiles. Default 1.0.
         is_image: If True, use linear interp for resize.
         background_value: Fill value. Default 128.
+        num_workers: Threads used to decode/assemble z-sections in parallel.
+            1 (default) keeps the serial path. Each section writes a disjoint
+            ``result[z]`` plane, so threads are safe and image decoding (which
+            releases the GIL) scales with cores.
     """
     if tile_start is None:
         tile_start = [0, 0]
@@ -72,7 +77,7 @@ def reconstruct_volume_from_tiles(
     row_start = y0 // tile_h
     row_end = (y1 + tile_h - 1) // tile_h
 
-    for z in range(z0, z1):
+    def _fill_plane(z: int) -> None:
         pattern = tile_paths[z]
         for row in range(row_start, row_end):
             for col in range(col_start, col_end):
@@ -126,6 +131,16 @@ def reconstruct_volume_from_tiles(
                             xa - xps : xe - xps,
                         ]
                     )
+
+    z_indices = range(z0, z1)
+    if num_workers and int(num_workers) > 1 and (z1 - z0) > 1:
+        from concurrent.futures import ThreadPoolExecutor
+
+        with ThreadPoolExecutor(max_workers=min(int(num_workers), z1 - z0)) as pool:
+            list(pool.map(_fill_plane, z_indices))
+    else:
+        for z in z_indices:
+            _fill_plane(z)
 
     if max(boundary_diffs) > 0:
         result = np.pad(

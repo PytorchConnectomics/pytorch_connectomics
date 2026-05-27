@@ -6,10 +6,10 @@ import numpy as np
 import pytest
 import torch
 
+from connectomics.chunked.chunk_grid import build_chunk_grid
 from connectomics.config import Config, validate_config
 from connectomics.data.io import write_hdf5
 from connectomics.decoding.streamed_chunked import UnionFind, _union_face_pairs
-from connectomics.chunked.chunk_grid import build_chunk_grid
 from connectomics.inference.chunk_grid import (
     resolve_global_prediction_crop,
     validate_chunked_output_format,
@@ -18,9 +18,11 @@ from connectomics.inference.chunked import (
     _per_chunk_dir,
     _run_chunked_prediction_per_rank,
     _stitch_chunk_prediction_files,
+    is_external_chunk_sharding_enabled,
     run_chunked_prediction_inference,
 )
 from connectomics.inference.lazy import lazy_predict_volume
+from scripts.stitch_chunked_prediction import stitch
 
 
 def _patch_mean_forward(x: torch.Tensor) -> torch.Tensor:
@@ -262,3 +264,58 @@ def test_per_rank_chunk_artifacts_use_chunk_local_shape_metadata(tmp_path):
     assert json.loads(attrs["final_shape"]) == [2, 4, 7]
     assert json.loads(attrs["chunk_shape"]) == [2, 4, 7]
     assert "crop_pad" not in attrs
+
+
+def test_external_chunk_shards_write_chunks_without_stitching_then_script_stitches(tmp_path):
+    cfg = Config()
+    cfg.data.image_transform.normalize = "none"
+    cfg.data.dataloader.patch_size = [3, 3, 3]
+    cfg.data.dataloader.batch_size = 2
+    cfg.model.output_size = [3, 3, 3]
+    cfg.inference.strategy = "chunked"
+    cfg.inference.sliding_window.window_size = [3, 3, 3]
+    cfg.inference.sliding_window.overlap = 0.5
+    cfg.inference.sliding_window.blending = "constant"
+    cfg.inference.sliding_window.snap_to_edge = True
+    cfg.inference.chunking.enabled = True
+    cfg.inference.chunking.output_mode = "raw_prediction"
+    cfg.inference.chunking.chunk_size = [2, 4, 7]
+    cfg.inference.chunking.halo = [0, 0, 0]
+    cfg.inference.save_compression = "none"
+
+    image_path = tmp_path / "external_shard_input.h5"
+    output_path = tmp_path / "external_shard_prediction.h5"
+    volume = np.arange(5 * 6 * 7, dtype=np.float32).reshape(5, 6, 7)
+    write_hdf5(str(image_path), volume, dataset="main")
+
+    full = lazy_predict_volume(cfg, _patch_mean_forward, str(image_path), device="cpu")
+    for shard_id in range(2):
+        cfg.inference.chunking.shard_id = shard_id
+        cfg.inference.chunking.num_shards = 2
+        assert is_external_chunk_sharding_enabled(cfg) is True
+        run_chunked_prediction_inference(
+            cfg,
+            _patch_mean_forward,
+            str(image_path),
+            output_path=output_path,
+            device="cpu",
+            checkpoint_path="checkpoint.ckpt",
+        )
+
+    assert not output_path.exists()
+    assert (tmp_path / "external_shard_prediction.h5.index.json").is_file()
+    chunks_dir = _per_chunk_dir(output_path)
+    chunk_files = sorted(chunks_dir.glob("chunk_*.h5"))
+    assert len(chunk_files) == len(
+        build_chunk_grid(volume.shape, tuple(cfg.inference.chunking.chunk_size))
+    )
+
+    stitch(output_path, slab=2)
+
+    import h5py
+
+    with h5py.File(output_path, "r") as handle:
+        raw = np.asarray(handle["main"])
+
+    assert raw.shape == tuple(full.shape[1:])
+    assert np.allclose(raw, full.numpy()[0], atol=1.0e-5)

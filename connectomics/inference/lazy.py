@@ -3,14 +3,17 @@
 from __future__ import annotations
 
 import itertools
+import json
 import math
+from pathlib import Path
 from typing import Callable, Optional, Sequence
 
 import numpy as np
 import torch
 import torch.nn.functional as F
-from .window import dense_patch_slices
+
 from .window import compute_scan_interval as _get_scan_interval  # in-house
+from .window import dense_patch_slices
 
 try:
     from tqdm.auto import tqdm
@@ -26,6 +29,7 @@ from .lazy_distributed import (
     is_distributed_window_sharding_enabled as _is_distributed_window_sharding_enabled,
 )
 from .lazy_distributed import validate_distributed_patch_shard as _validate_distributed_patch_shard
+from .tta import TTAPredictor
 from .window import (
     apply_border_mask,
     build_sliding_accumulator_weight_maps,
@@ -35,7 +39,123 @@ from .window import (
     resolve_inferer_roi_size,
     resolve_model_output_dtype,
 )
-from .tta import TTAPredictor
+
+
+def _coerce_tile_size(value) -> tuple[int, int]:
+    if isinstance(value, int):
+        return int(value), int(value)
+    if isinstance(value, (list, tuple)) and len(value) == 2:
+        return int(value[0]), int(value[1])
+    raise ValueError(f"Tile metadata requires tile_size as int or [height, width], got {value!r}.")
+
+
+def _normalize_tile_patterns(patterns: Sequence[str], base_dir: Path) -> list[str]:
+    normalized = []
+    for pattern in patterns:
+        path = Path(str(pattern))
+        if not path.is_absolute():
+            path = base_dir / path
+        normalized.append(str(path))
+    return normalized
+
+
+def _load_tile_metadata_json(path: Path) -> dict:
+    with path.open("r", encoding="utf-8") as handle:
+        metadata = json.load(handle)
+    if not isinstance(metadata, dict):
+        raise ValueError(f"Tile metadata must be a JSON object, got {type(metadata).__name__}.")
+
+    image_patterns = metadata.get("image", metadata.get("images"))
+    if not image_patterns:
+        raise ValueError(f"Tile metadata {path} must contain an 'image' or 'images' list.")
+    if not isinstance(image_patterns, list):
+        raise ValueError(f"Tile metadata {path} image patterns must be a list.")
+
+    metadata = dict(metadata)
+    metadata["image"] = _normalize_tile_patterns(image_patterns, path.parent)
+    if "depth" not in metadata:
+        metadata["depth"] = len(metadata["image"])
+    for key in ("height", "width", "tile_size"):
+        if key not in metadata:
+            raise ValueError(f"Tile metadata {path} is missing required key '{key}'.")
+    metadata.setdefault("dtype", "uint8")
+    metadata.setdefault("tile_st", [0, 0])
+    metadata.setdefault("tile_ratio", 1.0)
+    return metadata
+
+
+def _infer_tile_metadata_from_directory(path: Path) -> dict:
+    section_dirs = sorted(
+        (p for p in path.iterdir() if p.is_dir() and p.name.isdigit()),
+        key=lambda item: int(item.name),
+    )
+    if not section_dirs:
+        raise ValueError(
+            f"Cannot infer tile metadata from {path}: expected numeric section directories."
+        )
+
+    first_section = section_dirs[0]
+    tile_files = sorted(first_section.glob("*_*.png"))
+    if not tile_files:
+        raise ValueError(
+            f"Cannot infer tile metadata from {path}: no '<row>_<column>.png' tiles found "
+            f"in {first_section}."
+        )
+
+    rows: list[int] = []
+    cols: list[int] = []
+    for tile_file in tile_files:
+        stem = tile_file.stem
+        try:
+            row_text, col_text = stem.split("_", 1)
+            rows.append(int(row_text))
+            cols.append(int(col_text))
+        except ValueError:
+            continue
+    if not rows or not cols:
+        raise ValueError(f"Cannot infer tile grid from {first_section}.")
+
+    from imageio.v2 import imread
+
+    sample = np.asarray(imread(tile_files[0]))
+    if sample.ndim < 2:
+        raise ValueError(f"Tile image {tile_files[0]} must be at least 2D, got {sample.shape}.")
+    tile_h, tile_w = int(sample.shape[0]), int(sample.shape[1])
+    row_min, row_max = min(rows), max(rows)
+    col_min, col_max = min(cols), max(cols)
+
+    return {
+        "image": [str(section_dir / "{row}_{column}.png") for section_dir in section_dirs],
+        "depth": len(section_dirs),
+        "height": (row_max - row_min + 1) * tile_h,
+        "width": (col_max - col_min + 1) * tile_w,
+        "tile_size": [tile_h, tile_w],
+        "dtype": str(sample.dtype),
+        "tile_st": [row_min, col_min],
+        "tile_ratio": 1.0,
+    }
+
+
+def _load_tile_metadata(source: str) -> dict:
+    path = Path(source)
+    if path.is_dir():
+        return _infer_tile_metadata_from_directory(path)
+    if path.suffix.lower() == ".json":
+        if path.exists():
+            return _load_tile_metadata_json(path)
+        sibling_dir = path.with_suffix("")
+        if sibling_dir.is_dir():
+            return _infer_tile_metadata_from_directory(sibling_dir)
+    raise ValueError(
+        f"Tile source {source} is neither an existing metadata JSON nor a tiled directory."
+    )
+
+
+def _is_tile_source(path: str) -> bool:
+    source = Path(path)
+    if ".zarr" in str(source):
+        return False
+    return source.suffix.lower() == ".json" or source.is_dir()
 
 
 def _normalize_transpose_axes(transpose_axes: Optional[Sequence[int]]) -> tuple[int, ...]:
@@ -344,10 +464,12 @@ class LazyVolumeAccessor:
         clip_percentile_high: float = 1.0,
         binarize: bool = False,
         threshold: float = 0.0,
+        tile_read_workers: int = 1,
     ):
         self.path = str(path)
         self.kind = kind
-        self.fmt = _detect_format(self.path)
+        self.tile_read_workers = max(1, int(tile_read_workers))
+        self.fmt = "tile" if _is_tile_source(self.path) else _detect_format(self.path)
         self.transpose_axes = _normalize_transpose_axes(transpose_axes)
         self.inverse_transpose_axes = _invert_transpose_axes(self.transpose_axes)
         self.scale_factors = (
@@ -364,6 +486,7 @@ class LazyVolumeAccessor:
         self._handle = None
         self._dataset = None
         self._tiff = None
+        self._tile_metadata = None
         self._open_handle()
 
         self.raw_shape = tuple(int(v) for v in self._get_raw_shape())
@@ -416,6 +539,8 @@ class LazyVolumeAccessor:
             import tifffile
 
             self._tiff = tifffile.TiffFile(self.path)
+        elif self.fmt == "tile":
+            self._tile_metadata = _load_tile_metadata(self.path)
         else:
             raise ValueError(
                 "Lazy sliding-window inference does not support format "
@@ -427,6 +552,15 @@ class LazyVolumeAccessor:
             return tuple(int(v) for v in self._dataset.shape)
         if self.fmt == "tiff":
             return tuple(int(v) for v in _get_tiff_volume_shape(self.path))
+        if self.fmt == "tile":
+            metadata = self._tile_metadata
+            if metadata is None:
+                raise RuntimeError("Tile metadata was not initialized.")
+            return (
+                int(metadata["depth"]),
+                int(metadata["height"]),
+                int(metadata["width"]),
+            )
         raise AssertionError("unreachable")
 
     @staticmethod
@@ -532,6 +666,41 @@ class LazyVolumeAccessor:
             return data[:, :, y_slice, x_slice]
         raise AssertionError("unreachable")
 
+    def _read_tile(self, raw_slices: tuple[slice, slice, slice]) -> np.ndarray:
+        from ..data.io.tiles import reconstruct_volume_from_tiles
+
+        metadata = self._tile_metadata
+        if metadata is None:
+            raise RuntimeError("Tile metadata was not initialized.")
+
+        z_slice, y_slice, x_slice = raw_slices
+        z0 = int(z_slice.start or 0)
+        y0 = int(y_slice.start or 0)
+        x0 = int(x_slice.start or 0)
+        z1 = int(z_slice.stop if z_slice.stop is not None else metadata["depth"])
+        y1 = int(y_slice.stop if y_slice.stop is not None else metadata["height"])
+        x1 = int(x_slice.stop if x_slice.stop is not None else metadata["width"])
+        tile_h, tile_w = _coerce_tile_size(metadata["tile_size"])
+
+        return reconstruct_volume_from_tiles(
+            tile_paths=metadata["image"],
+            volume_coords=[z0, z1, y0, y1, x0, x1],
+            tile_coords=[
+                0,
+                int(metadata["depth"]),
+                0,
+                int(metadata["height"]),
+                0,
+                int(metadata["width"]),
+            ],
+            tile_size=[tile_h, tile_w],
+            data_type=np.dtype(metadata.get("dtype", "uint8")),
+            tile_start=metadata.get("tile_st"),
+            tile_ratio=float(metadata.get("tile_ratio", 1.0)),
+            is_image=self.kind != "label",
+            num_workers=self.tile_read_workers,
+        )
+
     def _read_raw_crop(
         self, logical_start: Sequence[int], logical_end: Sequence[int]
     ) -> np.ndarray:
@@ -539,7 +708,9 @@ class LazyVolumeAccessor:
         if self.fmt in {"h5", "zarr"}:
             data = self._read_h5_or_zarr(raw_slices)
         else:
-            data = self._read_tiff(raw_slices)
+            data = (
+                self._read_tile(raw_slices) if self.fmt == "tile" else self._read_tiff(raw_slices)
+            )
 
         if self.layout == "no_channel":
             data = self._transpose_spatial_array(data)
@@ -778,6 +949,7 @@ def _build_accessor(cfg, path: str, *, kind: str, mode: str) -> LazyVolumeAccess
         clip_percentile_high=clip_high,
         binarize=binarize,
         threshold=threshold,
+        tile_read_workers=max(1, int(cfg.system.num_workers)),
     )
 
 

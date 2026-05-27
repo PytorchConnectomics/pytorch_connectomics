@@ -20,6 +20,7 @@ from connectomics.runtime.dispatch import dispatch_runtime
 from connectomics.runtime.sharding import (
     has_assigned_test_shard,
     maybe_enable_independent_test_sharding,
+    maybe_enable_naive_chunk_sharding,
     maybe_limit_test_devices,
     resolve_test_stage_runtime,
 )
@@ -250,6 +251,26 @@ def test_has_assigned_test_shard_returns_false_for_empty_slice(tmp_path, monkeyp
     )
 
     assert has_assigned_test_shard(cfg, args) is False
+
+
+def test_naive_chunk_sharding_claims_explicit_shard_args_without_volume_sharding(tmp_path):
+    args = _make_args(tmp_path / "config.yaml")
+    args.shard_id = 1
+    args.num_shards = 4
+    cfg = Config()
+    cfg.system.num_gpus = 8
+    cfg.inference.strategy = "chunked"
+    cfg.inference.chunking.enabled = True
+    cfg.inference.chunking.output_mode = "raw_prediction"
+
+    changed = maybe_enable_naive_chunk_sharding(args, cfg)
+
+    assert changed is True
+    assert cfg.inference.chunking.shard_id == 1
+    assert cfg.inference.chunking.num_shards == 4
+    assert cfg.system.num_gpus == (1 if torch.cuda.is_available() else 0)
+    assert maybe_enable_independent_test_sharding(args, cfg) is False
+    assert has_assigned_test_shard(cfg, args) is True
 
 
 def test_tune_cache_only_preserves_checkpoint_tag_for_tuning_suffix(tmp_path, monkeypatch):
