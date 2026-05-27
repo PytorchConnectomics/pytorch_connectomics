@@ -115,6 +115,8 @@ class ChunkingConfig:
     chunk_size: Optional[List[int]] = None  # ZYX after test-time val_transpose.
     halo: List[int] = field(default_factory=lambda: [0, 0, 0])
     axes: str = "all"  # "all" or "z"; "z" keeps full YX in each chunk.
+    shard_id: Optional[int] = None  # External naive chunk shard index; set by CLI.
+    num_shards: Optional[int] = None  # External naive chunk shard count; set by CLI.
     temp_dir: str = ""
     save_intermediate: bool = False
     stitching: ChunkStitchingConfig = field(default_factory=ChunkStitchingConfig)
@@ -203,7 +205,9 @@ class InferenceConfig:
     # All `save_*` siblings group together under one prefix per the v3 naming rule.
     save_results: bool = False
     save_path: str = ""
-    save_cache_suffix: str = "_x1_prediction.h5"  # Includes extension; keep aligned with save_backend.
+    save_cache_suffix: str = (
+        "_x1_prediction.h5"  # Includes extension; keep aligned with save_backend.
+    )
     save_all_heads: bool = False
     save_dtype: Optional[str] = None
     save_backend: str = "h5"  # "h5", "zarr", or "tensorstore" when implemented by runtime.
@@ -298,4 +302,3 @@ def sync_inference_runtime_aliases(cfg: object) -> None:
                     "border_mask",
                 ],
             )
-

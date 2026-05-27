@@ -31,7 +31,13 @@ default:
       # de-emphasizes the outer band. Must remain a multiple of MedNeXt's
       # 16-voxel stride.
       window_size: [144, 144, 144]
-      sw_batch_size: 2
+      # Test shards run 1 GPU each on 49 GB L40S. Measured peak GPU memory is
+      # linear in sw_batch_size (~3.46 GB/unit + ~0.77 GB fixed, with
+      # expandable_segments): batch 2 -> 7.7 GB, batch 8 -> 28.5 GB. 12 targets
+      # ~42 GB (~86%, ~7 GB headroom) to maximize GPU use without OOM; 13 (~46 GB)
+      # is the hard ceiling and 14 (~49 GB) OOMs on a 49 GB card. (Zarr reads keep
+      # the GPU fed; on PNG tiles it sat at 0% regardless of batch.)
+      sw_batch_size: 12
       overlap: 0.5
       blending: bump
       padding_mode: replicate
@@ -39,14 +45,16 @@ default:
       snap_to_edge: true
     chunking:
       enabled: true
-      # raw_prediction parallelizes chunks across DDP ranks (idx % world_size).
+      # raw_prediction lets independent sbatch jobs split chunks by
+      # --shard-id/--num-shards without torch.distributed.
       output_mode: raw_prediction
       # window stride = 144 * (1 - 0.5) = 72. Internal chunk starts must be
       # multiples of 72; 1008 = 14 * 72. For 5700 x 12288 x 12288 this gives
       # roughly 6 x 13 x 13 = ~1014 chunks; the last chunk along each axis is
       # smaller because the full extent is not divisible by 1008.
       chunk_size: [1008, 1008, 1008]
-      halo: [0, 0, 0]
+      # Each chunk job reads an overlapping halo and writes only its core.
+      halo: [72, 72, 72]
       axes: all
     save_results: true
     save_backend: h5
@@ -58,14 +66,17 @@ default:
     enabled: true
     # Tag participates in decoded-output filenames so chunked variants do not
     # collide with prior runs.
-    save_suffix: zebrafinch_chunk_raw_grid1008_halo0
+    save_suffix: zebrafinch_chunk_raw_grid1008_halo72
     # Empty string = no affinity QC mask (the inherited base_banis path is
     # NISB-specific and does not apply to zebrafinch).
     affinity_mask_path: ""
     steps:
       - name: decode_affinity_cc
         kwargs:
-          threshold: 0.75
+          # Best NISB BANIS+ validation setting used for the reference run:
+          # just test neuron_nisb/base_banis+_zebrafinch \
+          #   outputs/nisb_base_banis_v3_erosion2/20260508_224029/checkpoints/step=00200000.ckpt
+          threshold: 0.66
           backend: numba
           edge_offset: 0
 
@@ -74,8 +85,8 @@ default:
 
 test:
   system:
-    # raw_prediction chunking parallelizes across ranks.
-    num_gpus: -1
+    # Each sbatch shard is an independent one-GPU job; do not use DDP.
+    num_gpus: 1
   decoding:
     # Override the NISB-specific QC mask inherited from base_banis' test stage;
     # it does not apply to zebrafinch. Empty string = no affinity mask.
@@ -88,9 +99,7 @@ test:
       #   tile_size = [4096, 4096], dtype = uint8 (mode L). Effective volume
       #   shape (ZYX) = 5700 x 12288 x 12288.
       #
-      # Canonical tile metadata (consumed by TileLoaderd in
-      # connectomics/data/io/transforms.py) lives in im_align_10nm.json with
-      # the shape:
+      # Tile metadata can be supplied as im_align_10nm.json with the shape:
       #   {
       #     "image": ["im_align_10nm/0000/{row}_{column}.png", ...,
       #               "im_align_10nm/5699/{row}_{column}.png"],
@@ -100,16 +109,16 @@ test:
       #     "tile_st": [0, 0],
       #     "tile_ratio": 1.0
       #   }
-      #
-      # NOTE on wiring: the framework already ships the tile primitives
-      # (connectomics/data/io/tiles.py::reconstruct_volume_from_tiles and the
-      # TileLoaderd MONAI transform), but the chunked-inference path uses
-      # LazyVolumeAccessor (connectomics/inference/lazy.py), which currently
-      # only opens h5/zarr/tiff. To run this config end-to-end you either
-      # (a) extend LazyVolumeAccessor with a tile/JSON backend that reads the
-      # JSON above and stitches PNG tiles on demand, or (b) pre-stitch the
-      # tiles into a single h5/zarr volume and point image: at it.
+      # If the JSON is absent, the lazy tile reader infers the same metadata
+      # from the sibling im_align_10nm/ section directory.
       dataset_type: tile
       path: /projects/weilab/dataset/zebrafinch
+      # Clear the inherited NISB zarr/label/skeleton paths from base_banis.yaml.
+      image: null
+      label: null
+      label_aux: null
+      mask: null
+      skeleton: null
       json: im_align_10nm.json
+      name: im_align_10nm
       resolution: [10, 10, 10]
