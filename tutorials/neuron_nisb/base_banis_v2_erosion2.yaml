@@ -6,6 +6,8 @@ description: >-
   v2 affinity+SDT two-head training setup with label erosion=2 for stronger
   boundary separation.
 
+save_path: outputs/nisb_base_banis_v2_erosion2
+
 default:
   data:
     dataloader:
@@ -13,7 +15,3 @@ default:
     label_transform:
       erosion: 2
 
-train:
-  monitor:
-    checkpoint:
-      save_path: outputs/nisb_base_banis_v2_erosion2

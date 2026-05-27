@@ -18,9 +18,9 @@ from connectomics.runtime.output_naming import (
     intermediate_prediction_cache_suffix,
     intermediate_prediction_cache_suffix_candidates,
     is_raw_cache_suffix,
-    resolve_prediction_cache_suffix,
     raw_cache_suffix,
     raw_cache_suffix_candidates,
+    resolve_prediction_cache_suffix,
     tuning_best_params_filename,
     tuning_best_params_filename_candidates,
 )
@@ -80,7 +80,7 @@ def test_setup_config_applies_overrides_and_fast_dev_run(tmp_path):
     updated = setup_config(args)
 
     expected_base = f"outputs/{cfg_path.stem}"
-    assert Path(updated.monitor.checkpoint.save_path).as_posix() == expected_base
+    assert Path(updated.save_path).as_posix() == expected_base
     assert updated.optimization.optimizer.lr == 0.01
     assert updated.optimization.max_epochs == 5
     assert updated.data.dataloader.batch_size == 2
@@ -293,8 +293,7 @@ def test_tta_cache_suffix_accepts_explicit_output_head_override():
 
     assert raw_cache_suffix(cfg, output_head="sdt") == "raw_x1_head-sdt.h5"
     assert (
-        resolve_prediction_cache_suffix(cfg, mode="test", output_head="sdt")
-        == "raw_x1_head-sdt.h5"
+        resolve_prediction_cache_suffix(cfg, mode="test", output_head="sdt") == "raw_x1_head-sdt.h5"
     )
 
 
@@ -377,7 +376,6 @@ def test_cache_resolver_ignores_whole_volume_raw_for_chunked_raw_config(tmp_path
             cfg, checkpoint_path=checkpoint
         ),
         preferred_decoded_suffix=final_prediction_output_tag(cfg, checkpoint_path=checkpoint),
-        decoded_glob_suffix=final_prediction_decoded_glob_suffix(cfg, checkpoint_path=checkpoint),
     )
 
     assert cache_hit is False
@@ -418,7 +416,6 @@ def test_cache_resolver_prefers_decoded_final_over_large_raw_intermediate(tmp_pa
             cfg, checkpoint_path=checkpoint
         ),
         preferred_decoded_suffix=final_suffix,
-        decoded_glob_suffix=final_prediction_decoded_glob_suffix(cfg, checkpoint_path=checkpoint),
     )
 
     assert cache_hit is True
@@ -483,6 +480,23 @@ def test_format_decode_tag_includes_all_decoding_parameters():
     assert format_decode_tag(cfg) == "_waterz_256-watershed-aff50_his256-true-0.1-0.2-0.4"
 
 
+def test_format_decode_tag_uses_explicit_step_tag_and_skips_paths():
+    cfg = Config()
+    cfg.decoding.steps = [
+        {
+            "name": "longrange_guided_split",
+            "kwargs": {
+                "tag": "lrgf",
+                "guide_seg_path": "/very/long/path/to/decoded_x1_ch3-4-5.h5",
+                "primary_affinity_path": "/very/long/path/to/raw_x1_ch0-1-2.h5",
+                "min_seed_voxels": 50000,
+            },
+        }
+    ]
+
+    assert format_decode_tag(cfg) == "_lrgf"
+
+
 def test_decoding_output_suffix_disambiguates_final_prediction_cache_glob():
     cfg = Config()
     cfg.inference.model.select_channel = [0, 1, 2]
@@ -520,12 +534,6 @@ def test_format_decode_tag_gates_dust_and_branch_parameter_groups():
         {
             "name": "decode_waterz",
             "kwargs": {
-                "branch_merge": True,
-                "iou_threshold": 0.5,
-                "best_buddy": True,
-                "one_sided_threshold": 0.8,
-                "one_sided_min_size": 100,
-                "affinity_threshold": 0.0,
                 "dust_merge": True,
                 "dust_merge_size": 800,
                 "dust_merge_affinity": 0.3,
@@ -533,10 +541,23 @@ def test_format_decode_tag_gates_dust_and_branch_parameter_groups():
                 "merge_function": "aff85_his256",
                 "thresholds": 0.5,
             },
-        }
+        },
+        {
+            "name": "branch_merge",
+            "kwargs": {
+                "iou_threshold": 0.5,
+                "best_buddy": True,
+                "one_sided_threshold": 0.8,
+                "one_sided_min_size": 100,
+                "affinity_threshold": 0.0,
+            },
+        },
     ]
 
-    assert format_decode_tag(cfg) == "_waterz_0.5-true-0.8-100-0-800-0.3-600-aff85_his256-0.5"
+    assert (
+        format_decode_tag(cfg)
+        == "_waterz_800-0.3-600-aff85_his256-0.5__branch_merge_0-true-0.5-100-0.8"
+    )
 
 
 def test_format_decode_tag_skips_disabled_dust_and_branch_parameter_groups():

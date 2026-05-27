@@ -1,0 +1,109 @@
+experiment_name: nisb_base_banis_v3_erosion2_waterz_large_decode
+description: >
+  Chunked large-volume waterz decoding for the
+  nisb_base_banis_v3_erosion2/20260508_224029 whole-volume BANIS affinities
+  (MedNeXt-L/k3 with label erosion=2). Baseline for comparison: the v3
+  cc3d run at threshold 0.66 reaches NERL = 0.601 on seed101.
+
+  This workflow is consumed by the `waterz_decode_large` console script
+  (installed via `pip install -e lib/waterz/`), not scripts/main.py.
+
+  Source affinity H5 is XYZ-stored (matches the cc3d / pipeline decoder
+  inputs); the in-memory axis transpose is handled by
+  ``affinity_layout: xyz`` + ``output_layout: xyz`` so the assembled
+  segmentation lands back in XYZ for downstream NERL evaluation without
+  touching the source files. See ``dev/nisb/waterz.md`` for the
+  diagnosis of the prior catastrophic-merge bug this config fixes.
+
+  Usage:
+    waterz_decode_large --config tutorials/neuron_nisb/base_banis_v3_erosion2_waterz_large_decode.yaml --init-only
+    waterz_decode_large --config tutorials/neuron_nisb/base_banis_v3_erosion2_waterz_large_decode.yaml --sbatch
+    waterz_decode_large --config tutorials/neuron_nisb/base_banis_v3_erosion2_waterz_large_decode.yaml --wait --assemble
+
+large_decode:
+  # Input affinity file (HDF5 dataset "main", shape (3, 3000, 3000, 1350) =
+  # (C, X, Y, Z), float16) — XYZ-stored, same file consumed by cc3d
+  # (the matched cc3d-0.66 run produced NERL = 0.601).
+  affinity_path: outputs/nisb_base_banis_v3_erosion2/20260508_224029/test_step=00200000/seed101/raw_x1_ch0-1-2.h5
+  affinity_dataset: main
+  # 3D uint8 keep/drop mask in the same XYZ spatial layout as the affinity.
+  # Shared with the v1/erosion2 run — the mask is derived from the original
+  # model prediction QC, not the v3-specific affinities.
+  affinity_mask_path: outputs/nisb_base_banis/20260427_095218/test_step=00200000/affinity_mask.h5
+  affinity_mask_dataset: main
+
+  # Axis-order handling (added to lib/waterz/src/waterz/large_decode.py):
+  #   affinity_layout: xyz → H5 spatial axes are (X, Y, Z); _read_affinity_chunk
+  #     and _read_boundary_affinity translate per-chunk reads to waterz-native
+  #     (Z, Y, X) in memory. Mask reads follow the same translation.
+  #   output_layout: xyz   → assembled.h5 is written with shape (X, Y, Z),
+  #     transposing each chunk's seg from waterz ZYX before pasting. This
+  #     matches the convention used by cc3d's segmentation and by
+  #     ``scripts/evaluate_prediction.py ... --resolution 9 9 20`` (XYZ).
+  #   channel_order: xyz   → source channel order is X-aff, Y-aff, Z-aff
+  #     (per BANIS comp_affinities offsets 1-0-0 / 0-1-0 / 0-0-1); the reader
+  #     reorders channels to (Z-aff, Y-aff, X-aff) after the spatial transpose,
+  #     so channel c lines up with waterz spatial axis c.
+  affinity_layout: xyz
+  output_layout: xyz
+  channel_order: xyz
+
+  # Shared workflow directory for chunk task state and final assembly.
+  workflow_root: outputs/nisb_base_banis_v3_erosion2/20260508_224029/test_step=00200000/seed101/waterz_large_decode_t07_parallel
+
+  # Chunk geometry is always in waterz (Z, Y, X) order, regardless of the
+  # source H5 layout. For this 3000x3000x1350 (XYZ) volume that means listing
+  # the thinnest physical axis (Z=1350) first, with chunk_shape Z=270 →
+  # 5 chunks along Z, 3 chunks along Y, 3 chunks along X = 45 chunks.
+  chunk_shape: [270, 1000, 1000]
+  overlap: [32, 64, 64]
+
+  # Waterz parameters from base_banis_crop_waterz.yaml.
+  thresholds: [0.5]
+  merge_function: aff85_his256
+  # Fragment initialization before optional relaxed intra-chunk agglomeration:
+  #   waterz: waterz's 3D watershed initializer, including z edges
+  #   2d:     legacy 2D slice-by-slice fragments
+  fragment_init: waterz
+  # Conservative intra-chunk premerge before overlap stitching/global RG.
+  # 1.0 disables premerge; lower values merge only strong local edges.
+  chunk_affinity_threshold: 0.7
+  aff_threshold_low: 0.3
+  aff_threshold_high: 0.999
+  # BANIS comp_affinities stores the edge between voxels v and v+1 at the
+  # SOURCE voxel v; waterz expects it at the destination voxel v+1.
+  # edge_offset: 0 triggers a per-channel +1 shift inside the affinity reader.
+  edge_offset: 0
+  use_aff_uint8: true
+  use_seg_uint32: true
+
+  # Dust merge / cleanup.
+  dust_merge: true
+  dust_merge_size: 800
+  dust_merge_affinity: 0.3
+  dust_remove_size: 600
+
+  # Boundary stitching / overlap merge parameters.
+  min_overlap: 10
+  iou_threshold: 0.0
+  one_sided_threshold: 0.8
+  one_sided_min_size: 100
+  affinity_threshold: 0.0
+
+  # Execution.
+  backend: multiprocess
+  num_workers: 1
+  slurm:
+    partition: short
+    mem: 150G
+    cpus_per_task: 1
+    time: "12:00:00"
+    # Keep early chunk workers alive so they can claim bd_stitch/chunk_rg tasks
+    # after the slowest chunk_waterz task finishes.
+    idle_timeout: 1800
+
+  # Output.
+  write_output: true
+  output_path: outputs/nisb_base_banis_v3_erosion2/20260508_224029/test_step=00200000/seed101/waterz_large_decode_t07_parallel/assembled.h5
+  compression: gzip
+  compression_level: 4

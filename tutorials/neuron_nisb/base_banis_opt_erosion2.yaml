@@ -1,9 +1,11 @@
 _base_:
-  - base_banis_v1.yaml
+  - base_banis_opt.yaml
 
 experiment_name: nisb_base_banis_v1_erosion2
 description: >-
   v1 training setup with label erosion=2 for stronger boundary separation.
+
+save_path: outputs/nisb_base_banis_v1_erosion2
 
 default:
   data:
@@ -12,7 +14,3 @@ default:
     label_transform:
       erosion: 2
 
-train:
-  monitor:
-    checkpoint:
-      save_path: outputs/nisb_base_banis_v1_erosion2

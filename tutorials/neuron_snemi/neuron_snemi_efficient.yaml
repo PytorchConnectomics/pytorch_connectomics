@@ -1,0 +1,200 @@
+experiment_name: mednext_s_snemi_deepem_efficient
+description: >
+  SNEMI3D neuron affinity learning using the DeepEM 12-affinity target setup
+  with MedNeXt-S, DeepEM-style EM augmentation, AdamW warmup/cosine training,
+  EMA, bf16 mixed precision, and TTA-ready inference. This efficient variant
+  disables deep supervision and gradient accumulation, and uses a shorter
+  100-epoch schedule with 200 optimizer steps per epoch.
+
+_base_:
+- ../../connectomics/config/all_profiles.yaml
+
+default:
+  pipeline_profile: aff12
+  system:
+    profile: all-gpu-cpu
+  model:
+    arch:
+      profile: mednext_s
+    input_size: [32, 160, 160]
+    output_size: [32, 160, 160]
+    mednext:
+      size: S
+      kernel_size: 3
+      dim: 3d
+      checkpoint_style: outside_block
+    loss:
+      deep_supervision: false
+  data:
+    # DeepEM split: top 80 z-slices for train, bottom 20 for validation.
+    split_enabled: true
+    split_train_range: [0.0, 0.8]
+    split_val_range: [0.8, 1.0]
+    split_axis: 0
+    split_pad_val: true
+    image_transform:
+      normalize: "0-1"
+      clip_percentile_low: 0.0
+      clip_percentile_high: 1.0
+    label_transform:
+      resolution: [30, 6, 6]
+      erosion: 1
+      targets:
+      - name: affinity
+        kwargs:
+          # DeepEM: 3 nearest-neighbor affinities plus 9 long-range auxiliary edges.
+          offsets:
+          - "0-0-1"
+          - "0-1-0"
+          - "1-0-0"
+          - "2-0-0"
+          - "3-0-0"
+          - "4-0-0"
+          - "0-0-3"
+          - "0-0-9"
+          - "0-0-27"
+          - "0-3-0"
+          - "0-9-0"
+          - "0-27-0"
+          affinity_mode: deepem
+    dataloader:
+      profile: cached
+      patch_size: [32, 160, 160]
+      batch_size: 12
+    data_transform:
+      # Half-window context padding. Inference crop below accounts for the
+      # additional destination-index crop required by affinity_mode=deepem.
+      pad_size: [16, 80, 80]
+    augmentation:
+      profile: aug_em_neuron
+  inference:
+    model:
+      # DeepEM uses long-range affinities as training auxiliaries; decode from
+      # nearest-neighbor affinities only.
+      select_channel: [0, 1, 2]
+      # crop_pad + selected-channel deepem affinity_crop[(1,0),(1,0),(1,0)]
+      # equals data_transform.pad_size [16,80,80]:
+      #   Z: 15+1=16, 16+0=16 | Y: 79+1=80, 80+0=80 | X: 79+1=80, 80+0=80
+      crop_pad: [15, 16, 79, 80, 79, 80]
+    window:
+      window_size: [32, 160, 160]
+      sw_batch_size: 4
+      overlap: 0.5
+      blending: bump
+      keep_input_on_cpu: false
+    test_time_augmentation:
+      enabled: true
+      patch_first_local: true
+      flip_axes: all
+      rotation90_axes: [[1, 2]]
+      ensemble_mode: min
+    save_results: true
+    save_dtype: float32
+
+  decoding:
+    steps:
+    - template: decoding_waterz
+      kwargs:
+        thresholds: 0.5
+        merge_function: aff85_his256
+        aff_threshold: [0.1, 0.999]
+        dust_merge: true
+        dust_merge_size: 800
+        dust_merge_affinity: 0.3
+        dust_remove_size: 600
+    postprocessing:
+      enabled: true
+  evaluation:
+    enabled: true
+    metrics: [adapted_rand]
+
+
+train:
+  data:
+    train:
+      image: datasets/SNEMI/train-input.tif
+      label: datasets/SNEMI/train-labels.tif
+      resolution: [30, 6, 6]
+
+  optimization:
+    profile: warmup_cosine_lr
+    max_epochs: 100
+    n_steps_per_epoch: 200
+    accumulate_grad_batches: 1
+    precision: "bf16-mixed"
+    gradient_clip_val: 1.0
+    ema:
+      enabled: true
+      decay: 0.999
+      warmup_steps: 1000
+      validate_with_ema: true
+  monitor:
+    logging:
+      scalar:
+        loss: [train_loss_total_epoch, val_loss_total]
+        loss_every_n_steps: 50
+      images:
+        log_every_n_epochs: 10
+        max_images: 8
+        num_slices: 2
+        channel_mode: all
+    checkpoint:
+      save_top_k: 3
+      monitor: val_loss_total
+      mode: min
+
+test:
+  data:
+    test:
+      path: datasets/SNEMI/
+      # image: [train-input.tif, test-input_z29.h5]
+      # label: [train-labels.tif, test-labels.h5]
+      # image: train-input.tif
+      # label: train-labels.tif
+      # image: test-input_z29.h5
+      image: test-input.tif
+      label: test-labels.h5
+      resolution: [30, 6, 6]
+
+
+# ============================================================================
+# Parameter tuning for waterz agglomeration thresholds (--mode tune)
+# ============================================================================
+tune:
+  profile: tune_waterz
+  n_trials: 25
+  trial_timeout: 300
+  study_name: snemi_waterz_tuning
+  data:
+    val:
+      image: datasets/SNEMI/test-input.tif
+      label: datasets/SNEMI/test-labels.h5
+      resolution: [30, 6, 6]
+      # image: datasets/SNEMI/train-input.tif
+      # label: datasets/SNEMI/train-labels.tif
+  # Override profile defaults for SNEMI-specific search ranges.
+  parameter_space:
+    decoding:
+      defaults:
+        thresholds: 0.5
+        merge_function: aff85_his256
+        aff_threshold: [0.1, 0.999]
+      parameters:
+        merge_function:
+          type: categorical
+          choices: [aff85_his256, aff75_his256, aff50_his256, aff25_his256,
+            aff15_his256]
+          description: "Agglomeration scoring function (quantile via histogram)"
+        thresholds:
+          range: [0.1, 0.9]
+          step: 0.1
+        aff_threshold_low:
+          range: [0, 0.5]
+          step: 0.1
+          param_group: aff_threshold
+          tuple_index: 0
+        aff_threshold_high:
+          range: [0.7, 1]
+          step: 0.1
+          param_group: aff_threshold
+          tuple_index: 1

@@ -102,6 +102,14 @@ def _task_output_channels(task: Any) -> int:
         return 1 if bool(resolved_kwargs.get("exclusive", False)) else 3
     if name == "flow":
         return 2
+    if name == "lsd":
+        # Channel count is len(components) when specified, else 10 (3D) / 6 (2D).
+        # We default to 3D since the PyTC pipeline is overwhelmingly 3D; 2D
+        # users can pin the count by passing ``components`` explicitly.
+        components = resolved_kwargs.get("components")
+        if components:
+            return len(str(components))
+        return 10
 
     return 1
 

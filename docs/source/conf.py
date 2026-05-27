@@ -152,11 +152,19 @@ html_theme = 'pytorch_sphinx_theme'
 # html_theme_path = [pytorch_sphinx_theme.get_html_theme_path()]
 
 html_theme_options = {
-    'collapse_navigation': True,
+    # False => sections render with expand/collapse arrows the user can
+    # click to toggle children (accordion). True hides them entirely
+    # unless the current page lives in that section.
+    'collapse_navigation': False,
     'display_version': True,
     'logo_only': True,
     'navigation_with_keys': True,
     'navigation_depth': 3,
+    'includehidden': True,
+    # True => sidebar only shows document titles, not in-page subsections;
+    # keeps the sidebar from blowing up with H2/H3 anchors from long
+    # "Get Started" pages once we render maxdepth=2 in layout.html.
+    'titles_only': True,
 }
 
 # Add any paths that contain custom themes here, relative to this directory.

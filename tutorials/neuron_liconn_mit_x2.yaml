@@ -60,6 +60,8 @@ _base_:
 - ../connectomics/config/all_profiles.yaml
 
 # ── Profile selectors ─────────────────────────────────────────────────────────
+save_path: /orcd/scratch/bcs/002/mansour/train_liconn/outputs
+
 default:
   # Use 'binary' pipeline profile (not 'aff12') because:
   # - aff12 injects model.loss.overrides which is not in LossConfig schema
@@ -351,7 +353,6 @@ train:
         log_every_n_epochs: 5
         channel_mode: all
     checkpoint:
-      save_path: /orcd/scratch/bcs/002/mansour/train_liconn/outputs
       monitor: val_loss_total
       mode: min
       save_top_k: 3
