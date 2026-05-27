@@ -7,17 +7,18 @@ description: >
     - overlap=[N,N,N]: overlapping chunks, fragment consensus + region graph merge
 
   Usage (serial):
-    python scripts/decode_large.py --config tutorials/waterz_decoding_large.yaml
+    waterz_decode_large --config tutorials/waterz_decoding_large.yaml
 
   Usage (parallel — launch N workers on SLURM):
     # Step 1: Initialize workflow (creates tasks on disk)
-    python scripts/decode_large.py --config tutorials/waterz_decoding_large.yaml --init-only
+    waterz_decode_large --config tutorials/waterz_decoding_large.yaml --init-only
 
-    # Step 2: Launch workers (each claims and executes tasks)
-    sbatch --array=0-25 scripts/decode_large_worker.sh tutorials/waterz_decoding_large.yaml
+    # Step 2: Launch workers via SLURM array (waterz_decode_large --sbatch
+    #         emits the array submission inline)
+    waterz_decode_large --config tutorials/waterz_decoding_large.yaml --sbatch
 
     # Step 3: Wait for completion + assemble
-    python scripts/decode_large.py --config tutorials/waterz_decoding_large.yaml --wait --assemble
+    waterz_decode_large --config tutorials/waterz_decoding_large.yaml --wait --assemble
 
 # ── Chunked decoding config ──────────────────────────────────────────────────
 large_decode:

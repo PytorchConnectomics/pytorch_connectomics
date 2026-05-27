@@ -10,8 +10,8 @@ from typing import Any, Sequence
 import numpy as np
 import torch
 
+from ..chunked.chunk_grid import build_chunk_grid
 from ..inference.chunk_grid import (
-    build_chunk_grid,
     resolve_chunk_output_mode,
     resolve_chunk_shape,
     resolve_global_prediction_crop,

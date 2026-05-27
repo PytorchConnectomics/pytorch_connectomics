@@ -63,6 +63,12 @@ class Config:
     experiment_name: str = "connectomics_experiment"
     description: str = ""
 
+    # Run output base. In train mode the runtime layer composes
+    # ``<save_path>/<timestamp>/checkpoints`` on top of this value.
+    # Test/tune modes derive their output dir from ``--checkpoint`` and
+    # ignore this field.
+    save_path: Optional[str] = None
+
     # Core components
     system: SystemConfig = field(default_factory=SystemConfig)
     model: ModelConfig = field(default_factory=ModelConfig)

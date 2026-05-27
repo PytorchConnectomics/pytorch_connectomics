@@ -1,0 +1,75 @@
+ M connectomics/config/pipeline/config_io.py
+ M connectomics/config/schema/decoding.py
+ M connectomics/config/schema/monitor.py
+ M connectomics/config/schema/root.py
+ M connectomics/config/templates/decoding_templates.yaml
+ M connectomics/data/processing/distance.py
+ M connectomics/decoding/__init__.py
+ M connectomics/decoding/decoders/__init__.py
+ M connectomics/decoding/decoders/branch_merge.py
+ M connectomics/decoding/decoders/waterz.py
+ M connectomics/decoding/experiment_log.py
+ M connectomics/decoding/pipeline.py
+ M connectomics/decoding/registry.py
+ M connectomics/decoding/stage.py
+ M connectomics/decoding/tuning/optuna_tuner.py
+ M connectomics/inference/chunked.py
+ M connectomics/runtime/cache_resolver.py
+ M connectomics/runtime/checkpoint_dispatch.py
+ M connectomics/runtime/cli.py
+ M connectomics/runtime/output_naming.py
+ M connectomics/runtime/preflight.py
+ M connectomics/runtime/tune_runner.py
+ M connectomics/training/lightning/data_factory.py
+ M connectomics/training/lightning/runtime.py
+ M connectomics/training/lightning/test_pipeline.py
+ M connectomics/training/lightning/visualizer.py
+ D scripts/analyze_seg.py
+ M scripts/decode_large.py
+ M scripts/demo.py
+ M tests/integration/test_e2e_training.py
+ M tests/unit/test_decode_waterz.py
+ M tests/unit/test_decoding_pipeline.py
+ M tests/unit/test_lit_utils.py
+ M tests/unit/test_main_runtime_stage_switch.py
+ M tests/unit/test_optuna_tuner.py
+ M tests/unit/test_run_directory_contract.py
+ M tests/unit/test_train_output_layout.py
+ M tests/unit/test_v3_guardrails.py
+ M tutorials/minimal.yaml
+ M tutorials/mitoEM/H.yaml
+ M tutorials/mitoEM/HR.yaml
+ M tutorials/mitoEM/R.yaml
+ M tutorials/mito_betaseg_banis_v0.yaml
+ M tutorials/mito_lucchi++.yaml
+ M tutorials/mito_mitolab.yaml
+ M tutorials/neuron_liconn_mit_x2.yaml
+ M tutorials/neuron_nisb/base_banis.yaml
+ M tutorials/neuron_nisb/base_banis_chunk.yaml
+ M tutorials/neuron_nisb/base_banis_crop.yaml
+ M tutorials/neuron_nisb/base_banis_erosion2.yaml
+ M tutorials/neuron_nisb/base_banis_v1.yaml
+ M tutorials/neuron_nisb/base_banis_v1_erosion2.yaml
+ M tutorials/neuron_nisb/base_banis_v2.yaml
+ M tutorials/neuron_nisb/base_banis_v2_erosion2.yaml
+ M tutorials/neuron_nisb/base_banis_v3_erosion2.yaml
+ D tutorials/neuron_nisb/common.yaml
+ M tutorials/neuron_nisb/liconn_banis_v3_erosion2.yaml
+ M tutorials/neuron_snemi/neuron_snemi.yaml
+ M tutorials/neuron_snemi/neuron_snemi_sdt_multitask.yaml
+ M tutorials/syn_cremi.yaml
+ M tutorials/wrinkle/common.yaml
+?? .ccc/
+?? connectomics/decoding/decoders/branch_split.py
+?? connectomics/decoding/qc/
+?? scripts/error_analysis_seg_dense.py
+?? scripts/error_analysis_seg_nerl.py
+?? scripts/precompute_skeleton_volumes.py
+?? tests/unit/test_decoding_qc_affinity.py
+?? tutorials/neuron_nisb/base_banis_crop_waterz.yaml
+?? tutorials/neuron_nisb/base_banis_v1_erosion2_waterz_large_decode.yaml
+?? tutorials/neuron_nisb/base_banis_v3_erosion2_aff10.yaml
+?? tutorials/neuron_nisb/base_banis_waterz.yaml
+?? tutorials/neuron_nisb/base_banis_waterz_large_decode.yaml
+?? tutorials/neuron_snemi/neuron_snemi_efficient.yaml
+?? tutorials/neuron_snemi/neuron_snemi_v1.yaml

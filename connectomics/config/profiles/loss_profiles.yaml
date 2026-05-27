@@ -7,6 +7,11 @@ loss_profiles:
       - function: DiceLoss
         weight: 1.0
         kwargs: {sigmoid: true, smooth_nr: 1e-5, smooth_dr: 1e-5}
+  loss_soft_cldice:
+    losses:
+      - function: SoftClDiceLoss
+        weight: 1.0
+        kwargs: {mode: binary, num_iters: 5, sigmoid: true}
   loss_bcd:
     losses:
       - function: WeightedBCEWithLogitsLoss

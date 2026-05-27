@@ -499,6 +499,72 @@ class RandSliceDropZd(RandMissingSectiond):
     """Clearer alias for the legacy z-only missing-section augmentation."""
 
 
+class RandLostSectiond(RandomizableTransform, MapTransform):
+    """Random lost-section artifact that replaces sections from neighbors."""
+
+    def __init__(
+        self,
+        keys: KeysCollection,
+        prob: float = 0.1,
+        num_sections: Union[int, Tuple[int, int]] = 1,
+        mode: str = "random_neighbor",
+        allow_missing_keys: bool = False,
+    ) -> None:
+        MapTransform.__init__(self, keys, allow_missing_keys)
+        RandomizableTransform.__init__(self, prob)
+        if mode not in {"previous", "next", "random_neighbor", "interpolate"}:
+            raise ValueError(
+                "Lost-section mode must be one of "
+                "'previous', 'next', 'random_neighbor', or 'interpolate'. "
+                f"Got {mode!r}."
+            )
+        self.num_sections = num_sections
+        self.mode = mode
+
+    def __call__(self, data: Dict[str, Any]) -> Dict[str, Any]:
+        if self.prob <= 0:
+            self._do_transform = False
+            return data
+        d = dict(data)
+        self.randomize(None)
+        if not self._do_transform:
+            return d
+
+        for key in self.key_iterator(d):
+            if key in d:
+                arr, was_tensor, device = _to_numpy(d[key])
+                if arr.ndim < 3:
+                    continue
+
+                depth_axis = _infer_depth_axis(arr)
+                depth = arr.shape[depth_axis]
+                if depth <= 2:
+                    continue
+
+                num_to_replace = _sample_count(self.R, self.num_sections, depth - 2)
+                if num_to_replace == 0:
+                    continue
+
+                indices = self.R.choice(
+                    np.arange(1, depth - 1),
+                    size=num_to_replace,
+                    replace=False,
+                )
+                directions = self.R.choice(np.asarray([-1, 1], dtype=np.int64), size=num_to_replace)
+                result = augment_ops.replace_lost_sections(
+                    arr,
+                    indices,
+                    mode=self.mode,
+                    neighbor_directions=directions,
+                    depth_axis=depth_axis,
+                )
+                d[key] = _from_numpy(result, was_tensor, device)
+        return d
+
+    def randomize(self, _: Any = None) -> None:
+        self._do_transform = self.R.rand() < self.prob
+
+
 class RandMissingPartsd(RandomizableTransform, MapTransform):
     """Random missing parts — creates rectangular holes in sections."""
 
@@ -748,12 +814,8 @@ class RandCutBlurd(RandomizableTransform, MapTransform):
         else:
             zl, zh = None, None
 
-        yl, yh = self._random_region(
-            shape[1] if len(shape) == 3 else shape[0], length_ratio
-        )
-        xl, xh = self._random_region(
-            shape[2] if len(shape) == 3 else shape[1], length_ratio
-        )
+        yl, yh = self._random_region(shape[1] if len(shape) == 3 else shape[0], length_ratio)
+        xl, xh = self._random_region(shape[2] if len(shape) == 3 else shape[1], length_ratio)
         down_ratio = self.R.uniform(*self.down_ratio_range)
         return zl, zh, yl, yh, xl, xh, down_ratio
 
@@ -1251,6 +1313,7 @@ class RandElasticd(MapTransform, RandomizableTransform):
 __all__ = [
     "RandMisAlignmentd",
     "RandMissingSectiond",
+    "RandLostSectiond",
     "RandMissingPartsd",
     "RandMotionBlurd",
     "RandCutNoised",

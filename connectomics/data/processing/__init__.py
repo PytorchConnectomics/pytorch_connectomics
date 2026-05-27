@@ -11,6 +11,7 @@ from .misc import get_seg_type
 
 # MONAI-native transforms and composition
 from .nnunet_preprocess import NNUNetPreprocessd, restore_prediction_to_input_space
+from .lsd import LsdExtractor, seg_to_lsd
 from .transforms import (
     ComputeBinaryRatioWeightd,
     ComputeUNet3DWeightd,
@@ -26,6 +27,7 @@ from .transforms import (
     SegToFlowFieldd,
     SegToInstanceBoundaryMaskd,
     SegToInstanceEDTd,
+    SegToLocalShapeDescriptord,
     SegToSemanticEDTd,
     SegToSkeletonAwareEDTd,
     SegToSmallObjectd,
@@ -51,6 +53,9 @@ __all__ = [
     "SegToFlowFieldd",
     "SegToSynapticPolarityd",
     "SegToSmallObjectd",
+    "SegToLocalShapeDescriptord",
+    "LsdExtractor",
+    "seg_to_lsd",
     "ComputeBinaryRatioWeightd",
     "ComputeUNet3DWeightd",
     "SegErosiond",

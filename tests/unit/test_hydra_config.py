@@ -303,6 +303,7 @@ def test_augmentation_config():
     cfg.data.augmentation.misalignment.enabled = True
     cfg.data.augmentation.misalignment.prob = 0.7
     cfg.data.augmentation.missing_section.enabled = True
+    cfg.data.augmentation.lost_section.enabled = True
     cfg.data.augmentation.mixup.enabled = True
     cfg.data.augmentation.copy_paste.enabled = True
 
@@ -315,6 +316,7 @@ def test_augmentation_config():
     assert cfg.data.augmentation.misalignment.enabled
     assert cfg.data.augmentation.misalignment.prob == 0.7
     assert cfg.data.augmentation.missing_section.enabled
+    assert cfg.data.augmentation.lost_section.enabled
     assert cfg.data.augmentation.mixup.enabled
     assert cfg.data.augmentation.copy_paste.enabled
     print("[OK]Augmentation config works")

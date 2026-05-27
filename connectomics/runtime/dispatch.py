@@ -31,6 +31,7 @@ from .output_naming import resolve_prediction_cache_suffix
 from .sharding import (
     has_assigned_test_shard,
     maybe_enable_independent_test_sharding,
+    maybe_enable_naive_chunk_sharding,
     maybe_limit_test_devices,
     resolve_test_stage_runtime,
     shard_test_datamodule,
@@ -188,7 +189,9 @@ def _run_test(
         checkpoint_path=args.checkpoint,
     )
 
-    if maybe_enable_independent_test_sharding(args, cfg):
+    naive_chunk_sharding = maybe_enable_naive_chunk_sharding(args, cfg)
+
+    if not naive_chunk_sharding and maybe_enable_independent_test_sharding(args, cfg):
         trainer = create_trainer(
             cfg,
             run_dir=run_dir,
@@ -208,7 +211,7 @@ def _run_test(
         print("Loading test data...")
         datamodule = create_datamodule(cfg, mode="test")
 
-    if args.shard_id is not None and args.num_shards is not None:
+    if not naive_chunk_sharding and args.shard_id is not None and args.num_shards is not None:
         datamodule = shard_test_datamodule(datamodule, args.shard_id, args.num_shards)
 
     if maybe_limit_test_devices(cfg, datamodule):

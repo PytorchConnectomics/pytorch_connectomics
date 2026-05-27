@@ -3,8 +3,8 @@
 You are diagnosing a failing canonical tutorial — one run via
 `python scripts/main.py --config tutorials/<name>.yaml`. Custom
 large-volume workflow YAMLs (`tutorials/waterz_decoding_large*.yaml`,
-consumed by `scripts/decode_large.py`) are **out of scope**; refer
-the user there and stop.
+consumed by the `waterz_decode_large` console script from
+`lib/waterz/`) are **out of scope**; refer the user there and stop.
 
 ## Inputs to ask the user for first
 
@@ -17,8 +17,8 @@ If any required input is missing, stop and ask.
 ## Steps
 
 1. Confirm config path is under canonical scope. If it's a
-   `waterz_decoding_large*.yaml`, stop and refer the user to
-   `scripts/decode_large.py`.
+   `waterz_decoding_large*.yaml`, stop and refer the user to the
+   `waterz_decode_large` console script (from `lib/waterz/`).
 
 2. Validate config:
    `python scripts/validate_tutorial_configs.py --glob '<path>'`

@@ -25,3 +25,13 @@ tune:
       image: img_crop_988-988-575_x1024_y1024_z200.h5
       label: seg_crop_988-988-575_x1024_y1024_z200.h5
       resolution: [9, 9, 20]
+  optimization:
+    mode: single
+    single_objective:
+      metric: adapted_rand
+      direction: minimize
+  parameter_space:
+    decoding:
+      defaults:
+        backend: numba
+        edge_offset: 0

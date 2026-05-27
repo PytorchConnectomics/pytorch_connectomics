@@ -1,0 +1,15 @@
+_base_:
+  - liconn_banis_v3_erosion2.yaml
+
+experiment_name: nisb_liconn_banis_v3_erosion1
+description: >-
+  v3 setup (per-channel BCE + EMA, MedNeXt-L/k3) trained on the LICONN
+  NISB volume with label erosion=1. Inherits the erosion=2 LICONN config
+  and only changes the erosion strength for the LICONN ablation.
+
+save_path: outputs/nisb_liconn_banis_v3_erosion1
+
+train:
+  data:
+    label_transform:
+      erosion: 1
