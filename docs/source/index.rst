@@ -122,6 +122,7 @@ Documentation
    notes/installation
    notes/config
    notes/dataloading
+   notes/malis
    notes/faq
 
 .. toctree::

@@ -15,6 +15,7 @@ from monai.transforms import (
     BorderPadd,
     CenterSpatialCropd,
     Compose,
+    CopyItemsd,
     Lambdad,
     OneOf,
     RandAdjustContrastd,
@@ -320,6 +321,8 @@ def build_train_transforms(
         # Apply instance erosion first if specified
         if hasattr(label_cfg, "erosion") and label_cfg.erosion > 0:
             transforms.append(SegErosionInstanced(keys=["label"], tsz_h=label_cfg.erosion))
+        if label_cfg.emit_gt_seg:
+            transforms.append(CopyItemsd(keys="label", names="gt_seg"))
 
         # Build label transform pipeline directly from label_transform config
         label_transform = create_label_transform_pipeline(label_cfg)
@@ -669,6 +672,8 @@ def _build_eval_transforms_impl(
             # Apply instance erosion first if specified
             if hasattr(label_cfg, "erosion") and label_cfg.erosion > 0:
                 transforms.append(SegErosionInstanced(keys=["label"], tsz_h=label_cfg.erosion))
+            if label_cfg.emit_gt_seg:
+                transforms.append(CopyItemsd(keys="label", names="gt_seg"))
 
             # Build label transform pipeline directly from label_transform config
             label_transform = create_label_transform_pipeline(label_cfg)

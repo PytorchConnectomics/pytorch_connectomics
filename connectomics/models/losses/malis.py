@@ -26,6 +26,16 @@ class MalisLoss(nn.Module):
     2D tensors are rejected explicitly because the vendored MALIS helpers operate
     on 3D affinity graphs by default. See ``lib/malis/INVESTIGATION.md`` for
     GPU MALIS candidates and algorithm-level speedup follow-ups.
+
+    Performance knobs (see ``docs/source/notes/malis.rst``):
+
+    - ``malis_crop_size`` — random sub-volume crop on each forward call.
+      ``64`` on a ``128^3`` patch gives ~4.6x measured step speedup vs
+      the full-volume baseline (slurm 2505814 vs 2487040).
+    - ``label_transform.emit_gt_seg: true`` (YAML, paired with this
+      loss) — passes the eroded GT segmentation in via ``gt_seg=...``,
+      skipping the per-step ``connected_components_affgraph`` call and
+      preserving global instance IDs when ``malis_crop_size`` is set.
     """
 
     def __init__(
@@ -68,6 +78,7 @@ class MalisLoss(nn.Module):
         pred: torch.Tensor,
         target: torch.Tensor,
         mask: torch.Tensor | None = None,
+        gt_seg: torch.Tensor | np.ndarray | None = None,
     ) -> torch.Tensor:
         """Compute MALIS-weighted squared affinity error.
 
@@ -83,21 +94,31 @@ class MalisLoss(nn.Module):
                 Masked-out edges are excluded from MALIS pass constraints and
                 zeroed before per-pass normalization, but the mask does not
                 change GT connected-component reconstruction.
+            gt_seg: Optional ground-truth segmentation with shape ``[B, Z, Y, X]``
+                or ``[B, 1, Z, Y, X]``. When supplied, MALIS uses these instance
+                labels directly instead of reconstructing components from
+                ``target`` affinities.
         """
         self._validate_inputs(pred, target)
 
         pred_aff = torch.sigmoid(pred) if self.sigmoid else pred
         target_aff = target.to(device=pred.device, dtype=pred_aff.dtype)
         mask_aff = None if mask is None else self._prepare_mask(mask, pred_aff)
-        pred_aff, target_aff, mask_aff = self._apply_crop_if_configured(
+        gt_seg_tensor = self._prepare_gt_seg(gt_seg, pred_aff)
+        pred_aff, target_aff, mask_aff, gt_seg_tensor = self._apply_crop_if_configured(
             pred_aff,
             target_aff,
             mask_aff,
+            gt_seg_tensor,
         )
+        weight_kwargs = {}
+        if gt_seg_tensor is not None:
+            weight_kwargs["gt_seg"] = gt_seg_tensor.detach()
         weights = self._compute_malis_weights(
             pred_aff.detach(),
             target_aff.detach(),
             None if mask_aff is None else mask_aff.detach(),
+            **weight_kwargs,
         )
 
         edge_loss = (pred_aff - target_aff) ** 2
@@ -211,12 +232,36 @@ class MalisLoss(nn.Module):
                 f"mask={tuple(mask.shape)}, pred={tuple(pred.shape)}."
             ) from e
 
+    def _prepare_gt_seg(
+        self,
+        gt_seg: torch.Tensor | np.ndarray | None,
+        pred: torch.Tensor,
+    ) -> torch.Tensor | None:
+        if gt_seg is None:
+            return None
+
+        gt_seg_tensor = torch.as_tensor(gt_seg, device=pred.device).detach()
+        if gt_seg_tensor.ndim == pred.ndim and gt_seg_tensor.shape[1] == 1:
+            gt_seg_tensor = gt_seg_tensor.squeeze(1)
+        elif gt_seg_tensor.ndim == pred.ndim - 2 and pred.shape[0] == 1:
+            gt_seg_tensor = gt_seg_tensor.unsqueeze(0)
+
+        expected_shape = (pred.shape[0],) + tuple(pred.shape[-3:])
+        if tuple(gt_seg_tensor.shape) != expected_shape:
+            raise ValueError(
+                "MalisLoss gt_seg must have shape [B, Z, Y, X] or [B, 1, Z, Y, X] "
+                f"matching pred spatial dims; got gt_seg={tuple(gt_seg_tensor.shape)}, "
+                f"expected={expected_shape}."
+            )
+        return gt_seg_tensor.contiguous()
+
     def _apply_crop_if_configured(
         self,
         pred_aff: torch.Tensor,
         target_aff: torch.Tensor,
         mask_aff: torch.Tensor | None,
-    ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor | None]:
+        gt_seg: torch.Tensor | None,
+    ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor | None, torch.Tensor | None]:
         """Apply the configured random sub-volume crop, if any.
 
         Offset sampling stays on CPU. The returned tensors are contiguous copies
@@ -226,11 +271,11 @@ class MalisLoss(nn.Module):
         crop=64, and fp16, pred + target + mask copies are about 9 MiB before
         overhead.
 
-        Returns ``(pred_cropped, target_cropped, mask_cropped)``. If no crop is
-        configured the inputs are returned unchanged.
+        Returns ``(pred_cropped, target_cropped, mask_cropped, gt_seg_cropped)``.
+        If no crop is configured the inputs are returned unchanged.
         """
         if self.malis_crop_size is None:
-            return pred_aff, target_aff, mask_aff
+            return pred_aff, target_aff, mask_aff, gt_seg
 
         k_z, k_y, k_x = self.malis_crop_size
         z_dim, y_dim, x_dim = pred_aff.shape[-3:]
@@ -253,17 +298,25 @@ class MalisLoss(nn.Module):
             if mask_aff is None
             else mask_aff.narrow(-3, z0, k_z).narrow(-2, y0, k_y).narrow(-1, x0, k_x).contiguous()
         )
-        return pred_c, target_c, mask_c
+        gt_seg_c = (
+            None
+            if gt_seg is None
+            else gt_seg.narrow(-3, z0, k_z).narrow(-2, y0, k_y).narrow(-1, x0, k_x).contiguous()
+        )
+        return pred_c, target_c, mask_c, gt_seg_c
 
     def _compute_malis_weights(
         self,
         pred_aff: torch.Tensor,
         target_aff: torch.Tensor,
         mask: torch.Tensor | None = None,
+        *,
+        gt_seg: torch.Tensor | None = None,
     ) -> torch.Tensor:
         pred_np = pred_aff.to(dtype=torch.float32).cpu().numpy()
         target_np = target_aff.to(dtype=torch.float32).cpu().numpy()
         mask_np = None if mask is None else mask.to(dtype=torch.float32).cpu().numpy()
+        gt_seg_np = None if gt_seg is None else gt_seg.cpu().numpy()
         weights = np.empty_like(pred_np, dtype=np.float32)
         for batch_idx in range(pred_np.shape[0]):
             gt_affs = np.ascontiguousarray(target_np[batch_idx] > 0.5, dtype=np.int32)
@@ -271,11 +324,14 @@ class MalisLoss(nn.Module):
             mask_sample = None
             if mask_np is not None:
                 mask_sample = np.ascontiguousarray(mask_np[batch_idx] == 1, dtype=bool)
-            gt_seg, _ = _malis_lib.connected_components_affgraph(gt_affs, self.nhood)
+            if gt_seg_np is None:
+                gt_seg_sample, _ = _malis_lib.connected_components_affgraph(gt_affs, self.nhood)
+            else:
+                gt_seg_sample = np.ascontiguousarray(gt_seg_np[batch_idx], dtype=np.uint64)
             weights[batch_idx] = self._compute_sample_weights(
                 pred_sample,
                 gt_affs,
-                gt_seg,
+                gt_seg_sample,
                 mask_sample,
             )
 

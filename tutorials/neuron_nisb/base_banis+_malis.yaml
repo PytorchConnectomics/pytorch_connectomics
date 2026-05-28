@@ -11,6 +11,9 @@ description: >-
 save_path: outputs/nisb_base_banis_v3_erosion2_malis
 
 default:
+  data:
+    label_transform:
+      emit_gt_seg: true
   model:
     loss:
       # YAML list overrides are replace-not-merge, so the v1 base's
@@ -30,4 +33,4 @@ default:
             nhood: [[1, 0, 0], [0, 1, 0], [0, 0, 1]]
             sigmoid: true
             reduction: mean
-            # malis_crop_size: 64  # symmetric; or e.g. [32, 64, 64] for asymmetric. See lib/malis/INVESTIGATION.md.
+            malis_crop_size: 64  # enabled; ~4.6x step speedup vs full-volume MALIS (smoke test 2505814)

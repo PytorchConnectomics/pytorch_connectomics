@@ -1,7 +1,7 @@
 """Tests for MalisLoss wrapper around lib/malis."""
 
-from contextlib import contextmanager
 import unittest
+from contextlib import contextmanager
 
 import numpy as np
 import torch
@@ -88,6 +88,14 @@ def _fixed_torch_randint(value: int):
         torch.randint = original_randint
 
 
+class TestMalisLossMetadata(unittest.TestCase):
+    def test_malis_metadata_has_gt_seg_arg(self):
+        from connectomics.models.losses.metadata import get_loss_metadata
+
+        meta = get_loss_metadata("MalisLoss")
+        self.assertEqual(meta.gt_seg_arg, "gt_seg")
+
+
 @unittest.skipUnless(_HAS_MALIS, "malis extension not built")
 class TestMalisLoss(unittest.TestCase):
     def _crop_loss_shape(self, crop_size):
@@ -111,6 +119,7 @@ class TestMalisLoss(unittest.TestCase):
         self.assertIsNotNone(meta)
         self.assertEqual(meta.name, "MalisLoss")
         self.assertEqual(meta.spatial_weight_arg, "mask")
+        self.assertEqual(meta.gt_seg_arg, "gt_seg")
         self.assertIsInstance(loss_fn, MalisLoss)
 
     def test_not_in_package_namespace(self):
@@ -180,6 +189,151 @@ class TestMalisLoss(unittest.TestCase):
             rtol=1e-5,
             atol=1e-6,
         )
+
+    def test_malis_gt_seg_equivalent_to_cc_on_uncropped(self):
+        from connectomics.models.losses.malis import MalisLoss
+
+        torch.manual_seed(0)
+        loss_fn = MalisLoss(sigmoid=False)
+        nhood = loss_fn.nhood
+        C = nhood.shape[0]
+        gt_seg = np.zeros((5, 6, 7), dtype=np.uint64)
+        gt_seg[:, :3, :] = 1
+        gt_seg[:, 3:, :] = 2
+        target_np = _malis_lib.seg_to_affgraph(gt_seg.astype(np.int32), nhood).astype(np.float32)
+        gt_affs = np.ascontiguousarray(target_np > 0.5, dtype=np.int32)
+        cc_seg, _ = _malis_lib.connected_components_affgraph(gt_affs, nhood)
+
+        target = torch.from_numpy(target_np).unsqueeze(0)
+        pred_a = torch.rand(1, C, 5, 6, 7, requires_grad=True)
+        pred_b = pred_a.detach().clone().requires_grad_(True)
+        supplied = torch.from_numpy(cc_seg).unsqueeze(0)
+
+        loss_a = loss_fn(pred_a, target)
+        loss_b = loss_fn(pred_b, target, gt_seg=supplied)
+        loss_a.backward()
+        loss_b.backward()
+
+        torch.testing.assert_close(loss_b, loss_a, rtol=1e-5, atol=1e-6)
+        torch.testing.assert_close(pred_b.grad, pred_a.grad, rtol=1e-5, atol=1e-6)
+
+    def test_malis_gt_seg_none_preserves_legacy_path(self):
+        from connectomics.models.losses.malis import MalisLoss
+
+        torch.manual_seed(1)
+        loss_fn = MalisLoss(sigmoid=False)
+        nhood = loss_fn.nhood
+        C = nhood.shape[0]
+        gt_seg = np.zeros((4, 5, 6), dtype=np.int32)
+        gt_seg[:, :2, :] = 1
+        gt_seg[:, 2:, :] = 2
+        target_np = _malis_lib.seg_to_affgraph(gt_seg, nhood).astype(np.float32)
+        target = torch.from_numpy(target_np).unsqueeze(0)
+        pred_a = torch.rand(1, C, 4, 5, 6, requires_grad=True)
+        pred_b = pred_a.detach().clone().requires_grad_(True)
+
+        loss_a = loss_fn(pred_a, target)
+        loss_b = loss_fn(pred_b, target, gt_seg=None)
+        loss_a.backward()
+        loss_b.backward()
+
+        torch.testing.assert_close(loss_b, loss_a, rtol=0.0, atol=0.0)
+        torch.testing.assert_close(pred_b.grad, pred_a.grad, rtol=0.0, atol=0.0)
+
+    def test_malis_gt_seg_crop_fixes_instance_fragmentation(self):
+        from connectomics.models.losses import malis as malis_mod
+        from connectomics.models.losses.malis import MalisLoss
+
+        torch.manual_seed(2)
+        loss_fn = MalisLoss(malis_crop_size=6, sigmoid=False)
+        nhood = loss_fn.nhood
+        C = nhood.shape[0]
+        gt_seg = np.zeros((8, 8, 8), dtype=np.uint64)
+        gt_seg[0:6, 3, 2] = 1
+        gt_seg[0:6, 3, 5] = 1
+        gt_seg[0, 3, 2:6] = 1
+        target_np = _malis_lib.seg_to_affgraph(gt_seg.astype(np.int32), nhood).astype(np.float32)
+        target = torch.from_numpy(target_np).unsqueeze(0)
+        pred = torch.rand(1, C, 8, 8, 8)
+
+        recorded_cc: list[np.ndarray] = []
+        real_cc = _malis_lib.connected_components_affgraph
+
+        def _spy(aff_in, nh_in):
+            cc_seg, count = real_cc(aff_in, nh_in)
+            recorded_cc.append(np.array(cc_seg, copy=True))
+            return cc_seg, count
+
+        orig_cc = malis_mod._malis_lib.connected_components_affgraph
+        malis_mod._malis_lib.connected_components_affgraph = _spy
+        try:
+            with _fixed_torch_randint(1):
+                loss_legacy = loss_fn(pred, target)
+        finally:
+            malis_mod._malis_lib.connected_components_affgraph = orig_cc
+
+        self.assertEqual(len(recorded_cc), 1)
+        legacy_fg = np.unique(recorded_cc[0][recorded_cc[0] > 0])
+        self.assertGreaterEqual(len(legacy_fg), 2)
+
+        cropped_supplied = gt_seg[1:7, 1:7, 1:7]
+        supplied_fg = np.unique(cropped_supplied[cropped_supplied > 0])
+        self.assertEqual(len(supplied_fg), 1)
+
+        recorded_passthrough: list[np.ndarray] = []
+
+        def _unexpected_spy(aff_in, nh_in):
+            cc_seg, count = real_cc(aff_in, nh_in)
+            recorded_passthrough.append(np.array(cc_seg, copy=True))
+            return cc_seg, count
+
+        malis_mod._malis_lib.connected_components_affgraph = _unexpected_spy
+        try:
+            with _fixed_torch_randint(1):
+                loss_passthrough = loss_fn(
+                    pred,
+                    target,
+                    gt_seg=torch.from_numpy(gt_seg).unsqueeze(0),
+                )
+        finally:
+            malis_mod._malis_lib.connected_components_affgraph = orig_cc
+
+        self.assertEqual(len(recorded_passthrough), 0)
+        self.assertFalse(torch.isclose(loss_legacy, loss_passthrough, rtol=1e-6, atol=1e-7).item())
+
+    def test_malis_gt_seg_shape_validation(self):
+        from connectomics.models.losses.malis import MalisLoss
+
+        loss_fn = MalisLoss(sigmoid=False)
+        C = loss_fn.nhood.shape[0]
+        pred = torch.zeros(1, C, 4, 4, 4)
+        target = torch.zeros_like(pred)
+        gt_seg = torch.zeros(1, 4, 4, 5, dtype=torch.int64)
+
+        with self.assertRaises(ValueError):
+            loss_fn(pred, target, gt_seg=gt_seg)
+
+    def test_malis_gt_seg_no_grad_through_seg(self):
+        from connectomics.models.losses.malis import MalisLoss
+
+        torch.manual_seed(3)
+        loss_fn = MalisLoss(sigmoid=False)
+        nhood = loss_fn.nhood
+        C = nhood.shape[0]
+        gt_seg = np.zeros((4, 5, 6), dtype=np.int32)
+        gt_seg[:, :3, :] = 1
+        gt_seg[:, 3:, :] = 2
+        target_np = _malis_lib.seg_to_affgraph(gt_seg, nhood).astype(np.float32)
+        pred = torch.rand(1, C, 4, 5, 6, requires_grad=True)
+        target = torch.from_numpy(target_np).unsqueeze(0)
+        supplied = torch.from_numpy(gt_seg).unsqueeze(0)
+
+        self.assertFalse(supplied.requires_grad)
+        loss = loss_fn(pred, target, gt_seg=supplied)
+        loss.backward()
+
+        self.assertIsNotNone(pred.grad)
+        self.assertTrue(torch.isfinite(pred.grad).all().item())
 
     def test_reduction_default_and_supported_modes(self):
         from connectomics.models.losses.malis import MalisLoss
