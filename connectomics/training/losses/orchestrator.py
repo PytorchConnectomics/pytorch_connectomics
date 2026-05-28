@@ -481,6 +481,7 @@ class LossOrchestrator:
         is_main_scale: bool,
         mask: Optional[torch.Tensor] = None,
         target_mask: Optional[torch.Tensor] = None,
+        gt_seg: Optional[torch.Tensor] = None,
     ) -> tuple[torch.Tensor, Dict[str, float]]:
         if not self.loss_term_specs:
             raise ValueError("Explicit loss term path requested but no loss terms are configured")
@@ -647,6 +648,8 @@ class LossOrchestrator:
                             device=pred_for_loss.device,
                             dtype=pred_for_loss.dtype,
                         )
+                if meta.gt_seg_arg is not None and gt_seg is not None:
+                    extra_loss_kwargs[meta.gt_seg_arg] = gt_seg
                 raw_loss = self._call_with_optional_spatial_weight(
                     loss_fn,
                     pred_for_loss,
@@ -766,6 +769,7 @@ class LossOrchestrator:
         stage: str = "train",
         mask: Optional[torch.Tensor] = None,
         target_mask: Optional[torch.Tensor] = None,
+        gt_seg: Optional[torch.Tensor] = None,
     ) -> Tuple[torch.Tensor, Dict[str, float]]:
         """Compute explicit loss terms for one output scale."""
         loss_dict: Dict[str, float] = {}
@@ -777,6 +781,7 @@ class LossOrchestrator:
             is_main_scale=(scale_idx == 0),
             mask=mask,
             target_mask=target_mask,
+            gt_seg=gt_seg,
         )
         loss_dict.update(explicit_loss_dict)
 
@@ -790,7 +795,13 @@ class LossOrchestrator:
         stage: str = "train",
         mask: Optional[torch.Tensor] = None,
         target_mask: Optional[torch.Tensor] = None,
+        gt_seg: Optional[torch.Tensor] = None,
     ) -> Tuple[torch.Tensor, Dict[str, float]]:
+        # Deep supervision heads use the legacy CC-recompute path: per-head
+        # gt_seg cannot be downsampled label-correctly alongside DS targets,
+        # so we force the legacy fallback uniformly. See
+        # `.agent/features/malis_gt_passthrough/artifacts/plan_v1.md` §3.
+        gt_seg = None
         main_output = outputs["output"]
         ds_outputs = [outputs[f"ds_{i}"] for i in range(1, 5) if f"ds_{i}" in outputs]
 
@@ -815,7 +826,13 @@ class LossOrchestrator:
         loss_dict: Dict[str, float] = {}
         for scale_idx, (output, ds_weight) in enumerate(zip(all_outputs, ds_weights)):
             scale_loss, scale_loss_dict = self.compute_loss_for_scale(
-                output, labels, scale_idx, stage, mask=mask, target_mask=target_mask
+                output,
+                labels,
+                scale_idx,
+                stage,
+                mask=mask,
+                target_mask=target_mask,
+                gt_seg=gt_seg,
             )
             total_loss += scale_loss * ds_weight
             loss_dict.update(scale_loss_dict)
@@ -830,6 +847,7 @@ class LossOrchestrator:
         stage: str = "train",
         mask: Optional[torch.Tensor] = None,
         target_mask: Optional[torch.Tensor] = None,
+        gt_seg: Optional[torch.Tensor] = None,
     ) -> Tuple[torch.Tensor, Dict[str, float]]:
         total_loss, loss_dict = self._compute_explicit_terms_for_output(
             outputs,
@@ -839,6 +857,7 @@ class LossOrchestrator:
             is_main_scale=True,
             mask=mask,
             target_mask=target_mask,
+            gt_seg=gt_seg,
         )
         loss_dict[f"{stage}_loss_total"] = total_loss.item()
         return total_loss, loss_dict
