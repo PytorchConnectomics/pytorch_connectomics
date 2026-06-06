@@ -21,6 +21,7 @@ from ..utils.model_outputs import (
     get_inference_select_channel,
     resolve_output_channels,
     resolve_output_head,
+    resolve_output_heads,
     select_output_tensor,
 )
 from .window import (
@@ -74,14 +75,69 @@ class TTAPredictor:
             allow_none=allow_none,
         )
 
+    def _merged_head_window(self) -> Optional[tuple[int, int, int]]:
+        """Channel window of the current head within the merged output, or None.
+
+        Merged-head inference (e.g. ``inference.model.head: "aff,sdt"``) predicts
+        each head separately and concatenates the results. ``channel_activations``
+        is written against the *merged* tensor (absolute indices, e.g. ``0:6`` for
+        aff, ``6:7`` for sdt), but each head is activated on its own tensor. When
+        the current request is a single head that belongs to a configured head
+        output, return ``(offset, head_channels, merged_total)`` so callers can
+        resolve activation specs in the merged space and remap to this head's
+        local channels. Returns None for single-tensor models (no heads), where
+        activations resolve directly against the tensor's own channel count.
+        """
+        head = self._requested_output_head_override
+        if not isinstance(head, str) or "," in head:
+            return None
+        configured = resolve_output_heads(self.cfg, purpose="channel activation scoping")
+        if not configured or head not in configured:
+            return None
+        idx = configured.index(head)
+        merged_total = resolve_output_channels(
+            self.cfg,
+            requested_head=",".join(configured),
+            purpose="channel activation scoping",
+            allow_ambiguous=False,
+        )
+        head_channels = resolve_output_channels(
+            self.cfg,
+            requested_head=head,
+            purpose="channel activation scoping",
+            allow_ambiguous=False,
+        )
+        if merged_total is None or head_channels is None:
+            return None
+        offset = 0
+        if idx > 0:
+            offset = (
+                resolve_output_channels(
+                    self.cfg,
+                    requested_head=",".join(configured[:idx]),
+                    purpose="channel activation scoping",
+                    allow_ambiguous=False,
+                )
+                or 0
+            )
+        return offset, int(head_channels), int(merged_total)
+
     def _resolve_channel_activation_specs(
         self,
         num_channels: int,
     ) -> list[tuple[list[int], Any]]:
-        """Resolve configured channel activation specs to explicit channel indices."""
+        """Resolve configured channel activation specs to explicit channel indices.
+
+        For merged-head inference the specs are resolved in the merged channel
+        space and remapped to the current head's local channels (entries outside
+        this head's window are dropped); otherwise they resolve directly against
+        ``num_channels``.
+        """
         channel_activations = get_inference_channel_activations(self.cfg)
         if not channel_activations:
             return []
+
+        window = self._merged_head_window()
 
         resolved_specs: list[tuple[list[int], Any]] = []
         used_channels: set[int] = set()
@@ -97,11 +153,27 @@ class TTAPredictor:
                     "'channels' and 'activation'."
                 )
 
-            channels = resolve_channel_indices(
-                entry["channels"],
-                num_channels=num_channels,
-                context=f"inference.model.channel_activations[{idx}].channels",
-            )
+            if window is not None:
+                offset, head_channels, merged_total = window
+                abs_channels = resolve_channel_indices(
+                    entry["channels"],
+                    num_channels=merged_total,
+                    context=f"inference.model.channel_activations[{idx}].channels",
+                )
+                channels = [
+                    ch - offset
+                    for ch in abs_channels
+                    if offset <= ch < offset + head_channels
+                ]
+                if not channels:
+                    # Entry targets a different head in the merged output.
+                    continue
+            else:
+                channels = resolve_channel_indices(
+                    entry["channels"],
+                    num_channels=num_channels,
+                    context=f"inference.model.channel_activations[{idx}].channels",
+                )
             overlap = used_channels.intersection(channels)
             if overlap:
                 overlap_str = ", ".join(str(ch) for ch in sorted(overlap))
