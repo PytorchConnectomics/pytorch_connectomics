@@ -173,6 +173,7 @@ def test_connectomics_inference_public_api_snapshot():
         "write_prediction_artifact_attrs",
         "run_prediction_inference",
         "is_chunked_inference_enabled",
+        "is_external_chunk_sharding_enabled",
         "run_chunked_prediction_inference",
         "apply_prediction_transform",
         "apply_storage_dtype_transform",
