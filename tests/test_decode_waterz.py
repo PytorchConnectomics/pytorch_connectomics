@@ -60,10 +60,25 @@ def test_decode_waterz_skips_dust_when_disabled(monkeypatch):
 
 
 def test_decode_waterz_reuses_agglomeration_graph_for_dust(monkeypatch):
-    """Dust merge reuses agglomeration's region graph with inverted OneMinus scores."""
+    """Dust merge reuses agglomeration's region graph via dust_merge_from_region_graph."""
     fake_waterz = _FakeWaterzModule()
     monkeypatch.setattr(waterz_decoder, "waterz", fake_waterz)
     monkeypatch.setattr(waterz_decoder, "WATERZ_AVAILABLE", True)
+
+    dust_calls = []
+
+    def fake_dust_merge(seg, region_graph, **kwargs):
+        dust_calls.append(
+            {
+                "seg_shape": seg.shape,
+                "region_graph": region_graph,
+                "size_th": kwargs.get("size_th"),
+                "weight_th": kwargs.get("weight_th"),
+                "dust_th": kwargs.get("dust_th"),
+            }
+        )
+
+    monkeypatch.setattr(waterz_decoder, "dust_merge_from_region_graph", fake_dust_merge)
 
     waterz_decoder.decode_waterz(
         np.ones((3, 4, 4, 4), dtype=np.float32),
@@ -75,13 +90,11 @@ def test_decode_waterz_reuses_agglomeration_graph_for_dust(monkeypatch):
     )
 
     assert fake_waterz.waterz_calls[0]["return_region_graph"] is True
-    assert len(fake_waterz.merge_segments_calls) == 1
-    call = fake_waterz.merge_segments_calls[0]
+    assert len(dust_calls) == 1
+    call = dust_calls[0]
     assert call["seg_shape"] == (4, 4, 4)
-    assert call["rg_affs"] == [0.800000011920929]  # 1.0 - 0.2
-    assert call["id1"] == [1]
-    assert call["id2"] == [2]
-    assert call["counts"] == [0, 32, 32]
+    # Region graph is forwarded as-is from agglomeration (OneMinus scores).
+    assert call["region_graph"] == [{"u": 1, "v": 2, "score": 0.2}]
     assert call["size_th"] == 100
     assert call["weight_th"] == 0.3
     assert call["dust_th"] == 50

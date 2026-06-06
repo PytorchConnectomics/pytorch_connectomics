@@ -92,7 +92,9 @@ def test_training_step_uses_deep_supervision_branch():
 
     branch_called = {"used": False}
 
-    def fake_deep_supervision(outputs, labels, stage="train", mask=None, target_mask=None):
+    def fake_deep_supervision(
+        outputs, labels, stage="train", mask=None, target_mask=None, gt_seg=None
+    ):
         branch_called["used"] = True
         return torch.tensor(0.0, requires_grad=True), {"train_loss_total": 0.0}
 
