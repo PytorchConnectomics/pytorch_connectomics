@@ -183,7 +183,7 @@ def _build_nnunet_preprocess_transform(keys, nnunet_pre_cfg, source_spacing):
 
 
 def build_train_transforms(
-    cfg: Config, keys: list[str] = None, skip_loading: bool = False
+    cfg: Config, keys: list[str] | None = None, skip_loading: bool = False
 ) -> Compose:
     """
     Build training transforms from Hydra config.
@@ -351,7 +351,7 @@ def build_train_transforms(
 
 
 def _build_eval_transforms_impl(
-    cfg: Config, mode: str = "val", keys: list[str] = None, skip_loading: bool = False
+    cfg: Config, mode: str = "val", keys: list[str] | None = None, skip_loading: bool = False
 ) -> Compose:
     """
     Internal implementation for building evaluation transforms (validation or test).
@@ -700,7 +700,7 @@ def _build_eval_transforms_impl(
 
 
 def build_val_transforms(
-    cfg: Config, keys: list[str] = None, skip_loading: bool = False
+    cfg: Config, keys: list[str] | None = None, skip_loading: bool = False
 ) -> Compose:
     """
     Build validation transforms from Hydra config.
@@ -716,7 +716,9 @@ def build_val_transforms(
     return _build_eval_transforms_impl(cfg, mode="val", keys=keys, skip_loading=skip_loading)
 
 
-def build_test_transforms(cfg: Config, keys: list[str] = None, mode: str = "test") -> Compose:
+def build_test_transforms(
+    cfg: Config, keys: list[str] | None = None, mode: str = "test"
+) -> Compose:
     """
     Build test/tune inference transforms from Hydra config.
 
