@@ -1,0 +1,208 @@
+_base_:
+- ../connectomics/config/all_profiles.yaml
+
+experiment_name: mito_betaseg_banis_plus
+description: >-
+  BetaSeg 3D mitochondria (16nm, 6-channel affinity r1+r10 + 1-channel SDT).
+  banis_v0 (faithful BANIS-mito repro) upgraded with the strong "banis+" recipe:
+  MedNeXt-L (vs S), EMA validation (0.999), label erosion=2, and per-channel
+  class-balanced BCE on affinities (vs plain BCE). SDT head + binary/distance
+  watershed decode unchanged from v0.
+
+save_path: outputs/mito_betaseg_banis_plus
+
+default:
+  system:
+    num_gpus: -1
+    num_workers: -1
+  model:
+    arch:
+      type: mednext
+    input_size: [128, 128, 128]
+    output_size: [128, 128, 128]
+    in_channels: 1
+    out_channels: 7
+    primary_head: aff
+    heads:
+      aff:
+        out_channels: 6
+        num_blocks: 0
+        target_slice: "0:6"
+      sdt:
+        out_channels: 1
+        num_blocks: 0
+        target_slice: "6:7"
+    loss:
+      deep_supervision: false
+      losses:
+      # banis+ ("_opt"/v1) loss: per-channel class-balanced BCE over valid
+      # affinity voxels so short- and long-range edges learn at comparable
+      # speed (v0 used plain BCE, which lets the dominant class dominate).
+      - function: PerChannelBCEWithLogitsLoss
+        weight: 1.0
+        pred_head: aff
+        target_slice: "0:6"
+        kwargs: {auto_pos_weight: true, max_pos_weight: 10.0}
+      # BANIS: mse_loss(tanh(pred), sdt_target), sdt_loss_weight = 1.0.
+      - function: WeightedMSELoss
+        weight: 1.0
+        pred_head: sdt
+        target_slice: "6:7"
+        kwargs: {tanh: true}
+    # banis+ uses MedNeXt-L/k3 for higher-capacity affinity prediction.
+    mednext:
+      size: L
+      kernel_size: 3
+      dim: 3d
+      checkpoint_style: outside_block
+  data:
+    dataloader:
+      patch_size: [128, 128, 128]
+      target_context: [10, 10, 10]
+      # MedNeXt-L is ~11x the params of S; keep per-GPU batch small and recover
+      # effective batch via accumulation (see train.optimization).
+      batch_size: 1
+      val_random_sampling: true
+      cached_sampling_foreground_threshold: 0.05
+      cached_sampling_max_attempts: 50
+      cached_sampling_sample_nonzero_mask: true
+    image_transform:
+      normalize: "divide-255"
+    label_transform:
+      # banis+ adds label erosion=2 (v0 used 0). Source-index affinity storage.
+      erosion: 2
+      relabel_connected_components: true
+      relabel_connectivity: 6
+      resolution: [16, 16, 16]
+      cache_dir: datasets/betaSeg
+      targets:
+      - name: affinity
+        kwargs:
+          offsets: ["1-0-0", "0-1-0", "0-0-1", "10-0-0", "0-10-0", "0-0-10"]
+          affinity_mode: banis
+      - name: skeleton_aware_edt
+        kwargs:
+          alpha: 0.8
+          bg_value: -1.0
+    augmentation:
+      profile: aug_banis
+  inference:
+    execution:
+      strategy: whole_volume
+    model:
+      head: "aff,sdt"
+      channel_activations:
+      - {channels: "0:6", activation: scale_sigmoid}
+      - {channels: "6:7", activation: tanh}
+    window:
+      window_size: [128, 128, 128]
+      sw_batch_size: 1
+      overlap: 0.5
+      blending: bump
+      padding_mode: replicate
+      keep_input_on_cpu: false
+    test_time_augmentation:
+      enabled: false
+    save_results: true
+    save_dtype: float16
+    save_backend: h5
+
+  decoding:
+    steps:
+    - name: decode_binary_contour_distance_watershed
+      kwargs:
+        binary_channels: [0, 1, 2]
+        binary_channel_reduction: min
+        contour_channels:
+        distance_channels: [6]
+        binary_threshold:
+        - 0.9
+        - 0.85
+        contour_threshold:
+        distance_threshold:
+        - 0.5
+        - -0.5
+        min_instance_size: 100
+        min_seed_size: 20
+        prediction_scale: 1
+
+  evaluation:
+    enabled: true
+    metrics: [adapted_rand]
+
+train:
+  system:
+    seed: 0
+  optimization:
+    optimizer:
+      name: AdamW
+      lr: 0.001
+      weight_decay: 0.01
+      betas: [0.9, 0.999]
+      eps: 1.0e-8
+    scheduler:
+      name: CosineAnnealingLR
+      interval: step
+      frequency: 1
+      min_lr: 0.0
+      params:
+        t_max: 50000
+    max_epochs: 50
+    max_steps: 50000
+    n_steps_per_epoch: 5000
+    val_check_interval: 5000
+    val_check_interval_unit: step
+    val_steps_per_epoch: 100
+    gradient_clip_val: 1.0
+    # Effective batch ~2 (batch_size 1 x accumulate 2) to fit MedNeXt-L.
+    accumulate_grad_batches: 2
+    precision: "16-mixed"
+    log_every_n_steps: 100
+    num_sanity_val_steps: 0
+    # banis+ ("_opt") EMA validation.
+    ema:
+      enabled: true
+      decay: 0.999
+      warmup_steps: 500
+      validate_with_ema: true
+  data:
+    root_path: /projects/weilab/liupeng/data/raw/mito/betaSeg
+    train:
+      image: [high_c3_im.tiff, low_c1_im.tiff, low_c2_im.tiff]
+      label: [high_c3_mito.tiff, low_c1_mito.tiff, low_c2_mito.tiff]
+      label_aux_type: skeleton
+    val:
+      image: [high_c1_im.tiff]
+      label: [high_c1_mito.tiff]
+      label_aux_type: skeleton
+  monitor:
+    logging:
+      scalar:
+        loss: [train_loss_total_epoch, val_loss_total]
+        loss_every_n_steps: 100
+      images:
+        max_images: 8
+        num_slices: 2
+        log_every_n_epochs: 1
+        channel_mode: all
+    checkpoint:
+      monitor: val_loss_total
+      mode: min
+      save_top_k: 3
+      save_every_n_steps: 10000
+      save_on_train_epoch_end: false
+      save_last: true
+      checkpoint_filename: "{epoch:03d}-{val_loss_total:.4f}"
+
+test:
+  data:
+    root_path: /projects/weilab/liupeng/data/raw/mito/betaSeg
+    test:
+      path: ""
+      # BANIS-mito test split: high_c2, high_c4, low_c3.
+      image: [high_c2_im.tiff, high_c4_im.tiff, low_c3_im.tiff]
+      label: [high_c2_mito.tiff, high_c4_mito.tiff, low_c3_mito.tiff]
+      label_aux_type: skeleton
+      resolution: [16, 16, 16]
+    data_transform:
+      pad_size: [64, 64, 64]
