@@ -8,3 +8,4 @@ Neuron Segmentation
 
    snemi3d
    nisb
+   liconn
