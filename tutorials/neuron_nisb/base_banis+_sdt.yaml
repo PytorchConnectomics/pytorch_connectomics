@@ -1,19 +1,77 @@
 _base_:
-  - base_banis_v2_erosion2.yaml
+  - base_banis+.yaml
 
 experiment_name: nisb_base_banis_plus_sdt
 description: >-
-  banis+ (MedNeXt-L/k3) backbone combined with the v2 affinity+SDT two-head
-  setup and label erosion=2. Takes the higher-capacity affinity prediction of
-  base_banis+ and adds the auxiliary skeleton-aware distance transform head
-  from base_banis_v2 for false-merge reduction.
+  banis+ (MedNeXt-L/k3) backbone with an affinity+SDT two-head and label
+  erosion=2. The affinity head keeps the proven 6-channel r1+r10 supervision;
+  the SDT head adds a skeleton-aware distance-transform signal for false-merge
+  reduction. Decoding still uses only short-range affinity channels 0:3.
+  Self-contained (the SDT two-head was previously provided by the now-removed
+  base_banis_v2* configs).
 
 save_path: outputs/nisb_base_banis_plus_sdt
 
 default:
   model:
-    arch:
-      profile: mednext_l
-    mednext:
-      size: L
-      kernel_size: 3
+    out_channels: 7
+    primary_head: aff
+    heads:
+      aff:
+        out_channels: 6
+        num_blocks: 1
+        hidden_channels: 16
+        target_slice: "0:6"
+      sdt:
+        out_channels: 1
+        num_blocks: 1
+        hidden_channels: 16
+        target_slice: "6:7"
+    loss:
+      deep_supervision: false
+      losses:
+        - function: PerChannelBCEWithLogitsLoss
+          weight: 1.0
+          pred_head: aff
+          target_slice: "0:6"
+          kwargs:
+            auto_pos_weight: true
+            max_pos_weight: 10.0
+        - function: SmoothL1Loss
+          weight: 10.0
+          pred_head: sdt
+          target_slice: "6:7"
+          kwargs:
+            tanh: true
+  data:
+    label_transform:
+      targets:
+        - name: affinity
+          kwargs:
+            offsets: ["1-0-0", "0-1-0", "0-0-1", "10-0-0", "0-10-0", "0-0-10"]
+            affinity_mode: banis
+        - name: skeleton_aware_edt
+          kwargs:
+            alpha: 0.8
+            bg_value: -1.0
+  inference:
+    model:
+      head: aff
+      select_channel: [0, 1, 2]
+    save_all_heads: true
+
+train:
+  monitor:
+    logging:
+      scalar:
+        loss:
+          - train_loss_total_epoch
+          - val_loss_total
+          - train_loss_term_0_raw
+          - train_loss_term_0_weighted
+          - train_loss_term_1_raw
+          - train_loss_term_1_weighted
+        loss_every_n_steps: 100
+      images:
+        head: all
+        channel_mode: all
