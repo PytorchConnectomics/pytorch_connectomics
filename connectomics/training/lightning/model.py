@@ -845,6 +845,7 @@ class ConnectomicsModule(pl.LightningModule):
         stage: str,
         mask: Optional[torch.Tensor] = None,
         target_mask: Optional[torch.Tensor] = None,
+        gt_seg: Optional[torch.Tensor] = None,
     ):
         """Compute loss handling both standard and deep supervision outputs."""
         loss_orchestrator = self._require_loss_orchestrator()
@@ -853,10 +854,10 @@ class ConnectomicsModule(pl.LightningModule):
         )
         if is_deep_supervision:
             return loss_orchestrator.compute_deep_supervision_loss(
-                outputs, labels, stage=stage, mask=mask, target_mask=target_mask
+                outputs, labels, stage=stage, mask=mask, target_mask=target_mask, gt_seg=gt_seg
             )
         return loss_orchestrator.compute_standard_loss(
-            outputs, labels, stage=stage, mask=mask, target_mask=target_mask
+            outputs, labels, stage=stage, mask=mask, target_mask=target_mask, gt_seg=gt_seg
         )
 
     def training_step(self, batch: Dict[str, torch.Tensor], batch_idx: int) -> STEP_OUTPUT:
@@ -868,13 +869,14 @@ class ConnectomicsModule(pl.LightningModule):
         # Binarize mask: (B, 1, D, H, W) float, 1 = valid, 0 = ignore
         mask = (raw_mask > 0).float() if raw_mask is not None else None
         target_mask = batch.get("label_mask", None)
+        gt_seg = batch.get("gt_seg", None)
 
         # Forward pass
         outputs = self(images)
 
         # Compute loss using the loss orchestrator
         total_loss, loss_dict = self._compute_loss(
-            outputs, labels, stage="train", mask=mask, target_mask=target_mask
+            outputs, labels, stage="train", mask=mask, target_mask=target_mask, gt_seg=gt_seg
         )
 
         # Keep full training curves in TensorBoard while avoiding console spam.
@@ -896,13 +898,14 @@ class ConnectomicsModule(pl.LightningModule):
         raw_mask = batch.get("mask", None)
         mask = (raw_mask > 0).float() if raw_mask is not None else None
         target_mask = batch.get("label_mask", None)
+        gt_seg = batch.get("gt_seg", None)
 
         # Forward pass
         outputs = self(images)
 
         # Compute loss using the loss orchestrator
         total_loss, loss_dict = self._compute_loss(
-            outputs, labels, stage="val", mask=mask, target_mask=target_mask
+            outputs, labels, stage="val", mask=mask, target_mask=target_mask, gt_seg=gt_seg
         )
 
         # Compute evaluation metrics if enabled

@@ -19,6 +19,7 @@ class LossMetadata:
     call_kind: LossCallKind = "pred_target"  # pred_target | pred_only | pred_pred | unsupported
     target_kind: TargetKind = "dense"  # dense | class_index | none
     spatial_weight_arg: Optional[str] = None  # weight | mask | None
+    gt_seg_arg: Optional[str] = None  # gt_seg | None
 
 
 _LOSS_METADATA_BY_NAME = {
@@ -44,7 +45,7 @@ _LOSS_METADATA_BY_NAME = {
     "SoftClDiceLoss": LossMetadata("SoftClDiceLoss", spatial_weight_arg="weight"),
     "WeightedMSELoss": LossMetadata("WeightedMSELoss", spatial_weight_arg="weight"),
     "WeightedMAELoss": LossMetadata("WeightedMAELoss", spatial_weight_arg="weight"),
-    "MalisLoss": LossMetadata("MalisLoss", spatial_weight_arg="mask"),
+    "MalisLoss": LossMetadata("MalisLoss", spatial_weight_arg="mask", gt_seg_arg="gt_seg"),
     # GAN is not compatible with the generic supervised orchestrator path
     "GANLoss": LossMetadata("GANLoss", call_kind="unsupported", target_kind="none"),
     # Regularization losses

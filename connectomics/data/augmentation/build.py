@@ -15,6 +15,7 @@ from monai.transforms import (
     BorderPadd,
     CenterSpatialCropd,
     Compose,
+    CopyItemsd,
     Lambdad,
     OneOf,
     RandAdjustContrastd,
@@ -182,7 +183,7 @@ def _build_nnunet_preprocess_transform(keys, nnunet_pre_cfg, source_spacing):
 
 
 def build_train_transforms(
-    cfg: Config, keys: list[str] = None, skip_loading: bool = False
+    cfg: Config, keys: list[str] | None = None, skip_loading: bool = False
 ) -> Compose:
     """
     Build training transforms from Hydra config.
@@ -320,6 +321,8 @@ def build_train_transforms(
         # Apply instance erosion first if specified
         if hasattr(label_cfg, "erosion") and label_cfg.erosion > 0:
             transforms.append(SegErosionInstanced(keys=["label"], tsz_h=label_cfg.erosion))
+        if label_cfg.emit_gt_seg:
+            transforms.append(CopyItemsd(keys="label", names="gt_seg"))
 
         # Build label transform pipeline directly from label_transform config
         label_transform = create_label_transform_pipeline(label_cfg)
@@ -348,7 +351,7 @@ def build_train_transforms(
 
 
 def _build_eval_transforms_impl(
-    cfg: Config, mode: str = "val", keys: list[str] = None, skip_loading: bool = False
+    cfg: Config, mode: str = "val", keys: list[str] | None = None, skip_loading: bool = False
 ) -> Compose:
     """
     Internal implementation for building evaluation transforms (validation or test).
@@ -669,6 +672,8 @@ def _build_eval_transforms_impl(
             # Apply instance erosion first if specified
             if hasattr(label_cfg, "erosion") and label_cfg.erosion > 0:
                 transforms.append(SegErosionInstanced(keys=["label"], tsz_h=label_cfg.erosion))
+            if label_cfg.emit_gt_seg:
+                transforms.append(CopyItemsd(keys="label", names="gt_seg"))
 
             # Build label transform pipeline directly from label_transform config
             label_transform = create_label_transform_pipeline(label_cfg)
@@ -695,7 +700,7 @@ def _build_eval_transforms_impl(
 
 
 def build_val_transforms(
-    cfg: Config, keys: list[str] = None, skip_loading: bool = False
+    cfg: Config, keys: list[str] | None = None, skip_loading: bool = False
 ) -> Compose:
     """
     Build validation transforms from Hydra config.
@@ -711,7 +716,9 @@ def build_val_transforms(
     return _build_eval_transforms_impl(cfg, mode="val", keys=keys, skip_loading=skip_loading)
 
 
-def build_test_transforms(cfg: Config, keys: list[str] = None, mode: str = "test") -> Compose:
+def build_test_transforms(
+    cfg: Config, keys: list[str] | None = None, mode: str = "test"
+) -> Compose:
     """
     Build test/tune inference transforms from Hydra config.
 

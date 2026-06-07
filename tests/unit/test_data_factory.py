@@ -2,13 +2,20 @@ from __future__ import annotations
 
 from types import SimpleNamespace
 
+import numpy as np
 import pytest
-from monai.transforms import Compose, Resized
+import torch
+from monai.transforms import Compose, CopyItemsd, Resized
 
 from connectomics.config import Config
 from connectomics.config.pipeline.config_io import resolve_data_paths
-from connectomics.data.augmentation.build import build_test_transforms, build_val_transforms
+from connectomics.data.augmentation.build import (
+    build_test_transforms,
+    build_train_transforms,
+    build_val_transforms,
+)
 from connectomics.data.augmentation.transforms import ResizeByFactord
+from connectomics.data.processing.transforms import SegErosionInstanced
 from connectomics.training.lightning.data_factory import create_datamodule
 
 
@@ -47,6 +54,56 @@ def test_build_val_transforms_uses_data_transform_resize_with_expected_modes():
     assert resize_transforms[0].mode == ("bilinear",)
     assert resize_transforms[1].keys == ("label", "mask")
     assert resize_transforms[1].mode == ("nearest", "nearest")
+
+
+def _cfg_with_gt_seg_label_transform() -> Config:
+    cfg = Config()
+    cfg.data.image_transform.normalize = "none"
+    cfg.data.label_transform.erosion = 2
+    cfg.data.label_transform.emit_gt_seg = True
+    cfg.data.label_transform.targets = [
+        {
+            "name": "affinity",
+            "kwargs": {
+                "offsets": ["1-0-0", "0-1-0", "0-0-1"],
+                "affinity_mode": "banis",
+            },
+        }
+    ]
+    return cfg
+
+
+def test_emit_gt_seg_inserts_copy_after_erosion_train_and_val():
+    cfg = _cfg_with_gt_seg_label_transform()
+
+    for build_fn in (build_train_transforms, build_val_transforms):
+        transforms = build_fn(cfg, keys=["image", "label"], skip_loading=True).transforms
+        erosion_idx = next(
+            i for i, t in enumerate(transforms) if isinstance(t, SegErosionInstanced)
+        )
+        copy_idx = next(i for i, t in enumerate(transforms) if isinstance(t, CopyItemsd))
+
+        assert copy_idx == erosion_idx + 1
+        assert transforms[copy_idx].keys == ("label",)
+        assert transforms[copy_idx].names == ("gt_seg",)
+
+
+def test_emit_gt_seg_runtime_end_to_end_train_transform():
+    cfg = _cfg_with_gt_seg_label_transform()
+    transforms = build_train_transforms(cfg, keys=["image", "label"], skip_loading=True)
+
+    label = np.zeros((1, 6, 8, 8), dtype=np.uint64)
+    label[:, 1:5, 2:6, 2:6] = 7
+    label[:, 2:4, 3:5, 3:5] = 9
+    expected = SegErosionInstanced(keys=["label"], tsz_h=2)({"label": label.copy()})["label"]
+
+    out = transforms({"image": np.zeros_like(label, dtype=np.float32), "label": label})
+
+    assert "gt_seg" in out
+    np.testing.assert_array_equal(np.asarray(out["gt_seg"]), expected)
+    assert np.asarray(out["gt_seg"]).shape == label.shape
+    assert isinstance(out["label"], torch.Tensor)
+    assert tuple(out["label"].shape) == (3, 6, 8, 8)
 
 
 def test_build_test_transforms_derives_scale_factors_from_patch_resize():
