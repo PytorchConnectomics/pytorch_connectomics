@@ -62,6 +62,33 @@ class NoWeightSpyLoss(nn.Module):
         return (pred - target).abs().mean()
 
 
+class GtSegSpyLoss(nn.Module):
+    def __init__(self):
+        super().__init__()
+        self.calls = []
+        self._connectomics_loss_metadata = LossMetadata(
+            name="GtSegSpyLoss",
+            call_kind="pred_target",
+            target_kind="dense",
+            gt_seg_arg="gt_seg",
+        )
+
+    def forward(
+        self,
+        pred: torch.Tensor,
+        target: torch.Tensor,
+        gt_seg: torch.Tensor = None,
+    ):
+        self.calls.append(
+            {
+                "gt_seg": gt_seg,
+                "pred_shape": tuple(pred.shape),
+                "target_shape": tuple(target.shape),
+            }
+        )
+        return (pred - target).abs().mean()
+
+
 class _CrossEntropySpyBase(nn.Module):
     def __init__(self):
         super().__init__()
@@ -243,6 +270,63 @@ def test_standard_loss_uses_pos_weight_only_for_weight_aware_losses():
     received_weight = weighted_loss.calls[0]["weight"]
     assert received_weight is not None
     assert torch.equal(received_weight, _expected_pos_weight(labels))
+
+
+def test_orchestrator_passes_gt_seg_when_metadata_declares_it():
+    spy_loss = GtSegSpyLoss()
+    orchestrator = LossOrchestrator(
+        cfg=_cfg(losses=[{"weight": 1.0}]),
+        loss_functions=nn.ModuleList([spy_loss]),
+        loss_weights=[1.0],
+        enable_nan_detection=False,
+        debug_on_nan=False,
+    )
+
+    outputs = torch.zeros(1, 1, 2, 2, 2)
+    labels = torch.ones_like(outputs)
+    gt_seg = torch.ones(1, 2, 2, 2, dtype=torch.int64)
+
+    total_loss, loss_dict = orchestrator.compute_standard_loss(
+        outputs,
+        labels,
+        stage="train",
+        gt_seg=gt_seg,
+    )
+
+    assert torch.isfinite(total_loss)
+    assert "train_loss_total" in loss_dict
+    assert len(spy_loss.calls) == 1
+    assert spy_loss.calls[0]["gt_seg"] is gt_seg
+
+
+def test_orchestrator_does_not_pass_gt_seg_in_deep_supervision():
+    spy_loss = GtSegSpyLoss()
+    orchestrator = LossOrchestrator(
+        cfg=_cfg(losses=[{"weight": 1.0, "apply_deep_supervision": True}]),
+        loss_functions=nn.ModuleList([spy_loss]),
+        loss_weights=[1.0],
+        enable_nan_detection=False,
+        debug_on_nan=False,
+    )
+
+    outputs = {
+        "output": torch.zeros(1, 1, 2, 2, 2),
+        "ds_1": torch.zeros(1, 1, 2, 2, 2),
+    }
+    labels = torch.ones(1, 1, 2, 2, 2)
+    gt_seg = torch.ones(1, 2, 2, 2, dtype=torch.int64)
+
+    total_loss, loss_dict = orchestrator.compute_deep_supervision_loss(
+        outputs,
+        labels,
+        stage="train",
+        gt_seg=gt_seg,
+    )
+
+    assert torch.isfinite(total_loss)
+    assert "train_loss_total" in loss_dict
+    assert len(spy_loss.calls) == 2
+    assert all(call["gt_seg"] is None for call in spy_loss.calls)
 
 
 def test_pred_target_defaults_to_all_channels_when_slices_omitted():

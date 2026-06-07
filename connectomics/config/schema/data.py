@@ -66,6 +66,7 @@ class LabelTransformConfig:
 
     normalize: bool = True  # Convert labels to 0-1 range
     erosion: int = 0  # Border erosion kernel half-size (0 = disabled, uses seg_widen_border)
+    emit_gt_seg: bool = False  # Emit post-augmentation/post-erosion segmentation for MALIS.
     skeleton_distance: SkeletonDistanceConfig = field(default_factory=SkeletonDistanceConfig)
     edge_mode: EdgeModeConfig = field(
         default_factory=EdgeModeConfig

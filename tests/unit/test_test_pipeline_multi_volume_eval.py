@@ -181,6 +181,7 @@ def test_run_evaluation_stage_accepts_plain_context_and_arrays():
 
 
 def test_compute_test_metrics_supports_nerl_without_dense_labels(tmp_path):
+    pytest.importorskip("em_erl")
     ERLGraph, _, _ = import_em_erl()
     graph_path = tmp_path / "gt_graph.npz"
     graph = ERLGraph(
@@ -233,6 +234,7 @@ def test_compute_test_metrics_supports_nerl_without_dense_labels(tmp_path):
 
 
 def test_compute_test_metrics_supports_banis_skeleton_pickle(tmp_path):
+    pytest.importorskip("em_erl")
     nx = pytest.importorskip("networkx")
     import pickle
 

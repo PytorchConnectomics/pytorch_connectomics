@@ -109,6 +109,7 @@ class TestAffinityCC3D:
         ), f"Expected 3 labels (bg + 2 objects), got {len(unique_labels)}"
         assert 0 in unique_labels, "Background label 0 should be present"
 
+    @pytest.mark.skipif(not NUMBA_AVAILABLE, reason="numba required")
     def test_threshold_sensitivity(self, simple_affinities):
         """Test that threshold parameter affects segmentation."""
         # Low threshold - more connected
