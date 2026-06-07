@@ -1,0 +1,732 @@
+
+
+
+
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!-->
+<html class="no-js" lang="en">
+<!--<![endif]-->
+
+<head>
+  <meta charset="utf-8">
+  <meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>LICONN &mdash; connectomics latest documentation</title>
+  
+
+  
+  
+  <link rel="shortcut icon" href="../../_static/favicon.svg" />
+  
+  
+  
+
+  
+
+  
+  
+  
+
+  
+
+  
+  <link rel="stylesheet" href="../../_static/css/theme.css" type="text/css" />
+  <!-- <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" /> -->
+  <link rel="stylesheet" href="../../_static/css/pytc-theme.css" type="text/css" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@docsearch/js@alpha" type="text/css" />
+  <link rel="stylesheet" href="../../_static/css/readthedocs-doc-embed.css" type="text/css" />
+  <link rel="index" title="Index" href="../../genindex.html" />
+  <link rel="search" title="Search" href="../../search.html" />
+  <link rel="next" title="Mitochondria Segmentation" href="../mito/index.html" />
+  <link rel="prev" title="NISB" href="nisb.html" /> 
+
+    <!-- Preload the theme fonts -->
+
+<link rel="preload" href="_static/fonts/FreightSans/freight-sans-book.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="_static/fonts/FreightSans/freight-sans-medium.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="_static/fonts/IBMPlexMono/IBMPlexMono-Medium.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="_static/fonts/FreightSans/freight-sans-bold.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="_static/fonts/FreightSans/freight-sans-medium-italic.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="_static/fonts/IBMPlexMono/IBMPlexMono-SemiBold.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+
+<!-- Preload the katex fonts -->
+
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Math-Italic.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Main-Regular.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Main-Bold.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Size1-Regular.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Size4-Regular.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Size2-Regular.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Size3-Regular.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Caligraphic-Regular.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+
+  <link rel="stylesheet" href="text.css" type="text/css" />
+
+  <!-- at the end of the HEAD -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@docsearch/css@alpha" />
+</head>
+
+<div class="container-fluid header-holder tutorials-header" id="header-holder">
+  <div class="container">
+
+    <a class="header-logo" href="../../index.html" aria-label="PyTC"></a>
+
+    <div class="header-container">
+
+      <div class="main-menu">
+        <ul>
+          <li>
+            <a href="../../notes/installation.html">Get Started</a>
+          </li>
+          <li>
+            <a href="../neuron.html">Tutorials</a>
+          </li>
+          <li>
+            <a href="../../index.html">Docs</a>
+          </li>
+          <li>
+            <a href="https://github.com/zudi-lin/pytorch_connectomics/tree/master">GitHub</a>
+          </li>
+          <li>
+            <a href="../../about/team.html">About Us</a>
+          </li>
+
+        </ul>
+      </div>
+
+      <!-- <a class="main-menu-open-button" href="#" data-behavior="open-mobile-menu"></a> -->
+    </div>
+
+  </div>
+</div>
+
+
+<body class="pytorch-body">
+
+   
+
+  
+
+  <div class="table-of-contents-link-wrapper">
+    <span>Table of Contents</span>
+    <a href="#" class="toggle-table-of-contents" data-behavior="toggle-table-of-contents"></a>
+  </div>
+
+  <nav data-toggle="wy-nav-shift" class="pytorch-left-menu" id="pytorch-left-menu">
+    <div class="pytorch-side-scroll">
+      <div class="pytorch-menu pytorch-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+        <div class="pytorch-left-menu-search">
+          
+
+          
+          
+          
+          <div class="version">
+            latest
+          </div>
+          
+          
+
+          <div id="docsearch"></div>
+
+          
+        </div>
+
+        
+        
+        
+        
+        
+        
+        <p class="caption" role="heading"><span class="caption-text">Get Started</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../notes/installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../notes/config.html">Configuration System</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../notes/dataloading.html">Data Loading</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../notes/axis_order.html">Axis and Channel Order</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../notes/malis.html">MALIS Loss</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../notes/faq.html">FAQ</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Tutorials</span></p>
+<ul class="current">
+<li class="toctree-l1 current"><a class="reference internal" href="index.html">Neuron Segmentation</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="snemi3d.html">SNEMI3D</a></li>
+<li class="toctree-l2"><a class="reference internal" href="nisb.html">NISB</a></li>
+<li class="toctree-l2 current"><a class="current reference internal" href="#">LICONN</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../mito/index.html">Mitochondria Segmentation</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../mito/lucchi.html">Lucchi++ (Semantic Segmentation)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../mito/mitoem.html">MitoEM (Instance Segmentation)</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../synapse/index.html">Synapse Detection</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../synapse/cremi.html">CREMI (Synaptic Cleft Detection)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../synapse/em_r50.html">EM-R50 (Synaptic Polarity Detection)</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../wrinkle.html">Wrinkle (2D Binary Segmentation)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../artifact.html">Artifacts Detection (Draft)</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">External Tools</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../external/neuroglancer.html">Neuroglancer</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Package Reference</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../modules/lightning.html">Lightning Module API</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../modules/model.html">connectomics.models</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../modules/data.html">connectomics.data</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../modules/utils.html">connectomics.utils</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">About</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../about/team.html">About Us</a></li>
+</ul>
+
+        
+        
+      </div>
+    </div>
+
+    
+
+
+    
+
+    <!-- 
+    
+    <div class="rst-versions" data-toggle="rst-versions" role="note" aria-label="versions">
+      <span class="rst-current-version" data-toggle="rst-current-version">
+        <span class="fa fa-book"> Read the Docs</span>
+        v: latest
+        <span class="fa fa-caret-down"></span>
+      </span>
+      <div class="rst-other-versions">
+        <dl>
+          <dt>Versions</dt>
+          
+          <dd><a href="#">latest</a></dd>
+          
+        </dl>
+        <dl>
+          <dt>Downloads</dt>
+          <dd><a href="https://github.com/zudi-lin/pytorch_connectomics/">PDF</a>
+          </dd>
+          <dd><a href="https://github.com/zudi-lin/pytorch_connectomics/">HTML</a></dd>
+        </dl>
+        <dl>
+          <dt>On Github</dt>
+          <dd><a href="https://github.com/zudi-lin/pytorch_connectomics">Home</a></dd>
+          <dd><a href="https://github.com/zudi-lin/pytorch_connectomics/">Docs</a></dd>
+        </dl>
+      </div>
+    </div>
+    
+     -->
+
+  </nav>
+
+
+  <div class="pytorch-container">
+    <div class="pytorch-page-level-bar" id="pytorch-page-level-bar">
+      <div class="pytorch-breadcrumbs-wrapper">
+        
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="pytorch-breadcrumbs">
+    
+      <li>
+        <a href="../../index.html">
+          
+            Docs
+          
+        </a> &gt;
+      </li>
+
+        
+          <li><a href="index.html">Neuron Segmentation</a> &gt;</li>
+        
+      <li>LICONN</li>
+    
+    
+      <li class="pytorch-breadcrumbs-aside">
+        
+            
+            <a href="../../_sources/tutorials/neuron/liconn.rst.txt" rel="nofollow"><img src="../../_static/images/view-page-source-icon.svg"></a>
+          
+        
+      </li>
+    
+  </ul>
+
+  
+</div>
+      </div>
+
+      <div class="pytorch-shortcuts-wrapper" id="pytorch-shortcuts-wrapper">
+        Shortcuts
+      </div>
+    </div>
+
+    <section data-toggle="wy-nav-shift" id="pytorch-content-wrap" class="pytorch-content-wrap">
+      <div class="pytorch-content-left">
+
+        
+        
+          <div class="rst-content">
+            
+            <div role="main" class="main-content" itemscope="itemscope" itemtype="http://schema.org/Article">
+              <article itemprop="articleBody" id="pytorch-article" class="pytorch-article">
+                
+  <section id="liconn">
+<h1>LICONN<a class="headerlink" href="#liconn" title="Permalink to this heading">¶</a></h1>
+<p>Dense neuron segmentation in EM is an <strong>instance segmentation</strong> task. The
+canonical pipeline first predicts an affinity map (the connectivity of each
+voxel to its neighbors) with an encoder-decoder, then converts the affinity
+map into a segmentation via watershed or a similar algorithm.</p>
+<p>This section covers three benchmarks:</p>
+<ul class="simple">
+<li><p><a class="reference internal" href="snemi3d.html"><span class="doc">SNEMI3D</span></a> — the classic small isotropic-anisotropic
+benchmark, used for end-to-end affinity training and waterz
+post-processing. Evaluated with
+<a class="reference external" href="https://en.wikipedia.org/wiki/Rand_index">Rand Index</a> and
+<a class="reference external" href="https://en.wikipedia.org/wiki/Variation_of_information">Variation of Information</a>.</p></li>
+<li><p><a class="reference internal" href="nisb.html"><span class="doc">NISB</span></a> — a larger, anisotropic neuron-segmentation
+benchmark evaluated with the <strong>NERL</strong> skeleton metric. Reproduction
+targets in <code class="docutils literal notranslate"><span class="pre">tutorials/neuron_nisb/</span></code> mirror the upstream BANIS
+pipeline.</p></li>
+<li><p><a class="reference internal" href="#"><span class="doc">LICONN</span></a> — the LICONN volume variant of the NISB
+benchmark; reuses the BANIS-style affinity pipeline and adds an
+affinity-mask QC step for the LICONN-specific border artifacts.</p></li>
+</ul>
+<p>This tutorial trains and evaluates the v3 (per-channel BCE + EMA,
+label erosion=2, MedNeXt-L / kernel 3) affinity model on the <strong>LICONN</strong>
+volume of the NISB neuron-segmentation benchmark. It reuses the same
+6-channel affinity target and BANIS-style decoder as
+<a class="reference internal" href="nisb.html"><span class="doc">NISB</span></a>, but points data paths at the LICONN split and
+shows how to QC the raw prediction and tighten the decoder mask before
+final NERL evaluation.</p>
+<p>The driving config is <code class="docutils literal notranslate"><span class="pre">tutorials/neuron_nisb/liconn_banis_v3_erosion2.yaml</span></code>,
+which inherits everything from <code class="docutils literal notranslate"><span class="pre">base_banis_v3_erosion2.yaml</span></code> and only
+overrides the LICONN data paths and the per-split <code class="docutils literal notranslate"><span class="pre">affinity_mask_path</span></code>.</p>
+<section id="goal">
+<h2>Goal<a class="headerlink" href="#goal" title="Permalink to this heading">¶</a></h2>
+<p>Reproduce the LICONN training/eval run that mirrors the upstream BANIS
+<code class="docutils literal notranslate"><span class="pre">train_base_long</span></code> schedule:</p>
+<ul class="simple">
+<li><p>9 nm isotropic-XY input, <code class="docutils literal notranslate"><span class="pre">[128,</span> <span class="pre">128,</span> <span class="pre">128]</span></code> patches.</p></li>
+<li><p>6-channel affinity target (short-range + long-range), BANIS
+source-voxel convention, <code class="docutils literal notranslate"><span class="pre">edge_offset:</span> <span class="pre">0</span></code>.</p></li>
+<li><p>MedNeXt-L, kernel size 3, per-channel <code class="docutils literal notranslate"><span class="pre">BCEWithLogitsLoss</span></code>, no deep
+supervision, EMA validation (decay 0.999, warmup 500 steps), label
+erosion=2.</p></li>
+<li><p>AdamW &#64; <code class="docutils literal notranslate"><span class="pre">lr=1e-3</span></code>, cosine to 0 over 200 000 steps,
+<code class="docutils literal notranslate"><span class="pre">precision=16-mixed</span></code>, batch size 2 per GPU.</p></li>
+<li><p>Sliding-window inference (128³ windows, 50 % overlap,
+<code class="docutils literal notranslate"><span class="pre">snap_to_edge</span></code>, distance-transform blending, <code class="docutils literal notranslate"><span class="pre">output_dtype:</span> <span class="pre">float16</span></code>).</p></li>
+<li><p>Decoder: <code class="docutils literal notranslate"><span class="pre">decode_affinity_cc</span></code> (numba) on channels 0-2; threshold
+tuned with Optuna on <code class="docutils literal notranslate"><span class="pre">val/seed5</span></code>.</p></li>
+<li><p>Metric: NERL against <code class="docutils literal notranslate"><span class="pre">test/seed6/skeleton.pkl</span></code>.</p></li>
+</ul>
+<section id="get-the-data">
+<h3>1 - Get the data<a class="headerlink" href="#get-the-data" title="Permalink to this heading">¶</a></h3>
+<p>The LICONN split is staged on the lab cluster at:</p>
+<div class="highlight-text notranslate"><div class="highlight"><pre><span></span>/projects/weilab/dataset/nisb/liconn/
+    train/seed{0..4}/data.zarr   (img, seg)
+    val/seed5/data.zarr   +  skeleton.pkl
+    test/seed6/data.zarr  +  skeleton.pkl
+</pre></div>
+</div>
+<p>Each <code class="docutils literal notranslate"><span class="pre">data.zarr</span></code> is XYZ-ordered (same layout as the base NISB split);
+the config keeps that convention end-to-end. <code class="docutils literal notranslate"><span class="pre">skeleton.pkl</span></code> is
+required for NERL evaluation on both val (used by <code class="docutils literal notranslate"><span class="pre">--mode</span> <span class="pre">tune</span></code>) and
+test (used by <code class="docutils literal notranslate"><span class="pre">--mode</span> <span class="pre">test</span></code>).</p>
+<p>If you are working off-cluster, edit the <code class="docutils literal notranslate"><span class="pre">data.train.path</span></code> /
+<code class="docutils literal notranslate"><span class="pre">data.val.path</span></code> / <code class="docutils literal notranslate"><span class="pre">data.test.path</span></code> entries in
+<code class="docutils literal notranslate"><span class="pre">liconn_banis_v3_erosion2.yaml</span></code> (under the <code class="docutils literal notranslate"><span class="pre">train:</span></code>, <code class="docutils literal notranslate"><span class="pre">test:</span></code>, and
+<code class="docutils literal notranslate"><span class="pre">tune:</span></code> sections) to point at your local copy.</p>
+</section>
+<section id="run-training">
+<h3>2 - Run training<a class="headerlink" href="#run-training" title="Permalink to this heading">¶</a></h3>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>conda<span class="w"> </span>activate<span class="w"> </span>pytc
+python<span class="w"> </span>scripts/main.py<span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>--config<span class="w"> </span>tutorials/neuron_nisb/liconn_banis_v3_erosion2.yaml
+</pre></div>
+</div>
+<p>The training schedule (inherited via <code class="docutils literal notranslate"><span class="pre">_base_:</span></code>) is step-based:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">max_steps:</span> <span class="pre">200000</span></code>, <code class="docutils literal notranslate"><span class="pre">n_steps_per_epoch:</span> <span class="pre">5000</span></code>,
+<code class="docutils literal notranslate"><span class="pre">val_check_interval:</span> <span class="pre">5000</span></code> — validation every 5 k steps.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">val_steps_per_epoch:</span> <span class="pre">100</span></code> (matches BANIS <code class="docutils literal notranslate"><span class="pre">limit_val_batches=100</span></code>).</p></li>
+<li><p>Cosine LR over 200 k steps to <code class="docutils literal notranslate"><span class="pre">min_lr=0</span></code>.</p></li>
+<li><p>Checkpoints saved every 50 k steps to
+<code class="docutils literal notranslate"><span class="pre">outputs/nisb_liconn_banis_v3_erosion2/&lt;timestamp&gt;/checkpoints/</span></code>.</p></li>
+</ul>
+<p>Monitor with TensorBoard:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>just<span class="w"> </span>tensorboard<span class="w"> </span>nisb_liconn_banis_v3_erosion2
+</pre></div>
+</div>
+</section>
+<section id="raw-inference-default-decode">
+<h3>3 - Raw inference + default decode<a class="headerlink" href="#raw-inference-default-decode" title="Permalink to this heading">¶</a></h3>
+<p>Run <code class="docutils literal notranslate"><span class="pre">--mode</span> <span class="pre">test</span></code> to invoke inference → decoding → evaluation back-to-back
+on <code class="docutils literal notranslate"><span class="pre">test/seed6</span></code>:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>python<span class="w"> </span>scripts/main.py<span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>--config<span class="w"> </span>tutorials/neuron_nisb/liconn_banis_v3_erosion2.yaml<span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>--mode<span class="w"> </span><span class="nb">test</span><span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>--checkpoint<span class="w"> </span>outputs/nisb_liconn_banis_v3_erosion2/&lt;timestamp&gt;/checkpoints/step<span class="o">=</span><span class="m">00200000</span>.ckpt
+</pre></div>
+</div>
+<p>What happens, in order:</p>
+<ol class="arabic simple">
+<li><p><strong>Inference</strong> writes the raw 6-channel affinity to
+<code class="docutils literal notranslate"><span class="pre">outputs/nisb_liconn_banis_v3_erosion2/&lt;timestamp&gt;/test_step=00200000/seed6/raw_x1_ch0-1-2.h5</span></code>
+(<code class="docutils literal notranslate"><span class="pre">float16</span></code>, XYZ-ordered).</p></li>
+<li><p><strong>Decoding</strong> selects channels 0-2, applies the
+<code class="docutils literal notranslate"><span class="pre">decoding.affinity_mask_path</span></code> (see step 4) if present, and runs
+<code class="docutils literal notranslate"><span class="pre">decode_affinity_cc</span></code> (numba) at threshold 0.75.</p></li>
+<li><p><strong>Evaluation</strong> computes NERL against <code class="docutils literal notranslate"><span class="pre">test/seed6/skeleton.pkl</span></code> and
+writes <code class="docutils literal notranslate"><span class="pre">eval_decoded_x1_ch0-1-2_*.txt</span></code> next to the segmentation.</p></li>
+</ol>
+<p>If you have not yet built the affinity mask, override that path to
+<code class="docutils literal notranslate"><span class="pre">null</span></code> for the first pass — the decoder will treat every voxel as
+valid:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>python<span class="w"> </span>scripts/main.py<span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>--config<span class="w"> </span>tutorials/neuron_nisb/liconn_banis_v3_erosion2.yaml<span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>--mode<span class="w"> </span><span class="nb">test</span><span class="w"> </span>--checkpoint<span class="w"> </span>&lt;ckpt&gt;<span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>test.decoding.affinity_mask_path<span class="o">=</span>null
+</pre></div>
+</div>
+</section>
+<section id="build-an-affinity-mask">
+<h3>4 - Build an affinity mask<a class="headerlink" href="#build-an-affinity-mask" title="Permalink to this heading">¶</a></h3>
+<p>LICONN slabs typically have a handful of bad z-planes at the top and
+bottom of the cube (residual saturation / staining artifacts) that
+poison the affinity prediction. A per-voxel mask drops those planes
+and the image-border halo before decoding.</p>
+<p>The two-step QC + mask workflow ships in <code class="docutils literal notranslate"><span class="pre">dev/nisb/</span></code>:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="c1"># 4a. Scan the saved prediction, decide low_z / high_z, write a report.</span>
+python<span class="w"> </span>dev/nisb/check_aff.py<span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>--pred<span class="w"> </span>outputs/nisb_liconn_banis_v3_erosion2/&lt;timestamp&gt;/test_step<span class="o">=</span><span class="m">00200000</span>/seed6/raw_x1_ch0-1-2.h5<span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>--img<span class="w">  </span>/projects/weilab/dataset/nisb/liconn/test/seed6/data.zarr/img<span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>--out-md<span class="w">   </span>dev/nisb/check_aff_report_liconn_seed6.md<span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>--mask-out<span class="w"> </span>outputs/nisb_liconn_banis_v3_erosion2/&lt;timestamp&gt;/test_step<span class="o">=</span><span class="m">00200000</span>/seed6/affinity_mask.h5
+
+<span class="c1"># 4b. Build the affinity mask h5 from the report&#39;s frontmatter.</span>
+python<span class="w"> </span>dev/nisb/build_aff_mask.py<span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>--report<span class="w"> </span>dev/nisb/check_aff_report_liconn_seed6.md
+</pre></div>
+</div>
+<p><code class="docutils literal notranslate"><span class="pre">check_aff.py</span></code> streams the (C=3, X, Y, Z) <code class="docutils literal notranslate"><span class="pre">float16</span></code> prediction one
+z-slab at a time (peak RSS ~6 GB on an 83 GB volume) and writes a
+markdown report whose frontmatter records <code class="docutils literal notranslate"><span class="pre">img</span></code>, <code class="docutils literal notranslate"><span class="pre">out</span></code>, <code class="docutils literal notranslate"><span class="pre">low_z</span></code>,
+<code class="docutils literal notranslate"><span class="pre">high_z</span></code>, <code class="docutils literal notranslate"><span class="pre">bg_thresh</span></code>, and <code class="docutils literal notranslate"><span class="pre">border_width</span></code>. <code class="docutils literal notranslate"><span class="pre">build_aff_mask.py</span></code>
+reads that frontmatter and writes the h5 mask at <code class="docutils literal notranslate"><span class="pre">--out</span></code>.</p>
+<p>Point <code class="docutils literal notranslate"><span class="pre">test.decoding.affinity_mask_path</span></code> at that file (the
+LICONN config already does this for <code class="docutils literal notranslate"><span class="pre">seed6</span></code>):</p>
+<div class="highlight-yaml notranslate"><div class="highlight"><pre><span></span><span class="nt">test</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">decoding</span><span class="p">:</span>
+<span class="w">    </span><span class="nt">affinity_mask_path</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">outputs/nisb_liconn_banis_v3_erosion2/&lt;timestamp&gt;/test_step=00200000/seed6/affinity_mask.h5</span>
+</pre></div>
+</div>
+</section>
+<section id="tune-the-decoder-threshold">
+<h3>5 - Tune the decoder threshold<a class="headerlink" href="#tune-the-decoder-threshold" title="Permalink to this heading">¶</a></h3>
+<p>The decoder threshold is the most impactful single parameter. Run an
+Optuna grid search on the held-out <code class="docutils literal notranslate"><span class="pre">val/seed5</span></code> skeleton:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>python<span class="w"> </span>scripts/main.py<span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>--config<span class="w"> </span>tutorials/neuron_nisb/liconn_banis_v3_erosion2.yaml<span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>--mode<span class="w"> </span>tune<span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>--checkpoint<span class="w"> </span>outputs/nisb_liconn_banis_v3_erosion2/&lt;timestamp&gt;/checkpoints/step<span class="o">=</span><span class="m">00200000</span>.ckpt
+</pre></div>
+</div>
+<p>Configuration (inherited from <code class="docutils literal notranslate"><span class="pre">base_banis_v3_erosion2.yaml</span></code> via the
+<code class="docutils literal notranslate"><span class="pre">tune:</span></code> block):</p>
+<ul class="simple">
+<li><p>GridSampler over <code class="docutils literal notranslate"><span class="pre">threshold</span> <span class="pre">∈</span> <span class="pre">{0.40,</span> <span class="pre">0.46,</span> <span class="pre">…,</span> <span class="pre">0.94}</span></code> (step 0.06).</p></li>
+<li><p>Single objective: maximize <code class="docutils literal notranslate"><span class="pre">nerl</span></code>.</p></li>
+<li><p>Study persisted as <code class="docutils literal notranslate"><span class="pre">nisb_base_banis_cc_tuning</span></code> with
+<code class="docutils literal notranslate"><span class="pre">load_if_exists:</span> <span class="pre">true</span></code> — re-running appends trials to the existing
+<code class="docutils literal notranslate"><span class="pre">.db</span></code> instead of starting over.</p></li>
+</ul>
+<p>The tuner reuses any cached prediction h5 under
+<code class="docutils literal notranslate"><span class="pre">tune_step=*/predictions/seed5/</span></code> so a second pass skips inference and
+only re-runs the decode + NERL step per threshold. If a previous run
+was killed mid-trial (SLURM TIMEOUT), the in-progress threshold is
+released back to the grid on resume.</p>
+</section>
+<section id="apply-the-best-threshold-on-test">
+<h3>6 - Apply the best threshold on test<a class="headerlink" href="#apply-the-best-threshold-on-test" title="Permalink to this heading">¶</a></h3>
+<p>Once tuning is done, re-run step 3 with the best threshold pulled from
+the study:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>python<span class="w"> </span>scripts/main.py<span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>--config<span class="w"> </span>tutorials/neuron_nisb/liconn_banis_v3_erosion2.yaml<span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>--mode<span class="w"> </span><span class="nb">test</span><span class="w"> </span>--checkpoint<span class="w"> </span>&lt;ckpt&gt;<span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>test.decoding.threshold<span class="o">=</span>&lt;best_threshold_from_tune&gt;
+</pre></div>
+</div>
+</section>
+<section id="reference-behavior">
+<h3>Reference behavior<a class="headerlink" href="#reference-behavior" title="Permalink to this heading">¶</a></h3>
+<p>A few sanity-check signals during reproduction:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">raw_x1_ch0-1-2.h5</span></code> on LICONN <code class="docutils literal notranslate"><span class="pre">test/seed6</span></code> is ~83 GB
+(compare ~53 GB on base NISB <code class="docutils literal notranslate"><span class="pre">test/seed101</span></code>); the LICONN cube
+contains more non-zero predictions and compresses less.</p></li>
+<li><p>LICONN NERL at threshold 0.75 (default) on <code class="docutils literal notranslate"><span class="pre">test/seed6</span></code> is much
+lower (~4 %) than on base NISB; tune on <code class="docutils literal notranslate"><span class="pre">val/seed5</span></code> before
+reporting numbers. Expect the optimum to sit around 0.70.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">check_aff.py</span></code> typically reports <code class="docutils literal notranslate"><span class="pre">low_z=30</span></code>, <code class="docutils literal notranslate"><span class="pre">high_z=2220</span></code> on
+<code class="docutils literal notranslate"><span class="pre">test/seed6</span></code> — most of the cube is usable, but the border halo
+(<code class="docutils literal notranslate"><span class="pre">border_width=32</span></code>) and the first/last few z-planes are not.</p></li>
+</ul>
+<p>For the underlying mechanics, see <a class="reference internal" href="nisb.html"><span class="doc">NISB</span></a> — the same BANIS
+affinity-then-decode pipeline applies; this page just specializes data
+paths and adds the LICONN-specific affinity-mask step.</p>
+</section>
+</section>
+</section>
+
+
+              </article>
+              
+            </div>
+            <footer>
+  
+  <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
+    
+    <a href="../mito/index.html" class="btn btn-neutral float-right" title="Mitochondria Segmentation" accesskey="n"
+      rel="next">Next <img src="../../_static/images/chevron-right-orange.svg"
+        class="next-page"></a>
+    
+    
+    <a href="nisb.html" class="btn btn-neutral" title="NISB" accesskey="p"
+      rel="prev"><img src="../../_static/images/chevron-right-orange.svg" class="previous-page"> Previous</a>
+    
+  </div>
+  
+
+  
+
+  <hr>
+
+  
+
+  <div role="contentinfo">
+    <p>
+      &copy; Copyright 2019-2026, PyTorch Connectomics Contributors.
+
+    </p>
+  </div>
+  
+  <div style="margin-bottom:1cm">
+    Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a
+      href="https://github.com/rtfd/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the
+      Docs</a>.
+  </div>
+   
+
+</footer>
+          </div>
+        </div>
+
+        <div class="pytorch-content-right" id="pytorch-content-right">
+          <div class="pytorch-right-menu" id="pytorch-right-menu">
+            <div class="pytorch-side-scroll" id="pytorch-side-scroll-right">
+              <ul>
+<li><a class="reference internal" href="#">LICONN</a><ul>
+<li><a class="reference internal" href="#goal">Goal</a><ul>
+<li><a class="reference internal" href="#get-the-data">1 - Get the data</a></li>
+<li><a class="reference internal" href="#run-training">2 - Run training</a></li>
+<li><a class="reference internal" href="#raw-inference-default-decode">3 - Raw inference + default decode</a></li>
+<li><a class="reference internal" href="#build-an-affinity-mask">4 - Build an affinity mask</a></li>
+<li><a class="reference internal" href="#tune-the-decoder-threshold">5 - Tune the decoder threshold</a></li>
+<li><a class="reference internal" href="#apply-the-best-threshold-on-test">6 - Apply the best threshold on test</a></li>
+<li><a class="reference internal" href="#reference-behavior">Reference behavior</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+
+            </div>
+          </div>
+        </div>
+    </section>
+  </div>
+
+  
+
+  
+  <script type="text/javascript" id="documentation_options" data-url_root="../../"
+    src="../../_static/documentation_options.js"></script>
+  <script data-url_root="../../" id="documentation_options" src="../../_static/documentation_options.js"></script>
+  <script src="../../_static/jquery.js"></script>
+  <script src="../../_static/underscore.js"></script>
+  <script src="../../_static/_sphinx_javascript_frameworks_compat.js"></script>
+  <script src="../../_static/doctools.js"></script>
+  <script src="../../_static/sphinx_highlight.js"></script>
+  
+
+  
+
+  <script type="text/javascript" src="../../_static/js/vendor/popper.min.js"></script>
+  <script type="text/javascript" src="../../_static/js/vendor/bootstrap.min.js"></script>
+  <script type="text/javascript" src="../../_static/js/theme.js"></script>
+
+  <script type="text/javascript">
+    jQuery(function () {
+      SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+
+  <!-- Begin Footer -->
+
+  <div class="container-fluid docs-tutorials-resources" id="docs-tutorials-resources">
+    <!-- <div class="container">
+      <div class="row">
+        <div class="col-md-4 text-center">
+          <h2>Visual Computing Group</h2>
+          <p>Visual computing group (VCG) led by Prof. Hanspeter Pfister at Harvard University</p>
+          <a class="with-right-arrow" href="https://vcg.seas.harvard.edu/">View VCG</a>
+        </div>
+        <div class="col-md-4 text-center">
+          <h2>Lichtman Lab</h2>
+          <p>Neuroscience research lab led by Prof. Jeff Lichtman at Harvard University</p>
+          <a class="with-right-arrow" href="https://lichtmanlab.fas.harvard.edu">View Lichtman Lab</a>
+        </div>
+        <div class="col-md-4 text-center">
+          <h2>PyTorch</h2>
+          <p>An open source machine learning framework</p>
+          <a class="with-right-arrow" href="https://pytorch.org/">View PyTorch</a>
+        </div>
+      </div>
+    </div> -->
+  </div>
+
+  <div class="cookie-banner-wrapper">
+  <div class="container">
+    <p class="gdpr-notice">To analyze traffic and optimize your experience, we serve cookies on this site. By clicking or navigating, you agree to allow our usage of cookies. As the current maintainers of this site, Facebook’s Cookies Policy applies. Learn more, including about available controls: <a href="https://www.facebook.com/policies/cookies/">Cookies Policy</a>.</p>
+    <img class="close-button" src="_static/images/pytorch-x.svg">
+  </div>
+</div>
+
+  <!-- End Footer -->
+
+  <!-- Begin Mobile Menu -->
+  <!--
+  <div class="mobile-main-menu">
+    <div class="container-fluid">
+      <div class="container">
+        <div class="mobile-main-menu-header-container">
+          <a class="header-logo" href="https://zudi-lin.github.io/pytorch_connectomics/build/html/index.html" aria-label="PyTorch"></a>
+          <a class="main-menu-close-button" href="#" data-behavior="close-mobile-menu"></a>
+        </div>
+      </div>
+    </div>
+    <div class="mobile-main-menu-links-container">
+      <div class="main-menu">
+        <ul>
+          <li>
+            <a href="#">Get Started</a>
+          </li>
+          <li>
+            <a href="#">Features</a>
+          </li>
+          <li>
+            <a href="#">Ecosystem</a>
+          </li>
+          <li>
+            <a href="">Blog</a>
+          </li>
+          <li>
+            <a href="https://zudi-lin.github.io/pytorch_connectomics/build/html/tutorials/snemi.html">Tutorials</a>
+          </li>
+          <li>
+            <a href="https://zudi-lin.github.io/pytorch_connectomics/build/html/index.html">Docs</a>
+          </li>
+          <li>
+            <a href="">Resources</a>
+          </li>
+          <li>
+            <a href="https://github.com/zudi-lin/pytorch_connectomics/tree/master">Github</a>
+          </li>
+        </ul>
+      </div>
+    </div>
+  </div>
+  -->
+  <!-- End Mobile Menu -->
+
+  <script type="text/javascript" src="../../_static/js/vendor/anchor.min.js"></script>
+
+  <script type="text/javascript">
+    var collapsedSections = ['Notes']
+    $(document).ready(function () {
+      mobileMenu.bind();
+      mobileTOC.bind();
+      pytorchAnchors.bind();
+      sideMenus.bind();
+      scrollToAnchor.bind();
+      highlightNavigation.bind();
+
+      // Add class to links that have code blocks, since we cannot create links in code blocks
+      $("article.pytorch-article a span.pre").each(function (e) {
+        $(this).closest("a").addClass("has-code");
+      });
+
+      // Sidebar accordion: click an L1 parent (that has children) to toggle
+      // .expanded / .collapsed instead of navigating. .current is set by
+      // Sphinx on the active section so it starts open by default; the
+      // explicit .collapsed class lets the user fold even the active one.
+      $('.pytorch-menu-vertical .toctree-l1 > a').each(function () {
+        var $a = $(this);
+        var $li = $a.parent();
+        var $ul = $li.children('ul');
+        if ($ul.length === 0) return;
+        $a.on('click', function (e) {
+          e.preventDefault();
+          if ($ul.is(':visible')) {
+            $li.addClass('collapsed').removeClass('expanded');
+          } else {
+            $li.addClass('expanded').removeClass('collapsed');
+          }
+        });
+      });
+    })
+  </script>
+
+  <!-- at the end of the BODY -->
+  <script src="https://cdn.jsdelivr.net/npm/@docsearch/js@alpha"></script>
+  <script>
+    /* global docsearch */
+    docsearch({
+      container: "#docsearch",
+      apiKey: "f072ddc06d4d2d86f6b26fb6f12a4699",
+      indexName: "readthedocs",
+      placeholder: "Search PyTorch Connectomics",
+    });
+  </script>
+
+</body>
+
+</html>

@@ -1,0 +1,738 @@
+
+
+
+
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!-->
+<html class="no-js" lang="en">
+<!--<![endif]-->
+
+<head>
+  <meta charset="utf-8">
+  <meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>SNEMI3D &mdash; connectomics latest documentation</title>
+  
+
+  
+  
+  <link rel="shortcut icon" href="../../_static/favicon.svg" />
+  
+  
+  
+
+  
+
+  
+  
+  
+
+  
+
+  
+  <link rel="stylesheet" href="../../_static/css/theme.css" type="text/css" />
+  <!-- <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" /> -->
+  <link rel="stylesheet" href="../../_static/css/pytc-theme.css" type="text/css" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@docsearch/js@alpha" type="text/css" />
+  <link rel="stylesheet" href="../../_static/css/readthedocs-doc-embed.css" type="text/css" />
+  <link rel="index" title="Index" href="../../genindex.html" />
+  <link rel="search" title="Search" href="../../search.html" />
+  <link rel="next" title="NISB" href="nisb.html" />
+  <link rel="prev" title="Neuron Segmentation" href="index.html" /> 
+
+    <!-- Preload the theme fonts -->
+
+<link rel="preload" href="_static/fonts/FreightSans/freight-sans-book.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="_static/fonts/FreightSans/freight-sans-medium.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="_static/fonts/IBMPlexMono/IBMPlexMono-Medium.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="_static/fonts/FreightSans/freight-sans-bold.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="_static/fonts/FreightSans/freight-sans-medium-italic.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="_static/fonts/IBMPlexMono/IBMPlexMono-SemiBold.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+
+<!-- Preload the katex fonts -->
+
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Math-Italic.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Main-Regular.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Main-Bold.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Size1-Regular.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Size4-Regular.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Size2-Regular.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Size3-Regular.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Caligraphic-Regular.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+
+  <link rel="stylesheet" href="text.css" type="text/css" />
+
+  <!-- at the end of the HEAD -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@docsearch/css@alpha" />
+</head>
+
+<div class="container-fluid header-holder tutorials-header" id="header-holder">
+  <div class="container">
+
+    <a class="header-logo" href="../../index.html" aria-label="PyTC"></a>
+
+    <div class="header-container">
+
+      <div class="main-menu">
+        <ul>
+          <li>
+            <a href="../../notes/installation.html">Get Started</a>
+          </li>
+          <li>
+            <a href="../neuron.html">Tutorials</a>
+          </li>
+          <li>
+            <a href="../../index.html">Docs</a>
+          </li>
+          <li>
+            <a href="https://github.com/zudi-lin/pytorch_connectomics/tree/master">GitHub</a>
+          </li>
+          <li>
+            <a href="../../about/team.html">About Us</a>
+          </li>
+
+        </ul>
+      </div>
+
+      <!-- <a class="main-menu-open-button" href="#" data-behavior="open-mobile-menu"></a> -->
+    </div>
+
+  </div>
+</div>
+
+
+<body class="pytorch-body">
+
+   
+
+  
+
+  <div class="table-of-contents-link-wrapper">
+    <span>Table of Contents</span>
+    <a href="#" class="toggle-table-of-contents" data-behavior="toggle-table-of-contents"></a>
+  </div>
+
+  <nav data-toggle="wy-nav-shift" class="pytorch-left-menu" id="pytorch-left-menu">
+    <div class="pytorch-side-scroll">
+      <div class="pytorch-menu pytorch-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+        <div class="pytorch-left-menu-search">
+          
+
+          
+          
+          
+          <div class="version">
+            latest
+          </div>
+          
+          
+
+          <div id="docsearch"></div>
+
+          
+        </div>
+
+        
+        
+        
+        
+        
+        
+        <p class="caption" role="heading"><span class="caption-text">Get Started</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../notes/installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../notes/config.html">Configuration System</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../notes/dataloading.html">Data Loading</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../notes/axis_order.html">Axis and Channel Order</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../notes/malis.html">MALIS Loss</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../notes/faq.html">FAQ</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Tutorials</span></p>
+<ul class="current">
+<li class="toctree-l1 current"><a class="reference internal" href="index.html">Neuron Segmentation</a><ul class="current">
+<li class="toctree-l2 current"><a class="current reference internal" href="#">SNEMI3D</a></li>
+<li class="toctree-l2"><a class="reference internal" href="nisb.html">NISB</a></li>
+<li class="toctree-l2"><a class="reference internal" href="liconn.html">LICONN</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../mito/index.html">Mitochondria Segmentation</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../mito/lucchi.html">Lucchi++ (Semantic Segmentation)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../mito/mitoem.html">MitoEM (Instance Segmentation)</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../synapse/index.html">Synapse Detection</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../synapse/cremi.html">CREMI (Synaptic Cleft Detection)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../synapse/em_r50.html">EM-R50 (Synaptic Polarity Detection)</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../wrinkle.html">Wrinkle (2D Binary Segmentation)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../artifact.html">Artifacts Detection (Draft)</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">External Tools</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../external/neuroglancer.html">Neuroglancer</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Package Reference</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../modules/lightning.html">Lightning Module API</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../modules/model.html">connectomics.models</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../modules/data.html">connectomics.data</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../modules/utils.html">connectomics.utils</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">About</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../about/team.html">About Us</a></li>
+</ul>
+
+        
+        
+      </div>
+    </div>
+
+    
+
+
+    
+
+    <!-- 
+    
+    <div class="rst-versions" data-toggle="rst-versions" role="note" aria-label="versions">
+      <span class="rst-current-version" data-toggle="rst-current-version">
+        <span class="fa fa-book"> Read the Docs</span>
+        v: latest
+        <span class="fa fa-caret-down"></span>
+      </span>
+      <div class="rst-other-versions">
+        <dl>
+          <dt>Versions</dt>
+          
+          <dd><a href="#">latest</a></dd>
+          
+        </dl>
+        <dl>
+          <dt>Downloads</dt>
+          <dd><a href="https://github.com/zudi-lin/pytorch_connectomics/">PDF</a>
+          </dd>
+          <dd><a href="https://github.com/zudi-lin/pytorch_connectomics/">HTML</a></dd>
+        </dl>
+        <dl>
+          <dt>On Github</dt>
+          <dd><a href="https://github.com/zudi-lin/pytorch_connectomics">Home</a></dd>
+          <dd><a href="https://github.com/zudi-lin/pytorch_connectomics/">Docs</a></dd>
+        </dl>
+      </div>
+    </div>
+    
+     -->
+
+  </nav>
+
+
+  <div class="pytorch-container">
+    <div class="pytorch-page-level-bar" id="pytorch-page-level-bar">
+      <div class="pytorch-breadcrumbs-wrapper">
+        
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="pytorch-breadcrumbs">
+    
+      <li>
+        <a href="../../index.html">
+          
+            Docs
+          
+        </a> &gt;
+      </li>
+
+        
+          <li><a href="index.html">Neuron Segmentation</a> &gt;</li>
+        
+      <li>SNEMI3D</li>
+    
+    
+      <li class="pytorch-breadcrumbs-aside">
+        
+            
+            <a href="../../_sources/tutorials/neuron/snemi3d.rst.txt" rel="nofollow"><img src="../../_static/images/view-page-source-icon.svg"></a>
+          
+        
+      </li>
+    
+  </ul>
+
+  
+</div>
+      </div>
+
+      <div class="pytorch-shortcuts-wrapper" id="pytorch-shortcuts-wrapper">
+        Shortcuts
+      </div>
+    </div>
+
+    <section data-toggle="wy-nav-shift" id="pytorch-content-wrap" class="pytorch-content-wrap">
+      <div class="pytorch-content-left">
+
+        
+        
+          <div class="rst-content">
+            
+            <div role="main" class="main-content" itemscope="itemscope" itemtype="http://schema.org/Article">
+              <article itemprop="articleBody" id="pytorch-article" class="pytorch-article">
+                
+  <section id="snemi3d">
+<h1>SNEMI3D<a class="headerlink" href="#snemi3d" title="Permalink to this heading">¶</a></h1>
+<p>Dense neuron segmentation in EM is an <strong>instance segmentation</strong> task. The
+canonical pipeline first predicts an affinity map (the connectivity of each
+voxel to its neighbors) with an encoder-decoder, then converts the affinity
+map into a segmentation via watershed or a similar algorithm.</p>
+<p>This section covers three benchmarks:</p>
+<ul class="simple">
+<li><p><a class="reference internal" href="#"><span class="doc">SNEMI3D</span></a> — the classic small isotropic-anisotropic
+benchmark, used for end-to-end affinity training and waterz
+post-processing. Evaluated with
+<a class="reference external" href="https://en.wikipedia.org/wiki/Rand_index">Rand Index</a> and
+<a class="reference external" href="https://en.wikipedia.org/wiki/Variation_of_information">Variation of Information</a>.</p></li>
+<li><p><a class="reference internal" href="nisb.html"><span class="doc">NISB</span></a> — a larger, anisotropic neuron-segmentation
+benchmark evaluated with the <strong>NERL</strong> skeleton metric. Reproduction
+targets in <code class="docutils literal notranslate"><span class="pre">tutorials/neuron_nisb/</span></code> mirror the upstream BANIS
+pipeline.</p></li>
+<li><p><a class="reference internal" href="liconn.html"><span class="doc">LICONN</span></a> — the LICONN volume variant of the NISB
+benchmark; reuses the BANIS-style affinity pipeline and adds an
+affinity-mask QC step for the LICONN-specific border artifacts.</p></li>
+</ul>
+<p>This tutorial reproduces the DeepEM-style neuron segmentation result on
+the SNEMI3D challenge dataset using
+<code class="docutils literal notranslate"><span class="pre">tutorials/neuron_snemi/neuron_snemi.yaml</span></code>. It is a modernization of
+the affinity-learning recipe from Lee et al. 2017, with current
+optimization and stability tricks but the same short-range affinity
+target and waterz-based agglomeration.</p>
+<p>References:</p>
+<ul class="simple">
+<li><p>Paper: <a class="reference external" href="https://arxiv.org/abs/1706.00120">Superhuman Accuracy on the SNEMI3D Connectomics Challenge</a> (Lee et al., 2017).</p></li>
+<li><p>Codebase: <a class="reference external" href="https://github.com/seung-lab/DeepEM">seung-lab/DeepEM</a>.</p></li>
+</ul>
+<section id="goal">
+<h2>Goal<a class="headerlink" href="#goal" title="Permalink to this heading">¶</a></h2>
+<p>The pipeline pins the following BANIS-equivalent setup for SNEMI3D:</p>
+<ul class="simple">
+<li><p><strong>Input</strong> <code class="docutils literal notranslate"><span class="pre">[16,</span> <span class="pre">224,</span> <span class="pre">224]</span></code> patches, anisotropic spacing <code class="docutils literal notranslate"><span class="pre">30</span> <span class="pre">×</span> <span class="pre">6</span> <span class="pre">×</span> <span class="pre">6</span></code>
+nm; pad <code class="docutils literal notranslate"><span class="pre">[8,</span> <span class="pre">128,</span> <span class="pre">128]</span></code> for symmetric inference context.</p></li>
+<li><p><strong>Model</strong> RSUNet (Recursive Symmetric UNet, the DeepEM architecture).</p></li>
+<li><p><strong>Target</strong> 12-channel affinity (<code class="docutils literal notranslate"><span class="pre">aff12</span></code>): short-range plus long-range
+(the <code class="docutils literal notranslate"><span class="pre">pipeline_profile:</span> <span class="pre">aff12</span></code> in <code class="docutils literal notranslate"><span class="pre">all_profiles.yaml</span></code>). At inference
+we keep only channels 0-2 (axis-0/1/2 short-range) for waterz.</p></li>
+<li><p><strong>Optimization</strong> profile <code class="docutils literal notranslate"><span class="pre">warmup_cosine_lr</span></code>, 100 epochs × 1000
+steps/epoch.</p></li>
+<li><p><strong>Inference</strong> sliding window 16 × 224 × 224, <code class="docutils literal notranslate"><span class="pre">sw_batch_size=16</span></code>;
+<code class="docutils literal notranslate"><span class="pre">crop_pad=[7,</span> <span class="pre">8,</span> <span class="pre">127,</span> <span class="pre">128,</span> <span class="pre">127,</span> <span class="pre">128]</span></code> puts the affinity output back on
+the original image support after symmetric padding.</p></li>
+<li><p><strong>Decoder</strong> <code class="docutils literal notranslate"><span class="pre">decoding_waterz</span></code> template at <code class="docutils literal notranslate"><span class="pre">thresholds=0.5</span></code>,
+<code class="docutils literal notranslate"><span class="pre">merge_function=aff85_his256</span></code>, <code class="docutils literal notranslate"><span class="pre">aff_threshold=[0.1,</span> <span class="pre">0.999]</span></code>, plus
+dust merge / best-buddy / one-sided post-processing — the standard
+DeepEM-style agglomerative watershed.</p></li>
+<li><p><strong>Metric</strong> Adapted Rand (<code class="docutils literal notranslate"><span class="pre">adapted_rand</span></code>).</p></li>
+</ul>
+<p>Each of these is encoded directly in
+<code class="docutils literal notranslate"><span class="pre">tutorials/neuron_snemi/neuron_snemi.yaml</span></code>; do not change them in
+passing. Two sibling configs are also provided for comparison:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">neuron_snemi_sdt.yaml</span></code> — affinity + signed distance transform.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">neuron_snemi_sdt_multitask.yaml</span></code> — joint multi-task variant.</p></li>
+</ul>
+<p>This page covers <code class="docutils literal notranslate"><span class="pre">neuron_snemi.yaml</span></code> only.</p>
+<section id="get-the-data">
+<h3>1 - Get the data<a class="headerlink" href="#get-the-data" title="Permalink to this heading">¶</a></h3>
+<p>The challenge data is available from the
+<a class="reference external" href="http://brainiac2.mit.edu/SNEMI3D/">SNEMI3D challenge page</a> or the
+Harvard RC mirror:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>mkdir<span class="w"> </span>-p<span class="w"> </span>datasets/SNEMI<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="nb">cd</span><span class="w"> </span>datasets/SNEMI
+wget<span class="w"> </span>http://rhoana.rc.fas.harvard.edu/dataset/snemi.zip
+unzip<span class="w"> </span>snemi.zip
+</pre></div>
+</div>
+<p>After unpacking, you should have:</p>
+<div class="highlight-text notranslate"><div class="highlight"><pre><span></span>datasets/SNEMI/
+    train-input.tif       # 100 slices, anisotropic 30 × 6 × 6 nm
+    train-labels.tif      # dense neuron instance labels
+    test-input.tif        # held-out volume (no public labels)
+    test-labels.h5        # provided locally for offline evaluation
+</pre></div>
+</div>
+<p>The config reads from <code class="docutils literal notranslate"><span class="pre">datasets/SNEMI/</span></code> relative to the repo root.
+Paths under <code class="docutils literal notranslate"><span class="pre">train.data.train</span></code> and <code class="docutils literal notranslate"><span class="pre">test.data.test</span></code> in
+<code class="docutils literal notranslate"><span class="pre">neuron_snemi.yaml</span></code> can be edited if you stage data elsewhere.</p>
+</section>
+<section id="run-training">
+<h3>2 - Run training<a class="headerlink" href="#run-training" title="Permalink to this heading">¶</a></h3>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>conda<span class="w"> </span>activate<span class="w"> </span>pytc
+python<span class="w"> </span>scripts/main.py<span class="w"> </span>--config<span class="w"> </span>tutorials/neuron_snemi/neuron_snemi.yaml
+</pre></div>
+</div>
+<p>The config sets <code class="docutils literal notranslate"><span class="pre">system.profile:</span> <span class="pre">all-gpu-cpu</span></code>, so PyTC uses every
+visible GPU. Override at the CLI if needed:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>python<span class="w"> </span>scripts/main.py<span class="w"> </span>--config<span class="w"> </span>tutorials/neuron_snemi/neuron_snemi.yaml<span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>system.num_gpus<span class="o">=</span><span class="m">4</span><span class="w"> </span>data.dataloader.batch_size<span class="o">=</span><span class="m">2</span>
+</pre></div>
+</div>
+<p>Training schedule:</p>
+<ul class="simple">
+<li><p><strong>Epoch-based</strong>: <code class="docutils literal notranslate"><span class="pre">max_epochs=100</span></code>, <code class="docutils literal notranslate"><span class="pre">n_steps_per_epoch=1000</span></code> →
+100 k optimizer steps total.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">warmup_cosine_lr</span></code> profile: linear warmup, then cosine decay.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">checkpoint.monitor=train_loss_total_epoch</span></code>, <code class="docutils literal notranslate"><span class="pre">save_top_k=3</span></code> (no
+validation loss is monitored — SNEMI3D has no public test labels and
+the training labels are dense, so the recipe reports the
+best-train-loss epochs rather than holding out a validation split).</p></li>
+<li><p>Image previews logged every 10 epochs.</p></li>
+</ul>
+<p>Monitor with TensorBoard:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>just<span class="w"> </span>tensorboard<span class="w"> </span>rsunet_snemi_lee2017_modern
+</pre></div>
+</div>
+<p>The output directory is keyed off <code class="docutils literal notranslate"><span class="pre">experiment_name</span></code>, so you’ll see
+<code class="docutils literal notranslate"><span class="pre">outputs/rsunet_snemi_lee2017_modern/&lt;timestamp&gt;/...</span></code>.</p>
+</section>
+<section id="inference-decoding-evaluation">
+<h3>3 - Inference, decoding, evaluation<a class="headerlink" href="#inference-decoding-evaluation" title="Permalink to this heading">¶</a></h3>
+<p>Run the combined <code class="docutils literal notranslate"><span class="pre">test</span></code> mode against the trained checkpoint. This
+exercises inference, waterz decoding, and adapted-Rand evaluation
+end-to-end:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>python<span class="w"> </span>scripts/main.py<span class="w"> </span>--config<span class="w"> </span>tutorials/neuron_snemi/neuron_snemi.yaml<span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>--mode<span class="w"> </span><span class="nb">test</span><span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>--checkpoint<span class="w"> </span>outputs/rsunet_snemi_lee2017_modern/&lt;timestamp&gt;/checkpoints/last.ckpt
+</pre></div>
+</div>
+<p>What happens, in order:</p>
+<ol class="arabic simple">
+<li><p><strong>Inference</strong> (<code class="docutils literal notranslate"><span class="pre">connectomics.inference.stage</span></code>). Sliding window
+16 × 224 × 224, <code class="docutils literal notranslate"><span class="pre">sw_batch_size=16</span></code>, symmetric pad of
+<code class="docutils literal notranslate"><span class="pre">[8,</span> <span class="pre">128,</span> <span class="pre">128]</span></code> (cropped back via <code class="docutils literal notranslate"><span class="pre">crop_pad</span></code> after prediction so
+the saved affinity occupies the original image support). Model runs
+on GPU; default activations from the model wrapper. Saves the raw
+12-channel affinity as <code class="docutils literal notranslate"><span class="pre">test_im_prediction.h5</span></code> in
+<code class="docutils literal notranslate"><span class="pre">outputs/.../results_step=&lt;N&gt;/</span></code>.</p></li>
+<li><p><strong>Decoding</strong> (<code class="docutils literal notranslate"><span class="pre">connectomics.decoding.stage</span></code>). Selects the
+short-range affinities (channels 0-2; <code class="docutils literal notranslate"><span class="pre">aff=1</span></code> neighborhood), then
+runs waterz with the DeepEM-style settings:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">merge_function:</span> <span class="pre">aff85_his256</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">aff_threshold:</span> <span class="pre">[0.1,</span> <span class="pre">0.999]</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">thresholds:</span> <span class="pre">0.5</span></code></p></li>
+<li><p>dust merge ON (<code class="docutils literal notranslate"><span class="pre">dust_merge_size=800</span></code>,
+<code class="docutils literal notranslate"><span class="pre">dust_merge_affinity=0.3</span></code>, <code class="docutils literal notranslate"><span class="pre">dust_remove_size=600</span></code>)</p></li>
+<li><p>best-buddy on, <code class="docutils literal notranslate"><span class="pre">one_sided_threshold=0.8</span></code>,
+<code class="docutils literal notranslate"><span class="pre">one_sided_min_size=100</span></code></p></li>
+</ul>
+</li>
+<li><p><strong>Evaluation</strong> (<code class="docutils literal notranslate"><span class="pre">connectomics.evaluation.stage</span></code>). Computes
+Adapted Rand against <code class="docutils literal notranslate"><span class="pre">datasets/SNEMI/test-labels.h5</span></code>.</p></li>
+</ol>
+<p>The combined output (segmentation + metrics) lands under
+<code class="docutils literal notranslate"><span class="pre">outputs/.../results_step=&lt;N&gt;/</span></code>.</p>
+<p>To switch to the long-range affinity selection (<code class="docutils literal notranslate"><span class="pre">aff=3</span></code> in DeepEM),
+override at the CLI:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>python<span class="w"> </span>scripts/main.py<span class="w"> </span>--config<span class="w"> </span>tutorials/neuron_snemi/neuron_snemi.yaml<span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>--mode<span class="w"> </span><span class="nb">test</span><span class="w"> </span>--checkpoint<span class="w"> </span>&lt;ckpt&gt;<span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>inference.model.select_channel<span class="o">=</span><span class="s1">&#39;[6, 9, 4]&#39;</span>
+</pre></div>
+</div>
+<p>Test-time augmentation (8× via flips + 90° rotations in xy) is
+disabled by default in the config; flip
+<code class="docutils literal notranslate"><span class="pre">inference.test_time_augmentation.enabled=true</span></code> for the
+<code class="docutils literal notranslate"><span class="pre">patch_first_local</span></code> flow used by DeepEM.</p>
+</section>
+<section id="tune-the-decoder">
+<h3>4 - Tune the decoder<a class="headerlink" href="#tune-the-decoder" title="Permalink to this heading">¶</a></h3>
+<p>The waterz threshold and merge function dominate downstream Rand error.
+<code class="docutils literal notranslate"><span class="pre">--mode</span> <span class="pre">tune</span></code> runs an Optuna search on the <code class="docutils literal notranslate"><span class="pre">test</span></code> volume (since
+SNEMI3D has no separate validation volume) with adapted Rand as the
+objective:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>python<span class="w"> </span>scripts/main.py<span class="w"> </span>--config<span class="w"> </span>tutorials/neuron_snemi/neuron_snemi.yaml<span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>--mode<span class="w"> </span>tune<span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>--checkpoint<span class="w"> </span>outputs/rsunet_snemi_lee2017_modern/&lt;timestamp&gt;/checkpoints/last.ckpt
+</pre></div>
+</div>
+<p>Configuration (under the <code class="docutils literal notranslate"><span class="pre">tune:</span></code> block):</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">profile:</span> <span class="pre">tune_waterz</span></code> (TPE sampler, study persisted as
+<code class="docutils literal notranslate"><span class="pre">snemi_waterz_tuning</span></code>).</p></li>
+<li><p>25 trials, 300 s timeout each.</p></li>
+<li><p>Search space:</p>
+<ul>
+<li><p><code class="docutils literal notranslate"><span class="pre">merge_function</span></code> ∈ <code class="docutils literal notranslate"><span class="pre">{aff85_his256,</span> <span class="pre">aff75_his256,</span> <span class="pre">aff50_his256,</span>
+<span class="pre">aff25_his256,</span> <span class="pre">aff15_his256}</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">thresholds</span></code> ∈ <code class="docutils literal notranslate"><span class="pre">[0.1,</span> <span class="pre">0.9]</span></code> step 0.1</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">aff_threshold[0]</span></code> ∈ <code class="docutils literal notranslate"><span class="pre">[0.0,</span> <span class="pre">0.5]</span></code> step 0.1</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">aff_threshold[1]</span></code> ∈ <code class="docutils literal notranslate"><span class="pre">[0.7,</span> <span class="pre">1.0]</span></code> step 0.1</p></li>
+</ul>
+</li>
+</ul>
+<p>The search reuses the same checkpoint and saved affinity; only the
+decode + evaluate stages run per trial, so each trial is fast.</p>
+</section>
+<section id="reference-behavior">
+<h3>5 - Reference behavior<a class="headerlink" href="#reference-behavior" title="Permalink to this heading">¶</a></h3>
+<p>A few sanity-check signals during reproduction:</p>
+<ul class="simple">
+<li><p><strong>Training loss</strong> (<code class="docutils literal notranslate"><span class="pre">train_loss_total_epoch</span></code>) drops sharply through
+the warmup phase, then descends slowly through cosine decay. With
+RSUNet on the 12-channel affinity target it usually plateaus by
+epoch ~60.</p></li>
+<li><p><strong>Inference</strong> is fast on SNEMI3D (a 100×1024×1024 volume) because of
+the small sliding-window grid; expect well under a minute per
+inference on a single A100/H100, low single-digit minutes on an
+L40S.</p></li>
+<li><p><strong>Adapted Rand</strong> is the headline number; under the canonical pin
+set it should land in the same range as the DeepEM paper after
+threshold tuning. The single best lever is <code class="docutils literal notranslate"><span class="pre">thresholds</span></code> followed
+by <code class="docutils literal notranslate"><span class="pre">merge_function</span></code>; <code class="docutils literal notranslate"><span class="pre">aff_threshold</span></code> boundaries matter mostly at
+low (&lt;0.05) or high (&gt;0.99) settings.</p></li>
+</ul>
+<p>For the underlying mechanics (affinity learning, waterz post-processing
+internals), see the
+<a class="reference external" href="https://github.com/seung-lab/DeepEM">DeepEM repository</a> and the
+<a class="reference external" href="https://arxiv.org/abs/1706.00120">paper</a>.</p>
+</section>
+</section>
+</section>
+
+
+              </article>
+              
+            </div>
+            <footer>
+  
+  <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
+    
+    <a href="nisb.html" class="btn btn-neutral float-right" title="NISB" accesskey="n"
+      rel="next">Next <img src="../../_static/images/chevron-right-orange.svg"
+        class="next-page"></a>
+    
+    
+    <a href="index.html" class="btn btn-neutral" title="Neuron Segmentation" accesskey="p"
+      rel="prev"><img src="../../_static/images/chevron-right-orange.svg" class="previous-page"> Previous</a>
+    
+  </div>
+  
+
+  
+
+  <hr>
+
+  
+
+  <div role="contentinfo">
+    <p>
+      &copy; Copyright 2019-2026, PyTorch Connectomics Contributors.
+
+    </p>
+  </div>
+  
+  <div style="margin-bottom:1cm">
+    Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a
+      href="https://github.com/rtfd/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the
+      Docs</a>.
+  </div>
+   
+
+</footer>
+          </div>
+        </div>
+
+        <div class="pytorch-content-right" id="pytorch-content-right">
+          <div class="pytorch-right-menu" id="pytorch-right-menu">
+            <div class="pytorch-side-scroll" id="pytorch-side-scroll-right">
+              <ul>
+<li><a class="reference internal" href="#">SNEMI3D</a><ul>
+<li><a class="reference internal" href="#goal">Goal</a><ul>
+<li><a class="reference internal" href="#get-the-data">1 - Get the data</a></li>
+<li><a class="reference internal" href="#run-training">2 - Run training</a></li>
+<li><a class="reference internal" href="#inference-decoding-evaluation">3 - Inference, decoding, evaluation</a></li>
+<li><a class="reference internal" href="#tune-the-decoder">4 - Tune the decoder</a></li>
+<li><a class="reference internal" href="#reference-behavior">5 - Reference behavior</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+
+            </div>
+          </div>
+        </div>
+    </section>
+  </div>
+
+  
+
+  
+  <script type="text/javascript" id="documentation_options" data-url_root="../../"
+    src="../../_static/documentation_options.js"></script>
+  <script data-url_root="../../" id="documentation_options" src="../../_static/documentation_options.js"></script>
+  <script src="../../_static/jquery.js"></script>
+  <script src="../../_static/underscore.js"></script>
+  <script src="../../_static/_sphinx_javascript_frameworks_compat.js"></script>
+  <script src="../../_static/doctools.js"></script>
+  <script src="../../_static/sphinx_highlight.js"></script>
+  
+
+  
+
+  <script type="text/javascript" src="../../_static/js/vendor/popper.min.js"></script>
+  <script type="text/javascript" src="../../_static/js/vendor/bootstrap.min.js"></script>
+  <script type="text/javascript" src="../../_static/js/theme.js"></script>
+
+  <script type="text/javascript">
+    jQuery(function () {
+      SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+
+  <!-- Begin Footer -->
+
+  <div class="container-fluid docs-tutorials-resources" id="docs-tutorials-resources">
+    <!-- <div class="container">
+      <div class="row">
+        <div class="col-md-4 text-center">
+          <h2>Visual Computing Group</h2>
+          <p>Visual computing group (VCG) led by Prof. Hanspeter Pfister at Harvard University</p>
+          <a class="with-right-arrow" href="https://vcg.seas.harvard.edu/">View VCG</a>
+        </div>
+        <div class="col-md-4 text-center">
+          <h2>Lichtman Lab</h2>
+          <p>Neuroscience research lab led by Prof. Jeff Lichtman at Harvard University</p>
+          <a class="with-right-arrow" href="https://lichtmanlab.fas.harvard.edu">View Lichtman Lab</a>
+        </div>
+        <div class="col-md-4 text-center">
+          <h2>PyTorch</h2>
+          <p>An open source machine learning framework</p>
+          <a class="with-right-arrow" href="https://pytorch.org/">View PyTorch</a>
+        </div>
+      </div>
+    </div> -->
+  </div>
+
+  <div class="cookie-banner-wrapper">
+  <div class="container">
+    <p class="gdpr-notice">To analyze traffic and optimize your experience, we serve cookies on this site. By clicking or navigating, you agree to allow our usage of cookies. As the current maintainers of this site, Facebook’s Cookies Policy applies. Learn more, including about available controls: <a href="https://www.facebook.com/policies/cookies/">Cookies Policy</a>.</p>
+    <img class="close-button" src="_static/images/pytorch-x.svg">
+  </div>
+</div>
+
+  <!-- End Footer -->
+
+  <!-- Begin Mobile Menu -->
+  <!--
+  <div class="mobile-main-menu">
+    <div class="container-fluid">
+      <div class="container">
+        <div class="mobile-main-menu-header-container">
+          <a class="header-logo" href="https://zudi-lin.github.io/pytorch_connectomics/build/html/index.html" aria-label="PyTorch"></a>
+          <a class="main-menu-close-button" href="#" data-behavior="close-mobile-menu"></a>
+        </div>
+      </div>
+    </div>
+    <div class="mobile-main-menu-links-container">
+      <div class="main-menu">
+        <ul>
+          <li>
+            <a href="#">Get Started</a>
+          </li>
+          <li>
+            <a href="#">Features</a>
+          </li>
+          <li>
+            <a href="#">Ecosystem</a>
+          </li>
+          <li>
+            <a href="">Blog</a>
+          </li>
+          <li>
+            <a href="https://zudi-lin.github.io/pytorch_connectomics/build/html/tutorials/snemi.html">Tutorials</a>
+          </li>
+          <li>
+            <a href="https://zudi-lin.github.io/pytorch_connectomics/build/html/index.html">Docs</a>
+          </li>
+          <li>
+            <a href="">Resources</a>
+          </li>
+          <li>
+            <a href="https://github.com/zudi-lin/pytorch_connectomics/tree/master">Github</a>
+          </li>
+        </ul>
+      </div>
+    </div>
+  </div>
+  -->
+  <!-- End Mobile Menu -->
+
+  <script type="text/javascript" src="../../_static/js/vendor/anchor.min.js"></script>
+
+  <script type="text/javascript">
+    var collapsedSections = ['Notes']
+    $(document).ready(function () {
+      mobileMenu.bind();
+      mobileTOC.bind();
+      pytorchAnchors.bind();
+      sideMenus.bind();
+      scrollToAnchor.bind();
+      highlightNavigation.bind();
+
+      // Add class to links that have code blocks, since we cannot create links in code blocks
+      $("article.pytorch-article a span.pre").each(function (e) {
+        $(this).closest("a").addClass("has-code");
+      });
+
+      // Sidebar accordion: click an L1 parent (that has children) to toggle
+      // .expanded / .collapsed instead of navigating. .current is set by
+      // Sphinx on the active section so it starts open by default; the
+      // explicit .collapsed class lets the user fold even the active one.
+      $('.pytorch-menu-vertical .toctree-l1 > a').each(function () {
+        var $a = $(this);
+        var $li = $a.parent();
+        var $ul = $li.children('ul');
+        if ($ul.length === 0) return;
+        $a.on('click', function (e) {
+          e.preventDefault();
+          if ($ul.is(':visible')) {
+            $li.addClass('collapsed').removeClass('expanded');
+          } else {
+            $li.addClass('expanded').removeClass('collapsed');
+          }
+        });
+      });
+    })
+  </script>
+
+  <!-- at the end of the BODY -->
+  <script src="https://cdn.jsdelivr.net/npm/@docsearch/js@alpha"></script>
+  <script>
+    /* global docsearch */
+    docsearch({
+      container: "#docsearch",
+      apiKey: "f072ddc06d4d2d86f6b26fb6f12a4699",
+      indexName: "readthedocs",
+      placeholder: "Search PyTorch Connectomics",
+    });
+  </script>
+
+</body>
+
+</html>
