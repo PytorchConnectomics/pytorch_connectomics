@@ -2,6 +2,7 @@
 
 import unittest
 from contextlib import contextmanager
+from pathlib import Path
 
 import numpy as np
 import torch
@@ -12,6 +13,48 @@ try:
     _HAS_MALIS = True
 except Exception:
     _HAS_MALIS = False
+
+
+_GOLDEN_V2_PATH = Path(__file__).parent / "data" / "malis_golden_v2.npz"
+
+
+def _make_batched_malis_inputs(
+    loss_fn,
+    shape: tuple[int, int, int] = (4, 5, 6),
+    seed: int = 1234,
+) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+    generator = torch.Generator()
+    generator.manual_seed(seed)
+    B = 2
+    C = loss_fn.nhood.shape[0]
+    pred = torch.rand((B, C) + shape, generator=generator, dtype=torch.float32)
+
+    gt_seg = np.zeros((B,) + shape, dtype=np.uint64)
+    gt_seg[0, :, :2, :] = 1
+    gt_seg[0, :, 2:4, :] = 2
+    gt_seg[0, :, 4:, :] = 3
+    gt_seg[1, :2, :, :3] = 4
+    gt_seg[1, :2, :, 3:] = 5
+    gt_seg[1, 2:, :3, :] = 6
+    gt_seg[1, 2:, 3:, :] = 7
+
+    target = np.stack(
+        [
+            _malis_lib.seg_to_affgraph(gt_seg[batch_idx].astype(np.int32), loss_fn.nhood).astype(
+                np.float32
+            )
+            for batch_idx in range(B)
+        ],
+        axis=0,
+    )
+    return pred, torch.from_numpy(target), torch.from_numpy(gt_seg)
+
+
+def _make_batched_malis_mask(target: torch.Tensor) -> torch.Tensor:
+    mask = torch.ones_like(target)
+    mask[:, :, :, 1:3, :] = 0
+    mask[:, :, 1:, :, 2:4] = 0
+    return mask
 
 
 def _reference_malis_pass(
@@ -189,6 +232,133 @@ class TestMalisLoss(unittest.TestCase):
             rtol=1e-5,
             atol=1e-6,
         )
+
+    def test_golden_v2_matches_pre_change_serial_weights(self):
+        from connectomics.models.losses.malis import MalisLoss
+
+        self.assertTrue(_GOLDEN_V2_PATH.exists())
+        golden = np.load(_GOLDEN_V2_PATH)
+        loss_serial = MalisLoss(sigmoid=False)
+        loss_parallel = MalisLoss(sigmoid=False, malis_num_workers=4)
+
+        np.testing.assert_array_equal(golden["nhood"], loss_serial.nhood)
+
+        pred = torch.from_numpy(golden["pred_aff"])
+        target = torch.from_numpy(golden["target_aff"])
+        expected = golden["weights"]
+
+        actual_serial = loss_serial._compute_malis_weights(pred, target).cpu().numpy()
+        actual_parallel = loss_parallel._compute_malis_weights(pred, target).cpu().numpy()
+
+        self.assertTrue(np.array_equal(actual_serial, expected))
+        self.assertTrue(np.array_equal(actual_parallel, expected))
+
+    def test_parallel_weights_match_serial_plain(self):
+        from connectomics.models.losses.malis import MalisLoss
+
+        loss_serial = MalisLoss(sigmoid=False)
+        loss_parallel = MalisLoss(sigmoid=False, malis_num_workers=4)
+        pred, target, _ = _make_batched_malis_inputs(loss_serial)
+
+        weights_serial = loss_serial._compute_malis_weights(pred, target)
+        weights_parallel = loss_parallel._compute_malis_weights(pred, target)
+
+        self.assertTrue(torch.equal(weights_parallel, weights_serial))
+
+    def test_parallel_weights_match_serial_with_mask(self):
+        from connectomics.models.losses.malis import MalisLoss
+
+        loss_serial = MalisLoss(sigmoid=False)
+        loss_parallel = MalisLoss(sigmoid=False, malis_num_workers=4)
+        pred, target, _ = _make_batched_malis_inputs(loss_serial)
+        mask = _make_batched_malis_mask(target)
+
+        weights_serial = loss_serial._compute_malis_weights(pred, target, mask)
+        weights_parallel = loss_parallel._compute_malis_weights(pred, target, mask)
+
+        self.assertTrue(torch.equal(weights_parallel, weights_serial))
+
+    def test_parallel_weights_match_serial_with_gt_seg(self):
+        from connectomics.models.losses.malis import MalisLoss
+
+        loss_serial = MalisLoss(sigmoid=False)
+        loss_parallel = MalisLoss(sigmoid=False, malis_num_workers=4)
+        pred, target, gt_seg = _make_batched_malis_inputs(loss_serial)
+
+        weights_serial = loss_serial._compute_malis_weights(pred, target, gt_seg=gt_seg)
+        weights_parallel = loss_parallel._compute_malis_weights(pred, target, gt_seg=gt_seg)
+
+        self.assertTrue(torch.equal(weights_parallel, weights_serial))
+
+    def test_parallel_weights_match_serial_with_crop(self):
+        from connectomics.models.losses.malis import MalisLoss
+
+        loss_serial = MalisLoss(sigmoid=False, malis_crop_size=3)
+        loss_parallel = MalisLoss(sigmoid=False, malis_crop_size=3, malis_num_workers=4)
+        pred, target, _ = _make_batched_malis_inputs(loss_serial, shape=(5, 6, 7))
+
+        with _fixed_torch_randint(1):
+            pred_serial, target_serial, _, _ = loss_serial._apply_crop_if_configured(
+                pred,
+                target,
+                None,
+                None,
+            )
+        with _fixed_torch_randint(1):
+            pred_parallel, target_parallel, _, _ = loss_parallel._apply_crop_if_configured(
+                pred,
+                target,
+                None,
+                None,
+            )
+
+        self.assertTrue(torch.equal(pred_parallel, pred_serial))
+        self.assertTrue(torch.equal(target_parallel, target_serial))
+
+        weights_serial = loss_serial._compute_malis_weights(pred_serial, target_serial)
+        weights_parallel = loss_parallel._compute_malis_weights(pred_parallel, target_parallel)
+
+        self.assertTrue(torch.equal(weights_parallel, weights_serial))
+
+    def test_parallel_gradient_matches_serial(self):
+        from connectomics.models.losses.malis import MalisLoss
+
+        loss_serial = MalisLoss(sigmoid=False)
+        loss_parallel = MalisLoss(sigmoid=False, malis_num_workers=4)
+        pred, target, gt_seg = _make_batched_malis_inputs(loss_serial)
+        pred_serial = pred.detach().clone().requires_grad_(True)
+        pred_parallel = pred.detach().clone().requires_grad_(True)
+
+        loss_a = loss_serial(pred_serial, target, gt_seg=gt_seg)
+        loss_b = loss_parallel(pred_parallel, target, gt_seg=gt_seg)
+        loss_a.backward()
+        loss_b.backward()
+
+        self.assertTrue(torch.equal(loss_b, loss_a))
+        self.assertTrue(torch.equal(pred_parallel.grad, pred_serial.grad))
+
+    def test_parallel_determinism(self):
+        from connectomics.models.losses.malis import MalisLoss
+
+        loss_fn = MalisLoss(sigmoid=False, malis_num_workers=4)
+        pred, target, _ = _make_batched_malis_inputs(loss_fn)
+
+        weights_a = loss_fn._compute_malis_weights(pred, target)
+        weights_b = loss_fn._compute_malis_weights(pred, target)
+
+        self.assertTrue(torch.equal(weights_b, weights_a))
+
+    def test_num_workers_validation(self):
+        from connectomics.models.losses.malis import MalisLoss
+
+        for bad_value in (0, -1, 1.5, True, "2", [2]):
+            with self.subTest(bad_value=bad_value):
+                with self.assertRaises(ValueError):
+                    MalisLoss(malis_num_workers=bad_value)
+
+        self.assertIsNone(MalisLoss(malis_num_workers=None).malis_num_workers)
+        self.assertIsNone(MalisLoss(malis_num_workers=1).malis_num_workers)
+        self.assertEqual(MalisLoss(malis_num_workers=2).malis_num_workers, 2)
 
     def test_malis_gt_seg_equivalent_to_cc_on_uncropped(self):
         from connectomics.models.losses.malis import MalisLoss
