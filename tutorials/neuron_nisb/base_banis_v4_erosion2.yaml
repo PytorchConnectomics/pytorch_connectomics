@@ -1,0 +1,75 @@
+_base_:
+  - base_banis_v3_erosion2.yaml
+
+experiment_name: nisb_base_banis_v4_erosion2
+description: >-
+  v3 affinity training (MedNeXt-L/k3, erosion=2) plus an auxiliary 10-channel
+  3D LSD head supervised in parallel with the 6-channel aff-1+aff-10 affinity
+  head. Decoding consumes the aff head's short-range channels [0:3].
+
+save_path: outputs/nisb_base_banis_v4_erosion2
+
+default:
+  model:
+    out_channels: 16
+    primary_head: aff
+    heads:
+      aff:
+        out_channels: 6
+        num_blocks: 1
+        hidden_channels: 16
+        target_slice: "0:6"
+      lsd:
+        out_channels: 10
+        num_blocks: 1
+        hidden_channels: 16
+        target_slice: "6:16"
+    loss:
+      deep_supervision: false
+      losses:
+        - function: PerChannelBCEWithLogitsLoss
+          weight: 1.0
+          pred_head: aff
+          target_slice: "0:6"
+          kwargs:
+            auto_pos_weight: true
+            max_pos_weight: 10.0
+        # LSD targets are normalized to [0, 1]; BCEWithLogits on raw head
+        # logits is the simplest stable supervision (equivalent in behavior
+        # to sigmoid + MSE in the funkelab/lsd reference for low-error regions).
+        - function: WeightedBCEWithLogitsLoss
+          weight: 1.0
+          pred_head: lsd
+          target_slice: "6:16"
+  data:
+    label_transform:
+      targets:
+        - name: affinity
+          kwargs:
+            offsets: ["1-0-0", "0-1-0", "0-0-1", "10-0-0", "0-10-0", "0-0-10"]
+            affinity_mode: banis
+        - name: lsd
+          kwargs:
+            # Isotropic sigma in voxel units (~80 nm context at 9 nm xy).
+            sigma: 8
+  inference:
+    model:
+      head: aff
+      select_channel: [0, 1, 2]
+    save_all_heads: true
+
+train:
+  monitor:
+    logging:
+      scalar:
+        loss:
+          - train_loss_total_epoch
+          - val_loss_total
+          - train_loss_term_0_raw
+          - train_loss_term_0_weighted
+          - train_loss_term_1_raw
+          - train_loss_term_1_weighted
+        loss_every_n_steps: 100
+      images:
+        head: all
+        channel_mode: all
