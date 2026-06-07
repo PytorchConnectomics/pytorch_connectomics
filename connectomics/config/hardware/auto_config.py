@@ -86,6 +86,57 @@ def _infer_local_process_count(
     return int(resolved_num_gpus)
 
 
+# Upper bound on the per-process MALIS worker threads auto-default, so a large
+# batch cannot spawn an excessive thread pool per GPU.
+MALIS_WORKER_CAP = 8
+
+
+def _resolve_malis_worker_budget(config: DictConfig) -> int:
+    """Apply the MalisLoss ``malis_num_workers`` auto-default and return the
+    MALIS worker threads a single trainer process will spawn.
+
+    For each ``MalisLoss`` entry in ``model.loss.losses`` whose
+    ``kwargs.malis_num_workers`` is unset, inject
+    ``min(batch_size * 2, MALIS_WORKER_CAP)`` so the loss thread-parallelizes
+    its ``B * 2`` passes by default. Explicit values are preserved; a value of
+    ``<= 1`` means serial and reserves no threads. Returns 0 when no
+    ``MalisLoss`` is configured (so non-MALIS runs are unaffected).
+    """
+    model = getattr(config, "model", None)
+    loss = getattr(model, "loss", None) if model is not None else None
+    losses = getattr(loss, "losses", None) if loss is not None else None
+    if not losses:
+        return 0
+
+    try:
+        batch_size = int(config.data.dataloader.batch_size)
+    except Exception:
+        return 0
+    default_workers = max(1, min(batch_size * 2, MALIS_WORKER_CAP))
+
+    total = 0
+    for item in losses:
+        if not hasattr(item, "get"):
+            continue
+        if item.get("function") != "MalisLoss":
+            continue
+        if item.get("kwargs") is None:
+            item["kwargs"] = {}
+        # Re-fetch so kwargs is the live node (OmegaConf re-wraps assigned dicts).
+        kwargs = item.get("kwargs")
+        explicit = kwargs.get("malis_num_workers", None)
+        if explicit is None:
+            # losses entries are live dict/DictConfig nodes; mutate in place.
+            kwargs["malis_num_workers"] = default_workers
+            effective = default_workers
+        else:
+            effective = int(explicit)
+            if effective <= 1:
+                effective = 0
+        total += max(0, effective)
+    return total
+
+
 def resolve_runtime_resource_sentinels(
     config: DictConfig,
     print_results: bool = True,
@@ -111,19 +162,27 @@ def resolve_runtime_resource_sentinels(
         if print_results:
             logger.info("Auto-detected system.num_gpus: -1 -> %d", config.system.num_gpus)
 
+    # Apply the MalisLoss worker auto-default (and learn how many CPU threads
+    # the loss will use) before splitting the dataloader budget below.
+    malis_workers = _resolve_malis_worker_budget(config)
+
     if getattr(config.system, "num_workers", None) == -1:
         process_count = _infer_local_process_count(
             requested_num_gpus=getattr(config.system, "num_gpus", 0),
             available_gpus=available_gpus,
         )
-        config.system.num_workers = max(1, available_cpus // process_count)
+        per_process_cpus = max(1, available_cpus // process_count)
+        # Reserve the MALIS pass threads from the per-process CPU budget so the
+        # dataloader and MALIS do not jointly oversubscribe the CPU request.
+        config.system.num_workers = max(1, per_process_cpus - malis_workers)
         if print_results:
             logger.info(
                 "Auto-detected system.num_workers: -1 -> %d "
-                "(available_cpus=%d, local_processes=%d)",
+                "(available_cpus=%d, local_processes=%d, malis_workers=%d)",
                 config.system.num_workers,
                 available_cpus,
                 process_count,
+                malis_workers,
             )
 
     if getattr(config.system, "num_gpus", 0) < -1:
