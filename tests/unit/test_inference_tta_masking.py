@@ -5,6 +5,7 @@ import torch
 
 import connectomics.inference.tta as tta_module
 from connectomics.config import Config
+from connectomics.config.schema.model import ModelHeadConfig
 from connectomics.inference.window import build_sliding_inferer
 from connectomics.inference.tta import TTAPredictor
 from connectomics.runtime.output_naming import compute_tta_passes
@@ -68,6 +69,60 @@ def test_tta_applies_mask_to_predictions_by_default():
     assert torch.all(pred[:, :, 0, :, :] == 0)
     # Inside mask region should retain the original value of 1.
     assert torch.all(pred[:, :, 1:3, 1:3, 1:3] == 1)
+
+
+def _merged_head_cfg():
+    """Config for a 2-head model (aff:6ch + sdt:1ch) with merged-index activations."""
+    cfg = Config()
+    cfg.model.primary_head = "aff"
+    cfg.model.heads = {
+        "aff": ModelHeadConfig(out_channels=6),
+        "sdt": ModelHeadConfig(out_channels=1),
+    }
+    cfg.inference.model.head = "aff,sdt"
+    cfg.inference.model.channel_activations = [
+        {"channels": "0:6", "activation": "scale_sigmoid"},
+        {"channels": "6:7", "activation": "tanh"},
+    ]
+    cfg.inference.test_time_augmentation.enabled = False
+    return cfg
+
+
+def test_channel_activations_remap_per_head_for_merged_output():
+    # Merged-head inference predicts each head separately; channel_activations are
+    # written against the concatenated tensor (0:6 aff, 6:7 sdt). Each head must
+    # receive only its own slice, remapped to local indices.
+    predictor = TTAPredictor(
+        cfg=_merged_head_cfg(), sliding_inferer=None, forward_fn=_forward_constant
+    )
+
+    predictor._requested_output_head_override = "aff"
+    assert predictor._resolve_channel_activation_specs(6) == [
+        ([0, 1, 2, 3, 4, 5], "scale_sigmoid")
+    ]
+
+    predictor._requested_output_head_override = "sdt"
+    # The absolute "6:7" entry maps to local channel 0 of the 1-channel sdt head;
+    # the "0:6" entry is dropped (outside the sdt window).
+    assert predictor._resolve_channel_activation_specs(1) == [([0], "tanh")]
+
+
+def test_channel_activations_single_tensor_unchanged():
+    # Single-tensor models (no heads) resolve activations directly against the
+    # tensor's own channel count -- the per-head remap must not engage.
+    cfg = Config()
+    cfg.model.out_channels = 3
+    cfg.inference.model.channel_activations = [
+        {"channels": "0:2", "activation": "sigmoid"},
+        {"channels": "2:3", "activation": "tanh"},
+    ]
+    cfg.inference.test_time_augmentation.enabled = False
+    predictor = TTAPredictor(cfg=cfg, sliding_inferer=None, forward_fn=_forward_constant)
+    assert predictor._merged_head_window() is None
+    assert predictor._resolve_channel_activation_specs(3) == [
+        ([0, 1], "sigmoid"),
+        ([2], "tanh"),
+    ]
 
 
 def test_tta_masking_can_be_disabled_explicitly():

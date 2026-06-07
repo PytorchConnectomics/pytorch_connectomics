@@ -9,7 +9,7 @@ score on the `seed101` test split — see `dev/nisb/nisb.md` and
 for per-prediction error analysis and the three-track post-processing
 roadmap (`banis+_fill.md` / `banis+_merge.md` / `banis+_split.md`).
 
-| YAML | <div style="width:280px">Deep learning</div> | Error correction | Decoding | NERL |
+| YAML | <div style="width:40px">Deep learning</div> |  Decoding | Error&nbsp;correction | NERL |
 |---|---|---|---|---|
-| `base_banis.yaml` | [BANIS](https://github.com/jasonkena/banis) reproduction (MedNeXt-S/k3, 6-ch affinity, 50k steps) | N/A | cc3d | 24.4% |
-| `base_banis+.yaml` | +ML ops (MedNeXt-L/k3, PerChannelBCE + EMA, erosion=2, 200k steps) | N/A | cc3d | 60.1% |
+| `base_banis.yaml` | <div style="width:40px">[BANIS](https://github.com/jasonkena/banis) reproduction (MedNeXt-L/k3, 6-ch affinity, 50k steps) </div> | cc3d| N/A | 43.0% |
+| `base_banis+.yaml` | <div style="width:40px">+ML ops (PerChannelBCE<br/> + EMA, erosion=2, 200k steps) </div>|  cc3d | N/A |60.1% |

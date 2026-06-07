@@ -24,7 +24,7 @@ default:
       - function: WeightedBCEWithLogitsLoss
         weight: 1.0
     mednext:
-      size: S
+      size: L
       kernel_size: 3
       dim: 3d
       checkpoint_style: outside_block
