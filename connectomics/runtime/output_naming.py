@@ -297,7 +297,7 @@ def _format_one_decode_step(step) -> str:
                 result.extend(_flatten_decode_values(nested_value))
             return result
         if isinstance(value, (list, tuple)):
-            result: list[str] = []
+            result = []
             for nested_value in value:
                 result.extend(_flatten_decode_values(nested_value))
             return result
@@ -316,7 +316,7 @@ def _format_one_decode_step(step) -> str:
     kwargs = getattr(step, "kwargs", None)
     if kwargs is None and isinstance(step, dict):
         kwargs = step.get("kwargs", {})
-    if hasattr(kwargs, "items"):
+    if kwargs is not None and hasattr(kwargs, "items"):
         explicit_tag = dict(kwargs).get("tag")
         if explicit_tag:
             safe_tag = _sanitize_decode_component(str(explicit_tag))
@@ -504,22 +504,6 @@ def intermediate_decode_step_output_tag(
     return f"decoded_x{n}{head}{ch}_{step_payload}{suffix}.h5"
 
 
-def final_prediction_decoded_glob_suffix(
-    cfg: Config,
-    spatial_dims: int = 3,
-    checkpoint_path: Optional[str | Path] = None,
-    output_head: Optional[str] = None,
-) -> str:
-    """Glob pattern matching decoded final files inside a volume subdir."""
-    del checkpoint_path
-    n = compute_tta_passes(cfg, spatial_dims=spatial_dims)
-    head = format_output_head_tag(cfg, output_head=output_head)
-    ch = format_select_channel_tag(cfg)
-    dec = format_decode_tag(cfg)
-    suffix = format_decoding_output_suffix_tag(cfg)
-    return f"decoded_x{n}{head}{ch}{dec}*{suffix}.h5"
-
-
 def raw_cache_suffix(
     cfg: Config,
     spatial_dims: int = 3,
@@ -704,7 +688,6 @@ __all__ = [
     "intermediate_decode_step_output_tag",
     "format_output_head_tag",
     "format_select_channel_tag",
-    "final_prediction_decoded_glob_suffix",
     "final_prediction_output_tag",
     "intermediate_prediction_cache_suffix",
     "intermediate_prediction_cache_suffix_candidates",

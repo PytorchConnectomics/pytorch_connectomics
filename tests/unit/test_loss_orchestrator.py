@@ -166,10 +166,12 @@ def _expected_pos_weight(target: torch.Tensor) -> torch.Tensor:
 def test_create_loss_attaches_metadata_for_supervised_and_regularization_losses():
     weighted_bce = create_loss("WeightedBCEWithLogitsLoss")
     weighted_mse = create_loss("WeightedMSELoss")
+    soft_cldice = create_loss("SoftClDiceLoss")
     binary_reg = create_loss("BinaryRegularization")
 
     weighted_bce_meta = weighted_bce._connectomics_loss_metadata
     weighted_meta = weighted_mse._connectomics_loss_metadata
+    soft_cldice_meta = soft_cldice._connectomics_loss_metadata
     reg_meta = binary_reg._connectomics_loss_metadata
 
     assert weighted_bce_meta.name == "WeightedBCEWithLogitsLoss"
@@ -179,6 +181,10 @@ def test_create_loss_attaches_metadata_for_supervised_and_regularization_losses(
     assert weighted_meta.name == "WeightedMSELoss"
     assert weighted_meta.call_kind == "pred_target"
     assert weighted_meta.spatial_weight_arg == "weight"
+
+    assert soft_cldice_meta.name == "SoftClDiceLoss"
+    assert soft_cldice_meta.call_kind == "pred_target"
+    assert soft_cldice_meta.spatial_weight_arg == "weight"
 
     assert reg_meta.name == "BinaryRegularization"
     assert reg_meta.call_kind == "pred_only"
@@ -195,6 +201,34 @@ def test_weighted_bce_accepts_pos_weight_constructor_kwarg():
 def test_weighted_bce_rejects_unknown_loss_kwargs():
     with pytest.raises(TypeError, match="Unexpected argument\\(s\\) for WeightedBCEWithLogitsLoss"):
         create_loss("WeightedBCEWithLogitsLoss", unknown_kwarg=True)
+
+
+def test_soft_cldice_with_sigmoid_runs_through_orchestrator():
+    loss_fn = create_loss("SoftClDiceLoss", mode="binary", num_iters=1, sigmoid=True)
+    orchestrator = LossOrchestrator(
+        cfg=_cfg(
+            losses=[
+                {
+                    "weight": 1.0,
+                },
+            ]
+        ),
+        loss_functions=nn.ModuleList([loss_fn]),
+        loss_weights=[1.0],
+        enable_nan_detection=False,
+        debug_on_nan=False,
+    )
+
+    outputs = torch.randn(1, 1, 4, 8, 8, requires_grad=True)
+    labels = (torch.rand(1, 1, 4, 8, 8) > 0.5).float()
+
+    total_loss, loss_dict = orchestrator.compute_standard_loss(outputs, labels, stage="train")
+    total_loss.backward()
+
+    assert torch.isfinite(total_loss)
+    assert "train_loss_total" in loss_dict
+    assert outputs.grad is not None
+    assert torch.all(torch.isfinite(outputs.grad))
 
 
 def test_loss_orchestrator_requires_explicit_losses():
