@@ -1,8 +1,0 @@
-cpu-bind=MASK - gdw001, task  0  0 [2568229]: mask 0x2fffe0002fffe set
-/projects/weilab/weidf/lib/miniconda3/envs/pytc/lib/python3.11/site-packages/lightning_fabric/plugins/environments/slurm.py:204: The `srun` command is available on your system but is not used. HINT: If your intention is to run Lightning on SLURM, prepend your python command with `srun` like so: srun python scripts/main.py --config tutorials/neuron_nisb/base_ ...
-[W607 00:17:16.603190956 socket.cpp:759] [c10d] The client socket cannot be initialized to connect to [localhost]:40687 (errno: 97 - Address family not supported by protocol).
-[W607 00:17:27.744023376 socket.cpp:759] [c10d] The client socket cannot be initialized to connect to [localhost]:40687 (errno: 97 - Address family not supported by protocol).
-[W607 00:17:27.744066495 socket.cpp:759] [c10d] The client socket cannot be initialized to connect to [localhost]:40687 (errno: 97 - Address family not supported by protocol).
-[W607 00:17:27.744769263 socket.cpp:759] [c10d] The client socket cannot be initialized to connect to [localhost]:40687 (errno: 97 - Address family not supported by protocol).
-/projects/weilab/weidf/lib/miniconda3/envs/pytc/lib/python3.11/site-packages/pytorch_lightning/callbacks/model_checkpoint.py:881: Checkpoint directory /projects/weilab/weidf/lib/pytorch_connectomics/outputs/nisb_base_banis_v2_erosion2/20260518_003417/checkpoints exists and is not empty.
-/projects/weilab/weidf/lib/miniconda3/envs/pytc/lib/python3.11/site-packages/pytorch_lightning/utilities/model_summary/model_summary.py:242: Precision 16-mixed is not supported by the model summary.  Estimated model size in MB will not be accurate. Using 32 bits instead.

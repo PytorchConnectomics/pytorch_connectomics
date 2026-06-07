@@ -160,3 +160,4 @@ dev/
 .codex
 .claude
 .agent/
+slurm_jobs/
