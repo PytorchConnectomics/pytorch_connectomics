@@ -258,7 +258,7 @@ slurm-cpu-sharded partition num_tasks='7' cpu_per_task='4' cmd='' constraint='' 
 # Each job gets --shard-id <i> --num-shards <N> appended to the command.
 # Example:
 #   just slurm-sharded short 8 1 4 "just test neuron_snemi ckpt.pt" vr40g 64G
-slurm-sharded partition num_cpu num_gpu num_shards cmd constraint='' mem='32G' nodelist='' reservation='' exclude='':
+slurm-sharded partition num_cpu num_gpu num_shards cmd constraint='' mem='32G' nodelist='' reservation='' exclude='g001,g002':
     #!/usr/bin/env bash
     set -euo pipefail
     cmd_value='{{cmd}}'

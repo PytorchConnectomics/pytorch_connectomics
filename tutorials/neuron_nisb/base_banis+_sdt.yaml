@@ -1,0 +1,19 @@
+_base_:
+  - base_banis_v2_erosion2.yaml
+
+experiment_name: nisb_base_banis_plus_sdt
+description: >-
+  banis+ (MedNeXt-L/k3) backbone combined with the v2 affinity+SDT two-head
+  setup and label erosion=2. Takes the higher-capacity affinity prediction of
+  base_banis+ and adds the auxiliary skeleton-aware distance transform head
+  from base_banis_v2 for false-merge reduction.
+
+save_path: outputs/nisb_base_banis_plus_sdt
+
+default:
+  model:
+    arch:
+      profile: mednext_l
+    mednext:
+      size: L
+      kernel_size: 3

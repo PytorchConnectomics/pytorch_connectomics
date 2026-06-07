@@ -211,6 +211,7 @@ def evaluate_nerl(
     skeleton_edge_length_attribute: str,
     skeleton_position_order: str,
     prediction_position_order: str | None,
+    offset: list[int] | None = None,
 ) -> dict[str, Any]:
     """Evaluate NERL by streaming labels at skeleton-node positions."""
     _, compute_erl_score, compute_segment_lut = import_em_erl()
@@ -229,16 +230,61 @@ def evaluate_nerl(
 
     resolved_chunk_num = _resolve_chunk_num(int(chunk_num))
     resolved_num_workers = _resolve_chunk_num(int(num_workers))
-    node_segment_lut, mask_segment_id = compute_segment_lut(
-        prediction,
-        node_positions,
-        mask=skeleton_mask,
-        chunk_num=resolved_chunk_num,
-        data_type=np.uint64,
-        segment_dataset=prediction_dataset,
-        mask_dataset=skeleton_mask_dataset,
-        num_workers=resolved_num_workers,
-    )
+
+    # Shift skeleton positions into the prediction volume's local frame when the
+    # prediction is a crop of the GT frame (e.g. a precomputed volume with a
+    # nonzero voxel_offset). `offset` is the prediction origin in skeleton
+    # coordinates, given in the same axis order as the node positions
+    # (the resolved prediction_position_order, default xyz).
+    if offset is not None:
+        from em_erl.sampling import open_volume_source
+
+        node_positions = np.asarray(node_positions, dtype=np.int64) - np.asarray(
+            offset, dtype=np.int64
+        )
+        # compute_segment_lut's sampler bounds the chunk (axis-0) range but
+        # indexes the other two axes unchecked, so nodes outside the crop must
+        # be dropped to background here rather than relying on the sampler.
+        with open_volume_source(str(prediction), dataset=prediction_dataset) as src:
+            pred_shape = tuple(int(s) for s in src.shape)
+        in_bounds = np.ones(len(node_positions), dtype=bool)
+        for axis in range(3):
+            in_bounds &= (node_positions[:, axis] >= 0) & (
+                node_positions[:, axis] < pred_shape[axis]
+            )
+        node_segment_lut = np.zeros(len(node_positions), dtype=np.uint64)
+        sub_lut, mask_segment_id = compute_segment_lut(
+            prediction,
+            node_positions[in_bounds],
+            mask=skeleton_mask,
+            chunk_num=resolved_chunk_num,
+            data_type=np.uint64,
+            segment_dataset=prediction_dataset,
+            mask_dataset=skeleton_mask_dataset,
+            num_workers=resolved_num_workers,
+        )
+        node_segment_lut[in_bounds] = sub_lut
+        dropped = int((~in_bounds).sum())
+        if dropped:
+            logging.info(
+                "offset %s: %d/%d skeleton nodes fell outside the prediction "
+                "volume %s and were scored as background.",
+                list(offset),
+                dropped,
+                len(node_positions),
+                pred_shape,
+            )
+    else:
+        node_segment_lut, mask_segment_id = compute_segment_lut(
+            prediction,
+            node_positions,
+            mask=skeleton_mask,
+            chunk_num=resolved_chunk_num,
+            data_type=np.uint64,
+            segment_dataset=prediction_dataset,
+            mask_dataset=skeleton_mask_dataset,
+            num_workers=resolved_num_workers,
+        )
     score = compute_erl_score(
         graph,
         node_segment_lut,
@@ -359,6 +405,7 @@ def evaluate_prediction(
             ),
             skeleton_position_order=kwargs.get("skeleton_position_order", "xyz"),
             prediction_position_order=kwargs.get("prediction_position_order"),
+            offset=kwargs.get("offset"),
         )
     else:
         metrics_dict = evaluate_dense_metrics(
@@ -409,6 +456,19 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--instance-iou-threshold", type=float, default=0.5)
 
     parser.add_argument("--resolution", type=float, nargs=3, default=None)
+    parser.add_argument(
+        "--offset",
+        type=int,
+        nargs=3,
+        default=None,
+        help=(
+            "Prediction volume origin in skeleton voxel coordinates, same axis "
+            "order as --resolution (default xyz). Subtracted from skeleton node "
+            "positions so a cropped/offset prediction (e.g. precomputed volume "
+            "with a nonzero voxel_offset) aligns with full-frame skeleton GT. "
+            "NERL only."
+        ),
+    )
     parser.add_argument(
         "--chunk-num",
         type=int,
@@ -463,6 +523,7 @@ def main() -> None:
         prediction_threshold=args.prediction_threshold,
         instance_iou_threshold=args.instance_iou_threshold,
         resolution=args.resolution,
+        offset=args.offset,
         chunk_num=args.chunk_num,
         num_workers=args.num_workers,
         merge_threshold=args.merge_threshold,
