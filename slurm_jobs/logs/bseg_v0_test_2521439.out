@@ -1,0 +1,68 @@
+Note: NumExpr detected 64 cores but "NUMEXPR_MAX_THREADS" not set, so enforcing safe limit of 16.
+NumExpr defaulting to 16 threads.
+
+============================================================
+PyTorch Connectomics | Testing
+============================================================
+Loading config: tutorials/mito_betaseg_banis_v0.yaml
+Applying 1 CLI overrides
+Auto-detected system.num_workers: -1 -> 8 (available_cpus=8, local_processes=1)
+Validating configuration...
+Test output directory: outputs/mito_betaseg_banis_v0/20260430_154449/test_epoch=009-slim
+Output base: outputs/mito_betaseg_banis_v0/20260430_154449
+Creating model: mednext
+Model: MedNeXtMultiHeadWrapper (architecture: mednext)
+  Parameters: 5,551,311
+  Trainable: 5,551,311
+  Deep Supervision: False
+  Model parameters: 5,551,311
+
+============================================================
+RUNNING TEST
+============================================================
+Auto-detected system.num_gpus: -1 -> 1
+Auto-detected system.num_workers: -1 -> 8 (available_cpus=8, local_processes=1)
+Creating Lightning trainer...
+Creating Lightning trainer (mode=test)...
+  Validation: every 1 epoch(s)
+Using 16bit Automatic Mixed Precision (AMP)
+💡 Tip: For seamless cloud uploads and versioning, try installing [litmodels](https://pypi.org/project/litmodels/) to enable LitModelCheckpoint, which syncs automatically with the Lightning model registry.
+GPU available: True (cuda), used: True
+TPU available: False, using: 0 TPU cores
+`Trainer(val_check_interval=1.0)` was configured so validation will run at the end of the training epoch..
+  Training mode: epoch-based (200 epochs)
+  Devices: 1 (test mode)
+  Precision: 16-mixed
+Loading test data...
+Creating datasets...
+Train transforms: 19 steps
+Val transforms: 9 steps
+Test transforms: 6 steps (no sliding-window crop)
+Creating test dataset from: ['/projects/weilab/liupeng/data/raw/mito/betaSeg/high_c2_im.tiff', '/projects/weilab/liupeng/data/raw/mito/betaSeg/high_c4_im.tiff', '/projects/weilab/liupeng/data/raw/mito/betaSeg/low_c3_im.tiff']
+Test volumes: 3 files
+  - /projects/weilab/liupeng/data/raw/mito/betaSeg/high_c2_im.tiff
+  - /projects/weilab/liupeng/data/raw/mito/betaSeg/high_c4_im.tiff
+  - /projects/weilab/liupeng/data/raw/mito/betaSeg/low_c3_im.tiff
+Test dataset size: 3
+Creating data loaders...
+Using runtime settings: batch_size=2, num_workers=8
+Test batches: 2
+Restoring states from the checkpoint path at outputs/mito_betaseg_banis_v0/20260430_154449/checkpoints/epoch=009-slim.ckpt
+LOCAL_RANK: 0 - CUDA_VISIBLE_DEVICES: [0]
+Loaded model weights from the checkpoint at outputs/mito_betaseg_banis_v0/20260430_154449/checkpoints/epoch=009-slim.ckpt
+No cached predictions found, running inference
+======================================================================
+INFERENCE PLAN: high_c2_im
+======================================================================
+Input shape:       (1, 1, 1171, 734, 998)
+Input device:      cuda:0
+Sliding window ROI: [128, 128, 128]
+Overlap:            0.5
+SW batch size:      1
+Blending mode:      bump
+TTA:                Disabled
+======================================================================
+Starting sliding-window inference...
+Testing                                         0/2 0:00:00 • -:--:-- 0.00it/s 
+
+Test failed: Invalid inference.model.channel_activations[1].channels '6:7' for tensor with 6 channels: resolved start index 6 is out of bounds.

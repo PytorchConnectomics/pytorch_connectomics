@@ -5,8 +5,9 @@ NISB neuron-segmentation experiments on the BANIS basedata (9 nm EM,
 
 NERL is the validation-selected (or, for the BANIS reference, default)
 score on the `seed101` test split — see `dev/nisb/nisb.md` and
-`dev/nisb/nisb_v2.md` for the plan and `dev/nisb/v3_erosion2_err_analysis.md`
-for per-prediction error analysis.
+`dev/nisb/nisb_v2.md` for the plan and `dev/nisb/banis+_plan.md`
+for per-prediction error analysis and the three-track post-processing
+roadmap (`banis+_fill.md` / `banis+_merge.md` / `banis+_split.md`).
 
 | YAML | <div style="width:280px">Deep learning</div> | Error correction | Decoding | NERL |
 |---|---|---|---|---|

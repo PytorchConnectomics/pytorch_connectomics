@@ -122,6 +122,7 @@ Documentation
    notes/installation
    notes/config
    notes/dataloading
+   notes/axis_order
    notes/malis
    notes/faq
 
