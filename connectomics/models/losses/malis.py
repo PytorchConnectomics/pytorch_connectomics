@@ -45,6 +45,7 @@ class MalisLoss(nn.Module):
         reduction: str = "sum",
         sigmoid: bool = True,
         malis_crop_size: int | Sequence[int] | None = None,
+        malis_num_workers: int | None = None,
     ):
         """Initialize the MALIS affinity loss.
 
@@ -56,6 +57,9 @@ class MalisLoss(nn.Module):
                 preserves current full-volume behavior. An int ``K`` becomes
                 ``(K, K, K)``; any length-3 integer sequence becomes
                 ``(Kz, Ky, Kx)``.
+            malis_num_workers: Optional number of worker threads for the
+                per-sample/per-pass MALIS weight calls. ``None`` or ``1`` keeps
+                the serial default path unchanged.
         """
         super().__init__()
         if _malis_lib is None:
@@ -71,6 +75,7 @@ class MalisLoss(nn.Module):
         self.sigmoid = sigmoid
         self.nhood = self._coerce_nhood(nhood)
         self.malis_crop_size = self._coerce_crop_size(malis_crop_size)
+        self.malis_num_workers = self._coerce_num_workers(malis_num_workers)
         self._edge_list_cache: dict[tuple[int, int, int], tuple[np.ndarray, np.ndarray]] = {}
 
     def forward(
@@ -198,6 +203,24 @@ class MalisLoss(nn.Module):
 
         return (out[0], out[1], out[2])
 
+    def _coerce_num_workers(self, value: int | None) -> int | None:
+        if value is None:
+            return None
+        if isinstance(value, bool):
+            raise ValueError(f"malis_num_workers must be an int >= 1 or None; got {value!r}.")
+        if not isinstance(value, (int, np.integer)):
+            raise ValueError(
+                "malis_num_workers must be an int >= 1 or None; "
+                f"got {value!r} (type {type(value).__name__})."
+            )
+
+        value_int = int(value)
+        if value_int < 1:
+            raise ValueError(f"malis_num_workers must be >= 1; got {value!r}.")
+        if value_int == 1:
+            return None
+        return value_int
+
     def _validate_inputs(self, pred: torch.Tensor, target: torch.Tensor) -> None:
         if pred.shape != target.shape:
             raise ValueError(
@@ -318,24 +341,70 @@ class MalisLoss(nn.Module):
         mask_np = None if mask is None else mask.to(dtype=torch.float32).cpu().numpy()
         gt_seg_np = None if gt_seg is None else gt_seg.cpu().numpy()
         weights = np.empty_like(pred_np, dtype=np.float32)
-        for batch_idx in range(pred_np.shape[0]):
-            gt_affs = np.ascontiguousarray(target_np[batch_idx] > 0.5, dtype=np.int32)
-            pred_sample = np.ascontiguousarray(pred_np[batch_idx], dtype=np.float32)
-            mask_sample = None
-            if mask_np is not None:
-                mask_sample = np.ascontiguousarray(mask_np[batch_idx] == 1, dtype=bool)
-            if gt_seg_np is None:
-                gt_seg_sample, _ = _malis_lib.connected_components_affgraph(gt_affs, self.nhood)
-            else:
-                gt_seg_sample = np.ascontiguousarray(gt_seg_np[batch_idx], dtype=np.uint64)
-            weights[batch_idx] = self._compute_sample_weights(
-                pred_sample,
-                gt_affs,
-                gt_seg_sample,
-                mask_sample,
+
+        if self.malis_num_workers is None:
+            for batch_idx in range(pred_np.shape[0]):
+                gt_affs = np.ascontiguousarray(target_np[batch_idx] > 0.5, dtype=np.int32)
+                pred_sample = np.ascontiguousarray(pred_np[batch_idx], dtype=np.float32)
+                mask_sample = None
+                if mask_np is not None:
+                    mask_sample = np.ascontiguousarray(mask_np[batch_idx] == 1, dtype=bool)
+                if gt_seg_np is None:
+                    gt_seg_sample, _ = _malis_lib.connected_components_affgraph(gt_affs, self.nhood)
+                else:
+                    gt_seg_sample = np.ascontiguousarray(gt_seg_np[batch_idx], dtype=np.uint64)
+                weights[batch_idx] = self._compute_sample_weights(
+                    pred_sample,
+                    gt_affs,
+                    gt_seg_sample,
+                    mask_sample,
+                )
+
+            return torch.from_numpy(weights).to(device=pred_aff.device, dtype=pred_aff.dtype)
+
+        from concurrent.futures import ThreadPoolExecutor
+
+        samples = [
+            self._prepare_sample(pred_np, target_np, mask_np, gt_seg_np, batch_idx)
+            for batch_idx in range(pred_np.shape[0])
+        ]
+        tasks = [(batch_idx, pos) for batch_idx in range(len(samples)) for pos in (0, 1)]
+
+        def _run(task: tuple[int, int]) -> tuple[int, np.ndarray]:
+            batch_idx, pos = task
+            return batch_idx, self._malis_pass(*samples[batch_idx], pos=pos)
+
+        with ThreadPoolExecutor(max_workers=self.malis_num_workers) as executor:
+            results = list(executor.map(_run, tasks))
+
+        acc: dict[int, np.ndarray] = {}
+        for batch_idx, sample_weights in results:
+            acc[batch_idx] = (
+                sample_weights if batch_idx not in acc else acc[batch_idx] + sample_weights
             )
+        for batch_idx in range(len(samples)):
+            weights[batch_idx] = acc[batch_idx]
 
         return torch.from_numpy(weights).to(device=pred_aff.device, dtype=pred_aff.dtype)
+
+    def _prepare_sample(
+        self,
+        pred_np: np.ndarray,
+        target_np: np.ndarray,
+        mask_np: np.ndarray | None,
+        gt_seg_np: np.ndarray | None,
+        batch_idx: int,
+    ) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray | None]:
+        gt_affs = np.ascontiguousarray(target_np[batch_idx] > 0.5, dtype=np.int32)
+        pred_sample = np.ascontiguousarray(pred_np[batch_idx], dtype=np.float32)
+        mask_sample = None
+        if mask_np is not None:
+            mask_sample = np.ascontiguousarray(mask_np[batch_idx] == 1, dtype=bool)
+        if gt_seg_np is None:
+            gt_seg_sample, _ = _malis_lib.connected_components_affgraph(gt_affs, self.nhood)
+        else:
+            gt_seg_sample = np.ascontiguousarray(gt_seg_np[batch_idx], dtype=np.uint64)
+        return pred_sample, gt_affs, gt_seg_sample, mask_sample
 
     def _compute_sample_weights(
         self,
