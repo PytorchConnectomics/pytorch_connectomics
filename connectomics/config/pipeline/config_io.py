@@ -153,8 +153,7 @@ _MONITOR_CHECKPOINT_RENAMES = {
         "(sibling of `monitor`, `inference`, `decoding`, `tune`)."
     ),
     "use_timestamp": (
-        "field removed. Train mode is always timestamped; "
-        "test/tune modes are never timestamped."
+        "field removed. Train mode is always timestamped; " "test/tune modes are never timestamped."
     ),
 }
 _MONITOR_CHECKPOINT_ROOTS = (
@@ -201,8 +200,7 @@ def _reject_inference_runtime_alias_paths(explicit_field_paths: set[str]) -> Non
             alias_path = f"{root}.{alias}"
             if any(_path_is_or_descendant(path, alias_path) for path in explicit_field_paths):
                 raise ValueError(
-                    f"`{alias_path}` was renamed. "
-                    f"Use `{root}.{canonical_tail}` instead."
+                    f"`{alias_path}` was renamed. " f"Use `{root}.{canonical_tail}` instead."
                 )
 
     for root in _MONITOR_CHECKPOINT_ROOTS:
@@ -212,8 +210,7 @@ def _reject_inference_runtime_alias_paths(explicit_field_paths: set[str]) -> Non
                 if replacement.startswith("field "):
                     raise ValueError(f"`{alias_path}` {replacement}")
                 raise ValueError(
-                    f"`{alias_path}` was renamed. "
-                    f"Use `{root}.{replacement}` instead."
+                    f"`{alias_path}` was renamed. " f"Use `{root}.{replacement}` instead."
                 )
 
     # tune.output:* sub-block hoisted to tune.save_*
@@ -506,7 +503,6 @@ def validate_config(cfg: Config) -> None:
     if cfg.model.out_channels <= 0:
         raise ValueError("model.out_channels must be positive")
     model_heads = getattr(cfg.model, "heads", None) or {}
-    inference_cfg = getattr(cfg, "inference", None)
     inference_head = get_inference_model_value(cfg, "head", None)
     images_cfg = getattr(getattr(getattr(cfg, "monitor", None), "logging", None), "images", None)
     visualization_head = getattr(images_cfg, "head", None) if images_cfg is not None else None
@@ -556,8 +552,8 @@ def validate_config(cfg: Config) -> None:
             missing = [h for h in inference_head_names if h not in model_heads]
             if missing:
                 raise ValueError(
-                    f"inference.model.head={inference_head_names} references unknown heads {missing}; "
-                    f"available: {sorted(model_heads.keys())}."
+                    f"inference.model.head={inference_head_names} references unknown heads "
+                    f"{missing}; available: {sorted(model_heads.keys())}."
                 )
         if (
             visualization_head is not None
@@ -909,6 +905,11 @@ def resolve_data_paths(cfg: Config) -> Config:
         split_cfg.image = _combine_path(split_base, split_cfg.image)
         split_cfg.label = _combine_path(split_base, split_cfg.label)
         split_cfg.mask = _combine_path(split_base, split_cfg.mask)
+        split_json_resolved = _combine_path(split_base, split_cfg.json)
+        if isinstance(split_json_resolved, list):
+            split_cfg.json = split_json_resolved[0] if split_json_resolved else None
+        else:
+            split_cfg.json = split_json_resolved
 
     # Resolve inference/test paths from merged runtime cfg.data.
     if getattr(cfg.data, "test", None) is not None:

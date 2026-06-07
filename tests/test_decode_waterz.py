@@ -3,8 +3,14 @@
 from __future__ import annotations
 
 import numpy as np
+import pytest
 
 from connectomics.decoding.decoders import waterz as waterz_decoder
+
+# decode_waterz calls into the real waterz package (waterz._uint8,
+# merge_function_to_scoring); the fakes below only stub waterz.waterz(). Skip
+# the whole module when waterz is not installed (e.g. minimal CI).
+pytest.importorskip("waterz")
 
 
 class _FakeWaterzModule:

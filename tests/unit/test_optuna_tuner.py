@@ -562,6 +562,7 @@ def test_batch_trial_payload_applies_spatial_transpose():
 
 
 def test_objective_returns_bad_value_when_standard_trial_times_out(monkeypatch):
+    pytest.importorskip("optuna")
     cfg = Config()
     cfg.tune = TuneConfig()
     cfg.tune.trial_timeout = 12
@@ -588,6 +589,7 @@ def test_objective_returns_bad_value_when_standard_trial_times_out(monkeypatch):
 
 
 def test_objective_returns_bad_value_when_waterz_batch_trial_times_out(monkeypatch):
+    pytest.importorskip("optuna")
     cfg = Config()
     cfg.tune = TuneConfig()
     cfg.tune.trial_timeout = 30
