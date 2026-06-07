@@ -203,19 +203,22 @@ def _per_z_scan(pred, z_stride: int) -> dict:
         sel = [(i, z) for i, z in enumerate(z_idx) if z0 <= z < z1]
         if not sel:
             continue
-        # Slice over the trailing Z axis regardless of leading dims.
-        block = np.asarray(pred[..., z0:z1]).astype(np.float32)
+        # Read native dtype (typically float16) — keep the slab compact and
+        # only widen one z-plane at a time below. Halves peak RAM on large
+        # (C, X, Y, block_z) reads.
+        block = np.asarray(pred[..., z0:z1])
         nan_count += int(np.isnan(block).sum())
         inf_count += int(np.isinf(block).sum())
         for i, z in sel:
-            sl = block[..., z - z0].reshape(C, -1)
+            sl = block[..., z - z0].astype(np.float32, copy=False).reshape(C, -1)
             means[i] = sl.mean(axis=1)
             stds[i] = sl.std(axis=1)
-            g_sum += sl.sum(axis=1)
-            g_sq += (sl.astype(np.float64) ** 2).sum(axis=1)
+            g_sum += sl.sum(axis=1, dtype=np.float64)
+            g_sq += np.square(sl, dtype=np.float64).sum(axis=1)
             g_min = np.minimum(g_min, sl.min(axis=1))
             g_max = np.maximum(g_max, sl.max(axis=1))
             g_n += sl.shape[1]
+        del block
     return {
         "z_idx": z_idx, "means": means, "stds": stds,
         "g_sum": g_sum, "g_sq": g_sq, "g_min": g_min, "g_max": g_max,
@@ -233,29 +236,30 @@ def _refine_z_cuts(pred, interior_mean: np.ndarray,
     low_z = head_end
     head_rows = []
     if head_end > 0:
-        block = np.asarray(pred[..., 0:head_end]).astype(np.float32)
+        # Read each Z-plane individually; refine_window is small (~30) so the
+        # extra h5 calls are negligible vs holding (C, X, Y, refine_window)
+        # widened to float32 in RAM.
         for z in range(head_end):
-            m = block[..., z].reshape(C, -1).mean(axis=1)
+            m = np.asarray(pred[..., z]).astype(np.float32, copy=False) \
+                .reshape(C, -1).mean(axis=1)
             ok = bool((m >= cutoff).all())
             head_rows.append((z, m.copy(), ok))
             if ok and low_z == head_end:
                 low_z = z
-        del block
 
     tail_start = max(0, Z - refine_window)
     high_z = tail_start
     tail_rows = []
     if tail_start < Z:
-        block = np.asarray(pred[..., tail_start:Z]).astype(np.float32)
         last_ok = -1
         for z in range(tail_start, Z):
-            m = block[..., z - tail_start].reshape(C, -1).mean(axis=1)
+            m = np.asarray(pred[..., z]).astype(np.float32, copy=False) \
+                .reshape(C, -1).mean(axis=1)
             ok = bool((m >= cutoff).all())
             tail_rows.append((z, m.copy(), ok))
             if ok:
                 last_ok = z
         high_z = last_ok + 1 if last_ok >= 0 else tail_start
-        del block
 
     return low_z, high_z, head_rows, tail_rows
 
