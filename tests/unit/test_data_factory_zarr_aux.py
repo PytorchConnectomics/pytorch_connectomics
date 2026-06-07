@@ -1,6 +1,7 @@
 from pathlib import Path
 
 import numpy as np
+import pytest
 
 from connectomics.config import Config
 from connectomics.data.io import save_volume
@@ -8,6 +9,7 @@ from connectomics.training.lightning.data_factory import _maybe_precompute_label
 
 
 def test_maybe_precompute_label_aux_reuses_existing_zarr_cache(monkeypatch, tmp_path: Path):
+    pytest.importorskip("zarr")
     label_path = tmp_path / "data.zarr" / "seg"
     aux_path = tmp_path / "data.zarr" / "seg_skeleton"
     save_volume(str(label_path), np.zeros((2, 2, 2), dtype=np.uint16), file_format="zarr")

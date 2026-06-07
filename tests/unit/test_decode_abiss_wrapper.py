@@ -2,12 +2,20 @@
 
 from __future__ import annotations
 
+import shutil
 import sys
+from pathlib import Path
 
 import numpy as np
 import pytest
 
 from connectomics.decoding import decode_abiss
+
+# The relative-script test below shells out to scripts/run_abiss_single.py, which
+# requires the compiled ABISS `ws` binary (lib/abiss/build/ws or on PATH). That
+# binary is absent in minimal installs (e.g. CI), so guard that test on it.
+_WS_BINARY = Path(__file__).resolve().parents[2] / "lib" / "abiss" / "build" / "ws"
+_ABISS_WS_AVAILABLE = _WS_BINARY.exists() or shutil.which("ws") is not None
 
 
 def test_decode_abiss_with_list_command_writes_npy_output():
@@ -61,6 +69,7 @@ def test_decode_abiss_raises_if_output_missing():
         decode_abiss(pred, command=command)
 
 
+@pytest.mark.skipif(not _ABISS_WS_AVAILABLE, reason="ABISS ws binary not built (lib/abiss/build/ws)")
 def test_decode_abiss_with_relative_script_command_outside_repo_cwd(monkeypatch, tmp_path):
     pred = np.zeros((3, 6, 8, 10), dtype=np.float32)
     pred[:, 1:5, 2:7, 3:9] = 1.0
