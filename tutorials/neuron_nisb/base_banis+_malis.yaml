@@ -34,4 +34,6 @@ default:
             sigmoid: true
             reduction: mean
             malis_crop_size: 64  # enabled; ~4.6x step speedup vs full-volume MALIS (smoke test 2505814)
-            malis_num_workers: 4  # thread-parallel the B*2 MALIS passes; ~2.3x on 64^3 (8 cores). Per-DDP-process; useful max = per_GPU_batch*2.
+            # malis_num_workers: auto-defaults to min(batch_size*2, 8) per GPU and is
+            # reserved from system.num_workers when that is -1. Set 1 to force serial,
+            # or an int to pin it. See lib/malis/INVESTIGATION.md.
