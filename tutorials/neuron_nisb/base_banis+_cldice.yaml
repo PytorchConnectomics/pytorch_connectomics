@@ -1,0 +1,81 @@
+_base_:
+  - base_banis+.yaml
+
+experiment_name: nisb_base_banis_plus_cldice
+description: >-
+  banis+ (MedNeXt-L/k3) single-head, 8-channel output: 6 affinity (r1+r10) +
+  1 foreground + 1 skeleton-aware SDT. Adds a connectivity-aware SoftClDice loss
+  on the foreground channel to discourage breaks at thin neurites (the per-voxel
+  affinity BCE under-penalizes a single missing voxel on a 1-voxel-wide
+  connector, which is exactly what fragments long backbones and caps NERL).
+  Affinity decode path is unchanged (channels 0:3). erosion=2, bf16-mixed,
+  cosine 200k inherited.
+
+save_path: outputs/nisb_base_banis_plus_cldice
+
+default:
+  model:
+    # Single shared head: backbone emits all 8 channels (no `heads:` dict).
+    out_channels: 8
+    loss:
+      deep_supervision: false
+      losses:
+        # Affinity (decode signal) — unchanged from banis+/v1.
+        - function: PerChannelBCEWithLogitsLoss
+          weight: 1.0
+          pred_slice: "0:6"
+          target_slice: "0:6"
+          kwargs:
+            auto_pos_weight: true
+            max_pos_weight: 10.0
+        # Foreground head: plain BCE for calibration ...
+        - function: WeightedBCEWithLogitsLoss
+          weight: 1.0
+          pred_slice: "6:7"
+          target_slice: "6:7"
+        # ... plus connectivity-aware clDice on the same foreground channel.
+        - function: SoftClDiceLoss
+          weight: 0.5
+          pred_slice: "6:7"
+          target_slice: "6:7"
+          kwargs:
+            sigmoid: true
+            num_iters: 5
+            mode: binary
+        # Skeleton-aware SDT (auxiliary structure signal).
+        - function: SmoothL1Loss
+          weight: 10.0
+          pred_slice: "7:8"
+          target_slice: "7:8"
+          kwargs:
+            tanh: true
+  data:
+    label_transform:
+      erosion: 0   # do NOT erode GT (erosion>=2 erases thin neurites from all targets)
+      targets:
+        - name: affinity
+          kwargs:
+            offsets: ["1-0-0", "0-1-0", "0-0-1", "10-0-0", "0-10-0", "0-0-10"]
+            affinity_mode: banis
+        - name: binary
+        - name: skeleton_aware_edt
+          kwargs:
+            alpha: 0.8
+            bg_value: -1.0
+
+train:
+  optimization:
+    precision: "bf16-mixed"
+  monitor:
+    logging:
+      scalar:
+        loss:
+          - train_loss_total_epoch
+          - val_loss_total
+          - train_loss_term_0_weighted
+          - train_loss_term_1_weighted
+          - train_loss_term_2_weighted
+          - train_loss_term_3_weighted
+        loss_every_n_steps: 100
+      images:
+        channel_mode: all

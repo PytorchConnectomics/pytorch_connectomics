@@ -1,0 +1,35 @@
+_base_:
+  - base_banis+_malis.yaml
+
+experiment_name: nisb_base_banis_v3_erosion2_malis_ft
+description: >-
+  Finetune the v3_erosion2 200k MedNeXt-L affinity checkpoint (PerChannelBCE
+  only, no MALIS) for an additional 100k steps with the short-range MALIS loss
+  added. Weights are loaded init-only (no optimizer/scheduler/EMA state) so the
+  MALIS term starts from the converged affinity model and a fresh, smaller-LR
+  cosine schedule anneals over the 100k finetune.
+
+save_path: outputs/nisb_base_banis_v3_erosion2_malis_ft
+
+default:
+  model:
+    # Init-only load of the base_banis+ (v3_erosion2) 200k weights. Architecture
+    # is identical to the MALIS variant (MALIS only adds a loss over existing
+    # channels). This is an in-framework Lightning checkpoint whose state_dict
+    # keys are double-nested ("model.model.<mednext>": ConnectomicsModule.model
+    # = wrapper, wrapper.model = MedNeXt), so strip "model.model." (not the
+    # default "model.") to land on the bare MedNeXt keys. Verified 0 missing /
+    # 0 unexpected keys.
+    external_weights_path: outputs/nisb_base_banis_v3_erosion2/20260508_224029/checkpoints/step=00200000.ckpt
+    external_weights_key_prefix: "model.model."
+
+train:
+  optimization:
+    # 100k finetune with a 10x-smaller peak LR than the 1e-3 base run; cosine
+    # period matched to the finetune length so LR anneals over the full run.
+    optimizer:
+      lr: 0.0001
+    max_steps: 100000
+    scheduler:
+      params:
+        t_max: 100000

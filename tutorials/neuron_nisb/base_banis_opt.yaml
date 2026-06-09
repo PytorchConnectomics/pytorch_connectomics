@@ -25,6 +25,12 @@ default:
 
 train:
   optimization:
+    # Longer schedule than the v0 base (50k): 200k steps with the cosine
+    # period matched so LR anneals over the full run.
+    max_steps: 200000
+    scheduler:
+      params:
+        t_max: 200000
     ema:
       enabled: true
       decay: 0.999

@@ -9,12 +9,6 @@ description: >-
 save_path: outputs/nisb_base_banis_v3_erosion2
 
 default:
-  model:
-    arch:
-      profile: mednext_l
-    mednext:
-      size: L
-      kernel_size: 3
   data:
     dataloader:
       batch_size: 2

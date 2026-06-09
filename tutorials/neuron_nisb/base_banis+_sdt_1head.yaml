@@ -1,0 +1,61 @@
+_base_:
+  - base_banis+.yaml
+
+experiment_name: nisb_base_banis_plus_sdt_1head
+description: >-
+  Single-head variant of base_banis+_sdt: banis+ (MedNeXt-L/k3) backbone emits
+  one 7-channel tensor (6 affinity r1+r10 + 1 skeleton-aware SDT) directly off
+  the shared trunk, instead of two separate task-head branches. Losses are
+  routed by channel via pred_slice/target_slice: PerChannelBCE on 0:6, SmoothL1
+  on 6:7. Efficiency: removes the per-head conv branches, uses bf16-mixed (no
+  fp16 grad-scaler overhead). erosion=2, label erosion + cosine 200k inherited.
+
+save_path: outputs/nisb_base_banis_plus_sdt_1head
+
+default:
+  model:
+    # Single shared head: backbone outputs all 7 channels (no `heads:` dict).
+    out_channels: 7
+    loss:
+      deep_supervision: false
+      losses:
+        - function: PerChannelBCEWithLogitsLoss
+          weight: 1.0
+          pred_slice: "0:6"
+          target_slice: "0:6"
+          kwargs:
+            auto_pos_weight: true
+            max_pos_weight: 10.0
+        - function: SmoothL1Loss
+          weight: 10.0
+          pred_slice: "6:7"
+          target_slice: "6:7"
+          kwargs:
+            tanh: true
+  data:
+    label_transform:
+      erosion: 0   # do NOT erode GT (erosion>=2 erases thin neurites from both targets)
+      targets:
+        - name: affinity
+          kwargs:
+            offsets: ["1-0-0", "0-1-0", "0-0-1", "10-0-0", "0-10-0", "0-0-10"]
+            affinity_mode: banis
+        - name: skeleton_aware_edt
+          kwargs:
+            alpha: 0.8
+            bg_value: -1.0
+
+train:
+  optimization:
+    precision: "bf16-mixed"
+  monitor:
+    logging:
+      scalar:
+        loss:
+          - train_loss_total_epoch
+          - val_loss_total
+          - train_loss_term_0_weighted
+          - train_loss_term_1_weighted
+        loss_every_n_steps: 100
+      images:
+        channel_mode: all
