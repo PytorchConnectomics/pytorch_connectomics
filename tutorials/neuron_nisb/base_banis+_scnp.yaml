@@ -1,0 +1,36 @@
+_base_:
+  - base_banis+.yaml
+
+experiment_name: nisb_base_banis_v3_erosion2_scnp
+description: >-
+  v3_erosion2 setup plus an additional SCNP (Same-Class Neighbor
+  Penalization) topology loss on the short-range affinity channels (0..2).
+  SCNP replaces each voxel's logit by its worst same-class neighbor inside an
+  N^3 window before BCE (min-pool over foreground, max-pool over background),
+  discouraging false-positive clusters and breaks. See Lipman et al.,
+  CVPR 2026, https://github.com/jmlipman/SCNP-SameClassNeighborPenalization.
+
+save_path: outputs/nisb_base_banis_v3_erosion2_scnp
+
+default:
+  model:
+    loss:
+      # YAML list overrides are replace-not-merge, so the v1 base's
+      # PerChannelBCEWithLogitsLoss term is restated here verbatim and the
+      # SCNP term is appended.
+      losses:
+        - function: PerChannelBCEWithLogitsLoss
+          weight: 1.0
+          kwargs:
+            auto_pos_weight: true
+            max_pos_weight: 10.0
+        - function: ScnpLoss
+          weight: 1.0
+          pred_slice: "0:3"
+          target_slice: "0:3"
+          kwargs:
+            # 3x3x3 window; the paper notes optimal size tracks structure size.
+            neighborhood_size: 3
+            auto_pos_weight: true
+            max_pos_weight: 10.0
+            reduction: mean

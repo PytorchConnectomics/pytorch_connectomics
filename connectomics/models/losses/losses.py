@@ -351,6 +351,108 @@ class PerChannelBCEWithLogitsLoss(nn.Module):
         return total
 
 
+class ScnpLoss(nn.Module):
+    """Same-Class Neighbor Penalization (SCNP) loss for binary/affinity channels.
+
+    Implements the logit modification from Lipman et al., "Towards High-Quality
+    Image Segmentation: Improving Topology Accuracy by Penalizing Neighbor
+    Pixels" (CVPR 2026, https://github.com/jmlipman/SCNP-SameClassNeighborPenalization).
+    Each channel is treated as an independent binary problem, matching PyTC's
+    canonical affinity layout. Before scoring, the per-voxel logit is replaced by
+    its worst same-class neighbor inside an ``N^3`` window:
+
+    - foreground voxels (target==1): the *minimum* logit over foreground
+      neighbors (via negated max-pool), so BCE pushes even the least-confident
+      foreground neighbor up;
+    - background voxels (target==0): the *maximum* logit over background
+      neighbors (via max-pool), so BCE pushes the most-confident false positive
+      down.
+
+    The modified logits ``z_tilde`` are then scored with the same per-channel
+    class-balanced BCE as :class:`PerChannelBCEWithLogitsLoss`. This discourages
+    topological errors (isolated false-positive clusters, holes/breaks) without
+    a dedicated topology metric. Max-pooling is differentiable, so the gradient
+    routes to the worst same-class neighbor.
+
+    Note: the pooling treats every target==0 voxel as background. Within
+    ``neighborhood_size // 2`` voxels of a masked-out (invalid) region a valid
+    background voxel may pool over an invalid neighbor's logit; this boundary
+    effect is bounded by the kernel radius and the invalid centers themselves are
+    excluded from the loss via ``weight``.
+
+    Args:
+        neighborhood_size: Side length ``N`` of the cubic max-pool window
+            (odd, stride 1, ``N//2`` padding so spatial size is preserved). The
+            paper notes the optimal size tracks structure size.
+        auto_pos_weight: Per-channel class balancing, as in
+            :class:`PerChannelBCEWithLogitsLoss`.
+        max_pos_weight: Cap for the auto pos_weight.
+        reduction: Per-channel reduction before summing ('mean' or 'sum').
+    """
+
+    _LARGE = 9999.0
+
+    def __init__(
+        self,
+        neighborhood_size: int = 3,
+        auto_pos_weight: bool = True,
+        max_pos_weight: float = 10.0,
+        reduction: str = "mean",
+    ):
+        super().__init__()
+        if neighborhood_size < 1 or neighborhood_size % 2 == 0:
+            raise ValueError(
+                f"neighborhood_size must be a positive odd int, got {neighborhood_size}."
+            )
+        self.neighborhood_size = int(neighborhood_size)
+        self.bce = PerChannelBCEWithLogitsLoss(
+            auto_pos_weight=auto_pos_weight,
+            max_pos_weight=max_pos_weight,
+            reduction=reduction,
+        )
+
+    def _scnp_logits(self, logits: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
+        ns = self.neighborhood_size
+        if logits.ndim == 5:
+            mp = F.max_pool3d
+            kernel = (ns, ns, ns)
+            pad = (ns // 2, ns // 2, ns // 2)
+        elif logits.ndim == 4:
+            mp = F.max_pool2d
+            kernel = (ns, ns)
+            pad = (ns // 2, ns // 2)
+        else:
+            raise ValueError(
+                f"ScnpLoss expects 4D [B,C,H,W] or 5D [B,C,Z,Y,X] logits, got {logits.ndim}D."
+            )
+
+        # Binary same-class gate; affinity targets are 0/1 but tolerate soft GT.
+        fg = (target > 0.5).to(logits.dtype)
+        bg = 1.0 - fg
+        large = self._LARGE
+        # Min logit over foreground neighbors (negate to reuse max-pool).
+        t1 = -mp(-(logits * fg + large * bg), kernel, 1, pad)
+        # Max logit over background neighbors.
+        t2 = mp(logits * bg - large * fg, kernel, 1, pad)
+        return t1 * fg + t2 * bg
+
+    def forward(
+        self,
+        input: torch.Tensor,
+        target: torch.Tensor,
+        weight: torch.Tensor = None,
+    ) -> torch.Tensor:
+        """Compute SCNP-penalized per-channel BCE.
+
+        Args:
+            input: Logits [B, C, ...].
+            target: Binary ground truth [B, C, ...].
+            weight: Optional spatial mask [B, C, ...] (e.g. affinity valid mask).
+        """
+        z_tilde = self._scnp_logits(input, target)
+        return self.bce(z_tilde, target, weight=weight)
+
+
 class SoftClDiceLoss(nn.Module):
     """
     Soft clDice loss using differentiable skeletonization.
@@ -788,6 +890,7 @@ __all__ = [
     "CrossEntropyLossWrapper",
     "GANLoss",
     "PerChannelBCEWithLogitsLoss",
+    "ScnpLoss",
     "SmoothL1Loss",
     "SoftClDiceLoss",
     "WeightedBCEWithLogitsLoss",
