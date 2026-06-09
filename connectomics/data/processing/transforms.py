@@ -790,6 +790,8 @@ class MultiTaskLabelTransformd(MapTransform):
             "alpha": 0.8,
             "smooth": False,
             "smooth_skeleton_only": True,
+            "weight_param": 0.0,
+            "w_base": 1.0,
         },
         "semantic_edt": {"mode": "2d", "alpha_fore": 8.0, "alpha_back": 50.0, "resolution": None},
         "signed_distance": {"alpha": 8.0},
@@ -1008,7 +1010,15 @@ class MultiTaskLabelTransformd(MapTransform):
 
                     # Auto-detect mode: SDT has negative floats, skeleton has integer IDs.
                     is_sdt = aux.dtype.kind == "f" and float(aux.min()) < 0
+                    weight_param = float(spec["kwargs"].get("weight_param", 0.0))
                     if is_sdt:
+                        if weight_param > 0:
+                            raise ValueError(
+                                "skeleton_aware_edt weight_param>0 cannot use a precomputed "
+                                "full-SDT label_aux cache because it stores only the energy "
+                                "channel. Precompute skeletons with label_aux_type=skeleton "
+                                "or disable the full-SDT cache."
+                            )
                         result = aux.astype(np.float32)
                     else:
                         result = skeleton_aware_edt_from_skeleton_vol(
@@ -1017,6 +1027,8 @@ class MultiTaskLabelTransformd(MapTransform):
                             resolution=spec["kwargs"].get("resolution", (1.0, 1.0, 1.0)),
                             alpha=spec["kwargs"].get("alpha", 0.8),
                             bg_value=spec["kwargs"].get("bg_value", -1.0),
+                            weight_param=weight_param,
+                            w_base=spec["kwargs"].get("w_base", 1.0),
                         )
                     out_arr = self._normalize_output(result, spatial_ndim)
                     outputs.append(out_arr)

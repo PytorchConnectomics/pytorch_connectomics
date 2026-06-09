@@ -1,0 +1,34 @@
+_base_:
+  - base_banis+_sdt.yaml
+
+default:
+  model:
+    loss:
+      losses:
+        - function: PerChannelBCEWithLogitsLoss
+          weight: 1.0
+          pred_head: aff
+          target_slice: "0:6"
+          kwargs:
+            auto_pos_weight: true
+            max_pos_weight: 10.0
+        - function: SmoothL1Loss
+          weight: 10.0
+          pred_head: sdt
+          target_slice: "6:7"
+          mask_slice: "7:8"
+          kwargs:
+            tanh: true
+  data:
+    label_transform:
+      targets:
+        - name: affinity
+          kwargs:
+            offsets: ["1-0-0", "0-1-0", "0-0-1", "10-0-0", "0-10-0", "0-0-10"]
+            affinity_mode: banis
+        - name: skeleton_aware_edt
+          kwargs:
+            alpha: 0.8
+            bg_value: -1.0
+            weight_param: 5.0
+            w_base: 1.0

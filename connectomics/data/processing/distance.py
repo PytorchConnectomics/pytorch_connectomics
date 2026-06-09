@@ -282,6 +282,20 @@ def signed_distance_transform(
     return sdt_normalized.astype(np.float32)
 
 
+def _thin_centerline_weight_boost(
+    radius_phys: np.ndarray,
+    instance_mask: np.ndarray,
+    resolution: Tuple[float, ...],
+    weight_param: float,
+    eps: float,
+) -> np.ndarray:
+    """Convert local physical radius to the bounded thin-centerline boost."""
+    voxel_size = max(float(min(resolution)), eps)
+    r_vox = (radius_phys + eps) / voxel_size
+    boost = float(weight_param) / np.maximum(1.0, r_vox)
+    return (boost * instance_mask.astype(np.float32)).astype(np.float32, copy=False)
+
+
 def skeleton_aware_distance_transform(
     label: np.ndarray,
     bg_value: float = -1.0,
@@ -292,6 +306,8 @@ def skeleton_aware_distance_transform(
     smooth: bool = False,
     smooth_skeleton_only: bool = True,
     max_parallel: int = 1,
+    weight_param: float = 0.0,
+    w_base: float = 1.0,
 ):
     """Skeleton-based distance transform (SDT).
 
@@ -313,21 +329,32 @@ def skeleton_aware_distance_transform(
         smooth: Whether to smooth edges before skeletonization (default False;
                 adds ~20% overhead with marginal quality impact when using kimimaro)
         smooth_skeleton_only: Only smooth skeleton mask (not entire object)
+        weight_param: Optional thin-centerline weight boost. Defaults to 0.0,
+            which preserves the single-channel energy output.
+        w_base: Base value for the optional spatial weight channel.
 
     Returns:
-        Skeleton-aware distance map with same shape as input
+        Skeleton-aware distance map with same shape as input. When
+        ``weight_param > 0``, returns ``[energy, weight]`` stacked on a leading
+        channel axis.
     """
     eps = 1e-6
 
     # Fast-path: empty label should produce all background energy.
     if np.sum(label > 0) == 0:
-        return np.full(label.shape, bg_value, dtype=np.float32)
+        energy = np.full(label.shape, bg_value, dtype=np.float32)
+        if weight_param <= 0:
+            return energy
+        weight = np.full(label.shape, w_base, dtype=np.float32)
+        return np.stack([energy, weight], axis=0)
 
     # 1. Relabel outside processor so we can batch-skeletonize.
     if relabel:
         label = cc3d.connected_components(label, connectivity=6)
 
     # 2. Batch skeletonize all instances in one call (parallel across instances).
+    #    The resulting skeleton_vertices are reused by both the energy pass and
+    #    optional weight pass below; weighting does not re-skeletonize.
     skeleton_vertices = _batch_skeletonize(label, resolution, max_parallel=max_parallel)
     print(f"  Skeletonization done: {len(skeleton_vertices)} skeletons extracted")
 
@@ -392,8 +419,56 @@ def skeleton_aware_distance_transform(
 
         return energy * temp2.astype(np.float32)
 
+    def compute_skeleton_boost(
+        label_crop: np.ndarray, instance_id: int, bbox: Tuple[slice, ...], context: Dict
+    ) -> Optional[np.ndarray]:
+        """Compute the optional thin-centerline boost for a single instance."""
+        temp2 = remove_small_holes(label_crop == instance_id, 16, connectivity=1)
+        if not temp2.any():
+            return None
+
+        binary = temp2
+
+        if context["smooth"]:
+            binary_smooth = smooth_edge(binary.astype(np.uint8))
+            if binary_smooth.astype(int).sum() > 32:
+                if context["smooth_skeleton_only"]:
+                    binary = binary_smooth.astype(bool) & temp2
+                else:
+                    binary = binary_smooth.astype(bool)
+                    temp2 = binary
+
+        skeleton_mask = _skeleton_vertices_to_mask(
+            context["skeleton_vertices"].get(instance_id),
+            label_crop.shape,
+            bbox,
+            context["pad_offset"],
+        )
+
+        if skeleton_mask is None or not skeleton_mask.any():
+            boundary_edt = distance_transform_edt(temp2, context["resolution"])
+            if boundary_edt.max() > eps:
+                return _thin_centerline_weight_boost(
+                    boundary_edt,
+                    temp2,
+                    context["resolution"],
+                    context["weight_param"],
+                    eps,
+                )
+            return None
+
+        skeleton_edt = distance_transform_edt(~skeleton_mask, context["resolution"])
+        boundary_edt = distance_transform_edt(temp2, context["resolution"])
+        return _thin_centerline_weight_boost(
+            skeleton_edt + boundary_edt,
+            temp2,
+            context["resolution"],
+            context["weight_param"],
+            eps,
+        )
+
     processor = BBoxInstanceProcessor(config)
-    return processor.process(
+    energy = processor.process(
         label,
         compute_skeleton_edt,
         num_workers=max_parallel,
@@ -404,6 +479,31 @@ def skeleton_aware_distance_transform(
         smooth=smooth,
         smooth_skeleton_only=smooth_skeleton_only,
     )
+    if weight_param <= 0:
+        return energy
+
+    weight_config = BBoxProcessorConfig(
+        bg_value=0.0,
+        relabel=False,
+        padding=padding,
+        pad_size=2,
+        bbox_relax=2,
+        combine_mode="max",
+    )
+    weight_processor = BBoxInstanceProcessor(weight_config)
+    boost = weight_processor.process(
+        label,
+        compute_skeleton_boost,
+        num_workers=max_parallel,
+        skeleton_vertices=skeleton_vertices,
+        pad_offset=pad_offset,
+        resolution=resolution,
+        weight_param=weight_param,
+        smooth=smooth,
+        smooth_skeleton_only=smooth_skeleton_only,
+    )
+    weight = w_base + boost
+    return np.stack([energy, weight.astype(np.float32, copy=False)], axis=0)
 
 
 def kimimaro_config(label: np.ndarray, resolution: Tuple[float, ...]) -> dict:
@@ -695,6 +795,8 @@ def skeleton_aware_edt_from_skeleton_vol(
     resolution: Tuple[float, ...] = (1.0, 1.0, 1.0),
     alpha: float = 0.8,
     bg_value: float = -1.0,
+    weight_param: float = 0.0,
+    w_base: float = 1.0,
 ) -> np.ndarray:
     """Compute skeleton-aware EDT using a precomputed skeleton volume.
 
@@ -709,14 +811,23 @@ def skeleton_aware_edt_from_skeleton_vol(
         resolution: Voxel resolution for anisotropic EDT.
         alpha: Skeleton influence exponent.
         bg_value: Background fill value.
+        weight_param: Optional thin-centerline weight boost. Defaults to 0.0,
+            which preserves the single-channel energy output.
+        w_base: Base value for the optional spatial weight channel.
 
     Returns:
-        Skeleton-aware distance map, same shape as label.
+        Skeleton-aware distance map, same shape as label. When
+        ``weight_param > 0``, returns ``[energy, weight]`` stacked on a leading
+        channel axis.
     """
     eps = 1e-6
 
     if np.sum(label > 0) == 0:
-        return np.full(label.shape, bg_value, dtype=np.float32)
+        energy = np.full(label.shape, bg_value, dtype=np.float32)
+        if weight_param <= 0:
+            return energy
+        weight = np.full(label.shape, w_base, dtype=np.float32)
+        return np.stack([energy, weight], axis=0)
 
     config = BBoxProcessorConfig(
         bg_value=bg_value,
@@ -754,14 +865,67 @@ def skeleton_aware_edt_from_skeleton_vol(
         energy = energy ** context["alpha"]
         return energy * temp2.astype(np.float32)
 
+    def compute_skeleton_boost(
+        label_crop: np.ndarray, instance_id: int, bbox: Tuple[slice, ...], context: Dict
+    ) -> Optional[np.ndarray]:
+        temp2 = remove_small_holes(label_crop == instance_id, 16, connectivity=1)
+        if not temp2.any():
+            return None
+
+        skel_crop = context["skeleton_vol"][bbox]
+        skeleton_mask = skel_crop == instance_id
+
+        if not skeleton_mask.any():
+            boundary_edt = distance_transform_edt(temp2, context["resolution"])
+            if boundary_edt.max() > eps:
+                return _thin_centerline_weight_boost(
+                    boundary_edt,
+                    temp2,
+                    context["resolution"],
+                    context["weight_param"],
+                    eps,
+                )
+            return None
+
+        skeleton_edt = distance_transform_edt(~skeleton_mask, context["resolution"])
+        boundary_edt = distance_transform_edt(temp2, context["resolution"])
+        return _thin_centerline_weight_boost(
+            skeleton_edt + boundary_edt,
+            temp2,
+            context["resolution"],
+            context["weight_param"],
+            eps,
+        )
+
     processor = BBoxInstanceProcessor(config)
-    return processor.process(
+    energy = processor.process(
         label,
         compute_edt_with_skeleton,
         skeleton_vol=skeleton_vol,
         resolution=resolution,
         alpha=alpha,
     )
+    if weight_param <= 0:
+        return energy
+
+    weight_config = BBoxProcessorConfig(
+        bg_value=0.0,
+        relabel=False,
+        padding=False,
+        pad_size=2,
+        bbox_relax=2,
+        combine_mode="max",
+    )
+    weight_processor = BBoxInstanceProcessor(weight_config)
+    boost = weight_processor.process(
+        label,
+        compute_skeleton_boost,
+        skeleton_vol=skeleton_vol,
+        resolution=resolution,
+        weight_param=weight_param,
+    )
+    weight = w_base + boost
+    return np.stack([energy, weight.astype(np.float32, copy=False)], axis=0)
 
 
 def sdt_path_for_label(
