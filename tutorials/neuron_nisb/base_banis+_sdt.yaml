@@ -45,6 +45,10 @@ default:
             tanh: true
   data:
     label_transform:
+      # erosion=0: do NOT erode GT. erosion>=2 erases thin neurites (<=~4px) from BOTH the
+      # affinity and SDT targets -> the model can never learn thin connectors. Preserving them is
+      # the whole point of the SDT/thin-neurite line (overrides banis+ erosion=2).
+      erosion: 0
       targets:
         - name: affinity
           kwargs:

@@ -1,0 +1,36 @@
+_base_:
+  - base_banis+.yaml
+
+experiment_name: nisb_base_banis_v3_erosion2_x2xy
+description: >-
+  2x-XY inference of the trained base_banis+ (MedNeXt-L, 200k) for the thin-neurite
+  diagnostic (dev/nisb/deepresearch_thin_neurite_findings.md exp-2 step-1): does finer in-plane
+  resolution recover the thin short-range XY affinity that shatters into crumbs? NO retraining --
+  same 200k checkpoint, fed 2x-XY-upsampled tiles. Lazy upsample: read native [64,64,128] (X,Y,Z)
+  patches, upsample XY 2x -> model sees [128,128,128]; Z stays native (anisotropic, 20nm).
+  Chunked raw-prediction output so the 6000x6000x1350 affinity never materializes whole.
+
+save_path: outputs/nisb_base_banis_v3_erosion2_x2xy
+
+default:
+  data:
+    dataloader:
+      # native read; the two 9nm in-plane axes (0,1) are halved then upsampled 2x.
+      patch_size: [64, 64, 128]
+    data_transform:
+      # model input size after the 2x-XY upsample (matches its 128^3 training window).
+      resize: [128, 128, 128]
+  inference:
+    execution:
+      strategy: chunked
+    chunking:
+      enabled: true
+      output_mode: raw_prediction       # we want the raw 2x affinity, not decoded
+      axes: all
+      # ZYX (post val_transpose) in the UPSAMPLED grid; small enough to fit memory.
+      chunk_size: [256, 512, 512]
+      halo: [16, 64, 64]
+      save_intermediate: true
+    window:
+      window_size: [128, 128, 128]
+      keep_input_on_cpu: true
