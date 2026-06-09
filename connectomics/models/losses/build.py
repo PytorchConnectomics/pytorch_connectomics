@@ -28,6 +28,7 @@ from .losses import (
     CrossEntropyLossWrapper,
     GANLoss,
     PerChannelBCEWithLogitsLoss,
+    ScnpLoss,
     SoftClDiceLoss,
     SmoothL1Loss,
     WeightedBCEWithLogitsLoss,
@@ -72,6 +73,7 @@ def _get_loss_registry() -> Dict[str, type[nn.Module]]:
         # Custom connectomics losses
         "WeightedBCEWithLogitsLoss": WeightedBCEWithLogitsLoss,
         "PerChannelBCEWithLogitsLoss": PerChannelBCEWithLogitsLoss,
+        "ScnpLoss": ScnpLoss,
         "SoftClDiceLoss": SoftClDiceLoss,
         "WeightedMSELoss": WeightedMSELoss,
         "WeightedMAELoss": WeightedMAELoss,

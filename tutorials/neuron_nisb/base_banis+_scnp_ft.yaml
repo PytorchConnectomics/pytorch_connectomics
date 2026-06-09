@@ -1,0 +1,41 @@
+_base_:
+  - base_banis+_scnp.yaml
+
+experiment_name: nisb_base_banis_v3_erosion2_scnp_ft
+description: >-
+  Finetune the v3_erosion2 200k MedNeXt-L affinity checkpoint (PerChannelBCE +
+  EMA, erosion=2) for 50k steps with the added SCNP topology loss on the
+  short-range affinity channels. Weight-init finetune (loads weights only,
+  fresh LR/step schedule) at 10x-lower LR with warmup, mirroring the MALIS
+  finetune. See [[finetune-external-weights-prefix]]: in-framework Lightning
+  checkpoints need external_weights_key_prefix "model.model.".
+
+save_path: outputs/nisb_base_banis_v3_erosion2_scnp_ft
+
+default:
+  model:
+    external_weights_path: /projects/weilab/weidf/lib/pytorch_connectomics/outputs/nisb_base_banis_v3_erosion2/20260508_224029/checkpoints/step=00200000.ckpt
+    external_weights_key_prefix: model.model.
+
+train:
+  optimization:
+    optimizer:
+      name: AdamW
+      lr: 0.0001
+      weight_decay: 0.01
+      betas: [0.9, 0.999]
+      eps: 1.0e-8
+    scheduler:
+      name: CosineAnnealingLR
+      interval: step
+      frequency: 1
+      params:
+        t_max: 50000
+      warmup_epochs: 10
+      warmup_start_lr: 0.0001
+      min_lr: 0.0
+    max_epochs: 1000
+    max_steps: 50000
+    n_steps_per_epoch: 5000
+    val_check_interval: 5000
+    val_check_interval_unit: step
