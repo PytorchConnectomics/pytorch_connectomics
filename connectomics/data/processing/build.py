@@ -98,6 +98,8 @@ def _task_output_channels(task: Any) -> int:
 
     if name == "affinity":
         return len(resolve_affinity_offsets_from_kwargs(resolved_kwargs))
+    if name == "skeleton_aware_edt":
+        return 2 if float(resolved_kwargs.get("weight_param", 0.0)) > 0 else 1
     if name == "polarity":
         return 1 if bool(resolved_kwargs.get("exclusive", False)) else 3
     if name == "flow":
