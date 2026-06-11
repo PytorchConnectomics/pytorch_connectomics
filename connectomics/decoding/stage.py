@@ -9,6 +9,7 @@ from typing import Any
 
 import numpy as np
 
+from .graph import normalize_graph, run_decode_graph
 from .pipeline import apply_decode_mode, resolve_decode_modes_from_cfg
 
 logger = logging.getLogger(__name__)
@@ -30,6 +31,13 @@ def _cfg_get(cfg: Any, name: str, default: Any = None) -> Any:
     if isinstance(cfg, dict):
         return cfg.get(name, default)
     return getattr(cfg, name, default)
+
+
+def _resolve_decode_graph_from_cfg(cfg: Any) -> Any:
+    decoding = _cfg_get(cfg, "decoding", None)
+    if not decoding:
+        return None
+    return _cfg_get(decoding, "graph", None)
 
 
 def apply_decoding_postprocessing(cfg: Any, data: np.ndarray) -> np.ndarray:
@@ -243,23 +251,36 @@ def run_decoding_stage(
     cfg: Any,
     predictions: np.ndarray,
     *,
+    on_node_complete: Any = None,
     on_step_complete: Any = None,
 ) -> DecodingStageResult:
     """Decode raw predictions and apply decoded-output postprocessing.
 
-    ``on_step_complete``, if provided, is forwarded to the per-step decoder
-    pipeline so callers can write intermediate per-step outputs.
+    ``on_node_complete``, if provided, is forwarded to the decoder graph so
+    callers can write intermediate node outputs. ``on_step_complete`` is a
+    compatibility alias for the legacy linear step pipeline.
     """
     start = time.time()
     if predictions.ndim == 5 and predictions.shape[0] == 1:
         predictions = predictions[0]
-    has_decoding_cfg = bool(resolve_decode_modes_from_cfg(cfg))
+    graph_cfg = _resolve_decode_graph_from_cfg(cfg)
+    decode_modes = resolve_decode_modes_from_cfg(cfg)
+    has_decoding_cfg = graph_cfg is not None or bool(decode_modes)
     if has_decoding_cfg:
         from .qc import run_affinity_qc
 
         run_affinity_qc(cfg, predictions)
         predictions = _maybe_apply_affinity_mask(cfg, predictions)
-    decoded = apply_decode_mode(cfg, predictions, on_step_complete=on_step_complete)
+    if graph_cfg is not None:
+        node_callback = on_node_complete if on_node_complete is not None else on_step_complete
+        decoded = run_decode_graph(
+            predictions,
+            normalize_graph(graph_cfg),
+            on_node_complete=node_callback,
+        )
+    else:
+        step_callback = on_step_complete if on_step_complete is not None else on_node_complete
+        decoded = apply_decode_mode(cfg, predictions, on_step_complete=step_callback)
     postprocessed = apply_decoding_postprocessing(cfg, decoded) if has_decoding_cfg else decoded
     return DecodingStageResult(
         decoded=decoded,
