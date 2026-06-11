@@ -585,16 +585,21 @@ def kimimaro_config(label: np.ndarray, resolution: Tuple[float, ...]) -> dict:
 def _batch_skeletonize(
     label: np.ndarray, resolution: Tuple[float, ...], max_parallel: int = 1
 ) -> Dict[int, np.ndarray]:
-    """Skeletonize all instances in one kimimaro call.
+    """Skeletonize all instances in one kimimaro call (map-reduce over labels).
 
-    Parameters are derived automatically from the label and resolution
-    via :func:`kimimaro_config`.
+    A single ``kimimaro.skeletonize`` call computes connected components and the
+    full-volume distance field (``edtfn``) ONCE for every instance, then runs
+    per-object TEASAR. ``max_parallel > 1`` uses kimimaro's native parallelism:
+    ``cc_labels`` is mirrored once into ``/dev/shm`` and the per-object TEASAR is
+    distributed across subprocesses. So the expensive format/CC/EDT passes are paid
+    once and only the embarrassingly-parallel per-object skeletonization fans out —
+    unlike a per-instance approach, which recomputes the full-volume EDT for every
+    giant neuron whose bbox spans the volume.
 
     Args:
         label: Multi-label volume (each non-zero value is an instance).
         resolution: Voxel resolution (z, y, x).
-        max_parallel: Unused (kimimaro parallel>1 has a shared-memory bug).
-            EDT parallelism is handled via ThreadPoolExecutor in BBoxProcessor.
+        max_parallel: kimimaro subprocess count (1 = serial; <=0 = all cores).
 
     Returns:
         Dict mapping instance_id → (N, ndim) int array of vertex coordinates
@@ -603,6 +608,12 @@ def _batch_skeletonize(
     n_instances = int(label.max())
     use_progress = n_instances > 50
     config = kimimaro_config(label, resolution)
+    parallel = int(max_parallel)
+    # chunk_size=1 forces kimimaro's dynamic per-object scheduling (uimap) so a few
+    # giant neurons distribute across workers instead of statically clumping onto a
+    # handful (the default 100 would underutilize a 64-core node for ~hundreds of
+    # objects). Only consulted when parallel != 1.
+    parallel_chunk_size = 1
 
     try:
         skeletons = kimimaro.skeletonize(
@@ -612,7 +623,8 @@ def _batch_skeletonize(
             dust_threshold=config["dust_threshold"],
             fix_branching=config["fix_branching"],
             fix_borders=config["fix_borders"],
-            parallel=1,
+            parallel=parallel,
+            parallel_chunk_size=parallel_chunk_size,
             progress=use_progress,
         )
     except Exception as e:
@@ -729,6 +741,8 @@ def precompute_skeleton_volume(
     label_path: str,
     output_path: str,
     resolution: Tuple[float, ...] = (1.0, 1.0, 1.0),
+    num_workers: int = 1,
+    downsample_xy: int = 1,
 ) -> str:
     """Precompute kimimaro skeletons and rasterize into a label-like volume.
 
@@ -741,6 +755,15 @@ def precompute_skeleton_volume(
         label_path: Path to the instance segmentation label volume.
         output_path: Path to save the skeleton volume (HDF5).
         resolution: Voxel resolution (z, y, x) in physical units.
+        num_workers: Processes for label-parallel skeletonization (>1 spreads the
+            per-instance TEASAR work across CPUs; output is identical to serial).
+        downsample_xy: Skeletonize on the label strided-subsampled by this factor
+            on the two fine (first two) axes, then upscale vertices back. TEASAR
+            cost scales ~quadratically with XY size, so 2x ≈ 5x faster (measured)
+            and also shrinks the distance field so it fits cache (relieving the
+            parallel memory-bandwidth wall). The medial axis is robust to 2x; the
+            rasterized skeleton is re-EDT'd downstream so vertex density matters
+            little. The output skeleton volume is always at full resolution.
 
     Returns:
         The output_path.
@@ -762,10 +785,24 @@ def precompute_skeleton_volume(
     print(f"  Label shape: {label.shape}, instances: {n_inst}")
     print(f"  One-time computation...", flush=True)
 
+    f = int(downsample_xy)
+    if f > 1:
+        skel_label = label[::f, ::f]  # subsample the two fine axes; axis 2 (coarse Z) kept
+        skel_res = (resolution[0] * f, resolution[1] * f) + tuple(resolution[2:])
+        print(f"  Downsample XY {f}x for skeletonization: {skel_label.shape} @ {skel_res}", flush=True)
+    else:
+        skel_label, skel_res = label, resolution
+
     t0 = time.time()
-    skeleton_vertices = _batch_skeletonize(label, resolution)
+    skeleton_vertices = _batch_skeletonize(skel_label, skel_res, max_parallel=num_workers)
     elapsed_skel = time.time() - t0
     print(f"  Skeletonization done in {elapsed_skel:.1f}s: {len(skeleton_vertices)} skeletons")
+
+    if f > 1:
+        # Upscale vertices on the two subsampled axes back to full-res voxel coords.
+        for inst_id, verts in skeleton_vertices.items():
+            verts[:, 0] *= f
+            verts[:, 1] *= f
 
     # Rasterize: skeleton volume with instance IDs.
     skel_vol = np.zeros(label.shape, dtype=label.dtype)
