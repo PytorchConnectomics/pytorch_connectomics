@@ -57,6 +57,25 @@ class DecodeModeConfig:
 
 
 @dataclass
+class GraphNodeConfig:
+    """Single node in a decoder graph."""
+
+    enabled: bool = True
+    name: str = ""
+    op: str = ""
+    inputs: List[str] = field(default_factory=list)
+    kwargs: Dict[str, Any] = field(default_factory=dict)
+
+
+@dataclass
+class DecodeGraphConfig:
+    """Decoder graph configuration."""
+
+    nodes: List[GraphNodeConfig] = field(default_factory=list)
+    output: str = ""
+
+
+@dataclass
 class TuningParameterConfig:
     """Single tunable decoding/postprocessing parameter."""
 
@@ -154,6 +173,7 @@ class DecodingConfig:
     save_path: str = ""
     # Optional user-controlled filename suffix appended to decoded outputs.
     save_suffix: str = ""
+    graph: Optional[DecodeGraphConfig] = None
     steps: List[DecodeModeConfig] = field(default_factory=list)
     postprocessing: PostprocessingConfig = field(default_factory=PostprocessingConfig)
     # Optional explicit raw-prediction file (.h5). If set, pipeline loads
@@ -162,3 +182,7 @@ class DecodingConfig:
     affinity_mask_path: str = ""
     affinity_qc: AffinityQCConfig = field(default_factory=AffinityQCConfig)
     tuning: Optional[DecodingTuningConfig] = None
+
+    def __post_init__(self) -> None:
+        if self.graph is not None and self.steps:
+            raise ValueError("decoding.graph cannot be set together with non-empty decoding.steps.")

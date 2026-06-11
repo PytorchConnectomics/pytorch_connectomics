@@ -7,7 +7,6 @@ from typing import Any, Iterable, List, Sequence, Tuple
 
 import numpy as np
 
-from ..utils.channel_slices import resolve_channel_indices
 from .base import DecodeStep
 from .registry import DEFAULT_DECODER_REGISTRY, DecoderRegistry, ensure_builtin_decoders_registered
 
@@ -127,59 +126,20 @@ def apply_decode_pipeline(
     steps = [s for s in normalize_decode_modes(decode_modes) if s.enabled]
     if not steps:
         return data
-    batched, batch_size = _prepare_batched_input(data)
+    from .graph import run_decode_graph, steps_to_graph
 
-    results: List[np.ndarray] = []
-    for batch_idx in range(batch_size):
-        sample = batched[batch_idx]
-        original_sample = sample
-        for step in steps:
-            try:
-                decoder = registry.get(step.name)
-            except KeyError as exc:
-                available = ", ".join(registry.available())
-                raise ValueError(
-                    f"Unknown decode function '{step.name}'. "
-                    f"Available functions: [{available}]."
-                ) from exc
+    graph = steps_to_graph(steps)
+    step_by_node = {node.name: step for node, step in zip(graph.nodes, steps)}
 
-            try:
-                decoder_kwargs = dict(step.kwargs)
-                for key, value in list(decoder_kwargs.items()):
-                    if key.endswith("_channels"):
-                        decoder_kwargs[key] = resolve_channel_indices(
-                            value,
-                            num_channels=int(sample.shape[0]),
-                            context=f"decode kwargs {step.name}.{key}",
-                        )
-                spatial_transpose = decoder_kwargs.pop("spatial_transpose", None)
-                use_original_input = bool(decoder_kwargs.pop("use_original_input", False))
-                original_input_kwarg = decoder_kwargs.pop("original_input_kwarg", "affinities")
-                if spatial_transpose:
-                    sample = _apply_spatial_transpose(sample, spatial_transpose)
-                if use_original_input:
-                    original_for_decoder = original_sample
-                    if spatial_transpose:
-                        original_for_decoder = _apply_spatial_transpose(
-                            original_for_decoder, spatial_transpose
-                        )
-                    decoder_kwargs[original_input_kwarg] = original_for_decoder
-                sample = decoder(sample, **decoder_kwargs)
-                if spatial_transpose:
-                    sample = _apply_spatial_transpose(
-                        sample, _invert_axis_permutation(spatial_transpose)
-                    )
-            except Exception as exc:
-                raise RuntimeError(f"Error applying decode function '{step.name}': {exc}") from exc
+    on_node_complete = None
+    if on_step_complete is not None:
 
-            if on_step_complete is not None:
-                on_step_complete(batch_idx, step, sample)
+        def _on_node_complete(batch_idx: int, node: Any, sample: np.ndarray) -> None:
+            on_step_complete(batch_idx, step_by_node[node.name], sample)
 
-        results.append(sample)
+        on_node_complete = _on_node_complete
 
-    if len(results) == 1:
-        return results[0]
-    return np.stack(results, axis=0)
+    return run_decode_graph(data, graph, registry, on_node_complete=on_node_complete)
 
 
 def resolve_decode_modes_from_cfg(cfg: Any) -> Sequence[Any] | None:
