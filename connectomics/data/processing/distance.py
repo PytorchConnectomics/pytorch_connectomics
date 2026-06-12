@@ -834,6 +834,7 @@ def skeleton_aware_edt_from_skeleton_vol(
     bg_value: float = -1.0,
     weight_param: float = 0.0,
     w_base: float = 1.0,
+    max_parallel: int = 0,
 ) -> np.ndarray:
     """Compute skeleton-aware EDT using a precomputed skeleton volume.
 
@@ -851,6 +852,10 @@ def skeleton_aware_edt_from_skeleton_vol(
         weight_param: Optional thin-centerline weight boost. Defaults to 0.0,
             which preserves the single-channel energy output.
         w_base: Base value for the optional spatial weight channel.
+        max_parallel: Threads for the per-instance EDT (0 = serial). For
+            whole-volume/slab precompute this should be the CPU count — the
+            per-instance ``distance_transform_edt`` calls are the cost and a few
+            giant neurons (full-slab bbox) otherwise serialize the whole band.
 
     Returns:
         Skeleton-aware distance map, same shape as label. When
@@ -938,6 +943,7 @@ def skeleton_aware_edt_from_skeleton_vol(
     energy = processor.process(
         label,
         compute_edt_with_skeleton,
+        num_workers=max_parallel,
         skeleton_vol=skeleton_vol,
         resolution=resolution,
         alpha=alpha,
@@ -957,6 +963,7 @@ def skeleton_aware_edt_from_skeleton_vol(
     boost = weight_processor.process(
         label,
         compute_skeleton_boost,
+        num_workers=max_parallel,
         skeleton_vol=skeleton_vol,
         resolution=resolution,
         weight_param=weight_param,
