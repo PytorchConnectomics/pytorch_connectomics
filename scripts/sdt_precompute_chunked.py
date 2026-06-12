@@ -92,6 +92,9 @@ def main() -> None:
     ap.add_argument("--bg-value", type=float, default=-1.0)
     ap.add_argument("--path", default=None,
                     help="override data.zarr path for a single-seed offline check")
+    ap.add_argument("--num-workers", type=int, default=0,
+                    help="threads for the per-instance EDT (0=serial; set to CPU count "
+                         "-- a few giant neurons otherwise serialize the whole band)")
     args = ap.parse_args()
 
     from connectomics.data.processing.distance import (
@@ -159,6 +162,7 @@ def main() -> None:
         resolution=tuple(args.resolution),
         alpha=args.alpha,
         bg_value=args.bg_value,
+        max_parallel=args.num_workers,
     )
     print(f"computed SDT slab in {time.time()-t0:.0f}s "
           f"range=[{sdt_slab.min():.3f}, {sdt_slab.max():.3f}]", flush=True)
