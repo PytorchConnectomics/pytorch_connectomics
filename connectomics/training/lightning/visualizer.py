@@ -391,6 +391,11 @@ class Visualizer:
 
         tensor = tensor.detach().cpu()
 
+        # Bool masks (e.g. label_mask) can't be subtracted with `-`; promote to
+        # float so the min/max normalization below works for any input dtype.
+        if not torch.is_floating_point(tensor):
+            tensor = tensor.float()
+
         # Normalize each channel independently to preserve relative values
         if tensor.ndim >= 2 and tensor.shape[1] > 1:
             # Multi-channel: normalize each channel independently

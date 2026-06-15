@@ -256,8 +256,10 @@ def build_train_transforms(
                 align_corners=True,
             )
         )
-        # Resize labels and masks with nearest-neighbor to preserve integer values
-        label_mask_keys = [k for k in keys if k in ["label", "mask"]]
+        # Resize labels, masks, and label_aux with nearest-neighbor: preserves
+        # integer label/skeleton IDs and avoids interpolating across the
+        # normalized-SDT border discontinuity (-1 bg -> 0 boundary).
+        label_mask_keys = [k for k in keys if k in ["label", "mask", "label_aux"]]
         if label_mask_keys:
             transforms.append(
                 Resized(
