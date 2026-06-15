@@ -19,6 +19,7 @@ __all__ = [
     "seg_to_polarity",
     "seg_to_small_seg",
     "seg_to_binary",
+    "seg_to_eroded_foreground",
     "seg_to_instance_bd",
     "seg_erosion_dilation",
 ]
@@ -190,6 +191,28 @@ def seg_to_binary(label, segment_id=[]):
     for seg_id in segment_id:
         fg_mask |= label == int(seg_id)
     return fg_mask
+
+
+def seg_to_eroded_foreground(label: np.ndarray, tsz_h=2) -> np.ndarray:
+    """Binary foreground after inter-object (Kisuk) erosion.
+
+    Erodes inter-object borders — a voxel whose window holds >1 positive ID
+    becomes background, but touching true background does not erode — then
+    returns the binary foreground (uint8). Used as an on-the-fly target that
+    encodes object separation at a chosen scale (e.g. a 2-channel target with
+    radius 2 and 10 to gate affinity at two cut strengths).
+
+    Args:
+        label: Instance segmentation (spatial array, array-axis order).
+        tsz_h: Erosion half-radius. Scalar -> Kisuk XY-only (per-slice). A
+            per-axis sequence -> anisotropic N-D erosion; for the (9,9,20) nm
+            NISB layout use ``(r, r, round(r*9/20))`` for ~isotropic physical
+            erosion (e.g. ``(2, 2, 1)`` or ``(10, 10, 4)``).
+    """
+    from .segment import seg_erosion_instance
+
+    eroded = seg_erosion_instance(np.asarray(label).copy(), tsz_h=tsz_h)
+    return (eroded > 0).astype(np.uint8)
 
 
 def seg_to_polarity(label: np.ndarray, exclusive: bool = False) -> np.ndarray:

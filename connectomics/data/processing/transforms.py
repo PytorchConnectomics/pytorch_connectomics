@@ -31,6 +31,7 @@ from .target import (
     seg_erosion_dilation,
     seg_to_affinity,
     seg_to_binary,
+    seg_to_eroded_foreground,
     seg_to_flows,
     seg_to_instance_bd,
     seg_to_polarity,
@@ -732,6 +733,23 @@ class SegSelectiond(MapTransform):
         return d
 
 
+def _ignore_aware_mask(label_np: np.ndarray, out_shape) -> np.ndarray:
+    """Per-channel valid mask for a non-affinity target.
+
+    All-True unless the label carries a ``-1`` ignore sentinel (e.g. padded-border GT),
+    in which case those voxels are excluded so heads like ``eroded_foreground`` are not
+    trained on unknown regions. Backward-compatible: labels without ``-1`` yield an
+    all-True mask (identical to the previous ``np.ones``). Affinity targets carry their
+    own offset-aware mask and do not use this.
+    """
+    lab = np.asarray(label_np)
+    if not (lab < 0).any():
+        return np.ones(out_shape, dtype=bool)
+    valid = lab != -1
+    valid = valid.reshape((1,) * (len(out_shape) - valid.ndim) + valid.shape)
+    return np.broadcast_to(valid, out_shape)
+
+
 class MultiTaskLabelTransformd(MapTransform):
     """Generate multiple supervision targets from a single instance segmentation.
 
@@ -761,6 +779,7 @@ class MultiTaskLabelTransformd(MapTransform):
 
     _TASK_REGISTRY: Dict[str, Callable[..., np.ndarray]] = {
         "binary": seg_to_binary,
+        "eroded_foreground": seg_to_eroded_foreground,
         "affinity": seg_to_affinity,
         "instance_boundary": seg_to_instance_bd,
         "instance_edt": edt_instance,
@@ -777,6 +796,7 @@ class MultiTaskLabelTransformd(MapTransform):
     }
     _TASK_DEFAULTS: Dict[str, Dict[str, Any]] = {
         "binary": {},
+        "eroded_foreground": {"tsz_h": 2},
         "affinity": {
             "offsets": ["1-0-0", "0-1-0", "0-0-1"]
         },  # Default: 3 short-range affinities (z, y, x)
@@ -882,6 +902,13 @@ class MultiTaskLabelTransformd(MapTransform):
             fn = self._TASK_REGISTRY[name]
             defaults = deepcopy(self._TASK_DEFAULTS.get(name, {}))
             config_kwargs = {**defaults, **kwargs}
+            # Per-target erosion: erode a label copy by this Kisuk half-size before
+            # computing THIS target only (config-only kwarg, never passed to fn).
+            # Lets e.g. affinity use erosion=2 (Z/XY margin so cc3d is leak-safe)
+            # while skeleton_aware_edt uses erosion=0 (keep thin centerlines).
+            # Requires the global label_transform.erosion to be 0 (erosion is
+            # destructive; the global path would pre-erode all targets).
+            task_erosion = int(config_kwargs.pop("erosion", 0))
             if name == "affinity" and "affinity_mode" not in config_kwargs:
                 raise ValueError(
                     "Affinity target requires kwargs.affinity_mode: 'deepem' or 'banis'."
@@ -903,6 +930,7 @@ class MultiTaskLabelTransformd(MapTransform):
                     "kwargs": call_kwargs,
                     "config_kwargs": config_kwargs,
                     "output_key": output_key,
+                    "erosion": task_erosion,
                 }
             )
         if not specs:
@@ -1001,6 +1029,12 @@ class MultiTaskLabelTransformd(MapTransform):
             # loss work for the mask).
             masks: List[np.ndarray] = []
             for spec in self.task_specs:
+                # Per-target erosion: erode a label copy for THIS target only.
+                task_label = label_np
+                if spec.get("erosion", 0) > 0:
+                    from .segment import seg_erosion_instance
+
+                    task_label = seg_erosion_instance(label_np, spec["erosion"])
                 # Use precomputed label_aux if available for skeleton_aware_edt.
                 if spec["name"] == "skeleton_aware_edt" and "label_aux" in d:
                     aux = np.asarray(d["label_aux"])
@@ -1022,7 +1056,7 @@ class MultiTaskLabelTransformd(MapTransform):
                         result = aux.astype(np.float32)
                     else:
                         result = skeleton_aware_edt_from_skeleton_vol(
-                            label_np,
+                            task_label,
                             aux,
                             resolution=spec["kwargs"].get("resolution", (1.0, 1.0, 1.0)),
                             alpha=spec["kwargs"].get("alpha", 0.8),
@@ -1033,11 +1067,11 @@ class MultiTaskLabelTransformd(MapTransform):
                     out_arr = self._normalize_output(result, spatial_ndim)
                     outputs.append(out_arr)
                     if self.use_mask:
-                        masks.append(np.ones(out_arr.shape, dtype=bool))
+                        masks.append(_ignore_aware_mask(task_label, out_arr.shape))
                     continue
 
                 try:
-                    result = spec["fn"](label_np, **spec["kwargs"])
+                    result = spec["fn"](task_label, **spec["kwargs"])
                 except Exception as e:
                     raise RuntimeError(
                         f"Task '{spec['name']}' failed with error: {e}\n"
@@ -1062,7 +1096,7 @@ class MultiTaskLabelTransformd(MapTransform):
                     out_arr = self._normalize_output(result_arr, spatial_ndim)
                     outputs.append(out_arr)
                     if self.use_mask:
-                        masks.append(np.ones(out_arr.shape, dtype=bool))
+                        masks.append(_ignore_aware_mask(task_label, out_arr.shape))
 
             if self.stack_outputs:
                 # Concatenate outputs along channel dimension (axis=0 for [C, D, H, W] format)
