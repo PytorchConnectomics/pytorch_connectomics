@@ -27,42 +27,43 @@ def seg_erosion_instance(seg, tsz_h=1):
     # "we preprocessed the ground truth seg such that any voxel centered on a
     # 3 × 3 × 1 window containing more than one positive segment ID (zero is
     # reserved for background) is marked as background."
-    # seg=0: background
-    tsz = 2 * tsz_h + 1
-    sz = seg.shape
+    # seg=0: background.
+    #
+    # Separable max/min box filters instead of an im_to_col gather: a voxel is
+    # kept iff its window holds a single positive ID, i.e. the window max equals
+    # the window min taken over positive IDs only. Identical output to the gather
+    # form but without materializing the (N, window^2) patch matrix (the cost
+    # blows up for large tsz_h).
+    #
+    # tsz_h controls the window half-size:
+    #   * scalar  -> Kisuk XY-only erosion (window 2*tsz_h+1 over the last two
+    #                axes; axis 0 is the slice axis for 3D input). No Z erosion.
+    #   * sequence (one half-size per array axis) -> full anisotropic N-D erosion.
+    #     For the (9,9,20) nm NISB layout, a physically isotropic erosion uses a
+    #     smaller Z half-size, e.g. (r, r, round(r*9/20)) for (X, Y, Z) arrays.
+    from scipy.ndimage import maximum_filter, minimum_filter
+
     is_tensor = torch.is_tensor(seg)
-
-    def _to_numpy(x):
-        if torch.is_tensor(x):
-            return x.detach().cpu().numpy()
-        return np.asarray(x)
-
-    def _apply_mask(x, mask):
-        if torch.is_tensor(x):
-            mask_t = torch.as_tensor(mask, device=x.device, dtype=x.dtype)
-            return x * mask_t
-        return x * mask
-
-    if len(sz) == 3:
-        for z in range(sz[0]):
-            seg_z = _to_numpy(seg[z]) if is_tensor else seg[z]
-            mm = seg_z.max()
-            patch = im_to_col(
-                np.pad(seg_z, ((tsz_h, tsz_h), (tsz_h, tsz_h)), "reflect"), [tsz, tsz]
-            )
-            p0 = patch.max(axis=1)
-            patch[patch == 0] = mm + 1
-            p1 = patch.min(axis=1)
-            seg[z] = _apply_mask(seg[z], (p0 == p1).reshape(sz[1:]))
+    seg_np = seg.detach().cpu().numpy() if is_tensor else np.asarray(seg)
+    if np.isscalar(tsz_h):
+        tsz = 2 * tsz_h + 1
+        size = (1, tsz, tsz) if seg_np.ndim == 3 else (tsz, tsz)
     else:
-        seg_np = _to_numpy(seg) if is_tensor else seg
-        mm = seg_np.max()
-        patch = im_to_col(np.pad(seg_np, ((tsz_h, tsz_h), (tsz_h, tsz_h)), "reflect"), [tsz, tsz])
-        p0 = patch.max(axis=1)
-        patch[patch == 0] = mm + 1
-        p1 = patch.min(axis=1)
-        seg = _apply_mask(seg, (p0 == p1).reshape(sz))
-    return seg
+        tsz_h = tuple(tsz_h)
+        if len(tsz_h) != seg_np.ndim:
+            raise ValueError(
+                f"tsz_h sequence length {len(tsz_h)} != seg ndim {seg_np.ndim}"
+            )
+        size = tuple(2 * t + 1 for t in tsz_h)
+
+    big = seg_np.max() + 1  # sentinel > any positive ID, so the min ignores background
+    win_max = maximum_filter(seg_np, size=size, mode="reflect")
+    win_min_pos = minimum_filter(np.where(seg_np > 0, seg_np, big), size=size, mode="reflect")
+    keep = win_max == win_min_pos  # window holds exactly one positive ID
+
+    if is_tensor:
+        return seg * torch.as_tensor(keep, device=seg.device, dtype=seg.dtype)
+    return seg_np * keep
 
 
 def seg_selection(label, indices):
