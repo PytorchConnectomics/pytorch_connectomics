@@ -5,7 +5,7 @@ from typing import Dict, Optional, Tuple
 import cc3d
 import kimimaro
 import numpy as np
-from scipy.ndimage import binary_fill_holes, distance_transform_edt
+from scipy.ndimage import binary_fill_holes, distance_transform_edt, zoom
 from skimage.filters import gaussian
 from skimage.morphology import (
     ball,
@@ -826,6 +826,146 @@ def precompute_skeleton_volume(
     return output_path
 
 
+def _maxpool(mask: np.ndarray, factor: int, axes: Tuple[int, int]) -> np.ndarray:
+    """Boolean max-pool by ``factor`` along selected axes, padding with False."""
+    if factor < 1:
+        raise ValueError(f"factor must be >= 1, got {factor}")
+    if len(axes) != 2 or len(set(axes)) != 2:
+        raise ValueError(f"axes must contain two unique axes, got {axes!r}")
+
+    pooled = np.asarray(mask, dtype=bool)
+    if factor == 1:
+        return pooled.copy()
+
+    for axis in axes:
+        if axis < 0 or axis >= pooled.ndim:
+            raise ValueError(f"axis {axis} out of bounds for ndim={pooled.ndim}")
+
+    pad_width = [(0, 0)] * pooled.ndim
+    for axis in axes:
+        remainder = pooled.shape[axis] % factor
+        if remainder:
+            pad_width[axis] = (0, factor - remainder)
+    if any(after for _, after in pad_width):
+        pooled = np.pad(pooled, pad_width, mode="constant", constant_values=False)
+
+    for axis in sorted(axes):
+        shape = pooled.shape
+        reshaped = (
+            shape[:axis]
+            + (shape[axis] // factor, factor)
+            + shape[axis + 1 :]
+        )
+        pooled = pooled.reshape(reshaped).max(axis=axis + 1)
+    return pooled
+
+
+def _resolve_downsample_axes(
+    resolution: Tuple[float, ...],
+    downsample_axes: Optional[Tuple[int, int]],
+) -> Tuple[int, int]:
+    if downsample_axes is not None:
+        axes = tuple(int(axis) for axis in downsample_axes)
+        if len(axes) != 2 or len(set(axes)) != 2:
+            raise ValueError(
+                f"downsample_axes must contain two unique axes, got {downsample_axes!r}"
+            )
+        if any(axis < 0 or axis >= 3 for axis in axes):
+            raise ValueError(f"downsample_axes must be within 3D axes, got {downsample_axes!r}")
+        return axes
+
+    if len(resolution) != 3:
+        raise ValueError(f"3D EDT downsampling requires 3 resolution values, got {resolution!r}")
+    return tuple(sorted(range(3), key=lambda axis: (float(resolution[axis]), axis))[:2])
+
+
+def _resize_ratio_to_shape(ratio_ds: np.ndarray, shape: Tuple[int, ...]) -> np.ndarray:
+    zoom_factors = tuple(float(dst) / float(src) for dst, src in zip(shape, ratio_ds.shape))
+    try:
+        ratio = zoom(
+            ratio_ds,
+            zoom_factors,
+            order=1,
+            mode="nearest",
+            grid_mode=True,
+            prefilter=False,
+        )
+    except TypeError:
+        from skimage.transform import resize
+
+        ratio = resize(
+            ratio_ds,
+            shape,
+            order=1,
+            mode="edge",
+            anti_aliasing=False,
+            preserve_range=True,
+        )
+
+    if ratio.shape != shape:
+        from skimage.transform import resize
+
+        ratio = resize(
+            ratio_ds,
+            shape,
+            order=1,
+            mode="edge",
+            anti_aliasing=False,
+            preserve_range=True,
+        )
+    if ratio.shape != shape:
+        raise RuntimeError(f"downsampled EDT upsample produced {ratio.shape}, expected {shape}")
+    return ratio.astype(np.float32, copy=False)
+
+
+def _downsampled_skeleton_aware_edt(
+    temp2: np.ndarray,
+    skeleton_mask: np.ndarray,
+    resolution: Tuple[float, ...],
+    alpha: float,
+    eps: float,
+    factor: int,
+    axes: Tuple[int, int],
+) -> Optional[np.ndarray]:
+    """Approximate giant-instance SDT from coarse EDTs and a full-res foreground mask.
+
+    For a giant crop with V voxels and downsampling factor f on two axes, coarse
+    EDTs are roughly ``2 * 8 * V / f**2`` bytes. The full-res phase keeps the
+    upsampled ratio as float32 and applies the power/mask in-place, so the
+    dominant temporary is roughly one float32 full-res buffer plus ``temp2``.
+    """
+    sk_src = skeleton_mask & temp2
+    fg = _maxpool(temp2, factor, axes)
+    sk = _maxpool(sk_src, factor, axes)
+    if not np.all(fg[sk]):
+        raise RuntimeError("downsampled skeleton mask is not contained by foreground mask")
+
+    res_ds = list(float(value) for value in resolution)
+    for axis in axes:
+        res_ds[axis] *= factor
+    res_ds_tuple = tuple(res_ds)
+
+    boundary_edt = distance_transform_edt(fg, res_ds_tuple)
+    if sk.any():
+        skeleton_edt = distance_transform_edt(~sk, res_ds_tuple)
+        np.add(skeleton_edt, boundary_edt, out=skeleton_edt)
+        skeleton_edt += eps
+        np.divide(boundary_edt, skeleton_edt, out=boundary_edt)
+        del skeleton_edt
+    else:
+        edt_max = float(boundary_edt.max())
+        if edt_max <= eps:
+            return None
+        boundary_edt /= edt_max + eps
+    del fg, sk, sk_src
+
+    ratio = _resize_ratio_to_shape(boundary_edt.astype(np.float32), temp2.shape)
+    del boundary_edt
+    np.power(ratio, alpha, out=ratio)
+    ratio *= temp2
+    return ratio
+
+
 def skeleton_aware_edt_from_skeleton_vol(
     label: np.ndarray,
     skeleton_vol: np.ndarray,
@@ -835,6 +975,10 @@ def skeleton_aware_edt_from_skeleton_vol(
     weight_param: float = 0.0,
     w_base: float = 1.0,
     max_parallel: int = 0,
+    edt_downsample_threshold: int = 0,
+    edt_downsample_factor: int = 2,
+    downsample_axes: Optional[Tuple[int, int]] = None,
+    max_concurrent_giants: int = 0,
 ) -> np.ndarray:
     """Compute skeleton-aware EDT using a precomputed skeleton volume.
 
@@ -856,6 +1000,15 @@ def skeleton_aware_edt_from_skeleton_vol(
             whole-volume/slab precompute this should be the CPU count — the
             per-instance ``distance_transform_edt`` calls are the cost and a few
             giant neurons (full-slab bbox) otherwise serialize the whole band.
+        edt_downsample_threshold: Crop-size threshold in voxels for approximate
+            giant-instance EDT downsampling. ``0`` disables downsampling and keeps
+            the exact float64 path.
+        edt_downsample_factor: Downsample factor applied to two axes for giant
+            instances.
+        downsample_axes: Optional pair of axes to downsample. When omitted, the
+            two finest physical-resolution axes are chosen.
+        max_concurrent_giants: Optional semaphore cap for concurrent giant EDT
+            work. ``0`` leaves giant concurrency unbounded.
 
     Returns:
         Skeleton-aware distance map, same shape as label. When
@@ -863,6 +1016,20 @@ def skeleton_aware_edt_from_skeleton_vol(
         channel axis.
     """
     eps = 1e-6
+    downsample_enabled = int(edt_downsample_threshold) > 0
+
+    if downsample_enabled and weight_param > 0:
+        raise NotImplementedError(
+            "edt_downsample_threshold with weight_param > 0 is not implemented; "
+            "disable downsampling for weighted SDT."
+        )
+    if downsample_enabled and int(edt_downsample_factor) < 2:
+        raise ValueError("edt_downsample_factor must be >= 2 when EDT downsampling is enabled")
+    if int(max_concurrent_giants) < 0:
+        raise ValueError("max_concurrent_giants must be >= 0")
+    resolved_downsample_axes = None
+    if downsample_enabled and label.ndim == 3:
+        resolved_downsample_axes = _resolve_downsample_axes(tuple(resolution), downsample_axes)
 
     if np.sum(label > 0) == 0:
         energy = np.full(label.shape, bg_value, dtype=np.float32)
@@ -890,6 +1057,36 @@ def skeleton_aware_edt_from_skeleton_vol(
         # Extract skeleton mask from precomputed skeleton volume crop.
         skel_crop = context["skeleton_vol"][bbox]
         skeleton_mask = skel_crop == instance_id
+
+        giant_path = (
+            context["edt_downsample_threshold"] > 0
+            and label_crop.ndim == 3
+            and temp2.size > context["edt_downsample_threshold"]
+        )
+        if giant_path:
+            with context["downsampled_lock"]:
+                context["downsampled_ids"].append(instance_id)
+            semaphore = context["giant_semaphore"]
+            if semaphore is None:
+                return _downsampled_skeleton_aware_edt(
+                    temp2,
+                    skeleton_mask,
+                    context["resolution"],
+                    context["alpha"],
+                    eps,
+                    context["edt_downsample_factor"],
+                    context["downsample_axes"],
+                )
+            with semaphore:
+                return _downsampled_skeleton_aware_edt(
+                    temp2,
+                    skeleton_mask,
+                    context["resolution"],
+                    context["alpha"],
+                    eps,
+                    context["edt_downsample_factor"],
+                    context["downsample_axes"],
+                )
 
         if not skeleton_mask.any():
             # Fallback: regular EDT without skeleton.
@@ -939,6 +1136,16 @@ def skeleton_aware_edt_from_skeleton_vol(
             eps,
         )
 
+    downsampled_ids = []
+    downsampled_lock = None
+    giant_semaphore = None
+    if downsample_enabled:
+        import threading
+
+        downsampled_lock = threading.Lock()
+        if max_concurrent_giants > 0:
+            giant_semaphore = threading.Semaphore(int(max_concurrent_giants))
+
     processor = BBoxInstanceProcessor(config)
     energy = processor.process(
         label,
@@ -947,7 +1154,33 @@ def skeleton_aware_edt_from_skeleton_vol(
         skeleton_vol=skeleton_vol,
         resolution=resolution,
         alpha=alpha,
+        edt_downsample_threshold=int(edt_downsample_threshold),
+        edt_downsample_factor=int(edt_downsample_factor),
+        downsample_axes=resolved_downsample_axes,
+        downsampled_ids=downsampled_ids,
+        downsampled_lock=downsampled_lock,
+        giant_semaphore=giant_semaphore,
     )
+    if downsampled_ids:
+        missing = [
+            instance_id
+            for instance_id in sorted(set(downsampled_ids))
+            if not np.any((label == instance_id) & (energy > 0))
+        ]
+        if missing:
+            raise RuntimeError(
+                "Downsampled SDT failed to write positive output for instance ids "
+                f"{missing[:10]}{'...' if len(missing) > 10 else ''}"
+            )
+    if downsample_enabled:
+        n_downsampled = len(set(downsampled_ids))
+        print(
+            "  EDT downsampled instances: "
+            f"{n_downsampled} threshold={int(edt_downsample_threshold)} "
+            f"factor={int(edt_downsample_factor)} axes={resolved_downsample_axes} "
+            f"max_concurrent_giants={int(max_concurrent_giants)}",
+            flush=True,
+        )
     if weight_param <= 0:
         return energy
 
