@@ -1,0 +1,76 @@
+_base_:
+  - base_banis+.yaml
+
+experiment_name: nisb_base_banis_v3_erosion2_zebrafinch_ft
+description: >-
+  Domain-adaptation finetune of the v3_erosion2 200k MedNeXt-L affinity
+  checkpoint onto zebrafinch dense GT. NISB was trained at [9,9,20] anisotropic;
+  zebrafinch is [10,10,10] isotropic, and the model drops 6.14 percent of neurite
+  voxels to background there -- ~46 percent of the cc3d decode headroom and the
+  entire sub-1.0 oracle ceiling (dev/nisb/t3_zebrafinch.md,
+  lessons/lesson_zf_split_source.md). This finetune targets those coverage
+  misses. Weights load init-only (fresh, 10x-smaller cosine), 100k steps, 4 GPUs.
+
+  Data: ALL 33 cubes via the [4,32,32]-per-side padded images im_raw_4-32-32
+  (real neighbouring EM -- verified, not reflect) so crops can read true context
+  at the GT-cube borders. Labels are seg_gt padded with -1 (the affinity ignore
+  sentinel: seg_to_affinity masks every edge touching seg==-1), so the unknown
+  padded ring is excluded from the loss while interior background (seg==0) still
+  trains -- no separate mask volume needed (dev/nisb/scripts/zf_pad_labels.py).
+  Train = all 33; val = 3 cubes (also in train, drives EMA-eval + checkpoint
+  selection, no data held out). Real eval is test-mode NERL on test_50_skeletons.
+
+save_path: outputs/nisb_base_banis_v3_erosion2_zebrafinch_ft
+
+default:
+  system:
+    num_gpus: 4
+  data:
+    dataloader:
+      # base_banis uses profile:lazy (use_lazy_zarr:true) for the NISB zarr
+      # volumes; the zebrafinch GT cubes are small HDF5, so switch to in-memory
+      # caching. base_banis hardcodes the preload flags to false, so set them
+      # back explicitly (a profile payload can't override an explicit key).
+      profile: cached
+      use_lazy_zarr: false
+      use_cache: false
+      use_preloaded_cache_train: true
+      use_preloaded_cache_val: true
+  model:
+    # Init-only load of the base_banis+ (v3_erosion2) 200k weights. In-framework
+    # Lightning ckpt is double-nested (model.model.<mednext>), so strip
+    # "model.model." (NOT the default "model.") -- the default silently random-
+    # inits with only a warning. Verify log: "Successfully loaded all weights".
+    external_weights_path: outputs/nisb_base_banis_v3_erosion2/20260508_224029/checkpoints/step=00200000.ckpt
+    external_weights_key_prefix: "model.model."
+
+train:
+  optimization:
+    # 100k finetune at 10x-smaller peak LR than the 1e-3 base; cosine matched.
+    optimizer:
+      lr: 0.0001
+    max_steps: 100000
+    scheduler:
+      params:
+        t_max: 100000
+  data:
+    train:
+      # All 33 cubes. im_*.h5 and gt_*.h5 share identical z/y/x suffixes, so the
+      # sorted globs pair index-by-index.
+      path: ""
+      resolution: [10, 10, 10]
+      image: /projects/weilab/dataset/zebrafinch/train/im_raw_4-32-32/im_*.h5
+      label: /projects/weilab/dataset/zebrafinch/train/seg_gt_4-32-32/gt_*.h5
+    val:
+      # 3-cube subset (also in train); keeps EMA-validated checkpoint selection
+      # alive without holding any cube out of training.
+      path: ""
+      resolution: [10, 10, 10]
+      image:
+        - /projects/weilab/dataset/zebrafinch/train/im_raw_4-32-32/im_z3456-3606_y3188-3338_x4043-4193.h5
+        - /projects/weilab/dataset/zebrafinch/train/im_raw_4-32-32/im_z3914-4064_y9035-9185_x2573-2723.h5
+        - /projects/weilab/dataset/zebrafinch/train/im_raw_4-32-32/im_z734-884_y9561-9711_x563-713.h5
+      label:
+        - /projects/weilab/dataset/zebrafinch/train/seg_gt_4-32-32/gt_z3456-3606_y3188-3338_x4043-4193.h5
+        - /projects/weilab/dataset/zebrafinch/train/seg_gt_4-32-32/gt_z3914-4064_y9035-9185_x2573-2723.h5
+        - /projects/weilab/dataset/zebrafinch/train/seg_gt_4-32-32/gt_z734-884_y9561-9711_x563-713.h5

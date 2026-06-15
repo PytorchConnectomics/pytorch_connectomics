@@ -1,0 +1,28 @@
+_base_:
+  - base_banis+_sdt_overfit.yaml
+
+experiment_name: nisb_sdt_overfit_seed101crumb_2xxy
+description: >-
+  2x-XY variant of the overfit-one-crop SDT test. Same dual-erosion finetune
+  (aff erosion=2 / SDT erosion=0, warm-start SDT 200k) but on the 2x-XY upsampled
+  seed101 crumb (768x768x384, resolution 4.5/4.5/20 nm). Tests whether higher
+  effective in-plane resolution lets the SDT centerline field overfit thin
+  processes that the native grid cannot. 128^3 FOV (so each patch covers half the
+  physical XY extent of the 1x patch).
+
+save_path: outputs/nisb_sdt_overfit_seed101crumb_2xxy
+
+train:
+  data:
+    train:
+      path: dev/nisb/data/overfit_seed101crumb_2xxy
+      image: data.zarr/img
+      label: data.zarr/seg
+      label_aux_type: skeleton
+      resolution: [4.5, 4.5, 20]
+    val:
+      path: dev/nisb/data/overfit_seed101crumb_2xxy
+      image: data.zarr/img
+      label: data.zarr/seg
+      label_aux_type: skeleton
+      resolution: [4.5, 4.5, 20]
