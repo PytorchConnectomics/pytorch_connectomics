@@ -95,6 +95,13 @@ def main() -> None:
     ap.add_argument("--num-workers", type=int, default=0,
                     help="threads for the per-instance EDT (0=serial; set to CPU count "
                          "-- a few giant neurons otherwise serialize the whole band)")
+    ap.add_argument("--edt-downsample-threshold", type=float, default=2.5e8,
+                    help="per-instance crop-size threshold in voxels for adaptive EDT "
+                         "downsampling (0=disabled/exact)")
+    ap.add_argument("--edt-downsample-factor", type=int, default=2,
+                    help="downsample factor on the two finest-resolution axes for giant EDTs")
+    ap.add_argument("--max-concurrent-giants", type=int, default=2,
+                    help="semaphore cap for concurrent giant EDT computations (0=unbounded)")
     args = ap.parse_args()
 
     from connectomics.data.processing.distance import (
@@ -156,6 +163,13 @@ def main() -> None:
     print(f"loaded label/skel slabs {label_slab.shape} in {time.time()-t0:.0f}s", flush=True)
 
     t0 = time.time()
+    edt_downsample_threshold = int(args.edt_downsample_threshold)
+    print(
+        "EDT downsample config: "
+        f"threshold={edt_downsample_threshold} factor={args.edt_downsample_factor} "
+        f"axes=auto max_concurrent_giants={args.max_concurrent_giants}",
+        flush=True,
+    )
     sdt_slab = skeleton_aware_edt_from_skeleton_vol(
         label_slab,
         skel_slab,
@@ -163,6 +177,10 @@ def main() -> None:
         alpha=args.alpha,
         bg_value=args.bg_value,
         max_parallel=args.num_workers,
+        edt_downsample_threshold=edt_downsample_threshold,
+        edt_downsample_factor=args.edt_downsample_factor,
+        downsample_axes=None,
+        max_concurrent_giants=args.max_concurrent_giants,
     )
     print(f"computed SDT slab in {time.time()-t0:.0f}s "
           f"range=[{sdt_slab.min():.3f}, {sdt_slab.max():.3f}]", flush=True)
