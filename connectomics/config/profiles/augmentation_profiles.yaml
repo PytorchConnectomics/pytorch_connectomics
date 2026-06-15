@@ -283,6 +283,62 @@ augmentation_profiles:
       gaussian_noise_std: 0.5
 
   # ---------------------------------------------------------------------------
+  # aug_banis2: aug_banis WITHOUT arbitrary rotation
+  # ---------------------------------------------------------------------------
+  # Identical to aug_banis except affine.rotate_range = 0: drops the arbitrary
+  # interpolated rotation, whose resampling blurs/staircases thin instances and
+  # adds cost. Discrete symmetries are still fully covered by axis_permute +
+  # rotate90_all + flip. Keeps affine scale (+shear): scale resampling is fine
+  # for the normalized [-1,1] precomputed SDT and teaches the model to decode
+  # thin objects across scales.
+  aug_banis2:
+
+    axis_permute:
+      enabled: true
+      prob: 1.0
+    rotate90_all:
+      enabled: true
+      prob: 1.0
+    flip:
+      enabled: true
+      prob: 0.5
+      spatial_axis: [0, 1, 2]
+    slice_drop:
+      enabled: true
+      prob: 0.5
+      slice_prob: 0.05
+      spatial_axis: [0, 1, 2]
+      fill_value: 0.0
+    slice_shift:
+      enabled: true
+      prob: 0.5
+      slice_prob: 0.05
+      shift_magnitude: 10
+      spatial_axis: [0, 1, 2]
+      wrap: true
+    affine:
+      enabled: true
+      prob: 0.5
+      # Scale-only affine. No arbitrary rotation (covered exactly by axis_permute
+      # + rotate90_all) and no shear: both interpolate and staircase thin
+      # instances, and EM's real geometric distortion (section misalignment) is
+      # already modeled by slice_shift/slice_drop. Scale is the one interpolated
+      # transform we keep: +/-30% zoom to decode thin objects across scales
+      # (empirically safe to 0.5x on the hole-filled GT; resamples fine for the
+      # normalized [-1,1] SDT).
+      rotate_range: [0.0, 0.0, 0.0]
+      scale_range: [0.3, 0.3, 0.3]
+      shear_range: [0.0, 0.0, 0.0]
+    intensity:
+      enabled: true
+      banis_style: true
+      mul_add_prob: 0.5
+      mul_range: [0.9, 1.1]
+      add_range: [-0.1, 0.1]
+      gaussian_noise_prob: 0.5
+      gaussian_noise_std: 0.5
+
+  # ---------------------------------------------------------------------------
   # aug_instance: Standard + copy-paste + mixup
   # ---------------------------------------------------------------------------
   # Use for: instance segmentation (neuron, mitochondria, synapse).
