@@ -1,0 +1,46 @@
+_base_:
+  - base_banis+_zebrafinch_ft.yaml
+
+# Resume + convergence extension of base_banis+_zebrafinch_ft.
+#
+# The original 100k cosine (job 2571389) was cancelled at step 85k with
+# val_loss still descending (0.608 -> 0.581 -> 0.570 -> 0.5437 @ep13 ->
+# 0.5415 @ep15). The "worst-volumes-first, easy-ones-later" dynamic means the
+# model was still under-trained. This extends the cosine to t_max=200000 so LR
+# anneals smoothly from ~6.2e-5 at step 85k to ~0 at 200k (a plain finish of the
+# old 85k->100k tail would only add 15k near-dead-LR steps).
+#
+# Launch by resuming from the 85k checkpoint whose scheduler T_max was patched
+# 100000 -> 200000 (last_ext200k.ckpt); Lightning restores optimizer +
+# scheduler + global_step in place, continuing in the same run directory:
+#
+#   just slurm long 12 4 \
+#     "python scripts/main.py \
+#        --config tutorials/neuron_nisb/base_banis+_zebrafinch_ft_200k.yaml \
+#        --checkpoint outputs/nisb_base_banis_v3_erosion2_zebrafinch_ft/20260610_115124/checkpoints/last_ext200k.ckpt"
+
+default:
+  model:
+    # This is a RESUME (full optimizer/scheduler/weights restored from the 85k
+    # --checkpoint), not an init-only warm start. Null the base config's
+    # external_weights_path so the module does not re-init-load the base-200k
+    # weights before Lightning restores the 85k checkpoint over them.
+    external_weights_path: null
+
+train:
+  optimization:
+    max_steps: 200000
+    scheduler:
+      params:
+        t_max: 200000
+  data:
+    train:
+      # Override the base config's gt_*.h5 glob. Since the original 85k run,
+      # SDT precompute wrote skeleton-cache siblings (gt_*_skeleton.h5) into
+      # seg_gt_4-32-32, so gt_*.h5 now matches 39 files and would mis-pair 39
+      # labels against 33 images (lesson L11 -> divergence). gt_*[0-9].h5 matches
+      # only the 33 coordinate-named GT cubes (skeleton caches end in 'n').
+      path: ""
+      resolution: [10, 10, 10]
+      image: /projects/weilab/dataset/zebrafinch/train/im_raw_4-32-32/im_*[0-9].h5
+      label: /projects/weilab/dataset/zebrafinch/train/seg_gt_4-32-32/gt_*[0-9].h5

@@ -1,0 +1,93 @@
+_base_:
+  - base_banis+_sdt.yaml
+
+experiment_name: nisb_base_banis_plus_sdt_zebrafinch_ft
+description: >-
+  Domain-adaptation finetune of the banis+_sdt (affinity + skeleton-aware-EDT
+  two-head, MedNeXt-L) 200k checkpoint onto the 33 zebrafinch dense-GT cubes.
+  This is the SDT twin of base_banis+_zebrafinch_ft (the affinity-only ft): same
+  33-cube [4,32,32]-padded real-EM images + -1-masked GT ring, same 4-GPU lr
+  1e-4 cosine recipe, but the SDT head is kept so the model carries a
+  centerline/connectivity signal (the diagnosed cure for the thin-neurite-bridge
+  degradation the aff-only ft showed; dev/nisb/t3_zebrafinch.md).
+
+  Per-target erosion (the whole point of this config): the affinity target uses
+  erosion=2 (Kisuk Z/XY margin -> leak-safe cc3d decode, the proven banis+
+  recipe) while skeleton_aware_edt uses erosion=0 (keep thin centerlines for the
+  connectivity head). This requires the global label_transform.erosion to stay 0
+  (global erosion is destructive and would pre-erode both targets). Decoding
+  still reads only the short-range affinity channels 0:3.
+
+  Weights load init-only from the banis+_sdt 200k ckpt via external_weights
+  (in-framework Lightning ckpt is double-nested, so strip "model.model.").
+  SDT label_aux (skeleton volume) is auto-precomputed at setup (sibling .h5);
+  the -1 border is ignore-masked on the SDT head too. 200k cosine (chosen over
+  the aff ft's original 100k after that run proved under-trained at 85k).
+
+save_path: outputs/nisb_base_banis_plus_sdt_zebrafinch_ft
+
+default:
+  system:
+    num_gpus: 4
+  data:
+    dataloader:
+      # base_banis uses profile:lazy for the NISB zarr volumes; the zebrafinch GT
+      # cubes are small HDF5, so switch to in-memory caching (explicit keys, since
+      # a profile payload can't override an explicitly-set key).
+      profile: cached
+      use_lazy_zarr: false
+      use_cache: false
+      use_preloaded_cache_train: true
+      use_preloaded_cache_val: true
+    label_transform:
+      # Global erosion MUST be 0 so per-target erosion (below) is the only erosion.
+      erosion: 0
+      targets:
+        - name: affinity
+          kwargs:
+            erosion: 2          # leak-safe cc3d margin (proven banis+ recipe)
+            offsets: ["1-0-0", "0-1-0", "0-0-1", "10-0-0", "0-10-0", "0-0-10"]
+            affinity_mode: banis
+        - name: skeleton_aware_edt
+          kwargs:
+            erosion: 0          # keep thin centerlines for the connectivity head
+            alpha: 0.8
+            bg_value: -1.0
+  model:
+    # Init-only load of the banis+_sdt 200k weights (aff+SDT two-head L/k3).
+    external_weights_path: outputs/nisb_base_banis_plus_sdt/20260607_011522/checkpoints/step=00200000.ckpt
+    external_weights_key_prefix: "model.model."
+
+train:
+  optimization:
+    optimizer:
+      lr: 0.0001
+    max_steps: 200000
+    scheduler:
+      params:
+        t_max: 200000
+  data:
+    train:
+      # All 33 cubes. im_*.h5 and gt_*.h5 share identical z/y/x suffixes, so the
+      # sorted globs pair index-by-index.
+      # gt_*[0-9].h5 (NOT gt_*.h5): SDT precompute writes skeleton-cache siblings
+      # (gt_*_skeleton.h5) into seg_gt_4-32-32, and gt_*.h5 would mis-pair them
+      # against the images (lesson L11 -> divergence). The [0-9] anchor keeps
+      # only the 33 coordinate-named GT cubes; skeleton caches end in 'n'.
+      path: ""
+      resolution: [10, 10, 10]
+      image: /projects/weilab/dataset/zebrafinch/train/im_raw_4-32-32/im_*[0-9].h5
+      label: /projects/weilab/dataset/zebrafinch/train/seg_gt_4-32-32/gt_*[0-9].h5
+    val:
+      # 3-cube subset (also in train); drives EMA-eval + checkpoint selection,
+      # no cube held out (real eval is test-mode NERL on test_50_skeletons).
+      path: ""
+      resolution: [10, 10, 10]
+      image:
+        - /projects/weilab/dataset/zebrafinch/train/im_raw_4-32-32/im_z3456-3606_y3188-3338_x4043-4193.h5
+        - /projects/weilab/dataset/zebrafinch/train/im_raw_4-32-32/im_z3914-4064_y9035-9185_x2573-2723.h5
+        - /projects/weilab/dataset/zebrafinch/train/im_raw_4-32-32/im_z734-884_y9561-9711_x563-713.h5
+      label:
+        - /projects/weilab/dataset/zebrafinch/train/seg_gt_4-32-32/gt_z3456-3606_y3188-3338_x4043-4193.h5
+        - /projects/weilab/dataset/zebrafinch/train/seg_gt_4-32-32/gt_z3914-4064_y9035-9185_x2573-2723.h5
+        - /projects/weilab/dataset/zebrafinch/train/seg_gt_4-32-32/gt_z734-884_y9561-9711_x563-713.h5

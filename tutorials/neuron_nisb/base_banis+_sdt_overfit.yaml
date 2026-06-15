@@ -1,0 +1,72 @@
+_base_:
+  - base_banis+_sdt.yaml
+
+experiment_name: nisb_sdt_overfit_seed101crumb
+description: >-
+  Overfit-one-crop learnability test. Warm-start the base_banis+_sdt 200k ckpt
+  and finetune on the SINGLE seed101 crumb 384^3 (train=val=same crop) to test
+  whether the SDT centerline field can be sharpened enough that the hysteresis
+  decode reaches ~1.0 frags/GT on thin processes. Per-target erosion (NEW code):
+  affinity keeps erosion=2 (cc3d-safe margin), skeleton_aware_edt uses erosion=0
+  (keep thin centerlines). Decode target = SDT head (hysteresis), aff auxiliary.
+  Decisive learnable-vs-evidence-absent probe before any big-volume finetune.
+
+save_path: outputs/nisb_sdt_overfit_seed101crumb
+
+default:
+  model:
+    # Weight-init finetune from the SDT 200k checkpoint (loads weights only,
+    # fresh LR/step schedule). In-framework Lightning ckpts need prefix
+    # "model.model." (see finetune-external-weights-prefix).
+    external_weights_path: /projects/weilab/weidf/lib/pytorch_connectomics/outputs/nisb_base_banis_plus_sdt/20260607_011522/checkpoints/step=00200000.ckpt
+    external_weights_key_prefix: model.model.
+  data:
+    label_transform:
+      erosion: 0            # global OFF; per-target carries it (NEW per-target erosion)
+      targets:
+        - name: affinity
+          kwargs:
+            offsets: ["1-0-0", "0-1-0", "0-0-1", "10-0-0", "0-10-0", "0-0-10"]
+            affinity_mode: banis
+            erosion: 2       # keep the aff margin (aux head; cc3d-safe if ever decoded)
+        - name: skeleton_aware_edt
+          kwargs:
+            alpha: 0.8
+            bg_value: -1.0
+            erosion: 0       # keep thin centerlines for the SDT decode head
+
+train:
+  data:
+    train:
+      path: dev/nisb/data/overfit_seed101crumb
+      image: data.zarr/img
+      label: data.zarr/seg
+      label_aux_type: skeleton
+      resolution: [9, 9, 20]
+    val:                     # overfit: val == train (same crop)
+      path: dev/nisb/data/overfit_seed101crumb
+      image: data.zarr/img
+      label: data.zarr/seg
+      label_aux_type: skeleton
+      resolution: [9, 9, 20]
+  optimization:
+    optimizer:
+      name: AdamW
+      lr: 0.0001
+      weight_decay: 0.01
+      betas: [0.9, 0.999]
+      eps: 1.0e-8
+    scheduler:
+      name: CosineAnnealingLR
+      interval: step
+      frequency: 1
+      params:
+        t_max: 10000
+      min_lr: 0.0
+    max_epochs: 100000
+    max_steps: 10000
+    n_steps_per_epoch: 1000
+    val_check_interval: 1000
+    val_check_interval_unit: step
+    ema:
+      enabled: false
