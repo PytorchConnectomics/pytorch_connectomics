@@ -19,6 +19,13 @@ BEFORE cc3d, exactly as `aff *= mask`:
       mask is set. Read from the 80nm `yl_bv_80nm.h5` (uint8, nonzero=vessel),
       upsampled by `--vessel-ratio` (4 8 8) to the 10nm frame. Masks align
       top-left with the affinity tile frame.
+  tissue (--tissue-mask): zero voxels OUTSIDE the FFN tissue mask — a precomputed
+      `NOT(blood_vessel | myelin | out_of_bounds)` keep-volume derived from the
+      FFN J0126 tissue_classification (one combined mask instead of v2+v3). Read
+      from `ffn_tissue_mask_18-18-20.zarr` (ZYX uint8, 1=keep) at native 18x18x20
+      nm; per chunk the matching z-range (1:1 in Z) and half-range in Y/X are
+      sliced and nearest-upsampled 2x in XY onto the 9x9x20 affinity grid. Beyond
+      the mask bounds defaults to keep. Combines with border/vessel if also set.
 
 Shards by chunk index for `just slurm-sharded` (appends --shard-id/--num-shards);
 re-runnable (chunks whose output exists are skipped):
@@ -74,8 +81,9 @@ def _load_border_bboxes(glob_pattern: str, n_sections: int) -> np.ndarray:
     return bboxes
 
 
-def _build_keep_mask(start, shape, *, bboxes, border_width, vessel_ds, vessel_ratio):
-    """Per-chunk boolean keep-mask (True=keep) for border and/or vessel masking."""
+def _build_keep_mask(start, shape, *, bboxes, border_width, vessel_ds, vessel_ratio,
+                     tissue_ds=None):
+    """Per-chunk boolean keep-mask (True=keep) for border / vessel / tissue masking."""
     z0, y0, x0 = start
     Z, Y, X = shape
     keep = np.ones((Z, Y, X), bool)
@@ -90,6 +98,24 @@ def _build_keep_mask(start, shape, *, bboxes, border_width, vessel_ds, vessel_ra
             keep[zi] = False
             if vy1 > vy0 and vx1 > vx0:
                 keep[zi, vy0:vy1, vx0:vx1] = True
+
+    if tissue_ds is not None:
+        # FFN tissue keep-mask at 18x18x20 nm (1=keep). Z is 1:1 with the 9x9x20
+        # affinity; Y/X are half-res, so slice the half-range and nearest-upsample
+        # 2x in XY. Beyond the mask bounds -> keep (pad with 1).
+        tz, ty, tx = tissue_ds.shape
+        y0h, x0h = y0 // 2, x0 // 2
+        z1c = min(z0 + Z, tz)
+        y1c = min(y0h + (Y + 1) // 2, ty)
+        x1c = min(x0h + (X + 1) // 2, tx)
+        native = np.ones((Z, (Y + 1) // 2, (X + 1) // 2), np.uint8)
+        if z1c > z0 and y1c > y0h and x1c > x0h:
+            sub = np.asarray(tissue_ds[z0:z1c, y0h:y1c, x0h:x1c]).astype(np.uint8)
+            native[: sub.shape[0], : sub.shape[1], : sub.shape[2]] = sub
+        up = np.repeat(np.repeat(native, 2, axis=1), 2, axis=2)[:Z, :Y, :X]
+        if up.shape != (Z, Y, X):  # final pad if upsample fell short of the chunk
+            up = np.pad(up, [(0, (Z, Y, X)[k] - up.shape[k]) for k in range(3)], mode="edge")
+        keep &= up > 0
 
     if vessel_ds is not None:
         rz, ry, rx = vessel_ratio
@@ -133,6 +159,11 @@ def main():
     p.add_argument("--vessel-mask", action="store_true", help="v3: zero blood-vessel voxels (implies border).")
     p.add_argument("--vessel-h5", default="/projects/weilab/dataset/zebrafinch/yl_bv_80nm.h5")
     p.add_argument("--vessel-ratio", type=int, nargs=3, default=[4, 8, 8], help="80nm->10nm upsample (z y x).")
+    p.add_argument("--tissue-mask", action="store_true",
+                   help="Zero voxels outside the FFN tissue keep-mask (bv|myelin|oob).")
+    p.add_argument("--tissue-zarr",
+                   default="/projects/weilab/dataset/zebrafinch/ffn_tissue_mask_18-18-20.zarr",
+                   help="ZYX uint8 keep-mask (1=keep) at 18x18x20 nm.")
     p.add_argument("--shard-id", type=int, default=0)
     p.add_argument("--num-shards", type=int, default=1)
     args = p.parse_args()
@@ -140,11 +171,12 @@ def main():
     chunks_dir = Path(args.chunks_dir)
     if not chunks_dir.is_dir():
         raise SystemExit(f"--chunks-dir not found: {chunks_dir}")
-    masking = args.border_mask or args.vessel_mask
+    masking = args.border_mask or args.vessel_mask or args.tissue_mask
 
-    # Output dir tagged by mode so v1/v2/v3 don't collide.
+    # Output dir tagged by mode so v1/v2/v3/tissue don't collide.
     thr_tag = f"t{args.threshold:.2f}".replace(".", "")
-    mode_tag = thr_tag + ("_bd" if args.border_mask else "") + ("_bv" if args.vessel_mask else "")
+    mode_tag = (thr_tag + ("_bd" if args.border_mask else "") + ("_bv" if args.vessel_mask else "")
+                + ("_tissue" if args.tissue_mask else ""))
     out_dir = (Path(args.output_dir) if args.output_dir
                else chunks_dir.parent / chunks_dir.name.replace(".h5.chunks", f".cc3d_{mode_tag}.chunks"))
     out_dir.mkdir(parents=True, exist_ok=True)
@@ -153,6 +185,10 @@ def main():
     bboxes = _load_border_bboxes(args.border_glob, args.n_sections) if args.border_mask else None
     vessel_file = h5py.File(args.vessel_h5, "r") if args.vessel_mask else None
     vessel_ds = vessel_file[list(vessel_file)[0]] if vessel_file is not None else None
+    tissue_ds = None
+    if args.tissue_mask:
+        import zarr  # lazy import: keeps the no-mask path dependency-free
+        tissue_ds = zarr.open(args.tissue_zarr, mode="r")
 
     files = _chunk_files(chunks_dir)
     mine = files[args.shard_id::args.num_shards]
@@ -184,6 +220,7 @@ def main():
                 starts[m.group(1)], aff.shape[1:],
                 bboxes=bboxes, border_width=args.border_width,
                 vessel_ds=vessel_ds, vessel_ratio=tuple(args.vessel_ratio) if args.vessel_mask else None,
+                tissue_ds=tissue_ds,
             )
             aff[:, ~keep] = 0  # em_pipeline: zero affinity at masked voxels before segmentation
 
