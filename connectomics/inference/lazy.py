@@ -267,12 +267,21 @@ def _coerce_overlap(overlap: float | Sequence[float], spatial_dims: int) -> tupl
     return tuple(float(overlap) for _ in range(spatial_dims))
 
 
-def _snap_offsets(image_size: int, roi_size: int, stride: int) -> list[int]:
+def _snap_offsets(image_size: int, roi_size: int, stride: int, *, border_pad: int = 0) -> list[int]:
     if image_size <= roi_size:
         return [0]
-    offsets = list(range(0, image_size - roi_size + 1, max(1, stride)))
-    if not offsets or offsets[-1] != image_size - roi_size:
-        offsets.append(image_size - roi_size)
+    stride = max(1, stride)
+    # border_pad > 0 adds windows whose centers land on the volume-face voxels
+    # (offsets down to -border_pad and up past image_size-roi). Their reads are
+    # reflect-padded; their real-voxel half lands on the boundary slices with
+    # center (high) blending weight, so the face voxels get the same multi-window
+    # coverage as the interior instead of sitting at a single window's edge with
+    # ~0 weight (the volume-face >1 artifact). border_pad=0 = original grid.
+    lo = -int(border_pad)
+    hi = image_size - roi_size + int(border_pad)
+    offsets = list(range(lo, hi + 1, stride))
+    if not offsets or offsets[-1] != hi:
+        offsets.append(hi)
     return offsets
 
 
@@ -322,8 +331,13 @@ def _build_window_axis_offsets(
             overlap=tuple(float(v) for v in overlap),
         )
 
+    # Add boundary windows (centered on the volume faces) so face voxels get
+    # full multi-window coverage. border_pad = roi - stride = the overlap width.
     return [
-        _snap_offsets(int(image_size[axis]), int(roi_size[axis]), int(strides[axis]))
+        _snap_offsets(
+            int(image_size[axis]), int(roi_size[axis]), int(strides[axis]),
+            border_pad=max(0, int(roi_size[axis]) - int(strides[axis])),
+        )
         for axis in range(3)
     ]
 
@@ -1125,8 +1139,11 @@ def _lazy_sliding_window(
         )
         try:
             value_accumulator = None
+            # Weight accumulator matches the value/output dtype (fp16) — same map,
+            # same dtype keeps value_acc <= weight_acc so the normalized output is
+            # bounded by 1, and halves this accumulator's memory.
             weight_accumulator = torch.zeros(
-                (1, 1, *output_size), device=accumulation_device, dtype=torch.float32
+                (1, 1, *output_size), device=accumulation_device, dtype=output_dtype
             )
 
             num_patch_batches = math.ceil(len(patch_records) / sw_batch_size)

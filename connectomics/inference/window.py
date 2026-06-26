@@ -200,21 +200,30 @@ def build_sliding_importance_map(
     mode: str,
     device: torch.device | str,
     dtype: torch.dtype = torch.float32,
+    min_value: float = 1e-5,
 ) -> torch.Tensor:
     """Build per-window blending weights.
 
     ``distance_transform`` matches ``lib/banis``:
     ``distance_transform_cdt(np.pad(np.ones(roi), 1))[1:-1]``. For a solid
     rectangular window this is exactly ``min(distance_to_each_face) + 1``.
+
+    ``min_value`` floors every map entry to at least this value. It is a no-op
+    for distance_transform (edge weight is already 1), but for tapering maps
+    (e.g. Gaussian) it lifts the near-zero edge/tail weights off the floor so a
+    window that covers a voxel never contributes an effectively-zero weight —
+    which otherwise makes the normalization divide-by-~0 at thinly-covered
+    voxels.
     """
     normalized_mode = _normalize_blending_mode(mode)
     if normalized_mode not in _DISTANCE_TRANSFORM_BLEND_MODES:
-        return compute_importance_map(
+        imap = compute_importance_map(
             tuple(int(v) for v in roi_size),
             mode=normalized_mode,
             device=device,
             dtype=dtype,
         )
+        return imap.clamp_min(min_value) if min_value > 0 else imap
 
     spatial_shape = tuple(int(v) for v in roi_size)
     if not spatial_shape or any(v <= 0 for v in spatial_shape):
@@ -241,9 +250,15 @@ def build_sliding_accumulator_weight_maps(
 ) -> tuple[torch.Tensor, torch.Tensor]:
     """Build value and weight maps for weighted sliding-window accumulation.
 
-    The value map follows ``inference.model.output_dtype`` to control the large
-    channel accumulator. The weight map is always fp32 because it is single
-    channel and small, while fp16 can underflow bump-tail weights.
+    The weight map shares the SAME map (and dtype) as the value map. Using one
+    map matters for correctness, not just memory: with identical maps the
+    normalized output is ``Σ(pred·w) / Σ(w) ≤ max(pred) ≤ 1`` for any weights,
+    because numerator and denominator scale by the exact same ``w``. The earlier
+    fp16-value / fp32-weight split made the two diverge at the tiny window-edge
+    weights (where fp16 underflows differently than fp32), so at unoverlapped
+    volume-face slices ``value_acc`` could exceed ``weight_acc`` and the
+    normalized affinity blew past 1 (the z<3 boundary artifact). Sharing the
+    fp16 map also halves the weight-accumulator memory.
     """
     value_map = build_sliding_importance_map(
         roi_size,
@@ -251,23 +266,23 @@ def build_sliding_accumulator_weight_maps(
         device=device,
         dtype=value_dtype,
     )
-    if value_dtype == torch.float32:
-        weight_map = value_map
-    else:
-        weight_map = build_sliding_importance_map(
-            roi_size,
-            mode=mode,
-            device=device,
-            dtype=torch.float32,
-        )
+    weight_map = value_map
     return value_map, weight_map
 
 
 def normalize_weighted_accumulator(
     value_accumulator: torch.Tensor, weight_accumulator: torch.Tensor
 ) -> torch.Tensor:
-    """Divide value by weight in-place while preserving value dtype."""
-    clamp_value = 1.0e-6
+    """Divide value by weight in-place while preserving value dtype.
+
+    The clamp floor is 1e-4 (not 1e-6): at unoverlapped volume-face slices the
+    accumulated weight is the bare window-edge importance (~1e-7), which is below
+    fp16's subnormal floor. A 1e-6 floor still let ``value/weight`` divide-explode
+    there; 1e-4 drives those slices to ~0 (treated as background — a clean split)
+    instead of inflated garbage. Interior weights are O(1), so the higher floor
+    never touches them.
+    """
+    clamp_value = 1.0e-4
     if value_accumulator.dtype == torch.float16:
         clamp_value = max(clamp_value, float(torch.finfo(torch.float16).tiny))
     divisor = torch.clamp_min(weight_accumulator, clamp_value)
