@@ -40,7 +40,7 @@ default:
       sw_batch_size: 12
       overlap: 0.5
       blending: bump
-      padding_mode: replicate
+      padding_mode: reflect
       # BANIS-style boundary handling: snap last window to image_size-roi_size.
       snap_to_edge: true
     chunking:
