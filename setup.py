@@ -82,6 +82,14 @@ extras_require = {
     "mednext": [
         # Placeholder - install manually from /projects/weilab/weidf/lib/MedNeXt
     ],
+    # Mutex Watershed decoder (affinity -> instances, seedless).
+    # Backs the 'decode_mutex_watershed' decoder. affogato is a C++/xtensor
+    # package published on conda-forge only (the PyPI 'affogato' is an
+    # unrelated project). Install manually:
+    #     conda install -c conda-forge affogato
+    "mws": [
+        # Placeholder - install manually: conda install -c conda-forge affogato
+    ],
 }
 
 
