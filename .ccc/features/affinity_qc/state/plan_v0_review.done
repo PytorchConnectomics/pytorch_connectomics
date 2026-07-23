@@ -1,6 +1,0 @@
----
-stage: plan_v0_review
-artifact: artifacts/plan_v0_review.md
-status: complete
----
-Completed by CCC coordinator after artifact validation.
