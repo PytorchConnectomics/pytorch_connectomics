@@ -16,7 +16,7 @@ is an unrelated project): ``conda install -c conda-forge affogato``
 from __future__ import annotations
 
 import logging
-from typing import Any, List, Optional, Sequence, Tuple, Union
+from typing import Any, List, Optional, Sequence, Tuple
 
 import numpy as np
 
