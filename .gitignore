@@ -157,6 +157,7 @@ lib/
 
 # Development logs and documentation
 dev/
+.ccc/
 .codex
 .claude
 .agent/
