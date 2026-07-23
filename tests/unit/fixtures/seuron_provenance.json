@@ -1,0 +1,169 @@
+{
+  "description": "",
+  "owners": [],
+  "processing": [
+    {
+      "by": "ranl",
+      "date": "2026-07-19 06:57 UTC",
+      "method": {
+        "AFF_MIP": 0,
+        "AFF_PATH": "gs://zebrafinch_aff1/affinity_r1_float32/",
+        "AFF_RESOLUTION": [
+          9,
+          9,
+          20
+        ],
+        "AGG_THRESHOLD": "0.3",
+        "BBOX": [
+          0,
+          0,
+          0,
+          10664,
+          10912,
+          5700
+        ],
+        "CHUNKMAP_OUTPUT": "gs://princeton-eric-medial-entorhinal-cortex-scratch/region_graph/seg_20260719054914/agg/chunkmap",
+        "CHUNK_SIZE": [
+          512,
+          512,
+          256
+        ],
+        "IMAGE_PATH": "gs://j0126-nature-methods-data/GgwKmcKgrcoNxJccKuGIzRnQqfit9hnfK1ctZzNbnuU/rawdata_realigned/",
+        "MOUNT_PATH": "/workspace/seg/.cloudvolume/secrets",
+        "NAME": "seg_20260719054914",
+        "NG_PREFIX": "gs://princeton-eric-medial-entorhinal-cortex-scratch/make_cv_happy/",
+        "REDIS_DB": 1,
+        "REDIS_SERVER": "ranl-testing-bootstrap.us-east1-b.c.hi-mc-collab.internal",
+        "SCRATCH_PATH": "gs://princeton-eric-medial-entorhinal-cortex-scratch/region_graph/seg_20260719054914",
+        "SCRATCH_PREFIX": "gs://princeton-eric-medial-entorhinal-cortex-scratch/region_graph/",
+        "SEG_PATH": "gs://princeton-eric-medial-entorhinal-cortex-scratch/make_cv_happy/seg/seg_20260719054914",
+        "SEG_PREFIX": "gs://princeton-eric-medial-entorhinal-cortex-scratch/make_cv_happy/seg/",
+        "SKIP_SKELETON": true,
+        "STATSD_HOST": "ranl-testing-bootstrap.us-east1-b.c.hi-mc-collab.internal",
+        "STATSD_PORT": "9125",
+        "WORKER_IMAGE": "ranlu/abiss:main",
+        "WORKSPACE_PATH": "/workspace/seg",
+        "WS_DUST_THRESHOLD": "200",
+        "WS_HIGH_THRESHOLD": "0.99999",
+        "WS_LOW_THRESHOLD": "0.00001",
+        "WS_PATH": "gs://princeton-eric-medial-entorhinal-cortex-scratch/make_cv_happy/ws/seg_20260719054914",
+        "WS_PREFIX": "gs://princeton-eric-medial-entorhinal-cortex-scratch/make_cv_happy/ws/",
+        "WS_SIZE_THRESHOLD": "200"
+      }
+    },
+    {
+      "by": "",
+      "date": "2026-07-19 08:03 UTC",
+      "method": {
+        "axis": "z",
+        "background_color": 0,
+        "bounds": "Bbox([0, 0, 0],[10664, 10912, 5700], dtype=np.int32, unit='vx')",
+        "chunk_size": null,
+        "compress": null,
+        "delete_black_uploads": false,
+        "dest_path": null,
+        "encoding": null,
+        "encoding_effort": null,
+        "encoding_level": null,
+        "factor": null,
+        "fill_missing": false,
+        "mask": null,
+        "method": 6,
+        "mip": 0,
+        "num_mips": 2,
+        "preserve_chunk_size": true,
+        "shape": [
+          2048,
+          2048,
+          64
+        ],
+        "sparse": false,
+        "task": "DownsampleTask"
+      }
+    },
+    {
+      "by": "",
+      "date": "2026-07-19 08:09 UTC",
+      "method": {
+        "cdn_cache": false,
+        "closed_dataset_edges": true,
+        "compress": "gzip",
+        "dry_run": false,
+        "dust_global": false,
+        "dust_threshold": null,
+        "encoding": "precomputed",
+        "exclude_object_ids": [],
+        "fill_holes": 0,
+        "fill_missing": false,
+        "frag_path": "file:///share/seg_20260719054914_segmentation",
+        "layer_path": "gs://princeton-eric-medial-entorhinal-cortex-scratch/make_cv_happy/seg/seg_20260719054914",
+        "max_simplification_error": 40,
+        "mesh_dir": "mesh_mip_2_err_40",
+        "mip": 2,
+        "object_ids": null,
+        "shape": [
+          256,
+          256,
+          256
+        ],
+        "sharded": true,
+        "simplification": true,
+        "spatial_index": true,
+        "task": "MeshTask"
+      }
+    },
+    {
+      "by": "",
+      "date": "2026-07-19 08:19 UTC",
+      "method": {
+        "cloudpath": "gs://princeton-eric-medial-entorhinal-cortex-scratch/make_cv_happy/seg/seg_20260719054914",
+        "draco_compression_level": 7,
+        "frag_path": "http://ranl-testing-nfs-server.us-east1-b.c.hi-mc-collab.internal/share/seg_20260719054914_segmentation",
+        "mesh_dir": null,
+        "min_chunk_size": [
+          256,
+          256,
+          256
+        ],
+        "minishard_bits": 3,
+        "mip": 2,
+        "num_lod": 8,
+        "preshift_bits": 0,
+        "shard_bits": 12,
+        "task": "MultiResShardedMeshMergeTask",
+        "vertex_quantization_bits": 16
+      }
+    },
+    {
+      "by": "",
+      "date": "2026-07-19 08:35 UTC",
+      "method": {
+        "axis": "z",
+        "background_color": 0,
+        "bounds": "Bbox([0, 0, 0],[10664, 10912, 5700], dtype=np.int32, unit='vx')",
+        "chunk_size": null,
+        "compress": null,
+        "delete_black_uploads": false,
+        "dest_path": null,
+        "encoding": null,
+        "encoding_effort": null,
+        "encoding_level": null,
+        "factor": null,
+        "fill_missing": false,
+        "mask": null,
+        "method": 6,
+        "mip": 0,
+        "num_mips": 2,
+        "preserve_chunk_size": true,
+        "shape": [
+          2048,
+          2048,
+          64
+        ],
+        "sparse": false,
+        "task": "DownsampleTask"
+      }
+    }
+  ],
+  "sources": []
+}
