@@ -295,6 +295,7 @@ def test_resume_rejects_each_manifest_compatibility_field(tmp_path, field, repla
 
 
 def test_affinity_preflight_uses_physical_resolution_and_full_bounds(monkeypatch, tmp_path):
+    pytest.importorskip("cloudvolume")  # optional dep; _preflight_affinity opens a CloudVolume
     from scripts import run_seuron_provenance as cli
 
     affinity = tmp_path / "affinity"
@@ -391,6 +392,7 @@ def test_replay_execute_writes_copy_uri_transfer_commands(monkeypatch, tmp_path)
 
 
 def test_arbitrary_secrets_dir_gets_canonical_cloudvolume_view(monkeypatch, tmp_path):
+    pytest.importorskip("cloudvolume")  # optional dep; the canonical view opens a CloudVolume
     from scripts import run_seuron_provenance as cli
 
     affinity = tmp_path / "affinity"
