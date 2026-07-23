@@ -183,10 +183,12 @@ test:
       label: data.zarr/seg
       resolution: [9, 9, 20]
   decoding:
-    # Optional per-volume affinity mask: zeros out affinity channels at
-    # masked-out voxels before decoding. Top-level DecodingConfig field —
-    # not a decoder-step kwarg.
-    affinity_mask_path: outputs/nisb_base_banis/20260427_095218/test_step=00200000/affinity_mask.h5
+    # Optional per-volume affinity mask: zeros affinity channels at border/
+    # background voxels before decoding (top-level DecodingConfig field, not a
+    # decoder-step kwarg). OFF by default -- it is worth only ~0.5 NERL point and
+    # is specific to one volume (its spec bakes an absolute source-image path).
+    # Point this at a build_affinity_mask output (border=32px / bg<=30) to enable.
+    affinity_mask_path: ""
 
 
 # ============================================================================
