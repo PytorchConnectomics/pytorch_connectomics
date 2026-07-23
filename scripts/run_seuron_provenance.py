@@ -279,6 +279,28 @@ def _top_mip(chunk_grid: Sequence[int]) -> int:
     return mip
 
 
+def _output_chunk_size(chunk_size_xyz: Sequence[int] | None, fallback: Sequence[int]) -> list[int]:
+    """Storage chunk size for the WS/SEG/size-map output layers.
+
+    ABISS uploads whole ``CHUNK_SIZE`` blocks back into these layers in parallel, so the
+    layer's storage chunk must divide ``CHUNK_SIZE`` on every axis or CloudVolume would
+    reject the non-aligned writes (see ``_validate_abiss_upload_alignment``). The affinity
+    layer's own chunk size (which must divide the 1008^3 source blocks, e.g. [144,144,72])
+    does not generally divide ``CHUNK_SIZE`` [512,512,256], so it cannot be reused here.
+    We take each ``CHUNK_SIZE`` axis halved down to a reasonable tile (<=256); halving an
+    even value preserves divisibility.
+    """
+    if not chunk_size_xyz:
+        return [int(v) for v in fallback]
+    out: list[int] = []
+    for value in chunk_size_xyz:
+        tile = int(value)
+        while tile > 256 and tile % 2 == 0:
+            tile //= 2
+        out.append(tile)
+    return out
+
+
 def prepare_execution(
     resolved: ResolvedReplay,
     affinity_metadata: AffinityMetadata | None = None,
@@ -300,7 +322,9 @@ def prepare_execution(
         output_layer_spec=(
             OutputLayerSpec(
                 resolution_xyz=affinity_metadata.resolution_xyz,
-                chunk_size_xyz=affinity_metadata.chunk_size_xyz,
+                chunk_size_xyz=_output_chunk_size(
+                    resolved.param.get("CHUNK_SIZE"), affinity_metadata.chunk_size_xyz
+                ),
             )
             if affinity_metadata is not None
             else None
