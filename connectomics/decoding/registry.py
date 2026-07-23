@@ -102,6 +102,7 @@ def register_builtin_decoders() -> None:
     from .decoders.branch_split import branch_split
     from .decoders.combine import combine_split
     from .decoders.longrange_guided_split import longrange_guided_split
+    from .decoders.mutex_watershed import decode_mutex_watershed
     from .decoders.segmentation import (
         decode_affinity_cc,
         decode_distance_watershed,
@@ -126,6 +127,7 @@ def register_builtin_decoders() -> None:
     register_decoder("decode_affinity_cc", decode_affinity_cc, overwrite=True)
     register_decoder("decode_distance_watershed", decode_distance_watershed, overwrite=True)
     register_decoder("decode_waterz", decode_waterz, overwrite=True)
+    register_decoder("decode_mutex_watershed", decode_mutex_watershed, overwrite=True)
     register_decoder("branch_merge", branch_merge, overwrite=True)
     register_decoder("branch_split", branch_split, overwrite=True)
     register_decoder("longrange_guided_split", longrange_guided_split, overwrite=True)
