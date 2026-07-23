@@ -13,7 +13,6 @@ import torch
 import torch.nn.functional as F
 
 from .window import compute_scan_interval as _get_scan_interval  # in-house
-from .window import dense_patch_slices
 
 try:
     from tqdm.auto import tqdm
@@ -292,20 +291,13 @@ def _build_window_slices(
     *,
     snap_to_edge: bool,
 ) -> list[tuple[slice, slice, slice]]:
-    if not snap_to_edge:
-        scan_interval = _get_scan_interval(
-            tuple(int(v) for v in image_size),
-            tuple(int(v) for v in roi_size),
-            num_spatial_dims=3,
-            overlap=tuple(float(v) for v in overlap),
-        )
-        return dense_patch_slices(image_size, roi_size, scan_interval, return_slice=True)
-
-    per_axis_offsets = []
-    for axis in range(3):
-        stride = max(1, int(int(roi_size[axis]) * (1.0 - float(overlap[axis]))))
-        per_axis_offsets.append(_snap_offsets(int(image_size[axis]), int(roi_size[axis]), stride))
-
+    # Unfiltered form of the grid used by _build_intersecting_window_slices:
+    # both derive from _build_window_axis_offsets so the full-volume and region
+    # window grids share one source of truth (incl. the boundary-face windows)
+    # and can never diverge.
+    per_axis_offsets = _build_window_axis_offsets(
+        image_size, roi_size, overlap, snap_to_edge=snap_to_edge
+    )
     return [
         tuple(slice(int(start[axis]), int(start[axis]) + int(roi_size[axis])) for axis in range(3))
         for start in itertools.product(*per_axis_offsets)
