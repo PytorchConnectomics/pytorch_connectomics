@@ -252,12 +252,16 @@ def decode_abiss(
         write_hdf5(str(input_h5), pred, dataset=input_dataset)
         np.save(input_npy, pred)
 
+        # Forward-slash (as_posix) paths so placeholders stay valid when a
+        # command embeds them in a Python `-c` string literal (a backslash
+        # Windows path like C:\x becomes an invalid \x escape). Forward slashes
+        # are accepted by Python and Windows tools alike; no-op on POSIX.
         mapping: Dict[str, str] = {
-            "workspace": str(workspace_path),
-            "input_h5": str(input_h5),
-            "input_npy": str(input_npy),
-            "output_h5": str(output_h5),
-            "output_npy": str(output_npy),
+            "workspace": workspace_path.as_posix(),
+            "input_h5": input_h5.as_posix(),
+            "input_npy": input_npy.as_posix(),
+            "output_h5": output_h5.as_posix(),
+            "output_npy": output_npy.as_posix(),
             "input_dataset": input_dataset,
             "output_dataset": output_dataset,
             "python_exe": sys.executable,
