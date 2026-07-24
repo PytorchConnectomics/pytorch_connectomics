@@ -39,7 +39,7 @@ import numpy as np
 # libhdf5's built-in file lock returns EAGAIN under contention (instead of
 # blocking), which trips concurrent worker writes even when they target
 # disjoint storage chunks. Disable it here; we serialize h5 writes ourselves
-# via an explicit fcntl.flock on a sidecar lock file (see _write_chunk).
+# via a cross-platform filelock on a sidecar lock file (see _write_chunk).
 os.environ.setdefault("HDF5_USE_FILE_LOCKING", "FALSE")
 
 from .chunk_grid import ChunkRef, build_chunk_grid
@@ -347,25 +347,18 @@ class ChunkedProcessor:
         path = self.config.output_path
         slc = chunk.slices
         if path.endswith(".h5") or path.endswith(".hdf5"):
-            import fcntl
-
             import h5py
+            from filelock import FileLock
 
-            # External lock: only one worker may open the file in 'a' mode at a
-            # time. With output storage chunks aligned to processor chunks the
-            # writes themselves go to disjoint storage, but libhdf5 metadata
-            # (B-tree, chunk index) is not multi-process safe regardless.
-            lock_path = path + ".lock"
-            lock_fd = os.open(lock_path, os.O_CREAT | os.O_RDWR, 0o644)
-            try:
-                fcntl.flock(lock_fd, fcntl.LOCK_EX)
+            # Cross-platform external lock: only one worker may open the file in
+            # 'a' mode at a time. With output storage chunks aligned to processor
+            # chunks the writes themselves go to disjoint storage, but libhdf5
+            # metadata (B-tree, chunk index) is not multi-process safe regardless.
+            with FileLock(path + ".lock"):
                 with h5py.File(path, "a") as f:
                     ds = f[self.config.output_dataset]
                     ds[slc] = arr
                     f.flush()
-            finally:
-                fcntl.flock(lock_fd, fcntl.LOCK_UN)
-                os.close(lock_fd)
             return
         if ".zarr" in path:
             # Zarr stores each chunk as its own file; with output_chunks

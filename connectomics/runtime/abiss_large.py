@@ -20,7 +20,8 @@ import sys
 from dataclasses import dataclass, replace
 from pathlib import Path
 from typing import Any, Dict, Mapping, Sequence
-from urllib.parse import unquote, urlparse
+from urllib.parse import urlparse
+from urllib.request import url2pathname
 
 import h5py
 import numpy as np
@@ -167,7 +168,10 @@ def _normalize_cloudpath(value: str | Path) -> str:
     s = str(value)
     if "://" in s:
         return s
-    return "file://" + str(Path(s).resolve())
+    # Path.as_uri() emits a well-formed file URI on every platform
+    # (file:///home/x on POSIX, file:///C:/x on Windows); manual "file://" +
+    # str(path) produced a malformed file://C:\x on Windows.
+    return Path(s).resolve().as_uri()
 
 
 def _is_local_cloudpath(cloudpath: str) -> bool:
@@ -177,7 +181,10 @@ def _is_local_cloudpath(cloudpath: str) -> bool:
 def _cloudpath_to_local_path(cloudpath: str) -> Path:
     if cloudpath.startswith("file://"):
         parsed = urlparse(cloudpath)
-        return Path(unquote(parsed.path))
+        # url2pathname is platform-aware: on Windows it turns "/C:/x" into
+        # "C:\\x" (plain Path("/C:/x") yields the invalid "\\C:\\x"); on POSIX
+        # it is an unquoting identity. Handles percent-decoding too.
+        return Path(url2pathname(parsed.path))
     return Path(cloudpath)
 
 

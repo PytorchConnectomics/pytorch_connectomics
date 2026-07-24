@@ -31,6 +31,7 @@ requirements = [
     "tqdm>=4.58.0",
     "einops>=0.3.0",
     "psutil>=5.8.0",
+    "filelock>=3.0.0",  # cross-platform lock for concurrent chunked HDF5 writes
     # Post-processing (required for segmentation)
     "connected-components-3d>=3.0.0",  # imports as 'cc3d'
     "fastremap>=1.10.0",  # Fast remapping for segmentation labels
