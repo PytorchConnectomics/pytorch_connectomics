@@ -12,7 +12,7 @@ roadmap (`banis+_fill.md` / `banis+_merge.md` / `banis+_split.md`).
 | YAML | <div style="width:40px">Deep learning</div> |  Decoding | Error&nbsp;correction | NERL |
 |---|---|---|---|---|
 | `base_banis.yaml` | <div style="width:40px">[BANIS](https://github.com/jasonkena/banis) reproduction (MedNeXt-L/k3, 6-ch affinity, 50k steps) </div> | cc3d| N/A | 43.0% |
-| `base_banis+.yaml` | <div style="width:40px">+ML ops (PerChannelBCE<br/> + EMA, erosion=2, 200k steps) </div>|  cc3d | N/A |60.1% |
+| `base_banis+.yaml` | <div style="width:40px">+ML ops (PerChannelBCE<br/> + EMA, erosion=2, 200k steps) </div>|  cc3d | N/A | [60.1%](https://huggingface.co/pytc/tutorial/tree/main/neuron_nisb) |
 
 ## Reproduce `base_banis+` (60.1% NERL)
 
