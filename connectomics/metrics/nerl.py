@@ -38,6 +38,9 @@ class NerlScoreResult:
     num_skeletons: int
     per_gt_erl: np.ndarray
     graph: Any
+    voi_split: float = float("nan")
+    voi_merge: float = float("nan")
+    voi_total: float = float("nan")
 
 
 def _materialize_for_parallel(segment, mask, num_workers):
@@ -334,6 +337,59 @@ def extract_nerl_score_outputs(score: Any) -> tuple[float, float, int, np.ndarra
     return float(pred_erl), float(gt_erl), num_skeletons, per_gt_erl
 
 
+def skeleton_voi(node_pred_ids: Any, node_gt_ids: Any) -> tuple[float, float, float]:
+    """Skeleton-based Variation of Information, matching ``funlib.evaluate.rand_voi``.
+
+    Faithful numpy port of ``lib/funlib.evaluate`` (``impl/rand_voi.hpp``), which
+    is what BANIS uses: build the joint label histogram over skeleton nodes with a
+    non-zero GT label — funlib counts a node only where ``labels_a`` (the GT) is
+    non-zero, so GT id 0 is ignored while a predicted background id 0 is kept —
+    then, with base-2 logs,
+
+        voi_split = H(gt, pred) - H(gt)   = H(pred | gt)   # over-segmentation
+        voi_merge = H(gt, pred) - H(pred) = H(gt | pred)   # under-segmentation
+
+    This mirrors BANIS's ``rand_voi(gt_ids, pred_ids)`` sampled at skeleton nodes
+    (funlib's argument order is ``rand_voi(labels_a=truth, labels_b=test)``).
+    Validated against funlib's own test vectors.
+
+    Parameters
+    ----------
+    node_pred_ids : predicted segment id per node (em_erl ``node_segment_lut``).
+    node_gt_ids   : ground-truth skeleton label per node
+                    (``ERLGraph.skeleton_id[node_skeleton_index]``).
+
+    Returns ``(voi_split, voi_merge, voi_total)``.
+    """
+    gt = np.asarray(node_gt_ids).ravel()
+    pred = np.asarray(node_pred_ids).ravel()
+    if gt.shape != pred.shape:
+        raise ValueError(
+            f"node_gt_ids {gt.shape} and node_pred_ids {pred.shape} must have equal length"
+        )
+    keep = gt != 0  # funlib rand_voi counts only where labels_a (GT) != 0
+    gt = gt[keep].astype(np.uint64, copy=False)
+    pred = pred[keep].astype(np.uint64, copy=False)
+    total = gt.size
+    if total == 0:
+        return 0.0, 0.0, 0.0
+
+    def _entropy(counts: np.ndarray) -> float:
+        p = counts.astype(np.float64) / float(total)
+        return float(-np.sum(p * np.log2(p)))
+
+    _, gt_counts = np.unique(gt, return_counts=True)
+    _, pred_counts = np.unique(pred, return_counts=True)
+    _, joint_counts = np.unique(np.stack([gt, pred], axis=1), axis=0, return_counts=True)
+
+    h_gt = _entropy(gt_counts)
+    h_pred = _entropy(pred_counts)
+    h_joint = _entropy(joint_counts)
+    voi_split = h_joint - h_gt
+    voi_merge = h_joint - h_pred
+    return float(voi_split), float(voi_merge), float(voi_split + voi_merge)
+
+
 def compute_nerl_score_details(
     segmentation: np.ndarray,
     skeleton_value: Any,
@@ -381,6 +437,10 @@ def compute_nerl_score_details(
     score.compute_erl()
     pred_erl, gt_erl, num_skeletons, per_gt_erl = extract_nerl_score_outputs(score)
     nerl = pred_erl / gt_erl if gt_erl > 0 else float("nan")
+    # Skeleton-based VOI reuses the per-node predicted-segment LUT just built for
+    # ERL, against each node's GT skeleton label (see skeleton_voi).
+    node_gt_ids = np.asarray(erl_graph.skeleton_id)[np.asarray(erl_graph.node_skeleton_index)]
+    voi_split, voi_merge, voi_total = skeleton_voi(node_segment_lut, node_gt_ids)
     return NerlScoreResult(
         nerl=float(nerl),
         pred_erl=float(pred_erl),
@@ -388,6 +448,9 @@ def compute_nerl_score_details(
         num_skeletons=num_skeletons,
         per_gt_erl=per_gt_erl,
         graph=erl_graph,
+        voi_split=voi_split,
+        voi_merge=voi_merge,
+        voi_total=voi_total,
     )
 
 
@@ -427,4 +490,5 @@ __all__ = [
     "networkx_skeleton_to_erl_graph",
     "prepare_nerl_segmentation",
     "reorder_coordinate_axes",
+    "skeleton_voi",
 ]
