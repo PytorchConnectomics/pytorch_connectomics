@@ -55,12 +55,18 @@ train:
         t_max: 100000
   data:
     train:
-      # All 33 cubes. im_*.h5 and gt_*.h5 share identical z/y/x suffixes, so the
-      # sorted globs pair index-by-index.
+      # All 33 cubes. im_*[0-9].h5 and gt_*[0-9].h5 share identical z/y/x
+      # suffixes, so the sorted globs pair index-by-index.
+      #
+      # The trailing [0-9] is load-bearing: SDT precompute later wrote
+      # skeleton-cache siblings (gt_*_skeleton.h5) into seg_gt_4-32-32, so a
+      # bare gt_*.h5 now matches 66 files and would mis-pair 66 labels against
+      # 33 images (lesson L11 -> divergence). Skeleton caches end in 'n', so
+      # [0-9] keeps only the 33 coordinate-named GT cubes.
       path: ""
       resolution: [10, 10, 10]
-      image: /projects/weilab/dataset/zebrafinch/train/im_raw_4-32-32/im_*.h5
-      label: /projects/weilab/dataset/zebrafinch/train/seg_gt_4-32-32/gt_*.h5
+      image: /projects/weilab/dataset/zebrafinch/train/im_raw_4-32-32/im_*[0-9].h5
+      label: /projects/weilab/dataset/zebrafinch/train/seg_gt_4-32-32/gt_*[0-9].h5
     val:
       # 3-cube subset (also in train); keeps EMA-validated checkpoint selection
       # alive without holding any cube out of training.

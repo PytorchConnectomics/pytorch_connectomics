@@ -1,0 +1,23 @@
+_base_:
+  - base_banis+_zebrafinch_zarr_b8.yaml
+
+experiment_name: nisb_base_banis_v3_erosion2_zf_tta
+description: >-
+  z2_y5_x5 test-time-augmentation probe for the pretrain banis+ 200k model.
+  Flip-only TTA (8 flip combinations over z/y/x; no rotation to bound cost) with
+  configurable aggregation. ensemble_mode is overridden on the CLI:
+    - "min"  : conservative — an affinity edge survives only if EVERY flip agrees
+               it is connected. Targets the unreliable-z-link false merges (a
+               wrong z-link high in the original but low under z-flip is killed).
+               Expected to lower false merges but worsen coverage (more splits).
+    - "mean" : standard variance-reduction TTA. Helps coverage, does not fix a
+               merge the model predicts consistently across flips.
+  Per-channel form (e.g. min on the r1 affinity, mean on r10) is also possible
+  via inference.test_time_augmentation.ensemble_mode = [["0:3","min"],["3:","mean"]].
+
+inference:
+  test_time_augmentation:
+    enabled: true
+    flip_axes: "all"        # 8 flip subsets of (z,y,x)
+    rotate90_k: [0]         # no quarter-turns (cost bound = 8x base inference)
+    ensemble_mode: "mean"   # overridden per-run on the CLI

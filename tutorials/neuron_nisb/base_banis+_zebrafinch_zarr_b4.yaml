@@ -1,0 +1,18 @@
+_base_:
+  - base_banis+_zebrafinch_zarr.yaml
+
+# Whole-volume zarr inference at a reduced sliding-window batch so it fits the
+# 24 GB cards (a10) and other small GPUs available to the weilab account. The
+# base config's sw_batch_size=12 was tuned for 49 GB L40S (~42 GB peak) and OOMs
+# on 22 GB.
+#
+# This MUST be set in YAML, not via `inference.window.sw_batch_size=N` on the CLI:
+# the lazy/zarr inference path reads the internal `inference.sliding_window` alias,
+# which is materialized from `inference.window` by sync_inference_runtime_aliases
+# DURING resolve_default_profiles. A CLI override is re-applied only to `window`
+# AFTER that sync, so `sliding_window` keeps the default 12 and the run OOMs.
+# Setting it in YAML means `window` already holds 4 when the sync copies it across.
+default:
+  inference:
+    window:
+      sw_batch_size: 4

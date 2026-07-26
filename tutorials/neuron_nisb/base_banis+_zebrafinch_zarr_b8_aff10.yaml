@@ -1,0 +1,14 @@
+_base_:
+  - base_banis+_zebrafinch_zarr_b8.yaml
+
+experiment_name: nisb_base_banis_v3_erosion2_zf_aff10
+description: >-
+  aff_r10 (long-range affinity) whole-volume inference. SAME banis+ checkpoint,
+  zarr input, reflect padding, and 1008^3 chunking as the r1 run — only the saved
+  channels change: select_channel [3,4,5] (r10) instead of [0,1,2] (r1). Output
+  lands in a sibling raw_x1_ch3-4-5_... chunks dir.
+
+default:
+  inference:
+    model:
+      select_channel: [3, 4, 5]

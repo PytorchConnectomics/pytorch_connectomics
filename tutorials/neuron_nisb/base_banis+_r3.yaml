@@ -1,0 +1,53 @@
+_base_:
+  - base_banis+.yaml
+
+experiment_name: nisb_base_banis_plus_r3
+description: >-
+  Variant b.1 of the multi-scale-affinity / no-erosion line. Replaces banis+'s
+  destructive label erosion=2 (which carves membranes and erases thin neurites)
+  with an explicit multi-scale affinity bank on the LOSSLESS, hole-filled GT:
+  short-range r1 (exact connectivity, thin processes preserved), mid-range r3
+  (the explicit, non-destructive replacement for what erosion=2 implicitly
+  encoded as a ~few-voxel boundary scale), and long-range r10 (agglomeration
+  context). Global label erosion=0; trains on seg_filled (enclosed GT voids
+  filled). 9-channel single affinity head, otherwise the proven banis+ recipe
+  (MedNeXt-L/k3, PerChannelBCE + EMA, 200k cosine). Decode keeps cc3d on the r1
+  channels [0,1,2] for now; the r3/r10 channels are meant to feed an
+  agglomeration decode (waterz) in a follow-up.
+
+save_path: outputs/nisb_base_banis_plus_r3
+
+default:
+  model:
+    # r1 (3) + r3 (3) + r10 (3) = 9 affinity channels.
+    out_channels: 9
+  data:
+    label_transform:
+      # Global erosion OFF: no destruction of thin neurites; separation scale is
+      # carried explicitly by the r3/r10 channels instead of by eroding r1.
+      erosion: 0
+      targets:
+        - name: affinity
+          kwargs:
+            offsets:
+              - "1-0-0"
+              - "0-1-0"
+              - "0-0-1"
+              - "3-0-0"
+              - "0-3-0"
+              - "0-0-3"
+              - "10-0-0"
+              - "0-10-0"
+              - "0-0-10"
+            affinity_mode: banis
+
+# Train/val label paths live in the `train:` stage block in the base config, so
+# the seg_filled override must go here (a `default.data.train` override is
+# clobbered by the stage-specific value during stage resolution). Hole-filled
+# GT: enclosed voids inside neurons filled so the target is not holey.
+train:
+  data:
+    train:
+      label: seed*/data.zarr/seg_filled
+    val:
+      label: seed100/data.zarr/seg_filled
