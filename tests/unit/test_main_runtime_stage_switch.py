@@ -9,6 +9,7 @@ from connectomics.config.schema.evaluation import EvaluationConfig
 from connectomics.config.schema.stages import TuneConfig
 from connectomics.data.io import write_hdf5
 from connectomics.runtime.cache_resolver import (
+    create_decode_only_datamodule,
     has_cached_predictions_in_output_dir,
 )
 from connectomics.runtime.cache_resolver import (
@@ -86,6 +87,24 @@ def test_is_test_evaluation_enabled_supports_mapping_or_dataclass_config():
 
     cfg.evaluation = {"enabled": True}
     assert _is_test_evaluation_enabled(cfg) is True
+
+
+def test_decode_only_datamodule_propagates_dense_test_label(tmp_path):
+    label = np.arange(24, dtype=np.uint32).reshape(2, 3, 4)
+    label_path = tmp_path / "label.h5"
+    write_hdf5(str(label_path), label, dataset="main")
+    cfg = Config()
+    cfg.data.test.label = str(label_path)
+
+    datamodule = create_decode_only_datamodule(
+        cfg,
+        str(tmp_path / "raw_affinity.h5"),
+    )
+    batch = next(iter(datamodule.test_dataloader()))
+
+    assert batch["filename"] == ["raw_affinity"]
+    assert tuple(batch["label"].shape) == (1, 2, 3, 4)
+    np.testing.assert_array_equal(batch["label"][0].numpy(), label)
 
     cfg.evaluation = EvaluationConfig(enabled=False)
     assert _is_test_evaluation_enabled(cfg) is False

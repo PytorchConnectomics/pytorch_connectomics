@@ -123,10 +123,7 @@ def _validate_input_ref(ref: str, kept_names: set[str], disabled_names: set[str]
 
 def _toposort(nodes: Sequence[DecodeNode]) -> List[DecodeNode]:
     by_name = {node.name: node for node in nodes}
-    deps = {
-        node.name: [ref for ref in node.inputs if ref in by_name]
-        for node in nodes
-    }
+    deps = {node.name: [ref for ref in node.inputs if ref in by_name] for node in nodes}
     state: dict[str, str] = {}
     ordered: List[DecodeNode] = []
 
@@ -146,6 +143,20 @@ def _toposort(nodes: Sequence[DecodeNode]) -> List[DecodeNode]:
     for node in nodes:
         visit(node.name, [])
     return ordered
+
+
+def _output_ancestors(nodes: Sequence[DecodeNode], output: str) -> set[str]:
+    """Return the output node and every enabled node needed to compute it."""
+    by_name = {node.name: node for node in nodes}
+    required = {output}
+    pending = [output]
+    while pending:
+        name = pending.pop()
+        for ref in by_name[name].inputs:
+            if ref in by_name and ref not in required:
+                required.add(ref)
+                pending.append(ref)
+    return required
 
 
 def validate_graph(graph: Any) -> DecodeGraph:
@@ -187,7 +198,10 @@ def validate_graph(graph: Any) -> DecodeGraph:
         for ref in node.inputs:
             _validate_input_ref(ref, kept_names, disabled_names)
 
-    return DecodeGraph(nodes=_toposort(kept), output=normalized.output)
+    ordered = _toposort(kept)
+    required = _output_ancestors(kept, normalized.output)
+    executable = [node for node in ordered if node.name in required]
+    return DecodeGraph(nodes=executable, output=normalized.output)
 
 
 def _resolve_raw_ref(ref: str, raw: np.ndarray) -> np.ndarray:
@@ -227,9 +241,7 @@ def _resolve_decoder_kwargs(node: DecodeNode, inputs: Sequence[np.ndarray]) -> d
             raise ValueError(f"Cannot resolve {node.op}.{key}: node has no inputs.")
         first = inputs[0]
         if first.ndim < 1:
-            raise ValueError(
-                f"Cannot resolve {node.op}.{key}: first input has no channel axis."
-            )
+            raise ValueError(f"Cannot resolve {node.op}.{key}: first input has no channel axis.")
         kwargs[key] = resolve_channel_indices(
             value,
             num_channels=int(first.shape[0]),
@@ -276,8 +288,7 @@ def run_decode_graph(
             except KeyError as exc:
                 available = ", ".join(registry.available())
                 raise ValueError(
-                    f"Unknown decode function '{node.op}'. "
-                    f"Available functions: [{available}]."
+                    f"Unknown decode function '{node.op}'. " f"Available functions: [{available}]."
                 ) from exc
 
             try:

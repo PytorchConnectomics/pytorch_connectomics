@@ -23,6 +23,21 @@ def as_graph_op(fn: DecodeFunction) -> GraphOp:
     return _wrapped
 
 
+def as_binary_graph_op(fn) -> GraphOp:
+    """Wrap a two-array decoder so it satisfies the graph-op call contract."""
+
+    @wraps(fn)
+    def _wrapped(inputs, **kwargs):
+        if len(inputs) != 2:
+            raise ValueError(
+                f"Binary decoder '{getattr(fn, '__name__', type(fn).__name__)}' "
+                f"expects exactly two inputs, got {len(inputs)}."
+            )
+        return fn(inputs[0], inputs[1], **kwargs)
+
+    return _wrapped
+
+
 class DecoderRegistry:
     """Name -> decoder function registry."""
 
@@ -98,8 +113,7 @@ def register_builtin_decoders() -> None:
         return
 
     from .decoders.abiss import decode_abiss
-    from .decoders.branch_merge import branch_merge
-    from .decoders.branch_split import branch_split
+    from .decoders.branch import branch_link, branch_merge, branch_split, seg_2d
     from .decoders.combine import combine_split
     from .decoders.longrange_guided_split import longrange_guided_split
     from .decoders.segmentation import (
@@ -110,7 +124,7 @@ def register_builtin_decoders() -> None:
     from .decoders.segmentation_grow import segmentation_grow
     from .decoders.synapse import polarity2instance
     from .decoders.transforms import channel_gate
-    from .decoders.waterz import decode_waterz
+    from .decoders.waterz import decode_waterz, naive_waterz
 
     register_decoder("channel_gate", channel_gate, overwrite=True)
     register_decoder(
@@ -126,8 +140,23 @@ def register_builtin_decoders() -> None:
     register_decoder("decode_affinity_cc", decode_affinity_cc, overwrite=True)
     register_decoder("decode_distance_watershed", decode_distance_watershed, overwrite=True)
     register_decoder("decode_waterz", decode_waterz, overwrite=True)
-    register_decoder("branch_merge", branch_merge, overwrite=True)
-    register_decoder("branch_split", branch_split, overwrite=True)
+    register_decoder("naive_waterz", naive_waterz, overwrite=True)
+    register_decoder("seg_2d", seg_2d, overwrite=True)
+    register_graph_op(
+        "branch_link",
+        as_binary_graph_op(branch_link),
+        overwrite=True,
+    )
+    register_graph_op(
+        "branch_split",
+        as_binary_graph_op(branch_split),
+        overwrite=True,
+    )
+    register_graph_op(
+        "branch_merge",
+        as_binary_graph_op(branch_merge),
+        overwrite=True,
+    )
     register_decoder("longrange_guided_split", longrange_guided_split, overwrite=True)
     register_decoder("segmentation_grow", segmentation_grow, overwrite=True)
     register_decoder("decode_abiss", decode_abiss, overwrite=True)

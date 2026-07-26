@@ -25,35 +25,6 @@ decoding_templates:
           dust_merge_size: 100
           dust_merge_affinity: 0.0
           dust_remove_size: 50
-  decoding_branch_merge:
-    steps:
-      - name: branch_merge
-        kwargs:
-          iou_threshold: 0.5
-          singleton_size_ratio: 0.5
-          best_buddy: true
-          one_sided_threshold: 0.8
-          one_sided_min_size: 100
-          affinity_threshold: 0.0
-          # Set true when this follows an affinity decoder step and should
-          # receive the original prediction tensor as `affinities`.
-          use_original_input: false
-  decoding_branch_split:
-    steps:
-      - name: branch_split
-        kwargs:
-          seed_affinity_threshold: 0.75
-          seed_backend: auto
-          min_parent_size: 10000
-          min_seed_size: 1000
-          min_seed_fraction: 0.001
-          max_seed_fraction: 0.75
-          max_splits_per_parent: 8
-          preserve_largest: true
-          assignment: nearest
-          # Set true when this follows an affinity decoder step and should
-          # build split seeds from the original prediction tensor.
-          use_original_input: false
   decoding_longrange_guided_split:
     steps:
       - name: longrange_guided_split

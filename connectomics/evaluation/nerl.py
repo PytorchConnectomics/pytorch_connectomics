@@ -12,6 +12,7 @@ import numpy as np
 
 from ..config.pipeline.dict_utils import cfg_get
 from ..metrics.nerl import NerlGraphOptions, compute_nerl_score_details
+from ..metrics.oracle import oracle_merge_segmentation
 from .context import EvaluationContext
 
 logger = logging.getLogger(__name__)
@@ -95,6 +96,7 @@ def compute_nerl_metrics(
     volume_prefix: str,
     metrics_dict: Dict[str, Any],
     volume_name: str | None,
+    dense_labels: Any = None,
 ) -> None:
     evaluation_cfg = context.evaluation_cfg
     test_data_cfg = getattr(getattr(context.cfg, "data", None), "test", None)
@@ -114,38 +116,87 @@ def compute_nerl_metrics(
         getattr(test_data_cfg, "skeleton_mask", None),
         volume_name,
     )
-    result = compute_nerl_score_details(
+    score_kwargs = {
+        "skeleton_mask_value": mask_value,
+        "resolution": _nerl_resolution(context, evaluation_cfg),
+        "merge_threshold": int(cfg_value(evaluation_cfg, "nerl_merge_threshold", 1)),
+        "chunk_num": int(cfg_value(evaluation_cfg, "nerl_chunk_num", 1)),
+        "num_workers": _resolve_num_workers(int(cfg_value(evaluation_cfg, "nerl_num_workers", -1))),
+        "graph_options": _nerl_graph_options(evaluation_cfg),
+    }
+    if context.metric_requested("nerl"):
+        result = compute_nerl_score_details(
+            decoded_predictions,
+            graph_value,
+            **score_kwargs,
+        )
+
+        logger.info("%sNERL: %.6f", volume_prefix, result.nerl)
+        logger.info("%s  Pred ERL: %.6f", volume_prefix, result.pred_erl)
+        logger.info("%s  GT ERL: %.6f", volume_prefix, result.gt_erl)
+        logger.info("%s  # Skeletons: %d", volume_prefix, result.num_skeletons)
+
+        metrics_dict["nerl"] = result.nerl
+        metrics_dict["nerl_pred_erl"] = result.pred_erl
+        metrics_dict["nerl_gt_erl"] = result.gt_erl
+        metrics_dict["nerl_erl"] = result.pred_erl
+        metrics_dict["nerl_max_erl"] = result.gt_erl
+        metrics_dict["nerl_num_skeletons"] = result.num_skeletons
+        metrics_dict["nerl_graph"] = str(graph_value)
+        metrics_dict["nerl_gt_segment_ids"] = np.asarray(result.graph.skeleton_id)
+        metrics_dict["nerl_per_gt_erl"] = result.per_gt_erl
+
+        try:
+            context.log_metric(
+                "test_nerl",
+                float(result.nerl),
+                on_step=False,
+                on_epoch=True,
+                prog_bar=True,
+                logger=True,
+                batch_size=1,
+            )
+        except Exception as exc:  # pragma: no cover
+            logger.debug("Failed to log test_nerl metric: %s", exc)
+
+    if not context.metric_requested("nerl_oracle_merge") or dense_labels is None:
+        return
+
+    if hasattr(dense_labels, "detach"):
+        dense_labels = dense_labels.detach().cpu().numpy()
+    dense_labels = np.asarray(dense_labels)
+    while dense_labels.ndim > decoded_predictions.ndim and dense_labels.shape[0] == 1:
+        dense_labels = dense_labels[0]
+    if dense_labels.shape != decoded_predictions.shape:
+        logger.warning(
+            "%sSkipping NERL oracle-merge: prediction/label shapes differ (%s vs %s)",
+            volume_prefix,
+            decoded_predictions.shape,
+            dense_labels.shape,
+        )
+        return
+
+    oracle_segmentation = oracle_merge_segmentation(
         decoded_predictions,
-        graph_value,
-        skeleton_mask_value=mask_value,
-        resolution=_nerl_resolution(context, evaluation_cfg),
-        merge_threshold=int(cfg_value(evaluation_cfg, "nerl_merge_threshold", 1)),
-        chunk_num=int(cfg_value(evaluation_cfg, "nerl_chunk_num", 1)),
-        num_workers=_resolve_num_workers(
-            int(cfg_value(evaluation_cfg, "nerl_num_workers", -1))
-        ),
-        graph_options=_nerl_graph_options(evaluation_cfg),
+        dense_labels,
     )
-
-    logger.info("%sNERL: %.6f", volume_prefix, result.nerl)
-    logger.info("%s  Pred ERL: %.6f", volume_prefix, result.pred_erl)
-    logger.info("%s  GT ERL: %.6f", volume_prefix, result.gt_erl)
-    logger.info("%s  # Skeletons: %d", volume_prefix, result.num_skeletons)
-
-    metrics_dict["nerl"] = result.nerl
-    metrics_dict["nerl_pred_erl"] = result.pred_erl
-    metrics_dict["nerl_gt_erl"] = result.gt_erl
-    metrics_dict["nerl_erl"] = result.pred_erl
-    metrics_dict["nerl_max_erl"] = result.gt_erl
-    metrics_dict["nerl_num_skeletons"] = result.num_skeletons
-    metrics_dict["nerl_graph"] = str(graph_value)
-    metrics_dict["nerl_gt_segment_ids"] = np.asarray(result.graph.skeleton_id)
-    metrics_dict["nerl_per_gt_erl"] = result.per_gt_erl
+    oracle_result = compute_nerl_score_details(
+        oracle_segmentation,
+        graph_value,
+        **score_kwargs,
+    )
+    logger.info(
+        "%sNERL oracle-merge: %.6f",
+        volume_prefix,
+        oracle_result.nerl,
+    )
+    metrics_dict["nerl_oracle_merge"] = oracle_result.nerl
+    metrics_dict["nerl_oracle_merge_pred_erl"] = oracle_result.pred_erl
 
     try:
         context.log_metric(
-            "test_nerl",
-            float(result.nerl),
+            "test_nerl_oracle_merge",
+            float(oracle_result.nerl),
             on_step=False,
             on_epoch=True,
             prog_bar=True,
@@ -153,7 +204,7 @@ def compute_nerl_metrics(
             batch_size=1,
         )
     except Exception as exc:  # pragma: no cover
-        logger.debug("Failed to log test_nerl metric: %s", exc)
+        logger.debug("Failed to log test_nerl_oracle_merge metric: %s", exc)
 
 
 __all__ = [

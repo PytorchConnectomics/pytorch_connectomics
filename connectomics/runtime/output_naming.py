@@ -5,6 +5,7 @@ from __future__ import annotations
 import re
 from pathlib import Path
 from typing import Any, Optional
+from urllib.parse import quote
 
 from ..config import Config
 from ..utils.model_outputs import get_inference_select_channel, resolve_output_head
@@ -338,11 +339,31 @@ def format_intermediate_decode_suffix(cfg: Config, step) -> str:
     return f"_decoding_{encoded}"
 
 
+def _format_decode_graph_tag(graph: Any) -> str:
+    from ..decoding.graph import validate_graph
+
+    def safe_component(value: str) -> str:
+        return re.sub(r"[^A-Za-z0-9._=]+", "-", value).strip("-")
+
+    validated = validate_graph(graph)
+    parts = []
+    for node in validated.nodes:
+        node_name = safe_component(node.name)
+        op = _format_one_decode_step({"name": node.op, "kwargs": node.kwargs})
+        inputs = "+".join(quote(ref, safe="") for ref in node.inputs)
+        parts.append(f"{node_name}-{op}-from-{inputs}")
+    output = safe_component(validated.output)
+    return "_graph-" + "__".join(parts) + f"__out-{output}"
+
+
 def format_decode_tag(cfg: Config) -> str:
     """Return a compact decoding-parameter tag for final prediction filenames."""
     decoding_cfg = getattr(cfg, "decoding", None)
     if decoding_cfg is None:
         return ""
+    graph = getattr(decoding_cfg, "graph", None)
+    if graph is not None:
+        return _format_decode_graph_tag(graph)
     decoding = getattr(decoding_cfg, "steps", None)
     if not decoding:
         return ""
@@ -462,6 +483,8 @@ def final_prediction_output_tag(
 
     Filename format: ``decoded_x{n}{head}{ch}_<dec>{user}.h5`` (or
     ``prediction_x{n}{head}{ch}{user}.h5`` when no decoders are configured).
+    Graph tags encode the validated output-ancestor nodes and selected output,
+    so stopping at an earlier graph node cannot collide with a later artifact.
     The dataset stem and checkpoint identity are encoded by the parent
     directory (``<save_path>/<volume_stem>``); they are no longer in the
     filename. ``checkpoint_path`` is accepted for API compatibility but is

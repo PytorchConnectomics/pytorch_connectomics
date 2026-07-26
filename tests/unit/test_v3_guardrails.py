@@ -63,6 +63,14 @@ def test_decoding_static_imports_do_not_reference_training():
     assert violations == []
 
 
+def test_package_static_imports_do_not_reference_dev():
+    violations = _forbidden_imports(
+        REPO_ROOT / "connectomics",
+        ("dev",),
+    )
+    assert violations == []
+
+
 def test_decoding_static_imports_do_not_reference_evaluation():
     violations = _forbidden_imports(
         REPO_ROOT / "connectomics" / "decoding",

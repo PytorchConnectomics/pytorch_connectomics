@@ -5,6 +5,8 @@ This package provides comprehensive evaluation metrics:
 - metrics_seg.py: Segmentation metrics (Adapted Rand, VOI, instance matching)
 - metrics_skel.py: Skeleton-based metrics for curvilinear structures
 - nerl.py: NERL scoring helpers backed by em_erl
+- oracle.py: oracle-merge transform (attainable false-merge-free ceiling)
+- completeness.py: GT-free completeness ranker for tube-like structures
 
 Note: PyTorch Lightning handles training monitoring and logging.
 
@@ -15,6 +17,7 @@ Import patterns:
     from connectomics.metrics.segmentation_numpy import adapted_rand, instance_matching
 """
 
+from .completeness import completeness_report
 from .metrics_seg import (
     AdaptedRandError,
     InstanceAccuracy,
@@ -33,6 +36,7 @@ from .nerl import (
     compute_nerl_score_details,
     import_em_erl,
 )
+from .oracle import oracle_merge_segmentation
 
 __all__ = [
     # Segmentation metrics (numpy)
@@ -53,4 +57,7 @@ __all__ = [
     "compute_nerl_score",
     "compute_nerl_score_details",
     "import_em_erl",
+    # Oracle ceilings / GT-free rankers
+    "oracle_merge_segmentation",
+    "completeness_report",
 ]
