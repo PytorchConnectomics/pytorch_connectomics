@@ -61,6 +61,14 @@ def seg_erosion_instance(seg, tsz_h=1):
     win_min_pos = minimum_filter(np.where(seg_np > 0, seg_np, big), size=size, mode="reflect")
     keep = win_max == win_min_pos  # window holds exactly one positive ID
 
+    # Negative IDs are the "unlabeled / ignore" sentinel (see AffinityTarget, which
+    # masks every edge touching seg < 0). They must survive erosion unchanged:
+    # `seg * keep` would turn -1 into 0, i.e. silently relabel ignore as supervised
+    # background. That matters wherever the GT is padded with an ignore ring — the
+    # zebrafinch cubes are ~40% -1 by volume, so the multiply taught the model that
+    # a large slab of real EM tissue was background.
+    keep = keep | (seg_np < 0)
+
     if is_tensor:
         return seg * torch.as_tensor(keep, device=seg.device, dtype=seg.dtype)
     return seg_np * keep
