@@ -77,6 +77,49 @@ def _resolve_external_chunk_shard(cfg: Any) -> tuple[int, int] | None:
     return shard_id, num_shards
 
 
+def _resolve_inference_roi(
+    cfg: Any,
+) -> tuple[tuple[int, int, int], tuple[int, int, int]] | None:
+    """ROI (image geometry) in INPUT voxel coords (ZYX) restricting the chunk grid.
+
+    Returns ``((z0, y0, x0), (z1, y1, x1))`` or ``None`` when unset. Accepts 3 ints
+    (size from origin 0) or 6 ints (explicit start/stop). Chunks that don't overlap
+    this box are pure padding in an over-sized volume and are skipped.
+    """
+    chunking_cfg = getattr(getattr(cfg, "inference", None), "chunking", None)
+    roi = getattr(chunking_cfg, "roi", None) if chunking_cfg is not None else None
+    if roi is None:
+        return None
+    vals = [int(v) for v in roi]
+    if len(vals) == 3:
+        start, stop = (0, 0, 0), (vals[0], vals[1], vals[2])
+    elif len(vals) == 6:
+        start, stop = (vals[0], vals[1], vals[2]), (vals[3], vals[4], vals[5])
+    else:
+        raise ValueError(
+            f"inference.chunking.roi must have 3 (size) or 6 (start/stop) ints ZYX, got {roi!r}."
+        )
+    if any(stop[axis] <= start[axis] for axis in range(3)):
+        raise ValueError(f"inference.chunking.roi stop must exceed start on every axis, got {roi!r}.")
+    return start, stop
+
+
+def _filter_chunks_to_roi(chunks, roi, crop_before):
+    """Drop chunks whose core (in INPUT coords) lies entirely outside ``roi``."""
+    (rz0, ry0, rx0), (rz1, ry1, rx1) = roi
+
+    def _overlaps(ch) -> bool:
+        cs = tuple(ch.start[axis] + crop_before[axis] for axis in range(3))
+        ce = tuple(ch.stop[axis] + crop_before[axis] for axis in range(3))
+        return (
+            cs[0] < rz1 and ce[0] > rz0
+            and cs[1] < ry1 and ce[1] > ry0
+            and cs[2] < rx1 and ce[2] > rx0
+        )
+
+    return [ch for ch in chunks if _overlaps(ch)]
+
+
 def is_external_chunk_sharding_enabled(cfg: Any) -> bool:
     return _resolve_external_chunk_shard(cfg) is not None
 
@@ -473,6 +516,18 @@ def run_chunked_prediction_inference(
     chunk_shape = resolve_chunk_shape(cfg, final_shape)
     halo = tuple(int(v) for v in getattr(chunking_cfg, "halo", [0, 0, 0]))
     chunks = build_chunk_grid(final_shape, chunk_shape)
+    roi = _resolve_inference_roi(cfg)
+    if roi is not None:
+        n_all = len(chunks)
+        chunks = _filter_chunks_to_roi(chunks, roi, crop_before)
+        if not chunks:
+            raise ValueError(
+                f"inference.chunking.roi={roi} excludes every chunk (final_shape={final_shape})."
+            )
+        logger.info(
+            "Inference ROI %s (input ZYX voxels): kept %d/%d chunks, skipped %d pure-padding.",
+            roi, len(chunks), n_all, n_all - len(chunks),
+        )
     output_path = Path(output_path)
     output_path.parent.mkdir(parents=True, exist_ok=True)
     compression = getattr(cfg.inference, "save_compression", "gzip")
