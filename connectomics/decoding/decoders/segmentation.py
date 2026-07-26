@@ -501,24 +501,32 @@ def decode_affinity_cc(
     backend: str = "cc3d",
     edge_offset: int = 0,
     orphan_fill: bool = False,
+    affinity_channels: Optional[Sequence[int]] = None,
 ) -> np.ndarray:
     r"""Convert affinity predictions to instance segmentation via connected components.
 
     This function implements fast connected component labeling on affinity graphs,
     providing 10-100x speedup when Numba is available compared to standard methods.
 
-    The algorithm uses only **short-range affinities** (first 3 channels) to build
-    a connectivity graph, then performs flood-fill to identify connected components.
-    Each component receives a unique instance ID.
+    The algorithm uses only **short-range affinities** (first 3 channels, or the
+    first 3 of ``affinity_channels`` if supplied) to build a connectivity graph,
+    then performs flood-fill to identify connected components. Each component
+    receives a unique instance ID.
 
     Args:
         affinities (numpy.ndarray): Affinity predictions of shape :math:`(C, Z, Y, X)` where:
 
-            - C >= 3 (first 3 channels are short-range affinities)
+            - C >= 3 (or len(affinity_channels) >= 3)
             - Channel 0: x-direction (left-right) connections
             - Channel 1: y-direction (top-bottom) connections
             - Channel 2: z-direction (front-back) connections
-            - Channels 3+: long-range affinities (ignored)
+            - Channels 3+: long-range affinities (ignored unless selected via affinity_channels)
+        affinity_channels (list[int], optional): Explicit channel indices to use as the
+            three short-range affinities. When provided, ``affinities[affinity_channels]``
+            is used instead of ``affinities[:3]``. Useful when saving multi-scale
+            predictions (e.g. 9-channel r3/r1@ero2/r10) and decoding on a specific
+            3-channel subset. Auto-resolved by the pipeline from YAML-selector strings.
+            Default: ``None`` (use the first 3 channels).
 
         threshold (float): Threshold for binarizing affinities. Affinities > threshold
             indicate connected voxels. Default: 0.5
@@ -571,6 +579,14 @@ def decode_affinity_cc(
     """
     if affinities.ndim != 4:
         raise ValueError(f"Expected affinities with shape (C, Z, Y, X), got {affinities.ndim}D")
+
+    if affinity_channels is not None:
+        if len(affinity_channels) != 3:
+            raise ValueError(
+                f"affinity_channels must select exactly 3 channels, got {len(affinity_channels)}"
+            )
+        affinities = affinities[list(affinity_channels)]
+
     if affinities.shape[0] < 3:
         raise ValueError(f"Expected >= 3 channels, got {affinities.shape[0]}")
 
