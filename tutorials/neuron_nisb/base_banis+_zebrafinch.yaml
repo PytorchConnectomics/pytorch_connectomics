@@ -56,6 +56,11 @@ default:
       # Each chunk job reads an overlapping halo and writes only its core.
       halo: [72, 72, 72]
       axes: all
+      # True EM geometry (ZYX voxels at 10nm). The im_align volume is rounded out
+      # to 5700 x 12288 x 12288, so the last ~2 chunks in Y/X are pure zero-padding.
+      # Restricting the grid to this ROI skips those (1014 -> 726 chunks), avoiding
+      # wasted inference on padding that the upload/decode trim away anyway.
+      roi: [5700, 10913, 10664]
     save_results: true
     save_backend: h5
     save_dtype: float16

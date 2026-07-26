@@ -1,0 +1,45 @@
+_base_:
+  - base_banis+_r1e2.yaml
+
+experiment_name: nisb_base_banis_plus_r1e2_testcrop
+description: >-
+  Center-chunk test for nisb_base_banis_plus_r1e2. Saves all 9 affinity channels
+  (r1@ero0, r1@ero2, r10). cc3d decodes on the r1@ero2 channels [3,4,5] via
+  affinity_channels kwarg. STANDARD small-scale test = seed101 CENTER chunk
+  (tile_1_1_1, 1000x1000x450); see lesson_standard_smallscale.md.
+
+save_path: outputs/nisb_base_banis_plus_r1e2
+
+default:
+  inference:
+    model:
+      # Save all 9 channels: r1@ero0 (0:3), r1@ero2 (3:6), r10@ero0 (6:9).
+      select_channel: null
+  decoding:
+    steps:
+    - name: decode_affinity_cc
+      kwargs:
+        threshold: 0.75
+        backend: numba
+        edge_offset: 0
+        # Use r1@ero2 channels [3,4,5] for cc3d: eroded-r1 provides the
+        # same cc3d-safe membrane margin as classic banis+ erosion=2,
+        # while ch0:3 (lossless r1) is preserved in the saved file for
+        # future agglomeration decodes.
+        affinity_channels: [3, 4, 5]
+  evaluation:
+    # NERL is the real objective (adapted_rand can mis-rank on a crop).
+    metrics: [nerl, adapted_rand]
+
+test:
+  system:
+    num_gpus: 1
+  data:
+    test:
+      path: dev/nisb/data/center_chunk/
+      image: img.h5
+      label: seg.h5
+      skeleton: dev/nisb/data/center_chunk/seg.erlgraph.npz
+      resolution: [9, 9, 20]
+  decoding:
+    affinity_mask_path: ""

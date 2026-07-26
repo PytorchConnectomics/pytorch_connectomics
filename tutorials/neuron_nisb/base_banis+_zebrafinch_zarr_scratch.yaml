@@ -1,0 +1,55 @@
+_base_:
+  - base_banis+_zebrafinch_zarr.yaml
+
+experiment_name: nisb_base_banis_plus_zebrafinch_heavy_zarr
+description: >-
+  Chunked zarr affinity inference for the FROM-SCRATCH zebrafinch model
+  (`base_banis+_zebrafinch_heavy.yaml`, MedNeXt-L/k3 62M trained 200k steps on
+  the 33 GT cubes with `aug_em_neuron`). Everything (input zarr, 1008^3 grid,
+  halo 72, reflect padding, select_channel [0,1,2], scale_sigmoid, float16
+  output, decode suffix) is inherited unchanged from the pretrain zarr config so
+  the chunk files are byte-comparable in layout with
+  `outputs/nisb_base_banis_v3_erosion2/.../test_last/0/`.
+
+  ONLY the sliding window differs, and it differs on purpose:
+
+  * The pretrain model was trained at 128^3 and inferred at [144,144,144].
+    THIS model was trained at patch [48,96,96] (anisotropic, ~near-isotropic in
+    nm for 9x9x20 voxels). MedNeXt normalizes with
+    `nn.GroupNorm(num_groups=C, num_channels=C)` — i.e. per-sample per-channel
+    InstanceNorm with NO running statistics
+    (lib/MedNeXt/nnunet_mednext/network_architecture/mednextv1/blocks.py:42).
+    The normalization statistics are therefore computed over the *window's*
+    spatial extent at every block, so the forward pass is window-size dependent.
+    Inferring this model at [144,144,144] would be a 3x Z / 1.5x XY extent
+    mismatch (and would invert the trained Z-thin anisotropy). Matching the
+    training patch exactly removes that confound — this is the first evaluation
+    of the 200k checkpoint, so it should run at its own operating point.
+
+  * Divisibility: 48/16=3 and 96/16=6 satisfy MedNeXt-L's 4-stage (stride-16)
+    downsample. At overlap 0.5 the strides are (24,48,48); 1008 % 24 == 0 and
+    1008 % 48 == 0, so every chunk's window lattice has the same phase and the
+    chunk seams stay reproducible (the invariant the 1008 = 14*72 comment in
+    base_banis+_zebrafinch.yaml is protecting). Total voxel-forwards per chunk
+    are within 10% of the [144,144,144] run (24863 small windows vs 3375 large
+    ones), so wall time should be comparable.
+
+  * sw_batch_size 32: the measured pretrain model is ~3.46 GB per batch unit at
+    144^3 (+0.77 GB fixed). A [48,96,96] window is 6.75x fewer voxels, so
+    ~0.51 GB/unit => 32 units ~= 17 GB, safe on both the 40 GB a100 (g003-g006)
+    and the 49 GB L40S (g010-g018), while keeping the GPU fed despite the 7.4x
+    higher window count. Drop to 16 if this OOMs.
+
+  BOTH window keys MUST live in YAML, not on the CLI: `inference.window` is
+  copied into the runtime-owned `inference.sliding_window` alias (which the
+  lazy/zarr path actually reads) by `sync_inference_runtime_aliases`, and the
+  `default.inference` stage merge can clobber a pre-resolution CLI override.
+  See base_banis+_zebrafinch_zarr_b4.yaml for the original diagnosis.
+
+save_path: outputs/nisb_base_banis_plus_zebrafinch_heavy_zarr
+
+default:
+  inference:
+    window:
+      window_size: [48, 96, 96]
+      sw_batch_size: 32

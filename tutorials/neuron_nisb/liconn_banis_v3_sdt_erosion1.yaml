@@ -1,0 +1,59 @@
+_base_:
+  - base_banis+_sdt.yaml
+
+experiment_name: nisb_liconn_banis_v3_sdt_erosion1
+description: >-
+  LICONN NISB volume, banis+ SDT two-head (6-ch r1+r10 affinity + skeleton-aware
+  EDT) with label erosion=1. erosion=1 is the middle ground between banis+
+  erosion=2 (over-thins thin connectors -> splits) and the SDT default erosion=0
+  (preserves everything -> merges). The SDT head supplies the false-merge signal,
+  so erosion can be relaxed from 2 to 1 without the merge blow-up that dominates
+  the liconn test volume (erosion=2 baseline NERL=0.211 is merge-limited; see
+  dev/nisb/liconn/findings.md). Decoding still reads short-range affinity
+  channels 0:3 only.
+
+  Prerequisite: liconn data.zarr ships only img+seg (no seg_skeleton). The
+  skeleton label_aux must be precomputed offline per train/val seed BEFORE
+  launch, otherwise data_factory skeletonises six 3000x3000x2250 volumes
+  serially at training setup and idles the GPU for ~a day. See
+  dev/nisb/liconn/precompute_skel.py + run_precompute_skel.sh.
+
+save_path: outputs/nisb_liconn_banis_v3_sdt_erosion1
+
+default:
+  data:
+    label_transform:
+      # Override SDT's erosion=0 -> 1. Applies to BOTH the affinity and the
+      # skeleton_aware_edt targets (inherited targets list from base_banis+_sdt).
+      erosion: 1
+
+train:
+  data:
+    train:
+      path: /projects/weilab/dataset/nisb/liconn/train
+      image: seed*/data.zarr/img
+      label: seed*/data.zarr/seg
+      resolution: [18, 18, 25]
+    val:
+      path: /projects/weilab/dataset/nisb/liconn/val
+      image: seed5/data.zarr/img
+      label: seed5/data.zarr/seg
+      resolution: [18, 18, 25]
+
+test:
+  data:
+    test:
+      path: /projects/weilab/dataset/nisb/liconn/test/seed6/
+      skeleton: /projects/weilab/dataset/nisb/liconn/test/seed6/skeleton.pkl
+      image: data.zarr/img
+      label: data.zarr/seg
+      resolution: [18, 18, 25]
+
+tune:
+  data:
+    val:
+      path: /projects/weilab/dataset/nisb/liconn/val/seed5/
+      skeleton: /projects/weilab/dataset/nisb/liconn/val/seed5/skeleton.pkl
+      image: data.zarr/img
+      label: data.zarr/seg
+      resolution: [18, 18, 25]

@@ -1,0 +1,71 @@
+experiment_name: waterz_decode_large_DL288B_crop1_test
+description: >
+  Large-volume parallel WaterZ decoding (direct H5 path) for the MIT LiCONN
+  DL288B_cond5_crop1 axon crop. LOCAL (BC cluster) reproduction of Mansour's
+  waterz baseline — same agglomeration params, local paths.
+
+  Input affinity: (3, 800, 1024, 1024) float32, CZYX, dataset "main"
+    (short-range r1 z/y/x affinity from the large model head).
+  GT: datasets/mit-liconn/gt_label.h5  (proofread instance labels, 1291 axons).
+
+  Mansour's reported waterz result on this crop (target to beat):
+    voxel P/R/F1 axon = 0.9358 / 0.8013 / 0.8634
+    pred=1170  gt=1291  missed_gt=195
+    false-merge: 210 pred / 540 gt affected / 4 bg-dominated
+    false-split: 107 gt
+
+  Usage (serial):
+    python scripts/decode_large.py --config tutorials/waterz_decoding_large_DL288B_crop1_test.yaml
+
+  Usage (orchestrated workers):
+    waterz_decode_large --config tutorials/waterz_decoding_large_DL288B_crop1_test.yaml --init-only
+    waterz_decode_large --config tutorials/waterz_decoding_large_DL288B_crop1_test.yaml --parallel
+    waterz_decode_large --config tutorials/waterz_decoding_large_DL288B_crop1_test.yaml --wait --assemble
+
+large_decode:
+  # Input affinity file (HDF5, dataset shape (C,Z,Y,X))
+  affinity_path: "/projects/weilab/weidf/lib/pytorch_connectomics/datasets/mit-liconn/raw_x1_head-aff_r1.h5"
+  affinity_dataset: main
+
+  # Shared workflow directory (task manifests + chunk artifacts)
+  workflow_root: "/projects/weilab/weidf/lib/pytorch_connectomics/outputs/mit_liconn/DL288B_crop1/waterz_workflow"
+
+  # Chunking (ZYX)
+  chunk_shape: [80, 1024, 1024]
+  overlap: [0, 0, 0]
+
+  # WaterZ agglomeration
+  thresholds: [0.4]
+  merge_function: aff85_his256
+  aff_threshold_low: 0.1
+  aff_threshold_high: 0.9
+  # Strong FP-focused cutoff selected from TP/FP affinity sweep.
+  # Interpreted in normalized affinity units [0,1] for both float and uint8.
+  border_threshold: 0.80078125
+  channel_order: zyx
+  use_aff_uint8: false
+  use_seg_uint32: true
+
+  # Dust merge
+  dust_merge: true
+  dust_merge_size: 1500
+  dust_merge_affinity: 0.1
+  dust_remove_size: 600
+
+  # Border stitching
+  min_overlap: 20
+  iou_threshold: 0.05
+  one_sided_threshold: 0.95
+  one_sided_min_size: 200
+  affinity_threshold: 0.15
+
+  # Execution
+  backend: multiprocess
+  num_workers: 1
+
+  # Output
+  write_output: true
+  output_path: "/projects/weilab/weidf/lib/pytorch_connectomics/outputs/mit_liconn/DL288B_crop1/decoded_waterz_large_test.h5"
+  output_dataset: main
+  compression: gzip
+  compression_level: 4

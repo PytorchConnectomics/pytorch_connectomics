@@ -116,28 +116,86 @@ valid:
         --mode test --checkpoint <ckpt> \
         test.decoding.affinity_mask_path=null
 
-4 - Build an affinity mask
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.. _liconn-affinity-qc-mask:
+
+4 - Build an affinity QC mask
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 LICONN slabs typically have a handful of bad z-planes at the top and
 bottom of the cube (residual saturation / staining artifacts) that
-poison the affinity prediction. A per-voxel mask drops those planes
-and the image-border halo before decoding.
+poison the affinity prediction. They also have low-intensity image
+border halos that can create high-affinity false connections. The
+affinity QC mask drops both regions before ``decode_affinity_cc`` runs,
+which reduces false merges from bad image/affinity support.
 
-The two-step QC + mask workflow ships in ``dev/nisb/``:
+The canonical implementation lives in
+``connectomics.decoding.qc.affinity``:
+
+- ``scan_prediction`` scans the raw affinity prediction and derives
+  ``low_z`` / ``high_z`` from per-z mean drift relative to the interior
+  slices.
+- ``build_affinity_mask`` writes a ``main`` dataset with shape
+  ``(X, Y, Z)`` and dtype ``uint8``. The value is ``1`` for keep and
+  ``0`` for drop.
+- The mask combines two rules: keep only ``z in [low_z, high_z)`` and,
+  inside the outer XY ring of width ``border_width``, drop pixels whose
+  source image intensity is ``<= bg_thresh``.
+- ``connectomics.decoding.stage`` applies ``decoding.affinity_mask_path``
+  before decoding. Masks produced by ``build_affinity_mask`` carry the
+  full spec in HDF5 attrs, so PyTC can apply the rule directly without
+  loading the full ``(X, Y, Z)`` mask volume.
+
+For the LICONN ``test/seed6`` run, the typical QC spec is:
+
+.. code-block:: yaml
+
+    low_z: 30
+    high_z: 2220
+    border_width: 32
+    bg_thresh: 30
+    source_image: /projects/weilab/dataset/nisb/liconn/test/seed6/data.zarr/img
+    axis_order: XYZ
+
+A bbox-only coordinate is enough to express the z gate, but it is not
+equivalent to the QC mask because it loses the low-intensity XY border
+rule. For PyTC decode, the compact spec above is the important part; a
+full HDF5 mask file is mainly useful for visualization, external tools,
+or legacy consumers that cannot apply the spec directly.
+
+Integrated config-driven QC can build and wire the mask during the
+decoding stage:
+
+.. code-block:: bash
+
+    python scripts/main.py \
+        --config tutorials/neuron_nisb/liconn_banis_v3_erosion2.yaml \
+        --mode test --checkpoint <ckpt> \
+        test.decoding.affinity_mask_path=null \
+        test.decoding.affinity_qc.enabled=true \
+        test.decoding.affinity_qc.mode=post_save \
+        test.decoding.affinity_qc.image_path=/projects/weilab/dataset/nisb/liconn/test/seed6/data.zarr/img \
+        test.decoding.affinity_qc.mask_path=outputs/nisb_liconn_banis_v3_erosion2/<timestamp>/test_step=00200000/seed6/affinity_mask.h5 \
+        test.decoding.affinity_qc.report_path=outputs/nisb_liconn_banis_v3_erosion2/<timestamp>/test_step=00200000/seed6/affinity_qc_report.md
+
+The report records the scan statistics and the mask spec. The mask path
+is then assigned to ``decoding.affinity_mask_path`` for the same decode
+run.
+
+If you already have a saved raw prediction and want the older explicit
+two-step workflow, use the CLI wrappers under ``dev/nisb/banis/``:
 
 .. code-block:: bash
 
     # 4a. Scan the saved prediction, decide low_z / high_z, write a report.
-    python dev/nisb/check_aff.py \
+    python dev/nisb/banis/check_aff.py \
         --pred outputs/nisb_liconn_banis_v3_erosion2/<timestamp>/test_step=00200000/seed6/raw_x1_ch0-1-2.h5 \
         --img  /projects/weilab/dataset/nisb/liconn/test/seed6/data.zarr/img \
-        --out-md   dev/nisb/check_aff_report_liconn_seed6.md \
+        --out-md   dev/nisb/banis/check_aff_report_liconn_seed6.md \
         --mask-out outputs/nisb_liconn_banis_v3_erosion2/<timestamp>/test_step=00200000/seed6/affinity_mask.h5
 
     # 4b. Build the affinity mask h5 from the report's frontmatter.
-    python dev/nisb/build_aff_mask.py \
-        --report dev/nisb/check_aff_report_liconn_seed6.md
+    python dev/nisb/banis/build_aff_mask.py \
+        --report dev/nisb/banis/check_aff_report_liconn_seed6.md
 
 ``check_aff.py`` streams the (C=3, X, Y, Z) ``float16`` prediction one
 z-slab at a time (peak RSS ~6 GB on an 83 GB volume) and writes a

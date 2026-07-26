@@ -1,0 +1,11 @@
+_base_:
+  - base_banis+_zebrafinch_zarr.yaml
+
+# sw_batch_size=8 (~28.5 GB peak) for the `long`-partition cards: safe on v100
+# (32 GB), a100 (40 GB), L40S (49 GB), and the 80 GB nodes. Must be set in YAML
+# (not CLI) so it reaches the internal inference.sliding_window alias that the
+# lazy/zarr path reads (see base_banis+_zebrafinch_zarr_b4.yaml for the why).
+default:
+  inference:
+    window:
+      sw_batch_size: 8

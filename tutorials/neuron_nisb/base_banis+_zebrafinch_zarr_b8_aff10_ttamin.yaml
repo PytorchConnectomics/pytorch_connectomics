@@ -1,0 +1,15 @@
+_base_:
+  - base_banis+_zebrafinch_zarr_b8_aff10.yaml
+
+experiment_name: nisb_base_banis_v3_erosion2_zf_aff10_ttamin
+description: aff_r10 (ch3-4-5) + flip TTA + MIN aggregation (conservative; kills flip-inconsistent merge bridges).
+
+default:
+  inference:
+    test_time_augmentation:
+      enabled: true
+      flip_axes: "all"
+      rotate90_k: [0]
+      ensemble_mode: "min"
+  decoding:
+    save_suffix: zebrafinch_chunk_raw_grid1008_halo72_r10ttamin
