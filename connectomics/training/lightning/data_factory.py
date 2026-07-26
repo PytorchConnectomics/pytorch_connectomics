@@ -52,6 +52,60 @@ def _effective_patch_size(cfg: Config) -> tuple[int, ...]:
     return tuple(patch_size[i] + pre[i] + post[i] for i in range(len(patch_size)))
 
 
+def _read_downscale(cfg: Config) -> float:
+    """Return the validated train/val read-size shrink factor in ``(0, 1]``."""
+    s = float(getattr(cfg.data.dataloader, "read_downscale", 1.0))
+    if not (0.0 < s <= 1.0):
+        raise ValueError(
+            "data.dataloader.read_downscale must be in (0, 1]; "
+            f"got {s}. Use 1.0 (default) for native reads, or a fraction "
+            "(e.g. 0.5) to read a smaller native crop and upsample it back "
+            "via data.data_transform.resize."
+        )
+    return s
+
+
+def _read_patch_size(cfg: Config) -> tuple[int, ...]:
+    """Native train/val read (crop) size = effective patch size * read_downscale.
+
+    With ``read_downscale == 1.0`` this is exactly ``_effective_patch_size``
+    (a no-op). With ``read_downscale < 1.0`` the dataset reads this smaller
+    native crop; a ``data.data_transform.resize`` step upsamples it back to the
+    effective patch size before erosion/affinity target generation, so training
+    targets and model input are unchanged while the disk read shrinks.
+    """
+    eff = _effective_patch_size(cfg)
+    s = _read_downscale(cfg)
+    if s == 1.0:
+        return eff
+    return tuple(int(round(e * s)) for e in eff)
+
+
+def _validate_read_downscale(cfg: Config) -> None:
+    """Guard: ``read_downscale < 1`` requires ``resize == effective patch size``.
+
+    When the dataset reads a smaller native crop, ``data.data_transform.resize``
+    must upsample it back to the effective patch size; otherwise the model would
+    silently train on a smaller-than-intended input. Validated once at datamodule
+    build time so the failure is loud and early (not 3 days into a GPU run).
+    """
+    s = _read_downscale(cfg)
+    if s == 1.0:
+        return
+    eff = _effective_patch_size(cfg)
+    resize = getattr(cfg.data.data_transform, "resize", None)
+    resize_tuple = tuple(int(v) for v in resize) if resize else None
+    if resize_tuple != eff:
+        raise ValueError(
+            "data.dataloader.read_downscale="
+            f"{s} (< 1.0) requires data.data_transform.resize to equal the "
+            f"effective patch size {list(eff)} (= patch_size + target_context) "
+            "so the smaller native read is upsampled back exactly. "
+            f"Got data.data_transform.resize={resize}. "
+            f"Set data.data_transform.resize: {list(eff)}."
+        )
+
+
 def _validation_dataset_mode(cfg: Config) -> str:
     return "train" if bool(getattr(cfg.data.dataloader, "val_random_sampling", False)) else "val"
 
@@ -309,6 +363,10 @@ def create_datamodule(
         ConnectomicsDataModule instance
     """
     logger.info("Creating datasets...")
+    # read_downscale is a train-time read optimization; validate the resize
+    # guard before any dataset is constructed so a misconfig fails loudly/early.
+    if mode == "train":
+        _validate_read_downscale(cfg)
     _maybe_prepare_random_data(cfg, mode)
 
     # Auto-download tutorial data if missing
@@ -853,7 +911,7 @@ def create_datamodule(
                 else None
             ),
             mask_paths=[d.get("mask") for d in train_data_dicts],
-            patch_size=_effective_patch_size(cfg),
+            patch_size=_read_patch_size(cfg),
             iter_num=iter_num,
             transforms=augment_only_transforms,
             pre_cache_transforms=train_pre_cache_transforms,
@@ -921,7 +979,7 @@ def create_datamodule(
                         else None
                     ),
                     mask_paths=[d.get("mask") for d in val_data_dicts],
-                    patch_size=_effective_patch_size(cfg),
+                    patch_size=_read_patch_size(cfg),
                     iter_num=val_steps_per_epoch,
                     transforms=val_only_transforms,
                     pre_cache_transforms=val_pre_cache_transforms,
@@ -1009,7 +1067,7 @@ def create_datamodule(
             label_paths=None if all(p is None for p in train_labels) else train_labels,
             label_aux_paths=None if all(p is None for p in train_label_auxs) else train_label_auxs,
             mask_paths=None if all(p is None for p in train_masks) else train_masks,
-            patch_size=_effective_patch_size(cfg),
+            patch_size=_read_patch_size(cfg),
             iter_num=iter_num,
             transforms=train_transforms_lazy,
             mode="train",
@@ -1059,7 +1117,7 @@ def create_datamodule(
                 label_paths=None if all(p is None for p in val_labels) else val_labels,
                 label_aux_paths=None if all(p is None for p in val_label_aux) else val_label_aux,
                 mask_paths=None if all(p is None for p in val_masks) else val_masks,
-                patch_size=_effective_patch_size(cfg),
+                patch_size=_read_patch_size(cfg),
                 iter_num=val_steps_per_epoch,
                 transforms=val_transforms_lazy,
                 mode=_validation_dataset_mode(cfg),
