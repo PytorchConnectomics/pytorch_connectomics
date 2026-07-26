@@ -116,6 +116,7 @@ def register_builtin_decoders() -> None:
     from .decoders.branch import branch_link, branch_merge, branch_split, seg_2d
     from .decoders.combine import combine_split
     from .decoders.longrange_guided_split import longrange_guided_split
+    from .decoders.mutex_watershed import decode_mutex_watershed
     from .decoders.segmentation import (
         decode_affinity_cc,
         decode_distance_watershed,
@@ -141,7 +142,10 @@ def register_builtin_decoders() -> None:
     register_decoder("decode_distance_watershed", decode_distance_watershed, overwrite=True)
     register_decoder("decode_waterz", decode_waterz, overwrite=True)
     register_decoder("naive_waterz", naive_waterz, overwrite=True)
+    register_decoder("decode_mutex_watershed", decode_mutex_watershed, overwrite=True)
     register_decoder("seg_2d", seg_2d, overwrite=True)
+    # branch_* consume (raw, seg), so they register as native binary graph ops
+    # rather than unary decoders (the pre-port unary versions are gone).
     register_graph_op(
         "branch_link",
         as_binary_graph_op(branch_link),

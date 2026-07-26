@@ -519,7 +519,10 @@ def test_load_and_apply_best_params_falls_back_to_legacy_filename(tmp_path):
 def test_standard_trial_payload_applies_spatial_transpose():
     captured = {}
 
-    def _fake_decoder(predictions, **_kwargs):
+    # Registry decoders follow the graph-op contract: they receive a *list* of
+    # input arrays (see connectomics/decoding/graph.py: ``op(op_inputs, ...)``).
+    def _fake_decoder(inputs, **_kwargs):
+        predictions = inputs[0]
         captured["shape"] = predictions.shape
         return np.ones(predictions.shape[1:], dtype=np.uint64)
 
@@ -540,7 +543,8 @@ def test_standard_trial_payload_applies_spatial_transpose():
 def test_batch_trial_payload_applies_spatial_transpose():
     captured = {}
 
-    def _fake_decoder(predictions, **_kwargs):
+    def _fake_decoder(inputs, **_kwargs):
+        predictions = inputs[0]
         captured["shape"] = predictions.shape
         return {0.3: np.ones(predictions.shape[1:], dtype=np.uint64)}
 
@@ -559,6 +563,32 @@ def test_batch_trial_payload_applies_spatial_transpose():
     assert captured["shape"] == (3, 4, 3, 2)
     assert result["best_metric"] == 0.0
     assert result["best_candidate"] == 0.3
+
+
+def test_standard_trial_payload_decodes_multichannel_affinity_via_registry():
+    """Regression: a real registry decoder must receive the (C, *spatial) array
+    as one graph input, not have its channel axis read as the input count.
+
+    Before the fix the tuner called ``decoder_fn(predictions, ...)`` with the
+    bare array, so the graph-op wrapper saw ``len(inputs) == C`` and raised
+    ``Unary decoder 'decode_affinity_cc' expects exactly one input, got 3``.
+    """
+    from connectomics.decoding.registry import get_decoder
+
+    rng = np.random.default_rng(0)
+    pred = rng.random((3, 6, 6, 6), dtype=np.float32).astype(np.float16)
+
+    result = _evaluate_standard_trial_payload(
+        decoder_fn=get_decoder("decode_affinity_cc"),
+        predictions_list=[pred],
+        ground_truth_list=[np.ones((6, 6, 6), dtype=np.uint16)],
+        mask_list=None,
+        decoding_params={"threshold": 0.5, "backend": "numba", "edge_offset": 0},
+        postproc_params=None,
+        metric_name="adapted_rand",
+    )
+
+    assert np.isfinite(result["avg_metric"])
 
 
 def test_objective_returns_bad_value_when_standard_trial_times_out(monkeypatch):

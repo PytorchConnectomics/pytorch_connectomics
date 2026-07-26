@@ -100,10 +100,14 @@ def test_lazy_model_output_dtype_controls_accumulators(tmp_path):
     lazy = lazy_predict_volume(cfg, _identity_forward, str(image_path), device="cpu")
 
     assert lazy.dtype == torch.float16
+    # atol is ~2 fp16 ULP: identity forward should reproduce the input, but the
+    # fp16 accumulator rounds each multi-window weighted average (fp16 ULP near
+    # 1.0 is ~1e-3). Loose enough for that rounding, tight enough that a real
+    # boundary bias (which would be >1e-2) still fails.
     assert torch.allclose(
         lazy.float(),
         torch.from_numpy(volume).unsqueeze(0).unsqueeze(0),
-        atol=5.0e-4,
+        atol=2.0e-3,
     )
 
 

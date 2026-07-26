@@ -1,0 +1,19 @@
+# Phase-1 segmentation-only replay of a Seuron provenance record through local ABISS.
+# Running scripts/run_seuron_provenance.py without --execute only resolves and prints
+# this recipe; it creates no files and does not contact GCS.
+seuron_replay:
+  # The tracked fixture makes this tutorial and its unit tests self-contained. For
+  # the full main-checkout run, dev/zebrafinch/seuron_provenance.json is equivalent.
+  provenance_path: ../tests/unit/fixtures/seuron_provenance.json
+  backend: abiss_local
+  data: local
+
+  out_root: /tmp/pytc-seuron-replay
+  name: seg_20260719054914_phase1
+  secrets_dir: ~/.cloudvolume/secrets
+  abiss_home: /projects/weilab/weidf/lib/pytorch_connectomics/lib/abiss
+
+  # Mip-0 XYZ coordinates. E is S expanded by one [512, 512, 256] ABISS
+  # chunk on every side, so boundaries scored in S are resolved within E.
+  exec_bbox: [3488, 3488, 2244, 5536, 5536, 3268]
+  score_bbox: [4000, 4000, 2500, 5024, 5024, 3012]
