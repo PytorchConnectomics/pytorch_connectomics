@@ -1,0 +1,79 @@
+_base_:
+  - base_banis+_zebrafinch_ft.yaml
+
+experiment_name: nisb_base_banis_v3_erosion2_zebrafinch_ft_mix
+description: >-
+  Arm 3 of the post-erosion-fix finetune comparison: identical to
+  base_banis+_zebrafinch_ft.yaml (init-only load of the NISB base_banis+ 200k
+  weights, 100k steps, lr 1e-4, 4 GPUs) EXCEPT that the NISB training volumes are
+  mixed back into the finetune data. Arm 2 is the same config without the mix, so
+  the pair isolates whether replaying the pretraining distribution prevents the
+  "muddy affinity" seen in the original 85k finetune.
+
+  Both arms are only meaningful post-fix: seg_erosion_instance used to turn the
+  -1 ignore sentinel into supervised background, and the zebrafinch cubes are
+  39.8% (128x256x256 core) to 53.4% (150^3 core) -1 by volume, so every previous
+  zebrafinch-trained model was taught that a large slab of real EM tissue was
+  background.
+
+  MIXTURE MECHANICS. `PatchDataset.__getitem__` picks the volume with
+  `random.randint(0, num_volumes - 1)` (connectomics/data/datasets/base.py:86) --
+  uniform per ENTRY, independent of how big the volume is. So the ratio is set by
+  entry count, not by voxels: 33 zebrafinch cubes against 5 NISB seeds would be
+  only 13% NISB. The symlink farm below duplicates each NISB seed 7x (35 entries)
+  for a 35:33 = 51.5% NISB / 48.5% zebrafinch sample mix.
+
+  WHY THE ZARR COPIES. The loader's lazy backend is a single global flag, not a
+  per-path dispatch: `use_lazy_zarr` raises unless every train (and val) path is
+  zarr (data_factory.py:1050, :1101) and is mutually exclusive with `use_lazy_h5`
+  (:851). NISB train is 5 x 51 GB and cannot be eagerly preloaded, so the small
+  side is the one that has to move: dev/zebrafinch/h5_cubes_to_zarr.py mirrors the
+  33 h5 cubes into zarr_4-32-32/<cube>/data.zarr/{img,seg} (int32 seg, -1 ring
+  preserved and asserted). Arms 1 and 2 still read the original h5 files.
+
+  The farm mix_ft_50_50/ holds symlinks to both sides, so ONE glob covers the
+  mixture and the sorted img/seg globs pair index-by-index (they walk the same
+  parent names). `expand_file_paths` returns a LIST unexpanded, so a list of globs
+  would not work here -- it has to be a single glob string.
+
+  Resolution differs between the two datasets (NISB [9,9,20], zebrafinch
+  [10,10,10]) and that is fine: data.*.resolution is metadata only, not consumed
+  anywhere outside the schema, and skeleton_distance is disabled. No transpose is
+  configured in this chain, so each dataset enters exactly as it did in its own
+  established run.
+
+save_path: outputs/nisb_base_banis_v3_erosion2_zebrafinch_ft_mix
+
+default:
+  data:
+    dataloader:
+      # Flip the base config's in-memory caching to lazy crop-on-read: NISB is
+      # 255 GB total. Explicit keys are set alongside `profile: lazy` because a
+      # profile payload cannot override an explicit key set by the base config.
+      profile: lazy
+      use_lazy_zarr: true
+      use_cache: false
+      use_preloaded_cache_train: false
+      use_preloaded_cache_val: false
+
+train:
+  data:
+    train:
+      path: ""
+      resolution: [10, 10, 10]
+      image: /projects/weilab/dataset/zebrafinch/train/mix_ft_50_50/*/data.zarr/img
+      label: /projects/weilab/dataset/zebrafinch/train/mix_ft_50_50/*/data.zarr/seg
+    val:
+      # Same 3 zebrafinch cubes as arms 1/2 (also in train), as zarr because the
+      # lazy backend validates val paths too. Validation stays pure zebrafinch so
+      # the checkpoint-selection signal is comparable across all three arms.
+      path: ""
+      resolution: [10, 10, 10]
+      image:
+        - /projects/weilab/dataset/zebrafinch/train/zarr_4-32-32/z3456-3606_y3188-3338_x4043-4193/data.zarr/img
+        - /projects/weilab/dataset/zebrafinch/train/zarr_4-32-32/z3914-4064_y9035-9185_x2573-2723/data.zarr/img
+        - /projects/weilab/dataset/zebrafinch/train/zarr_4-32-32/z734-884_y9561-9711_x563-713/data.zarr/img
+      label:
+        - /projects/weilab/dataset/zebrafinch/train/zarr_4-32-32/z3456-3606_y3188-3338_x4043-4193/data.zarr/seg
+        - /projects/weilab/dataset/zebrafinch/train/zarr_4-32-32/z3914-4064_y9035-9185_x2573-2723/data.zarr/seg
+        - /projects/weilab/dataset/zebrafinch/train/zarr_4-32-32/z734-884_y9561-9711_x563-713/data.zarr/seg
