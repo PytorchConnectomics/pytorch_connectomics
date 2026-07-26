@@ -49,8 +49,8 @@ from .utils import (
 )
 
 _LAZY_DECODER_EXPORTS = {
-    "branch_merge": "connectomics.decoding.decoders.branch_merge",
-    "branch_split": "connectomics.decoding.decoders.branch_split",
+    "branch_merge": "connectomics.decoding.decoders.branch.merge",
+    "branch_split": "connectomics.decoding.decoders.branch.split",
     "decode_abiss": "connectomics.decoding.decoders.abiss",
     "decode_affinity_cc": "connectomics.decoding.decoders.segmentation",
     "decode_distance_watershed": "connectomics.decoding.decoders.segmentation",

@@ -24,17 +24,27 @@ def log_decode_experiment(
 ) -> None:
     """Append decode parameters and metrics to ``decode_experiments.tsv``."""
     decode_modes = resolve_decode_modes_from_cfg(cfg)
-    if not decode_modes:
-        return
 
     tsv_path = Path(output_dir) / "decode_experiments.tsv"
 
-    steps = normalize_decode_modes(decode_modes)
     decode_params: dict[str, Any] = {}
     step_names: list[str] = []
-    for step in steps:
-        step_names.append(step.name)
-        decode_params.update(step.kwargs)
+    if decode_modes:
+        steps = normalize_decode_modes(decode_modes)
+        for step in steps:
+            step_names.append(step.name)
+            decode_params.update(step.kwargs)
+    else:
+        decoding_cfg = getattr(cfg, "decoding", None)
+        graph_cfg = getattr(decoding_cfg, "graph", None)
+        if not graph_cfg:
+            return
+        from .graph import validate_graph
+
+        graph = validate_graph(graph_cfg)
+        for node in graph.nodes:
+            step_names.append(node.op)
+            decode_params.update(node.kwargs)
     decode_params["decoder"] = "+".join(step_names)
     step_name_set = set(step_names)
 
@@ -59,21 +69,18 @@ def log_decode_experiment(
         param_keys.append("boundary_threshold")
     if decode_params.get("dust_merge") and decode_params.get("dust_merge_size", 0) > 0:
         param_keys += ["dust_merge_size", "dust_merge_affinity", "dust_remove_size"]
-    if "branch_merge" in step_name_set or decode_params.get("branch_merge"):
-        param_keys += [
-            "iou_threshold",
-            "best_buddy",
-            "one_sided_threshold",
-            "one_sided_min_size",
-        ]
+    if "seg_2d" in step_name_set:
+        param_keys.append("thr")
+    if "branch_merge" in step_name_set:
+        param_keys.append("prefer_length")
     if "branch_split" in step_name_set:
         param_keys += [
-            "seed_affinity_threshold",
-            "min_parent_size",
-            "min_seed_size",
-            "min_seed_fraction",
-            "max_seed_fraction",
-            "max_splits_per_parent",
+            "drop_thr",
+            "w",
+            "min_size",
+            "min_frag",
+            "recover",
+            "host_both",
         ]
     metric_keys = [
         "adapted_rand_error",
@@ -84,6 +91,7 @@ def log_decode_experiment(
         "instance_recall_detail",
         "instance_f1_detail",
         "nerl",
+        "nerl_oracle_merge",
         "nerl_pred_erl",
         "nerl_gt_erl",
         "nerl_erl",

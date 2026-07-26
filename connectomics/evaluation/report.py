@@ -141,10 +141,21 @@ def save_metrics_to_file(context: EvaluationContext, metrics_dict: Dict[str, Any
                     f.write(f"  Accuracy:                     {metrics_dict['accuracy']:.6f}\n")
                 f.write("\n")
 
-            if "nerl" in metrics_dict:
+            if "nerl" in metrics_dict or "nerl_oracle_merge" in metrics_dict:
                 f.write("Neurite ERL Metrics:\n")
                 f.write("-" * 80 + "\n")
-                f.write(f"  NERL:                         {metrics_dict['nerl']:.6f}\n")
+                if "nerl" in metrics_dict:
+                    f.write(f"  NERL:                         {metrics_dict['nerl']:.6f}\n")
+                if "nerl_oracle_merge" in metrics_dict:
+                    f.write(
+                        "  NERL Oracle-Merge:            "
+                        f"{metrics_dict['nerl_oracle_merge']:.6f}\n"
+                    )
+                if "nerl_oracle_merge_pred_erl" in metrics_dict:
+                    f.write(
+                        "  Oracle-Merge Pred ERL:        "
+                        f"{metrics_dict['nerl_oracle_merge_pred_erl']:.6f}\n"
+                    )
                 pred_erl = metrics_dict.get("nerl_pred_erl", metrics_dict.get("nerl_erl"))
                 gt_erl = metrics_dict.get("nerl_gt_erl", metrics_dict.get("nerl_max_erl"))
                 if pred_erl is not None:
@@ -201,13 +212,14 @@ def compute_test_metrics(
     metrics_dict: Dict[str, Any] = {"volume_name": volume_name if volume_name else "unknown"}
     requested_metrics = configured_evaluation_metrics(context)
 
-    if "nerl" in requested_metrics:
+    if requested_metrics & {"nerl", "nerl_oracle_merge"}:
         compute_nerl_metrics(
             context,
             decoded_predictions,
             volume_prefix,
             metrics_dict,
             volume_name,
+            dense_labels=labels,
         )
 
     if labels is None:

@@ -23,7 +23,7 @@ that point back at it.
 | Add a dataset / new EM volume | `tutorials/<new>.yaml` (copy closest); data dicts in `data/datasets/data_dicts.py`; new file format only if needed → `connectomics/data/io/io.py` | `tutorials/mito_lucchi++.yaml` |
 | Add a model architecture | `connectomics/models/architectures/`; register via `@register_architecture("name")` decorator; add config params to `connectomics/config/schema/model.py` | `models/architectures/monai_models.py` |
 | Add a loss function | `connectomics/models/losses/losses.py`; register in `create_loss()`; metadata in `losses/metadata.py` | `models/losses/build.py` |
-| Add a decoder | `connectomics/decoding/decoders/`; register via the `register_decoder(name, fn, *, overwrite=False)` *function call* in `decoding/registry.py` (NOT a `@register_decoder` decorator) | `decoding/decoders/segmentation.py` |
+| Add a decoder | `connectomics/decoding/decoders/`; register via the `register_decoder(name, fn, *, overwrite=False)` *function call* in `decoding/registry.py` (NOT a `@register_decoder` decorator); a multi-input graph op uses `register_graph_op(name, as_binary_graph_op(fn))` | `decoding/decoders/segmentation.py`, `decoding/decoders/branch/` |
 | Change augmentation | `connectomics/data/augmentation/build.py`; profile YAMLs in `config/profiles/augmentation_*.yaml` | `data/augmentation/transforms.py` |
 | Change postprocess | `connectomics/decoding/postprocess.py`; templates in `config/templates/decoding_*.yaml` | `decoding/streamed_chunked.py` |
 | Add a tutorial config | `tutorials/<name>.yaml`; validate with `python scripts/validate_tutorial_configs.py --glob 'tutorials/<name>.yaml'` (note: `--glob` is additive over the default `tutorials/*.yaml`; filter output for the new path before fixing anything) | `tutorials/mito_lucchi++.yaml` |
@@ -239,7 +239,12 @@ connectomics/                       # Main Python package (~155 files, ~43K LOC)
 │   ├── decoders/                   # Concrete decoder implementations
 │   │   ├── segmentation.py         # CC, distance-watershed, waterz
 │   │   ├── segmentation_kernels.py # numba CC kernels
-│   │   ├── synapse.py / abiss.py / branch_merge.py / waterz.py
+│   │   ├── branch/                 # Axon/tube staged decode graph ops
+│   │   │   ├── sections.py         # `seg_2d` (2D waterz sections, small=0)
+│   │   │   ├── linking.py          # `branch_link` (conservative + best-buddy)
+│   │   │   ├── split.py            # `branch_split` (link-cut + confident tunnel carve)
+│   │   │   └── merge.py            # `branch_merge` (completion + mutual IoU + weak gap)
+│   │   ├── synapse.py / abiss.py / waterz.py
 │   ├── tuning/                     # Pure tuner (no `connectomics.training` imports)
 │   │   └── optuna_tuner.py
 │   └── utils.py
@@ -266,6 +271,9 @@ connectomics/                       # Main Python package (~155 files, ~43K LOC)
 ├── metrics/                        # Metric implementations (no orchestration)
 │   ├── metrics_seg.py              # TorchMetrics segmentation (Jaccard, Dice, VOI)
 │   ├── metrics_skel.py             # Skeleton-based metrics
+│   ├── nerl.py                     # NERL scoring helpers (em_erl)
+│   ├── oracle.py                   # `oracle_merge_segmentation` (false-merge-free ceiling)
+│   ├── completeness.py             # GT-free completeness ranker (border-touch)
 │   └── segmentation_numpy.py       # NumPy metrics (Adapted Rand, etc.)
 │
 └── utils/                          # Cross-domain primitives only
@@ -293,6 +301,9 @@ scripts/                            # Entry points and utilities
 
 tutorials/                          # Example configurations (16 canonical YAMLs + custom workflows)
 ├── mitoEM/, neuron_nisb/, neuron_snemi/  # Multi-config experiment families
+├── neuron_axon/                    # MIT-LiCONN axon decode: naive waterz baseline vs
+│                                   #   the staged branch decode graph (seg_2d → link →
+│                                   #   split → merge), scored with NERL + oracle-merge
 ├── *.yaml                          # Dataset-specific configs
 │                                   #   mito_lucchi++, mito_mitolab, mito_betaseg(_banis_v0/v1/v2),
 │                                   #   neuron_liconn_mit(_x2), nuc_nucmm-z, syn_cremi,

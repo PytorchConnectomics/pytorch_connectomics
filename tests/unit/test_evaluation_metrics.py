@@ -54,7 +54,14 @@ def test_nerl_only_evaluation_skips_unrequested_label_metric_groups(monkeypatch)
         metrics_sink=lambda metrics: captured.update(metrics),
     )
 
-    def _fake_compute_nerl_metrics(_context, _predictions, _prefix, metrics_dict, _volume):
+    def _fake_compute_nerl_metrics(
+        _context,
+        _predictions,
+        _prefix,
+        metrics_dict,
+        _volume,
+        **_kwargs,
+    ):
         metrics_dict["nerl"] = 1.0
 
     monkeypatch.setattr(

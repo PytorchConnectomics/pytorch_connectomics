@@ -19,6 +19,8 @@ __all__ = ["decode_waterz"]
 
 logger = logging.getLogger(__name__)
 
+_NAIVE_WATERZ_CHUNK_DEPTH = 80
+
 try:
     import waterz
     from waterz import dust_merge_from_region_graph, merge_function_to_scoring
@@ -293,3 +295,123 @@ def decode_waterz(
 
     # Return last threshold result
     return processed[-1]
+
+
+def _decode_naive_waterz_chunk(predictions: np.ndarray) -> np.ndarray:
+    result = decode_waterz(
+        predictions,
+        thresholds=0.4,
+        merge_function="aff85_his256",
+        aff_threshold=(0.1, 0.9),
+        boundary_threshold=0.80078125,
+        channel_order="zyx",
+        use_aff_uint8=False,
+        use_seg_uint32=True,
+        dust_merge=True,
+        dust_merge_size=1500,
+        dust_merge_affinity=0.1,
+        dust_remove_size=600,
+    )
+    if isinstance(result, dict):  # pragma: no cover - fixed scalar threshold.
+        raise TypeError("naive_waterz expected one segmentation result")
+    return result
+
+
+def _naive_waterz_relabel(
+    global_max_id: int,
+    pair_arrays: Sequence[np.ndarray],
+) -> np.ndarray:
+    from waterz.region_graph import merge_id
+
+    if global_max_id <= 0:
+        return np.zeros(1, dtype=np.uint64)
+
+    if pair_arrays:
+        pairs = np.concatenate(pair_arrays, axis=0)
+        pairs = pairs[(pairs[:, 0] > 0) & (pairs[:, 1] > 0)]
+    else:
+        pairs = np.zeros((0, 2), dtype=np.uint64)
+
+    roots: np.ndarray
+    if len(pairs) == 0:
+        roots = np.arange(global_max_id + 1, dtype=np.uint64)
+    else:
+        sentinel = np.array([global_max_id], dtype=np.uint64)
+        id1 = np.concatenate([pairs[:, 0].astype(np.uint64, copy=False), sentinel])
+        id2 = np.concatenate([pairs[:, 1].astype(np.uint64, copy=False), sentinel])
+        roots = merge_id(id1, id2)
+        if len(roots) < global_max_id + 1:
+            padded: np.ndarray = np.arange(global_max_id + 1, dtype=np.uint64)
+            padded[: len(roots)] = roots
+            roots = padded
+
+    mapping: np.ndarray = np.zeros(global_max_id + 1, dtype=np.uint64)
+    _, inverse = np.unique(roots[1:], return_inverse=True)
+    mapping[1:] = inverse.astype(np.uint64) + 1
+    return mapping
+
+
+def naive_waterz(predictions: np.ndarray) -> np.ndarray:
+    """Run the fixed chunk-and-stitch naive-waterz axon reference recipe."""
+    from waterz.face_merge import face_merge_pairs
+
+    from ...data.processing.bbox import apply_lut
+
+    predictions = np.asarray(predictions)
+    if predictions.ndim != 4:
+        raise ValueError(
+            f"Expected affinity predictions with shape (C, Z, Y, X), "
+            f"got {predictions.ndim}D array with shape {predictions.shape}."
+        )
+    if predictions.shape[0] < 3:
+        raise ValueError(f"Expected >= 3 affinity channels, got {predictions.shape[0]}.")
+
+    chunks: List[np.ndarray] = []
+    offsets: List[int] = []
+    cursor = 0
+    for z0 in range(0, predictions.shape[1], _NAIVE_WATERZ_CHUNK_DEPTH):
+        z1 = min(z0 + _NAIVE_WATERZ_CHUNK_DEPTH, predictions.shape[1])
+        seg = np.asarray(_decode_naive_waterz_chunk(predictions[:, z0:z1]), dtype=np.uint32)
+        chunks.append(seg)
+        offsets.append(cursor)
+        cursor += int(seg.max()) if seg.size else 0
+
+    pair_arrays = []
+    for chunk_index in range(len(chunks) - 1):
+        src_face = np.asarray(chunks[chunk_index][-1], dtype=np.uint64)
+        dst_face = np.asarray(chunks[chunk_index + 1][0], dtype=np.uint64)
+
+        src_offset = offsets[chunk_index]
+        dst_offset = offsets[chunk_index + 1]
+        if src_offset:
+            src_mask = src_face > 0
+            src_face[src_mask] += src_offset
+        if dst_offset:
+            dst_mask = dst_face > 0
+            dst_face[dst_mask] += dst_offset
+
+        boundary_z = (chunk_index + 1) * _NAIVE_WATERZ_CHUNK_DEPTH
+        pairs = face_merge_pairs(
+            src_face,
+            dst_face,
+            np.asarray(predictions[0, boundary_z], dtype=np.float32),
+            min_overlap=20,
+            iou_threshold=0.05,
+            one_sided_threshold=0.95,
+            one_sided_min_size=200,
+            affinity_threshold=0.15,
+        )
+        if pairs.size:
+            pair_arrays.append(pairs)
+
+    relabel = _naive_waterz_relabel(cursor, pair_arrays)
+    output = np.empty(predictions.shape[1:], dtype=np.uint32)
+    for chunk_index, seg in enumerate(chunks):
+        offset = offsets[chunk_index]
+        if offset:
+            mask = seg > 0
+            seg[mask] += offset
+        apply_lut(seg, relabel)
+        z0 = chunk_index * _NAIVE_WATERZ_CHUNK_DEPTH
+        output[z0 : z0 + len(seg)] = seg
+    return output

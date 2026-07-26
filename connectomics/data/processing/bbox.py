@@ -3,6 +3,7 @@ from __future__ import annotations
 import itertools
 from typing import Optional, Tuple, Union
 
+import cc3d
 import numpy as np
 
 __all__ = [
@@ -11,7 +12,51 @@ __all__ = [
     "crop_ND",
     "replace_ND",
     "compute_bbox_all",
+    "seg_stats",
+    "apply_lut",
 ]
+
+
+def seg_stats(seg: np.ndarray, want_centroids: bool = False):
+    """Collect segmentation bounds and sizes in one ``cc3d.statistics`` pass.
+
+    Bounding-box coordinates are inclusive and ordered as
+    ``(z0, z1, y0, y1, x0, x1)``. ``sizes`` is indexed by segment ID.
+    """
+    st = cc3d.statistics(seg)
+    bb = st["bounding_boxes"]
+    vc = st["voxel_counts"]
+    zr = {}
+    for L in range(1, len(bb)):
+        if vc[L] == 0:
+            continue
+        s = bb[L]
+        zr[L] = (
+            int(s[0].start),
+            int(s[0].stop - 1),
+            int(s[1].start),
+            int(s[1].stop - 1),
+            int(s[2].start),
+            int(s[2].stop - 1),
+        )
+    cents = None
+    if want_centroids:
+        ce = st["centroids"]
+        cents = {L: tuple(ce[L]) for L in zr}
+    return zr, vc, cents
+
+
+def apply_lut(seg: np.ndarray, lut: np.ndarray, chunk: int = 64) -> np.ndarray:
+    """Apply a relabeling LUT in-place using bounded-size z slabs.
+
+    ``lut[seg]`` fancy indexing allocates a whole extra volume. Applying it one
+    z slab at a time limits the temporary allocation to the slab size.
+    """
+    lut = np.asarray(lut, dtype=seg.dtype)
+    for z0 in range(0, seg.shape[0], chunk):
+        z1 = min(z0 + chunk, seg.shape[0])
+        seg[z0:z1] = lut[seg[z0:z1]]
+    return seg
 
 
 def bbox_ND(img: np.ndarray, relax: int = 0) -> tuple:

@@ -13,8 +13,10 @@ from connectomics.decoding import (
     DecoderRegistry,
     apply_decode_pipeline,
     decode_affinity_cc,
+    get_decoder,
     list_decoders,
 )
+from connectomics.decoding.graph import run_decode_graph
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 
@@ -42,6 +44,9 @@ def affinity_with_redundant_channels() -> np.ndarray:
 
 def test_builtin_decoders_are_registered():
     names = set(list_decoders())
+    assert "naive_waterz" in names
+    assert "seg_2d" in names
+    assert "branch_link" in names
     assert "branch_merge" in names
     assert "branch_split" in names
     assert "longrange_guided_split" in names
@@ -51,6 +56,58 @@ def test_builtin_decoders_are_registered():
     assert "decode_binary_contour_distance_watershed" in names
     assert "decode_instance_binary_contour_distance" in names
     assert "decode_abiss" in names
+
+
+def test_naive_waterz_bakes_in_reference_recipe(monkeypatch):
+    from connectomics.decoding.decoders import waterz as waterz_module
+
+    expected = np.ones((2, 3, 4), dtype=np.uint32)
+    captured = {}
+
+    def fake_decode(predictions, **kwargs):
+        captured["predictions"] = predictions
+        captured.update(kwargs)
+        return expected
+
+    raw = np.zeros((3, 2, 3, 4), dtype=np.float32)
+    monkeypatch.setattr(waterz_module, "decode_waterz", fake_decode)
+
+    result = waterz_module.naive_waterz(raw)
+
+    np.testing.assert_array_equal(result, expected)
+    assert result.dtype == np.uint32
+    np.testing.assert_array_equal(captured.pop("predictions"), raw)
+    assert captured == {
+        "thresholds": 0.4,
+        "merge_function": "aff85_his256",
+        "aff_threshold": (0.1, 0.9),
+        "boundary_threshold": 0.80078125,
+        "channel_order": "zyx",
+        "use_aff_uint8": False,
+        "use_seg_uint32": True,
+        "dust_merge": True,
+        "dust_merge_size": 1500,
+        "dust_merge_affinity": 0.1,
+        "dust_remove_size": 600,
+    }
+
+
+def test_naive_waterz_stitches_fixed_depth_chunks(monkeypatch):
+    from connectomics.decoding.decoders import waterz as waterz_module
+
+    calls = []
+
+    def fake_decode(predictions, **kwargs):
+        calls.append(predictions.shape)
+        return np.ones(predictions.shape[1:], dtype=np.uint32)
+
+    raw = np.ones((3, 81, 15, 15), dtype=np.float32)
+    monkeypatch.setattr(waterz_module, "decode_waterz", fake_decode)
+
+    result = waterz_module.naive_waterz(raw)
+
+    assert calls == [(3, 80, 15, 15), (3, 1, 15, 15)]
+    np.testing.assert_array_equal(result, np.ones((81, 15, 15), dtype=np.uint32))
 
 
 def test_import_decoding_does_not_eagerly_import_decoder_modules():
@@ -183,27 +240,41 @@ def test_decode_pipeline_can_pass_original_input_to_correction_step():
     np.testing.assert_array_equal(final, np.ones((4, 4, 4), dtype=np.uint64))
 
 
-def test_branch_split_uses_seed_components_as_independent_decoder():
-    from connectomics.decoding.decoders.branch_split import branch_split
+def test_branch_graph_ops_require_raw_and_segmentation_inputs():
+    seg = np.zeros((4, 8, 8), dtype=np.uint32)
+    for name in ("branch_link", "branch_split", "branch_merge"):
+        with pytest.raises(ValueError, match="expects exactly two inputs"):
+            get_decoder(name)([seg])
 
-    seg = np.zeros((4, 8, 8), dtype=np.uint64)
-    seg[:, 1:7, 1:7] = 1
-    seeds = np.zeros_like(seg)
-    seeds[:, 1:7, 1:3] = 10
-    seeds[:, 1:7, 5:7] = 20
 
-    split = branch_split(
-        seg,
-        seed_seg=seeds,
-        min_parent_size=1,
-        min_seed_size=1,
-        min_seed_fraction=0.0,
-    )
+def test_ready_branch_graph_runs_end_to_end_on_small_volume():
+    affinity = np.ones((3, 3, 12, 12), dtype=np.float32)
+    graph = {
+        "nodes": [
+            {"name": "sections", "op": "seg_2d", "inputs": ["raw"]},
+            {
+                "name": "tracklets",
+                "op": "branch_link",
+                "inputs": ["raw", "sections"],
+            },
+            {
+                "name": "split",
+                "op": "branch_split",
+                "inputs": ["raw", "tracklets"],
+            },
+            {
+                "name": "merged",
+                "op": "branch_merge",
+                "inputs": ["raw", "split"],
+            },
+        ],
+        "output": "merged",
+    }
 
-    assert set(np.unique(split)) == {0, 1, 2}
-    assert np.all(split[:, 1:7, 1:3] == 1)
-    assert np.all(split[:, 1:7, 5:7] == 2)
-    assert np.all(split[seg == 1] > 0)
+    result = run_decode_graph(affinity, graph)
+
+    assert result.shape == affinity.shape[1:]
+    assert result.dtype == np.uint32
 
 
 def test_decode_pipeline_unknown_decoder_raises(affinity_with_redundant_channels):

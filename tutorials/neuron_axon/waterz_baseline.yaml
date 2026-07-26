@@ -1,0 +1,27 @@
+_base_:
+  - ../../connectomics/config/all_profiles.yaml
+
+experiment_name: neuron_axon_waterz_baseline
+description: >-
+  Decode the same MIT-LiCONN affinity volume with the established naive 3D
+  waterz recipe, for a like-for-like comparison with axon_decode.yaml.
+
+default:
+  inference: {}
+  decoding:
+    load_prediction_path: datasets/mit-liconn/raw_x1_head-aff_r1.h5
+    save_path: outputs/neuron_axon/waterz
+    steps:
+      - name: naive_waterz
+  evaluation:
+    enabled: true
+    metrics: [nerl, nerl_oracle_merge]
+    nerl_merge_threshold: 10
+
+test:
+  data:
+    test:
+      name: mit_liconn
+      label: datasets/mit-liconn/gt_label_clean_v3.h5
+      skeleton: datasets/mit-liconn/gt_label_clean_v3_strongmax.ds244.erlgraph.npz
+      resolution: [25, 9, 9]

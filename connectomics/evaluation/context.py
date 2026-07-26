@@ -58,6 +58,10 @@ class EvaluationContext:
     def resolved_output_path(self) -> str | Path | None:
         if self.output_path is not None:
             return self.output_path
+        decoding_cfg = getattr(self.cfg, "decoding", None)
+        decoding_path = self.cfg_value(decoding_cfg, "save_path", None)
+        if decoding_path:
+            return decoding_path
         return self.cfg_value(self.inference_cfg, "save_path", None)
 
     def log_metric(self, name: str, value: Any, **kwargs: Any) -> None:

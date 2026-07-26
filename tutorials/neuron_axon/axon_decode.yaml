@@ -1,0 +1,34 @@
+_base_:
+  - ../../connectomics/config/all_profiles.yaml
+
+experiment_name: neuron_axon_staged_decode
+description: >-
+  Decode the MIT-LiCONN affinity volume with volume-unique 2D sections,
+  conservative branch linking, the combined split stage, and the combined
+  completion/merge/weak-gap stage. Point graph.output at sections, tracklets,
+  or split to stop after an earlier stage.
+
+default:
+  inference: {}
+  decoding:
+    load_prediction_path: datasets/mit-liconn/raw_x1_head-aff_r1.h5
+    save_path: outputs/neuron_axon/axon
+    graph:
+      nodes:
+        - {name: sections, op: seg_2d, inputs: [raw]}
+        - {name: tracklets, op: branch_link, inputs: [raw, sections]}
+        - {name: split, op: branch_split, inputs: [raw, tracklets]}
+        - {name: merged, op: branch_merge, inputs: [raw, split]}
+      output: merged
+  evaluation:
+    enabled: true
+    metrics: [nerl, nerl_oracle_merge]
+    nerl_merge_threshold: 10
+
+test:
+  data:
+    test:
+      name: mit_liconn
+      label: datasets/mit-liconn/gt_label_clean_v3.h5
+      skeleton: datasets/mit-liconn/gt_label_clean_v3_strongmax.ds244.erlgraph.npz
+      resolution: [25, 9, 9]
