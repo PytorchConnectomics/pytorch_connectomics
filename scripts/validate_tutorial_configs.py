@@ -20,8 +20,12 @@ from typing import Any, Iterable, List, Tuple
 
 import yaml
 
-from connectomics.config import load_config
-from connectomics.runtime.preflight import validate_runtime_coherence
+_REPO_ROOT = Path(__file__).resolve().parents[1]
+if str(_REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(_REPO_ROOT))
+
+from connectomics.config import load_config  # noqa: E402
+from connectomics.runtime.preflight import validate_runtime_coherence  # noqa: E402
 
 LEGACY_PATTERNS: List[Tuple[Tuple[str, ...], str]] = [
     (("inference", "data"), "Use `test.data` instead of `inference.data`."),
@@ -108,7 +112,7 @@ ADVISORY_PATTERNS: List[Tuple[Tuple[str, ...], str]] = [
      "default.data.train.name has no effect; set under val/test instead."),
 ]
 
-CUSTOM_WORKFLOW_ROOTS = {"large_decode", "abiss_large"}
+CUSTOM_WORKFLOW_ROOTS = {"large_decode", "abiss_large", "seuron_replay"}
 
 
 def _has_path(data: Any, path: Tuple[str, ...]) -> bool:

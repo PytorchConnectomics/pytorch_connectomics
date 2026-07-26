@@ -236,13 +236,18 @@ def _decode_with_pipeline_spatial_transpose(
     """Run a decoder while honoring the pipeline-level spatial_transpose kwarg."""
     params = dict(decoding_params)
     spatial_transpose = params.pop("spatial_transpose", None)
+    # ``decoder_fn`` comes from ``get_decoder`` and follows the graph-op call
+    # contract: it takes a *list* of input arrays (a unary decoder asserts
+    # ``len(inputs) == 1`` then calls ``fn(inputs[0])``). Passing the bare
+    # (C, *spatial) array makes the wrapper read the channel dim as the input
+    # count and reject multi-channel affinity. Wrap it like ``run_decode_graph``.
     if spatial_transpose is None:
-        return decoder_fn(predictions, **params)
+        return decoder_fn([predictions], **params)
 
     from ..pipeline import _apply_spatial_transpose, _invert_axis_permutation
 
     transposed = _apply_spatial_transpose(predictions, spatial_transpose)
-    result = decoder_fn(transposed, **params)
+    result = decoder_fn([transposed], **params)
     inverse = _invert_axis_permutation(spatial_transpose)
     if isinstance(result, dict):
         return {

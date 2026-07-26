@@ -31,6 +31,7 @@ requirements = [
     "tqdm>=4.58.0",
     "einops>=0.3.0",
     "psutil>=5.8.0",
+    "filelock>=3.0.0",  # cross-platform lock for concurrent chunked HDF5 writes
     # Post-processing (required for segmentation)
     "connected-components-3d>=3.0.0",  # imports as 'cc3d'
     "fastremap>=1.10.0",  # Fast remapping for segmentation labels
@@ -81,6 +82,14 @@ extras_require = {
     # Or from your local MedNeXt installation path
     "mednext": [
         # Placeholder - install manually from /projects/weilab/weidf/lib/MedNeXt
+    ],
+    # Mutex Watershed decoder (affinity -> instances, seedless).
+    # Backs the 'decode_mutex_watershed' decoder. affogato is a C++/xtensor
+    # package published on conda-forge only (the PyPI 'affogato' is an
+    # unrelated project). Install manually:
+    #     conda install -c conda-forge affogato
+    "mws": [
+        # Placeholder - install manually: conda install -c conda-forge affogato
     ],
 }
 

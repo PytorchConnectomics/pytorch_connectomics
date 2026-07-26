@@ -695,7 +695,7 @@ def finish_streaming_qc(
 
     report = accumulator.finalize(img=img)
     os.makedirs(os.path.dirname(report_path) or ".", exist_ok=True)
-    with open(report_path, "w") as f:
+    with open(report_path, "w", encoding="utf-8") as f:
         f.write(render_markdown_report(
             report, params,
             pred_desc=pred_desc, img_desc=img_desc,
@@ -761,7 +761,7 @@ def run_affinity_qc(cfg: Any, predictions: np.ndarray) -> Optional[str]:
     report = scan_prediction(predictions, img, params)
 
     os.makedirs(os.path.dirname(report_path) or ".", exist_ok=True)
-    with open(report_path, "w") as f:
+    with open(report_path, "w", encoding="utf-8") as f:
         f.write(render_markdown_report(
             report, params,
             pred_desc=pred_desc, img_desc=img_desc,

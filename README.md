@@ -41,7 +41,7 @@ checkpoints live in **[`docs/benchmarks/`](docs/benchmarks/)**.
 | Lucchi++  | Mito — semantic         | MedNeXt-S          | Jaccard ↑       | [0.935](https://huggingface.co/pytc/tutorial/tree/main/mito_lucchi++) |
 | MitoEM-R  | Mito — instance         | MedNeXt-L + waterz | AP ↑            | —     |
 | SNEMI3D   | Neurons — instance      | RSUNet + waterz    | adapted Rand ↓  | —     |
-| BANIS     | Neurons — instance      | MedNeXt-M + abiss  | NERL ↑          | —     |
+| BANIS     | Neurons — instance      | MedNeXt-L + cc3d   | NERL ↑          | [0.601](https://huggingface.co/pytc/tutorial/tree/main/neuron_nisb) |
 | CREMI     | Synapse — semantic      | MONAI U-Net        | F1 ↑            | —     |
 
 <!-- Maintainer TODO: replace "—" with current scores from the latest released
@@ -177,7 +177,7 @@ python scripts/main.py --config <cfg> data.dataloader.batch_size=4 optimization.
 PyTC stands on the work of many open-source projects. Organized by what they enable here:
 
 - **High-performance pipeline** — [PyTorch Lightning](https://lightning.ai/), [MONAI](https://monai.io/), [Zarr](https://zarr.dev/), [HDF5](https://www.h5py.org/)
-- **State-of-the-art models** — [Swin UNETR](https://docs.monai.io/en/stable/networks.html#swinunetr), [MedNeXt](https://github.com/PytorchConnectomics/MedNeXt), [nnU-Net](https://github.com/MIC-DKFZ/nnUNet), [Cellpose](https://github.com/MouseLand/cellpose)
+- **State-of-the-art models** — [Swin UNETR](https://docs.monai.io/en/stable/networks.html#swinunetr), [MedNeXt](https://github.com/PytorchConnectomics/MedNeXt), [nnU-Net](https://github.com/MIC-DKFZ/nnUNet), [Cellpose](https://github.com/MouseLand/cellpose), [BANIS](https://github.com/StructuralNeurobiologyLab/banis)
 - **Effective decoding** — [cc3d](https://github.com/seung-lab/connected-components-3d), [waterz](https://github.com/funkey/waterz), [abiss](https://github.com/seung-lab/abiss)
 - **Reproducible experiments** — [Hydra](https://hydra.cc/), [Optuna](https://optuna.org/)
 - **Agent-driven development** — [Claude Code](https://claude.com/claude-code), [Codex](https://github.com/openai/codex), orchestrated via [ccc-agent-flow](https://github.com/donglaiw/ccc-agent-flow)
