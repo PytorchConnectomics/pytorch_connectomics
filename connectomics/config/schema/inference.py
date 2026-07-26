@@ -115,6 +115,12 @@ class ChunkingConfig:
     chunk_size: Optional[List[int]] = None  # ZYX after test-time val_transpose.
     halo: List[int] = field(default_factory=lambda: [0, 0, 0])
     axes: str = "all"  # "all" or "z"; "z" keeps full YX in each chunk.
+    # Image geometry / ROI in INPUT voxel coords (ZYX) restricting the chunk grid.
+    # 3 ints = size [Z, Y, X] from origin 0; 6 ints = [z0, y0, x0, z1, y1, x1].
+    # When set, chunks whose core lies entirely outside the ROI (pure zero-padding
+    # in an over-sized/padded volume, e.g. a zarr rounded out to 12288^2) are
+    # skipped instead of inferred. None = infer the whole grid (previous behavior).
+    roi: Optional[List[int]] = None
     shard_id: Optional[int] = None  # External naive chunk shard index; set by CLI.
     num_shards: Optional[int] = None  # External naive chunk shard count; set by CLI.
     temp_dir: str = ""
