@@ -53,6 +53,10 @@ default:
             small: 0          # waterz internal small-segment removal. KEEP 0: waterz's
                               #   own default of 150 silently dropped 4.2% of confident
                               #   skeleton coverage, whole thin tubes included
+            num_workers: 8    # CPUs used to section slices. Slices are independent and
+                              #   the id offset stays sequential, so any worker count
+                              #   gives bit-identical output. -1 = every available CPU
+                              #   (cgroup-aware, so it respects a SLURM allocation)
 
         # ---- link sections across z into tracklets -------------------------------
         - name: tracklets
