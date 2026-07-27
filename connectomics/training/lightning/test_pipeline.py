@@ -882,9 +882,13 @@ def run_test_step(module, batch: Dict[str, torch.Tensor], batch_idx: int) -> STE
         logger.info(f"Input source:      {image_path}")
         logger.info(f"Input shape:       {reference_image_shape}")
         logger.info("Input device:      [lazy disk-backed volume]")
+        image_ndim = len(reference_image_shape)
     else:
+        if images is None:
+            raise RuntimeError("Non-lazy test samples require an image tensor.")
         logger.info(f"Input shape:       {tuple(images.shape)}")
         logger.info(f"Input device:      {images.device}")
+        image_ndim = images.ndim
     if crop_pad is not None:
         logger.info(f"Inference crop:    {list(crop_pad)}")
 
@@ -901,7 +905,6 @@ def run_test_step(module, batch: Dict[str, torch.Tensor], batch_idx: int) -> STE
         logger.info(f"Blending mode:      {blending}")
     else:
         logger.info("Sliding window:     [Direct inference, no sliding window]")
-    image_ndim = len(reference_image_shape) if lazy_sample else images.ndim
     logger.info(f"TTA:                {module._summarize_tta_plan(image_ndim)}")
     logger.info(f"{'=' * 70}")
 
@@ -911,7 +914,7 @@ def run_test_step(module, batch: Dict[str, torch.Tensor], batch_idx: int) -> STE
     if merge_heads:
         selected_output_head = "+".join(configured_heads)
         per_head_preds: list[np.ndarray] = []
-        reference_spatial_shape: tuple[int, ...] = ()
+        reference_spatial_shape = ()
         skip_local_distributed_shard = False
         for head_name in configured_heads:
             head_pred_np, reference_spatial_shape = _predict_output_head(
