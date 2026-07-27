@@ -130,10 +130,12 @@ def _link_recipe(
     aa: np.ndarray,
     ab: np.ndarray,
     inter: np.ndarray,
+    link_iou: float = LINK_IOU,
+    bb_iou: float = BB_IOU,
 ) -> tuple[np.ndarray, np.ndarray]:
     """Apply the winning conservative(0.2) + best-buddy(0.3) recipe."""
-    spine, _ = _conservative_pairs(a, b, aa, ab, inter, min_iou=LINK_IOU)
-    bb = _bb_pairs(a, b, aa, ab, inter, BB_IOU)
+    spine, _ = _conservative_pairs(a, b, aa, ab, inter, min_iou=link_iou)
+    bb = _bb_pairs(a, b, aa, ab, inter, bb_iou)
     return spine.astype(np.uint64), bb.astype(np.uint64)
 
 
@@ -179,6 +181,8 @@ def branch_link(
     aff: np.ndarray,
     sections: np.ndarray,
     *,
+    link_iou: float = LINK_IOU,
+    bb_iou: float = BB_IOU,
     inplace: bool = False,
 ) -> np.ndarray:
     """Conservatively link globally unique sections into v0 tracklets.
@@ -187,6 +191,13 @@ def branch_link(
     but the linking itself is geometric: the research path
     (``decode_v2.decode_sections(..., no_force_split=True)``) returns before
     affinity is consumed, so no in-plane affinity is computed here.
+
+    Args:
+        link_iou: minimum IoU for the conservative "spine" link, which also
+            requires a mutual argmax and in-degree 1 on both sides.
+        bb_iou: minimum IoU for the relaxed mutual best-buddy pass that runs
+            after the spine. Mutual-best is merge-safe; a one-sided dominance
+            rule at this stage chains adjacent neurons instead.
     """
     aff = np.asarray(aff)
     if aff.ndim != 4 or aff.shape[0] != 3:
@@ -197,5 +208,5 @@ def branch_link(
 
     z_of = _section_index(seg2d)
     a, b, aa, ab, inter = _raw_iou_table(seg2d, z_of)
-    spine, bb = _link_recipe(a, b, aa, ab, inter)
+    spine, bb = _link_recipe(a, b, aa, ab, inter, link_iou=link_iou, bb_iou=bb_iou)
     return _apply_links(seg2d, spine, bb, inplace=inplace)

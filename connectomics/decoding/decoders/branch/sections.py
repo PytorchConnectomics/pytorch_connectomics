@@ -132,13 +132,31 @@ def _waterz_2d_spacefill(
     return seg_out
 
 
-def seg_2d(aff: np.ndarray, *, thr: float = 0.3) -> np.ndarray:
+def seg_2d(
+    aff: np.ndarray,
+    *,
+    thr: float = 0.3,
+    aff_bg: float = AFF_BG,
+    aff_low: float = AFF_LOW,
+    small: int = 0,
+) -> np.ndarray:
     """Decode each z-slice independently and assign volume-unique section IDs.
 
-    The validated recipe uses the strong affinity band (``AFF_BG=0.66``), the
-    ``aff30_his256_ran255`` waterz score, and ``small=0`` so no above-band
-    section is removed.  Only the agglomeration threshold remains a Python
-    research override; the tutorial graph supplies no tuning parameters.
+    The validated recipe is the default of every argument below, with the
+    ``aff30_his256_ran255`` waterz score.
+
+    Args:
+        thr: waterz agglomeration threshold within a slice.
+        aff_bg: foreground band -- a voxel is section material only where the
+            maximum affinity exceeds this. Lowering it admits the weak
+            0.30-0.66 shell, which bridges touching parallel tubes; the
+            weak-gap stage of :func:`branch_merge` crosses that band locally
+            instead, which is measurably safer.
+        aff_low: waterz ``aff_threshold_low``.
+        small: waterz internal small-segment removal. The validated value is 0
+            (keep every above-``aff_bg`` supervoxel): waterz's own default of
+            150 silently removed 4.2% of confident skeleton coverage, whole
+            thin tubes included.
     """
     aff = np.asarray(aff)
     if aff.ndim != 4 or aff.shape[0] != 3:
@@ -149,10 +167,10 @@ def seg_2d(aff: np.ndarray, *, thr: float = 0.3) -> np.ndarray:
         aff,
         np.ones(expected, bool),
         thr,
-        0,
-        AFF_LOW,
+        small,
+        aff_low,
         rg_zero=RG_ZERO,
         score=_get_score_func(SCORE_NAME),
-        aff_bg=AFF_BG,
+        aff_bg=aff_bg,
     )
     return np.asarray(sections, dtype=np.uint32)

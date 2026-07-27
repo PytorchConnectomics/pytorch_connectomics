@@ -34,31 +34,91 @@ default:
     # earlier is a one-line change: point `output` at any node. The graph prunes
     # execution to that node's ancestors and the artifact cache tag changes with it,
     # so an early stop cannot silently reuse a later artifact.
+    # Every kwarg below is written at its VALIDATED DEFAULT: this file as shipped
+    # reproduces 0.8434 / 0.9525. They are spelled out so they can be tuned; omit any
+    # kwarg to fall back to the same value in code.
     graph:
       nodes:
-        # 2D waterz per z-slice at threshold 0.3 with small=0 (no small-segment
-        # removal -- dropping <150-voxel 2D segments cost 4.2% of confident skeleton
-        # coverage). Sections get volume-unique ids.
-        - {name: sections,  op: seg_2d,       inputs: [raw]}
+        # ---- 2D sections: waterz within each z-slice, volume-unique ids ----------
+        - name: sections
+          op: seg_2d
+          inputs: [raw]
+          kwargs:
+            thr: 0.3          # waterz agglomeration threshold inside a slice
+            aff_bg: 0.66      # foreground band; a voxel is section material only
+                              #   above this. Lowering it admits the weak 0.30-0.66
+                              #   shell, which fuses touching parallel tubes -- the
+                              #   weak-gap stage below crosses that band locally instead
+            aff_low: 0.01     # waterz aff_threshold_low
+            small: 0          # waterz internal small-segment removal. KEEP 0: waterz's
+                              #   own default of 150 silently dropped 4.2% of confident
+                              #   skeleton coverage, whole thin tubes included
 
-        # Link sections across z: conservative IoU spine (0.2) + mutual best-buddy
-        # (0.3). Mutual-best only -- one-sided dominance chains adjacent neurons.
-        - {name: tracklets, op: branch_link,  inputs: [raw, sections]}
+        # ---- link sections across z into tracklets -------------------------------
+        - name: tracklets
+          op: branch_link
+          inputs: [raw, sections]
+          kwargs:
+            link_iou: 0.2     # conservative "spine" link: also requires mutual argmax
+                              #   and in-degree 1 on both sides
+            bb_iou: 0.3       # relaxed mutual best-buddy pass after the spine.
+                              #   Mutual-best is merge-safe; one-sided dominance at
+                              #   this stage chains adjacent neurons
 
-        # Cut false merges. A split is cheaper than a merge, so this deliberately
-        # LOWERS base NERL (0.8284 -> 0.7302) to raise the false-merge-free ceiling
-        # (0.9424 -> 0.9631), which the merge stage converts back into run length.
-        # Two operators: consecutive-slice IoU change-point cuts, then a close-ended
-        # "tunnel" carve where two tubes fuse through a host.
-        - {name: split,     op: branch_split, inputs: [raw, tracklets]}
+        # ---- split: convert false merges into splits ------------------------------
+        # A split is cheaper than a merge, so this deliberately LOWERS base NERL
+        # (0.8284 -> 0.7302) to raise the false-merge-free ceiling (0.9424 -> 0.9631),
+        # which the merge stage then converts back into run length.
+        - name: split
+          op: branch_split
+          inputs: [raw, tracklets]
+          kwargs:
+            drop_thr: 0.25    # cut where consecutive-slice IoU dips this far below the
+                              #   median of its neighbours (adaptive, not a fixed IoU)
+            w: 4              # half-window of that neighbour median
+            min_size: 10000   # only segments this large are cut candidates
+            min_frag: 6       # minimum slices between cuts, and from either end
+            recover: 1.1      # skip a cut if slice i-1 and i+1 still overlap by more
+                              #   than this. >1 disables the gate, which is the
+                              #   validated setting: it trades ceiling for base
+            host_both: false  # tunnel carve requires the host to continue past BOTH
+                              #   ends. false (relaxed) also accepts a tube emerging at
+                              #   the host's terminal slice: 31 splits vs 9, ceiling held
 
-        # Re-link under the raised ceiling: cross-section completion (absorb 1-slice
-        # fragments so IoU sees whole cross-sections), mutual best-IoU merging with an
-        # ambiguity margin (abstain when the runner-up is close), then the same
-        # operator reaching across weak-affinity gaps.
-        # Completion belongs HERE and must not precede the split stage: completing
+        # ---- merge: re-link under the raised ceiling -------------------------------
+        # Cross-section completion (absorb 1-slice fragments so IoU sees whole
+        # cross-sections) MUST happen here and not before the split stage -- completing
         # first turns 360 cuts into 16 and gives up 0.021 of the ceiling.
-        - {name: merged,    op: branch_merge, inputs: [raw, split]}
+        - name: merged
+          op: branch_merge
+          inputs: [raw, split]
+          kwargs:
+            merge_iou: 0.45      # cross-section IoU to consider a partner at a z-seam.
+                                 #   Selecting by IoU rather than affinity moved base
+                                 #   0.7495 -> 0.7840
+            margin: 0.15         # the best partner must beat the runner-up by this gap
+                                 #   or the pair is LEFT SPLIT. Raise to be more
+                                 #   conservative; a false merge costs far more than a
+                                 #   residual split
+            aff_lo: 0.4          # seam z-affinity floor. A background filter only --
+                                 #   never rank partners by affinity here
+            min_ov: 30           # minimum overlap area (voxels) to consider a partner
+            min_size: 2000       # segments below this are absorbed as fragments by the
+                                 #   completion pass rather than merged as peers
+            rounds: 4            # union-find merge rounds (stops early when no merge)
+            weak_max_gap: 15     # weak-gap bridge: slices to reach across
+            weak_min_iou: 0.35   # projected-mask IoU required across the gap
+            weak_lo: 0.3         # foreground floor along the path (the weak band)
+            weak_cal_ratio: 1.6  # caliber ratio allowed between the two ends
+            weak_margin: 0.15    # ambiguity margin for the bridge
+            weak_min_size: 2000  # minimum segment size to bridge
+            weak_rounds: 3
+            weak_dim_tol: 3      # consecutive sub-weak_lo slices tolerated before the
+                                 #   walk aborts
+            prefer_length: false # true also runs the completion-driven radius link,
+                                 #   which reaches real lateral-drift gaps but LOSES
+                                 #   oracle ceiling in every configuration tested.
+                                 #   Only for run-length-over-precision users
 
       output: merged        # sections | tracklets | split | merged
 

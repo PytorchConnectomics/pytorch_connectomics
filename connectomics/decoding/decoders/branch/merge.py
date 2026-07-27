@@ -602,12 +602,40 @@ def branch_merge(
     affinities: np.ndarray,
     seg: np.ndarray,
     *,
+    merge_iou: float = MERGE_IOU,
+    margin: float = MARGIN,
+    aff_lo: float = AFF_LO,
+    min_ov: int = MIN_OV,
+    min_size: int = MIN_SIZE,
+    rounds: int = MERGE_ROUNDS,
+    weak_max_gap: int = WEAK_MAX_GAP,
+    weak_min_iou: float = WEAK_MIN_IOU,
+    weak_lo: float = WEAK_LO,
+    weak_cal_ratio: float = CAL_RATIO,
+    weak_margin: float = WEAK_MARGIN,
+    weak_min_size: int = WEAK_MIN_SIZE,
+    weak_rounds: int = WEAK_ROUNDS,
+    weak_dim_tol: int = DIM_TOL,
     prefer_length: bool = False,
     stats: tuple[Any, Any, Any] | None = None,
     inplace: bool = False,
     verbose: bool = False,
 ) -> np.ndarray:
     """Run completion, mutual-IoU merge, and weak-gap bridging in fixed order.
+
+    Every default below is the validated value; see the CUE LADDER above for the
+    evidence behind each. The two that move the result most:
+
+    - ``merge_iou`` -- cross-section IoU required to consider a partner at a
+      z-seam. Selecting by IoU rather than affinity moved base 0.7495 -> 0.7840;
+      the seam affinity is only a background floor (``aff_lo``), never a ranker.
+    - ``margin`` -- the best partner must beat the runner-up by this IoU gap or
+      the pair is left split. Rejecting 5 ambiguous merges bought +0.002 oracle
+      ceiling at zero base cost. Raise it to be more conservative; a false merge
+      costs far more than a residual split.
+
+    The ``weak_*`` group is the same operator reaching across ``weak_max_gap``
+    slices of weak (``> weak_lo``) foreground instead of one seam.
 
     ``prefer_length=True`` additionally runs the completion-driven radius link.
     That optional research stage is known to reduce the oracle-merge ceiling and
@@ -633,6 +661,12 @@ def branch_merge(
     merged, _ = merge_sections(
         seg,
         afz,
+        aff_lo=aff_lo,
+        merge_iou=merge_iou,
+        min_ov=min_ov,
+        min_size=min_size,
+        margin=margin,
+        rounds=rounds,
         inplace=inplace,
         verbose=verbose,
         stats=stats,
@@ -640,6 +674,14 @@ def branch_merge(
     merged, _ = bridge_weak_gaps(
         merged,
         fgmax,
+        max_gap=weak_max_gap,
+        cal_ratio=weak_cal_ratio,
+        min_iou=weak_min_iou,
+        weak_lo=weak_lo,
+        min_size=weak_min_size,
+        dim_tol=weak_dim_tol,
+        margin=weak_margin,
+        rounds=weak_rounds,
         inplace=True,
         verbose=verbose,
     )
