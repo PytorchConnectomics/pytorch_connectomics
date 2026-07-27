@@ -35,13 +35,15 @@ def run_evaluation_stage(
 ) -> EvaluationStageResult:
     """Run evaluation over decoded predictions."""
     evaluation_enabled = is_test_evaluation_enabled(context)
-    nerl_requested = evaluation_enabled and evaluation_metric_requested(context, "nerl")
+    gt_free_metric_requested = evaluation_enabled and any(
+        evaluation_metric_requested(context, metric_name) for metric_name in ("nerl", "tube")
+    )
     if not evaluation_enabled:
         return EvaluationStageResult(computed=False, reason="evaluation disabled")
-    if labels is None and not nerl_requested:
+    if labels is None and not gt_free_metric_requested:
         return EvaluationStageResult(
             computed=False,
-            reason="no ground truth labels or NERL graph metric",
+            reason="no ground truth labels or GT-free metric",
         )
 
     start = time.time()

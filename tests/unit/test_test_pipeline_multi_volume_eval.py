@@ -12,6 +12,7 @@ from connectomics.inference.output import resolve_output_filenames
 from connectomics.metrics.nerl import import_em_erl
 from connectomics.training.lightning.test_pipeline import (
     _apply_predecode_prediction_crops,
+    _evaluate_decoded_predictions,
     _predict_output_head,
     run_test_step,
 )
@@ -178,6 +179,50 @@ def test_run_evaluation_stage_accepts_plain_context_and_arrays():
     assert result.computed is True
     assert saved_metrics[0]["volume_name"] == "plain"
     assert saved_metrics[0]["accuracy"] == 1.0
+
+
+def test_test_pipeline_dispatches_tube_evaluation_without_labels(monkeypatch):
+    module = _DummyModule()
+    module.cfg.evaluation.enabled = True
+    module.cfg.evaluation.metrics = ["tube"]
+    module._get_test_evaluation_config = lambda: module.cfg.evaluation
+    captured = {}
+
+    def fake_run_evaluation_stage(
+        context,
+        decoded_predictions,
+        labels,
+        *,
+        filenames,
+        batch_idx,
+    ):
+        captured["metrics"] = context.requested_metrics
+        captured["shape"] = decoded_predictions.shape
+        captured["labels"] = labels
+        captured["filenames"] = filenames
+        captured["batch_idx"] = batch_idx
+        return type("Result", (), {"duration_s": 0.0})()
+
+    monkeypatch.setattr(
+        "connectomics.training.lightning.test_pipeline.run_evaluation_stage",
+        fake_run_evaluation_stage,
+    )
+
+    _evaluate_decoded_predictions(
+        module,
+        np.zeros((4, 4, 4), dtype=np.uint16),
+        labels=None,
+        filenames=["vol0"],
+        batch_idx=3,
+    )
+
+    assert captured == {
+        "metrics": {"tube"},
+        "shape": (4, 4, 4),
+        "labels": None,
+        "filenames": ["vol0"],
+        "batch_idx": 3,
+    }
 
 
 def test_compute_test_metrics_supports_nerl_without_dense_labels(tmp_path):

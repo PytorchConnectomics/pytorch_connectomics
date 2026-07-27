@@ -1,65 +1,85 @@
-# Axon decoding (MIT-LiCONN DL288B)
+# Axon decoding
 
-Decode the same 3-channel CZYX affinity volume two ways and score both with NERL:
+Decode any 3-channel CZYX affinity volume containing axons two ways, then evaluate
+the result with NERL or without ground truth:
 
 - **`waterz_baseline.yaml`** — the fixed `naive_waterz` reference recipe (`decode_waterz`
-  in 80-slice chunks with the validated border stitching).
+  in 80-slice chunks with border stitching).
 - **`axon_decode.yaml`** — the staged axon decoder: volume-unique 2D sections → conservative
   tracklet linking → false-merge splitting → completion/merge/weak-gap bridging.
+- **`tube_analysis.yaml`** — the staged decoder plus GT-free tube diagnostics: how many
+  instances are long, complete, geometrically single, parallel, disconnected, or locally
+  enlarged.
 
 The premise is that in connectomics **a split is cheaper than a merge** (a split is fixable by
 proofreading; a merge corrupts two neurons), so the pipeline first converts false merges into
 splits — raising the false-merge-free ceiling — and then re-links the splits back up under it.
 
-Both YAMLs are **self-contained** — no `_base_` include — so each file is the complete,
-reproducible description of one run from affinity to final segmentation. Every decode
-parameter is spelled out at its validated default with the measurement behind it, so tuning
-means editing a value rather than reading the source.
+The two decoder YAMLs are **self-contained** — no `_base_` include — so each is the complete
+description of one run from affinity to final segmentation. Every decode parameter is
+spelled out at its starting default.
+`tube_analysis.yaml` inherits `axon_decode.yaml`, changes only the output path and evaluation
+block, and explicitly clears the GT label.
 
 ## Run
+
+First replace the placeholder `decoding.load_prediction_path`. For NERL runs, also replace
+`data.test.label` and set `data.test.resolution`; the GT-free tube run needs only the affinity.
 
 ```bash
 python scripts/main.py --config tutorials/neuron_axon/waterz_baseline.yaml --mode test
 python scripts/main.py --config tutorials/neuron_axon/axon_decode.yaml     --mode test
+python scripts/main.py --config tutorials/neuron_axon/tube_analysis.yaml   --mode test
 ```
 
-Decode-only: no checkpoint and no GPU. On 8 CPU cores the staged decode takes ~8 min and
-~26 GB; the baseline ~14 min. Set `num_workers` on the `sections` node (`-1` = every
-available CPU; it reads the cgroup mask, so it honours `sbatch -c N`).
+All three are decode-only: no checkpoint and no GPU. The tube-analysis run also needs no GT
+or skeleton graph. Runtime and memory scale with the input volume and number of instances.
+Set `num_workers` on the `sections` node (`-1` = every available CPU; it reads the cgroup
+mask, so it honours `sbatch -c N`).
 
 ## Inputs
 
-| path | what |
+| example path | what |
 |---|---|
-| `datasets/mit-liconn/raw_x1_head-aff_r1.h5` | 3-channel CZYX affinity (z,y,x), float32, 800×1024×1024 at 25×9×9 nm |
-| `datasets/mit-liconn/gt_label_clean_v3.h5` | proofread GT, 943 axons (iteratively audited — the original release over-split axons) |
+| `path/to/affinity.h5` | 3-channel CZYX affinity ordered as z, y, x |
+| `path/to/label.h5` | optional instance-label volume used only by the two NERL runs |
 
-**No skeleton file is needed.** The ERL graph is derived from the label volume on first use
-(kimimaro at a (2,4,4) downsample, anisotropy scaled to match so vertex coordinates stay in
-the full-resolution frame) and cached as `gt_label_clean_v3.erlgraph.npz` beside it: 909
-skeletons, 98,260 nodes, 5686 µm.
+For NERL, **no prebuilt skeleton file is needed.** The graph is derived from the label volume
+on first use and cached beside it. Set `data.test.resolution` to the physical voxel size in
+z, y, x array-axis order.
 
-Scoring is optional — delete the `evaluation:` and `test:` blocks to decode without ground
-truth, and the run writes only the segmentation.
+Evaluation is optional — delete the `evaluation:` block to write only the segmentation.
+Use `tube_analysis.yaml` when no GT is available.
 
-## Results
+## GT-free tube analysis
 
-Full 800×1024×1024 volume, `nerl_merge_threshold: 10`, scored against the derived graph.
-`om` is oracle-merge: every predicted fragment relabelled to its majority-overlap GT, i.e.
-the ceiling that remains once all false merges are excluded.
+`tube_analysis.yaml` requests `evaluation.metrics: [tube]` and sets
+`data.test.label: null`. It writes:
 
-| decode output | segments | NERL base | NERL om |
-|---|---:|---:|---:|
-| naive waterz | 1,223 | 0.6143 | 0.7130 |
-| tracklets (`output: tracklets`) | 27,836 | 0.7773 | 0.8673 |
-| split (`output: split`) | 28,147 | 0.6857 | 0.8856 |
-| **merged (`output: merged`, default)** | 22,071 | **0.7914** | **0.8759** |
+- `eval_*.txt` — aggregate counts, count-weighted and volume-weighted fractions, quality
+  flags, and the largest incomplete tubes.
+- `eval_*_tube_instances.npz` — one row per substantial label, including z span and
+  occupancy, border contacts, cross-section area, bump count, parallel-strand evidence,
+  3D component counts, and the complete/single/valid flags.
 
-Read the middle two rows together: the split stage *lowers* base NERL (0.7773 → 0.6857) and
-raises the ceiling (0.8673 → 0.8856). It is buying headroom, and the merge stage converts
-that headroom back into run length — ending above the tracklet base on both counts. Judge a
-split stage by om, and a merge stage by the base it recovers while holding om. (Merging can
-only lower om, which is why the final 0.8759 sits just under the split's 0.8856.)
+The default denominator is a **decent** tube: at least 20,000 voxels and spanning at least
+25% of the volume depth. A tube is **complete** when both of its z-directed terminal
+cross-sections reach any relaxed volume face. It is **valid** when complete and neither
+persistently multi-stranded nor split into multiple substantial 3D components. Every
+threshold is explicit under `evaluation.tube` in the YAML.
+
+These are segmentation diagnostics, not biological truth. A real axon may terminate inside
+the crop, and a smooth-looking predicted tube may still be a false end-to-end merge. Compare
+decoders on the same crop and thresholds; do not interpret `complete` as proof that an axon
+identity is correct.
+
+## Interpreting NERL
+
+`nerl` measures the achieved error-free run length. `nerl_oracle_merge` relabels every
+predicted fragment to its majority-overlap GT and estimates the ceiling after false merges
+are excluded. Read them together: a conservative split stage can lower base NERL while
+raising the oracle-merge ceiling, and a later merge stage should recover run length while
+preserving as much of that ceiling as possible.
 
 ## Stopping early
 
@@ -69,7 +89,7 @@ changes with it, so an early-stopped run cannot silently reuse a later artifact.
 
 ## Tuning
 
-Each graph node lists its kwargs at the validated default. The two that move the result most:
+Each graph node lists its kwargs at the starting default. Two important controls are:
 
 - **`merge_iou`** (0.45) — cross-section IoU needed to consider a partner at a z-seam.
   Selecting by IoU rather than affinity is what made the merge stage work; the seam affinity
@@ -77,43 +97,31 @@ Each graph node lists its kwargs at the validated default. The two that move the
 - **`margin`** (0.15) — the best partner must beat the runner-up by this gap, or the pair is
   left split. Raise it to be more conservative.
 
-`small: 0` on the sections node is load-bearing: waterz's own default of 150 silently removed
-4.2% of confident skeleton coverage, whole thin tubes included.
+`small: 0` on the sections node avoids silently removing whole thin tubes before linking.
 
 ## Why `nerl_merge_threshold: 10`
 
-ERL is brutally sensitive to contamination — at `merge_threshold: 1`, as few as two foreign
-nodes count a segment as merged. Sweeping it on the split stage:
+ERL is sensitive to contamination: a low threshold can classify a small foreign-node graze
+as a merge. The decode does not change when this evaluation threshold changes, so scores
+quoted with different thresholds are not directly comparable. The YAML uses 10 as a starting
+point; retune it for the density of your skeleton graph.
 
-| merge_threshold | base | om |
-|---:|---:|---:|
-| 1 | 0.6641 | 0.8301 |
-| 2 | 0.6699 | 0.8464 |
-| 5 | 0.6792 | 0.8687 |
-| **10** | **0.6857** | **0.8856** |
+## Using your volume
 
-The ceiling moves 0.055 across that range while the decode does not change at all, so a
-number quoted without its threshold is not comparable. 10 is the fair yardstick here; retune
-it for a dataset with different skeleton density.
-
-## Adapting to another dataset
-
-Point `decoding.load_prediction_path` at your affinity volume and `data.test.{label,
-resolution}` at your GT. The gates were tuned on 25×9×9 nm anisotropic axons: the 2D-section
-seed assumes the in-plane resolution resolves a cross-section while the z-step may not, and
-the splitter's caliber/collinearity gates assume tube-like objects. On isotropic or
-non-tubular data, expect to retune rather than reuse.
+Point `decoding.load_prediction_path` at your affinity volume. For NERL, also point
+`data.test.{label,resolution}` at your GT; for tube analysis, leave `data.test.label: null`
+and retune `evaluation.tube` for the crop dimensions and object caliber. The 2D-section seed
+assumes the in-plane resolution resolves an axon cross-section, while the splitter's
+caliber/collinearity gates assume tube-like objects. Retune the defaults for different voxel
+spacing, axon caliber, affinity calibration, or non-tubular data.
 
 The optional completion-radius link (`prefer_length: true`) is **off** by default. It does
-reach the lateral-drift gaps that shape matching structurally cannot, but every configuration
-tested lost oracle-merge ceiling: the correct links were not separable from the false ones by
-proximity, caliber and trajectory alone. Enable it only when run length matters more than
-merge safety.
+reach lateral-drift gaps that shape matching structurally cannot, but can lose oracle-merge
+ceiling when correct links are not separable from false ones by proximity, caliber, and
+trajectory alone. Enable it only when run length matters more than merge safety.
 
-## Provenance
+## Implementation
 
-Algorithm and measurements: `dev/mit_liconn/PIPELINE.md`. The packaged ops in
-`connectomics/decoding/decoders/branch/` reproduce that research pipeline **voxel-exactly**
-(0 differing voxels at both the baseline and the final stage), and their module docstrings
-carry the CUE LADDERs — which signals were measured to be trustworthy for deciding "same
-neuron?" and which were measured to be useless.
+The packaged operations live in `connectomics/decoding/decoders/branch/`. Their module
+docstrings describe which geometric and affinity signals each stage uses when deciding
+whether two fragments belong to the same axon.

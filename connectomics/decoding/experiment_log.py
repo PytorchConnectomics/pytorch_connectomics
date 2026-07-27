@@ -97,6 +97,19 @@ def log_decode_experiment(
         "nerl_erl",
         "nerl_max_erl",
         "nerl_num_skeletons",
+        "tube_total_label_count",
+        "tube_substantial_count",
+        "tube_long_enough_count",
+        "tube_decent_count",
+        "tube_complete_count",
+        "tube_complete_fraction",
+        "tube_complete_volume_fraction",
+        "tube_valid_count",
+        "tube_valid_fraction",
+        "tube_valid_volume_fraction",
+        "tube_parallel_count",
+        "tube_disconnected_count",
+        "tube_bumped_count",
     ]
 
     header_cols = ["timestamp", "volume", "input_tta_prediction_name"] + param_keys + metric_keys
@@ -105,7 +118,9 @@ def log_decode_experiment(
         row_vals.append(str(decode_params.get(key, "")))
     for key in metric_keys:
         value = metrics_dict.get(key)
-        row_vals.append(f"{value:.6f}" if isinstance(value, float) else str(value or ""))
+        row_vals.append(
+            f"{value:.6f}" if isinstance(value, float) else str("" if value is None else value)
+        )
 
     try:
         if tsv_path.exists():

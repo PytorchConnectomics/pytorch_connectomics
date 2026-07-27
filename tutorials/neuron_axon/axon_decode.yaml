@@ -1,24 +1,19 @@
-# MIT-LiCONN DL288B axon decoding: affinity volume -> final instance segmentation.
+# Axon decoding: affinity volume -> final instance segmentation.
 #
 # Self-contained: no `_base_` include. Every decode parameter is spelled out below at
-# its validated default, with the measurement behind it, so tuning means editing a
-# value rather than reading the source.
+# its starting default so tuning means editing a value rather than reading the source.
 #
 #   python scripts/main.py --config tutorials/neuron_axon/axon_decode.yaml --mode test
 #
-# Input   datasets/mit-liconn/raw_x1_head-aff_r1.h5   3-channel CZYX affinity (z,y,x),
-#                                                     float32, 800 x 1024 x 1024, 25x9x9 nm
+# Input   path/to/affinity.h5                         3-channel CZYX affinity (z,y,x)
 # Output  outputs/neuron_axon/axon/<volume>/decoded_*.h5   final instance segmentation
 #         outputs/neuron_axon/axon/<volume>/eval_*.txt     NERL base + oracle-merge
 #
-# Reference result on the full volume: NERL 0.7914 base / 0.8759 oracle-merge
-# (naive 3D waterz on the same affinity scores 0.6143 / 0.7130 -- see
-# waterz_baseline.yaml). Runtime ~8 min on 8 CPU cores, ~26 GB peak; decode-only,
-# so no checkpoint and no GPU are needed.
+# Decode-only: no checkpoint and no GPU are needed.
 
 experiment_name: neuron_axon_staged_decode
 description: >-
-  Decode MIT-LiCONN axon affinities into instances: volume-unique 2D sections ->
+  Decode axon affinities into instances: volume-unique 2D sections ->
   conservative tracklet linking -> false-merge splitting -> completion, mutual-IoU
   merging and weak-gap bridging.
 
@@ -28,16 +23,16 @@ default:
   inference: {}
 
   decoding:
-    load_prediction_path: datasets/mit-liconn/raw_x1_head-aff_r1.h5
+    # Replace with a 3-channel CZYX affinity volume ordered as (z, y, x).
+    load_prediction_path: path/to/affinity.h5
     save_path: outputs/neuron_axon/axon
 
     # The pipeline as a DAG. Each stage takes [raw, <previous stage>]. Stopping
     # earlier is a one-line change: point `output` at any node. The graph prunes
     # execution to that node's ancestors and the artifact cache tag changes with it,
     # so an early stop cannot silently reuse a later artifact.
-    # Every kwarg below is written at its VALIDATED DEFAULT: this file as shipped
-    # reproduces 0.7914 / 0.8759. They are spelled out so they can be tuned; omit any
-    # kwarg to fall back to the same value in code.
+    # Every kwarg below is written at its starting default. They are spelled out
+    # so they can be tuned; omit any kwarg to fall back to the same value in code.
     graph:
       nodes:
         # ---- 2D sections: waterz within each z-slice, volume-unique ids ----------
@@ -51,9 +46,8 @@ default:
                               #   shell, which fuses touching parallel tubes -- the
                               #   weak-gap stage below crosses that band locally instead
             aff_low: 0.01     # waterz aff_threshold_low
-            small: 0          # waterz internal small-segment removal. KEEP 0: waterz's
-                              #   own default of 150 silently dropped 4.2% of confident
-                              #   skeleton coverage, whole thin tubes included
+            small: 0          # waterz internal small-segment removal. KEEP 0 to avoid
+                              #   silently dropping whole thin tubes
             num_workers: 8    # CPUs used to section slices. Slices are independent and
                               #   the id offset stays sequential, so any worker count
                               #   gives bit-identical output. -1 = every available CPU
@@ -71,9 +65,9 @@ default:
                               #   this stage chains adjacent neurons
 
         # ---- split: convert false merges into splits ------------------------------
-        # A split is cheaper than a merge, so this deliberately LOWERS base NERL
-        # (0.7773 -> 0.6857) to raise the false-merge-free ceiling (0.8673 -> 0.8856),
-        # which the merge stage then converts back into run length.
+        # A split is cheaper than a merge, so this stage deliberately converts
+        # suspicious joins into fragments that the merge stage can conservatively
+        # reconnect.
         - name: split
           op: branch_split
           inputs: [raw, tracklets]
@@ -85,16 +79,16 @@ default:
             min_frag: 6       # minimum slices between cuts, and from either end
             recover: 1.1      # skip a cut if slice i-1 and i+1 still overlap by more
                               #   than this. >1 disables the gate, which is the
-                              #   validated setting: it trades ceiling for base
+                              #   default setting: it trades ceiling for base
             host_both: false  # tunnel carve requires the host to continue past BOTH
                               #   ends. false (relaxed) also accepts a tube emerging at
-                              #   the host's terminal slice: 31 splits vs 9, ceiling held
+                              #   the host's terminal slice
 
         # ---- merge: re-link under the raised ceiling -------------------------------
         # Cross-section completion (absorb 1-slice fragments so IoU sees whole
         # cross-sections) MUST happen here and not before the split stage -- completing
-        # first turns 360 link-cuts into 16 and surrenders ceiling that the merge
-        # stage can then never recover (measured on the research yardstick).
+        # first can hide link cuts and surrender false-merge-free headroom that the
+        # merge stage cannot recover.
         - name: merged
           op: branch_merge
           inputs: [raw, split]
@@ -137,15 +131,16 @@ default:
     enabled: true
     metrics: [nerl, nerl_oracle_merge]
     # ERL tolerates this many foreign skeleton nodes before calling a segment merged.
-    # At 1, a 2-node graze halves a long neuron's ERL and ~90% of the apparent oracle
-    # gap is that artifact. Retune for a dataset with different skeleton density.
+    # Retune this value for the density of the evaluation skeleton graph.
     nerl_merge_threshold: 10
 
 test:
   data:
     test:
-      name: mit_liconn
-      label: datasets/mit-liconn/gt_label_clean_v3.h5   # 943 proofread axons
+      name: axon_volume
+      # Replace with the corresponding instance-label volume.
+      label: path/to/label.h5
       # No skeleton file needed: the ERL graph is derived from the label volume
       # (kimimaro at a (2,4,4) downsample) and cached beside it on first use.
-      resolution: [25, 9, 9]   # z, y, x nm -- array-axis order, not xyz
+      # Replace with the physical voxel size in z, y, x array-axis order.
+      resolution: [1, 1, 1]

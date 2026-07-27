@@ -373,12 +373,12 @@ def _evaluate_decoded_predictions(
 ) -> None:
     evaluation_context = _evaluation_context_from_module(module)
     evaluation_enabled = evaluation_context.is_enabled
-    nerl_requested = evaluation_enabled and evaluation_metric_requested(
-        evaluation_context,
-        "nerl",
+    gt_free_metric_requested = evaluation_enabled and any(
+        evaluation_metric_requested(evaluation_context, metric_name)
+        for metric_name in ("nerl", "tube")
     )
 
-    if evaluation_enabled and (labels is not None or nerl_requested):
+    if evaluation_enabled and (labels is not None or gt_free_metric_requested):
         logger.info("[STAGE: Computing Evaluation Metrics]")
         result = run_evaluation_stage(
             evaluation_context,
@@ -391,7 +391,7 @@ def _evaluate_decoded_predictions(
         return
 
     if labels is None:
-        logger.info("[STAGE: Evaluation] Skipped (no ground truth labels or NERL graph metric)")
+        logger.info("[STAGE: Evaluation] Skipped (no ground truth labels or GT-free metric)")
     else:
         logger.info("[STAGE: Evaluation] Skipped (evaluation disabled)")
 
