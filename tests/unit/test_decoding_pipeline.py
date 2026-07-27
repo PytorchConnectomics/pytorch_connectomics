@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import subprocess
 import sys
+from importlib.util import find_spec
 from pathlib import Path
 
 import numpy as np
@@ -19,6 +20,10 @@ from connectomics.decoding import (
 from connectomics.decoding.graph import run_decode_graph
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
+requires_waterz = pytest.mark.skipif(
+    find_spec("waterz") is None,
+    reason="requires the optional repository waterz package",
+)
 
 
 class _Mode:
@@ -58,6 +63,7 @@ def test_builtin_decoders_are_registered():
     assert "decode_abiss" in names
 
 
+@requires_waterz
 def test_naive_waterz_bakes_in_reference_recipe(monkeypatch):
     from connectomics.decoding.decoders import waterz as waterz_module
 
@@ -92,6 +98,7 @@ def test_naive_waterz_bakes_in_reference_recipe(monkeypatch):
     }
 
 
+@requires_waterz
 def test_naive_waterz_stitches_fixed_depth_chunks(monkeypatch):
     from connectomics.decoding.decoders import waterz as waterz_module
 
@@ -247,6 +254,7 @@ def test_branch_graph_ops_require_raw_and_segmentation_inputs():
             get_decoder(name)([seg])
 
 
+@requires_waterz
 def test_ready_branch_graph_runs_end_to_end_on_small_volume():
     affinity = np.ones((3, 3, 12, 12), dtype=np.float32)
     graph = {

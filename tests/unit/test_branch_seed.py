@@ -1,9 +1,17 @@
+from importlib.util import find_spec
+
 import numpy as np
 import pytest
 
 from connectomics.decoding.decoders.branch import linking, sections
 
+requires_waterz = pytest.mark.skipif(
+    find_spec("waterz") is None,
+    reason="requires the optional repository waterz package",
+)
 
+
+@requires_waterz
 def test_seg_2d_keeps_sections_and_makes_ids_volume_unique(monkeypatch):
     local_sections = np.array([[[1, 1], [0, 2]]], dtype=np.uint64)
 
@@ -32,6 +40,7 @@ def test_seg_2d_keeps_sections_and_makes_ids_volume_unique(monkeypatch):
     assert not (set(np.unique(result[0])) - {0}) & (set(np.unique(result[1])) - {0})
 
 
+@requires_waterz
 def test_branch_link_joins_mutual_consecutive_sections():
     sections_2d = np.zeros((3, 5, 8), dtype=np.uint32)
     sections_2d[0, 1:4, 1:3] = 1
@@ -62,6 +71,7 @@ def test_branch_link_rejects_non_unique_cross_slice_section_ids():
         linking.branch_link(affinity, sections_2d)
 
 
+@requires_waterz
 def test_branch_link_lut_preserves_sparse_high_ids_and_supports_inplace():
     segmentation = np.array([[[1, 2, 99]]], dtype=np.uint32)
     pairs = np.array([[1, 2]], dtype=np.uint64)
