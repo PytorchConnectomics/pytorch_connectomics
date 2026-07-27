@@ -1,0 +1,69 @@
+# Staged axon decode with ground-truth-free tube analysis.
+#
+# This inherits the staged decoder and its documented defaults from
+# axon_decode.yaml, replaces NERL with the `tube` metric, and explicitly removes
+# the GT label. No checkpoint, GPU, label volume, or skeleton graph is needed.
+#
+#   python scripts/main.py --config tutorials/neuron_axon/tube_analysis.yaml --mode test
+#
+# Input   path/to/affinity.h5
+# Output  outputs/neuron_axon/tube/<volume>/decoded_*.h5
+#         outputs/neuron_axon/tube/<volume>/eval_*.txt
+#         outputs/neuron_axon/tube/<volume>/eval_*_tube_instances.npz
+
+_base_: axon_decode.yaml
+
+experiment_name: neuron_axon_tube_analysis
+description: >-
+  Decode axon affinities with the staged axon graph, then describe tube length,
+  border completeness, parallel strands, disconnections, and cross-section
+  bumps without ground truth.
+
+default:
+  decoding:
+    save_path: outputs/neuron_axon/tube
+
+  evaluation:
+    enabled: true
+    metrics: [tube]
+    tube:
+      # Analyze labels that are nontrivial in either z extent or voxel count.
+      substantial_min_z_slices: 21
+      substantial_min_voxels: 10000
+
+      # A "decent" tube must span at least this fraction of the z depth and
+      # contain this many voxels. Completeness fractions use this denominator.
+      long_span_fraction: 0.25
+      decent_min_voxels: 20000
+
+      # A tube end is at the border when its terminal z cross-section comes
+      # within this many voxels of any volume face. Two border ends = complete.
+      border_margin: 2
+      border_patch_min_voxels: 10
+
+      # Flag persistent multiple 2D components as parallel strands. Sampling
+      # every third z slice keeps this diagnostic affordable on the full volume.
+      multi_component_min_voxels: 50
+      multi_component_slice_step: 3
+      parallel_min_slices: 15
+      parallel_fraction_threshold: 0.30
+
+      # Flag labels containing at least two independently substantial 3D pieces.
+      disconnected_component_min_voxels: 1000
+
+      # Flag short, local cross-section area expansions. This is diagnostic only:
+      # bumps do not by themselves make a tube invalid.
+      bump_min_slices: 40
+      bump_relative_excess: 0.20
+      bump_absolute_excess: 200
+      bump_max_slices: 30
+      bump_median_window: 31
+
+      # Include this many largest incomplete decent tubes in the text report.
+      # The NPZ artifact contains every substantial tube.
+      top_incomplete: 8
+
+test:
+  data:
+    test:
+      label: null

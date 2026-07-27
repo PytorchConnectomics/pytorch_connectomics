@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+from dataclasses import asdict
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, Optional
@@ -12,6 +13,7 @@ import torch
 import torchmetrics
 
 from ..decoding.experiment_log import log_decode_experiment
+from ..metrics.tube import TubeAnalysis
 from ..runtime.output_naming import final_prediction_output_tag
 from .context import EvaluationContext
 from .metric_execution import (
@@ -20,6 +22,7 @@ from .metric_execution import (
     compute_instance_metrics,
 )
 from .nerl import compute_nerl_metrics
+from .tube import compute_tube_metrics
 
 logger = logging.getLogger(__name__)
 
@@ -42,6 +45,78 @@ def evaluation_metric_requested(context: EvaluationContext, metric_name: str) ->
 
 def is_test_evaluation_enabled(context: EvaluationContext) -> bool:
     return context.is_enabled
+
+
+def _save_tube_instances(
+    output_dir: Path,
+    tag: str,
+    analysis: TubeAnalysis,
+) -> Path:
+    output_file = output_dir / f"eval_{tag}_tube_instances.npz"
+    records = analysis.tubes
+
+    def values(name: str, dtype: Any) -> np.ndarray:
+        return np.asarray([getattr(record, name) for record in records], dtype=dtype)
+
+    face_contacts: np.ndarray = np.zeros((len(records), 6), dtype=np.bool_)
+    face_names = ("z0", "zmax", "y0", "ymax", "x0", "xmax")
+    for row, record in enumerate(records):
+        contacts = set(record.face_contacts)
+        face_contacts[row] = [face_name in contacts for face_name in face_names]
+
+    payload = {
+        "label": values("label", np.uint64),
+        "voxel_count": values("voxel_count", np.uint64),
+        "z_min": values("z_min", np.int64),
+        "z_max": values("z_max", np.int64),
+        "z_span": values("z_span", np.uint64),
+        "z_slice_count": values("z_slice_count", np.uint64),
+        "z_occupancy_fraction": values("z_occupancy_fraction", np.float64),
+        "is_long_enough": values("is_long_enough", np.bool_),
+        "is_decent": values("is_decent", np.bool_),
+        "face_contacts": face_contacts,
+        "face_count": np.asarray([record.face_count for record in records], dtype=np.uint8),
+        "border_end_count": values("border_end_count", np.uint8),
+        "border_patch_count": values("border_patch_count", np.uint64),
+        "median_cross_section_area": values(
+            "median_cross_section_area",
+            np.float64,
+        ),
+        "max_cross_section_area": values("max_cross_section_area", np.uint64),
+        "bump_count": values("bump_count", np.uint64),
+        "multi_component_sample_count": values(
+            "multi_component_sample_count",
+            np.uint64,
+        ),
+        "evaluated_sample_count": values("evaluated_sample_count", np.uint64),
+        "multi_component_fraction": values("multi_component_fraction", np.float64),
+        "is_parallel": values("is_parallel", np.bool_),
+        "component_count_3d": values("component_count_3d", np.uint64),
+        "significant_component_count_3d": values(
+            "significant_component_count_3d",
+            np.uint64,
+        ),
+        "is_disconnected": values("is_disconnected", np.bool_),
+        "is_complete": np.asarray(
+            [record.is_complete for record in records],
+            dtype=np.bool_,
+        ),
+        "is_single_tube": np.asarray(
+            [record.is_single_tube for record in records],
+            dtype=np.bool_,
+        ),
+        "is_valid_tube": np.asarray(
+            [record.is_valid_tube for record in records],
+            dtype=np.bool_,
+        ),
+        "face_names": np.asarray(face_names),
+        "volume_shape": np.asarray(analysis.volume_shape, dtype=np.uint64),
+    }
+    payload.update(
+        {f"config_{name}": np.asarray(value) for name, value in asdict(analysis.config).items()}
+    )
+    np.savez_compressed(output_file, **payload)
+    return output_file
 
 
 def save_metrics_to_file(context: EvaluationContext, metrics_dict: Dict[str, Any]) -> None:
@@ -83,6 +158,14 @@ def save_metrics_to_file(context: EvaluationContext, metrics_dict: Dict[str, Any
             metrics_dict["nerl_per_gt_erl_file"] = str(per_gt_erl_file)
         except Exception as exc:
             logger.warning("Failed to save NERL per-GT ERL file: %s", exc)
+
+    tube_analysis = metrics_dict.get("_tube_analysis")
+    if isinstance(tube_analysis, TubeAnalysis):
+        try:
+            tube_instances_file = _save_tube_instances(output_dir, tag, tube_analysis)
+            metrics_dict["tube_instances_file"] = str(tube_instances_file)
+        except Exception as exc:
+            logger.warning("Failed to save per-instance tube analysis: %s", exc)
 
     try:
         with open(metrics_file, "w") as f:
@@ -175,6 +258,17 @@ def save_metrics_to_file(context: EvaluationContext, metrics_dict: Dict[str, Any
                     )
                 f.write("\n")
 
+            if "tube_report" in metrics_dict:
+                f.write("Ground-Truth-Free Tube Analysis:\n")
+                f.write("-" * 80 + "\n")
+                f.write(str(metrics_dict["tube_report"]) + "\n")
+                if "tube_instances_file" in metrics_dict:
+                    f.write(
+                        "  Per-Instance File:             "
+                        f"{metrics_dict['tube_instances_file']}\n"
+                    )
+                f.write("\n")
+
             f.write("=" * 80 + "\n")
 
         logger.info("Metrics saved to: %s", metrics_file)
@@ -211,6 +305,14 @@ def compute_test_metrics(
     volume_prefix = f"[{volume_name}] " if volume_name else ""
     metrics_dict: Dict[str, Any] = {"volume_name": volume_name if volume_name else "unknown"}
     requested_metrics = configured_evaluation_metrics(context)
+
+    if "tube" in requested_metrics:
+        compute_tube_metrics(
+            context,
+            decoded_predictions,
+            volume_prefix,
+            metrics_dict,
+        )
 
     if requested_metrics & {"nerl", "nerl_oracle_merge"}:
         compute_nerl_metrics(
