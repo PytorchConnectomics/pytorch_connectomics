@@ -1,10 +1,17 @@
-_base_:
-  - ../../connectomics/config/all_profiles.yaml
+# Baseline for axon_decode.yaml: the same MIT-LiCONN affinity volume decoded with the
+# established naive 3D waterz recipe, for a like-for-like comparison.
+#
+#   python scripts/main.py --config tutorials/neuron_axon/waterz_baseline.yaml --mode test
+#
+# `naive_waterz` is a fixed wrapper (no knobs): decode_waterz at threshold 0.4 with
+# the aff85_his256 merge function, run in 80-slice chunks and stitched at the chunk
+# borders, then relabelled globally. Reference result: NERL 0.6530 base / 0.7580
+# oracle-merge, ~14 min on 8 CPU cores.
 
 experiment_name: neuron_axon_waterz_baseline
 description: >-
-  Decode the same MIT-LiCONN affinity volume with the established naive 3D
-  waterz recipe, for a like-for-like comparison with axon_decode.yaml.
+  Naive 3D waterz on the MIT-LiCONN affinity volume, the reference point for the
+  staged axon decode in axon_decode.yaml.
 
 default:
   inference: {}
@@ -22,6 +29,6 @@ test:
   data:
     test:
       name: mit_liconn
-      label: datasets/mit-liconn/gt_label_clean_v3.h5
-      skeleton: datasets/mit-liconn/gt_label_clean_v3_strongmax.ds244.erlgraph.npz
-      resolution: [25, 9, 9]
+      label: datasets/mit-liconn/gt_label_clean_v3.h5                               # 943 labels
+      skeleton: datasets/mit-liconn/gt_label_clean_v3_strongmax.ds244.erlgraph.npz  # 815 skeletons
+      resolution: [25, 9, 9]   # z, y, x nm -- array-axis order, not xyz

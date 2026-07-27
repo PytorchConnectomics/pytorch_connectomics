@@ -11,12 +11,29 @@ The premise is that in connectomics **a split is cheaper than a merge** (a split
 proofreading; a merge corrupts two neurons), so the pipeline first converts false merges into
 splits — raising the false-merge-free ceiling — and then re-links the splits back up under it.
 
+Both YAMLs are **self-contained** — no `_base_` include, no tuning knobs — so each file is
+the complete, reproducible description of one run from affinity to final segmentation.
+
 ## Run
 
 ```bash
 python scripts/main.py --config tutorials/neuron_axon/waterz_baseline.yaml --mode test
 python scripts/main.py --config tutorials/neuron_axon/axon_decode.yaml     --mode test
 ```
+
+Decode-only: no checkpoint and no GPU. Budget ~14 min (baseline) and ~41 min (staged) on
+8 CPU cores, ~26 GB peak.
+
+## Inputs
+
+| path | what |
+|---|---|
+| `datasets/mit-liconn/raw_x1_head-aff_r1.h5` | 3-channel CZYX affinity (z,y,x), float32, 800×1024×1024 at 25×9×9 nm |
+| `datasets/mit-liconn/gt_label_clean_v3.h5` | proofread GT, 943 labels (iteratively audited — the original release over-split axons) |
+| `datasets/mit-liconn/gt_label_clean_v3_strongmax.ds244.erlgraph.npz` | ERL skeleton graph, 815 confident whole neurons |
+
+Scoring is optional: delete the `evaluation:` and `test:` blocks to decode without ground
+truth, and the run writes only the segmentation.
 
 Both read `datasets/mit-liconn/raw_x1_head-aff_r1.h5`, score against the same 943-label
 proofread GT and strong-foreground ERL graph, and report **base NERL** plus **oracle-merge
