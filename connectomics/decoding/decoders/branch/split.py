@@ -218,9 +218,16 @@ def _tubeness(seg, S, zr, cache):
     """Median consecutive-slice shifted-IoU along ``S``."""
     if S in cache:
         return cache[S]
+    # Read inside S's own bbox, padded by MAX_SHIFT so the np.roll in
+    # _shifted_iou still shifts into empty space rather than wrapping around a
+    # tight window -- with that halo the result equals the full-slice value.
+    z0, z1, y0, y1, x0, x1 = zr[S]
+    pad = MAX_SHIFT + 1
+    wy0, wy1 = max(y0 - pad, 0), min(y1 + 1 + pad, seg.shape[1])
+    wx0, wx1 = max(x0 - pad, 0), min(x1 + 1 + pad, seg.shape[2])
     prev, ious = None, []
-    for z in range(zr[S][0], zr[S][1] + 1):
-        m = seg[z] == S
+    for z in range(z0, z1 + 1):
+        m = seg[z, wy0:wy1, wx0:wx1] == S
         if not m.any():
             continue
         if prev is not None:

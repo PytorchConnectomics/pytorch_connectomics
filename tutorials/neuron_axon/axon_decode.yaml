@@ -137,6 +137,7 @@ test:
   data:
     test:
       name: mit_liconn
-      label: datasets/mit-liconn/gt_label_clean_v3.h5                               # 943 labels
-      skeleton: datasets/mit-liconn/gt_label_clean_v3_strongmax.ds244.erlgraph.npz  # 815 skeletons
+      label: datasets/mit-liconn/gt_label_clean_v3.h5   # 943 proofread axons
+      # No skeleton file needed: the ERL graph is derived from the label volume
+      # (kimimaro at a (2,4,4) downsample) and cached beside it on first use.
       resolution: [25, 9, 9]   # z, y, x nm -- array-axis order, not xyz

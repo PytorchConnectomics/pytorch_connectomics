@@ -90,6 +90,47 @@ def _nerl_resolution(context: EvaluationContext, evaluation_cfg: Any) -> Any:
     return getattr(test_cfg, "resolution", None)
 
 
+def _resolve_graph_value(
+    graph_value: Any,
+    label_value: Any,
+    resolution: Any,
+    volume_prefix: str,
+) -> Any:
+    """Return the skeleton graph to score against, deriving it if necessary.
+
+    ``data.test.skeleton`` may be omitted, or name an ``.erlgraph.npz`` that does
+    not exist yet: in both cases the graph is built from the dense
+    ``data.test.label`` volume (kimimaro at the default downsample) and cached
+    next to it, so a run needs only the segmentation ground truth.
+    """
+    if not label_value or not resolution:
+        return graph_value
+
+    label_path = Path(str(label_value))
+    if graph_value:
+        npz_path = Path(str(graph_value))
+        if npz_path.exists() or npz_path.suffix != ".npz":
+            return graph_value
+    else:
+        # <label stem>.erlgraph.npz next to the labels.
+        npz_path = label_path.with_name(f"{label_path.stem}.erlgraph.npz")
+        if npz_path.exists():
+            return str(npz_path)
+
+    if not label_path.exists():
+        return graph_value
+
+    from ..metrics.skeleton_build import ensure_erl_graph
+
+    logger.info(
+        "%sderiving the ERL skeleton graph from %s (this is cached at %s)",
+        volume_prefix,
+        label_path.name,
+        npz_path,
+    )
+    return str(ensure_erl_graph(npz_path, label_path, resolution))
+
+
 def compute_nerl_metrics(
     context: EvaluationContext,
     decoded_predictions: np.ndarray,
@@ -100,14 +141,17 @@ def compute_nerl_metrics(
 ) -> None:
     evaluation_cfg = context.evaluation_cfg
     test_data_cfg = getattr(getattr(context.cfg, "data", None), "test", None)
-    graph_value = select_volume_config_value(
-        getattr(test_data_cfg, "skeleton", None),
-        volume_name,
+    graph_value = _resolve_graph_value(
+        select_volume_config_value(getattr(test_data_cfg, "skeleton", None), volume_name),
+        select_volume_config_value(getattr(test_data_cfg, "label", None), volume_name),
+        _nerl_resolution(context, evaluation_cfg),
+        volume_prefix,
     )
     if graph_value is None:
         logger.warning(
-            "%sSkipping NERL: set data.test.skeleton to an "
-            "ERLGraph .npz or BANIS/NISB skeleton.pkl",
+            "%sSkipping NERL: set data.test.skeleton to an ERLGraph .npz or "
+            "BANIS/NISB skeleton.pkl, or data.test.label to a dense volume to "
+            "derive one from",
             volume_prefix,
         )
         return

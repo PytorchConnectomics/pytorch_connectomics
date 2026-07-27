@@ -131,6 +131,15 @@ def _find(parent: np.ndarray, label: int) -> int:
     return label
 
 
+def _slice_area(seg: np.ndarray, z: int, cache: dict[int, np.ndarray]) -> np.ndarray:
+    """Per-label voxel count on slice ``z``, cached (one bincount per touched slice)."""
+    area = cache.get(z)
+    if area is None:
+        area = np.bincount(seg[z].ravel())
+        cache[z] = area
+    return area
+
+
 def complete_sections(
     seg: np.ndarray,
     min_size: int = MIN_SIZE,
@@ -144,6 +153,7 @@ def complete_sections(
         bounds, sizes, _ = seg_stats(seg)
     else:
         bounds, sizes, _ = stats
+    slice_areas: dict[int, np.ndarray] = {}
     fragments = [
         label
         for label in bounds
@@ -173,15 +183,26 @@ def complete_sections(
         for target_z, neighbor_z in ((z0, z0 - 1), (z1, z1 + 1)):
             if not (0 <= neighbor_z < seg.shape[0]):
                 continue
-            mask = seg[target_z] == fragment
+            # Work in the fragment's bbox plus a 1-voxel halo: a 1-iteration
+            # dilation cannot reach further, so the candidate set is unchanged --
+            # but the intersection has to be paired with the candidate's area on
+            # the WHOLE slice, or the IoU denominator would silently shrink.
+            wy0, wy1 = max(y0 - 1, 0), min(y1 + 2, seg.shape[1])
+            wx0, wx1 = max(x0 - 1, 0), min(x1 + 2, seg.shape[2])
+            window = seg[target_z, wy0:wy1, wx0:wx1]
+            mask = window == fragment
             if not mask.any():
                 continue
-            neighbors = seg[neighbor_z][binary_dilation(mask, iterations=1)]
+            neighbor_window = seg[neighbor_z, wy0:wy1, wx0:wx1]
+            neighbors = neighbor_window[binary_dilation(mask, iterations=1)]
+            mask_area = int(mask.sum())
             for label in np.unique(neighbors[neighbors > 0]).tolist():
                 if label == fragment or sizes[label] < min_size:
                     continue
-                label_mask = seg[neighbor_z] == label
-                iou = int((mask & label_mask).sum()) / max(int((mask | label_mask).sum()), 1)
+                intersection = int((mask & (neighbor_window == label)).sum())
+                label_area = int(_slice_area(seg, neighbor_z, slice_areas)[label])
+                union = mask_area + label_area - intersection
+                iou = intersection / max(union, 1)
                 if iou > zfrag_iou and (zbest is None or iou > zbest[0]):
                     zbest = (iou, int(label))
         if zbest:
@@ -305,11 +326,18 @@ def _weak_velocity(
     bounds: dict[int, tuple[int, int, int, int, int, int]],
     n: int = 4,
 ) -> np.ndarray:
+    # Read inside the label's own bbox. The velocity is a difference of centroids
+    # taken in the SAME window, so the constant offset cancels and the result is
+    # identical to measuring on the full slice.
+    _, _, y0, y1, x0, x1 = bounds[label]
     points = []
     for k in range(n):
         z = z_end - direction * k
-        if bounds[label][0] <= z <= bounds[label][1] and (seg[z] == label).any():
-            points.append((z, *center_of_mass(seg[z] == label)))
+        if not (bounds[label][0] <= z <= bounds[label][1]):
+            continue
+        mask = seg[z, y0 : y1 + 1, x0 : x1 + 1] == label
+        if mask.any():
+            points.append((z, *center_of_mass(mask)))
     if len(points) < 2:
         return np.zeros(2)
     array = np.array(points, float)
