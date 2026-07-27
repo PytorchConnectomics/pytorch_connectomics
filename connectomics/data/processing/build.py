@@ -96,7 +96,7 @@ def _task_output_channels(task: Any) -> int:
     defaults = MultiTaskLabelTransformd._TASK_DEFAULTS.get(name, {})
     resolved_kwargs = {**defaults, **task_kwargs}
 
-    if name == "affinity":
+    if name in ("affinity", "thin_affinity_weight"):
         return len(resolve_affinity_offsets_from_kwargs(resolved_kwargs))
     if name == "skeleton_aware_edt":
         return 2 if float(resolved_kwargs.get("weight_param", 0.0)) > 0 else 1
@@ -136,6 +136,49 @@ def count_stacked_label_transform_channels(cfg: Any = None, **kwargs: Any) -> Op
         return None
 
     return sum(_task_output_channels(task) for task in tasks)
+
+
+#: Targets that occupy stacked label channels but are never predicted by the
+#: model. They carry per-voxel loss weights that a loss term reads through its
+#: ``mask_slice``, so they must NOT be counted when deriving the required
+#: ``model.out_channels``.
+NON_PREDICTED_TARGETS = frozenset({"thin_affinity_weight"})
+
+
+def count_predicted_label_transform_channels(cfg: Any = None, **kwargs: Any) -> Optional[int]:
+    """Stacked label channels that the model is expected to predict.
+
+    Same as :func:`count_stacked_label_transform_channels` minus the channels
+    contributed by :data:`NON_PREDICTED_TARGETS`. Use this to size
+    ``model.out_channels``; use the full count to validate channel selectors,
+    which index the whole stacked label tensor.
+    """
+    if cfg is None:
+        cfg = {}
+    cfg = _to_plain(cfg)
+    if not isinstance(cfg, dict):
+        raise TypeError(
+            "Expected OmegaConf DictConfig, structured dataclass config, or plain dict "
+            f"for cfg, got {type(cfg).__name__}"
+        )
+    cfg = {**cfg, **kwargs}
+
+    if not cfg.get("stack_outputs", True):
+        return None
+
+    tasks = _normalize_target_tasks(cfg)
+    if not tasks:
+        return None
+
+    total = 0
+    for task in tasks:
+        name = task if isinstance(task, str) else (
+            task.get("name") or task.get("task") or task.get("type")
+        )
+        if name in NON_PREDICTED_TARGETS:
+            continue
+        total += _task_output_channels(task)
+    return total
 
 
 def create_label_transform_pipeline(cfg: Any = None, **kwargs: Any) -> MapTransform:
@@ -181,6 +224,8 @@ def create_label_transform_pipeline(cfg: Any = None, **kwargs: Any) -> MapTransf
 
 
 __all__ = [
+    "NON_PREDICTED_TARGETS",
+    "count_predicted_label_transform_channels",
     "count_stacked_label_transform_channels",
     "create_label_transform_pipeline",
 ]
