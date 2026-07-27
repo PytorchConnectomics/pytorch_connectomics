@@ -10,7 +10,10 @@ from typing import Any, List, Optional
 import numpy as np
 import torch
 
-from ..data.processing.build import count_stacked_label_transform_channels
+from ..data.processing.build import (
+    count_predicted_label_transform_channels,
+    count_stacked_label_transform_channels,
+)
 from ..models.architectures.registry import get_architecture_info
 from ..utils.channel_slices import infer_min_required_channels
 from ..utils.model_outputs import (
@@ -49,6 +52,12 @@ def validate_runtime_coherence(cfg) -> None:
     label_cfg = getattr(cfg.data, "label_transform", None)
     stacked_label_channels = (
         count_stacked_label_transform_channels(label_cfg) if label_cfg is not None else None
+    )
+    # Channel selectors index the whole stacked label tensor, but only the
+    # predicted targets constrain model.out_channels -- a loss-weight target
+    # (NON_PREDICTED_TARGETS) occupies label channels the model never emits.
+    predicted_label_channels = (
+        count_predicted_label_transform_channels(label_cfg) if label_cfg is not None else None
     )
 
     def _resolve_selector_head(entry: Any, *, selector_key: str) -> Optional[str]:
@@ -126,8 +135,10 @@ def validate_runtime_coherence(cfg) -> None:
                         continue
                     required_output_channels.append((path, min_channels))
 
-    if not model_heads and stacked_label_channels:
-        required_output_channels.append(("data.label_transform.targets", stacked_label_channels))
+    if not model_heads and predicted_label_channels:
+        required_output_channels.append(
+            ("data.label_transform.targets", predicted_label_channels)
+        )
 
     if model_heads:
         for head_name, head_cfg in model_heads.items():
