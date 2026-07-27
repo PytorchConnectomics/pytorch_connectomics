@@ -5,7 +5,11 @@ import pytest
 import torch
 
 from connectomics.config import Config
-from connectomics.evaluation import EvaluationContext, compute_test_metrics
+from connectomics.evaluation import (
+    EvaluationContext,
+    compute_test_metrics,
+    run_evaluation_stage,
+)
 from connectomics.evaluation.metric_execution import (
     compute_binary_metrics,
     is_instance_segmentation,
@@ -86,6 +90,86 @@ def test_nerl_only_evaluation_skips_unrequested_label_metric_groups(monkeypatch)
 
     assert captured["nerl"] == 1.0
     assert captured["volume_name"] == "vol0"
+
+
+def _tube_evaluation_config() -> Config:
+    cfg = Config()
+    cfg.evaluation.enabled = True
+    cfg.evaluation.metrics = ["tube"]
+    cfg.evaluation.tube.substantial_min_z_slices = 2
+    cfg.evaluation.tube.substantial_min_voxels = 10
+    cfg.evaluation.tube.long_span_fraction = 0.5
+    cfg.evaluation.tube.decent_min_voxels = 10
+    cfg.evaluation.tube.border_margin = 0
+    cfg.evaluation.tube.border_patch_min_voxels = 1
+    cfg.evaluation.tube.multi_component_min_voxels = 2
+    cfg.evaluation.tube.parallel_min_slices = 2
+    cfg.evaluation.tube.disconnected_component_min_voxels = 2
+    return cfg
+
+
+def _complete_tube_segmentation() -> np.ndarray:
+    segmentation = np.zeros((6, 12, 12), dtype=np.uint16)
+    segmentation[:, 4:6, 4:6] = 1
+    return segmentation
+
+
+def test_tube_evaluation_runs_without_dense_labels():
+    cfg = _tube_evaluation_config()
+    captured = {}
+    context = EvaluationContext(
+        cfg=cfg,
+        evaluation_cfg=cfg.evaluation,
+        inference_cfg=cfg.inference,
+        enabled=True,
+        metrics_sink=lambda metrics: captured.update(metrics),
+    )
+
+    result = run_evaluation_stage(
+        context,
+        _complete_tube_segmentation(),
+        labels=None,
+        filenames=["vol0"],
+        batch_idx=0,
+    )
+
+    assert result.computed is True
+    assert captured["volume_name"] == "vol0"
+    assert captured["tube_total_label_count"] == 1
+    assert captured["tube_long_enough_count"] == 1
+    assert captured["tube_complete_count"] == 1
+    assert captured["tube_valid_count"] == 1
+    assert captured["tube_complete_fraction"] == 1.0
+
+
+def test_tube_evaluation_writes_summary_and_per_instance_artifact(tmp_path):
+    cfg = _tube_evaluation_config()
+    cfg.inference.save_path = str(tmp_path)
+    context = EvaluationContext(
+        cfg=cfg,
+        evaluation_cfg=cfg.evaluation,
+        inference_cfg=cfg.inference,
+        enabled=True,
+    )
+
+    compute_test_metrics(
+        context,
+        _complete_tube_segmentation(),
+        labels=None,
+        volume_name="vol0",
+    )
+
+    report = (tmp_path / "vol0" / "eval_prediction_x1.txt").read_text()
+    assert "Ground-Truth-Free Tube Analysis:" in report
+    assert "COMPLETE (>=2 border ends): 1/1" in report
+
+    with np.load(
+        tmp_path / "vol0" / "eval_prediction_x1_tube_instances.npz",
+        allow_pickle=False,
+    ) as artifact:
+        np.testing.assert_array_equal(artifact["label"], np.array([1], dtype=np.uint64))
+        np.testing.assert_array_equal(artifact["is_complete"], np.array([True]))
+        np.testing.assert_array_equal(artifact["is_valid_tube"], np.array([True]))
 
 
 def test_requested_adapted_rand_runs_instance_metrics_for_float_cached_segmentation(

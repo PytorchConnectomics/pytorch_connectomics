@@ -1,22 +1,22 @@
-# Baseline for axon_decode.yaml: the same MIT-LiCONN affinity volume decoded with the
-# established naive 3D waterz recipe, for a like-for-like comparison.
+# Baseline for axon_decode.yaml: the same axon affinity volume decoded with the
+# established naive 3D waterz recipe for a like-for-like comparison.
 #
 #   python scripts/main.py --config tutorials/neuron_axon/waterz_baseline.yaml --mode test
 #
 # `naive_waterz` is a fixed wrapper (no knobs): decode_waterz at threshold 0.4 with
 # the aff85_his256 merge function, run in 80-slice chunks and stitched at the chunk
-# borders, then relabelled globally. Reference result: NERL 0.6143 base / 0.7130
-# oracle-merge, ~14 min on 8 CPU cores.
+# borders, then relabelled globally.
 
 experiment_name: neuron_axon_waterz_baseline
 description: >-
-  Naive 3D waterz on the MIT-LiCONN affinity volume, the reference point for the
-  staged axon decode in axon_decode.yaml.
+  Naive 3D waterz on an axon affinity volume, the reference point for the staged
+  axon decode in axon_decode.yaml.
 
 default:
   inference: {}
   decoding:
-    load_prediction_path: datasets/mit-liconn/raw_x1_head-aff_r1.h5
+    # Replace with a 3-channel CZYX affinity volume ordered as (z, y, x).
+    load_prediction_path: path/to/affinity.h5
     save_path: outputs/neuron_axon/waterz
     steps:
       - name: naive_waterz
@@ -28,8 +28,10 @@ default:
 test:
   data:
     test:
-      name: mit_liconn
-      label: datasets/mit-liconn/gt_label_clean_v3.h5   # 943 proofread axons
+      name: axon_volume
+      # Replace with the corresponding instance-label volume.
+      label: path/to/label.h5
       # No skeleton file needed: the ERL graph is derived from the label volume
       # (kimimaro at a (2,4,4) downsample) and cached beside it on first use.
-      resolution: [25, 9, 9]   # z, y, x nm -- array-axis order, not xyz
+      # Replace with the physical voxel size in z, y, x array-axis order.
+      resolution: [1, 1, 1]
