@@ -5,7 +5,7 @@
 #
 # `naive_waterz` is a fixed wrapper (no knobs): decode_waterz at threshold 0.4 with
 # the aff85_his256 merge function, run in 80-slice chunks and stitched at the chunk
-# borders, then relabelled globally. Reference result: NERL 0.6530 base / 0.7580
+# borders, then relabelled globally. Reference result: NERL 0.6143 base / 0.7130
 # oracle-merge, ~14 min on 8 CPU cores.
 
 experiment_name: neuron_axon_waterz_baseline

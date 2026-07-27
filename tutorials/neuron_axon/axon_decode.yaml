@@ -1,7 +1,8 @@
 # MIT-LiCONN DL288B axon decoding: affinity volume -> final instance segmentation.
 #
-# Self-contained: no `_base_` include, no tuning knobs. The validated constants and
-# the gate order live with the operations, not in this file.
+# Self-contained: no `_base_` include. Every decode parameter is spelled out below at
+# its validated default, with the measurement behind it, so tuning means editing a
+# value rather than reading the source.
 #
 #   python scripts/main.py --config tutorials/neuron_axon/axon_decode.yaml --mode test
 #
@@ -10,9 +11,9 @@
 # Output  outputs/neuron_axon/axon/<volume>/decoded_*.h5   final instance segmentation
 #         outputs/neuron_axon/axon/<volume>/eval_*.txt     NERL base + oracle-merge
 #
-# Reference result on the full volume: NERL 0.8434 base / 0.9525 oracle-merge
-# (naive 3D waterz on the same affinity scores 0.6530 / 0.7580 -- see
-# waterz_baseline.yaml). Runtime ~41 min on 8 CPU cores, ~26 GB peak; decode-only,
+# Reference result on the full volume: NERL 0.7914 base / 0.8759 oracle-merge
+# (naive 3D waterz on the same affinity scores 0.6143 / 0.7130 -- see
+# waterz_baseline.yaml). Runtime ~8 min on 8 CPU cores, ~26 GB peak; decode-only,
 # so no checkpoint and no GPU are needed.
 
 experiment_name: neuron_axon_staged_decode
@@ -35,7 +36,7 @@ default:
     # execution to that node's ancestors and the artifact cache tag changes with it,
     # so an early stop cannot silently reuse a later artifact.
     # Every kwarg below is written at its VALIDATED DEFAULT: this file as shipped
-    # reproduces 0.8434 / 0.9525. They are spelled out so they can be tuned; omit any
+    # reproduces 0.7914 / 0.8759. They are spelled out so they can be tuned; omit any
     # kwarg to fall back to the same value in code.
     graph:
       nodes:
@@ -71,7 +72,7 @@ default:
 
         # ---- split: convert false merges into splits ------------------------------
         # A split is cheaper than a merge, so this deliberately LOWERS base NERL
-        # (0.8284 -> 0.7302) to raise the false-merge-free ceiling (0.9424 -> 0.9631),
+        # (0.7773 -> 0.6857) to raise the false-merge-free ceiling (0.8673 -> 0.8856),
         # which the merge stage then converts back into run length.
         - name: split
           op: branch_split
@@ -92,14 +93,17 @@ default:
         # ---- merge: re-link under the raised ceiling -------------------------------
         # Cross-section completion (absorb 1-slice fragments so IoU sees whole
         # cross-sections) MUST happen here and not before the split stage -- completing
-        # first turns 360 cuts into 16 and gives up 0.021 of the ceiling.
+        # first turns 360 link-cuts into 16 and surrenders ceiling that the merge
+        # stage can then never recover (measured on the research yardstick).
         - name: merged
           op: branch_merge
           inputs: [raw, split]
           kwargs:
             merge_iou: 0.45      # cross-section IoU to consider a partner at a z-seam.
-                                 #   Selecting by IoU rather than affinity moved base
-                                 #   0.7495 -> 0.7840
+                                 #   Selecting by IoU rather than by seam affinity is what
+                                 #   made this stage work: strong-affinity seams are already
+                                 #   merged upstream, so what is left is low-affinity, where
+                                 #   shape is the only continuity signal
             margin: 0.15         # the best partner must beat the runner-up by this gap
                                  #   or the pair is LEFT SPLIT. Raise to be more
                                  #   conservative; a false merge costs far more than a

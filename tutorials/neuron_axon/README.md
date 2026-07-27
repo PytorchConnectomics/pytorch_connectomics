@@ -11,8 +11,10 @@ The premise is that in connectomics **a split is cheaper than a merge** (a split
 proofreading; a merge corrupts two neurons), so the pipeline first converts false merges into
 splits — raising the false-merge-free ceiling — and then re-links the splits back up under it.
 
-Both YAMLs are **self-contained** — no `_base_` include, no tuning knobs — so each file is
-the complete, reproducible description of one run from affinity to final segmentation.
+Both YAMLs are **self-contained** — no `_base_` include — so each file is the complete,
+reproducible description of one run from affinity to final segmentation. Every decode
+parameter is spelled out at its validated default with the measurement behind it, so tuning
+means editing a value rather than reading the source.
 
 ## Run
 
@@ -21,45 +23,43 @@ python scripts/main.py --config tutorials/neuron_axon/waterz_baseline.yaml --mod
 python scripts/main.py --config tutorials/neuron_axon/axon_decode.yaml     --mode test
 ```
 
-Decode-only: no checkpoint and no GPU. Budget ~14 min (baseline) and ~41 min (staged) on
-8 CPU cores, ~26 GB peak.
+Decode-only: no checkpoint and no GPU. On 8 CPU cores the staged decode takes ~8 min and
+~26 GB; the baseline ~14 min. Set `num_workers` on the `sections` node (`-1` = every
+available CPU; it reads the cgroup mask, so it honours `sbatch -c N`).
 
 ## Inputs
 
 | path | what |
 |---|---|
 | `datasets/mit-liconn/raw_x1_head-aff_r1.h5` | 3-channel CZYX affinity (z,y,x), float32, 800×1024×1024 at 25×9×9 nm |
-| `datasets/mit-liconn/gt_label_clean_v3.h5` | proofread GT, 943 labels (iteratively audited — the original release over-split axons) |
-| `datasets/mit-liconn/gt_label_clean_v3_strongmax.ds244.erlgraph.npz` | ERL skeleton graph, 815 confident whole neurons |
+| `datasets/mit-liconn/gt_label_clean_v3.h5` | proofread GT, 943 axons (iteratively audited — the original release over-split axons) |
 
-Scoring is optional: delete the `evaluation:` and `test:` blocks to decode without ground
+**No skeleton file is needed.** The ERL graph is derived from the label volume on first use
+(kimimaro at a (2,4,4) downsample, anisotropy scaled to match so vertex coordinates stay in
+the full-resolution frame) and cached as `gt_label_clean_v3.erlgraph.npz` beside it: 909
+skeletons, 98,260 nodes, 5686 µm.
+
+Scoring is optional — delete the `evaluation:` and `test:` blocks to decode without ground
 truth, and the run writes only the segmentation.
-
-Both read `datasets/mit-liconn/raw_x1_head-aff_r1.h5`, score against the same 943-label
-proofread GT and strong-foreground ERL graph, and report **base NERL** plus **oracle-merge
-NERL** (every predicted fragment relabelled to its majority-overlap GT — the attainable
-split-recovery ceiling, i.e. what is left once all false merges are excluded).
-
-Neither YAML exposes tuning knobs: the validated constants and the gate order live with the
-operations, not in config.
 
 ## Results
 
-Full 800×1024×1024 volume, `nerl_merge_threshold: 10`, 943-label GT:
+Full 800×1024×1024 volume, `nerl_merge_threshold: 10`, scored against the derived graph.
+`om` is oracle-merge: every predicted fragment relabelled to its majority-overlap GT, i.e.
+the ceiling that remains once all false merges are excluded.
 
-| decode output | NERL base | NERL oracle-merge |
-|---|---:|---:|
-| naive waterz | 0.6530 | 0.7580 |
-| tracklets (`output: tracklets`) | 0.8284 | 0.9424 |
-| split (`output: split`) | 0.7302 | 0.9631 |
-| **merged (`output: merged`, default)** | **0.8434** | **0.9525** |
+| decode output | segments | NERL base | NERL om |
+|---|---:|---:|---:|
+| naive waterz | 1,223 | 0.6143 | 0.7130 |
+| tracklets (`output: tracklets`) | 27,836 | 0.7773 | 0.8673 |
+| split (`output: split`) | 28,147 | 0.6857 | 0.8856 |
+| **merged (`output: merged`, default)** | 22,071 | **0.7914** | **0.8759** |
 
-The split stage intentionally *lowers* base NERL — it is buying ceiling (om 0.9424 → 0.9631)
-that the merge stage then converts back into run length. Judge a split stage by om, and a
-merge stage by the base it recovers while holding om.
-
-Wall time on one 8-core node: ~14 min for the baseline, ~41 min for the staged decode (~7 min
-of which is the 800-slice 2D watershed).
+Read the middle two rows together: the split stage *lowers* base NERL (0.7773 → 0.6857) and
+raises the ceiling (0.8673 → 0.8856). It is buying headroom, and the merge stage converts
+that headroom back into run length — ending above the tracklet base on both counts. Judge a
+split stage by om, and a merge stage by the base it recovers while holding om. (Merging can
+only lower om, which is why the final 0.8759 sits just under the split's 0.8856.)
 
 ## Stopping early
 
@@ -67,37 +67,48 @@ Change one line — `graph.output` in `axon_decode.yaml` — to `sections`, `tra
 `split`. The graph prunes execution to that node's ancestors, and the artifact cache tag
 changes with it, so an early-stopped run cannot silently reuse a later artifact.
 
-```yaml
-    graph:
-      nodes:
-        - {name: sections,  op: seg_2d,       inputs: [raw]}
-        - {name: tracklets, op: branch_link,  inputs: [raw, sections]}
-        - {name: split,     op: branch_split, inputs: [raw, tracklets]}
-        - {name: merged,    op: branch_merge, inputs: [raw, split]}
-      output: merged        # <- sections | tracklets | split | merged
-```
+## Tuning
+
+Each graph node lists its kwargs at the validated default. The two that move the result most:
+
+- **`merge_iou`** (0.45) — cross-section IoU needed to consider a partner at a z-seam.
+  Selecting by IoU rather than affinity is what made the merge stage work; the seam affinity
+  (`aff_lo`) is only a background floor and must never rank partners.
+- **`margin`** (0.15) — the best partner must beat the runner-up by this gap, or the pair is
+  left split. Raise it to be more conservative.
+
+`small: 0` on the sections node is load-bearing: waterz's own default of 150 silently removed
+4.2% of confident skeleton coverage, whole thin tubes included.
 
 ## Why `nerl_merge_threshold: 10`
 
-ERL is brutally sensitive to contamination: at `merge_threshold: 1`, as few as **two** foreign
-nodes count a segment as merged and halve a long neuron's ERL. Sweeping it on the split stage:
-1 → om 0.9037, 2 → 0.9203, 5 → 0.9447, **10 → 0.9631**. Roughly 90% of the apparent oracle gap
-at thr=1 was that artifact, so 10 is the fair yardstick here. Retune it for a dataset with
-different skeleton density.
+ERL is brutally sensitive to contamination — at `merge_threshold: 1`, as few as two foreign
+nodes count a segment as merged. Sweeping it on the split stage:
+
+| merge_threshold | base | om |
+|---:|---:|---:|
+| 1 | 0.6641 | 0.8301 |
+| 2 | 0.6699 | 0.8464 |
+| 5 | 0.6792 | 0.8687 |
+| **10** | **0.6857** | **0.8856** |
+
+The ceiling moves 0.055 across that range while the decode does not change at all, so a
+number quoted without its threshold is not comparable. 10 is the fair yardstick here; retune
+it for a dataset with different skeleton density.
 
 ## Adapting to another dataset
 
-Point `decoding.load_prediction_path` at your affinity volume and `data.test.{label, skeleton,
+Point `decoding.load_prediction_path` at your affinity volume and `data.test.{label,
 resolution}` at your GT. The gates were tuned on 25×9×9 nm anisotropic axons: the 2D-section
-seed assumes the in-plane resolution resolves a cross-section while the z-step may not, and the
-splitter's caliber/collinearity gates assume tube-like objects. On isotropic or non-tubular
-data, expect to retune rather than reuse.
+seed assumes the in-plane resolution resolves a cross-section while the z-step may not, and
+the splitter's caliber/collinearity gates assume tube-like objects. On isotropic or
+non-tubular data, expect to retune rather than reuse.
 
-The optional completion-radius link (`branch_merge(..., prefer_length=True)`) is **off** by
-default. It does reach the lateral-drift gaps that shape matching structurally cannot, but
-every configuration tested lost oracle-merge ceiling: the correct links were not separable from
-the false ones by proximity, caliber and trajectory alone. Enable it only when run length
-matters more than merge safety.
+The optional completion-radius link (`prefer_length: true`) is **off** by default. It does
+reach the lateral-drift gaps that shape matching structurally cannot, but every configuration
+tested lost oracle-merge ceiling: the correct links were not separable from the false ones by
+proximity, caliber and trajectory alone. Enable it only when run length matters more than
+merge safety.
 
 ## Provenance
 
