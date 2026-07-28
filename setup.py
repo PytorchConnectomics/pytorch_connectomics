@@ -38,6 +38,7 @@ requirements = [
     "kimimaro>=1.0.0",  # Skeletonization library
     "crackle-codec>=0.1.0",  # Required by kimimaro for compression
     "mahotas>=1.4.0",  # Image processing (morphological operations, connected components)
+    "fastmorph>=1.0.0",  # Multi-label morphological opening (shape_smooth decoder)
     # Build tools
     "Cython>=0.29.22",
 ]

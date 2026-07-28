@@ -40,6 +40,61 @@ default:
             ws_dust_threshold: 200
             ws_merge_threshold: 0.9
 
+      # ---------------------------------------------------------------------
+      # Postprocessing: shape smoothing.
+      #
+      #   1. fastmorph label opening -- removes hairline necks and one-voxel
+      #      protrusions; label identity never moves, and the result is clamped
+      #      to the original support so the opening cannot add voxels.
+      #   2. cc3d relabel            -- turns a removed neck into two instances.
+      #
+      # The optional third part (`split`) carves cross-z area outliers; it is
+      # OFF here. See the "shape smoothing" section of the tutorial README for
+      # when each part helps and the numbers behind these defaults.
+      #
+      # Measured on this volume (139 ABISS labels, GT-free tube report):
+      #             labels  decent  COMPLETE      VALID        disconnected
+      #   baseline     139      38  26 (68.4%)    15 (39.5%)   0
+      #   open 2d      269      39  28 (71.8%)    17 (43.6%)   0   (-1.7% fg)
+      #   open 3d      241      46  33 (71.7%)    20 (43.5%)   0   (-3.4% fg)
+      #   open 3d+split 253     46  33 (71.7%)    20 (43.5%)   4
+      # ---------------------------------------------------------------------
+      - name: shape_smooth
+        kwargs:
+          open: true
+          # 2d opens each z-slice independently and never erodes along z; 3d
+          # uses a 3x3x3 element. Prefer 2d on fine, densely packed labels: a 3d
+          # erosion has no background to regrow from at a label-label interface,
+          # so it deletes z-thin objects outright.
+          open_plane: 3d
+          # 0 selects the cube element. Spherical radii below 2.0 erode nothing
+          # on this lattice and are rejected, not silently ignored.
+          open_radius: 0
+          connectivity: 26
+          dust_size: 0
+
+          # The cross-z carve. Off by default: on this volume it left COMPLETE
+          # and VALID unchanged while raising `disconnected` from 0 to 4, since
+          # a carved id can end up in two 3D pieces.
+          split: false
+          # An area outlier is a slice-to-slice STEP exceeding both a fraction of
+          # the label's local median area and an absolute voxel count. The step
+          # test replaces a whole-run median test because a sustained merge
+          # dominates its own baseline and hides from the latter.
+          bump_ratio: 0.5
+          bump_window: 15
+          bump_min_extra: 100
+          # Erosion of the previous cross-section before it seeds the keep marker.
+          erode_iterations: 1
+          split_min_size: 1000
+          split_min_span: 5
+          max_run: 64
+          # Refuse to carve off a cross-section sitting on a volume z-face: it is
+          # truncated by the face, so the step beside it is a boundary artifact,
+          # not a merge. Without this, 8 of 15 carves started at z1 and one ran
+          # the full 63 slices -- the one-sided-carve drift.
+          anchor_border: 2
+
 test:
   data:
     test:
