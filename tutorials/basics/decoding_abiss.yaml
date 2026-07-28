@@ -1,0 +1,48 @@
+# Single-volume ABISS decoding of a saved affinity prediction.
+#
+#   python scripts/main.py \
+#     --config tutorials/basics/decoding_abiss.yaml \
+#     --mode test
+#
+# This uses scripts/run_abiss_single.py and writes one HDF5 segmentation. It
+# does not use the ABISS chunk hierarchy or perform cross-chunk stitching.
+
+_base_: ../../connectomics/config/all_profiles.yaml
+
+experiment_name: apl_decoding_abiss_afflow090
+description: >-
+  Decode the local APL optic-nerve affinity volume with the single-volume ABISS
+  watershed using a 0.9 low-affinity threshold.
+
+default:
+  inference: {}
+
+  decoding:
+    load_prediction_path: datasets/apl_decoding/optic_nerve_afffinities.h5
+    save_path: outputs/apl_decoding_abiss_single/afflow090
+
+    steps:
+      - name: decode_abiss
+        kwargs:
+          command: >-
+            {python_exe} scripts/run_abiss_single.py
+            --input {input_h5}
+            --output {output_h5}
+          input_dataset: main
+          output_dataset: main
+          # The source has 12 channels; its nearest-neighbor triplet is XYZ.
+          channels: [0, 1, 2]
+          timeout_sec: 3600
+          cli_args:
+            ws_high_threshold: 0.9
+            ws_low_threshold: 0.9
+            ws_size_threshold: 400
+            ws_dust_threshold: 200
+            ws_merge_threshold: 0.9
+
+test:
+  data:
+    test:
+      name: apl_optic_nerve_abiss_afflow090
+      label: null
+      resolution: [8, 8, 8]
