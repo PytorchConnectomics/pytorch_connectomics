@@ -1,0 +1,73 @@
+experiment_name: neuron_j0126_abiss
+
+description: >
+  Stage 2 of the j0126 ABISS tutorial: affinity -> segmentation with the vendored
+  ABISS pipeline (watershed -> remap -> mean-edge agglomeration -> remap).
+
+  `source_affinity_h5` is deliberately ABSENT. The affinity produced by
+  infer_affinity.yaml is already a precomputed layer, so there is nothing to
+  convert: AFF_PATH below is used as-is. (Set `source_affinity_h5` only when
+  starting from a saved affinity HDF5 instead.) Because the volume shape can no
+  longer be read from an h5, `param.BBOX` is required here.
+
+  Usage:
+    # 1) affinity (writes the precomputed layer AFF_PATH points at)
+    python scripts/main.py --config tutorials/neuron_j0126/infer_affinity.yaml \
+        --mode test --checkpoint <affinity_model.ckpt>
+
+    # 2) segmentation
+    python scripts/run_abiss_large.py --config tutorials/neuron_j0126/abiss.yaml
+
+  ABISS binaries must be built with EXTRACT_SIZE enabled, otherwise `acme` never
+  writes the supervoxel sizes and agglomeration aborts with
+  "Should not happen, rg element does not exist":
+    cd lib/abiss/build && cmake -DEXTRACT_SIZE=ON .. && make -j
+  They also link the old TBB soname (libtbb.so.2); expose just that library on
+  LD_LIBRARY_PATH if the runtime only ships oneTBB (libtbb.so.12).
+
+abiss_large:
+  abiss_home: lib/abiss
+  workdir: outputs/neuron_j0126_abiss/run
+  secrets_dir: outputs/neuron_j0126_abiss/secrets
+  param_path: outputs/neuron_j0126_abiss/secrets/param
+
+  # No `source_affinity_h5`: the affinity is already precomputed (see above).
+  # Storage chunk of the WS/SEG layers. ABISS uploads whole CHUNK_SIZE blocks in
+  # parallel, so this MUST divide CHUNK_SIZE on every axis or those writes race.
+  seg_chunk_size_xyz: [256, 256, 256]
+  resolution_xyz: [9, 9, 20]
+
+  root_tag: "5_0_0_0"
+  top_mip: 5
+  overlap_mode: 0
+  meta_dirs: []
+
+  param:
+    NAME: neuron_j0126_abiss
+
+    # Written by infer_affinity.yaml. All ABISS paths are CloudFiles/CloudVolume
+    # paths; file:// for a local run.
+    AFF_PATH: file://outputs/neuron_j0126_affinity/affinity
+    WS_PATH: file://outputs/neuron_j0126_abiss/precomputed/ws
+    SEG_PATH: file://outputs/neuron_j0126_abiss/precomputed/seg
+    SCRATCH_PATH: file://outputs/neuron_j0126_abiss/scratch
+    CHUNKMAP_OUTPUT: file://outputs/neuron_j0126_abiss/chunkmap
+
+    # NOTE: `abiss_large` reads AFF_RESOLUTION as a MIP INDEX (int), unlike the
+    # seuron-provenance path where it is a [x,y,z] nm triple. The layer written by
+    # infer_affinity.yaml has resolution [9,9,20] at mip 0, so 0 selects it.
+    AFF_RESOLUTION: 0
+
+    # True EM extent in XYZ voxels (the source zarr is padded out to 12288^2;
+    # the inference ROI already restricted prediction to this box).
+    BBOX: [0, 0, 0, 10664, 10912, 5700]
+
+    # ABISS logical chunk in XYZ.
+    CHUNK_SIZE: [512, 512, 256]
+
+    # Watershed/agglomeration parameters.
+    WS_HIGH_THRESHOLD: "0.99999"
+    WS_LOW_THRESHOLD: "0.00001"
+    WS_SIZE_THRESHOLD: "200"
+    WS_DUST_THRESHOLD: "200"
+    AGG_THRESHOLD: "0.3"

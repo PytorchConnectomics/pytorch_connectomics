@@ -121,6 +121,17 @@ class ChunkingConfig:
     # in an over-sized/padded volume, e.g. a zarr rounded out to 12288^2) are
     # skipped instead of inferred. None = infer the whole grid (previous behavior).
     roi: Optional[List[int]] = None
+    # Write each chunk straight into a CloudVolume *precomputed* layer at the output path
+    # instead of per-chunk HDF5 + a stitch pass. Chunks are disjoint and storage-chunk
+    # aligned, so ranks can write the shared layer concurrently without locking. This is
+    # what downstream CloudVolume consumers (ABISS/Seuron) read, so it removes the
+    # separate "mirror the h5 chunks into precomputed" conversion step entirely.
+    precomputed: bool = False
+    # XYZ nm. Required when `precomputed` is set (a precomputed layer must declare it).
+    precomputed_resolution: Optional[List[int]] = None
+    # XYZ storage chunk of the output layer. Must divide the inference chunk_size on
+    # every axis, otherwise concurrent chunk writes would straddle a storage chunk.
+    precomputed_chunk_size: List[int] = field(default_factory=lambda: [128, 128, 64])
     shard_id: Optional[int] = None  # External naive chunk shard index; set by CLI.
     num_shards: Optional[int] = None  # External naive chunk shard count; set by CLI.
     temp_dir: str = ""

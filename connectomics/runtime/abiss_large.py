@@ -134,7 +134,7 @@ class LargeWorkflowConfig:
     chunkmap_cloudpath: str
     bbox_xyz: list[int]
     chunk_size_xyz: list[int]
-    source_h5: Path
+    source_h5: Path | None  # None when the affinity is already a precomputed layer
     source_dataset: str
     source_num_channels: int
     copy_block_shape_xyz: list[int]
@@ -554,12 +554,21 @@ def prepare_config(config_path: Path) -> LargeWorkflowConfig:
     secrets_dir = Path(ab["secrets_dir"]).resolve()
     param_path = Path(ab.get("param_path", secrets_dir / "param")).resolve()
     root_tag = str(ab.get("root_tag", "0_0_0_0"))
-    source_h5 = Path(ab["source_affinity_h5"]).resolve()
-    configured_source_dataset = ab.get("source_dataset")
-    source_dataset, source_num_channels = _discover_h5_dataset_and_channels(
-        source_h5,
-        str(configured_source_dataset) if configured_source_dataset is not None else None,
-    )
+    # `source_affinity_h5` is optional: when the affinity is ALREADY a precomputed layer
+    # (e.g. written straight out of chunked inference via
+    # `inference.chunking.precomputed`), there is nothing to convert. Omitting it means
+    # AFF_PATH is used as-is and the h5 -> precomputed copy step is skipped; param.BBOX
+    # is then required, since the volume shape can no longer be read from the h5.
+    raw_source_h5 = ab.get("source_affinity_h5")
+    source_h5 = Path(str(raw_source_h5)).resolve() if raw_source_h5 else None
+    if source_h5 is not None:
+        configured_source_dataset = ab.get("source_dataset")
+        source_dataset, source_num_channels = _discover_h5_dataset_and_channels(
+            source_h5,
+            str(configured_source_dataset) if configured_source_dataset is not None else None,
+        )
+    else:
+        source_dataset, source_num_channels = "", 0
     copy_block_shape_xyz = _maybe_int_list(
         ab.get("copy_block_shape_xyz", [512, 512, 64]),
         expected_len=3,
@@ -583,14 +592,28 @@ def prepare_config(config_path: Path) -> LargeWorkflowConfig:
 
     param = dict(ab.get("param", {}))
 
-    with h5py.File(source_h5, "r") as f:
-        ds = f[source_dataset]
-        _, zdim, ydim, xdim = (int(v) for v in ds.shape)
+    if source_h5 is not None:
+        with h5py.File(source_h5, "r") as f:
+            ds = f[source_dataset]
+            _, zdim, ydim, xdim = (int(v) for v in ds.shape)
+    else:
+        if not param.get("BBOX"):
+            raise ValueError(
+                "abiss_large.param.BBOX is required when `source_affinity_h5` is omitted: "
+                "without the source h5 there is no shape to infer the volume extent from."
+            )
+        xdim = ydim = zdim = 0
 
     bbox_xyz = param.get("BBOX") or [0, 0, 0, xdim, ydim, zdim]
     bbox_xyz = _maybe_int_list(bbox_xyz, expected_len=6, name="param.BBOX")
+    default_chunk_xyz = (
+        [xdim, ydim, min(zdim, 80)]
+        if source_h5 is not None
+        else [bbox_xyz[3] - bbox_xyz[0], bbox_xyz[4] - bbox_xyz[1],
+              min(bbox_xyz[5] - bbox_xyz[2], 80)]
+    )
     chunk_size_xyz = _maybe_int_list(
-        param.get("CHUNK_SIZE", [xdim, ydim, min(zdim, 80)]),
+        param.get("CHUNK_SIZE", default_chunk_xyz),
         expected_len=3,
         name="param.CHUNK_SIZE",
     )
@@ -702,25 +725,40 @@ def prepare(cfg: LargeWorkflowConfig, *, write_param: bool = True) -> None:
         storage_chunk_size_xyz=cfg.seg_chunk_size_xyz,
     )
 
-    print(f"Preparing affinity precomputed at {cfg.aff_cloudpath}")
-    _copy_affinity_h5_to_precomputed(
-        source_h5=cfg.source_h5,
-        dataset=cfg.source_dataset,
-        cloudpath=cfg.aff_cloudpath,
-        bbox_xyz=bbox,
-        block_shape_xyz=cfg.copy_block_shape_xyz,
-        volume_chunk_size_xyz=cfg.aff_chunk_size_xyz,
-        resolution_xyz=cfg.resolution_xyz,
-    )
-    _validate_existing_layer(
-        cloudpath=cfg.aff_cloudpath,
-        volume_size_xyz=volume_size,
-        voxel_offset_xyz=voxel_offset,
-        expected_channels=cfg.source_num_channels,
-        expected_chunk_size_xyz=cfg.aff_chunk_size_xyz,
-        expected_resolution_xyz=cfg.resolution_xyz,
-        expected_layer_type="image",
-    )
+    if cfg.source_h5 is None:
+        print(f"Using existing affinity precomputed layer at {cfg.aff_cloudpath} (no h5 copy)")
+        if _is_local_cloudpath(cfg.aff_cloudpath):
+            aff_dir = _cloudpath_to_local_path(cfg.aff_cloudpath)
+            if not (aff_dir / "info").exists():
+                raise FileNotFoundError(
+                    f"`source_affinity_h5` was omitted but no precomputed layer exists at "
+                    f"{aff_dir} (missing info). Run inference with "
+                    f"`inference.chunking.precomputed: true` first, or set source_affinity_h5."
+                )
+    else:
+        print(f"Preparing affinity precomputed at {cfg.aff_cloudpath}")
+        _copy_affinity_h5_to_precomputed(
+            source_h5=cfg.source_h5,
+            dataset=cfg.source_dataset,
+            cloudpath=cfg.aff_cloudpath,
+            bbox_xyz=bbox,
+            block_shape_xyz=cfg.copy_block_shape_xyz,
+            volume_chunk_size_xyz=cfg.aff_chunk_size_xyz,
+            resolution_xyz=cfg.resolution_xyz,
+        )
+        # Only meaningful for the h5-copy path: it asserts the layer we just wrote
+        # matches the source. A pre-existing layer carries its own geometry (channel
+        # count, chunk size, resolution) chosen by whoever produced it, so re-asserting
+        # this config's expectations against it would be a false constraint.
+        _validate_existing_layer(
+            cloudpath=cfg.aff_cloudpath,
+            volume_size_xyz=volume_size,
+            voxel_offset_xyz=voxel_offset,
+            expected_channels=cfg.source_num_channels,
+            expected_chunk_size_xyz=cfg.aff_chunk_size_xyz,
+            expected_resolution_xyz=cfg.resolution_xyz,
+            expected_layer_type="image",
+        )
 
     _prepare_segmentation_output_layers(
         ws_cloudpath=cfg.ws_cloudpath,
