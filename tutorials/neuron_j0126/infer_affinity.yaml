@@ -1,5 +1,9 @@
 _base_:
-  - ../neuron_nisb/base_banis+_zebrafinch.yaml
+  # The _zarr variant, not base_banis+_zebrafinch.yaml directly: that one reads the
+  # tiled-PNG pyramid, where the lazy sliding window re-decodes 4096x4096 tiles per
+  # window and runs at ~19 h/chunk with the GPU idle. The zarr is random-access in
+  # 128^3 blocks (~30 min/chunk). All window/chunking settings are inherited either way.
+  - ../neuron_nisb/base_banis+_zebrafinch_zarr.yaml
 
 experiment_name: neuron_j0126_affinity
 description: >-
