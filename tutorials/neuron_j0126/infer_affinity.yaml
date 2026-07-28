@@ -1,43 +1,75 @@
 _base_:
-  # Local copies, so this tutorial does not depend on experiment configs that come
-  # and go elsewhere in the tree. base_banis+_zebrafinch_zarr.yaml supplies the
-  # window/chunking geometry and reads the random-access zarr; do NOT swap it for
-  # the tiled-PNG variant, which re-decodes 4096x4096 tiles per window and runs
-  # ~19 h/chunk with the GPU idle (vs ~30 min/chunk).
-  - base_banis+_zebrafinch_zarr.yaml
+  - ../neuron_nisb/base_banis+.yaml
 
 experiment_name: neuron_j0126_affinity
 description: >-
   Stage 1 of the j0126 (zebra finch) ABISS tutorial: EM image -> 3-channel
   affinity, saved as float16 HDF5 for ABISS to read directly.
 
-  Output is float16 HDF5, the same artifact this pipeline has always written.
-  ABISS reads it directly through its HDF5 backend, so there is no conversion step
-  and no second copy of the volume.
+  Applies the base_banis+ MedNeXt-L/k3 affinity model (trained on NISB at 9 nm) to
+  the zebrafinch im_align_10nm volume via chunked inference. Everything specific to
+  this dataset is in this one file; only the shared banis+ model definition is
+  inherited.
 
-  `chunking.roi`, inherited from the base, clips the chunk grid to the true EM
-  extent: the source zarr is rounded out to 5700 x 12288 x 12288, so this is worth
-  1014 -> 726 chunks of wasted prediction on pure padding.
+  Output is the same float16 HDF5 this pipeline has always written. ABISS reads it
+  through its HDF5 backend, so there is no conversion step and no second copy of
+  the volume. Writing a CloudVolume precomputed layer instead would force float32
+  (~3.1 TB here versus ~1.5 TB) purely to satisfy a format.
 
 save_path: outputs/neuron_j0126_affinity
 
 default:
   inference:
     model:
-      # Short-range affinities only (axis 0/1/2), as plain sigmoid(x). The base
-      # emits `scale_sigmoid` = sigmoid(0.2*x) (BANIS' temperature), which ABISS
-      # would then need undone by a logit/0.2 restore pass; emitting sigmoid(x)
-      # here produces the value ABISS consumes directly.
+      # Short-range affinities only (axis 0/1/2), as plain sigmoid(x). The BANIS
+      # default `scale_sigmoid` is sigmoid(0.2*x), which a consumer then has to undo
+      # with a logit/0.2 restore pass; emitting sigmoid(x) skips that round trip.
       select_channel: [0, 1, 2]
-      output_dtype: float32
+      output_dtype: float16
       channel_activations:
         - {channels: ":", activation: sigmoid}
+    execution:
+      strategy: chunked
+    window:
+      distributed_sharding: false
+      distributed_reduce_chunk_mb: 128
+      keep_input_on_cpu: true
+      sw_device: cuda
+      output_device: cpu
+      # 144 = 128 (training patch) + 16 voxels of context; bump blending
+      # de-emphasizes the outer band. Must stay a multiple of MedNeXt's 16-voxel
+      # stride.
+      window_size: [144, 144, 144]
+      # Peak GPU memory is linear in sw_batch_size (~3.46 GB/unit + ~0.77 GB fixed
+      # with expandable_segments). 12 targets ~42 GB on a 49 GB L40S (~86%, ~7 GB
+      # headroom); 13 is the hard ceiling and 14 OOMs.
+      sw_batch_size: 12
+      overlap: 0.5
+      blending: bump
+      padding_mode: reflect
+      # BANIS-style boundary handling: snap last window to image_size - roi_size.
+      snap_to_edge: true
+    chunking:
+      enabled: true
+      # raw_prediction lets independent sbatch jobs split the grid via
+      # --shard-id/--num-shards without torch.distributed.
+      output_mode: raw_prediction
+      # Window stride = 144 * (1 - 0.5) = 72, so chunk starts must be multiples of
+      # 72; 1008 = 14 * 72.
+      chunk_size: [1008, 1008, 1008]
+      # Each chunk reads an overlapping halo and writes only its core.
+      halo: [72, 72, 72]
+      axes: all
+      # True EM geometry (ZYX voxels at 10 nm). The im_align volume is rounded out
+      # to 5700 x 12288 x 12288, so the last ~2 chunks in Y/X are pure zero padding.
+      # Clipping the grid to this ROI skips them: 1014 -> 726 chunks.
+      roi: [5700, 10913, 10664]
     save_results: true
     save_backend: h5
-    # float16 halves the affinity on disk versus float32. A precomputed layer would
-    # force float32 (~2x), which for this volume is the difference between ~1.5 TB
-    # and ~3.1 TB; ABISS reads the HDF5 directly, so there is no reason to pay it.
+    # float16 halves the affinity on disk versus float32.
     save_dtype: float16
+    test_time_augmentation:
+      enabled: false
 
   # Stage 1 produces affinity only -- ABISS does the segmentation in stage 2.
   # Leaving decoding on makes the test pipeline read the stitched whole-volume
@@ -45,3 +77,47 @@ default:
   # 9.4 TiB allocation and dies.
   decoding:
     enabled: false
+    # Kept even though decoding is off: save_suffix is part of the RAW PREDICTION
+    # filename (..._cs1008x1008x1008_halo72x72x72_<suffix>.h5), so dropping it
+    # silently renames stage 1's output -- which is what abiss.yaml's AFF_PATH
+    # points at.
+    save_suffix: zebrafinch_chunk_raw_grid1008_halo72
+    # No affinity QC mask: the inherited base_banis path is NISB-specific.
+    affinity_mask_path: ""
+    steps:
+      - name: decode_affinity_cc
+        kwargs:
+          # The reference zebrafinch setting, kept so enabling decoding here
+          # reproduces that run rather than the inherited NISB default (0.75).
+          threshold: 0.66
+          backend: numba
+          edge_offset: 0
+
+  evaluation:
+    enabled: false
+
+test:
+  system:
+    # Each shard is an independent one-GPU job; do not use DDP.
+    num_gpus: 1
+  data:
+    test:
+      # Dense multiscale OME-Zarr, level 0 = full 10 nm resolution.
+      # `dataset_type: null` selects the generic volume backend and the .zarr
+      # suffix picks the zarr reader. Do NOT point this at the tiled-PNG pyramid:
+      # the lazy window re-decodes 4096x4096 tiles per window and runs ~19 h/chunk
+      # with the GPU idle, versus ~30 min/chunk here.
+      dataset_type: null
+      image: /projects/weilab/dataset/zebrafinch/im_align_10nm.zarr/0
+      # `path`/`json` describe the tiled-PNG layout and are unused once
+      # dataset_type is null (the volume backend keys off `image`); set here so an
+      # unrelated NISB path is not inherited into this dataset's config.
+      path: /projects/weilab/dataset/zebrafinch
+      json: im_align_10nm.json
+      # Clear the NISB label/skeleton paths inherited from base_banis.
+      label: null
+      label_aux: null
+      mask: null
+      skeleton: null
+      name: im_align_10nm
+      resolution: [10, 10, 10]
