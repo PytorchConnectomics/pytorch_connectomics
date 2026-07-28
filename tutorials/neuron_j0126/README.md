@@ -63,15 +63,28 @@ Two build/runtime settings are required, and both fail loudly but confusingly if
   whole legacy toolchain directory instead can shadow `libstdc++` and break the build
   with a missing `GLIBCXX_3.4.29`.
 
-## Known delta vs. the reference segmentation
+## Affinity convention (`precomputed_affinity_convention: abiss`)
 
-The affinity here is written in the model's native edge convention (edge `v → v+1`).
-The reference zebrafinch layer was additionally shifted to the destination-stored
-convention (`v → v-1`) by `dev/zebrafinch/upload_affinity_full_masked.py` before ABISS
-consumed it. That one-voxel convention shift is **not** applied by this tutorial, so
-results are not bit-comparable to that reference. The FFN tissue mask that script also
-applied was measured to be ~inert for reconstruction quality (NERL 0.701 masked vs 0.697
-unmasked on a 14%-masked region), so it is omitted here.
+The model's affinity is not in the layout ABISS reads. Two independent changes are
+needed, and both are silent if missed — the segmentation just comes out worse:
+
+1. **Edge shift `v → v-1`.** The model stores an edge on its *source* voxel
+   (`v → v+1`); ABISS reads it on the *destination*. This is applied to the **haloed**
+   prediction before the core is cropped, so every core face pulls the true neighbouring
+   voxel. Doing it chunk-locally after cropping would zero-fill each chunk's low faces
+   and corrupt every internal chunk boundary.
+2. **Channel reversal `[z,y,x] → [x,y,z]`.** ABISS expects channel 0 = x-affinity; the
+   model emits channel 0 = z-affinity (see `dev/zebrafinch/precompute_bndaff.py`, which
+   reads `pz = aff[0]`, `py = aff[1]`, `px = aff[2]`). Note the inherited base config
+   comments this as "XYZ order", which is misleading.
+
+`dev/zebrafinch/upload_affinity_full_masked.py` applied both as a separate pass over the
+saved HDF5; here they happen at write time, so the layer is directly consumable. The
+conversion is verified against that reference implementation in the unit tests.
+
+The FFN tissue mask that script also applied is **not** replicated: it was measured to be
+~inert for reconstruction quality (NERL 0.701 masked vs 0.697 unmasked on a 14%-masked
+region).
 
 ## Scoring
 
