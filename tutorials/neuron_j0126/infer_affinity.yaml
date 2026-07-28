@@ -1,62 +1,90 @@
 _base_:
-  # The _zarr variant, not base_banis+_zebrafinch.yaml directly: that one reads the
-  # tiled-PNG pyramid, where the lazy sliding window re-decodes 4096x4096 tiles per
-  # window and runs at ~19 h/chunk with the GPU idle. The zarr is random-access in
-  # 128^3 blocks (~30 min/chunk). All window/chunking settings are inherited either way.
-  - ../neuron_nisb/base_banis+_zebrafinch_zarr.yaml
+  - ../neuron_nisb/base_banis+.yaml
 
 experiment_name: neuron_j0126_affinity
 description: >-
   Stage 1 of the j0126 (zebra finch) ABISS tutorial: EM image -> 3-channel
   affinity, written STRAIGHT INTO a CloudVolume precomputed layer.
 
-  Two things make this reproducible end-to-end without any conversion step:
+  Self-contained apart from the shared banis+ model definition: every inference
+  setting below is spelled out here rather than inherited from a zebrafinch base,
+  so the tutorial keeps working as those experiment configs come and go.
 
-  1. `inference.chunking.precomputed: true` writes each inference chunk directly
-     into the output layer instead of per-chunk HDF5 + a stitch pass. ABISS reads
-     `AFF_PATH` through CloudVolume, so its input *is* this layer -- there is no
-     separate "mirror the h5 chunks into precomputed" step (which for this volume
-     was a 3.1 TB second copy).
+  Three things make this reproducible end-to-end without a conversion step:
 
-  2. `inference.chunking.roi` clips the chunk grid to the true EM extent. The
-     source zarr is rounded out to 5700 x 12288 x 12288, so without the ROI the
-     last ~2 chunks in Y and X are pure zero padding: 1014 chunks instead of 726,
-     i.e. ~28% of the compute spent predicting on zeros that are discarded later.
+  1. `chunking.precomputed` writes each inference chunk directly into the output
+     layer instead of per-chunk HDF5 + a stitch pass. ABISS reads `AFF_PATH`
+     through CloudVolume, so its input *is* this layer -- no separate "mirror the
+     h5 chunks into precomputed" step (3.1 TB of duplicate affinity here).
 
-  Activation note: the inherited base uses `scale_sigmoid` = sigmoid(0.2 * x)
-  (BANIS' temperature). ABISS consumes plain sigmoid(x), which the historical
-  upload script recovered afterwards with a logit/0.2 "restore" pass. Emitting
-  `sigmoid` here produces that value directly, so no restore step is needed.
+  2. `chunking.precomputed_affinity_convention: abiss` emits the affinity in the
+     layout ABISS reads (edge v -> v-1, channels [z,y,x] -> [x,y,z]) instead of
+     the model's native one. See README.md -- both are silent when wrong.
+
+  3. `chunking.roi` clips the chunk grid to the true EM extent. The source zarr is
+     rounded out to 5700 x 12288 x 12288, so without it the last ~2 chunks in Y
+     and X are pure zero padding: 1014 chunks instead of 726.
 
 save_path: outputs/neuron_j0126_affinity
+
+test:
+  data:
+    test:
+      # Random-access zarr, level 0 = full 10 nm resolution. `dataset_type: null`
+      # selects the generic volume backend (the .zarr suffix picks the zarr reader).
+      # Do NOT point this at the tiled-PNG pyramid: the lazy window re-decodes
+      # 4096x4096 tiles per window and runs ~19 h/chunk with the GPU idle, vs
+      # ~30 min/chunk here.
+      dataset_type: null
+      image: /projects/weilab/dataset/zebrafinch/im_align_10nm.zarr/0
 
 default:
   inference:
     model:
-      # Short-range affinities only (axis0/1/2), in plain sigmoid(x) for ABISS.
+      # Short-range affinities only (axis 0/1/2), as plain sigmoid(x): ABISS
+      # consumes that directly, so the historical logit/0.2 "restore" pass that
+      # `scale_sigmoid` (= sigmoid(0.2*x)) would require is unnecessary.
       select_channel: [0, 1, 2]
       output_dtype: float32
       channel_activations:
         - {channels: ":", activation: sigmoid}
+    execution:
+      strategy: chunked
+    window:
+      distributed_sharding: false
+      keep_input_on_cpu: true
+      sw_device: cuda
+      output_device: cpu
+      # 144 = 128 (training patch) + 16 voxels of context; must stay a multiple of
+      # MedNeXt's 16-voxel stride.
+      window_size: [144, 144, 144]
+      sw_batch_size: 12
+      overlap: 0.5
+      blending: bump
+      padding_mode: reflect
+      snap_to_edge: true
     chunking:
+      enabled: true
+      # raw_prediction lets independent jobs split the grid by --shard-id/--num-shards
+      # without torch.distributed.
+      output_mode: raw_prediction
+      # Window stride = 144 * (1 - 0.5) = 72, so chunk starts must be multiples of
+      # 72; 1008 = 14 * 72.
+      chunk_size: [1008, 1008, 1008]
+      halo: [72, 72, 72]
+      axes: all
+      # True EM geometry (ZYX voxels). Skips the padding-only chunks: 1014 -> 726.
+      roi: [5700, 10913, 10664]
       # Write chunks straight into the precomputed layer (no h5, no stitching).
       precomputed: true
-      # XYZ nm. Must match `AFF_RESOLUTION` in abiss.yaml.
+      # XYZ nm. Must match `AFF_RESOLUTION`'s mip in abiss.yaml.
       precomputed_resolution: [9, 9, 20]
       # XYZ storage chunk; divides the 1008^3 inference chunk on every axis
       # (1008 = 7*144 = 14*72) so concurrent chunk writes never straddle one.
       precomputed_chunk_size: [144, 144, 72]
-      # Emit the affinity in ABISS' convention rather than the model's native one:
-      #   edge shift v -> v-1  (the model stores an edge on its SOURCE voxel,
-      #                         ABISS reads it on the DESTINATION), and
-      #   channels [z,y,x] -> [x,y,z]  (ABISS expects channel 0 = x-affinity,
-      #                                 the model emits channel 0 = z-affinity).
-      # Applied to the haloed prediction before the core is cropped, so each core
-      # face pulls the true neighbouring voxel; only a real volume boundary is
-      # zero-filled. This is what upload_affinity_full_masked.py used to do as a
-      # separate pass over the saved HDF5.
+      # Emit ABISS' affinity convention rather than the model's native one.
       precomputed_affinity_convention: abiss
-    # save_backend/save_dtype below apply to the non-chunked writer; the
-    # precomputed layer's dtype comes from the prediction itself (float32 above).
     save_results: true
     save_dtype: float32
+    test_time_augmentation:
+      enabled: false
