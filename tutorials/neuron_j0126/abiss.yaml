@@ -16,7 +16,7 @@ description: >
         --mode test --checkpoint <affinity_model.ckpt>
 
     # 2) segmentation
-    python scripts/run_abiss_large.py --config tutorials/neuron_j0126/abiss.yaml
+    python scripts/run_abiss_chunk.py --config tutorials/neuron_j0126/abiss.yaml
 
   ABISS binaries must be built with EXTRACT_SIZE enabled, otherwise `acme` never
   writes the supervoxel sizes and agglomeration aborts with
@@ -25,7 +25,7 @@ description: >
   They also link the old TBB soname (libtbb.so.2); expose just that library on
   LD_LIBRARY_PATH if the runtime only ships oneTBB (libtbb.so.12).
 
-abiss_large:
+abiss_chunk:
   abiss_home: lib/abiss
   workdir: outputs/neuron_j0126_abiss/run
   secrets_dir: outputs/neuron_j0126_abiss/secrets

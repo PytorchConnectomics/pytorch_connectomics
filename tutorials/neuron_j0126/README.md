@@ -13,7 +13,7 @@ python scripts/main.py --config tutorials/neuron_j0126/infer_affinity.yaml \
     --mode test --checkpoint <affinity_model.ckpt>
 
 # 2) affinity -> segmentation (watershed -> remap -> agglomeration -> remap)
-python scripts/run_abiss_large.py --config tutorials/neuron_j0126/abiss.yaml
+python scripts/run_abiss_chunk.py --config tutorials/neuron_j0126/abiss.yaml
 ```
 
 ## Why the affinity is written as precomputed
