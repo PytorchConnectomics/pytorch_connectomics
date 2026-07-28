@@ -51,7 +51,7 @@ description: >
     - Ch 6-8: long-range (offset 9) for z, y, x
 
   Decoding strategy:
-    - Primary:  ABISS chunked watershed+agglomeration pipeline (run_abiss_single.py)
+    - Primary:  ABISS single-volume watershed pipeline (run_abiss_volume.py)
     - Fallback: decode_affinity_cc (connected components on short-range affinities)
     - For the full 795×4870×3825 volume, run ABISS externally on saved predictions.
 
@@ -220,7 +220,7 @@ default:
       kwargs:
         command: >
           env LD_LIBRARY_PATH=/orcd/software/community/001/rocky8/intel/2024.2.1/tbb/2021.13/lib:$LD_LIBRARY_PATH
-          {python_exe} scripts/run_abiss_single.py
+          {python_exe} scripts/run_abiss_volume.py
           --input {input_h5}
           --output {output_h5}
           --abiss-home /home/mansour8/pytc_dev/pytorch_connectomics/abiss

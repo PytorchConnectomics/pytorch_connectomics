@@ -3,7 +3,7 @@
 ## Single-volume ABISS
 
 [`decoding_abiss.yaml`](decoding_abiss.yaml) runs ABISS directly on one saved
-affinity volume through `scripts/run_abiss_single.py`. It produces one HDF5
+affinity volume through `scripts/run_abiss_volume.py`. It produces one HDF5
 segmentation and does not use a chunk hierarchy or cross-chunk stitching.
 
 Run it with:
@@ -14,7 +14,8 @@ python scripts/main.py \
   --mode test
 ```
 
-Change these fields for a different dataset or experiment:
+In `tutorials/basics/decoding_abiss.yaml`, change these fields for a different
+dataset or experiment:
 
 - `default.decoding.load_prediction_path`: input HDF5 containing a `CZYX` affinity array.
 - `default.decoding.save_path`: output directory for the decoded HDF5.
