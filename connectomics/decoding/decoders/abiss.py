@@ -153,7 +153,6 @@ def _load_output(output_h5: Path, output_npy: Path, output_dataset: str) -> np.n
     return cast2dtype(seg)
 
 
-
 def decode_abiss(
     predictions: np.ndarray,
     command: str | Sequence[str],
@@ -293,7 +292,7 @@ def decode_abiss(
             timeout=timeout_sec,
         )
 
-        # Batch mode: read multiple output files written by run_abiss_single.
+        # Batch mode: read multiple output files written by run_abiss_volume.
         if batch_mt:
             stem = output_h5.stem  # "segmentation"
             ext = output_h5.suffix  # ".h5"

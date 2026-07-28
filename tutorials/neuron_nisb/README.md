@@ -1,23 +1,35 @@
-# NISB tutorials (9 nm)
+# NISB tutorials (base)
 
 NISB neuron-segmentation experiments on the BANIS basedata (9 nm EM,
 6-channel affinity, 416 GT skeletons in `seed101`).
 
-NERL is the validation-selected (or, for the BANIS reference, default)
-score on the `seed101` test split — see `dev/nisb/nisb.md` and
-`dev/nisb/nisb_v2.md` for the plan and `dev/nisb/banis+_plan.md`
-for per-prediction error analysis and the three-track post-processing
-roadmap (`banis+_fill.md` / `banis+_merge.md` / `banis+_split.md`).
-
 | YAML | <div style="width:40px">Deep learning</div> |  Decoding | Error&nbsp;correction | NERL |
 |---|---|---|---|---|
-| `base_banis.yaml` | <div style="width:40px">[BANIS](https://github.com/StructuralNeurobiologyLab/banis) reproduction (MedNeXt-L/k3, 6-ch affinity, 50k steps) </div> | cc3d| N/A | 43.0% |
-| `base_banis+.yaml` | <div style="width:40px">+ML ops (PerChannelBCE<br/> + EMA, erosion=2, 200k steps) </div>|  cc3d | N/A | [60.1%](https://huggingface.co/pytc/tutorial/tree/main/neuron_nisb) |
+| `base_banis.yaml` | <div style="width:40px">[BANIS](https://github.com/StructuralNeurobiologyLab/banis) reproduction (MedNeXt-L/k3, 6-ch affinity, 50k steps) </div> | cc3d| N/A | 43.0±1.9% |
+| `base_banis+.yaml` | <div style="width:40px">+ML ops (PerChannelBCE<br/> + EMA, erosion=2, 200k steps) </div>|  cc3d | N/A | [59.6±1.1%](https://huggingface.co/pytc/tutorial/tree/main/neuron_nisb) |
+
+NERL values are reported as mean±standard deviation over three runs.
 
 ## Reproduce `base_banis+` (60.1% NERL)
 
 Run the released checkpoint through the val-tuned decode threshold and score
 NERL on the `seed101` test split.
+
+### 0. Train the model (optional)
+
+To reproduce the checkpoint from scratch, download the full benchmark dataset
+(including `train/`; see step 1), then run the 200k-step seed-42 training
+configuration:
+
+```bash
+DATA=/local/benchmark/dir/base
+python scripts/main.py --config tutorials/neuron_nisb/base_banis+.yaml \
+    --mode train \
+    train.data.train.path=$DATA/train/ \
+    train.data.val.path=$DATA/val/
+```
+
+Checkpoints are written below `outputs/nisb_base_banis+/`.
 
 ### 1. Download the benchmark data (val + test only)
 

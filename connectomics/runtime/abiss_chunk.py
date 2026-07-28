@@ -1,4 +1,4 @@
-"""Prepare and run vendored ABISS chunked decoding on large volumes.
+"""Prepare and run vendored ABISS decoding across a logical chunk hierarchy.
 
 This module bridges the tutorial config in ``tutorials/waterz_decoding_large_abiss.yaml``
 to the vendored ABISS shell pipeline by:
@@ -94,7 +94,7 @@ class PreparedConfig:
 
 @dataclass(frozen=True)
 class StagePlan:
-    """One subprocess invocation in an ABISS-large run."""
+    """One subprocess invocation in an ABISS chunk run."""
 
     stage: str
     argv: tuple[str, ...]
@@ -116,8 +116,8 @@ class RunResult:
 
 
 @dataclass
-class LargeWorkflowConfig:
-    """Legacy H5-to-precomputed preparation settings used by the tutorial CLI."""
+class ChunkWorkflowConfig:
+    """H5-to-precomputed preparation settings used by the ABISS chunk CLI."""
 
     workdir: Path
     secrets_dir: Path
@@ -543,11 +543,11 @@ def _load_yaml(path: Path) -> Dict[str, Any]:
         return yaml.safe_load(f)
 
 
-def prepare_config(config_path: Path) -> LargeWorkflowConfig:
+def prepare_config(config_path: Path) -> ChunkWorkflowConfig:
     cfg = _load_yaml(config_path)
-    ab = dict(cfg.get("abiss_large", {}))
+    ab = dict(cfg.get("abiss_chunk", {}))
     if not ab:
-        raise ValueError(f"Config {config_path} has no abiss_large section.")
+        raise ValueError(f"Config {config_path} has no abiss_chunk section.")
 
     abiss_home = Path(ab["abiss_home"]).resolve()
     workdir = Path(ab["workdir"]).resolve()
@@ -675,7 +675,7 @@ def prepare_config(config_path: Path) -> LargeWorkflowConfig:
     payload.setdefault("PARANOID", False)
     payload.setdefault("CHUNKED_AGG_OUTPUT", False)
 
-    return LargeWorkflowConfig(
+    return ChunkWorkflowConfig(
         workdir=workdir,
         secrets_dir=secrets_dir,
         param_path=param_path,
@@ -705,7 +705,7 @@ def prepare_config(config_path: Path) -> LargeWorkflowConfig:
 _prepare_config = prepare_config
 
 
-def prepare(cfg: LargeWorkflowConfig, *, write_param: bool = True) -> None:
+def prepare(cfg: ChunkWorkflowConfig, *, write_param: bool = True) -> None:
     _ensure_dir(cfg.workdir)
     _ensure_dir(cfg.secrets_dir)
     _ensure_parent(cfg.param_path)
@@ -911,8 +911,8 @@ def _execute_stage(cfg: PreparedConfig, plan: StagePlan) -> None:
     )
 
 
-def run_abiss_large(prepared: PreparedConfig, *, execute: bool = False) -> RunResult:
-    """Resolve or execute the canonical four-stage ABISS-large invocation.
+def run_abiss_chunk(prepared: PreparedConfig, *, execute: bool = False) -> RunResult:
+    """Resolve or execute the canonical four-stage ABISS chunk invocation.
 
     Dry resolution is the default and performs no filesystem or subprocess I/O.
     Execution writes the canonical sorted param JSON, runs the requested stages in
@@ -957,7 +957,7 @@ def run_stage(cfg: PreparedConfig, stage: str) -> None:
 
 def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--config", required=True, help="YAML config file with abiss_large section")
+    parser.add_argument("--config", required=True, help="YAML config file with abiss_chunk section")
     parser.add_argument(
         "--prepare-only",
         action="store_true",
@@ -998,7 +998,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     if args.prepare_only:
         return 0
 
-    result = run_abiss_large(
+    result = run_abiss_chunk(
         cfg.execution_config(
             stages=args.stages,
             write_param=not args.skip_prepare,
@@ -1006,7 +1006,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         execute=True,
     )
 
-    print("ABISS large decode completed.")
+    print("ABISS chunk decode completed.")
     print(f"Final segmentation layer: {result.seg_cloudpath}")
     return 0
 

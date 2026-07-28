@@ -309,7 +309,7 @@ tutorials/                          # Example configurations (16 canonical YAMLs
 │                                   #   neuron_liconn_mit(_x2), nuc_nucmm-z, syn_cremi,
 │                                   #   vesicle_xm, fiber_linghu26, minimal, waterz_decoding
 └── waterz_decoding_large{,_abiss}.yaml  # Custom large-volume workflow YAMLs
-                                    #   (top-level `large_decode:`/`abiss_large:` keys;
+                                    #   (top-level `large_decode:`/`abiss_chunk:` keys;
                                     #   bypass structured Config; consumed by the
                                     #   `waterz_decode_large` console script in lib/waterz/)
 
