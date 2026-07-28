@@ -1,0 +1,48 @@
+_base_:
+  - ../neuron_nisb/base_banis+_zebrafinch.yaml
+
+experiment_name: neuron_j0126_affinity
+description: >-
+  Stage 1 of the j0126 (zebra finch) ABISS tutorial: EM image -> 3-channel
+  affinity, written STRAIGHT INTO a CloudVolume precomputed layer.
+
+  Two things make this reproducible end-to-end without any conversion step:
+
+  1. `inference.chunking.precomputed: true` writes each inference chunk directly
+     into the output layer instead of per-chunk HDF5 + a stitch pass. ABISS reads
+     `AFF_PATH` through CloudVolume, so its input *is* this layer -- there is no
+     separate "mirror the h5 chunks into precomputed" step (which for this volume
+     was a 3.1 TB second copy).
+
+  2. `inference.chunking.roi` clips the chunk grid to the true EM extent. The
+     source zarr is rounded out to 5700 x 12288 x 12288, so without the ROI the
+     last ~2 chunks in Y and X are pure zero padding: 1014 chunks instead of 726,
+     i.e. ~28% of the compute spent predicting on zeros that are discarded later.
+
+  Activation note: the inherited base uses `scale_sigmoid` = sigmoid(0.2 * x)
+  (BANIS' temperature). ABISS consumes plain sigmoid(x), which the historical
+  upload script recovered afterwards with a logit/0.2 "restore" pass. Emitting
+  `sigmoid` here produces that value directly, so no restore step is needed.
+
+save_path: outputs/neuron_j0126_affinity
+
+default:
+  inference:
+    model:
+      # Short-range affinities only (axis0/1/2), in plain sigmoid(x) for ABISS.
+      select_channel: [0, 1, 2]
+      output_dtype: float32
+      channel_activations:
+        - {channels: ":", activation: sigmoid}
+    chunking:
+      # Write chunks straight into the precomputed layer (no h5, no stitching).
+      precomputed: true
+      # XYZ nm. Must match `AFF_RESOLUTION` in abiss.yaml.
+      precomputed_resolution: [9, 9, 20]
+      # XYZ storage chunk; divides the 1008^3 inference chunk on every axis
+      # (1008 = 7*144 = 14*72) so concurrent chunk writes never straddle one.
+      precomputed_chunk_size: [144, 144, 72]
+    # save_backend/save_dtype below apply to the non-chunked writer; the
+    # precomputed layer's dtype comes from the prediction itself (float32 above).
+    save_results: true
+    save_dtype: float32

@@ -4,9 +4,13 @@ from __future__ import annotations
 
 import json
 import logging
+import os
+import time
+from collections.abc import Sequence
 from pathlib import Path
 from typing import Any
 
+import numpy as np
 import torch
 
 from ..chunked.chunk_grid import ChunkRef, build_chunk_grid
@@ -49,6 +53,104 @@ def _per_chunk_dir(output_path: Path) -> Path:
 
 def _chunk_file_path(chunks_dir: Path, chunk: ChunkRef) -> Path:
     return chunks_dir / f"chunk_{chunk.key}.h5"
+
+
+def _precomputed_marker_path(chunks_dir: Path, chunk: ChunkRef) -> Path:
+    """Resume marker for a chunk already written into the precomputed layer.
+
+    The layer itself has no per-chunk file to stat, so completion is tracked here to
+    keep the same "skip finished chunks on re-run" behaviour as the HDF5 path.
+    """
+    return chunks_dir / f"chunk_{chunk.key}.done"
+
+
+def _open_precomputed_layer(
+    layer_dir: Path,
+    *,
+    volume_size_xyz: Sequence[int],
+    num_channels: int,
+    data_type: str,
+    resolution_xyz: Sequence[int],
+    chunk_size_xyz: Sequence[int],
+) -> Any:
+    """Open the output precomputed layer, creating its ``info`` exactly once.
+
+    Several ranks reach this concurrently, so creation is guarded by an O_EXCL lock
+    file: the winner commits ``info`` and the losers wait for it to appear. Once
+    ``info`` exists every rank just opens the layer; the voxel writes themselves are
+    disjoint and storage-chunk aligned, so they need no coordination.
+    """
+    from cloudvolume import CloudVolume
+
+    layer_dir.mkdir(parents=True, exist_ok=True)
+    layer_uri = "file://" + str(layer_dir.resolve())
+    info_path = layer_dir / "info"
+
+    if not info_path.exists():
+        lock_path = layer_dir / ".info.lock"
+        try:
+            fd = os.open(str(lock_path), os.O_CREAT | os.O_EXCL | os.O_WRONLY)
+        except FileExistsError:
+            fd = None
+        if fd is not None:
+            try:
+                info = CloudVolume.create_new_info(
+                    num_channels=int(num_channels),
+                    layer_type="image",
+                    data_type=str(data_type),
+                    encoding="raw",
+                    resolution=[int(v) for v in resolution_xyz],
+                    voxel_offset=[0, 0, 0],
+                    volume_size=[int(v) for v in volume_size_xyz],
+                    chunk_size=[int(v) for v in chunk_size_xyz],
+                )
+                cv = CloudVolume(layer_uri, info=info, fill_missing=True, compress=True)
+                cv.commit_info()
+                logger.info(
+                    "Created precomputed output layer %s (size_xyz=%s, channels=%d, "
+                    "dtype=%s, resolution_xyz=%s, chunk_xyz=%s)",
+                    layer_uri,
+                    list(volume_size_xyz),
+                    int(num_channels),
+                    data_type,
+                    list(resolution_xyz),
+                    list(chunk_size_xyz),
+                )
+            finally:
+                os.close(fd)
+        else:
+            for _ in range(600):  # ~60 s; the writer only has one small file to commit
+                if info_path.exists():
+                    break
+                time.sleep(0.1)
+            if not info_path.exists():
+                raise RuntimeError(f"Timed out waiting for precomputed info at {info_path}")
+
+    return CloudVolume(layer_uri, fill_missing=True, compress=True, progress=False)
+
+
+def _validate_precomputed_alignment(
+    chunk_shape_zyx: Sequence[int], chunk_size_xyz: Sequence[int]
+) -> None:
+    """Fail fast if inference chunks do not tile the layer's storage chunks.
+
+    Ranks write disjoint inference chunks concurrently. If an inference chunk does not
+    land on storage-chunk boundaries, two ranks can touch the same storage chunk and
+    race, so this is a correctness requirement rather than a tuning knob.
+    """
+    chunk_shape_xyz = [int(v) for v in reversed(list(chunk_shape_zyx))]
+    bad = [
+        f"{axis}: inference chunk {chunk_shape_xyz[i]} is not a multiple of "
+        f"storage chunk {int(chunk_size_xyz[i])}"
+        for i, axis in enumerate("xyz")
+        if int(chunk_size_xyz[i]) <= 0 or chunk_shape_xyz[i] % int(chunk_size_xyz[i]) != 0
+    ]
+    if bad:
+        raise ValueError(
+            "chunking.precomputed_chunk_size must divide the inference chunk on every "
+            "axis so concurrent chunk writes never straddle a storage chunk. "
+            + "; ".join(bad)
+        )
 
 
 def _distributed_barrier() -> None:
@@ -330,8 +432,28 @@ def _run_chunked_prediction_per_rank(
 
     transform_cfg = getattr(cfg.inference, "prediction_transform", None)
 
+    # Optional: stream chunks straight into a CloudVolume precomputed layer instead of
+    # per-chunk HDF5 + stitching, so ABISS/Seuron can read inference output directly.
+    chunking_cfg = cfg.inference.chunking
+    precomputed_out = bool(getattr(chunking_cfg, "precomputed", False))
+    precomputed_cv: Any = None
+    precomputed_dir = output_path.with_suffix("")
+    if precomputed_out:
+        pc_resolution = getattr(chunking_cfg, "precomputed_resolution", None)
+        if not pc_resolution:
+            raise ValueError(
+                "inference.chunking.precomputed requires "
+                "inference.chunking.precomputed_resolution (XYZ nm)."
+            )
+        pc_chunk_xyz = list(getattr(chunking_cfg, "precomputed_chunk_size", [128, 128, 64]))
+        _validate_precomputed_alignment(chunk_shape, pc_chunk_xyz)
+
     for local_pos, (chunk_idx, chunk) in enumerate(my_chunks, start=1):
-        chunk_path = _chunk_file_path(chunks_dir, chunk)
+        chunk_path = (
+            _precomputed_marker_path(chunks_dir, chunk)
+            if precomputed_out
+            else _chunk_file_path(chunks_dir, chunk)
+        )
         if chunk_path.exists():
             logger.info(
                 "[rank %d] chunk %d/%d %s: already exists, skipping",
@@ -394,6 +516,39 @@ def _run_chunked_prediction_per_rank(
         core_pred = apply_storage_dtype_transform(cfg, core_pred)
 
         channel_count = int(core_pred.shape[0])
+
+        if precomputed_out:
+            if precomputed_cv is None:
+                precomputed_cv = _open_precomputed_layer(
+                    precomputed_dir,
+                    volume_size_xyz=tuple(reversed(final_shape)),
+                    num_channels=channel_count,
+                    data_type=str(core_pred.dtype),
+                    resolution_xyz=pc_resolution,
+                    chunk_size_xyz=pc_chunk_xyz,
+                )
+            # (C, Z, Y, X) -> CloudVolume's (X, Y, Z, C)
+            z0, y0, x0 = (int(chunk.start[axis]) for axis in range(3))
+            block = np.transpose(core_pred, (3, 2, 1, 0))
+            x1, y1, z1 = (x0 + block.shape[0], y0 + block.shape[1], z0 + block.shape[2])
+            precomputed_cv[x0:x1, y0:y1, z0:z1, :] = block
+            chunk_path.write_text(
+                json.dumps(
+                    {
+                        "chunk_key": chunk.key,
+                        "chunk_start_zyx": list(chunk.start),
+                        "chunk_stop_zyx": list(chunk.stop),
+                        "written_xyz": [[x0, y0, z0], [x1, y1, z1]],
+                    }
+                )
+            )
+            logger.info(
+                "[rank %d] chunk %d/%d %s -> precomputed [%d:%d, %d:%d, %d:%d]",
+                rank, chunk_idx, len(chunks), chunk.key, x0, x1, y0, y1, z0, z1,
+            )
+            del pred, core_pred, block
+            continue
+
         chunk_h5_spatial_chunks = tuple(
             max(1, min(int(h5_spatial_chunks[axis]), int(core_shape[axis]))) for axis in range(3)
         )
@@ -438,6 +593,17 @@ def _run_chunked_prediction_per_rank(
 
     if use_distributed_barrier:
         _distributed_barrier()
+
+    if precomputed_out:
+        # The layer *is* the output: every chunk wrote its own disjoint region, so there
+        # is nothing to stitch and no whole-volume artifact to assemble.
+        if rank == 0:
+            logger.info(
+                "Chunked raw prediction wrote %d chunks into precomputed layer %s",
+                len(chunks),
+                precomputed_dir,
+            )
+        return precomputed_dir
 
     if rank == 0:
         index_path = _write_chunk_index(
