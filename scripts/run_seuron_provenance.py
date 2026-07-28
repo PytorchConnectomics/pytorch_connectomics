@@ -29,11 +29,11 @@ _REPO_ROOT = Path(__file__).resolve().parents[1]
 if str(_REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT))
 
-from connectomics.runtime.abiss_large import (  # noqa: E402
+from connectomics.runtime.abiss_chunk import (  # noqa: E402
     OutputLayerSpec,
     PreparedConfig,
     RunResult,
-    run_abiss_large,
+    run_abiss_chunk,
 )
 from connectomics.runtime.seuron_provenance import (  # noqa: E402
     GENERATED_OUTPUT,
@@ -592,7 +592,7 @@ def execute_replay(resolved: ResolvedReplay) -> RunResult:
         expected_manifest = _expected_manifest(resolved, abiss_build_id=build_id)
         _apply_output_mode(resolved, expected_manifest)
         _write_manifest(resolved, expected_manifest)
-        return run_abiss_large(
+        return run_abiss_chunk(
             prepare_execution(resolved, affinity_metadata),
             execute=True,
         )

@@ -1,4 +1,4 @@
-"""Tests for the runtime-owned ABISS-large executor."""
+"""Tests for the runtime-owned ABISS chunk executor."""
 
 from __future__ import annotations
 
@@ -13,15 +13,15 @@ import numpy as np
 import pytest
 import yaml
 
-from connectomics.runtime import abiss_large
+from connectomics.runtime import abiss_chunk
 
 
 def _prepared(
     tmp_path: Path,
     *,
     stages: tuple[str, ...] = ("watershed", "remap_watershed"),
-) -> abiss_large.PreparedConfig:
-    return abiss_large.PreparedConfig(
+) -> abiss_chunk.PreparedConfig:
+    return abiss_chunk.PreparedConfig(
         workdir=tmp_path / "run" / "work",
         secrets_dir=tmp_path / "run" / "secrets",
         param_path=tmp_path / "run" / "secrets" / "param",
@@ -52,11 +52,11 @@ def test_execute_false_returns_plan_without_writes_or_result_read(
     def unexpected(*args: Any, **kwargs: Any) -> None:
         raise AssertionError("dry resolution performed I/O")
 
-    monkeypatch.setattr(abiss_large, "_write_param", unexpected)
-    monkeypatch.setattr(abiss_large, "_execute_stage", unexpected)
-    monkeypatch.setattr(abiss_large, "_discover_segmentation", unexpected)
+    monkeypatch.setattr(abiss_chunk, "_write_param", unexpected)
+    monkeypatch.setattr(abiss_chunk, "_execute_stage", unexpected)
+    monkeypatch.setattr(abiss_chunk, "_discover_segmentation", unexpected)
 
-    result = abiss_large.run_abiss_large(prepared)
+    result = abiss_chunk.run_abiss_chunk(prepared)
 
     assert result.executed is False
     assert result.segmentation is None
@@ -83,10 +83,10 @@ def test_execute_writes_param_and_runs_stages_in_order(
         discovered.append(path)
         return output_marker
 
-    monkeypatch.setattr(abiss_large.subprocess, "run", fake_run)
-    monkeypatch.setattr(abiss_large, "_discover_segmentation", fake_discover)
+    monkeypatch.setattr(abiss_chunk.subprocess, "run", fake_run)
+    monkeypatch.setattr(abiss_chunk, "_discover_segmentation", fake_discover)
 
-    result = abiss_large.run_abiss_large(prepared, execute=True)
+    result = abiss_chunk.run_abiss_chunk(prepared, execute=True)
 
     with prepared.param_path.open("r", encoding="utf-8") as f:
         assert json.load(f) == dict(prepared.param_payload)
@@ -123,9 +123,9 @@ def test_execute_writes_param_and_runs_stages_in_order(
 
 
 def test_default_stage_order_preserves_four_stage_pipeline(tmp_path: Path) -> None:
-    prepared = _prepared(tmp_path, stages=abiss_large.STAGES_ALL)
+    prepared = _prepared(tmp_path, stages=abiss_chunk.STAGES_ALL)
 
-    result = abiss_large.run_abiss_large(prepared)
+    result = abiss_chunk.run_abiss_chunk(prepared)
 
     assert [Path(plan.argv[1]).name for plan in result.stage_plans] == [
         "run_batch.sh",
@@ -150,11 +150,11 @@ def test_nonzero_stage_exit_propagates(monkeypatch: pytest.MonkeyPatch, tmp_path
     def unexpected_discovery(path: str) -> None:
         raise AssertionError(f"discovered result after failed stage: {path}")
 
-    monkeypatch.setattr(abiss_large.subprocess, "run", fake_run)
-    monkeypatch.setattr(abiss_large, "_discover_segmentation", unexpected_discovery)
+    monkeypatch.setattr(abiss_chunk.subprocess, "run", fake_run)
+    monkeypatch.setattr(abiss_chunk, "_discover_segmentation", unexpected_discovery)
 
     with pytest.raises(subprocess.CalledProcessError) as exc_info:
-        abiss_large.run_abiss_large(prepared, execute=True)
+        abiss_chunk.run_abiss_chunk(prepared, execute=True)
 
     assert exc_info.value.returncode == 17
     assert calls == 2
@@ -171,9 +171,9 @@ def test_result_discovery_opens_segmentation_layer(
         opened.append((path, progress))
         return marker
 
-    monkeypatch.setattr(abiss_large, "_open_cloudvolume", fake_cloud_volume)
+    monkeypatch.setattr(abiss_chunk, "_open_cloudvolume", fake_cloud_volume)
 
-    result = abiss_large.run_abiss_large(prepared, execute=True)
+    result = abiss_chunk.run_abiss_chunk(prepared, execute=True)
 
     assert opened == [("file:///output/segmentation", False)]
     assert result.segmentation is marker
@@ -193,10 +193,10 @@ def test_runtime_secrets_stages_param_without_touching_credential_source(
     credential.write_text("credential source\n", encoding="utf-8")
     (prepared.secrets_dir / "config.sh").write_text("stale config\n", encoding="utf-8")
     (prepared.secrets_dir / "param").write_text("historical param\n", encoding="utf-8")
-    monkeypatch.setattr(abiss_large.subprocess, "run", lambda *args, **kwargs: None)
-    monkeypatch.setattr(abiss_large, "_discover_segmentation", lambda path: object())
+    monkeypatch.setattr(abiss_chunk.subprocess, "run", lambda *args, **kwargs: None)
+    monkeypatch.setattr(abiss_chunk, "_discover_segmentation", lambda path: object())
 
-    result = abiss_large.run_abiss_large(prepared, execute=True)
+    result = abiss_chunk.run_abiss_chunk(prepared, execute=True)
 
     assert json.loads(prepared.param_path.read_text()) == dict(prepared.param_payload)
     runtime_param = prepared.runtime_secrets_dir / "param"
@@ -221,9 +221,9 @@ def test_custom_param_path_does_not_clobber_shared_secrets_param(
     prepared.secrets_dir.mkdir(parents=True)
     shared_param = prepared.secrets_dir / "param"
     shared_param.write_text("shared historical state\n", encoding="utf-8")
-    monkeypatch.setattr(abiss_large, "_discover_segmentation", lambda path: object())
+    monkeypatch.setattr(abiss_chunk, "_discover_segmentation", lambda path: object())
 
-    abiss_large.run_abiss_large(prepared, execute=True)
+    abiss_chunk.run_abiss_chunk(prepared, execute=True)
 
     assert json.loads(prepared.param_path.read_text()) == dict(prepared.param_payload)
     assert shared_param.read_text(encoding="utf-8") == "shared historical state\n"
@@ -235,9 +235,9 @@ def test_write_param_false_preserves_prepared_param(
     prepared = replace(_prepared(tmp_path, stages=()), write_param=False)
     prepared.param_path.parent.mkdir(parents=True)
     prepared.param_path.write_text("already prepared\n", encoding="utf-8")
-    monkeypatch.setattr(abiss_large, "_discover_segmentation", lambda path: object())
+    monkeypatch.setattr(abiss_chunk, "_discover_segmentation", lambda path: object())
 
-    abiss_large.run_abiss_large(prepared, execute=True)
+    abiss_chunk.run_abiss_chunk(prepared, execute=True)
 
     assert prepared.param_path.read_text(encoding="utf-8") == "already prepared\n"
 
@@ -256,7 +256,7 @@ def test_replay_output_initialization_uses_validated_metadata(
     prepared = replace(
         _prepared(tmp_path, stages=()),
         param_payload=payload,
-        output_layer_spec=abiss_large.OutputLayerSpec(
+        output_layer_spec=abiss_chunk.OutputLayerSpec(
             resolution_xyz=(9, 9, 20),
             chunk_size_xyz=(64, 64, 64),
         ),
@@ -264,13 +264,13 @@ def test_replay_output_initialization_uses_validated_metadata(
     )
     calls: list[dict[str, Any]] = []
     monkeypatch.setattr(
-        abiss_large,
+        abiss_chunk,
         "_prepare_segmentation_output_layers",
         lambda **kwargs: calls.append(kwargs),
     )
-    monkeypatch.setattr(abiss_large, "_discover_segmentation", lambda path: object())
+    monkeypatch.setattr(abiss_chunk, "_discover_segmentation", lambda path: object())
 
-    abiss_large.run_abiss_large(prepared, execute=True)
+    abiss_chunk.run_abiss_chunk(prepared, execute=True)
 
     assert calls == [
         {
@@ -288,7 +288,7 @@ def test_thin_cli_delegates_to_api_and_yaml_builds_same_execution_config(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
 ) -> None:
-    import scripts.run_abiss_large as cli
+    import scripts.run_abiss_chunk as cli
 
     source_h5 = tmp_path / "affinity.h5"
     with h5py.File(source_h5, "w") as f:
@@ -298,7 +298,7 @@ def test_thin_cli_delegates_to_api_and_yaml_builds_same_execution_config(
     config_path.write_text(
         yaml.safe_dump(
             {
-                "abiss_large": {
+                "abiss_chunk": {
                     "abiss_home": str(tmp_path / "abiss"),
                     "workdir": str(tmp_path / "outputs" / "work"),
                     "secrets_dir": str(tmp_path / "outputs" / "secrets"),
@@ -318,26 +318,26 @@ def test_thin_cli_delegates_to_api_and_yaml_builds_same_execution_config(
         encoding="utf-8",
     )
 
-    workflow = abiss_large.prepare_config(config_path)
+    workflow = abiss_chunk.prepare_config(config_path)
     prepared = workflow.execution_config(stages=("watershed",), write_param=False)
-    prepared_calls: list[abiss_large.PreparedConfig] = []
+    prepared_calls: list[abiss_chunk.PreparedConfig] = []
 
-    def fake_prepare_config(path: Path) -> abiss_large.LargeWorkflowConfig:
+    def fake_prepare_config(path: Path) -> abiss_chunk.ChunkWorkflowConfig:
         assert path == config_path.resolve()
         return workflow
 
-    def fake_run(value: abiss_large.PreparedConfig, *, execute: bool) -> abiss_large.RunResult:
+    def fake_run(value: abiss_chunk.PreparedConfig, *, execute: bool) -> abiss_chunk.RunResult:
         assert execute is True
         prepared_calls.append(value)
-        return abiss_large.RunResult(
+        return abiss_chunk.RunResult(
             prepared=value,
             stage_plans=(),
             executed=True,
             segmentation=object(),
         )
 
-    monkeypatch.setattr(abiss_large, "prepare_config", fake_prepare_config)
-    monkeypatch.setattr(abiss_large, "run_abiss_large", fake_run)
+    monkeypatch.setattr(abiss_chunk, "prepare_config", fake_prepare_config)
+    monkeypatch.setattr(abiss_chunk, "run_abiss_chunk", fake_run)
 
     exit_code = cli.main(
         [
@@ -349,7 +349,7 @@ def test_thin_cli_delegates_to_api_and_yaml_builds_same_execution_config(
         ]
     )
 
-    assert cli.main is abiss_large.main
+    assert cli.main is abiss_chunk.main
     assert exit_code == 0
     assert prepared_calls == [prepared]
     assert prepared.workdir == workflow.workdir

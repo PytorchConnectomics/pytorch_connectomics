@@ -173,7 +173,7 @@ tune_profiles:
       decoding:
         function_name: decode_abiss
         defaults:
-          command: "{python_exe} scripts/run_abiss_single.py --input {input_h5} --output {output_h5}"
+          command: "{python_exe} scripts/run_abiss_volume.py --input {input_h5} --output {output_h5}"
           cli_args:
             ws_high_threshold: 0.80
             ws_low_threshold: 0.01

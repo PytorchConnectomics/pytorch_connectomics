@@ -48,7 +48,7 @@ decoding_templates:
     steps:
       - name: decode_abiss
         kwargs:
-          command: "{python_exe} scripts/run_abiss_single.py --input {input_h5} --output {output_h5}"
+          command: "{python_exe} scripts/run_abiss_volume.py --input {input_h5} --output {output_h5}"
           # Affinity thresholds accept absolute values (e.g. 0.80) or
           # percentiles (e.g. "80%") resolved from the data.
           cli_args:
