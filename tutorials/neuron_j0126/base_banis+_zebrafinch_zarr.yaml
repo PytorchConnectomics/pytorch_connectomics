@@ -1,0 +1,26 @@
+_base_:
+  - base_banis+_zebrafinch.yaml
+
+experiment_name: nisb_base_banis+_zebrafinch_zarr
+description: >-
+  Same chunked affinity inference as base_banis+_zebrafinch.yaml, but reading
+  the volume from the converted multiscale OME-Zarr
+  (im_align_10nm.zarr, level 0 = full 10nm resolution) instead of the tiled PNG
+  pyramid. Zarr is random-access and compressed in 128^3 blocks, so the lazy
+  sliding-window reader no longer re-decodes 4096x4096 PNG tiles per ROI window
+  (the PNG path took ~19 h/chunk at 0% GPU). All window/chunking/decoding
+  settings are inherited unchanged so outputs are directly comparable.
+
+save_path: outputs/nisb_base_banis+_zebrafinch_zarr
+
+test:
+  data:
+    test:
+      # Switch from the tiled-PNG reader to the dense zarr volume. dataset_type
+      # null = generic volume; the .zarr suffix selects the zarr backend. The
+      # "/0" subkey is the full-resolution level of the multiscale group.
+      dataset_type: null
+      image: /projects/weilab/dataset/zebrafinch/im_align_10nm.zarr/0
+      # The inherited tile-only `path`/`json` are ignored once dataset_type is
+      # null (volume backend keys off `image`); leaving them avoids null-typing
+      # errors on those str fields.

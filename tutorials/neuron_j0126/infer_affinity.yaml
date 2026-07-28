@@ -1,14 +1,15 @@
 _base_:
-  - ../neuron_nisb/base_banis+.yaml
+  # Local copies, so this tutorial does not depend on experiment configs that come
+  # and go elsewhere in the tree. base_banis+_zebrafinch_zarr.yaml supplies the
+  # window/chunking geometry and reads the random-access zarr; do NOT swap it for
+  # the tiled-PNG variant, which re-decodes 4096x4096 tiles per window and runs
+  # ~19 h/chunk with the GPU idle (vs ~30 min/chunk).
+  - base_banis+_zebrafinch_zarr.yaml
 
 experiment_name: neuron_j0126_affinity
 description: >-
   Stage 1 of the j0126 (zebra finch) ABISS tutorial: EM image -> 3-channel
   affinity, written STRAIGHT INTO a CloudVolume precomputed layer.
-
-  Self-contained apart from the shared banis+ model definition: every inference
-  setting below is spelled out here rather than inherited from a zebrafinch base,
-  so the tutorial keeps working as those experiment configs come and go.
 
   Three things make this reproducible end-to-end without a conversion step:
 
@@ -21,70 +22,32 @@ description: >-
      layout ABISS reads (edge v -> v-1, channels [z,y,x] -> [x,y,z]) instead of
      the model's native one. See README.md -- both are silent when wrong.
 
-  3. `chunking.roi` clips the chunk grid to the true EM extent. The source zarr is
-     rounded out to 5700 x 12288 x 12288, so without it the last ~2 chunks in Y
-     and X are pure zero padding: 1014 chunks instead of 726.
+  3. `chunking.roi`, inherited from the base, clips the chunk grid to the true EM
+     extent: the source zarr is rounded out to 5700 x 12288 x 12288, so this is
+     worth 1014 -> 726 chunks.
 
 save_path: outputs/neuron_j0126_affinity
-
-test:
-  data:
-    test:
-      # Random-access zarr, level 0 = full 10 nm resolution. `dataset_type: null`
-      # selects the generic volume backend (the .zarr suffix picks the zarr reader).
-      # Do NOT point this at the tiled-PNG pyramid: the lazy window re-decodes
-      # 4096x4096 tiles per window and runs ~19 h/chunk with the GPU idle, vs
-      # ~30 min/chunk here.
-      dataset_type: null
-      image: /projects/weilab/dataset/zebrafinch/im_align_10nm.zarr/0
 
 default:
   inference:
     model:
-      # Short-range affinities only (axis 0/1/2), as plain sigmoid(x): ABISS
-      # consumes that directly, so the historical logit/0.2 "restore" pass that
-      # `scale_sigmoid` (= sigmoid(0.2*x)) would require is unnecessary.
+      # Short-range affinities only (axis 0/1/2), as plain sigmoid(x). The base
+      # emits `scale_sigmoid` = sigmoid(0.2*x) (BANIS' temperature), which ABISS
+      # would then need undone by a logit/0.2 restore pass; emitting sigmoid(x)
+      # here produces the value ABISS consumes directly.
       select_channel: [0, 1, 2]
       output_dtype: float32
       channel_activations:
         - {channels: ":", activation: sigmoid}
-    execution:
-      strategy: chunked
-    window:
-      distributed_sharding: false
-      keep_input_on_cpu: true
-      sw_device: cuda
-      output_device: cpu
-      # 144 = 128 (training patch) + 16 voxels of context; must stay a multiple of
-      # MedNeXt's 16-voxel stride.
-      window_size: [144, 144, 144]
-      sw_batch_size: 12
-      overlap: 0.5
-      blending: bump
-      padding_mode: reflect
-      snap_to_edge: true
     chunking:
-      enabled: true
-      # raw_prediction lets independent jobs split the grid by --shard-id/--num-shards
-      # without torch.distributed.
-      output_mode: raw_prediction
-      # Window stride = 144 * (1 - 0.5) = 72, so chunk starts must be multiples of
-      # 72; 1008 = 14 * 72.
-      chunk_size: [1008, 1008, 1008]
-      halo: [72, 72, 72]
-      axes: all
-      # True EM geometry (ZYX voxels). Skips the padding-only chunks: 1014 -> 726.
-      roi: [5700, 10913, 10664]
       # Write chunks straight into the precomputed layer (no h5, no stitching).
       precomputed: true
-      # XYZ nm. Must match `AFF_RESOLUTION`'s mip in abiss.yaml.
+      # XYZ nm. Must match the mip `AFF_RESOLUTION` selects in abiss.yaml.
       precomputed_resolution: [9, 9, 20]
-      # XYZ storage chunk; divides the 1008^3 inference chunk on every axis
-      # (1008 = 7*144 = 14*72) so concurrent chunk writes never straddle one.
+      # XYZ storage chunk; divides the inherited 1008^3 inference chunk on every
+      # axis (1008 = 7*144 = 14*72) so concurrent chunk writes never straddle one.
       precomputed_chunk_size: [144, 144, 72]
       # Emit ABISS' affinity convention rather than the model's native one.
       precomputed_affinity_convention: abiss
     save_results: true
     save_dtype: float32
-    test_time_augmentation:
-      enabled: false
