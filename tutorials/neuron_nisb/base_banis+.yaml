@@ -1,17 +1,44 @@
 _base_:
-  - base_banis_opt.yaml
+  - base_banis.yaml
 
-experiment_name: nisb_base_banis_v3_erosion2
+experiment_name: nisb_base_banis+
 description: >-
-  v3 training setup: v1 loss/EMA plus label erosion=2, using MedNeXt-L/k3
-  for higher-capacity affinity prediction.
+  BANIS+ training setup: per-channel class-balanced BCE, EMA, label erosion=2,
+  MedNeXt-L/k3, and a 200k-step schedule.
 
-save_path: outputs/nisb_base_banis_v3_erosion2
+save_path: outputs/nisb_base_banis+
 
 default:
+  model:
+    loss:
+      deep_supervision: false
+      losses:
+        - function: PerChannelBCEWithLogitsLoss
+          weight: 1.0
+          kwargs:
+            auto_pos_weight: true
+            max_pos_weight: 10.0
   data:
     dataloader:
       batch_size: 2
     label_transform:
       erosion: 2
 
+train:
+  optimization:
+    max_steps: 200000
+    scheduler:
+      params:
+        t_max: 200000
+    ema:
+      enabled: true
+      decay: 0.999
+      warmup_steps: 500
+      validate_with_ema: true
+  monitor:
+    logging:
+      scalar:
+        loss:
+          - train_loss_total_epoch
+          - val_loss_total
+        loss_every_n_steps: 100
