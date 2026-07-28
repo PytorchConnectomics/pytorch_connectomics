@@ -283,7 +283,7 @@ def _run_abiss_ws(
         ws_dir.mkdir(parents=True, exist_ok=True)
         temp_ctx = None
     else:
-        temp_ctx = tempfile.TemporaryDirectory(prefix="abiss_single_", dir=tempfile.gettempdir())
+        temp_ctx = tempfile.TemporaryDirectory(prefix="abiss_volume_", dir=tempfile.gettempdir())
         ws_dir = Path(temp_ctx.name).resolve()
 
     try:

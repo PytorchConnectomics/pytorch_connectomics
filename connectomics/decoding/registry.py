@@ -113,7 +113,7 @@ def register_builtin_decoders() -> None:
         return
 
     from .decoders.abiss import decode_abiss
-    from .decoders.branch import branch_link, branch_merge, branch_split, seg_2d
+    from .decoders.branch import branch_extend, branch_link, branch_merge, branch_split, seg_2d
     from .decoders.combine import combine_split
     from .decoders.longrange_guided_split import longrange_guided_split
     from .decoders.mutex_watershed import decode_mutex_watershed
@@ -123,6 +123,7 @@ def register_builtin_decoders() -> None:
         decode_instance_binary_contour_distance,
     )
     from .decoders.segmentation_grow import segmentation_grow
+    from .decoders.shape_smooth import shape_smooth
     from .decoders.synapse import polarity2instance
     from .decoders.transforms import channel_gate
     from .decoders.waterz import decode_waterz, naive_waterz
@@ -161,8 +162,14 @@ def register_builtin_decoders() -> None:
         as_binary_graph_op(branch_merge),
         overwrite=True,
     )
+    register_graph_op(
+        "branch_extend",
+        as_binary_graph_op(branch_extend),
+        overwrite=True,
+    )
     register_decoder("longrange_guided_split", longrange_guided_split, overwrite=True)
     register_decoder("segmentation_grow", segmentation_grow, overwrite=True)
+    register_decoder("shape_smooth", shape_smooth, overwrite=True)
     register_decoder("decode_abiss", decode_abiss, overwrite=True)
     register_decoder("polarity2instance", polarity2instance, overwrite=True)
     register_graph_op("combine_split", combine_split, overwrite=True)

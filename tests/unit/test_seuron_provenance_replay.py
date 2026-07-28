@@ -346,7 +346,7 @@ def test_affinity_preflight_uses_physical_resolution_and_full_bounds(monkeypatch
 
 
 def test_replay_execute_writes_copy_uri_transfer_commands(monkeypatch, tmp_path):
-    from connectomics.runtime import abiss_large
+    from connectomics.runtime import abiss_chunk
     from scripts import run_seuron_provenance as cli
 
     resolved = cli.resolve_replay(
@@ -369,10 +369,10 @@ def test_replay_execute_writes_copy_uri_transfer_commands(monkeypatch, tmp_path)
     def fake_run(argv, *, cwd, env, check):
         calls.append((argv, cwd, env, check))
 
-    monkeypatch.setattr(abiss_large.subprocess, "run", fake_run)
-    monkeypatch.setattr(abiss_large, "_discover_segmentation", lambda path: object())
+    monkeypatch.setattr(abiss_chunk.subprocess, "run", fake_run)
+    monkeypatch.setattr(abiss_chunk, "_discover_segmentation", lambda path: object())
 
-    result = abiss_large.run_abiss_large(prepared, execute=True)
+    result = abiss_chunk.run_abiss_chunk(prepared, execute=True)
 
     copy_helper = (TUTORIAL.parents[1] / "scripts" / "copy_uri.py").resolve()
     copy_command = f"{sys.executable} {copy_helper}"

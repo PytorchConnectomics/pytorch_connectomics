@@ -5,16 +5,16 @@ description: >
 
   Usage:
     - Prepare local precomputed affinity + WS/SEG outputs only:
-      python scripts/run_abiss_large.py --config tutorials/waterz_decoding_large_abiss.yaml --prepare-only
+      python scripts/run_abiss_chunk.py --config tutorials/waterz_decoding_large_abiss.yaml --prepare-only
     - Run the full ABISS flow:
-      python scripts/run_abiss_large.py --config tutorials/waterz_decoding_large_abiss.yaml
+      python scripts/run_abiss_chunk.py --config tutorials/waterz_decoding_large_abiss.yaml
     - Run selected stages after prepare:
-      python scripts/run_abiss_large.py --config tutorials/waterz_decoding_large_abiss.yaml --skip-prepare --stages watershed remap_watershed
+      python scripts/run_abiss_chunk.py --config tutorials/waterz_decoding_large_abiss.yaml --skip-prepare --stages watershed remap_watershed
 
   This workflow does not use `waterz_decode_large`. ABISS already manages its own
   chunk hierarchy and chunked watershed / agglomeration.
 
-abiss_large:
+abiss_chunk:
   abiss_home: /projects/weilab/weidf/lib/pytorch_connectomics/lib/abiss
   workdir: /projects/weilab/weidf/lib/pytorch_connectomics/outputs/waterz_decode_large_abiss/run
   secrets_dir: /projects/weilab/weidf/lib/pytorch_connectomics/outputs/waterz_decode_large_abiss/secrets
@@ -36,7 +36,7 @@ abiss_large:
   meta_dirs: []
 
   param:
-    NAME: DL288B_251222S_cond5_abiss_large
+    NAME: DL288B_251222S_cond5_abiss_chunk
 
     # All ABISS paths are CloudFiles / CloudVolume paths. Use file:// for local runs.
     AFF_PATH: file:///projects/weilab/weidf/lib/pytorch_connectomics/outputs/waterz_decode_large_abiss/precomputed/affinity
@@ -67,7 +67,7 @@ abiss_large:
 
 notes:
   - "If you only want chunked watershed fragments, stop after remap_watershed."
-  - "AFF_PATH, WS_PATH, and SEG_PATH are local precomputed volumes prepared by scripts/run_abiss_large.py."
+  - "AFF_PATH, WS_PATH, and SEG_PATH are local precomputed volumes prepared by scripts/run_abiss_chunk.py."
   - "CHUNK_SIZE is the ABISS chunking grid; aff_chunk_size_xyz and seg_chunk_size_xyz are the on-disk precomputed storage chunks."
   - "seg_chunk_size_xyz must align with every internal CHUNK_SIZE boundary on axes that have multiple chunks; for this config the Z chunk size must be 80, not 64."
   - "With the upstream chunk_iterator package, root_tag should point at the top-level chunk. For this config that is 4_0_0_0."
