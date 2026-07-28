@@ -7,10 +7,9 @@ Two stages, no conversion step in between:
 | 1. affinity | `infer_affinity.yaml` | float16 HDF5 under `outputs/neuron_j0126_affinity/` |
 | 2. segmentation | `abiss.yaml` | precomputed layer `outputs/neuron_j0126_abiss/precomputed/seg` |
 
-`base_banis+_zebrafinch{,_zarr}.yaml` are local copies of the model/window/chunking
-geometry, kept here so the tutorial does not break when experiment configs elsewhere
-in the tree are moved or deleted. Only `base_banis+.yaml` (the shared banis+ model) is
-still referenced from `../neuron_nisb/`.
+`infer_affinity.yaml` is self-contained: it inherits only `../neuron_nisb/base_banis+.yaml`
+(the shared banis+ model) and states all j0126-specific data/window/chunking settings
+itself, so it does not break when experiment configs elsewhere are moved or deleted.
 
 ```bash
 # 1) EM image -> 3-channel affinity, straight into a precomputed layer
