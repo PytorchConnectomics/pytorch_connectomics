@@ -4,7 +4,7 @@ Two stages, no conversion step in between:
 
 | stage | config | output |
 |---|---|---|
-| 1. affinity | `infer_affinity.yaml` | precomputed layer `outputs/neuron_j0126_affinity/affinity` |
+| 1. affinity | `infer_affinity.yaml` | float16 HDF5 under `outputs/neuron_j0126_affinity/` |
 | 2. segmentation | `abiss.yaml` | precomputed layer `outputs/neuron_j0126_abiss/precomputed/seg` |
 
 `base_banis+_zebrafinch{,_zarr}.yaml` are local copies of the model/window/chunking
@@ -21,21 +21,20 @@ python scripts/main.py --config tutorials/neuron_j0126/infer_affinity.yaml \
 python scripts/run_abiss_chunk.py --config tutorials/neuron_j0126/abiss.yaml
 ```
 
-## Why the affinity is written as precomputed
+## Why the affinity stays HDF5
 
-ABISS reads `AFF_PATH` through CloudVolume, so writing inference output as a
-**precomputed layer** means ABISS consumes it directly. `inference.chunking.precomputed`
-writes each inference chunk into the layer instead of per-chunk HDF5 + a stitch pass,
-which removes an entire second copy of the affinity (3.1 TB for this volume).
+Stage 1 writes the same float16 HDF5 this pipeline has always written, and ABISS
+reads it directly through its HDF5 backend (`lib/abiss/scripts/volume_backends.py`).
+No conversion step, no second copy.
 
-Chunks are disjoint and storage-chunk aligned, so ranks write the shared layer
-concurrently without locking. `precomputed_chunk_size` **must divide the inference
-`chunk_size`** on every axis (here 1008 = 7·144 = 14·72); a non-dividing value is
-rejected at startup rather than silently racing two ranks on one storage chunk.
+Converting to a precomputed layer instead would force **float32** — for this volume
+~3.1 TB versus ~1.5 TB — purely to satisfy a format. Since ABISS can read the HDF5,
+that cost buys nothing.
 
-Zarr is *not* used for the affinity: cloud-volume can read a 3D zarr, but for a 4D
-multi-channel array it exposes only one channel, and it cannot write zarr at all —
-so a 3-channel affinity zarr is not readable by ABISS.
+Zarr is supported by the same backend and is the right choice when output needs
+concurrent writers: HDF5 has no multi-process writer support, so it is **read-only**
+here. That is fine for affinity, which is written once by inference and only read by
+ABISS.
 
 ## Why the ROI matters
 
