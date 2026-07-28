@@ -42,6 +42,16 @@ default:
       # XYZ storage chunk; divides the 1008^3 inference chunk on every axis
       # (1008 = 7*144 = 14*72) so concurrent chunk writes never straddle one.
       precomputed_chunk_size: [144, 144, 72]
+      # Emit the affinity in ABISS' convention rather than the model's native one:
+      #   edge shift v -> v-1  (the model stores an edge on its SOURCE voxel,
+      #                         ABISS reads it on the DESTINATION), and
+      #   channels [z,y,x] -> [x,y,z]  (ABISS expects channel 0 = x-affinity,
+      #                                 the model emits channel 0 = z-affinity).
+      # Applied to the haloed prediction before the core is cropped, so each core
+      # face pulls the true neighbouring voxel; only a real volume boundary is
+      # zero-filled. This is what upload_affinity_full_masked.py used to do as a
+      # separate pass over the saved HDF5.
+      precomputed_affinity_convention: abiss
     # save_backend/save_dtype below apply to the non-chunked writer; the
     # precomputed layer's dtype comes from the prediction itself (float32 above).
     save_results: true

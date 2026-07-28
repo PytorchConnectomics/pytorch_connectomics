@@ -132,6 +132,16 @@ class ChunkingConfig:
     # XYZ storage chunk of the output layer. Must divide the inference chunk_size on
     # every axis, otherwise concurrent chunk writes would straddle a storage chunk.
     precomputed_chunk_size: List[int] = field(default_factory=lambda: [128, 128, 64])
+    # Affinity convention written into the precomputed layer.
+    #   "none"  - write the model's channels as-is.
+    #   "abiss" - convert BANIS/source-stored affinity to what ABISS reads:
+    #             (1) edge shift v -> v-1 (dst[c, v] = src[c, v-1] along spatial axis c),
+    #                 applied BEFORE the halo is cropped so the low face pulls the true
+    #                 neighbour voxel; only a real volume boundary is zero-filled, and
+    #             (2) channel reversal [z, y, x] -> [x, y, z], since ABISS expects
+    #                 channel 0 = x-affinity while the model emits channel 0 = z.
+    # Only valid for 3-channel affinity output.
+    precomputed_affinity_convention: str = "none"
     shard_id: Optional[int] = None  # External naive chunk shard index; set by CLI.
     num_shards: Optional[int] = None  # External naive chunk shard count; set by CLI.
     temp_dir: str = ""

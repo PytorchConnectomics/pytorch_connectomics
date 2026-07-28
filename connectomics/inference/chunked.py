@@ -129,6 +129,41 @@ def _open_precomputed_layer(
     return CloudVolume(layer_uri, fill_missing=True, compress=True, progress=False)
 
 
+def _to_abiss_affinity_convention(pred: np.ndarray) -> np.ndarray:
+    """Convert BANIS/source-stored affinity to the convention ABISS reads.
+
+    Two independent changes, both required (see
+    ``dev/zebrafinch/upload_affinity_full_masked.py``, which applied them as a
+    post-hoc pass over saved HDF5 chunks):
+
+    1. Edge shift ``dst[c, v] = src[c, v-1]`` along spatial axis ``c``. The model
+       stores an edge on its *source* voxel (``v -> v+1``); ABISS expects it on the
+       *destination* (``v -> v-1``).
+    2. Channel reversal ``[z, y, x] -> [x, y, z]``: the model emits channel 0 =
+       z-affinity, ABISS expects channel 0 = x-affinity.
+
+    Call this on the HALOED prediction, before the core is cropped out: the shift
+    reads voxel ``v-1``, so the halo supplies the low face. Index 0 of the array is
+    zero-filled, which is correct only where the array edge is a true volume
+    boundary -- everywhere else that slice lies inside the halo and is cropped away.
+    Order matters: shift while channels still line up with spatial axes, then reverse.
+    """
+    if pred.shape[0] != 3:
+        raise ValueError(
+            "chunking.precomputed_affinity_convention='abiss' expects 3-channel "
+            f"affinity in (C, Z, Y, X) order, got shape {tuple(pred.shape)}."
+        )
+    shifted = np.zeros_like(pred)
+    for c in range(3):
+        dst = [slice(None)] * 4
+        src = [slice(None)] * 4
+        dst[0] = src[0] = c
+        dst[c + 1] = slice(1, None)
+        src[c + 1] = slice(0, -1)
+        shifted[tuple(dst)] = pred[tuple(src)]
+    return shifted[::-1]
+
+
 def _validate_precomputed_alignment(
     chunk_shape_zyx: Sequence[int], chunk_size_xyz: Sequence[int]
 ) -> None:
@@ -438,7 +473,15 @@ def _run_chunked_prediction_per_rank(
     precomputed_out = bool(getattr(chunking_cfg, "precomputed", False))
     precomputed_cv: Any = None
     precomputed_dir = output_path.with_suffix("")
+    precomputed_convention = str(
+        getattr(chunking_cfg, "precomputed_affinity_convention", "none")
+    ).lower()
     if precomputed_out:
+        if precomputed_convention not in ("none", "abiss"):
+            raise ValueError(
+                "inference.chunking.precomputed_affinity_convention must be "
+                f"'none' or 'abiss', got {precomputed_convention!r}."
+            )
         pc_resolution = getattr(chunking_cfg, "precomputed_resolution", None)
         if not pc_resolution:
             raise ValueError(
@@ -503,6 +546,11 @@ def _run_chunked_prediction_per_rank(
         )
         pred = pred_tensor.detach().cpu().numpy()[0]
         del pred_tensor
+
+        if precomputed_convention == "abiss":
+            # Must run on the haloed array: the edge shift reads voxel v-1, so the
+            # halo (not a zero fill) supplies each core face except at the volume edge.
+            pred = _to_abiss_affinity_convention(pred)
 
         local_core_slices = tuple(
             slice(
