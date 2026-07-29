@@ -51,6 +51,12 @@ abiss_chunk:
     # line in the stage-1 log); `path.h5::dataset` selects a dataset explicitly when
     # the file holds more than one.
     AFF_PATH: outputs/neuron_j0126_affinity/<run>/raw_..._prediction.h5
+    # REQUIRED for affinity written by infer_affinity.yaml. The model stores an edge
+    # on its SOURCE voxel in [z,y,x] channel order; ABISS reads the DESTINATION voxel
+    # in [x,y,z]. Without this the segmentation is silently wrong rather than failing.
+    # (No AFF_RESTORE_SIGMOID: stage 1 emits a plain sigmoid, so there is nothing to
+    # undo. Add "AFF_RESTORE_SIGMOID: 0.2" only for scale_sigmoid affinity.)
+    AFF_CONVENTION: banis
     WS_PATH: file://outputs/neuron_j0126_abiss/precomputed/ws
     SEG_PATH: file://outputs/neuron_j0126_abiss/precomputed/seg
     SCRATCH_PATH: file://outputs/neuron_j0126_abiss/scratch
