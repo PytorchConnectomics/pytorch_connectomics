@@ -359,3 +359,41 @@ def test_thin_cli_delegates_to_api_and_yaml_builds_same_execution_config(
     assert prepared.param_payload == workflow.param_payload
     assert prepared.seg_cloudpath == workflow.seg_cloudpath
     assert prepared.write_param is False
+
+
+# --------------------------------------------------------------------------------
+# BBOX preflight (review_v2 "still-open": validate BBOX before workers start).
+# --------------------------------------------------------------------------------
+
+
+def _affinity_h5(tmp_path: Path, shape=(3, 40, 30, 20)) -> Path:
+    path = tmp_path / "aff.h5"
+    with h5py.File(path, "w") as handle:
+        handle.create_dataset("main", data=np.zeros(shape, dtype="float16"))
+    return path
+
+
+def test_affinity_extent_is_read_as_xyz(tmp_path: Path) -> None:
+    """Stored (C, Z, Y, X) must be reported as (X, Y, Z) to match ABISS' BBOX order."""
+    path = _affinity_h5(tmp_path)  # Z=40, Y=30, X=20
+    extent = abiss_chunk._affinity_extent_xyz(abiss_chunk._normalize_cloudpath(path))
+    assert extent == (20, 30, 40)
+
+
+def test_bbox_beyond_the_affinity_is_rejected(tmp_path: Path) -> None:
+    cloudpath = abiss_chunk._normalize_cloudpath(_affinity_h5(tmp_path))
+
+    abiss_chunk._validate_bbox_against_affinity(cloudpath, [0, 0, 0, 20, 30, 40])
+
+    with pytest.raises(ValueError, match="axis Z"):
+        abiss_chunk._validate_bbox_against_affinity(cloudpath, [0, 0, 0, 20, 30, 41])
+    with pytest.raises(ValueError, match="axis X"):
+        abiss_chunk._validate_bbox_against_affinity(cloudpath, [0, 0, 0, 21, 30, 40])
+    with pytest.raises(ValueError, match="axis Y"):
+        abiss_chunk._validate_bbox_against_affinity(cloudpath, [0, 30, 0, 20, 30, 40])
+
+
+def test_bbox_check_is_skipped_for_remote_layers() -> None:
+    """A precomputed/gs:// layer keeps its extent in `info`; never guess or fail."""
+    assert abiss_chunk._affinity_extent_xyz("gs://bucket/affinity") is None
+    abiss_chunk._validate_bbox_against_affinity("gs://bucket/affinity", [0, 0, 0, 9, 9, 9])
