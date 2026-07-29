@@ -726,14 +726,24 @@ def prepare(cfg: ChunkWorkflowConfig, *, write_param: bool = True) -> None:
     )
 
     if cfg.source_h5 is None:
-        print(f"Using existing affinity precomputed layer at {cfg.aff_cloudpath} (no h5 copy)")
+        print(f"Using existing affinity volume at {cfg.aff_cloudpath} (no h5 copy)")
         if _is_local_cloudpath(cfg.aff_cloudpath):
-            aff_dir = _cloudpath_to_local_path(cfg.aff_cloudpath)
-            if not (aff_dir / "info").exists():
+            aff_path = _cloudpath_to_local_path(cfg.aff_cloudpath)
+            # ABISS reads AFF_PATH through its volume backends, so the affinity may be
+            # an HDF5/zarr file rather than a precomputed layer. Only a precomputed
+            # layer has an `info`; for the file backends just check the path exists.
+            stem = str(aff_path).split("::", 1)[0]
+            is_file_backend = stem.endswith((".h5", ".hdf5", ".zarr"))
+            if is_file_backend:
+                if not Path(stem).exists():
+                    raise FileNotFoundError(
+                        f"`source_affinity_h5` was omitted and AFF_PATH {stem} does not exist."
+                    )
+            elif not (aff_path / "info").exists():
                 raise FileNotFoundError(
                     f"`source_affinity_h5` was omitted but no precomputed layer exists at "
-                    f"{aff_dir} (missing info). Run inference with "
-                    f"`inference.chunking.precomputed: true` first, or set source_affinity_h5."
+                    f"{aff_path} (missing info). Point AFF_PATH at an existing layer or an "
+                    f"affinity .h5/.zarr, or set source_affinity_h5 to convert one."
                 )
     else:
         print(f"Preparing affinity precomputed at {cfg.aff_cloudpath}")
