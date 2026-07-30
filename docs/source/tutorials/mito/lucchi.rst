@@ -4,7 +4,7 @@ Lucchi++ (Semantic Segmentation)
 .. include:: _intro.rst
 
 This tutorial reproduces binary mitochondria segmentation on the Lucchi++
-EM benchmark using ``tutorials/mito_lucchi++.yaml``. The task is treated
+EM benchmark using ``tutorials/mito_lucchi++/mito_lucchi++.yaml``. The task is treated
 as **semantic segmentation** — predict the mitochondria foreground mask
 with an encoder-decoder network. Evaluation is the Jaccard / IoU score.
 
@@ -20,7 +20,7 @@ The pipeline pins the following setup:
 - **Input** ``[112, 112, 112]`` patches, isotropic 5 × 5 × 5 nm.
 - **Model** MedNeXt-S, kernel size 3, 3D, no deep supervision.
 - **Pipeline** ``pipeline_profile: binary`` (single foreground channel).
-- **Dataloader** cached profile, batch size 8, ``aug_strong``
+- **Dataloader** cached profile, batch size 4, ``aug_strong``
   augmentation profile.
 - **Optimization** ``warmup_cosine_lr`` profile, AdamW @
   ``lr=1e-3``, ``weight_decay=0.01``, 150 epochs × 1000 steps,
@@ -29,15 +29,25 @@ The pipeline pins the following setup:
   ``sw_batch_size=8``, TTA enabled with all-axis flips.
 - **Metric** ``jaccard``.
 
-Each of these is encoded directly in ``tutorials/mito_lucchi++.yaml``;
+Each of these is encoded directly in
+``tutorials/mito_lucchi++/mito_lucchi++.yaml``;
 do not change them in passing.
 
 1 - Get the data
 ^^^^^^^^^^^^^^^^
 
 Lucchi++ is the relabeled version of the original Lucchi 2012 dataset
-released by Casser et al.; download from the EPFL CVLab page or your
-local mirror. After unpacking you should have HDF5 volumes:
+released by Casser et al. Download the 211 MiB archive from the
+`PyTC Hugging Face tutorial repository
+<https://huggingface.co/pytc/tutorial/tree/main/mito_lucchi%2B%2B>`_:
+
+.. code-block:: bash
+
+    just download lucchi++
+
+The archive SHA-256 is
+``d6c29c25db29780f068b40edf27918ad4af8a1ce7d699f043ed91c6b012a0637``.
+After extraction you should have:
 
 .. code-block:: text
 
@@ -49,7 +59,8 @@ local mirror. After unpacking you should have HDF5 volumes:
 
 The config reads from ``datasets/lucchi++/`` relative to the repo
 root. Edit the ``train.data.train`` and ``test.data.test`` blocks in
-``tutorials/mito_lucchi++.yaml`` if you stage data elsewhere.
+``tutorials/mito_lucchi++/mito_lucchi++.yaml`` if you stage data
+elsewhere.
 
 For the upstream description see the
 `EPFL CVLab page <https://www.epfl.ch/labs/cvlab/data/data-em/>`_.
@@ -60,14 +71,16 @@ For the upstream description see the
 .. code-block:: bash
 
     conda activate pytc
-    python scripts/main.py --config tutorials/mito_lucchi++.yaml
+    python scripts/main.py \
+        --config tutorials/mito_lucchi++/mito_lucchi++.yaml
 
 The config sets ``system.profile: all-gpu-cpu``, so PyTC fans out
 across every visible GPU. Override at the CLI if needed:
 
 .. code-block:: bash
 
-    python scripts/main.py --config tutorials/mito_lucchi++.yaml \
+    python scripts/main.py \
+        --config tutorials/mito_lucchi++/mito_lucchi++.yaml \
         system.num_gpus=4 data.dataloader.batch_size=4
 
 Training schedule:
@@ -80,7 +93,7 @@ Training schedule:
 - Image previews logged every 10 epochs to TensorBoard.
 
 Outputs land in ``outputs/mito_lucchi++/<timestamp>/`` (the
-``save_path`` baked into ``train.monitor.checkpoint``).
+top-level ``save_path``).
 
 Monitor with TensorBoard:
 
@@ -95,7 +108,8 @@ Run the combined ``test`` mode against the trained checkpoint:
 
 .. code-block:: bash
 
-    python scripts/main.py --config tutorials/mito_lucchi++.yaml \
+    python scripts/main.py \
+        --config tutorials/mito_lucchi++/mito_lucchi++.yaml \
         --mode test \
         --checkpoint outputs/mito_lucchi++/<timestamp>/checkpoints/last.ckpt
 
@@ -118,7 +132,8 @@ To disable TTA (faster but slightly weaker), override:
 
 .. code-block:: bash
 
-    python scripts/main.py --config tutorials/mito_lucchi++.yaml \
+    python scripts/main.py \
+        --config tutorials/mito_lucchi++/mito_lucchi++.yaml \
         --mode test --checkpoint <ckpt> \
         inference.test_time_augmentation.enabled=false
 

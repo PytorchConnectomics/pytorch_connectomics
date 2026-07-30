@@ -546,7 +546,7 @@ Configuration Examples
 See the ``tutorials/`` directory for complete examples:
 
 - `tutorials/minimal.yaml <https://github.com/zudi-lin/pytorch_connectomics/blob/master/tutorials/minimal.yaml>`_: minimal MONAI smoke config
-- `tutorials/mito_lucchi++.yaml <https://github.com/zudi-lin/pytorch_connectomics/blob/master/tutorials/mito_lucchi%2B%2B.yaml>`_: mitochondria segmentation
+- `tutorials/mito_lucchi++/mito_lucchi++.yaml <https://github.com/PytorchConnectomics/pytorch_connectomics/blob/master/tutorials/mito_lucchi%2B%2B/mito_lucchi%2B%2B.yaml>`_: mitochondria segmentation
 - `tutorials/neuron_snemi/neuron_snemi_sdt.yaml <https://github.com/zudi-lin/pytorch_connectomics/blob/master/tutorials/neuron_snemi/neuron_snemi_sdt.yaml>`_: MedNeXt SNEMI config
 
 Best Practices

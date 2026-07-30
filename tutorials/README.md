@@ -1,14 +1,15 @@
 # Tutorial Configs
 
-Top-level tutorial configs are in this folder and are intended to be runnable with:
+Tutorial configs are in this tree and are intended to be runnable with:
 
 ```bash
 python scripts/main.py --config tutorials/<config>.yaml
 ```
 
-## Active top-level configs
+## Active configs
 
-- `tutorials/mito_lucchi++.yaml`: Lucchi++ mitochondria segmentation (MONAI UNet).
+- `tutorials/mito_lucchi++/mito_lucchi++.yaml`: Lucchi++ semantic mitochondria
+  segmentation (MedNeXt-S).
 - `tutorials/mitoEM/H.yaml`: MitoEM-Human (EM30-H) instance segmentation (MedNeXt, SDT).
 - `tutorials/mitoEM/R.yaml`: MitoEM-Rat (EM30-R) instance segmentation (MedNeXt, SDT).
 - `tutorials/mitoEM/HR.yaml`: Joint EM30-H + EM30-R training (MedNeXt, SDT).
@@ -45,6 +46,12 @@ Validate top-level tutorial configs:
 
 ```bash
 python scripts/validate_tutorial_configs.py
+```
+
+Include nested tutorial families, including Lucchi++:
+
+```bash
+python scripts/validate_tutorial_configs.py --glob 'tutorials/**/*.yaml'
 ```
 
 This check fails if a config cannot load or if legacy keys reappear (`inference.data`, `data.augmentation.enabled`, or `inference.test_time_augmentation.act`).

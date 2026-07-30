@@ -69,7 +69,7 @@ def prepare_cli_args(args: Any, repo_root: Path) -> None:
     if not args.config:
         print("Error: --config is required (or use --demo for a quick test)")
         print("\nUsage:")
-        print("  python scripts/main.py --config tutorials/mito_lucchi++.yaml")
+        print("  python scripts/main.py --config tutorials/mito_lucchi++/mito_lucchi++.yaml")
         print("  python scripts/main.py --demo")
         sys.exit(1)
 

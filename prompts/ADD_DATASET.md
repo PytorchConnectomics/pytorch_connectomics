@@ -17,7 +17,7 @@ If any required input is missing, stop and ask.
 ## Steps
 
 1. Pick the closest existing tutorial as your template:
-   `tutorials/mito_lucchi++.yaml` for semantic mito,
+   `tutorials/mito_lucchi++/mito_lucchi++.yaml` for semantic mito,
    `tutorials/syn_cremi.yaml` for synapse,
    `tutorials/neuron_snemi/*.yaml` for instance neuron,
    `tutorials/nuc_nucmm-z.yaml` for nuclei.
