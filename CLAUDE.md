@@ -17,16 +17,16 @@ that point back at it.
 
 | Intent | Authoritative source | Concrete example |
 |---|---|---|
-| Run training | `scripts/main.py` → `connectomics/runtime/dispatch.py` | `just train mito_lucchi++` |
-| Run inference + decode + evaluate | `--mode test` → `inference/stage.py` → `decoding/stage.py` → `evaluation/stage.py` | `just test mito_lucchi++ <ckpt>` |
+| Run training | `scripts/main.py` → `connectomics/runtime/dispatch.py` | `just train mito_lucchi++/mito_lucchi++` |
+| Run inference + decode + evaluate | `--mode test` → `inference/stage.py` → `decoding/stage.py` → `evaluation/stage.py` | `just test mito_lucchi++/mito_lucchi++ <ckpt>` |
 | Tune decode params (Optuna) | `runtime/tune_runner.py` → `decoding/tuning/optuna_tuner.py` | `python scripts/main.py --config <yaml> --mode tune --checkpoint <ckpt>` |
-| Add a dataset / new EM volume | `tutorials/<new>.yaml` (copy closest); data dicts in `data/datasets/data_dicts.py`; new file format only if needed → `connectomics/data/io/io.py` | `tutorials/mito_lucchi++.yaml` |
+| Add a dataset / new EM volume | `tutorials/<new>.yaml` (copy closest); data dicts in `data/datasets/data_dicts.py`; new file format only if needed → `connectomics/data/io/io.py` | `tutorials/mito_lucchi++/mito_lucchi++.yaml` |
 | Add a model architecture | `connectomics/models/architectures/`; register via `@register_architecture("name")` decorator; add config params to `connectomics/config/schema/model.py` | `models/architectures/monai_models.py` |
 | Add a loss function | `connectomics/models/losses/losses.py`; register in `create_loss()`; metadata in `losses/metadata.py` | `models/losses/build.py` |
 | Add a decoder | `connectomics/decoding/decoders/`; register via the `register_decoder(name, fn, *, overwrite=False)` *function call* in `decoding/registry.py` (NOT a `@register_decoder` decorator); a multi-input graph op uses `register_graph_op(name, as_binary_graph_op(fn))` | `decoding/decoders/segmentation.py`, `decoding/decoders/branch/` |
 | Change augmentation | `connectomics/data/augmentation/build.py`; profile YAMLs in `config/profiles/augmentation_*.yaml` | `data/augmentation/transforms.py` |
 | Change postprocess | `connectomics/decoding/postprocess.py`; templates in `config/templates/decoding_*.yaml` | `decoding/streamed_chunked.py` |
-| Add a tutorial config | `tutorials/<name>.yaml`; validate with `python scripts/validate_tutorial_configs.py --glob 'tutorials/<name>.yaml'` (note: `--glob` is additive over the default `tutorials/*.yaml`; filter output for the new path before fixing anything) | `tutorials/mito_lucchi++.yaml` |
+| Add a tutorial config | `tutorials/<name>.yaml`; validate with `python scripts/validate_tutorial_configs.py --glob 'tutorials/<name>.yaml'` (note: `--glob` is additive over the default `tutorials/*.yaml`; filter output for the new path before fixing anything) | `tutorials/mito_lucchi++/mito_lucchi++.yaml` |
 | Debug a failing tutorial | `prompts/DEBUG_TUTORIAL.md`; reproduce with `python scripts/main.py --config <yaml> --fast-dev-run` | `python scripts/main.py --config <yaml> --fast-dev-run` |
 
 When a new intent class shows up, add a row here rather than scattering

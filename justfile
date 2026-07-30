@@ -89,7 +89,7 @@ download-list:
 # Training Commands
 # ============================================================================
 
-# Train (e.g., just train fiber, just train lucchi++ -- system.num_gpus=1)
+# Train (e.g., just train fiber, just train mito_lucchi++/mito_lucchi++)
 # Uses architecture specified in tutorials/{{dataset}}.yaml
 train dataset *ARGS='':
     python scripts/main.py --config tutorials/{{dataset}}.yaml {{ARGS}}
@@ -150,7 +150,7 @@ tensorboard-run experiment timestamp port='6006':
 # Examples:
 #   just slurm long 8 4 "just train mitoEM/H" vr40g
 #   just slurm short 8 4 "python scripts/main.py --config tutorials/lucchi.yaml"
-#   just slurm short 8 4 "just train lucchi++" "" "64G"    # override memory
+#   just slurm short 8 4 "just train mito_lucchi++/mito_lucchi++" "" "64G"
 #   just slurm medium 8 2 "just train vesicle_xm" vr144g 128G gb001  # pin node
 #   just slurm medium 12 3 "just train neuron_snemi" "" 100G g006 weidf_effort4
 # Time limits: short=12h, medium=2d, long=5d
