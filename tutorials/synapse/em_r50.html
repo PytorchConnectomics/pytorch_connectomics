@@ -1,0 +1,692 @@
+
+
+
+
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!-->
+<html class="no-js" lang="en">
+<!--<![endif]-->
+
+<head>
+  <meta charset="utf-8">
+  <meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>EM-R50 (Synaptic Polarity Detection) &mdash; connectomics latest documentation</title>
+  
+
+  
+  
+  <link rel="shortcut icon" href="../../_static/favicon.svg" />
+  
+  
+  
+
+  
+
+  
+  
+  
+
+  
+
+  
+  <link rel="stylesheet" href="../../_static/css/theme.css" type="text/css" />
+  <!-- <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" /> -->
+  <link rel="stylesheet" href="../../_static/css/pytc-theme.css" type="text/css" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@docsearch/js@alpha" type="text/css" />
+  <link rel="stylesheet" href="../../_static/css/readthedocs-doc-embed.css" type="text/css" />
+  <link rel="index" title="Index" href="../../genindex.html" />
+  <link rel="search" title="Search" href="../../search.html" />
+  <link rel="next" title="Wrinkle (2D Binary Segmentation)" href="../wrinkle.html" />
+  <link rel="prev" title="CREMI (Synaptic Cleft Detection)" href="cremi.html" /> 
+
+    <!-- Preload the theme fonts -->
+
+<link rel="preload" href="_static/fonts/FreightSans/freight-sans-book.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="_static/fonts/FreightSans/freight-sans-medium.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="_static/fonts/IBMPlexMono/IBMPlexMono-Medium.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="_static/fonts/FreightSans/freight-sans-bold.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="_static/fonts/FreightSans/freight-sans-medium-italic.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="_static/fonts/IBMPlexMono/IBMPlexMono-SemiBold.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+
+<!-- Preload the katex fonts -->
+
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Math-Italic.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Main-Regular.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Main-Bold.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Size1-Regular.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Size4-Regular.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Size2-Regular.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Size3-Regular.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Caligraphic-Regular.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+
+  <link rel="stylesheet" href="text.css" type="text/css" />
+
+  <!-- at the end of the HEAD -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@docsearch/css@alpha" />
+</head>
+
+<div class="container-fluid header-holder tutorials-header" id="header-holder">
+  <div class="container">
+
+    <a class="header-logo" href="../../index.html" aria-label="PyTC"></a>
+
+    <div class="header-container">
+
+      <div class="main-menu">
+        <ul>
+          <li>
+            <a href="../../notes/installation.html">Get Started</a>
+          </li>
+          <li>
+            <a href="../neuron.html">Tutorials</a>
+          </li>
+          <li>
+            <a href="../../index.html">Docs</a>
+          </li>
+          <li>
+            <a href="https://github.com/zudi-lin/pytorch_connectomics/tree/master">GitHub</a>
+          </li>
+          <li>
+            <a href="../../about/team.html">About Us</a>
+          </li>
+
+        </ul>
+      </div>
+
+      <!-- <a class="main-menu-open-button" href="#" data-behavior="open-mobile-menu"></a> -->
+    </div>
+
+  </div>
+</div>
+
+
+<body class="pytorch-body">
+
+   
+
+  
+
+  <div class="table-of-contents-link-wrapper">
+    <span>Table of Contents</span>
+    <a href="#" class="toggle-table-of-contents" data-behavior="toggle-table-of-contents"></a>
+  </div>
+
+  <nav data-toggle="wy-nav-shift" class="pytorch-left-menu" id="pytorch-left-menu">
+    <div class="pytorch-side-scroll">
+      <div class="pytorch-menu pytorch-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+        <div class="pytorch-left-menu-search">
+          
+
+          
+          
+          
+          <div class="version">
+            latest
+          </div>
+          
+          
+
+          <div id="docsearch"></div>
+
+          
+        </div>
+
+        
+        
+        
+        
+        
+        
+        <p class="caption" role="heading"><span class="caption-text">Get Started</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../notes/installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../notes/config.html">Configuration System</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../notes/dataloading.html">Data Loading</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../notes/axis_order.html">Axis and Channel Order</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../notes/malis.html">MALIS Loss</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../notes/faq.html">FAQ</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Tutorials</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../neuron/index.html">Neuron Segmentation</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../neuron/snemi3d.html">SNEMI3D</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../neuron/nisb.html">NISB</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../neuron/liconn.html">LICONN</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../mito/index.html">Mitochondria Segmentation</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../mito/lucchi.html">Lucchi++ (Semantic Segmentation)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../mito/mitoem.html">MitoEM (Instance Segmentation)</a></li>
+</ul>
+</li>
+<li class="toctree-l1 current"><a class="reference internal" href="index.html">Synapse Detection</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="cremi.html">CREMI (Synaptic Cleft Detection)</a></li>
+<li class="toctree-l2 current"><a class="current reference internal" href="#">EM-R50 (Synaptic Polarity Detection)</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../wrinkle.html">Wrinkle (2D Binary Segmentation)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../artifact.html">Artifacts Detection (Draft)</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">External Tools</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../external/neuroglancer.html">Neuroglancer</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Package Reference</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../modules/lightning.html">Lightning Module API</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../modules/model.html">connectomics.models</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../modules/data.html">connectomics.data</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../modules/utils.html">connectomics.utils</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">About</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../about/team.html">About Us</a></li>
+</ul>
+
+        
+        
+      </div>
+    </div>
+
+    
+
+
+    
+
+    <!-- 
+    
+    <div class="rst-versions" data-toggle="rst-versions" role="note" aria-label="versions">
+      <span class="rst-current-version" data-toggle="rst-current-version">
+        <span class="fa fa-book"> Read the Docs</span>
+        v: latest
+        <span class="fa fa-caret-down"></span>
+      </span>
+      <div class="rst-other-versions">
+        <dl>
+          <dt>Versions</dt>
+          
+          <dd><a href="#">latest</a></dd>
+          
+        </dl>
+        <dl>
+          <dt>Downloads</dt>
+          <dd><a href="https://github.com/zudi-lin/pytorch_connectomics/">PDF</a>
+          </dd>
+          <dd><a href="https://github.com/zudi-lin/pytorch_connectomics/">HTML</a></dd>
+        </dl>
+        <dl>
+          <dt>On Github</dt>
+          <dd><a href="https://github.com/zudi-lin/pytorch_connectomics">Home</a></dd>
+          <dd><a href="https://github.com/zudi-lin/pytorch_connectomics/">Docs</a></dd>
+        </dl>
+      </div>
+    </div>
+    
+     -->
+
+  </nav>
+
+
+  <div class="pytorch-container">
+    <div class="pytorch-page-level-bar" id="pytorch-page-level-bar">
+      <div class="pytorch-breadcrumbs-wrapper">
+        
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="pytorch-breadcrumbs">
+    
+      <li>
+        <a href="../../index.html">
+          
+            Docs
+          
+        </a> &gt;
+      </li>
+
+        
+          <li><a href="index.html">Synapse Detection</a> &gt;</li>
+        
+      <li>EM-R50 (Synaptic Polarity Detection)</li>
+    
+    
+      <li class="pytorch-breadcrumbs-aside">
+        
+            
+            <a href="../../_sources/tutorials/synapse/em_r50.rst.txt" rel="nofollow"><img src="../../_static/images/view-page-source-icon.svg"></a>
+          
+        
+      </li>
+    
+  </ul>
+
+  
+</div>
+      </div>
+
+      <div class="pytorch-shortcuts-wrapper" id="pytorch-shortcuts-wrapper">
+        Shortcuts
+      </div>
+    </div>
+
+    <section data-toggle="wy-nav-shift" id="pytorch-content-wrap" class="pytorch-content-wrap">
+      <div class="pytorch-content-left">
+
+        
+        
+          <div class="rst-content">
+            
+            <div role="main" class="main-content" itemscope="itemscope" itemtype="http://schema.org/Article">
+              <article itemprop="articleBody" id="pytorch-article" class="pytorch-article">
+                
+  <section id="em-r50-synaptic-polarity-detection">
+<h1>EM-R50 (Synaptic Polarity Detection)<a class="headerlink" href="#em-r50-synaptic-polarity-detection" title="Permalink to this heading">¶</a></h1>
+<p>A <a class="reference external" href="https://en.wikipedia.org/wiki/Synapse">synapse</a> is an essential
+structure that allows electric or chemical signals to be passed between
+neurons. Identification of synapses is important for reconstructing the
+wiring diagram of the brain. Signal flows in one direction at a synapse,
+so each synapse usually consists of a pre-synaptic and a post-synaptic
+region.</p>
+<p>This section covers two benchmarks:</p>
+<ul class="simple">
+<li><p><a class="reference internal" href="cremi.html"><span class="doc">CREMI</span></a> — synaptic <em>cleft</em> detection on the
+<a class="reference external" href="https://cremi.org">CREMI Challenge</a> dataset (adult <em>Drosophila
+melanogaster</em> brain tissue, 2016).</p></li>
+<li><p><a class="reference internal" href="#"><span class="doc">EM-R50</span></a> — synaptic <em>polarity</em> detection on the dataset
+released by
+<a class="reference external" href="http://www.ecva.net/papers/eccv_2020/papers_ECCV/papers/123630103.pdf">Lin et al.</a>
+in 2020 (Layer II/III primary visual cortex of an adult rat). This
+predicts pre-synaptic and post-synaptic masks separately.</p></li>
+</ul>
+<p>This tutorial covers synaptic <strong>polarity</strong> detection — predicting
+separated pre-synaptic and post-synaptic masks so the signal flow
+between neurons can be traced. The dataset was released by
+<a class="reference external" href="http://www.ecva.net/papers/eccv_2020/papers_ECCV/papers/123630103.pdf">Lin et al. (2020)</a>
+from Layer II/III of the primary visual cortex of an adult rat.</p>
+<p>Unlike the cleft-detection task, polarity detection requires
+distinguishing individual synapses <em>and</em> assigning a side (pre /
+post) to each. The model outputs three channels — pre-synaptic,
+post-synaptic, and synaptic (union) — and a connected-components
+post-processor groups them into per-synapse instances.</p>
+<blockquote>
+<div><div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>A dedicated EM-R50 tutorial config does not yet ship under
+<code class="docutils literal notranslate"><span class="pre">tutorials/</span></code> in the modern (v2/v3) PyTC layout. The decoder
+and target-generation building blocks are present
+(<code class="docutils literal notranslate"><span class="pre">polarity2instance</span></code> decoder; <code class="docutils literal notranslate"><span class="pre">seg_to_polarity</span></code> target),
+but a canonical end-to-end YAML is a follow-up. The recipe
+below shows how to assemble one from the existing CREMI
+cleft-detection config (<code class="docutils literal notranslate"><span class="pre">tutorials/syn_cremi.yaml</span></code>) plus
+the polarity-specific pieces.</p>
+</div>
+</div></blockquote>
+<section id="goal">
+<h2>Goal<a class="headerlink" href="#goal" title="Permalink to this heading">¶</a></h2>
+<p>The intended pipeline:</p>
+<ul class="simple">
+<li><p><strong>Model output</strong> 3 channels — pre-synaptic, post-synaptic, and
+synaptic-union.</p></li>
+<li><p><strong>Target generation</strong> <code class="docutils literal notranslate"><span class="pre">seg_to_polarity</span></code> over instance labels;
+set <code class="docutils literal notranslate"><span class="pre">exclusive=true</span></code> if pre / post should never overlap (uses
+softmax) or <code class="docutils literal notranslate"><span class="pre">false</span></code> for the standard non-exclusive BCE setup
+(channels predicted independently with sigmoid).</p></li>
+<li><p><strong>Loss</strong> <code class="docutils literal notranslate"><span class="pre">WeightedBCEWithLogitsLoss</span></code> with rejection sampling on
+the foreground (synapses are sparse), or <code class="docutils literal notranslate"><span class="pre">WeightedCE</span></code> for the
+exclusive variant.</p></li>
+<li><p><strong>Decoder</strong> <code class="docutils literal notranslate"><span class="pre">polarity2instance</span></code> — connected-components on the
+synaptic-union channel, then voting on pre / post per instance.</p></li>
+<li><p><strong>Metric</strong> an IoU-based F1 score on instance-matched pairs.</p></li>
+</ul>
+<section id="get-the-data">
+<h3>1 - Get the data<a class="headerlink" href="#get-the-data" title="Permalink to this heading">¶</a></h3>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>mkdir<span class="w"> </span>-p<span class="w"> </span>datasets/jwr15<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="nb">cd</span><span class="w"> </span>datasets/jwr15
+wget<span class="w"> </span>http://rhoana.rc.fas.harvard.edu/dataset/jwr15_synapse.zip
+unzip<span class="w"> </span>jwr15_synapse.zip
+</pre></div>
+</div>
+</section>
+<section id="building-a-v2-config-template">
+<h3>2 - Building a v2 config (template)<a class="headerlink" href="#building-a-v2-config-template" title="Permalink to this heading">¶</a></h3>
+<p>Start from <code class="docutils literal notranslate"><span class="pre">tutorials/syn_cremi.yaml</span></code> and apply three changes:</p>
+<p>(a) <strong>Switch the model output to 3 channels</strong> and use a non-exclusive
+BCE loss (or <code class="docutils literal notranslate"><span class="pre">WeightedCE</span></code> if you prefer exclusive masks):</p>
+<div class="highlight-yaml notranslate"><div class="highlight"><pre><span></span><span class="nt">default</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">model</span><span class="p">:</span>
+<span class="w">    </span><span class="nt">out_channels</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">3</span>
+<span class="w">    </span><span class="nt">loss</span><span class="p">:</span>
+<span class="w">      </span><span class="nt">losses</span><span class="p">:</span>
+<span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">function</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">WeightedBCEWithLogitsLoss</span>
+<span class="w">        </span><span class="nt">weight</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">1.0</span>
+<span class="w">        </span><span class="nt">kwargs</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="nt">reduction</span><span class="p">:</span><span class="w"> </span><span class="nv">mean</span><span class="p p-Indicator">}</span>
+<span class="w">        </span><span class="nt">pred_slice</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;0:3&quot;</span>
+<span class="w">        </span><span class="nt">target_slice</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;0:3&quot;</span>
+</pre></div>
+</div>
+<p>(b) <strong>Drive target generation through the polarity helper.</strong> In your
+<code class="docutils literal notranslate"><span class="pre">data.label_transform</span></code> block, generate the 3-channel polarity
+target from instance labels by post-processing your label volume
+through <code class="docutils literal notranslate"><span class="pre">connectomics.data.processing.target.seg_to_polarity</span></code>
+(invoke from a small data-preparation script ahead of training, or
+add it as a custom processing step). Disable the cleft binary path
+that ships in <code class="docutils literal notranslate"><span class="pre">syn_cremi.yaml</span></code>.</p>
+<ol class="loweralpha simple" start="3">
+<li><p><strong>Add the polarity decoder</strong> under <code class="docutils literal notranslate"><span class="pre">decoding.steps</span></code>:</p></li>
+</ol>
+<div class="highlight-yaml notranslate"><div class="highlight"><pre><span></span><span class="nt">decoding</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">steps</span><span class="p">:</span>
+<span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">polarity2instance</span>
+<span class="w">    </span><span class="nt">kwargs</span><span class="p">:</span>
+<span class="w">      </span><span class="c1"># default: non-exclusive (independent BCE channels);</span>
+<span class="w">      </span><span class="c1"># set true if you trained with WeightedCE / softmax.</span>
+<span class="w">      </span><span class="nt">exclusive</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">false</span>
+</pre></div>
+</div>
+<p>The rest of the CREMI config (RSUNet, anisotropic 18 × 256 × 256
+patches, sliding-window inference, EMA, augmentation profile) carries
+over.</p>
+<blockquote>
+<div><div class="admonition tip">
+<p class="admonition-title">Tip</p>
+<p>Synapses are sparse, so add <strong>rejection sampling</strong> to focus
+training on patches that contain foreground:</p>
+<div class="highlight-yaml notranslate"><div class="highlight"><pre><span></span><span class="nt">data</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">dataloader</span><span class="p">:</span>
+<span class="w">    </span><span class="nt">reject_sampling</span><span class="p">:</span>
+<span class="w">      </span><span class="nt">size_thres</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">1000</span>
+<span class="w">      </span><span class="nt">p</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">0.95</span>
+</pre></div>
+</div>
+<p>This is what <code class="docutils literal notranslate"><span class="pre">syn_cremi.yaml</span></code> already does for cleft
+detection; keep it for polarity training.</p>
+</div>
+</div></blockquote>
+</section>
+<section id="run-training">
+<h3>3 - Run training<a class="headerlink" href="#run-training" title="Permalink to this heading">¶</a></h3>
+<p>Once your config is assembled (e.g. saved as
+<code class="docutils literal notranslate"><span class="pre">tutorials/syn_em_r50.yaml</span></code>):</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>conda<span class="w"> </span>activate<span class="w"> </span>pytc
+python<span class="w"> </span>scripts/main.py<span class="w"> </span>--config<span class="w"> </span>tutorials/syn_em_r50.yaml
+</pre></div>
+</div>
+</section>
+<section id="inference-decoding-evaluation">
+<h3>4 - Inference, decoding, evaluation<a class="headerlink" href="#inference-decoding-evaluation" title="Permalink to this heading">¶</a></h3>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>python<span class="w"> </span>scripts/main.py<span class="w"> </span>--config<span class="w"> </span>tutorials/syn_em_r50.yaml<span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>--mode<span class="w"> </span><span class="nb">test</span><span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>--checkpoint<span class="w"> </span>outputs/&lt;exp&gt;/&lt;timestamp&gt;/checkpoints/last.ckpt
+</pre></div>
+</div>
+<p>The decoding stage runs <code class="docutils literal notranslate"><span class="pre">polarity2instance</span></code>, which converts the
+3-channel probability map into per-synapse instance masks with a
+recorded side (pre vs. post). For programmatic use:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">connectomics.decoding</span><span class="w"> </span><span class="kn">import</span> <span class="n">polarity2instance</span>
+<span class="c1"># volume: (3, D, H, W) prediction, channels = [pre, post, syn]</span>
+<span class="n">instances</span> <span class="o">=</span> <span class="n">polarity2instance</span><span class="p">(</span><span class="n">volume</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>The <code class="docutils literal notranslate"><span class="pre">exclusive=True</span></code> variant interprets the channels as a softmax
+output over {background, pre, post} and uses a different connected-
+component path; pass <code class="docutils literal notranslate"><span class="pre">exclusive=True</span></code> to <code class="docutils literal notranslate"><span class="pre">polarity2instance</span></code> if
+your model was trained with <code class="docutils literal notranslate"><span class="pre">WeightedCE</span></code>.</p>
+</section>
+<section id="reference-behavior">
+<h3>5 - Reference behavior<a class="headerlink" href="#reference-behavior" title="Permalink to this heading">¶</a></h3>
+<ul class="simple">
+<li><p><strong>Training loss</strong> is dominated by the synaptic-union channel
+early on; the pre / post channels improve as the model learns
+spatial directionality, typically after the first cosine
+decay phase. Rejection sampling plus higher foreground weights
+is essential — without it, pre and post collapse to all-zeros.</p></li>
+<li><p><strong>Inference</strong> is identical to the CREMI flow (same RSUNet, same
+sliding window). The decoder runs in CPU and is fast.</p></li>
+<li><p><strong>Reporting</strong> the published EM-R50 F1 is computed against the
+Lin et al. 2020 evaluation script. Comparable code lives in the
+upstream paper repo; contact the maintainers if you intend to
+benchmark formally.</p></li>
+</ul>
+</section>
+</section>
+</section>
+
+
+              </article>
+              
+            </div>
+            <footer>
+  
+  <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
+    
+    <a href="../wrinkle.html" class="btn btn-neutral float-right" title="Wrinkle (2D Binary Segmentation)" accesskey="n"
+      rel="next">Next <img src="../../_static/images/chevron-right-orange.svg"
+        class="next-page"></a>
+    
+    
+    <a href="cremi.html" class="btn btn-neutral" title="CREMI (Synaptic Cleft Detection)" accesskey="p"
+      rel="prev"><img src="../../_static/images/chevron-right-orange.svg" class="previous-page"> Previous</a>
+    
+  </div>
+  
+
+  
+
+  <hr>
+
+  
+
+  <div role="contentinfo">
+    <p>
+      &copy; Copyright 2019-2026, PyTorch Connectomics Contributors.
+
+    </p>
+  </div>
+  
+  <div style="margin-bottom:1cm">
+    Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a
+      href="https://github.com/rtfd/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the
+      Docs</a>.
+  </div>
+   
+
+</footer>
+          </div>
+        </div>
+
+        <div class="pytorch-content-right" id="pytorch-content-right">
+          <div class="pytorch-right-menu" id="pytorch-right-menu">
+            <div class="pytorch-side-scroll" id="pytorch-side-scroll-right">
+              <ul>
+<li><a class="reference internal" href="#">EM-R50 (Synaptic Polarity Detection)</a><ul>
+<li><a class="reference internal" href="#goal">Goal</a><ul>
+<li><a class="reference internal" href="#get-the-data">1 - Get the data</a></li>
+<li><a class="reference internal" href="#building-a-v2-config-template">2 - Building a v2 config (template)</a></li>
+<li><a class="reference internal" href="#run-training">3 - Run training</a></li>
+<li><a class="reference internal" href="#inference-decoding-evaluation">4 - Inference, decoding, evaluation</a></li>
+<li><a class="reference internal" href="#reference-behavior">5 - Reference behavior</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+
+            </div>
+          </div>
+        </div>
+    </section>
+  </div>
+
+  
+
+  
+  <script type="text/javascript" id="documentation_options" data-url_root="../../"
+    src="../../_static/documentation_options.js"></script>
+  <script data-url_root="../../" id="documentation_options" src="../../_static/documentation_options.js"></script>
+  <script src="../../_static/jquery.js"></script>
+  <script src="../../_static/underscore.js"></script>
+  <script src="../../_static/_sphinx_javascript_frameworks_compat.js"></script>
+  <script src="../../_static/doctools.js"></script>
+  <script src="../../_static/sphinx_highlight.js"></script>
+  
+
+  
+
+  <script type="text/javascript" src="../../_static/js/vendor/popper.min.js"></script>
+  <script type="text/javascript" src="../../_static/js/vendor/bootstrap.min.js"></script>
+  <script type="text/javascript" src="../../_static/js/theme.js"></script>
+
+  <script type="text/javascript">
+    jQuery(function () {
+      SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+
+  <!-- Begin Footer -->
+
+  <div class="container-fluid docs-tutorials-resources" id="docs-tutorials-resources">
+    <!-- <div class="container">
+      <div class="row">
+        <div class="col-md-4 text-center">
+          <h2>Visual Computing Group</h2>
+          <p>Visual computing group (VCG) led by Prof. Hanspeter Pfister at Harvard University</p>
+          <a class="with-right-arrow" href="https://vcg.seas.harvard.edu/">View VCG</a>
+        </div>
+        <div class="col-md-4 text-center">
+          <h2>Lichtman Lab</h2>
+          <p>Neuroscience research lab led by Prof. Jeff Lichtman at Harvard University</p>
+          <a class="with-right-arrow" href="https://lichtmanlab.fas.harvard.edu">View Lichtman Lab</a>
+        </div>
+        <div class="col-md-4 text-center">
+          <h2>PyTorch</h2>
+          <p>An open source machine learning framework</p>
+          <a class="with-right-arrow" href="https://pytorch.org/">View PyTorch</a>
+        </div>
+      </div>
+    </div> -->
+  </div>
+
+  <div class="cookie-banner-wrapper">
+  <div class="container">
+    <p class="gdpr-notice">To analyze traffic and optimize your experience, we serve cookies on this site. By clicking or navigating, you agree to allow our usage of cookies. As the current maintainers of this site, Facebook’s Cookies Policy applies. Learn more, including about available controls: <a href="https://www.facebook.com/policies/cookies/">Cookies Policy</a>.</p>
+    <img class="close-button" src="_static/images/pytorch-x.svg">
+  </div>
+</div>
+
+  <!-- End Footer -->
+
+  <!-- Begin Mobile Menu -->
+  <!--
+  <div class="mobile-main-menu">
+    <div class="container-fluid">
+      <div class="container">
+        <div class="mobile-main-menu-header-container">
+          <a class="header-logo" href="https://zudi-lin.github.io/pytorch_connectomics/build/html/index.html" aria-label="PyTorch"></a>
+          <a class="main-menu-close-button" href="#" data-behavior="close-mobile-menu"></a>
+        </div>
+      </div>
+    </div>
+    <div class="mobile-main-menu-links-container">
+      <div class="main-menu">
+        <ul>
+          <li>
+            <a href="#">Get Started</a>
+          </li>
+          <li>
+            <a href="#">Features</a>
+          </li>
+          <li>
+            <a href="#">Ecosystem</a>
+          </li>
+          <li>
+            <a href="">Blog</a>
+          </li>
+          <li>
+            <a href="https://zudi-lin.github.io/pytorch_connectomics/build/html/tutorials/snemi.html">Tutorials</a>
+          </li>
+          <li>
+            <a href="https://zudi-lin.github.io/pytorch_connectomics/build/html/index.html">Docs</a>
+          </li>
+          <li>
+            <a href="">Resources</a>
+          </li>
+          <li>
+            <a href="https://github.com/zudi-lin/pytorch_connectomics/tree/master">Github</a>
+          </li>
+        </ul>
+      </div>
+    </div>
+  </div>
+  -->
+  <!-- End Mobile Menu -->
+
+  <script type="text/javascript" src="../../_static/js/vendor/anchor.min.js"></script>
+
+  <script type="text/javascript">
+    var collapsedSections = ['Notes']
+    $(document).ready(function () {
+      mobileMenu.bind();
+      mobileTOC.bind();
+      pytorchAnchors.bind();
+      sideMenus.bind();
+      scrollToAnchor.bind();
+      highlightNavigation.bind();
+
+      // Add class to links that have code blocks, since we cannot create links in code blocks
+      $("article.pytorch-article a span.pre").each(function (e) {
+        $(this).closest("a").addClass("has-code");
+      });
+
+      // Sidebar accordion: click an L1 parent (that has children) to toggle
+      // .expanded / .collapsed instead of navigating. .current is set by
+      // Sphinx on the active section so it starts open by default; the
+      // explicit .collapsed class lets the user fold even the active one.
+      $('.pytorch-menu-vertical .toctree-l1 > a').each(function () {
+        var $a = $(this);
+        var $li = $a.parent();
+        var $ul = $li.children('ul');
+        if ($ul.length === 0) return;
+        $a.on('click', function (e) {
+          e.preventDefault();
+          if ($ul.is(':visible')) {
+            $li.addClass('collapsed').removeClass('expanded');
+          } else {
+            $li.addClass('expanded').removeClass('collapsed');
+          }
+        });
+      });
+    })
+  </script>
+
+  <!-- at the end of the BODY -->
+  <script src="https://cdn.jsdelivr.net/npm/@docsearch/js@alpha"></script>
+  <script>
+    /* global docsearch */
+    docsearch({
+      container: "#docsearch",
+      apiKey: "f072ddc06d4d2d86f6b26fb6f12a4699",
+      indexName: "readthedocs",
+      placeholder: "Search PyTorch Connectomics",
+    });
+  </script>
+
+</body>
+
+</html>

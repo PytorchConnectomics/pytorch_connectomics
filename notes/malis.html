@@ -1,0 +1,715 @@
+
+
+
+
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!-->
+<html class="no-js" lang="en">
+<!--<![endif]-->
+
+<head>
+  <meta charset="utf-8">
+  <meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>MALIS Loss &mdash; connectomics latest documentation</title>
+  
+
+  
+  
+  <link rel="shortcut icon" href="../_static/favicon.svg" />
+  
+  
+  
+
+  
+
+  
+  
+  
+
+  
+
+  
+  <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
+  <!-- <link rel="stylesheet" href="../_static/pygments.css" type="text/css" /> -->
+  <link rel="stylesheet" href="../_static/css/pytc-theme.css" type="text/css" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@docsearch/js@alpha" type="text/css" />
+  <link rel="stylesheet" href="../_static/css/readthedocs-doc-embed.css" type="text/css" />
+  <link rel="index" title="Index" href="../genindex.html" />
+  <link rel="search" title="Search" href="../search.html" />
+  <link rel="next" title="FAQ" href="faq.html" />
+  <link rel="prev" title="Axis and Channel Order" href="axis_order.html" /> 
+
+    <!-- Preload the theme fonts -->
+
+<link rel="preload" href="_static/fonts/FreightSans/freight-sans-book.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="_static/fonts/FreightSans/freight-sans-medium.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="_static/fonts/IBMPlexMono/IBMPlexMono-Medium.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="_static/fonts/FreightSans/freight-sans-bold.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="_static/fonts/FreightSans/freight-sans-medium-italic.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="_static/fonts/IBMPlexMono/IBMPlexMono-SemiBold.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+
+<!-- Preload the katex fonts -->
+
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Math-Italic.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Main-Regular.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Main-Bold.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Size1-Regular.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Size4-Regular.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Size2-Regular.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Size3-Regular.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Caligraphic-Regular.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+
+  <link rel="stylesheet" href="text.css" type="text/css" />
+
+  <!-- at the end of the HEAD -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@docsearch/css@alpha" />
+</head>
+
+<div class="container-fluid header-holder tutorials-header" id="header-holder">
+  <div class="container">
+
+    <a class="header-logo" href="../index.html" aria-label="PyTC"></a>
+
+    <div class="header-container">
+
+      <div class="main-menu">
+        <ul>
+          <li>
+            <a href="installation.html">Get Started</a>
+          </li>
+          <li>
+            <a href="../tutorials/neuron.html">Tutorials</a>
+          </li>
+          <li>
+            <a href="../index.html">Docs</a>
+          </li>
+          <li>
+            <a href="https://github.com/zudi-lin/pytorch_connectomics/tree/master">GitHub</a>
+          </li>
+          <li>
+            <a href="../about/team.html">About Us</a>
+          </li>
+
+        </ul>
+      </div>
+
+      <!-- <a class="main-menu-open-button" href="#" data-behavior="open-mobile-menu"></a> -->
+    </div>
+
+  </div>
+</div>
+
+
+<body class="pytorch-body">
+
+   
+
+  
+
+  <div class="table-of-contents-link-wrapper">
+    <span>Table of Contents</span>
+    <a href="#" class="toggle-table-of-contents" data-behavior="toggle-table-of-contents"></a>
+  </div>
+
+  <nav data-toggle="wy-nav-shift" class="pytorch-left-menu" id="pytorch-left-menu">
+    <div class="pytorch-side-scroll">
+      <div class="pytorch-menu pytorch-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+        <div class="pytorch-left-menu-search">
+          
+
+          
+          
+          
+          <div class="version">
+            latest
+          </div>
+          
+          
+
+          <div id="docsearch"></div>
+
+          
+        </div>
+
+        
+        
+        
+        
+        
+        
+        <p class="caption" role="heading"><span class="caption-text">Get Started</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="config.html">Configuration System</a></li>
+<li class="toctree-l1"><a class="reference internal" href="dataloading.html">Data Loading</a></li>
+<li class="toctree-l1"><a class="reference internal" href="axis_order.html">Axis and Channel Order</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">MALIS Loss</a></li>
+<li class="toctree-l1"><a class="reference internal" href="faq.html">FAQ</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Tutorials</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../tutorials/neuron/index.html">Neuron Segmentation</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../tutorials/neuron/snemi3d.html">SNEMI3D</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../tutorials/neuron/nisb.html">NISB</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../tutorials/neuron/liconn.html">LICONN</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../tutorials/mito/index.html">Mitochondria Segmentation</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../tutorials/mito/lucchi.html">Lucchi++ (Semantic Segmentation)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../tutorials/mito/mitoem.html">MitoEM (Instance Segmentation)</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../tutorials/synapse/index.html">Synapse Detection</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../tutorials/synapse/cremi.html">CREMI (Synaptic Cleft Detection)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../tutorials/synapse/em_r50.html">EM-R50 (Synaptic Polarity Detection)</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../tutorials/wrinkle.html">Wrinkle (2D Binary Segmentation)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../tutorials/artifact.html">Artifacts Detection (Draft)</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">External Tools</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../external/neuroglancer.html">Neuroglancer</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Package Reference</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../modules/lightning.html">Lightning Module API</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/model.html">connectomics.models</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/data.html">connectomics.data</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/utils.html">connectomics.utils</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">About</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../about/team.html">About Us</a></li>
+</ul>
+
+        
+        
+      </div>
+    </div>
+
+    
+
+
+    
+
+    <!-- 
+    
+    <div class="rst-versions" data-toggle="rst-versions" role="note" aria-label="versions">
+      <span class="rst-current-version" data-toggle="rst-current-version">
+        <span class="fa fa-book"> Read the Docs</span>
+        v: latest
+        <span class="fa fa-caret-down"></span>
+      </span>
+      <div class="rst-other-versions">
+        <dl>
+          <dt>Versions</dt>
+          
+          <dd><a href="#">latest</a></dd>
+          
+        </dl>
+        <dl>
+          <dt>Downloads</dt>
+          <dd><a href="https://github.com/zudi-lin/pytorch_connectomics/">PDF</a>
+          </dd>
+          <dd><a href="https://github.com/zudi-lin/pytorch_connectomics/">HTML</a></dd>
+        </dl>
+        <dl>
+          <dt>On Github</dt>
+          <dd><a href="https://github.com/zudi-lin/pytorch_connectomics">Home</a></dd>
+          <dd><a href="https://github.com/zudi-lin/pytorch_connectomics/">Docs</a></dd>
+        </dl>
+      </div>
+    </div>
+    
+     -->
+
+  </nav>
+
+
+  <div class="pytorch-container">
+    <div class="pytorch-page-level-bar" id="pytorch-page-level-bar">
+      <div class="pytorch-breadcrumbs-wrapper">
+        
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="pytorch-breadcrumbs">
+    
+      <li>
+        <a href="../index.html">
+          
+            Docs
+          
+        </a> &gt;
+      </li>
+
+        
+      <li>MALIS Loss</li>
+    
+    
+      <li class="pytorch-breadcrumbs-aside">
+        
+            
+            <a href="../_sources/notes/malis.rst.txt" rel="nofollow"><img src="../_static/images/view-page-source-icon.svg"></a>
+          
+        
+      </li>
+    
+  </ul>
+
+  
+</div>
+      </div>
+
+      <div class="pytorch-shortcuts-wrapper" id="pytorch-shortcuts-wrapper">
+        Shortcuts
+      </div>
+    </div>
+
+    <section data-toggle="wy-nav-shift" id="pytorch-content-wrap" class="pytorch-content-wrap">
+      <div class="pytorch-content-left">
+
+        
+        
+          <div class="rst-content">
+            
+            <div role="main" class="main-content" itemscope="itemscope" itemtype="http://schema.org/Article">
+              <article itemprop="articleBody" id="pytorch-article" class="pytorch-article">
+                
+  <section id="malis-loss">
+<h1>MALIS Loss<a class="headerlink" href="#malis-loss" title="Permalink to this heading">¶</a></h1>
+<p>The <code class="docutils literal notranslate"><span class="pre">MalisLoss</span></code> (<cite>connectomics.models.losses.malis.MalisLoss</cite>) is a
+constrained structured loss for 3D affinity prediction, used as a
+companion term to per-channel BCE in neuron-segmentation configs such
+as <code class="docutils literal notranslate"><span class="pre">tutorials/neuron_nisb/base_banis+_malis.yaml</span></code>.</p>
+<p>This page documents two knobs that significantly affect performance
+and correctness:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">malis_crop_size</span></code> — random sub-volume crop on the MALIS forward.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">label_transform.emit_gt_seg</span></code> — pass the eroded GT segmentation
+through to MalisLoss to skip the per-step connected-components
+call and to preserve global instance IDs under cropping.</p></li>
+</ul>
+<section id="the-cost-of-full-volume-malis">
+<h2>The Cost of Full-Volume MALIS<a class="headerlink" href="#the-cost-of-full-volume-malis" title="Permalink to this heading">¶</a></h2>
+<p>MALIS computes per-edge weights via two maximin-tree passes over the
+affinity graph; for each sample these passes are single-threaded
+CPU work that the GPU forward/backward path waits on. On the BANIS
+production config (MedNeXt-L, batch 2, 128³ patch), the cost is large:</p>
+<table class="docutils align-default" id="id1">
+<caption><span class="caption-text">BANIS production config — measured step rate</span><a class="headerlink" href="#id1" title="Permalink to this table">¶</a></caption>
+<colgroup>
+<col style="width: 20%" />
+<col style="width: 20%" />
+<col style="width: 20%" />
+<col style="width: 20%" />
+<col style="width: 20%" />
+</colgroup>
+<thead>
+<tr class="row-odd"><th class="head"><p>Configuration</p></th>
+<th class="head"><p>Run</p></th>
+<th class="head"><p>it/s</p></th>
+<th class="head"><p>sec/step</p></th>
+<th class="head"><p>h/epoch (5000 steps)</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>BCE only (no MALIS)</p></td>
+<td><p>slurm 2442858 / 2442857</p></td>
+<td><p>~0.71</p></td>
+<td><p>~1.4</p></td>
+<td><p>~1.95</p></td>
+</tr>
+<tr class="row-odd"><td><p>Full-volume MALIS (original)</p></td>
+<td><p>slurm 2487040</p></td>
+<td><p>~0.17</p></td>
+<td><p>~5.9</p></td>
+<td><p>~7.3</p></td>
+</tr>
+<tr class="row-even"><td><p>MALIS with <code class="docutils literal notranslate"><span class="pre">malis_crop_size:</span> <span class="pre">64</span></code></p></td>
+<td><p>slurm 2505814</p></td>
+<td><p>~0.78</p></td>
+<td><p>~1.3</p></td>
+<td><p>~1.78</p></td>
+</tr>
+</tbody>
+</table>
+<p>The “Full-volume MALIS” row is the original implementation. Adding
+MALIS makes each epoch ~3.5× slower than BCE-only on this hardware.</p>
+</section>
+<section id="malis-crop-size-random-sub-volume-crop">
+<h2><code class="docutils literal notranslate"><span class="pre">malis_crop_size</span></code> — Random Sub-Volume Crop<a class="headerlink" href="#malis-crop-size-random-sub-volume-crop" title="Permalink to this heading">¶</a></h2>
+<p>Setting <code class="docutils literal notranslate"><span class="pre">malis_crop_size:</span> <span class="pre">K</span></code> (or <code class="docutils literal notranslate"><span class="pre">[Kz,</span> <span class="pre">Ky,</span> <span class="pre">Kx]</span></code>) instructs
+MalisLoss to apply a single random <code class="docutils literal notranslate"><span class="pre">K</span> <span class="pre">×</span> <span class="pre">K</span> <span class="pre">×</span> <span class="pre">K</span></code> crop to <code class="docutils literal notranslate"><span class="pre">pred</span></code>,
+<code class="docutils literal notranslate"><span class="pre">target</span></code>, and <code class="docutils literal notranslate"><span class="pre">mask</span></code> on each forward call before computing MALIS.
+The crop origin is shared across the batch and resampled every step,
+so over many iterations the model still sees MALIS supervision
+covering the whole patch in expectation.</p>
+<p>The reduction in MALIS volume is <strong>cubic in the crop ratio</strong>. At
+<code class="docutils literal notranslate"><span class="pre">K</span> <span class="pre">=</span> <span class="pre">64</span></code> on a <code class="docutils literal notranslate"><span class="pre">128³</span></code> patch the cropped volume is <code class="docutils literal notranslate"><span class="pre">1/8</span></code> of the
+original, and CPU MALIS work drops by roughly the same factor.</p>
+<p>YAML usage:</p>
+<div class="highlight-yaml notranslate"><div class="highlight"><pre><span></span><span class="nt">model</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">loss</span><span class="p">:</span>
+<span class="w">    </span><span class="nt">losses</span><span class="p">:</span>
+<span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">function</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">PerChannelBCEWithLogitsLoss</span>
+<span class="w">        </span><span class="nt">weight</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">1.0</span>
+<span class="w">        </span><span class="nt">kwargs</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="nt"> auto_pos_weight</span><span class="p">:</span><span class="w"> </span><span class="nv">true</span><span class="p p-Indicator">,</span><span class="nt"> max_pos_weight</span><span class="p">:</span><span class="w"> </span><span class="nv">10.0</span><span class="w"> </span><span class="p p-Indicator">}</span>
+<span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">function</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">MalisLoss</span>
+<span class="w">        </span><span class="nt">weight</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">1.0</span>
+<span class="w">        </span><span class="nt">pred_slice</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;0:3&quot;</span>
+<span class="w">        </span><span class="nt">target_slice</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;0:3&quot;</span>
+<span class="w">        </span><span class="nt">kwargs</span><span class="p">:</span>
+<span class="w">          </span><span class="nt">nhood</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[[</span><span class="nv">1</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">0</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">0</span><span class="p p-Indicator">],</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">0</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">1</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">0</span><span class="p p-Indicator">],</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">0</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">0</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">1</span><span class="p p-Indicator">]]</span>
+<span class="w">          </span><span class="nt">sigmoid</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
+<span class="w">          </span><span class="nt">reduction</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">mean</span>
+<span class="w">          </span><span class="nt">malis_crop_size</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">64</span><span class="w">   </span><span class="c1"># or e.g. [32, 64, 64] for anisotropic</span>
+</pre></div>
+</div>
+<p>Default <code class="docutils literal notranslate"><span class="pre">malis_crop_size:</span> <span class="pre">null</span></code> (or omitting the key) preserves
+the original full-volume behavior bit-for-bit.</p>
+<p><strong>Measured speedup vs original (slurm 2505814 vs 2487040):</strong></p>
+<ul class="simple">
+<li><p>it/s: 0.17 → 0.78 — <strong>~4.6× faster per step</strong>.</p></li>
+<li><p>hours/epoch (5000 steps): 7.3 → 1.78 — <strong>~4.1× faster wall-clock</strong>.</p></li>
+<li><p>Total training (200 k steps, 40 epochs at 5000/epoch): ~12 days →
+~3 days.</p></li>
+</ul>
+<p><strong>Caveat.</strong> Cropping reduces the spatial volume MalisLoss sees per
+step. The model is still trained on the full patch by the BCE term,
+but the structured MALIS signal is restricted to the cropped sub-volume
+on each step. Convergence behaviour on your dataset should be
+validated empirically before committing to a final crop size.</p>
+</section>
+<section id="emit-gt-seg-skip-the-per-step-cc-fix-cropped-topology">
+<h2><code class="docutils literal notranslate"><span class="pre">emit_gt_seg</span></code> — Skip the Per-Step CC, Fix Cropped Topology<a class="headerlink" href="#emit-gt-seg-skip-the-per-step-cc-fix-cropped-topology" title="Permalink to this heading">¶</a></h2>
+<p>Without <code class="docutils literal notranslate"><span class="pre">emit_gt_seg</span></code>, MalisLoss reconstructs the GT segmentation
+from the GT affinity tensor each step:</p>
+<div class="highlight-text notranslate"><div class="highlight"><pre><span></span>gt_seg = connected_components_affgraph(target &gt; 0.5, nhood)
+</pre></div>
+</div>
+<p>This is wasteful (the data pipeline already produced the segmentation
+upstream), but more importantly it interacts badly with
+<code class="docutils literal notranslate"><span class="pre">malis_crop_size</span></code>: when a single GT instance spans the crop boundary,
+the CC of the cropped affinities labels its pieces as <strong>distinct
+components</strong>, and MALIS then injects spurious negative-constraint
+edges inside one true instance.</p>
+<p>Setting <code class="docutils literal notranslate"><span class="pre">label_transform.emit_gt_seg:</span> <span class="pre">true</span></code> adds a small
+<code class="docutils literal notranslate"><span class="pre">CopyItemsd</span></code> MONAI transform immediately after the existing
+<code class="docutils literal notranslate"><span class="pre">SegErosionInstanced</span></code> step, snapshotting the post-augmentation,
+post-erosion segmentation as <code class="docutils literal notranslate"><span class="pre">batch[&quot;gt_seg&quot;]</span></code>. The loss
+orchestrator forwards it to MalisLoss, which:</p>
+<ul class="simple">
+<li><p>Skips the per-step <code class="docutils literal notranslate"><span class="pre">connected_components_affgraph</span></code> call.</p></li>
+<li><p>Crops the supplied <code class="docutils literal notranslate"><span class="pre">gt_seg</span></code> at the same origin as <code class="docutils literal notranslate"><span class="pre">pred</span></code> /
+<code class="docutils literal notranslate"><span class="pre">target</span></code> / <code class="docutils literal notranslate"><span class="pre">mask</span></code>, preserving each instance’s global label
+inside the crop window.</p></li>
+</ul>
+<p>YAML usage:</p>
+<div class="highlight-yaml notranslate"><div class="highlight"><pre><span></span><span class="nt">default</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">data</span><span class="p">:</span>
+<span class="w">    </span><span class="nt">label_transform</span><span class="p">:</span>
+<span class="w">      </span><span class="nt">erosion</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">2</span>
+<span class="w">      </span><span class="nt">emit_gt_seg</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span><span class="w">   </span><span class="c1"># opt-in; pairs with MalisLoss</span>
+</pre></div>
+</div>
+<p>Default <code class="docutils literal notranslate"><span class="pre">emit_gt_seg:</span> <span class="pre">false</span></code> preserves the legacy CC-recompute
+behavior bit-for-bit; configs without MalisLoss are unaffected.</p>
+<p><strong>Deep supervision.</strong> When deep supervision is active, the loss
+orchestrator forces <code class="docutils literal notranslate"><span class="pre">gt_seg=None</span></code> for every head (DS lower heads
+work on downsampled targets that <code class="docutils literal notranslate"><span class="pre">gt_seg</span></code> cannot match
+label-correctly with the same cheap transform). MalisLoss in a DS
+config falls back to the CC-recompute path; the BANIS production
+configs use <code class="docutils literal notranslate"><span class="pre">deep_supervision:</span> <span class="pre">false</span></code> and are unaffected.</p>
+</section>
+<section id="combined-speedup">
+<h2>Combined Speedup<a class="headerlink" href="#combined-speedup" title="Permalink to this heading">¶</a></h2>
+<p>Both knobs compose cleanly. The crop is the dominant speedup; the
+<code class="docutils literal notranslate"><span class="pre">gt_seg</span></code> passthrough adds a small additional CPU saving (~5–10 % of
+the remaining MALIS overhead — the per-step CC is removed but the
+two maximin-tree passes still dominate) on top of correctness.</p>
+<table class="docutils align-default" id="id2">
+<caption><span class="caption-text">Cumulative impact relative to the original</span><a class="headerlink" href="#id2" title="Permalink to this table">¶</a></caption>
+<colgroup>
+<col style="width: 33%" />
+<col style="width: 33%" />
+<col style="width: 33%" />
+</colgroup>
+<thead>
+<tr class="row-odd"><th class="head"><p>Configuration</p></th>
+<th class="head"><p>Speedup vs original</p></th>
+<th class="head"><p>Correctness fix</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>Full-volume MALIS (original)</p></td>
+<td><p>1.0×</p></td>
+<td><p>—</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">malis_crop_size:</span> <span class="pre">64</span></code></p></td>
+<td><p>~4.6× (measured)</p></td>
+<td><p>—</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">malis_crop_size:</span> <span class="pre">64</span></code> + <code class="docutils literal notranslate"><span class="pre">emit_gt_seg:</span> <span class="pre">true</span></code></p></td>
+<td><p>~4.6× plus a few % (estimated)</p></td>
+<td><p>Preserves global instance IDs under crop;
+removes spurious negative-constraint edges
+at cropped instance boundaries.</p></td>
+</tr>
+</tbody>
+</table>
+<p>The correctness fix is the primary motivation for
+<code class="docutils literal notranslate"><span class="pre">emit_gt_seg</span></code>; the speed benefit is secondary.</p>
+</section>
+<section id="see-also">
+<h2>See Also<a class="headerlink" href="#see-also" title="Permalink to this heading">¶</a></h2>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">tutorials/neuron_nisb/base_banis+_malis.yaml</span></code> — production
+config with both knobs enabled.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">lib/malis/INVESTIGATION.md</span></code> — internal notes on GPU MALIS
+candidates and algorithm-level speedups beyond what this PR
+ships.</p></li>
+<li><p>The MalisLoss reference: Turaga <em>et al.</em>, <em>Maximin learning of
+image segmentation</em>, NIPS 2009.</p></li>
+</ul>
+</section>
+</section>
+
+
+              </article>
+              
+            </div>
+            <footer>
+  
+  <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
+    
+    <a href="faq.html" class="btn btn-neutral float-right" title="FAQ" accesskey="n"
+      rel="next">Next <img src="../_static/images/chevron-right-orange.svg"
+        class="next-page"></a>
+    
+    
+    <a href="axis_order.html" class="btn btn-neutral" title="Axis and Channel Order" accesskey="p"
+      rel="prev"><img src="../_static/images/chevron-right-orange.svg" class="previous-page"> Previous</a>
+    
+  </div>
+  
+
+  
+
+  <hr>
+
+  
+
+  <div role="contentinfo">
+    <p>
+      &copy; Copyright 2019-2026, PyTorch Connectomics Contributors.
+
+    </p>
+  </div>
+  
+  <div style="margin-bottom:1cm">
+    Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a
+      href="https://github.com/rtfd/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the
+      Docs</a>.
+  </div>
+   
+
+</footer>
+          </div>
+        </div>
+
+        <div class="pytorch-content-right" id="pytorch-content-right">
+          <div class="pytorch-right-menu" id="pytorch-right-menu">
+            <div class="pytorch-side-scroll" id="pytorch-side-scroll-right">
+              <ul>
+<li><a class="reference internal" href="#">MALIS Loss</a><ul>
+<li><a class="reference internal" href="#the-cost-of-full-volume-malis">The Cost of Full-Volume MALIS</a></li>
+<li><a class="reference internal" href="#malis-crop-size-random-sub-volume-crop"><code class="docutils literal notranslate"><span class="pre">malis_crop_size</span></code> — Random Sub-Volume Crop</a></li>
+<li><a class="reference internal" href="#emit-gt-seg-skip-the-per-step-cc-fix-cropped-topology"><code class="docutils literal notranslate"><span class="pre">emit_gt_seg</span></code> — Skip the Per-Step CC, Fix Cropped Topology</a></li>
+<li><a class="reference internal" href="#combined-speedup">Combined Speedup</a></li>
+<li><a class="reference internal" href="#see-also">See Also</a></li>
+</ul>
+</li>
+</ul>
+
+            </div>
+          </div>
+        </div>
+    </section>
+  </div>
+
+  
+
+  
+  <script type="text/javascript" id="documentation_options" data-url_root="../"
+    src="../_static/documentation_options.js"></script>
+  <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script>
+  <script src="../_static/jquery.js"></script>
+  <script src="../_static/underscore.js"></script>
+  <script src="../_static/_sphinx_javascript_frameworks_compat.js"></script>
+  <script src="../_static/doctools.js"></script>
+  <script src="../_static/sphinx_highlight.js"></script>
+  
+
+  
+
+  <script type="text/javascript" src="../_static/js/vendor/popper.min.js"></script>
+  <script type="text/javascript" src="../_static/js/vendor/bootstrap.min.js"></script>
+  <script type="text/javascript" src="../_static/js/theme.js"></script>
+
+  <script type="text/javascript">
+    jQuery(function () {
+      SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+
+  <!-- Begin Footer -->
+
+  <div class="container-fluid docs-tutorials-resources" id="docs-tutorials-resources">
+    <!-- <div class="container">
+      <div class="row">
+        <div class="col-md-4 text-center">
+          <h2>Visual Computing Group</h2>
+          <p>Visual computing group (VCG) led by Prof. Hanspeter Pfister at Harvard University</p>
+          <a class="with-right-arrow" href="https://vcg.seas.harvard.edu/">View VCG</a>
+        </div>
+        <div class="col-md-4 text-center">
+          <h2>Lichtman Lab</h2>
+          <p>Neuroscience research lab led by Prof. Jeff Lichtman at Harvard University</p>
+          <a class="with-right-arrow" href="https://lichtmanlab.fas.harvard.edu">View Lichtman Lab</a>
+        </div>
+        <div class="col-md-4 text-center">
+          <h2>PyTorch</h2>
+          <p>An open source machine learning framework</p>
+          <a class="with-right-arrow" href="https://pytorch.org/">View PyTorch</a>
+        </div>
+      </div>
+    </div> -->
+  </div>
+
+  <div class="cookie-banner-wrapper">
+  <div class="container">
+    <p class="gdpr-notice">To analyze traffic and optimize your experience, we serve cookies on this site. By clicking or navigating, you agree to allow our usage of cookies. As the current maintainers of this site, Facebook’s Cookies Policy applies. Learn more, including about available controls: <a href="https://www.facebook.com/policies/cookies/">Cookies Policy</a>.</p>
+    <img class="close-button" src="_static/images/pytorch-x.svg">
+  </div>
+</div>
+
+  <!-- End Footer -->
+
+  <!-- Begin Mobile Menu -->
+  <!--
+  <div class="mobile-main-menu">
+    <div class="container-fluid">
+      <div class="container">
+        <div class="mobile-main-menu-header-container">
+          <a class="header-logo" href="https://zudi-lin.github.io/pytorch_connectomics/build/html/index.html" aria-label="PyTorch"></a>
+          <a class="main-menu-close-button" href="#" data-behavior="close-mobile-menu"></a>
+        </div>
+      </div>
+    </div>
+    <div class="mobile-main-menu-links-container">
+      <div class="main-menu">
+        <ul>
+          <li>
+            <a href="#">Get Started</a>
+          </li>
+          <li>
+            <a href="#">Features</a>
+          </li>
+          <li>
+            <a href="#">Ecosystem</a>
+          </li>
+          <li>
+            <a href="">Blog</a>
+          </li>
+          <li>
+            <a href="https://zudi-lin.github.io/pytorch_connectomics/build/html/tutorials/snemi.html">Tutorials</a>
+          </li>
+          <li>
+            <a href="https://zudi-lin.github.io/pytorch_connectomics/build/html/index.html">Docs</a>
+          </li>
+          <li>
+            <a href="">Resources</a>
+          </li>
+          <li>
+            <a href="https://github.com/zudi-lin/pytorch_connectomics/tree/master">Github</a>
+          </li>
+        </ul>
+      </div>
+    </div>
+  </div>
+  -->
+  <!-- End Mobile Menu -->
+
+  <script type="text/javascript" src="../_static/js/vendor/anchor.min.js"></script>
+
+  <script type="text/javascript">
+    var collapsedSections = ['Notes']
+    $(document).ready(function () {
+      mobileMenu.bind();
+      mobileTOC.bind();
+      pytorchAnchors.bind();
+      sideMenus.bind();
+      scrollToAnchor.bind();
+      highlightNavigation.bind();
+
+      // Add class to links that have code blocks, since we cannot create links in code blocks
+      $("article.pytorch-article a span.pre").each(function (e) {
+        $(this).closest("a").addClass("has-code");
+      });
+
+      // Sidebar accordion: click an L1 parent (that has children) to toggle
+      // .expanded / .collapsed instead of navigating. .current is set by
+      // Sphinx on the active section so it starts open by default; the
+      // explicit .collapsed class lets the user fold even the active one.
+      $('.pytorch-menu-vertical .toctree-l1 > a').each(function () {
+        var $a = $(this);
+        var $li = $a.parent();
+        var $ul = $li.children('ul');
+        if ($ul.length === 0) return;
+        $a.on('click', function (e) {
+          e.preventDefault();
+          if ($ul.is(':visible')) {
+            $li.addClass('collapsed').removeClass('expanded');
+          } else {
+            $li.addClass('expanded').removeClass('collapsed');
+          }
+        });
+      });
+    })
+  </script>
+
+  <!-- at the end of the BODY -->
+  <script src="https://cdn.jsdelivr.net/npm/@docsearch/js@alpha"></script>
+  <script>
+    /* global docsearch */
+    docsearch({
+      container: "#docsearch",
+      apiKey: "f072ddc06d4d2d86f6b26fb6f12a4699",
+      indexName: "readthedocs",
+      placeholder: "Search PyTorch Connectomics",
+    });
+  </script>
+
+</body>
+
+</html>
