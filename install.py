@@ -5,6 +5,7 @@ PyTorch Connectomics Installation Script
 Automatically detects CUDA version and installs PyTorch with matching support.
 Features:
 - Auto-detects CUDA (nvidia-smi, nvcc, module system, /usr/local)
+- Detects Apple silicon, whose standard PyTorch wheel includes MPS support
 - Detects and uses current conda environment (smart installation)
 - Installs pre-built packages via conda (avoids GCC issues)
 - Verifies installation
@@ -19,6 +20,7 @@ Usage:
 """
 
 import os
+import platform
 import sys
 import subprocess
 import re
@@ -304,23 +306,37 @@ def install_pytorch_connectomics(
                 use_current_env = True
                 print_info(f"Using current environment: {env_name}")
 
-    # Handle CUDA
+    # Handle CUDA / Apple MPS
+    apple_mps_host = sys.platform == "darwin" and platform.machine() == "arm64"
+    accelerator_label = "CPU-only"
     if cpu_only:
         print_warning("CPU-only installation requested")
         pytorch_install = "pip install torch torchvision"
     elif cuda_version:
         print_info(f"Using specified CUDA version: {cuda_version}")
         pytorch_cuda = cuda_to_pytorch(cuda_version)
-        pytorch_install = f"pip install torch torchvision --index-url https://download.pytorch.org/whl/{pytorch_cuda}"
+        pytorch_install = (
+            "pip install torch torchvision --index-url "
+            f"https://download.pytorch.org/whl/{pytorch_cuda}"
+        )
+        accelerator_label = f"CUDA {cuda_version}"
     else:
         detected_cuda = detect_cuda()
         if detected_cuda:
             pytorch_cuda = cuda_to_pytorch(detected_cuda)
-            pytorch_install = f"pip install torch torchvision --index-url https://download.pytorch.org/whl/{pytorch_cuda}"
+            pytorch_install = (
+                "pip install torch torchvision --index-url "
+                f"https://download.pytorch.org/whl/{pytorch_cuda}"
+            )
             cuda_version = detected_cuda
+            accelerator_label = f"CUDA {cuda_version}"
         else:
             print_warning("Could not auto-detect CUDA version")
-            if skip_prompts:
+            if apple_mps_host:
+                accelerator_label = "Apple MPS"
+                print_info("Apple silicon detected; the standard PyTorch wheel includes MPS")
+                pytorch_install = "pip install torch torchvision"
+            elif skip_prompts:
                 print_info("Using CPU-only installation")
                 pytorch_install = "pip install torch torchvision"
             else:
@@ -335,7 +351,11 @@ def install_pytorch_connectomics(
                 elif choice == "2":
                     cuda_version = input("Enter CUDA version (e.g., 11.8, 12.1, 12.4): ").strip()
                     pytorch_cuda = cuda_to_pytorch(cuda_version)
-                    pytorch_install = f"pip install torch torchvision --index-url https://download.pytorch.org/whl/{pytorch_cuda}"
+                    pytorch_install = (
+                        "pip install torch torchvision --index-url "
+                        f"https://download.pytorch.org/whl/{pytorch_cuda}"
+                    )
+                    accelerator_label = f"CUDA {cuda_version}"
                 else:
                     print_info("Installation cancelled")
                     return False
@@ -344,9 +364,11 @@ def install_pytorch_connectomics(
     print_header("Installation Plan")
     print(f"  Environment: {Colors.BOLD}{env_name}{Colors.ENDC}")
     print(f"  Python: {Colors.BOLD}{python_version}{Colors.ENDC}")
-    print(f"  CUDA: {Colors.BOLD}{cuda_version or 'CPU-only'}{Colors.ENDC}")
+    print(f"  Accelerator: {Colors.BOLD}{accelerator_label}{Colors.ENDC}")
     if cuda_version:
         print(f"  PyTorch: {Colors.BOLD}with {cuda_to_pytorch(cuda_version)} support{Colors.ENDC}")
+    elif accelerator_label == "Apple MPS":
+        print(f"  PyTorch: {Colors.BOLD}macOS wheel with MPS support{Colors.ENDC}")
     else:
         print(f"  PyTorch: {Colors.BOLD}CPU-only{Colors.ENDC}")
 
@@ -451,6 +473,20 @@ def install_pytorch_connectomics(
     else:
         print_success("All core packages already installed")
 
+    if apple_mps_host:
+        # The PyTorch macOS wheel bundles libomp. Conda-forge's OpenMP-flavoured
+        # OpenBLAS loads a second copy and aborts even on ``import torch``.
+        print_info("Selecting pthreads OpenBLAS to avoid duplicate libomp on Apple silicon...")
+        code, _, stderr = run_command(
+            f"conda install -n {env_name} -c conda-forge "
+            "'libopenblas=*=*pthreads*' -y",
+            check=False,
+        )
+        if code != 0:
+            print_error(f"Failed to select Apple-compatible OpenBLAS: {stderr}")
+            return False
+        print_success("Apple-compatible pthreads OpenBLAS installed")
+
     # cc3d ABI probe runs after `pip install -e .` (the editable install can pull
     # a different numpy as a transitive dep, which is the actual ABI-break case).
 
@@ -538,18 +574,22 @@ def install_pytorch_connectomics(
 
     # Verify installation
     print_header("Step 6/6: Verifying Installation")
-    code, stdout, _ = run_command(
-        f'conda run -n {env_name} python -c "import torch; '
-        f"print(f'PyTorch: {{torch.__version__}}'); "
-        f"print(f'CUDA available: {{torch.cuda.is_available()}}'); "
-        f'print(f\'CUDA version: {{torch.version.cuda if torch.cuda.is_available() else \\"N/A\\"}}\')"',
+    verification_code = (
+        'import torch; print("PyTorch:", torch.__version__); '
+        'print("CUDA available:", torch.cuda.is_available()); '
+        'print("MPS available:", '
+        'hasattr(torch.backends, "mps") and torch.backends.mps.is_available()); '
+        'print("CUDA version:", torch.version.cuda or "N/A")'
+    )
+    code, stdout, stderr = run_command(
+        f"conda run -n {env_name} python -c '{verification_code}'",
         check=False,
     )
     if code == 0:
         print_success("Installation verified")
         print("\n" + stdout.strip())
     else:
-        print_warning("Could not verify installation")
+        print_warning(f"Could not verify installation: {stderr.strip()}")
 
     # Print usage instructions
     print_header("Installation Complete!")
@@ -573,7 +613,8 @@ def install_pytorch_connectomics(
 
     print(f"  {step_num + 1}. Check available models:")
     print(
-        f"     {Colors.BOLD}python -c 'from connectomics.models.arch import list_architectures; print(list_architectures())'{Colors.ENDC}\n"
+        f"     {Colors.BOLD}python -c 'from connectomics.models.arch import "
+        f"list_architectures; print(list_architectures())'{Colors.ENDC}\n"
     )
 
     return True
@@ -586,7 +627,7 @@ def main():
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
-  python install.py                           # Auto-detect everything (basic installation, non-interactive)
+  python install.py                    # Auto-detect everything (basic, non-interactive)
   python install.py --env-name my_env         # Custom environment name
   python install.py --python 3.10             # Use Python 3.10
   python install.py --cuda 12.4               # Specify CUDA version
@@ -622,7 +663,10 @@ Examples:
         "--install-type",
         choices=["basic", "dev", "full"],
         default="basic",
-        help="Installation type: basic (core only), dev (with dev tools), full (all features) (default: basic)",
+        help=(
+            "Installation type: basic (core only), dev (with dev tools), "
+            "full (all features) (default: basic)"
+        ),
     )
     parser.add_argument(
         "--force-recreate",

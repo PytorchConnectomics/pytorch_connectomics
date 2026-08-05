@@ -5,10 +5,12 @@ from __future__ import annotations
 import os
 from typing import Any
 
-import torch
-
 from ..config import Config, resolve_default_profiles
-from ..config.hardware import resolve_runtime_resource_sentinels
+from ..config.hardware import (
+    get_accelerator_device_count,
+    resolve_accelerator_type,
+    resolve_runtime_resource_sentinels,
+)
 from ..config.pipeline import resolve_data_paths
 from .output_naming import compute_tta_passes
 
@@ -21,6 +23,13 @@ def is_chunked_raw_inference(cfg: Config) -> bool:
         and getattr(chunking_cfg, "enabled", False)
         and str(getattr(chunking_cfg, "output_mode", "decoded")).lower() == "raw_prediction"
     )
+
+
+def _limit_to_one_accelerator(cfg: Config) -> None:
+    """Resolve the configured accelerator and cap this process to one device."""
+    accelerator = resolve_accelerator_type(getattr(cfg.system, "accelerator", "auto"))
+    cfg.system.accelerator = accelerator
+    cfg.system.num_gpus = min(1, get_accelerator_device_count(accelerator))
 
 
 def maybe_enable_naive_chunk_sharding(args: Any, cfg: Config) -> bool:
@@ -44,7 +53,7 @@ def maybe_enable_naive_chunk_sharding(args: Any, cfg: Config) -> bool:
     chunking_cfg = cfg.inference.chunking
     chunking_cfg.shard_id = shard_id
     chunking_cfg.num_shards = num_shards
-    cfg.system.num_gpus = 1 if torch.cuda.is_available() else 0
+    _limit_to_one_accelerator(cfg)
     print(
         "  INFO: Naive chunk sharding enabled for chunked raw inference "
         f"(shard {shard_id}/{num_shards}); this job will not use torch.distributed."
@@ -58,12 +67,12 @@ def resolve_test_stage_runtime(cfg: Config) -> Config:
     cfg = resolve_data_paths(cfg)
     cfg = resolve_runtime_resource_sentinels(cfg, print_results=True)
 
-    if not torch.cuda.is_available():
+    if cfg.system.accelerator == "cpu":
         if cfg.system.num_gpus > 0:
-            print("CUDA not available, setting num_gpus=0")
+            print("No accelerator available, setting num_gpus=0")
             cfg.system.num_gpus = 0
         if cfg.system.num_workers > 0:
-            print("CUDA not available, setting num_workers=0 to avoid dataloader crashes")
+            print("CPU mode: setting num_workers=0 to avoid dataloader crashes")
             cfg.system.num_workers = 0
 
     return cfg
@@ -237,7 +246,7 @@ def maybe_enable_independent_test_sharding(args: Any, cfg: Config) -> bool:
         )
         tta_cfg.distributed_sharding = False
 
-    cfg.system.num_gpus = 1 if torch.cuda.is_available() else 0
+    _limit_to_one_accelerator(cfg)
     print(
         "  INFO: Independent multi-GPU test sharding enabled "
         f"({source}); each process will handle its own shard with no DDP communication."

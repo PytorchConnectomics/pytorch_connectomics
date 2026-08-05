@@ -13,6 +13,23 @@ def _identity_network(x: torch.Tensor) -> torch.Tensor:
     return x
 
 
+def test_keep_input_on_cpu_uses_mps_for_sliding_window_batches(monkeypatch):
+    from connectomics.inference.window import _resolve_sliding_window_runtime
+
+    cfg = Config()
+    cfg.inference.sliding_window.keep_input_on_cpu = True
+    cfg.inference.sliding_window.sw_device = None
+    monkeypatch.setattr(
+        "connectomics.inference.window.resolve_accelerator_type",
+        lambda _requested: "mps",
+    )
+
+    runtime = _resolve_sliding_window_runtime(cfg, (32, 32, 32))
+
+    assert runtime["sw_device"] == "mps"
+    assert runtime["output_device"] == "cpu"
+
+
 def test_eager_overlap_actually_overlaps_windows():
     """Engine must enumerate overlapped windows when ``overlap > 0``.
 

@@ -21,6 +21,11 @@ from typing import Tuple  # noqa: E402
 import numpy as np  # noqa: E402
 import torch  # noqa: E402
 
+from connectomics.config.hardware import (  # noqa: E402
+    get_accelerator_device_count,
+    resolve_accelerator_type,
+)
+
 
 def create_synthetic_volume(
     shape: Tuple[int, int, int] = (64, 128, 128),
@@ -111,10 +116,12 @@ def create_demo_config():
         SystemConfig,
     )
 
+    accelerator = resolve_accelerator_type("auto")
     cfg = Config(
         system=SystemConfig(
             seed=42,
-            num_gpus=1 if torch.cuda.is_available() else 0,
+            accelerator=accelerator,
+            num_gpus=min(1, get_accelerator_device_count(accelerator)),
             num_workers=0,  # 0 for demo to avoid multiprocessing issues
         ),
         model=ModelConfig(
@@ -340,9 +347,11 @@ def run_demo():
 
     demo_logger = TensorBoardLogger(save_dir=str(temp_dir), name="demo_logs", version="")
 
+    accelerator = resolve_accelerator_type(cfg.system.accelerator)
+    lightning_accelerator = "gpu" if accelerator == "cuda" else accelerator
     trainer = pl.Trainer(
         max_epochs=cfg.optimization.max_epochs,
-        accelerator="gpu" if cfg.system.num_gpus > 0 else "cpu",
+        accelerator=lightning_accelerator,
         devices=cfg.system.num_gpus if cfg.system.num_gpus > 0 else 1,
         precision=cfg.optimization.precision,
         callbacks=callbacks,
@@ -354,7 +363,7 @@ def run_demo():
     )
 
     print(f"   Max epochs: {cfg.optimization.max_epochs}")
-    print(f"   Device: {'GPU' if cfg.system.num_gpus > 0 else 'CPU'}")
+    print(f"   Device: {accelerator.upper()}")
     print(f"   Precision: {cfg.optimization.precision}")
 
     # Train

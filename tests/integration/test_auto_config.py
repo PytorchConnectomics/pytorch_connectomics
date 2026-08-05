@@ -32,14 +32,22 @@ def test_imports():
 class TestGPUInfo:
     """Tests for GPU information detection."""
 
-    def test_get_gpu_info_no_cuda(self):
-        """Test GPU info when CUDA is not available."""
-        with patch("torch.cuda.is_available", return_value=False):
+    def test_get_gpu_info_no_accelerator(self):
+        """Test GPU info when neither CUDA nor MPS is available."""
+        with (
+            patch("torch.cuda.is_available", return_value=False),
+            patch(
+                "connectomics.config.hardware.gpu_utils.is_mps_available",
+                return_value=False,
+            ),
+        ):
             from connectomics.config.hardware.gpu_utils import get_gpu_info
 
             info = get_gpu_info()
 
+            assert info["accelerator"] == "cpu"
             assert info["cuda_available"] is False
+            assert info["mps_available"] is False
             assert info["num_gpus"] == 0
             assert info["gpu_names"] == []
             assert info["total_memory_gb"] == []
@@ -49,6 +57,10 @@ class TestGPUInfo:
         """Test GPU info when CUDA is available (mocked)."""
         with (
             patch("torch.cuda.is_available", return_value=True),
+            patch(
+                "connectomics.config.hardware.gpu_utils.is_mps_available",
+                return_value=False,
+            ),
             patch("torch.cuda.device_count", return_value=1),
             patch("torch.cuda.get_device_name", return_value="FakeGPU"),
             patch("torch.cuda.get_device_properties") as mock_props,
@@ -65,11 +77,40 @@ class TestGPUInfo:
 
             info = get_gpu_info()
 
+            assert info["accelerator"] == "cuda"
             assert info["cuda_available"] is True
             assert info["num_gpus"] == 1
             assert info["gpu_names"] == ["FakeGPU"]
             assert info["total_memory_gb"][0] == pytest.approx(4.0)
             assert info["available_memory_gb"][0] > 0
+
+    def test_get_gpu_info_with_mps(self):
+        """Test Apple MPS detection and unified-memory reporting."""
+        with (
+            patch("torch.cuda.is_available", return_value=False),
+            patch(
+                "connectomics.config.hardware.gpu_utils.is_mps_available",
+                return_value=True,
+            ),
+            patch(
+                "connectomics.config.hardware.gpu_utils.get_system_memory_gb",
+                return_value=36.0,
+            ),
+            patch(
+                "connectomics.config.hardware.gpu_utils.get_available_system_memory_gb",
+                return_value=28.0,
+            ),
+        ):
+            from connectomics.config.hardware.gpu_utils import get_gpu_info
+
+            info = get_gpu_info()
+
+            assert info["accelerator"] == "mps"
+            assert info["mps_available"] is True
+            assert info["num_gpus"] == 1
+            assert info["gpu_names"] == ["Apple silicon GPU (MPS)"]
+            assert info["total_memory_gb"] == [36.0]
+            assert info["available_memory_gb"] == [28.0]
 
     def test_get_system_memory(self):
         """Test system memory detection."""
@@ -91,6 +132,47 @@ class TestGPUInfo:
 
         assert available > 0
         assert available <= total
+
+    def test_resolve_accelerator_rejects_an_unavailable_explicit_backend(self):
+        from connectomics.config.hardware.gpu_utils import resolve_accelerator_type
+
+        with (
+            patch("torch.cuda.is_available", return_value=False),
+            patch(
+                "connectomics.config.hardware.gpu_utils.is_mps_available",
+                return_value=False,
+            ),
+            pytest.raises(RuntimeError, match="MPS is not available"),
+        ):
+            resolve_accelerator_type("mps")
+
+
+def test_resolve_runtime_resources_selects_mps_and_disables_pinned_memory():
+    from omegaconf import OmegaConf
+
+    from connectomics.config import Config
+    from connectomics.config.hardware import resolve_runtime_resource_sentinels
+
+    cfg = OmegaConf.structured(Config())
+    cfg.system.accelerator = "auto"
+    cfg.system.num_gpus = -1
+    cfg.data.dataloader.pin_memory = True
+
+    with (
+        patch(
+            "connectomics.config.hardware.auto_config.resolve_accelerator_type",
+            return_value="mps",
+        ),
+        patch(
+            "connectomics.config.hardware.auto_config.get_accelerator_device_count",
+            return_value=1,
+        ),
+    ):
+        resolved = resolve_runtime_resource_sentinels(cfg, print_results=False)
+
+    assert resolved.system.accelerator == "mps"
+    assert resolved.system.num_gpus == 1
+    assert resolved.data.dataloader.pin_memory is False
 
 
 class TestMemoryEstimation:
@@ -369,8 +451,9 @@ class TestAutoConfigPlanner:
         assert result.batch_size == 8
         assert result.lr == 5e-4
 
+    @patch("connectomics.config.hardware.gpu_utils.is_mps_available", return_value=False)
     @patch("torch.cuda.is_available", return_value=False)
-    def test_plan_cpu_only(self, mock_cuda):
+    def test_plan_cpu_only(self, _mock_cuda, _mock_mps):
         """Test planning for CPU-only training."""
         from connectomics.config.hardware.auto_config import AutoConfigPlanner
 

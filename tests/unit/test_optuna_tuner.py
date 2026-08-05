@@ -709,6 +709,10 @@ def test_get_trial_process_context_prefers_fork_without_cuda_init(monkeypatch):
         lambda: False,
     )
     monkeypatch.setattr(
+        "connectomics.decoding.tuning.optuna_tuner.is_mps_available",
+        lambda: False,
+    )
+    monkeypatch.setattr(
         "connectomics.decoding.tuning.optuna_tuner.mp.get_context", _fake_get_context
     )
 
@@ -716,3 +720,33 @@ def test_get_trial_process_context_prefers_fork_without_cuda_init(monkeypatch):
 
     assert isinstance(ctx, _DummyContext)
     assert observed == ["fork"]
+
+
+def test_get_trial_process_context_prefers_spawn_with_mps(monkeypatch):
+    observed = []
+
+    class _DummyContext:
+        pass
+
+    def _fake_get_context(method=None):
+        observed.append(method)
+        if method == "spawn":
+            return _DummyContext()
+        raise ValueError(f"unsupported: {method}")
+
+    monkeypatch.setattr(
+        "connectomics.decoding.tuning.optuna_tuner.torch.cuda.is_available",
+        lambda: False,
+    )
+    monkeypatch.setattr(
+        "connectomics.decoding.tuning.optuna_tuner.is_mps_available",
+        lambda: True,
+    )
+    monkeypatch.setattr(
+        "connectomics.decoding.tuning.optuna_tuner.mp.get_context", _fake_get_context
+    )
+
+    ctx = _get_trial_process_context()
+
+    assert isinstance(ctx, _DummyContext)
+    assert observed == ["spawn"]

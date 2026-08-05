@@ -74,6 +74,7 @@ dependencies = [
     "kimimaro>=1.0.0",
     "crackle-codec>=0.1.0",
     "mahotas>=1.4.0",
+    "fastmorph>=1.0.0",
     # Build tools
     "Cython>=0.29.22",
 ]

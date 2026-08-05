@@ -2,9 +2,8 @@ import argparse
 from pathlib import Path
 
 import numpy as np
-import torch
-
 from connectomics.config import Config, save_config
+from connectomics.config.hardware import get_accelerator_device_count
 from connectomics.config.schema.evaluation import EvaluationConfig
 from connectomics.config.schema.stages import TuneConfig
 from connectomics.data.io import write_hdf5
@@ -221,7 +220,7 @@ def test_maybe_enable_independent_test_sharding_uses_rank_env_for_multi_volume_t
     assert changed is True
     assert args.shard_id == 2
     assert args.num_shards == 4
-    assert cfg.system.num_gpus == (1 if torch.cuda.is_available() else 0)
+    assert cfg.system.num_gpus == min(1, get_accelerator_device_count("auto"))
     assert cfg.inference.test_time_augmentation.distributed_sharding is False
 
 
@@ -235,7 +234,7 @@ def test_maybe_enable_independent_test_sharding_uses_explicit_shard_args(tmp_pat
     changed = maybe_enable_independent_test_sharding(args, cfg)
 
     assert changed is True
-    assert cfg.system.num_gpus == (1 if torch.cuda.is_available() else 0)
+    assert cfg.system.num_gpus == min(1, get_accelerator_device_count("auto"))
 
 
 def test_maybe_enable_independent_test_sharding_skips_single_volume_tests(tmp_path, monkeypatch):
@@ -287,7 +286,7 @@ def test_naive_chunk_sharding_claims_explicit_shard_args_without_volume_sharding
     assert changed is True
     assert cfg.inference.chunking.shard_id == 1
     assert cfg.inference.chunking.num_shards == 4
-    assert cfg.system.num_gpus == (1 if torch.cuda.is_available() else 0)
+    assert cfg.system.num_gpus == min(1, get_accelerator_device_count("auto"))
     assert maybe_enable_independent_test_sharding(args, cfg) is False
     assert has_assigned_test_shard(cfg, args) is True
 

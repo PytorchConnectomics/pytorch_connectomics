@@ -10,6 +10,7 @@ from typing import Any, List, Optional
 import numpy as np
 import torch
 
+from ..config.hardware import get_accelerator_device_count, resolve_accelerator_type
 from ..data.processing.build import count_stacked_label_transform_channels
 from ..models.architectures.registry import get_architecture_info
 from ..utils.channel_slices import infer_min_required_channels
@@ -340,16 +341,25 @@ def preflight_check(cfg) -> list:
     _validate_training_paths(cfg.data.train.image, "image")
     _validate_training_paths(cfg.data.train.label, "label")
 
-    if cfg.system.num_gpus > 0 and not torch.cuda.is_available():
-        issues.append(f"ERROR: {cfg.system.num_gpus} GPU(s) requested but CUDA not available")
+    try:
+        accelerator_type = (
+            resolve_accelerator_type(getattr(cfg.system, "accelerator", "auto"))
+            if cfg.system.num_gpus > 0
+            else "cpu"
+        )
+        available_devices = get_accelerator_device_count(accelerator_type)
+    except (RuntimeError, ValueError) as exc:
+        accelerator_type = "cpu"
+        available_devices = 0
+        issues.append(f"ERROR: {exc}")
 
-    if cfg.system.num_gpus > torch.cuda.device_count():
+    if cfg.system.num_gpus > available_devices:
         issues.append(
             f"ERROR: {cfg.system.num_gpus} GPU(s) requested but only "
-            f"{torch.cuda.device_count()} available"
+            f"{available_devices} {accelerator_type} device(s) available"
         )
 
-    if torch.cuda.is_available() and cfg.system.num_gpus > 0:
+    if accelerator_type == "cuda" and cfg.system.num_gpus > 0:
         try:
             patch_volume = np.prod(cfg.data.dataloader.patch_size)
             estimated_gb = (

@@ -24,8 +24,10 @@ from omegaconf import DictConfig, OmegaConf
 
 from .gpu_utils import (
     estimate_gpu_memory_required,
+    get_accelerator_device_count,
     get_gpu_info,
     get_optimal_num_workers,
+    resolve_accelerator_type,
     suggest_batch_size,
 )
 
@@ -153,14 +155,50 @@ def resolve_runtime_resource_sentinels(
     if not hasattr(config, "system"):
         return config
 
-    gpu_info = get_gpu_info()
-    available_gpus = gpu_info["num_gpus"] if gpu_info["cuda_available"] else 0
+    requested_accelerator = str(getattr(config.system, "accelerator", "auto"))
+    requested_num_gpus = int(getattr(config.system, "num_gpus", 0))
+    if requested_num_gpus == 0:
+        if requested_accelerator.lower() not in {"auto", "cpu"}:
+            raise ValueError(
+                "system.num_gpus=0 is incompatible with "
+                f"system.accelerator={requested_accelerator!r}"
+            )
+        resolved_accelerator = "cpu"
+    else:
+        resolved_accelerator = resolve_accelerator_type(requested_accelerator)
+
+    config.system.accelerator = resolved_accelerator
+    available_gpus = get_accelerator_device_count(resolved_accelerator)
     available_cpus = _available_cpus_for_current_run()
 
     if getattr(config.system, "num_gpus", None) == -1:
         config.system.num_gpus = available_gpus
         if print_results:
             logger.info("Auto-detected system.num_gpus: -1 -> %d", config.system.num_gpus)
+    elif resolved_accelerator == "cpu" and config.system.num_gpus > 0:
+        if print_results:
+            logger.info(
+                "No supported accelerator available; setting system.num_gpus: %d -> 0",
+                config.system.num_gpus,
+            )
+        config.system.num_gpus = 0
+
+    if print_results and requested_accelerator != resolved_accelerator:
+        logger.info(
+            "Resolved system.accelerator: %s -> %s",
+            requested_accelerator,
+            resolved_accelerator,
+        )
+
+    dataloader_cfg = getattr(getattr(config, "data", None), "dataloader", None)
+    if (
+        resolved_accelerator == "mps"
+        and dataloader_cfg is not None
+        and bool(getattr(dataloader_cfg, "pin_memory", False))
+    ):
+        dataloader_cfg.pin_memory = False
+        if print_results:
+            logger.info("MPS does not support pinned host memory; setting pin_memory=false")
 
     # Apply the MalisLoss worker auto-default (and learn how many CPU threads
     # the loss will use) before splitting the dataloader budget below.
@@ -324,12 +362,18 @@ class AutoConfigPlanner:
         result.precision = "16-mixed" if use_mixed_precision else "32"
 
         # Step 4: Estimate memory and determine batch size
-        if not self.gpu_info["cuda_available"]:
+        accelerator = self.gpu_info.get(
+            "accelerator", "cuda" if self.gpu_info.get("cuda_available") else "cpu"
+        )
+        if accelerator == "cpu":
             result.batch_size = 1
             result.precision = "32"  # CPU doesn't support mixed precision well
-            result.warnings.append("CUDA not available, using CPU with batch_size=1")
+            result.warnings.append("No accelerator available, using CPU with batch_size=1")
             result.planning_notes.append("Training on CPU (slow!)")
         else:
+            if accelerator == "mps":
+                # Lightning's MPS path is most portable with full precision.
+                result.precision = "32"
             gpu_memory_gb = self.gpu_info["available_memory_gb"][0]  # Use first GPU
             result.available_gpu_memory_gb = gpu_memory_gb
 
@@ -345,7 +389,7 @@ class AutoConfigPlanner:
                 base_features=result.base_features,
                 num_pool_stages=num_pool_stages,
                 deep_supervision=deep_supervision,
-                mixed_precision=use_mixed_precision,
+                mixed_precision=result.precision != "32",
             )
             result.batch_size = batch_size
 
@@ -358,7 +402,7 @@ class AutoConfigPlanner:
                 base_features=result.base_features,
                 num_pool_stages=num_pool_stages,
                 deep_supervision=deep_supervision,
-                mixed_precision=use_mixed_precision,
+                mixed_precision=result.precision != "32",
             )
             result.gpu_memory_per_sample_gb = result.estimated_gpu_memory_gb / batch_size
 
@@ -379,7 +423,7 @@ class AutoConfigPlanner:
                 )
 
         # Step 5: Determine num_workers
-        num_gpus = self.gpu_info["num_gpus"] if self.gpu_info["cuda_available"] else 0
+        num_gpus = self.gpu_info["num_gpus"] if accelerator != "cpu" else 0
         result.num_workers = get_optimal_num_workers(num_gpus)
         result.planning_notes.append(f"Num workers: {result.num_workers}")
 
@@ -434,7 +478,10 @@ class AutoConfigPlanner:
 
         # If GPU memory is limited, may need to reduce patch size
         # (This is a simplified heuristic)
-        if self.gpu_info["cuda_available"]:
+        accelerator = self.gpu_info.get(
+            "accelerator", "cuda" if self.gpu_info.get("cuda_available") else "cpu"
+        )
+        if accelerator != "cpu":
             gpu_memory_gb = self.gpu_info["available_memory_gb"][0]
             if gpu_memory_gb < 8:
                 # Very limited GPU, use smaller patches
