@@ -198,7 +198,7 @@ class InferenceMemoryCleanupConfig:
 
     enabled: bool = True
     gc_collect: bool = True
-    empty_cuda_cache: bool = True
+    empty_accelerator_cache: bool = True
     # Opt-in only: safe for one-volume test jobs, but it prevents additional
     # forward passes in the same test epoch unless Lightning moves the module
     # back to the accelerator.

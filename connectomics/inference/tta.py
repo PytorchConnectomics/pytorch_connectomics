@@ -13,8 +13,8 @@ from typing import Any, Optional
 import numpy as np
 import torch
 import torch.nn.functional as F
-from .window import compute_scan_interval as _get_scan_interval, dense_patch_slices
 
+from ..config.hardware import empty_accelerator_cache
 from ..utils.channel_slices import resolve_channel_indices
 from ..utils.model_outputs import (
     get_inference_channel_activations,
@@ -28,6 +28,8 @@ from .window import (
     _extract_padded_patch_batch,
     _resolve_sliding_window_runtime,
     build_sliding_accumulator_weight_maps,
+    compute_scan_interval as _get_scan_interval,
+    dense_patch_slices,
     is_2d_inference_mode,
     normalize_weighted_accumulator,
     resolve_inferer_roi_size,
@@ -661,12 +663,8 @@ class TTAPredictor:
                 distributed_sharding=distributed_sharding,
             )
 
-            if (
-                torch.cuda.is_available()
-                and empty_cache_interval > 0
-                and num_predictions % empty_cache_interval == 0
-            ):
-                torch.cuda.empty_cache()
+            if empty_cache_interval > 0 and num_predictions % empty_cache_interval == 0:
+                empty_accelerator_cache()
 
         return ensemble_result, num_predictions
 
@@ -1007,11 +1005,10 @@ class TTAPredictor:
 
                         tta_forward_calls += 1
                         if (
-                            torch.cuda.is_available()
-                            and empty_cache_interval > 0
+                            empty_cache_interval > 0
                             and tta_forward_calls % empty_cache_interval == 0
                         ):
-                            torch.cuda.empty_cache()
+                            empty_accelerator_cache()
 
                     if progress_bar is not None:
                         progress_bar.update(1)

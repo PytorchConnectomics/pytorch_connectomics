@@ -14,6 +14,73 @@ import psutil
 import torch
 
 
+SUPPORTED_ACCELERATORS = ("auto", "cpu", "cuda", "mps")
+
+
+def is_mps_available() -> bool:
+    """Return whether PyTorch can use Apple's Metal Performance Shaders backend."""
+    mps_backend = getattr(torch.backends, "mps", None)
+    if mps_backend is None:
+        return False
+    try:
+        return bool(mps_backend.is_available())
+    except Exception:
+        return False
+
+
+def resolve_accelerator_type(requested: str = "auto") -> str:
+    """Resolve an accelerator preference to ``cpu``, ``cuda``, or ``mps``.
+
+    CUDA takes precedence over MPS for ``auto`` so existing NVIDIA hosts retain
+    their current behavior. Explicit unavailable accelerators fail instead of
+    silently running a job on a different device.
+    """
+    normalized = str(requested or "auto").strip().lower()
+    if normalized not in SUPPORTED_ACCELERATORS:
+        choices = ", ".join(SUPPORTED_ACCELERATORS)
+        raise ValueError(f"system.accelerator must be one of: {choices} (got {requested!r})")
+
+    if normalized == "auto":
+        if torch.cuda.is_available():
+            return "cuda"
+        if is_mps_available():
+            return "mps"
+        return "cpu"
+    if normalized == "cuda" and not torch.cuda.is_available():
+        raise RuntimeError("system.accelerator='cuda' was requested but CUDA is not available")
+    if normalized == "mps" and not is_mps_available():
+        raise RuntimeError("system.accelerator='mps' was requested but MPS is not available")
+    return normalized
+
+
+def get_accelerator_device_count(accelerator: str = "auto") -> int:
+    """Return the number of devices available for the resolved accelerator."""
+    resolved = resolve_accelerator_type(accelerator)
+    if resolved == "cuda":
+        try:
+            return int(torch.cuda.device_count())
+        except Exception as exc:
+            warnings.warn(f"Failed to query CUDA device count: {exc}")
+            return 0
+    if resolved == "mps":
+        # PyTorch exposes Apple silicon's unified GPU as one MPS device.
+        return 1
+    return 0
+
+
+def empty_accelerator_cache() -> str | None:
+    """Release cached CUDA or MPS allocator memory and return the backend used."""
+    if torch.cuda.is_available():
+        torch.cuda.empty_cache()
+        return "cuda"
+    if is_mps_available():
+        mps_module = getattr(torch, "mps", None)
+        if mps_module is not None:
+            mps_module.empty_cache()
+            return "mps"
+    return None
+
+
 def get_gpu_info() -> Dict[str, Any]:
     """
     Get comprehensive GPU information.
@@ -24,17 +91,31 @@ def get_gpu_info() -> Dict[str, Any]:
             - gpu_names: List of GPU names
             - total_memory_gb: List of total memory per GPU in GB
             - available_memory_gb: List of available memory per GPU in GB
+            - accelerator: Selected accelerator (``cuda``, ``mps``, or ``cpu``)
             - cuda_available: Whether CUDA is available
+            - mps_available: Whether Apple MPS is available
     """
+    cuda_available = torch.cuda.is_available()
+    mps_available = is_mps_available()
+    accelerator = "cuda" if cuda_available else "mps" if mps_available else "cpu"
     info = {
-        "cuda_available": torch.cuda.is_available(),
+        "accelerator": accelerator,
+        "cuda_available": cuda_available,
+        "mps_available": mps_available,
         "num_gpus": 0,
         "gpu_names": [],
         "total_memory_gb": [],
         "available_memory_gb": [],
     }
 
-    if not torch.cuda.is_available():
+    if not cuda_available:
+        if mps_available:
+            # Apple GPUs use unified memory. System RAM is the meaningful upper
+            # bound, while currently available RAM is the safest planning budget.
+            info["num_gpus"] = 1
+            info["gpu_names"] = ["Apple silicon GPU (MPS)"]
+            info["total_memory_gb"] = [get_system_memory_gb()]
+            info["available_memory_gb"] = [get_available_system_memory_gb()]
         return info
 
     try:
@@ -239,13 +320,15 @@ def print_gpu_info():
     print("GPU Information")
     print("=" * 60)
 
-    if not info["cuda_available"]:
-        print("CUDA is not available. Training will use CPU.")
+    if info["accelerator"] == "cpu":
+        print("No supported accelerator is available. Training will use CPU.")
         print(
             f"System RAM: {get_system_memory_gb():.1f} GB total, "
             f"{get_available_system_memory_gb():.1f} GB available"
         )
         return
+
+    print(f"Accelerator: {info['accelerator'].upper()}")
 
     print(f"Number of GPUs: {info['num_gpus']}")
     print()

@@ -37,6 +37,7 @@ try:
 except ImportError:
     OPTUNA_AVAILABLE = False
 
+from connectomics.config.hardware import is_mps_available
 from connectomics.metrics.metrics_seg import adapted_rand
 from connectomics.runtime.output_naming import (
     tuning_best_params_filename,
@@ -448,9 +449,9 @@ def _trial_evaluation_worker(send_conn, evaluation_kind: str, payload: Dict[str,
 def _get_trial_process_context() -> Any:
     """Choose a multiprocessing start method for timeout-enforced trials."""
     methods = ("fork", "spawn")
-    if torch.cuda.is_available() and torch.cuda.is_initialized():
-        # Tune mode runs inference before Optuna; once CUDA is initialized,
-        # forking the parent process is unsafe and can hang.
+    if (torch.cuda.is_available() and torch.cuda.is_initialized()) or is_mps_available():
+        # Tune mode runs inference before Optuna; forking after an accelerator
+        # runtime is initialized is unsafe and can hang.
         methods = ("spawn", "fork")
 
     for method in methods:

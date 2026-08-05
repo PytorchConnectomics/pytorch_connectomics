@@ -22,6 +22,8 @@ from typing import Callable, Optional, Sequence, Tuple, Union
 import torch
 import torch.nn.functional as F
 
+from ..config.hardware import resolve_accelerator_type
+
 logger = logging.getLogger(__name__)
 
 
@@ -435,14 +437,16 @@ def _resolve_sliding_window_runtime(cfg, roi_size: Tuple[int, ...]) -> dict:
         output_device = None
 
     if keep_input_on_cpu:
-        if sw_device is None and torch.cuda.is_available():
-            sw_device = "cuda"
+        if sw_device is None:
+            accelerator = resolve_accelerator_type("auto")
+            if accelerator != "cpu":
+                sw_device = accelerator
         if output_device is None:
             output_device = "cpu"
         if sw_device is None:
             logger.warning(
                 "inference.sliding_window.keep_input_on_cpu=True but no sw_device was set "
-                "and CUDA is unavailable. Sliding-window inference will run on CPU."
+                "and no accelerator is available. Sliding-window inference will run on CPU."
             )
 
     return {

@@ -26,6 +26,7 @@ from pytorch_lightning.plugins.environments import LightningEnvironment
 from pytorch_lightning.strategies import DDPStrategy
 
 from ...config import Config
+from ...config.hardware import get_accelerator_device_count, resolve_accelerator_type
 from ...runtime.torch_safe_globals import register_torch_safe_globals
 from .callbacks import EMAWeightsCallback, ValidationReseedingCallback, VisualizationCallback
 
@@ -197,8 +198,29 @@ def create_trainer(
     # Create trainer
     system_cfg = cfg.system
 
-    # Check if GPU is actually available
-    use_gpu = system_cfg.num_gpus > 0 and torch.cuda.is_available()
+    requested_devices = int(system_cfg.num_gpus)
+    if requested_devices > 0:
+        accelerator_type = resolve_accelerator_type(
+            getattr(system_cfg, "accelerator", "auto")
+        )
+        available_devices = get_accelerator_device_count(accelerator_type)
+        if requested_devices > available_devices:
+            raise RuntimeError(
+                f"system.num_gpus={requested_devices} requested for {accelerator_type}, "
+                f"but only {available_devices} device(s) are available"
+            )
+    else:
+        accelerator_type = "cpu"
+
+    lightning_accelerator = "gpu" if accelerator_type == "cuda" else accelerator_type
+    trainer_precision = cfg.optimization.precision
+    if accelerator_type == "mps" and str(trainer_precision) not in {"32", "32-true"}:
+        _log.warning(
+            "MPS does not reliably support Lightning mixed precision; "
+            "using precision='32-true' instead of %r",
+            trainer_precision,
+        )
+        trainer_precision = "32-true"
 
     # Check if anomaly detection is enabled (useful for debugging NaN)
     detect_anomaly = getattr(cfg.monitor, "detect_anomaly", False)
@@ -208,7 +230,7 @@ def create_trainer(
 
     # Configure DDP strategy for multi-GPU training with deep supervision
     strategy = "auto"  # Default strategy
-    if system_cfg.num_gpus > 1:
+    if requested_devices > 1:
         # Multi-GPU training: configure DDP
         loss_cfg = getattr(cfg.model, "loss", None)
         deep_supervision_enabled = getattr(loss_cfg, "deep_supervision", False)
@@ -285,17 +307,17 @@ def create_trainer(
     # so Lightning uses world_size=devices instead of treating Slurm as externally launched DDP.
     plugins = None
     slurm_ntasks = os.environ.get("SLURM_NTASKS")
-    if use_gpu and system_cfg.num_gpus > 1 and slurm_ntasks == "1":
+    if accelerator_type == "cuda" and requested_devices > 1 and slurm_ntasks == "1":
         plugins = [LightningEnvironment()]
         _log.info("  Launch mode: local multi-GPU spawn (SLURM_NTASKS=1)")
 
     trainer = pl.Trainer(
         max_epochs=max_epochs,
         max_steps=max_steps,
-        accelerator="gpu" if use_gpu else "cpu",
-        devices=system_cfg.num_gpus if use_gpu else 1,
+        accelerator=lightning_accelerator,
+        devices=requested_devices if requested_devices > 0 else 1,
         strategy=strategy,
-        precision=cfg.optimization.precision,
+        precision=trainer_precision,
         gradient_clip_val=cfg.optimization.gradient_clip_val,
         accumulate_grad_batches=cfg.optimization.accumulate_grad_batches,
         check_val_every_n_epoch=check_val_every_n_epoch,
@@ -312,8 +334,13 @@ def create_trainer(
     )
 
     _log.info(f"  Training mode: {training_mode}")
-    _log.info(f"  Devices: {system_cfg.num_gpus if system_cfg.num_gpus > 0 else 1} ({mode} mode)")
-    _log.info(f"  Precision: {cfg.optimization.precision}")
+    _log.info(
+        "  Devices: %d (%s, %s mode)",
+        requested_devices if requested_devices > 0 else 1,
+        accelerator_type,
+        mode,
+    )
+    _log.info(f"  Precision: {trainer_precision}")
 
     return trainer
 

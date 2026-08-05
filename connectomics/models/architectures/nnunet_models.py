@@ -18,6 +18,8 @@ from typing import Any, Dict
 import torch
 import torch.nn as nn
 
+from ...config.hardware import resolve_accelerator_type
+
 try:
     import nnunetv2
     from batchgenerators.utilities.file_and_folder_operations import load_json
@@ -156,7 +158,7 @@ def build_nnunet(cfg) -> ConnectomicsModel:
             - model.nnunet.dataset: Path to dataset.json file
 
         Optional:
-            - model.nnunet.device: Device to load model on ('cuda' or 'cpu', default: 'cuda')
+            - model.nnunet.device: Device to load model on ('auto', 'cuda', 'mps', or 'cpu')
             - model.in_channels: Override input channels (default: from dataset.json)
             - model.out_channels: Override output channels (default: from plans)
 
@@ -167,7 +169,7 @@ def build_nnunet(cfg) -> ConnectomicsModel:
             checkpoint: /path/to/checkpoint.pth
             plans: /path/to/plans.json
             dataset: /path/to/dataset.json
-            device: cuda
+            device: auto
 
     Args:
         cfg: Hydra config object
@@ -204,8 +206,8 @@ def build_nnunet(cfg) -> ConnectomicsModel:
         raise FileNotFoundError(f"Dataset file not found: {dataset_path}")
 
     # Get device
-    device_str = getattr(cfg.model.nnunet, "device", "cuda")
-    device = torch.device(device_str if torch.cuda.is_available() else "cpu")
+    device_str = getattr(cfg.model.nnunet, "device", "auto")
+    device = torch.device(resolve_accelerator_type(device_str))
 
     logger.info("Loading nnUNet pretrained model...")
     logger.info("  Checkpoint: %s", checkpoint_path)

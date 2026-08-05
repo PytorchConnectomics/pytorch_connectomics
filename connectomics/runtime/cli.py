@@ -6,15 +6,13 @@ import argparse
 import logging
 from pathlib import Path
 
-import torch
-
 from ..config import (
     Config,
     load_config,
     resolve_default_profiles,
     validate_config,
 )
-from ..config.hardware import resolve_runtime_resource_sentinels
+from ..config.hardware import get_accelerator_device_count, resolve_runtime_resource_sentinels
 from ..config.pipeline import print_config, resolve_data_paths, update_from_cli
 from .preflight import validate_runtime_coherence
 
@@ -249,7 +247,10 @@ def setup_config(args) -> Config:
         cfg.model.external_weights_key_prefix = args.external_prefix
 
     if args.fast_dev_run:
-        fast_dev_num_gpus = 1 if torch.cuda.is_available() else 0
+        fast_dev_num_gpus = min(
+            1,
+            get_accelerator_device_count(getattr(cfg.system, "accelerator", "auto")),
+        )
         logger.info("Fast-dev-run mode: Overriding config for debugging")
         logger.info("   - num_gpus: %s -> %s", cfg.system.num_gpus, fast_dev_num_gpus)
         logger.info(
@@ -274,12 +275,12 @@ def setup_config(args) -> Config:
 
     cfg = resolve_runtime_resource_sentinels(cfg, print_results=True)
 
-    if not torch.cuda.is_available():
+    if cfg.system.accelerator == "cpu":
         if cfg.system.num_gpus > 0:
-            logger.info("CUDA not available, setting num_gpus=0")
+            logger.info("No accelerator available, setting num_gpus=0")
             cfg.system.num_gpus = 0
         if cfg.system.num_workers > 0:
-            logger.info("CUDA not available, setting num_workers=0 to avoid dataloader crashes")
+            logger.info("CPU mode: setting num_workers=0 to avoid dataloader crashes")
             cfg.system.num_workers = 0
 
     if getattr(args, "nnunet_preprocess", False):

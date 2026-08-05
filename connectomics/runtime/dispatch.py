@@ -391,6 +391,9 @@ def dispatch_runtime(args: Any, cfg: Config) -> None:
                 saved_prediction_path=saved_prediction_path,
             )
 
+        if getattr(args, "demo", False):
+            print("\nDEMO COMPLETED SUCCESSFULLY")
+
     except Exception as exc:
         mode_name = args.mode.capitalize() if args.mode else "Operation"
         print(f"\n{mode_name} failed: {exc}")

@@ -14,6 +14,7 @@ import numpy as np
 import torch
 from pytorch_lightning.utilities.types import STEP_OUTPUT
 
+from ...config.hardware import empty_accelerator_cache
 from ...decoding import run_decoding_stage, write_decoded_outputs
 from ...decoding.qc import begin_streaming_qc, finish_streaming_qc
 from ...decoding.streamed_chunked import run_chunked_affinity_cc_inference
@@ -168,10 +169,10 @@ def _cleanup_inference_memory(module, stage: str, *, release_model: bool = False
     if cleanup_cfg is None or bool(getattr(cleanup_cfg, "gc_collect", True)):
         gc.collect()
 
-    if cleanup_cfg is None or bool(getattr(cleanup_cfg, "empty_cuda_cache", True)):
-        if torch.cuda.is_available():
-            torch.cuda.empty_cache()
-            logger.info(f"Cleared CUDA cache after {stage}.")
+    if cleanup_cfg is None or bool(getattr(cleanup_cfg, "empty_accelerator_cache", True)):
+        cleared_backend = empty_accelerator_cache()
+        if cleared_backend is not None:
+            logger.info(f"Cleared {cleared_backend.upper()} cache after {stage}.")
 
 
 def _is_distributed_tta_sharding_active(module) -> bool:

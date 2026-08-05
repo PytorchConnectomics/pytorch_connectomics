@@ -45,6 +45,38 @@ def test_create_trainer_disables_lightning_distributed_sampler_replacement_for_t
     assert captured["use_distributed_sampler"] is False
 
 
+def test_create_trainer_uses_single_mps_device_and_safe_precision(tmp_path: Path, monkeypatch):
+    cfg = from_dict(
+        {
+            "system": {"accelerator": "mps", "num_gpus": 1},
+            "optimization": {"max_epochs": 1, "precision": "16-mixed"},
+        }
+    )
+    captured = {}
+
+    class _FakeTrainer:
+        def __init__(self, **kwargs):
+            captured.update(kwargs)
+            self.logger = kwargs.get("logger")
+
+    monkeypatch.setattr(
+        "connectomics.training.lightning.trainer.resolve_accelerator_type",
+        lambda _requested: "mps",
+    )
+    monkeypatch.setattr(
+        "connectomics.training.lightning.trainer.get_accelerator_device_count",
+        lambda _accelerator: 1,
+    )
+    monkeypatch.setattr("connectomics.training.lightning.trainer.pl.Trainer", _FakeTrainer)
+
+    create_trainer(cfg, run_dir=tmp_path, mode="test")
+
+    assert captured["accelerator"] == "mps"
+    assert captured["devices"] == 1
+    assert captured["precision"] == "32-true"
+    assert captured["strategy"] == "auto"
+
+
 def test_create_trainer_adds_periodic_step_checkpoint_callback(tmp_path: Path, monkeypatch):
     cfg = from_dict(
         {
