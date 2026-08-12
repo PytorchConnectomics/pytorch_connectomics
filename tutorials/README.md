@@ -19,6 +19,24 @@ python scripts/main.py --config tutorials/<config>.yaml
 - `tutorials/nuc_nucmm-z.yaml`: NucMM zebrafish nuclei segmentation (MONAI UNet, multi-task).
 - `tutorials/fiber_linghu26.yaml`: Fiber segmentation (MedNeXt, binary+boundary+distance).
 
+## Shared recipes (not runnable on their own)
+
+- `tutorials/banis.yaml`: BANIS neuron-affinity recipe (MedNeXt-L/k3, 6-channel affinity,
+  128-cube, 50k steps) with **no** data paths.
+- `tutorials/banis+.yaml`: `banis.yaml` + the ML-ops deltas (per-channel class-balanced BCE,
+  EMA, label erosion=2, 200k steps).
+
+Dataset tutorials inherit one of these and add only their own data:
+`tutorials/neuron_nisb/base_banis+.yaml` = `banis+.yaml` + `neuron_nisb/dataset.yaml`;
+`tutorials/neuron_j0126/infer_affinity.yaml` = `banis+.yaml` + its own zebrafinch block.
+
+- `tutorials/mito_betaseg_base.yaml`: the betaSeg benchmark — data splits, label caching,
+  sparse-crop sampling, and the shared watershed decode + Adapted-Rand metric. The four
+  `mito_betaseg_banis_{v0,plus,v1,v2}.yaml` recipes inherit it and add only their model
+  and schedule; `_plus` is `_v0` plus its documented deltas (MedNeXt-L, PerChannelBCE,
+  erosion=2, EMA). These are a separate lineage from `banis.yaml` — 7-channel aff+SDT
+  multi-head, not 6-channel affinity — so they do not share it.
+
 ## Config composition (`_base_`)
 
 Top-level configs now use inheritance via `_base_`:

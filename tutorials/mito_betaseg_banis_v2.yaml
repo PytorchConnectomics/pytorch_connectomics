@@ -1,5 +1,6 @@
 _base_:
 - ../connectomics/config/all_profiles.yaml
+- mito_betaseg_base.yaml
 
 experiment_name: mednext_betaseg_banis_v2
 description: BetaSeg 3D mitochondria — v0 (faithful BANIS-mito) + improvements only. Same target geometry
@@ -69,11 +70,7 @@ default:
       loss_balancing:
         strategy: gradnorm
   data:
-    image_transform:
-      normalize: "divide-255"
     label_transform:
-      resolution: [16, 16, 16]
-      cache_dir: datasets/betaSeg
       targets:
       - name: affinity
         kwargs:
@@ -86,9 +83,6 @@ default:
     dataloader:
       patch_size: [128, 128, 128]
       batch_size: 2
-      cached_sampling_foreground_threshold: 0.05
-      cached_sampling_max_attempts: 50
-      cached_sampling_sample_nonzero_mask: true
     augmentation:
       # BANIS-style augmentations encoded in the filename:
       # drop0.05 shift0.05 intTrue noise0.5 affine0.5
@@ -148,29 +142,10 @@ default:
       ensemble_mode: min
     save_results: true
 
+  # Decode steps + adapted_rand come from mito_betaseg_base.yaml.
   decoding:
-    steps:
-    - name: decode_binary_contour_distance_watershed
-      kwargs:
-        binary_channels: [0, 1, 2]
-        binary_channel_reduction: min
-        contour_channels:
-        distance_channels: [6]
-        binary_threshold:
-        - 0.9
-        - 0.85
-        contour_threshold:
-        distance_threshold:
-        - 0.5
-        - -0.5
-        min_instance_size: 100
-        min_seed_size: 20
-        prediction_scale: 1
     postprocessing:
       enabled: true
-  evaluation:
-    enabled: true
-    metrics: [adapted_rand]
 
 train:
   system:
@@ -208,26 +183,3 @@ train:
       save_top_k: 3
       monitor: val_loss_total
       mode: min
-  data:
-    root_path: /projects/weilab/liupeng/data/raw/mito/betaSeg
-    train:
-      image: [high_c3_im.tiff, low_c1_im.tiff, low_c2_im.tiff]
-      label: [high_c3_mito.tiff, low_c1_mito.tiff, low_c2_mito.tiff]
-      label_aux_type: skeleton
-    val:
-      image: [high_c1_im.tiff]
-      label: [high_c1_mito.tiff]
-      label_aux_type: skeleton
-
-test:
-  data:
-    root_path: /projects/weilab/liupeng/data/raw/mito/betaSeg
-    test:
-      path: ""
-      # BANIS-mito test split: high_c2, high_c4, low_c3.
-      image: [high_c2_im.tiff, high_c4_im.tiff, low_c3_im.tiff]
-      label: [high_c2_mito.tiff, high_c4_mito.tiff, low_c3_mito.tiff]
-      label_aux_type: skeleton
-      resolution: [16, 16, 16]
-    data_transform:
-      pad_size: [64, 64, 64]

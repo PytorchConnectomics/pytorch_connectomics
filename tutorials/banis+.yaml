@@ -1,0 +1,38 @@
+# Shared BANIS+ recipe: `banis.yaml` plus the ML-ops changes that take NISB from
+# 43% to 60% NERL. Dataset-agnostic like its base -- inherit it and add a data
+# block:
+#   _base_: [../banis+.yaml, dataset.yaml]
+_base_:
+- banis.yaml
+
+description: >-
+  BANIS+ training setup: per-channel class-balanced BCE, EMA, label erosion=2,
+  MedNeXt-L/k3, and a 200k-step schedule.
+
+default:
+  model:
+    loss:
+      deep_supervision: false
+      losses:
+      - function: PerChannelBCEWithLogitsLoss
+        weight: 1.0
+        kwargs:
+          auto_pos_weight: true
+          max_pos_weight: 10.0
+  data:
+    dataloader:
+      batch_size: 2
+    label_transform:
+      erosion: 2
+
+train:
+  optimization:
+    max_steps: 200000
+    scheduler:
+      params:
+        t_max: 200000
+    ema:
+      enabled: true
+      decay: 0.999
+      warmup_steps: 500
+      validate_with_ema: true
