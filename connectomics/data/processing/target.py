@@ -8,6 +8,7 @@ from skimage.morphology import binary_dilation, disk
 
 from .affinity import (
     AffinityTarget,
+    local_caliber,
     seg_to_affinity,
     seg_to_thin_affinity_weight,
 )
@@ -16,6 +17,7 @@ from .flow import seg2d_to_flows
 __all__ = [
     "AffinityTarget",
     "seg_to_flows",
+    "local_caliber",
     "seg_to_affinity",
     "seg_to_thin_affinity_weight",
     "seg_to_polarity",

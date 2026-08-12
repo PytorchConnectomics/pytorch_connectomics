@@ -811,6 +811,7 @@ class MultiTaskLabelTransformd(MapTransform):
             "radius_ref": 8.0,
             "max_weight": 4.0,
             "include_negative": False,
+            "medial_window": 5,
         },
         "instance_boundary": {"thickness": 1, "edge_mode": "seg-all", "mode": "3d"},
         "instance_edt": {"mode": "2d", "quantize": False},

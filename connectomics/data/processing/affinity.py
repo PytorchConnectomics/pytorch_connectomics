@@ -24,6 +24,7 @@ __all__ = [
     "resolve_affinity_offsets_from_kwargs",
     "resolve_affinity_offsets_for_channel_slice",
     "seg_to_affinity",
+    "local_caliber",
     "seg_to_thin_affinity_weight",
 ]
 
@@ -470,6 +471,52 @@ def seg_to_affinity(
     return AffinityTarget(values=values, mask=mask, affinity_mode=mode)
 
 
+def local_caliber(
+    seg: np.ndarray,
+    resolution: Sequence[float] = (1.0, 1.0, 1.0),
+    medial_window: int = 5,
+) -> np.ndarray:
+    """Half-thickness of the process each foreground voxel belongs to.
+
+    NOT the same thing as ``distance_transform_edt(seg > 0)``. That EDT is how
+    far a voxel sits below the nearest membrane, so it is small both inside a
+    genuinely thin neurite AND just under the membrane of a thick one. Measured
+    on a liconn 256^3 crop, 76.8% of the voxels with EDT < 27 nm actually live in
+    processes whose caliber exceeds 72 nm, and their median true caliber is
+    120 nm (``corr(edt, caliber) = 0.56``). Anything that means to say "this
+    process is thin" and reaches for the raw EDT is measuring the wrong thing.
+
+    Caliber is a property of the process, not of the voxel's depth, so it must be
+    read off the medial axis and propagated outward: approximate the medial axis
+    by the local maxima of the boundary EDT, then give every foreground voxel the
+    EDT value of its nearest medial point.
+
+    Args:
+        seg: Instance segmentation, ``0`` background. Spatial shape ``(A0, A1, A2)``.
+        resolution: Physical voxel size per array axis; the returned caliber is in
+            those units.
+        medial_window: Window (in voxels) for the local-maximum ridge detection.
+            Larger keeps only stronger ridges.
+
+    Returns:
+        ``float32`` array shaped like ``seg``; ``0`` outside the foreground.
+    """
+    from scipy import ndimage as ndi
+
+    sampling = tuple(float(value) for value in resolution)
+    foreground = seg > 0
+    edt = ndi.distance_transform_edt(foreground, sampling=sampling).astype(np.float32)
+    if not foreground.any():
+        return edt
+
+    medial = foreground & (edt >= ndi.maximum_filter(edt, size=medial_window) - 1e-6)
+    if not medial.any():  # degenerate crop: fall back to the raw EDT
+        return edt
+    _, idx = ndi.distance_transform_edt(~medial, sampling=sampling, return_indices=True)
+    caliber = edt[tuple(idx)]
+    return np.where(foreground, caliber, 0.0).astype(np.float32)
+
+
 def seg_to_thin_affinity_weight(
     seg: np.ndarray,
     offsets: Optional[List[str]] = None,
@@ -479,6 +526,7 @@ def seg_to_thin_affinity_weight(
     radius_ref: float = 8.0,
     max_weight: float = 4.0,
     include_negative: bool = False,
+    medial_window: int = 5,
 ) -> np.ndarray:
     """Per-edge affinity loss weight that upweights TRUE edges on thin processes.
 
@@ -498,10 +546,13 @@ def seg_to_thin_affinity_weight(
 
         w = 1 + (max_weight - 1) * clip((radius_ref - r) / radius_ref, 0, 1)
 
-    with ``r`` the boundary EDT at the edge's storage voxel. Cross-instance edges
-    keep weight 1 (unless ``include_negative``), so the pressure is one-sided: it
-    raises confidence on true thin continuations without teaching the model to
-    connect across a membrane.
+    with ``r`` the LOCAL CALIBER at the edge's storage voxel -- see
+    :func:`local_caliber`, and note it is deliberately NOT the raw boundary EDT,
+    which conflates a thin neurite with the skin of a thick one (76.8% of the
+    voxels with EDT < 27 nm sit in processes wider than 72 nm). Cross-instance
+    edges keep weight 1 (unless ``include_negative``), so the pressure is
+    one-sided: it raises confidence on true thin continuations without teaching
+    the model to connect across a membrane.
 
     Feed the result to ``PerChannelBCEWithLogitsLoss`` through the loss term's
     ``mask_slice``; the orchestrator multiplies it into the affinity valid mask.
@@ -519,6 +570,7 @@ def seg_to_thin_affinity_weight(
             ``radius_ref``. Defaults to voxel units.
         radius_ref: Caliber at and above which the weight is 1.
         max_weight: Weight at zero caliber.
+        medial_window: Ridge-detection window passed to :func:`local_caliber`.
         include_negative: Also weight cross-instance edges by caliber. Off by
             default -- the measured deficit is one-sided.
 
@@ -544,8 +596,8 @@ def seg_to_thin_affinity_weight(
             "must give one spacing per spatial axis."
         )
 
-    radius = ndi.distance_transform_edt(seg > 0, sampling=sampling).astype(np.float32)
-    thin = np.clip((float(radius_ref) - radius) / float(radius_ref), 0.0, 1.0)
+    caliber = local_caliber(seg, resolution=sampling, medial_window=medial_window)
+    thin = np.clip((float(radius_ref) - caliber) / float(radius_ref), 0.0, 1.0)
     voxel_weight = 1.0 + (float(max_weight) - 1.0) * thin
 
     weights = np.ones((len(parsed_offsets), *seg.shape), dtype=np.float32)
