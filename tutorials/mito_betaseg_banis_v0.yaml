@@ -1,5 +1,6 @@
 _base_:
 - ../connectomics/config/all_profiles.yaml
+- mito_betaseg_base.yaml
 
 experiment_name: mito_betaseg_banis_v0
 description: BANIS-mito reproduction target (16nm betaSeg, 6-channel affinity + 1-channel SDT,
@@ -62,19 +63,12 @@ default:
       # On 4 GPUs (DDP), per-GPU batch_size=2 reproduces the same global batch.
       batch_size: 2
       val_random_sampling: true
-      cached_sampling_foreground_threshold: 0.05
-      cached_sampling_max_attempts: 50
-      cached_sampling_sample_nonzero_mask: true
-    image_transform:
-      normalize: "divide-255"
     label_transform:
       # BANIS comp_affinities runs on the raw (per-patch CC-relabeled)
       # segmentation: no erosion, source-index storage (affinity_mode=banis).
       erosion: 0
       relabel_connected_components: true
       relabel_connectivity: 6
-      resolution: [16, 16, 16]
-      cache_dir: datasets/betaSeg
       targets:
       - name: affinity
         kwargs:
@@ -115,29 +109,6 @@ default:
     save_dtype: float16
     save_backend: h5
 
-  decoding:
-    steps:
-    - name: decode_binary_contour_distance_watershed
-      kwargs:
-        binary_channels: [0, 1, 2]
-        binary_channel_reduction: min
-        contour_channels:
-        distance_channels: [6]
-        binary_threshold:
-        - 0.9
-        - 0.85
-        contour_threshold:
-        distance_threshold:
-        - 0.5
-        - -0.5
-        min_instance_size: 100
-        min_seed_size: 20
-        prediction_scale: 1
-
-  evaluation:
-    enabled: true
-    metrics: [adapted_rand]
-
 train:
   system:
     seed: 0
@@ -170,16 +141,6 @@ train:
     num_sanity_val_steps: 0
     ema:
       enabled: false
-  data:
-    root_path: /projects/weilab/liupeng/data/raw/mito/betaSeg
-    train:
-      image: [high_c3_im.tiff, low_c1_im.tiff, low_c2_im.tiff]
-      label: [high_c3_mito.tiff, low_c1_mito.tiff, low_c2_mito.tiff]
-      label_aux_type: skeleton
-    val:
-      image: [high_c1_im.tiff]
-      label: [high_c1_mito.tiff]
-      label_aux_type: skeleton
   monitor:
     logging:
       scalar:
@@ -198,16 +159,3 @@ train:
       save_on_train_epoch_end: false
       save_last: true
       checkpoint_filename: "{epoch:03d}-{val_loss_total:.4f}"
-
-test:
-  data:
-    root_path: /projects/weilab/liupeng/data/raw/mito/betaSeg
-    test:
-      path: ""
-      # BANIS-mito test split: high_c2, high_c4, low_c3.
-      image: [high_c2_im.tiff, high_c4_im.tiff, low_c3_im.tiff]
-      label: [high_c2_mito.tiff, high_c4_mito.tiff, low_c3_mito.tiff]
-      label_aux_type: skeleton
-      resolution: [16, 16, 16]
-    data_transform:
-      pad_size: [64, 64, 64]
