@@ -1,0 +1,91 @@
+_base_:
+  - ../neuron_nisb/base_banis+.yaml
+
+experiment_name: segem_banis_plus
+description: >-
+  banis+ (MedNeXt-L/k3) on the 267 usable SegEM training cubes (Berning 2015,
+  mouse cortex L4, 11.24x11.24x28 nm), trained from scratch.
+
+  SegEM ships NO instance labels — `target` is ternary {-1 membrane, 0 uncertain,
+  +1 intracellular}. `dev/segem/convert_cubes.py` converts it to instances
+  (cc3d conn=6 -> drop <100-voxel debris -> grow the surviving IDs over the
+  membrane band by nearest-instance EDT), so this config trains the standard
+  6-channel banis+ target.
+
+  Why instances and not the semantic mask directly: a semantic mask CANNOT
+  express long-range affinity. At offset > 1 the target asks "same object?", and
+  two foreground voxels 10 apart routinely belong to different cells, so every
+  cross-cell pair would be labelled connected. `seg_to_affinity(semantic=True)`
+  is exact for the 3 unit offsets and RAISES on anything longer — there is no
+  approximation to fall back on. 6 channels requires real IDs.
+
+  erosion stays at the banis+ default of 2: the converter hands pytc a DENSE
+  label, so pytc places the boundary itself. (SegEM's own band is pre-eroded to
+  ~pytc r=3-4, which is why it is grown back rather than passed through.)
+
+  Data: each cube is the full 150x200x200 raw with an int32 label that is -1
+  (ignore) outside the annotated centre at raw[25:125, 50:150, 50:150] (ZYX),
+  mirroring the zebrafinch padded-cube convention. val/ is 26 cubes genuinely
+  held out of train/ (the zebrafinch ft line scored val cubes that were also in
+  train — do not repeat that).
+
+save_path: outputs/segem_banis_plus
+
+default:
+  system:
+    num_gpus: 4
+  data:
+    dataloader:
+      # Small h5 cubes -> in-memory cache (base_banis profile is `lazy` for NISB
+      # zarr). Explicit keys because a profile payload cannot override an
+      # explicit value.
+      profile: cached
+      use_lazy_zarr: false
+      use_cache: false
+      use_preloaded_cache_train: true
+      use_preloaded_cache_val: true
+      batch_size: 8
+      # Preflight requires model.input_size == data.dataloader.patch_size.
+      # [48,96,96] = 1344x1079x1079 nm, near-isotropic at 11.24x11.24x28 nm.
+      patch_size: [48, 96, 96]
+      # Long-range@10 needs 10 trailing voxels of context (inherited).
+      target_context: [0, 0, 0, 10, 10, 10]
+    label_transform:
+      # Dense label in, pytc erodes. Keep IDs stable across crops.
+      erosion: 2
+      relabel_connected_components: false
+      targets:
+        - name: affinity
+          kwargs:
+            offsets: ["1-0-0", "0-1-0", "0-0-1", "10-0-0", "0-10-0", "0-0-10"]
+            affinity_mode: banis
+    augmentation:
+      profile: aug_em_neuron
+  model:
+    input_size: [48, 96, 96]
+    output_size: [48, 96, 96]
+    out_channels: 6
+    external_weights_path: null
+  inference:
+    model:
+      select_channel: [0, 1, 2]
+
+train:
+  optimization:
+    optimizer:
+      lr: 0.001
+    max_steps: 200000
+    scheduler:
+      params:
+        t_max: 200000
+  data:
+    train:
+      path: ""
+      resolution: [28.0, 11.24, 11.24]
+      image: /projects/weilab/dataset/segEM/pytc/train/im/cube*.h5
+      label: /projects/weilab/dataset/segEM/pytc/train/seg/cube*.h5
+    val:
+      path: ""
+      resolution: [28.0, 11.24, 11.24]
+      image: /projects/weilab/dataset/segEM/pytc/val/im/cube*.h5
+      label: /projects/weilab/dataset/segEM/pytc/val/seg/cube*.h5

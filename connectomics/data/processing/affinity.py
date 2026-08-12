@@ -410,6 +410,7 @@ def seg_to_affinity(
     offsets: Optional[List[str]] = None,
     long_range: Optional[int] = None,
     affinity_mode: str = "deepem",
+    semantic: bool = False,
 ) -> "AffinityTarget":
     """
     Compute affinity maps from segmentation.
@@ -438,6 +439,21 @@ def seg_to_affinity(
                     - Channels 3-5: long-range (offset ``long_range``) along
                       axes 0, 1, 2
         affinity_mode: ``deepem`` or ``banis``.
+        semantic: Treat ``seg`` as a semantic foreground mask rather than an
+                  instance map — every positive value is collapsed to one ID
+                  (``-1`` still means unlabeled). For unit offsets this is
+                  exactly the instance affinity, because two 6-adjacent
+                  foreground voxels are always the same object.
+
+                  **A semantic mask can never yield LONG-RANGE affinity.** At
+                  offset > 1 the target asks "are these two voxels the same
+                  object", and a mask cannot answer it — two foreground voxels
+                  10 apart routinely belong to different cells, so every
+                  cross-cell pair would be labelled connected. There is no
+                  approximation available and no flag to loosen this; if you
+                  need the 6-channel banis+ target, you need real instance
+                  labels. Non-unit offsets therefore raise rather than emit a
+                  silently wrong target.
 
     Returns:
         :class:`AffinityTarget` carrying ``values`` (bool) and ``mask`` (bool),
@@ -450,6 +466,17 @@ def seg_to_affinity(
     parsed_offsets = resolve_affinity_offsets_from_kwargs(
         {"offsets": offsets, "long_range": long_range}
     )
+    if semantic:
+        non_unit = [o for o in parsed_offsets if sum(abs(v) for v in o) > 1]
+        if non_unit:
+            raise ValueError(
+                "semantic=True supports unit offsets only; got "
+                f"{['-'.join(map(str, o)) for o in non_unit]}. Long-range affinity "
+                "cannot be recovered from a semantic mask — two foreground voxels "
+                "that far apart may be different objects."
+            )
+        seg = np.where(seg > 0, 1, seg)  # collapse IDs, keep 0 background and -1 ignore
+
     num_channels = len(parsed_offsets)
     values = np.zeros((num_channels, *seg.shape), dtype=bool)
     mask = np.zeros_like(values, dtype=bool)
