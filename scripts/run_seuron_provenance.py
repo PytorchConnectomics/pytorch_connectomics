@@ -238,6 +238,22 @@ def resolve_replay(args: argparse.Namespace) -> ResolvedReplay:
     )
     param = dict(mapped.param)
 
+    # Affinity FORMAT keys only. These describe how to READ the affinity (edge
+    # convention, sigmoid scaling) -- a storage concern the provenance record has no
+    # field for, because Seuron always read a precomputed layer that was already
+    # converted. Segmentation parameters are deliberately NOT overridable: this is a
+    # fidelity replay, and letting a config retune AGG_THRESHOLD here would quietly
+    # invalidate the very comparison the tool exists to make.
+    overrides = replay.get("param_overrides") or {}
+    unknown = set(overrides) - _OVERRIDABLE_PARAM_KEYS
+    if unknown:
+        raise ValueError(
+            f"param_overrides may only set {sorted(_OVERRIDABLE_PARAM_KEYS)}; got "
+            f"{sorted(unknown)}. Segmentation parameters come from the provenance "
+            "record and are not overridable."
+        )
+    param.update(overrides)
+
     exec_value = args.exec_bbox if args.exec_bbox is not None else replay.get("exec_bbox")
     execution_bbox = _bbox(
         exec_value if exec_value is not None else param["BBOX"],
@@ -480,6 +496,89 @@ def _preflight_abiss(resolved: ResolvedReplay) -> None:
         )
 
 
+
+# A bare array carries no storage-chunk geometry to copy into the output layers, so
+# they get this explicit default. It divides the seuron CHUNK_SIZE [512,512,256] on
+# every axis, which is the alignment ABISS needs for its chunked writes.
+_DEFAULT_OUTPUT_CHUNK_XYZ = (256, 256, 256)
+
+# See the note where these are applied: read-format only, never segmentation.
+_OVERRIDABLE_PARAM_KEYS = frozenset({"AFF_CONVENTION", "AFF_RESTORE_SIGMOID"})
+
+
+def _load_volume_backends(abiss_home: Path):
+    """Import ABISS' backend dispatcher (lib/abiss/scripts is not a package)."""
+    scripts_dir = str(Path(abiss_home) / "scripts")
+    if scripts_dir not in sys.path:
+        sys.path.insert(0, scripts_dir)
+    import volume_backends
+
+    return volume_backends
+
+
+def _preflight_affinity_backend(
+    resolved: ResolvedReplay, backends, affinity_path: str
+) -> AffinityMetadata:
+    """Preflight an HDF5 / zarr / chunk-store affinity.
+
+    Keeps the checks that still carry meaning for a non-precomputed source -- bbox
+    containment and real corner reads, which is what catches a chunk store missing an
+    edge file -- and is explicit about the one that cannot hold: a bare array has no
+    resolution metadata, so AFF_RESOLUTION is TAKEN ON TRUST here rather than verified
+    against the volume. That is a weaker guarantee than the precomputed path gives, and
+    it is stated rather than papered over.
+    """
+    requested_resolution = tuple(int(v) for v in resolved.param["AFF_RESOLUTION"])
+    if len(requested_resolution) != 3:
+        raise ValueError(
+            "AFF_RESOLUTION must contain three XYZ values, got "
+            f"{resolved.param['AFF_RESOLUTION']!r}."
+        )
+    requested_mip = int(resolved.param["AFF_MIP"])
+    if requested_mip != 0:
+        raise ValueError(
+            f"AFF_MIP {requested_mip} is not available: HDF5/zarr/chunk-store affinity is "
+            "single-scale. Use mip 0, or a precomputed layer for multi-scale."
+        )
+
+    try:
+        volume = backends.open_volume(affinity_path)
+    except Exception as exc:
+        raise RuntimeError(f"Affinity preflight failed for {affinity_path}: {exc}.") from exc
+
+    xdim, ydim, zdim = (int(v) for v in volume.shape[:3])
+    volume_bbox = (0, 0, 0, xdim, ydim, zdim)
+    if not _contains(volume_bbox, resolved.execution_bbox):
+        raise ValueError(
+            f"execution bbox {list(resolved.execution_bbox)} is outside affinity bounds "
+            f"{list(volume_bbox)}."
+        )
+
+    x, y, z, x1, y1, z1 = resolved.execution_bbox
+    # Read real voxels, not just metadata: for a chunk store this is what surfaces a
+    # missing edge file before any output directory or manifest is created.
+    try:
+        _ = volume[x : x + 1, y : y + 1, z : z + 1]
+        _ = volume[x1 - 1 : x1, y1 - 1 : y1, z1 - 1 : z1]
+    except Exception as exc:
+        raise RuntimeError(f"Affinity preflight failed for {affinity_path}: {exc}.") from exc
+
+    print(
+        f"affinity preflight: {affinity_path}\n"
+        f"  shape(XYZ)={[xdim, ydim, zdim]} channels={volume.shape[3]} dtype={volume.dtype}\n"
+        f"  resolution={list(requested_resolution)} (DECLARED, not verifiable for this backend)\n"
+        f"  output layer chunk={list(_DEFAULT_OUTPUT_CHUNK_XYZ)}"
+    )
+    return AffinityMetadata(
+        resolution_xyz=(
+            requested_resolution[0],
+            requested_resolution[1],
+            requested_resolution[2],
+        ),
+        chunk_size_xyz=_DEFAULT_OUTPUT_CHUNK_XYZ,
+    )
+
+
 def _preflight_affinity(
     resolved: ResolvedReplay,
     *,
@@ -495,6 +594,15 @@ def _preflight_affinity(
         local_path = Path(unquote(parsed.path))
         if not local_path.exists():
             raise RuntimeError(f"Local affinity precomputed layer does not exist: {local_path}")
+
+    # A non-precomputed source has no `info`, so CloudVolume cannot open it at all.
+    backends = _load_volume_backends(resolved.abiss_home)
+    if (
+        backends.is_h5_chunkstore_path(affinity_path)
+        or backends.is_h5_path(affinity_path)
+        or backends.is_zarr_path(affinity_path)
+    ):
+        return _preflight_affinity_backend(resolved, backends, affinity_path)
     elif parsed.scheme == "gs" and not _has_explicit_gs_credentials(resolved.secrets_dir):
         raise RuntimeError(
             f"No GCS credentials found in {resolved.secrets_dir}. Provide --secrets-dir "

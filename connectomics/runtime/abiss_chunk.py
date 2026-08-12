@@ -164,6 +164,67 @@ class ChunkWorkflowConfig:
         )
 
 
+
+def _affinity_extent_xyz(cloudpath: str) -> tuple[int, int, int] | None:
+    """Spatial extent (X, Y, Z) of a LOCAL h5/zarr affinity, or None if not knowable.
+
+    Returns None for precomputed/remote layers, whose extent lives in an `info` file
+    the workers read themselves.
+    """
+    if not _is_local_cloudpath(cloudpath):
+        return None
+    raw = str(_cloudpath_to_local_path(cloudpath))
+    dataset = None
+    if "::" in raw:
+        raw, dataset = raw.split("::", 1)
+    path = Path(raw)
+    if not path.exists():
+        return None
+    try:
+        if path.suffix.lower() in (".h5", ".hdf5"):
+            with h5py.File(path, "r") as handle:
+                if dataset is None:
+                    names = [k for k in handle if isinstance(handle[k], h5py.Dataset)]
+                    if len(names) != 1:
+                        return None
+                    dataset = names[0]
+                shape = tuple(int(v) for v in handle[dataset].shape)
+        elif path.suffix.lower() == ".zarr":
+            import zarr
+
+            shape = tuple(int(v) for v in zarr.open(str(path), mode="r").shape)
+        else:
+            return None
+    except Exception:
+        # Never let a preflight convenience check break a run that would work.
+        return None
+    if len(shape) == 4:
+        shape = shape[1:]
+    if len(shape) != 3:
+        return None
+    zdim, ydim, xdim = shape
+    return xdim, ydim, zdim
+
+
+def _validate_bbox_against_affinity(aff_cloudpath: str, bbox_xyz: Sequence[int]) -> None:
+    """Fail here rather than inside a worker halfway through the volume.
+
+    An out-of-range BBOX otherwise surfaces as a per-chunk read error after the
+    chunk hierarchy is already built, or -- worse -- as silently truncated reads.
+    """
+    extent = _affinity_extent_xyz(aff_cloudpath)
+    if extent is None:
+        return
+    lo, hi = list(bbox_xyz[:3]), list(bbox_xyz[3:])
+    for axis, name in enumerate("XYZ"):
+        if lo[axis] < 0 or hi[axis] > extent[axis] or lo[axis] >= hi[axis]:
+            raise ValueError(
+                f"param.BBOX {list(bbox_xyz)} is invalid on axis {name} for "
+                f"{aff_cloudpath}: the affinity extent is {list(extent)} (XYZ), so "
+                f"{name} must satisfy 0 <= {lo[axis]} < {hi[axis]} <= {extent[axis]}."
+            )
+
+
 def _normalize_cloudpath(value: str | Path) -> str:
     s = str(value)
     if "://" in s:
@@ -633,6 +694,7 @@ def prepare_config(config_path: Path) -> ChunkWorkflowConfig:
     aff_cloudpath = _normalize_cloudpath(
         param.get("AFF_PATH", outputs_root / "precomputed" / "affinity")
     )
+    _validate_bbox_against_affinity(aff_cloudpath, bbox_xyz)
     ws_cloudpath = _normalize_cloudpath(param.get("WS_PATH", outputs_root / "precomputed" / "ws"))
     seg_cloudpath = _normalize_cloudpath(
         param.get("SEG_PATH", outputs_root / "precomputed" / "seg")
