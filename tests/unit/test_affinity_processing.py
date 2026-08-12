@@ -1,4 +1,5 @@
 import numpy as np
+import pytest
 import torch
 
 from connectomics.data.processing.affinity import (
@@ -170,3 +171,36 @@ def test_seg_to_affinity_returns_explicit_target_and_mask_for_both_modes():
     expected_banis_from_deepem = np.zeros_like(deepem.mask)
     expected_banis_from_deepem[..., :-1] = deepem.mask[..., 1:]
     np.testing.assert_array_equal(banis.mask, expected_banis_from_deepem)
+
+
+def test_semantic_affinity_equals_instance_affinity_for_unit_offsets():
+    """A semantic mask and its connected-component labeling give the same
+    short-range affinity — two 6-adjacent foreground voxels are the same object
+    by construction. This is what lets SegEM-style ternary GT train banis+
+    without an instance-decoding step."""
+    import cc3d
+
+    rng = np.random.default_rng(0)
+    mask = rng.random((10, 11, 12)) > 0.45
+    semantic = np.where(mask, 1, 0).astype(np.int32)
+    semantic[2:4, 5, :] = -1  # unlabeled band, must stay masked out
+    instances = cc3d.connected_components(mask.astype(np.uint8), connectivity=6).astype(np.int32)
+    instances[semantic == -1] = -1
+
+    offsets = ["1-0-0", "0-1-0", "0-0-1"]
+    for mode in ("banis", "deepem"):
+        from_semantic = seg_to_affinity(semantic, offsets=offsets, affinity_mode=mode, semantic=True)
+        from_instances = seg_to_affinity(instances, offsets=offsets, affinity_mode=mode)
+        np.testing.assert_array_equal(from_semantic.mask, from_instances.mask)
+        np.testing.assert_array_equal(
+            from_semantic.values & from_semantic.mask,
+            from_instances.values & from_instances.mask,
+        )
+
+
+def test_semantic_affinity_rejects_long_range_offsets():
+    seg = np.ones((6, 6, 6), dtype=np.int32)
+    with pytest.raises(ValueError, match="unit offsets only"):
+        seg_to_affinity(seg, long_range=10, affinity_mode="banis", semantic=True)
+    with pytest.raises(ValueError, match="unit offsets only"):
+        seg_to_affinity(seg, offsets=["0-0-2"], affinity_mode="banis", semantic=True)
