@@ -1,0 +1,91 @@
+# NISB basedata (9 nm EM, 416 GT skeletons in seed101): data paths and the
+# decode-threshold sweep. This is what makes a run "NISB".
+#
+# Everything about the model, targets, augmentation and schedule lives in the
+# shared `../banis.yaml` / `../banis+.yaml` recipes. Not runnable on its own:
+#   _base_: [../banis+.yaml, dataset.yaml]
+
+train:
+  data:
+    train:
+      path: /projects/weilab/dataset/nisb/base/train
+      image: seed*/data.zarr/img
+      label: seed*/data.zarr/seg
+      resolution: [9, 9, 20]
+    val:
+      path: /projects/weilab/dataset/nisb/base/val
+      image: seed100/data.zarr/img
+      label: seed100/data.zarr/seg
+      resolution: [9, 9, 20]
+
+test:
+  data:
+    test:
+      #path: /projects/weilab/dataset/nisb/base/train/seed0/
+      #skeleton: /projects/weilab/dataset/nisb/base/train/seed0/skeleton.pkl
+      path: /projects/weilab/dataset/nisb/base/test/seed101/
+      skeleton: /projects/weilab/dataset/nisb/base/test/seed101/skeleton.pkl
+      image: data.zarr/img
+      label: data.zarr/seg
+      resolution: [9, 9, 20]
+  decoding:
+    # Optional per-volume affinity mask: zeros affinity channels at border/
+    # background voxels before decoding (top-level DecodingConfig field, not a
+    # decoder-step kwarg). OFF by default -- it is worth only ~0.5 NERL point and
+    # is specific to one volume (its spec bakes an absolute source-image path).
+    # Point this at a build_affinity_mask output (border=32px / bg<=30) to enable.
+    affinity_mask_path: ""
+
+
+# ============================================================================
+# Parameter tuning for decode_affinity_cc threshold (--mode tune)
+# ============================================================================
+tune:
+  data:
+    val:
+      path: /projects/weilab/dataset/nisb/base/val/seed100/
+      skeleton: /projects/weilab/dataset/nisb/base/val/seed100/skeleton.pkl
+      image: data.zarr/img
+      label: data.zarr/seg
+      resolution: [9, 9, 20]
+
+
+  enabled: true
+  # Grid sweep across [0.5, 0.9] @ step 0.02 = 21 values.
+  # NERL vs affinity threshold is a smooth, near-unimodal curve, so a
+  # deterministic grid beats TPE here (no surrogate gymnastics on 1-D).
+  n_trials: 21
+  study_name: nisb_base_banis_cc_tuning
+  load_if_exists: true
+
+  sampler:
+    name: Grid
+    kwargs:
+      search_space:
+        threshold: [0.50, 0.52, 0.54, 0.56, 0.58, 0.60, 0.62, 0.64, 0.66, 0.68,
+                    0.70, 0.72, 0.74, 0.76, 0.78, 0.80, 0.82, 0.84, 0.86, 0.88, 0.90]
+
+  optimization:
+    mode: single
+    single_objective:
+      metric: nerl
+      direction: maximize
+
+  save_study: true
+
+  logging:
+    verbose: true
+    show_progress_bar: true
+
+  parameter_space:
+    decoding:
+      function_name: decode_affinity_cc
+      defaults:
+        backend: numba
+        edge_offset: 0
+      parameters:
+        threshold:
+          type: float
+          range: [0.5, 0.9]
+          step: 0.02
+          description: "Affinity binarization threshold for connected components"

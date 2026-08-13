@@ -300,10 +300,21 @@ scripts/                            # Entry points and utilities
     └── eval_curvilinear.py
 
 tutorials/                          # Example configurations (16 canonical YAMLs + custom workflows)
+├── banis{,+}.yaml                  # Shared dataset-free BANIS / BANIS+ recipes (model,
+│                                   #   targets, augmentation, schedule, inference defaults).
+│                                   #   Not runnable alone; dataset tutorials `_base_` them
+│                                   #   and add only their own data block.
 ├── mitoEM/, neuron_nisb/, neuron_snemi/  # Multi-config experiment families
+│                                   #   neuron_nisb/: base_banis{,+}.yaml = ../banis{,+}.yaml
+│                                   #   + dataset.yaml (NISB paths + decode sweep)
 ├── neuron_axon/                    # MIT-LiCONN axon decode: naive waterz baseline vs
 │                                   #   the staged branch decode graph (seg_2d → link →
 │                                   #   split → merge), scored with NERL + oracle-merge
+├── mito_betaseg_base.yaml          # betaSeg benchmark (data splits, sparse sampling,
+│                                   #   watershed decode, adapted_rand); the four
+│                                   #   mito_betaseg_banis_* recipes `_base_` it, and
+│                                   #   _plus `_base_`s _v0. Separate lineage from banis*
+│                                   #   (7-ch aff+SDT multi-head, not 6-ch affinity).
 ├── *.yaml                          # Dataset-specific configs
 │                                   #   mito_lucchi++, mito_mitolab, mito_betaseg(_banis_v0/v1/v2),
 │                                   #   neuron_liconn_mit(_x2), nuc_nucmm-z, syn_cremi,
