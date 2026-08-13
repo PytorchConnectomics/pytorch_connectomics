@@ -1,15 +1,15 @@
 _base_:
-  - ../neuron_nisb/base_banis+.yaml
+  - ../banis+.yaml
 
 experiment_name: neuron_j0126_affinity
 description: >-
   Stage 1 of the j0126 (zebra finch) ABISS tutorial: EM image -> 3-channel
   affinity, saved as float16 HDF5 for ABISS to read directly.
 
-  Applies the base_banis+ MedNeXt-L/k3 affinity model (trained on NISB at 9 nm) to
+  Applies the banis+ MedNeXt-L/k3 affinity model (trained on NISB at 9 nm) to
   the zebrafinch im_align_10nm volume via chunked inference. Everything specific to
-  this dataset is in this one file; only the shared banis+ model definition is
-  inherited.
+  this dataset is in this one file; only the shared, dataset-free banis+ model
+  definition is inherited.
 
   Output is the same float16 HDF5 this pipeline has always written. ABISS reads it
   through its HDF5 backend, so there is no conversion step and no second copy of
@@ -82,13 +82,11 @@ default:
     # silently renames stage 1's output -- which is what abiss.yaml's AFF_PATH
     # points at.
     save_suffix: zebrafinch_chunk_raw_grid1008_halo72
-    # No affinity QC mask: the inherited base_banis path is NISB-specific.
-    affinity_mask_path: ""
     steps:
       - name: decode_affinity_cc
         kwargs:
           # The reference zebrafinch setting, kept so enabling decoding here
-          # reproduces that run rather than the inherited NISB default (0.75).
+          # reproduces that run rather than the inherited BANIS default (0.75).
           threshold: 0.66
           backend: numba
           edge_offset: 0
@@ -109,15 +107,5 @@ test:
       # with the GPU idle, versus ~30 min/chunk here.
       dataset_type: null
       image: /projects/weilab/dataset/zebrafinch/im_align_10nm.zarr/0
-      # `path`/`json` describe the tiled-PNG layout and are unused once
-      # dataset_type is null (the volume backend keys off `image`); set here so an
-      # unrelated NISB path is not inherited into this dataset's config.
-      path: /projects/weilab/dataset/zebrafinch
-      json: im_align_10nm.json
-      # Clear the NISB label/skeleton paths inherited from base_banis.
-      label: null
-      label_aux: null
-      mask: null
-      skeleton: null
       name: im_align_10nm
       resolution: [10, 10, 10]

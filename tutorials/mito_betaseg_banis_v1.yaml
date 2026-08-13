@@ -1,5 +1,6 @@
 _base_:
 - ../connectomics/config/all_profiles.yaml
+- mito_betaseg_base.yaml
 
 experiment_name: mednext_betaseg_banis_aff3_sparse
 description: BetaSeg 3D mitochondria instance segmentation with MedNeXt multi-head (BANIS-style aff_r1
@@ -53,12 +54,8 @@ default:
         target_slice: "6:7"
         kwargs: {tanh: true}
   data:
-    image_transform:
-      normalize: "divide-255"
     label_transform:
-      resolution: [16, 16, 16]
       erosion: 1
-      cache_dir: datasets/betaSeg
       targets:
       - name: affinity
         kwargs:
@@ -71,9 +68,6 @@ default:
     dataloader:
       patch_size: [128, 128, 128]
       batch_size: 4
-      cached_sampling_foreground_threshold: 0.05
-      cached_sampling_max_attempts: 50
-      cached_sampling_sample_nonzero_mask: true
     augmentation:
       # BANIS-style augmentations encoded in the filename:
       # drop0.05 shift0.05 intTrue noise0.5 affine0.5
@@ -130,29 +124,10 @@ default:
       ensemble_mode: min
     save_results: true
 
+  # Decode steps + adapted_rand come from mito_betaseg_base.yaml.
   decoding:
-    steps:
-    - name: decode_binary_contour_distance_watershed
-      kwargs:
-        binary_channels: [0, 1, 2]
-        binary_channel_reduction: min
-        contour_channels:
-        distance_channels: [6]
-        binary_threshold:
-        - 0.9
-        - 0.85
-        contour_threshold:
-        distance_threshold:
-        - 0.5
-        - -0.5
-        min_instance_size: 100
-        min_seed_size: 20
-        prediction_scale: 1
     postprocessing:
       enabled: true
-  evaluation:
-    enabled: true
-    metrics: [adapted_rand]
 
 train:
   system:
@@ -189,26 +164,16 @@ train:
       save_top_k: 3
       monitor: val_loss_total
       mode: min
-  data:
-    root_path: /projects/weilab/liupeng/data/raw/mito/betaSeg
-    train:
-      image: [high_c3_im.tiff, low_c1_im.tiff, low_c2_im.tiff]
-      label: [high_c3_mito.tiff, low_c1_mito.tiff, low_c2_mito.tiff]
-      label_aux_type: skeleton
-    val:
-      image: [high_c1_im.tiff]
-      label: [high_c1_mito.tiff]
-      label_aux_type: skeleton
 
+# Unlike the other betaSeg recipes this one scores a single unpadded cube
+# instead of the 3-cube split in mito_betaseg_base.yaml.
 test:
   data:
-    root_path: /projects/weilab/liupeng/data/raw/mito/betaSeg
     test:
-      path: ""
       image: high_c2_im.tiff
       label: high_c2_mito.tiff
       # Matches sdt_path_for_label(..., mode="skeleton", cache_dir="datasets/betaSeg")
       # so pure test mode can consume the precomputed skeleton cache directly.
       label_aux: datasets/betaSeg/high_c2_mito_skeleton.h5
-      label_aux_type: skeleton
-      resolution: [16, 16, 16]
+    data_transform:
+      pad_size: [0, 0, 0]

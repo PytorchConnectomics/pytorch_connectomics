@@ -57,10 +57,16 @@ abiss_chunk:
     # (No AFF_RESTORE_SIGMOID: stage 1 emits a plain sigmoid, so there is nothing to
     # undo. Add "AFF_RESTORE_SIGMOID: 0.2" only for scale_sigmoid affinity.)
     AFF_CONVENTION: banis
-    WS_PATH: file://outputs/neuron_j0126_abiss/precomputed/ws
-    SEG_PATH: file://outputs/neuron_j0126_abiss/precomputed/seg
-    SCRATCH_PATH: file://outputs/neuron_j0126_abiss/scratch
-    CHUNKMAP_OUTPUT: file://outputs/neuron_j0126_abiss/chunkmap
+    # Plain relative paths, NOT "file://outputs/...". The latter is a malformed file
+    # URI: URI parsing reads "outputs" as the HOST and "/neuron_j0126_abiss/..." as the
+    # path, so preparation would target the filesystem ROOT. The runtime turns a bare
+    # relative path into a well-formed absolute file:/// URI for you (see
+    # _normalize_cloudpath in connectomics/runtime/abiss_chunk.py); write an absolute
+    # file:///... URI only if the outputs live outside the working directory.
+    WS_PATH: outputs/neuron_j0126_abiss/precomputed/ws
+    SEG_PATH: outputs/neuron_j0126_abiss/precomputed/seg
+    SCRATCH_PATH: outputs/neuron_j0126_abiss/scratch
+    CHUNKMAP_OUTPUT: outputs/neuron_j0126_abiss/chunkmap
 
     # NOTE: `abiss_large` reads AFF_RESOLUTION as a MIP INDEX (int), unlike the
     # seuron-provenance path where it is a [x,y,z] nm triple. The layer written by

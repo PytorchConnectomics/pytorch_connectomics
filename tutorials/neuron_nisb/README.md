@@ -10,6 +10,12 @@ NISB neuron-segmentation experiments on the BANIS basedata (9 nm EM,
 
 NERL values are reported as mean±standard deviation over three runs.
 
+Both configs are two `_base_` lines plus an experiment name: the model/schedule
+recipe comes from the shared, dataset-free `../banis.yaml` / `../banis+.yaml`,
+and the NISB data paths and decode-threshold sweep come from `dataset.yaml`.
+Change the recipe for every dataset in `../banis*.yaml`; change NISB paths in
+`dataset.yaml`.
+
 ## Reproduce `base_banis+` (60.1% NERL)
 
 Run the released checkpoint through the val-tuned decode threshold and score
