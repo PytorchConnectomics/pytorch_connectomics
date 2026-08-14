@@ -253,6 +253,47 @@ def test_output_modes_enforce_fresh_resume_and_explicit_overwrite(tmp_path):
     assert not overwrite.run_root.exists()
 
 
+def test_abiss_build_id_covers_runtime_scripts_and_untracked_binaries(tmp_path):
+    from scripts import run_seuron_provenance as cli
+
+    abiss = tmp_path / "abiss"
+    scripts = abiss / "scripts"
+    build = abiss / "build"
+    scripts.mkdir(parents=True)
+    build.mkdir()
+    helper = scripts / "worker.py"
+    binary = build / "ws"
+    helper.write_text("VERSION = 1\n", encoding="utf-8")
+    binary.write_bytes(b"binary-v1")
+    binary.chmod(0o700)
+    subprocess.run(["git", "init", "-q", str(abiss)], check=True)
+    subprocess.run(["git", "-C", str(abiss), "add", "scripts/worker.py"], check=True)
+    subprocess.run(
+        [
+            "git",
+            "-C",
+            str(abiss),
+            "-c",
+            "user.name=Codex Test",
+            "-c",
+            "user.email=codex@example.invalid",
+            "commit",
+            "-qm",
+            "fixture",
+        ],
+        check=True,
+    )
+
+    original = cli._abiss_build_id(abiss)
+    helper.write_text("VERSION = 2\n", encoding="utf-8")
+    script_changed = cli._abiss_build_id(abiss)
+    binary.write_bytes(b"binary-v2")
+    binary_changed = cli._abiss_build_id(abiss)
+
+    assert original != script_changed
+    assert script_changed != binary_changed
+
+
 @pytest.mark.parametrize(
     ("field", "replacement"),
     [
