@@ -115,12 +115,15 @@ def stage_init(args, meta):
     if os.path.exists(args.output) and not args.force:
         raise SystemExit(f"{args.output} exists; pass --force to recreate metadata/arrays.")
     compressor = numcodecs.Blosc(cname="zstd", clevel=3, shuffle=numcodecs.Blosc.SHUFFLE)
-    root = zarr.open_group(args.output, mode="a")
+    # zarr_format=2 is pinned, not inherited: OME-NGFF 0.4 (written below) is a v2
+    # spec, the already-converted volumes on disk are v2, and zarr 3 would otherwise
+    # default a fresh group to v3 — a silent format split across the same dataset.
+    root = zarr.open_group(args.output, mode="a", zarr_format=2)
     for level, shp in enumerate(shapes):
         chunks = tuple(min(c, s) for c, s in zip(args.chunk, shp))
-        root.create_dataset(
+        root.create_array(
             str(level), shape=shp, chunks=chunks, dtype="uint8",
-            compressor=compressor, overwrite=args.force, fill_value=0,
+            compressors=compressor, overwrite=args.force, fill_value=0,
         )
     res = [float(r) for r in args.resolution]
     root.attrs["multiscales"] = [{

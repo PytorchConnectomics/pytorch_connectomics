@@ -133,6 +133,28 @@ def test_overwrite_resets_manifest_and_recomputes(tmp_path):
     np.testing.assert_array_equal(out, (vol2.astype(np.int32) * 2).astype(np.uint16))
 
 
+def test_zarr_subkey_output_round_trips(tmp_path):
+    """The `.zarr/<sub>` allocation branch had no coverage and silently rotted:
+    zarr 3 deprecated Group.create_dataset, so only the h5 path was exercised."""
+    zarr = pytest.importorskip("zarr")
+    in_path = tmp_path / "in.h5"
+    shape = (16, 16, 16)
+    vol = _write_seg(in_path, shape, seed=4)
+
+    cfg = ChunkedProcessorConfig(
+        input_path=str(in_path),
+        output_path=str(tmp_path / "out.zarr" / "seg"),
+        chunk_shape=(8, 8, 8),
+        parallel=1,
+        output_dtype="uint16",
+        overwrite=True,
+    )
+    _DoubleProcessor(cfg).run()
+
+    out = np.asarray(zarr.open_group(str(tmp_path / "out.zarr"), mode="r")["seg"])
+    np.testing.assert_array_equal(out, (vol.astype(np.int32) * 2).astype(np.uint16))
+
+
 def test_manifest_config_mismatch_raises(tmp_path):
     path = tmp_path / "out.h5.chunks.json"
     ResumeManifest.load_or_create(
