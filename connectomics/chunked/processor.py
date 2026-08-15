@@ -333,7 +333,7 @@ class ChunkedProcessor:
                 root = zarr.open_group(zarr_path, mode="a")
                 if sub in root and self.config.overwrite:
                     del root[sub]
-                root.create_dataset(
+                root.create_array(
                     sub, shape=shape, dtype=dtype, chunks=chunks, overwrite=self.config.overwrite
                 )
             else:
