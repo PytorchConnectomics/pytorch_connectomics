@@ -401,7 +401,7 @@ def save_volume(
         zarr_path, sub_key = _split_zarr_path(filename)
         if sub_key:
             group = zarr.open_group(zarr_path, mode="a")
-            group.create_dataset(sub_key, data=volume, overwrite=True)
+            group.create_array(sub_key, data=volume, overwrite=True)
         else:
             array = zarr.open(
                 zarr_path,
