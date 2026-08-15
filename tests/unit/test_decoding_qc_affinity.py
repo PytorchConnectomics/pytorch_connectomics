@@ -235,7 +235,7 @@ def test_finish_streaming_qc_writes_mask_and_wires_path(tmp_path):
 
 
 def test_preflight_streaming_image_path_rules():
-    cfg = load_config("tutorials/neuron_nisb/liconn_banis_v3_erosion2.yaml")
+    cfg = load_config("tutorials/neuron_nisb/base_banis+.yaml")
     cfg.decoding.affinity_qc.enabled = True
     cfg.decoding.affinity_qc.mode = "streaming"
     cfg.decoding.affinity_qc.image_path = ""
