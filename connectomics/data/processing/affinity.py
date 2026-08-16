@@ -23,6 +23,7 @@ __all__ = [
     "resolve_affinity_mode_from_cfg",
     "resolve_affinity_offsets_from_kwargs",
     "resolve_affinity_offsets_for_channel_slice",
+    "resolve_stacked_label_channel_count",
     "seg_to_affinity",
 ]
 
@@ -200,14 +201,14 @@ def resolve_affinity_mode_from_cfg(cfg: Any) -> Optional[str]:
     return unique_modes[0]
 
 
-def resolve_affinity_channel_groups_from_cfg(
+def _resolve_stacked_label_layout(
     cfg: Any,
-) -> list[tuple[tuple[int, int], list[tuple[int, int, int]]]]:
-    """Resolve stacked label channel ranges for configured affinity tasks."""
+) -> tuple[int, list[tuple[tuple[int, int], list[tuple[int, int, int]]]]]:
+    """Return the total stacked width and affinity channel groups."""
     data_cfg = getattr(cfg, "data", None)
     label_cfg = getattr(data_cfg, "label_transform", None) if data_cfg is not None else None
     if label_cfg is None:
-        return []
+        return 0, []
 
     targets = getattr(label_cfg, "targets", None)
     stack_outputs = bool(getattr(label_cfg, "stack_outputs", True))
@@ -221,11 +222,11 @@ def resolve_affinity_channel_groups_from_cfg(
 
     groups: list[tuple[tuple[int, int], list[tuple[int, int, int]]]] = []
     if targets is None or not stack_outputs:
-        return groups
+        return 0, groups
 
     task_entries = _task_entries(targets)
     if not task_entries:
-        return groups
+        return 0, groups
 
     channel_start = 0
     for task in task_entries:
@@ -237,7 +238,21 @@ def resolve_affinity_channel_groups_from_cfg(
             groups.append(((channel_start, channel_start + num_channels), parsed_offsets))
         channel_start += num_channels
 
+    return channel_start, groups
+
+
+def resolve_affinity_channel_groups_from_cfg(
+    cfg: Any,
+) -> list[tuple[tuple[int, int], list[tuple[int, int, int]]]]:
+    """Resolve stacked label channel ranges for configured affinity tasks."""
+    _total_channels, groups = _resolve_stacked_label_layout(cfg)
     return groups
+
+
+def resolve_stacked_label_channel_count(cfg: Any) -> int:
+    """Return the total number of channels in the configured stacked label tensor."""
+    total_channels, _groups = _resolve_stacked_label_layout(cfg)
+    return total_channels
 
 
 def resolve_affinity_offsets_for_channel_slice(
