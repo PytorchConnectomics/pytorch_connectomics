@@ -367,7 +367,36 @@ def _abiss_build_id(abiss_home: Path) -> str:
             capture_output=True,
             text=True,
         )
-        return f"git:{result.stdout.strip()}"
+        head = result.stdout.strip()
+        # HEAD alone is not an execution identity: ABISS routinely runs with
+        # edited Python helpers and locally rebuilt, untracked binaries.  A
+        # resume once accepted a mixed watershed because build/ws had changed
+        # while git HEAD stayed constant.  Hash exactly the runtime surface used
+        # by the worker scripts so either kind of change invalidates the replay.
+        runtime_files = []
+        scripts_dir = abiss_home / "scripts"
+        if scripts_dir.is_dir():
+            runtime_files.extend(
+                path
+                for path in scripts_dir.rglob("*")
+                if path.is_file() and "__pycache__" not in path.parts
+            )
+        build_dir = abiss_home / "build"
+        if build_dir.is_dir():
+            runtime_files.extend(
+                path
+                for path in build_dir.iterdir()
+                if path.is_file() and os.access(path, os.X_OK)
+            )
+        if not runtime_files:
+            raise RuntimeError(f"No ABISS runtime files found under {abiss_home}.")
+        digest = hashlib.sha256()
+        for path in sorted(runtime_files, key=lambda item: str(item.relative_to(abiss_home))):
+            relative = str(path.relative_to(abiss_home)).encode("utf-8")
+            digest.update(len(relative).to_bytes(4, "big"))
+            digest.update(relative)
+            digest.update(_sha256_bytes(path.read_bytes()).encode("ascii"))
+        return f"git:{head}:runtime-sha256:{digest.hexdigest()}"
 
     ws_binary = abiss_home / "build" / "ws"
     if ws_binary.is_file():
