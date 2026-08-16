@@ -1,8 +1,10 @@
 """
 Test-time augmentation utilities for PyTorch Connectomics.
 
-This module isolates activation/channel preprocessing and flip-based ensembling
-so it can be reused independent of the LightningModule implementation.
+This module isolates activation/channel preprocessing and geometric ensembling
+so it can be reused independent of the LightningModule implementation. Directional
+affinities are displaced by their full configured offset (including r10), and
+wrapped outer faces are validity-weighted rather than counted as affinity zero.
 """
 
 from __future__ import annotations
@@ -15,6 +17,7 @@ import torch
 import torch.nn.functional as F
 
 from ..config.hardware import empty_accelerator_cache
+from ..data.processing.affinity import resolve_affinity_channel_groups_from_cfg
 from ..utils.channel_slices import resolve_channel_indices
 from ..utils.model_outputs import (
     get_inference_channel_activations,
@@ -24,22 +27,33 @@ from ..utils.model_outputs import (
     resolve_output_heads,
     select_output_tensor,
 )
-from .window import (
-    _extract_padded_patch_batch,
-    _resolve_sliding_window_runtime,
-    build_sliding_accumulator_weight_maps,
-    compute_scan_interval as _get_scan_interval,
-    dense_patch_slices,
-    is_2d_inference_mode,
-    normalize_weighted_accumulator,
-    resolve_inferer_roi_size,
-    resolve_model_output_dtype,
+from .tta_affinity import (
+    AffinityTTAPlan,
+    ViewValidity,
+    build_affinity_tta_plan,
+    invert_view,
+    valid_slices_for_shift,
+    validate_affinity_output,
 )
 from .tta_combinations import (
     _resolve_ensemble_mode_map,
     _resolve_spatial_dims,
     _to_plain_list,
     resolve_tta_augmentation_combinations,
+)
+from .tta_ensemble import TTAEnsembleAccumulator
+from .window import (
+    _extract_padded_patch_batch,
+    _resolve_sliding_window_runtime,
+    build_sliding_accumulator_weight_maps,
+)
+from .window import compute_scan_interval as _get_scan_interval
+from .window import (
+    dense_patch_slices,
+    is_2d_inference_mode,
+    normalize_weighted_accumulator,
+    resolve_inferer_roi_size,
+    resolve_model_output_dtype,
 )
 
 try:
@@ -163,9 +177,7 @@ class TTAPredictor:
                     context=f"inference.model.channel_activations[{idx}].channels",
                 )
                 channels = [
-                    ch - offset
-                    for ch in abs_channels
-                    if offset <= ch < offset + head_channels
+                    ch - offset for ch in abs_channels if offset <= ch < offset + head_channels
                 ]
                 if not channels:
                     # Entry targets a different head in the merged output.
@@ -272,9 +284,11 @@ class TTAPredictor:
             reduced_chunk = flat_tensor[start:end].to(device=reduction_device, non_blocking=False)
             torch.distributed.reduce(reduced_chunk, dst=0, op=op)
             if rank == 0:
+                assert reduced_flat is not None
                 reduced_flat[start:end].copy_(reduced_chunk.cpu())
 
         if rank == 0:
+            assert reduced_flat is not None
             return reduced_flat.view_as(tensor)
         return None
 
@@ -373,24 +387,30 @@ class TTAPredictor:
         else:
             self.channel_activation_types = None
 
-        select_channel = get_inference_select_channel(self.cfg)
-        if select_channel is not None:
-            channel_list = resolve_channel_indices(
-                select_channel,
-                num_channels=int(tensor.shape[1]),
-                context="inference.model.select_channel",
-            )
-            if channel_list != list(range(int(tensor.shape[1]))):
-                tensor = tensor[:, channel_list, ...]
+        selection_indices = self._select_channel_indices(int(tensor.shape[1]))
+        if selection_indices is not None:
+            if selection_indices != list(range(int(tensor.shape[1]))):
+                tensor = tensor[:, selection_indices, ...]
             if self.channel_activation_types is not None:
                 self.channel_activation_types = [
-                    self.channel_activation_types[idx] for idx in channel_list
+                    self.channel_activation_types[idx] for idx in selection_indices
                 ]
 
         output_dtype = resolve_model_output_dtype(self.cfg)
         if tensor.dtype != output_dtype:
             tensor = tensor.to(dtype=output_dtype)
         return tensor
+
+    def _select_channel_indices(self, num_channels: int) -> Optional[list[int]]:
+        """Resolve the canonical inference channel selector once for all TTA metadata."""
+        select_channel = get_inference_select_channel(self.cfg)
+        if select_channel is None:
+            return None
+        return resolve_channel_indices(
+            select_channel,
+            num_channels=int(num_channels),
+            context="inference.model.select_channel",
+        )
 
     def _run_network(self, images: torch.Tensor) -> torch.Tensor:
         """Run network with optional sliding window."""
@@ -604,6 +624,66 @@ class TTAPredictor:
         return augmentation_combinations
 
     @staticmethod
+    def _spatial_augmentation_combinations(augmentation_combinations: list) -> list:
+        spatial = []
+        for flip_axes, rotation_plane, k_rotations in augmentation_combinations:
+            spatial_plane = (
+                None
+                if rotation_plane is None
+                else (int(rotation_plane[0]) - 2, int(rotation_plane[1]) - 2)
+            )
+            spatial.append((flip_axes, spatial_plane, k_rotations))
+        return spatial
+
+    def _prepare_affinity_plan(
+        self,
+        augmentation_combinations: list,
+        *,
+        num_raw: Optional[int] = None,
+    ) -> tuple[Optional[AffinityTTAPlan], bool]:
+        """Build declared affinity metadata, or mark it for first-output finalization."""
+        if not resolve_affinity_channel_groups_from_cfg(self.cfg):
+            return None, False
+        requested_head = self._resolve_requested_output_head(
+            purpose="affinity TTA output mapping",
+            allow_none=True,
+        )
+        if num_raw is None:
+            num_raw = resolve_output_channels(
+                self.cfg,
+                requested_head=requested_head,
+                purpose="affinity TTA output mapping",
+                allow_ambiguous=True,
+            )
+        if num_raw is None:
+            return None, True
+        plan = build_affinity_tta_plan(
+            self.cfg,
+            augmentation_combinations=self._spatial_augmentation_combinations(
+                augmentation_combinations
+            ),
+            num_raw=int(num_raw),
+            requested_head=requested_head,
+        )
+        return plan, False
+
+    @staticmethod
+    def _selected_partial_channels(
+        plan: Optional[AffinityTTAPlan],
+        selected_indices: Optional[list[int]],
+        *,
+        num_raw: int,
+    ) -> frozenset[int]:
+        if plan is None or not plan.partial_channels:
+            return frozenset()
+        raw_channels = selected_indices or list(range(int(num_raw)))
+        return frozenset(
+            output_channel
+            for output_channel, raw_channel in enumerate(raw_channels)
+            if raw_channel in plan.partial_channels
+        )
+
+    @staticmethod
     def _to_plain_list(config_value) -> list:
         """Convert OmegaConf ListConfig (or plain list) to nested plain Python lists."""
         return _to_plain_list(config_value)
@@ -616,25 +696,22 @@ class TTAPredictor:
         empty_cache_interval: int,
         distributed_sharding: bool,
         network_fn,
-    ) -> tuple[torch.Tensor, int]:
+    ) -> TTAEnsembleAccumulator:
         """Run TTA ensemble loop over augmentation combinations."""
-        local_combinations = self._resolve_local_augmentation_combinations(
+        local_indices = self._resolve_local_augmentation_indices(
             augmentation_combinations,
             distributed_sharding=distributed_sharding,
         )
+        affinity_plan, lazy_affinity_plan = self._prepare_affinity_plan(augmentation_combinations)
+        accumulator: Optional[TTAEnsembleAccumulator] = None
 
-        ensemble_result = None
-        num_predictions = 0
-
-        spatial_offset = 2  # batch + channel dims
-
-        for flip_axes, rotation_plane, k_rotations in local_combinations:
+        for view_index in local_indices:
+            flip_axes, rotation_plane, k_rotations = augmentation_combinations[view_index]
             x_aug = images
 
             if flip_axes:
                 flip_dims = [
-                    a + spatial_offset
-                    for a in (flip_axes if isinstance(flip_axes, list) else [flip_axes])
+                    a + 2 for a in (flip_axes if isinstance(flip_axes, list) else [flip_axes])
                 ]
                 x_aug = torch.flip(x_aug, dims=flip_dims)
 
@@ -642,44 +719,66 @@ class TTAPredictor:
                 x_aug = torch.rot90(x_aug, k=k_rotations, dims=rotation_plane)
 
             pred = network_fn(x_aug)
+            if lazy_affinity_plan:
+                affinity_plan, lazy_affinity_plan = self._prepare_affinity_plan(
+                    augmentation_combinations,
+                    num_raw=int(pred.shape[1]),
+                )
 
-            if rotation_plane is not None and k_rotations > 0:
-                pred = torch.rot90(pred, k=-k_rotations, dims=rotation_plane)
-
-            if flip_axes:
-                flip_dims = [
-                    a + spatial_offset
-                    for a in (flip_axes if isinstance(flip_axes, list) else [flip_axes])
-                ]
-                pred = torch.flip(pred, dims=flip_dims)
-
-            pred_processed = self.apply_preprocessing(pred)
-
-            ensemble_result, num_predictions = self._accumulate_ensemble_prediction(
-                ensemble_result,
-                pred_processed,
-                ensemble_mode=ensemble_mode,
-                num_predictions=num_predictions,
-                distributed_sharding=distributed_sharding,
+            spatial_plane = (
+                None
+                if rotation_plane is None
+                else (int(rotation_plane[0]) - 2, int(rotation_plane[1]) - 2)
             )
+            view_plan = None if affinity_plan is None else affinity_plan.views[view_index]
+            pred, validity = invert_view(
+                pred,
+                flip_axes=flip_axes,
+                rotation_plane_spatial=spatial_plane,
+                k=k_rotations,
+                view_plan=view_plan,
+                tta_plan=affinity_plan,
+            )
+            selected_indices = self._select_channel_indices(int(pred.shape[1]))
+            pred_processed = self.apply_preprocessing(pred)
+            selected_validity = validity.select(selected_indices)
 
-            if empty_cache_interval > 0 and num_predictions % empty_cache_interval == 0:
+            if accumulator is None:
+                mode_map = _resolve_ensemble_mode_map(ensemble_mode, int(pred_processed.shape[1]))
+                partial_channels = self._selected_partial_channels(
+                    affinity_plan,
+                    selected_indices,
+                    num_raw=int(pred.shape[1]),
+                )
+                accumulator = TTAEnsembleAccumulator(
+                    pred_processed.shape,
+                    dtype=resolve_model_output_dtype(self.cfg),
+                    device=pred_processed.device,
+                    mode_map=mode_map,
+                    partial_channels=list(partial_channels),
+                    distributed_sharding=distributed_sharding,
+                    max_views=len(augmentation_combinations),
+                )
+            accumulator.add(pred_processed, selected_validity)
+
+            if empty_cache_interval > 0 and accumulator.num_predictions % empty_cache_interval == 0:
                 empty_accelerator_cache()
 
-        return ensemble_result, num_predictions
+        if accumulator is None:
+            raise RuntimeError("TTA generated no predictions.")
+        return accumulator
 
-    def _resolve_local_augmentation_combinations(
+    def _resolve_local_augmentation_indices(
         self,
         augmentation_combinations: list,
         *,
         distributed_sharding: bool,
-    ) -> list:
+    ) -> list[int]:
         is_dist, rank, world_size = self._distributed_context()
-
-        local_combinations = augmentation_combinations
+        local_indices = list(range(len(augmentation_combinations)))
         if distributed_sharding:
-            local_combinations = augmentation_combinations[rank::world_size]
-            if not local_combinations:
+            local_indices = local_indices[rank::world_size]
+            if not local_indices:
                 raise RuntimeError(
                     "Distributed TTA sharding produced an empty augmentation shard for "
                     f"rank {rank}. Reduce the GPU count or increase TTA variants."
@@ -688,72 +787,21 @@ class TTAPredictor:
                 logger.info(
                     "Distributed TTA sharding active: "
                     f"{len(augmentation_combinations)} total pass(es), "
-                    f"world_size={world_size}, "
-                    f"passes/rank~={len(local_combinations)}"
+                    f"world_size={world_size}, passes/rank~={len(local_indices)}"
                 )
-        return local_combinations
+        return local_indices
 
-    @staticmethod
-    def _accumulate_single_mode(
-        ensemble_result: torch.Tensor,
-        pred_accum: torch.Tensor,
-        mode: str,
-        num_predictions: int,
-        distributed_sharding: bool,
-        ch_slice: slice = slice(None),
-    ) -> None:
-        """Apply a single ensemble mode to a channel slice (in-place)."""
-        if mode == "mean":
-            if distributed_sharding:
-                ensemble_result[:, ch_slice] += pred_accum[:, ch_slice]
-            else:
-                delta = pred_accum[:, ch_slice] - ensemble_result[:, ch_slice]
-                ensemble_result[:, ch_slice] += delta / (num_predictions + 1)
-        elif mode == "min":
-            ensemble_result[:, ch_slice] = torch.minimum(
-                ensemble_result[:, ch_slice], pred_accum[:, ch_slice]
-            )
-        elif mode == "max":
-            ensemble_result[:, ch_slice] = torch.maximum(
-                ensemble_result[:, ch_slice], pred_accum[:, ch_slice]
-            )
-        else:
-            raise ValueError(f"Unknown TTA ensemble mode: {mode!r}. Use 'mean', 'min', or 'max'.")
-
-    def _accumulate_ensemble_prediction(
+    def _resolve_local_augmentation_combinations(
         self,
-        ensemble_result: Optional[torch.Tensor],
-        pred_processed: torch.Tensor,
+        augmentation_combinations: list,
         *,
-        ensemble_mode: Any,
-        num_predictions: int,
         distributed_sharding: bool,
-    ) -> tuple[torch.Tensor, int]:
-        pred_accum = pred_processed.to(dtype=resolve_model_output_dtype(self.cfg))
-        if ensemble_result is None:
-            return pred_accum.clone(), 1
-
-        num_channels = pred_accum.shape[1]
-        mode_map = _resolve_ensemble_mode_map(ensemble_mode, num_channels)
-
-        # Group consecutive channels with the same mode for efficiency.
-        i = 0
-        while i < num_channels:
-            mode = mode_map[i]
-            j = i + 1
-            while j < num_channels and mode_map[j] == mode:
-                j += 1
-            TTAPredictor._accumulate_single_mode(
-                ensemble_result,
-                pred_accum,
-                mode,
-                num_predictions,
-                distributed_sharding,
-                ch_slice=slice(i, j),
-            )
-            i = j
-
-        return ensemble_result, num_predictions + 1
+    ) -> list:
+        indices = self._resolve_local_augmentation_indices(
+            augmentation_combinations,
+            distributed_sharding=distributed_sharding,
+        )
+        return [augmentation_combinations[index] for index in indices]
 
     def _predict_prepared_tensor(
         self,
@@ -775,7 +823,16 @@ class TTAPredictor:
         augmentation_combinations = self._build_augmentation_combinations(tta_cfg, images.dim())
 
         if len(augmentation_combinations) == 1 and augmentation_combinations[0] == ([], None, 0):
+            affinity_plan, lazy_affinity_plan = self._prepare_affinity_plan(
+                augmentation_combinations
+            )
             pred = network_fn(images)
+            if lazy_affinity_plan:
+                affinity_plan, _lazy = self._prepare_affinity_plan(
+                    augmentation_combinations,
+                    num_raw=int(pred.shape[1]),
+                )
+            validate_affinity_output(affinity_plan, pred)
             ensemble_result = self.apply_preprocessing(pred)
             return self._apply_mask_to_result(ensemble_result, mask, mask_align_to_image)
 
@@ -784,7 +841,7 @@ class TTAPredictor:
         distributed_sharding = self.is_distributed_sharding_enabled()
         self._last_distributed_sharding_active = distributed_sharding
 
-        ensemble_result, num_predictions = self._run_ensemble(
+        accumulator = self._run_ensemble(
             images,
             augmentation_combinations,
             ensemble_mode,
@@ -804,9 +861,8 @@ class TTAPredictor:
                 )
             )
 
-            reduced = self._apply_distributed_reduction(
-                ensemble_result,
-                num_predictions,
+            reduced = self._apply_distributed_accumulator_reduction(
+                accumulator,
                 ensemble_mode,
                 reduction_device,
             )
@@ -816,6 +872,8 @@ class TTAPredictor:
                 self._last_skip_postprocess_on_rank = True
                 return torch.empty(0, device=images.device if images.is_cuda else "cpu")
             ensemble_result = reduced
+        else:
+            ensemble_result = accumulator.finalize()
 
         return self._apply_mask_to_result(ensemble_result, mask, mask_align_to_image)
 
@@ -859,10 +917,12 @@ class TTAPredictor:
         ensemble_mode = getattr(tta_cfg, "ensemble_mode", "mean")
         empty_cache_interval = int(getattr(tta_cfg, "empty_cache_interval", 4))
         distributed_sharding = self.is_distributed_sharding_enabled()
-        local_combinations = self._resolve_local_augmentation_combinations(
+        local_indices = self._resolve_local_augmentation_indices(
             augmentation_combinations,
             distributed_sharding=distributed_sharding,
         )
+        local_combinations = [augmentation_combinations[index] for index in local_indices]
+        affinity_plan, lazy_affinity_plan = self._prepare_affinity_plan(augmentation_combinations)
         self._last_distributed_sharding_active = distributed_sharding
 
         logger.info(
@@ -911,21 +971,30 @@ class TTAPredictor:
                 (len(patch_slices) + runtime["sw_batch_size"] - 1) // runtime["sw_batch_size"],
             )
             output_dtype = resolve_model_output_dtype(self.cfg)
-            value_importance_map, weight_importance_map = build_sliding_accumulator_weight_maps(
+            legacy_value_map, legacy_weight_map = build_sliding_accumulator_weight_maps(
                 tuple(int(v) for v in roi_size),
                 mode=runtime["mode"],
                 device=accumulation_device,
                 value_dtype=output_dtype,
             )
-            value_importance_map = value_importance_map.unsqueeze(0).unsqueeze(0)
-            weight_importance_map = weight_importance_map.unsqueeze(0).unsqueeze(0)
-
-            raw_accumulators: list[Optional[torch.Tensor]] = [None] * len(local_combinations)
-            weight_accumulator = torch.zeros(
-                (1, 1, *padded_size),
+            partial_value_map, partial_weight_map = build_sliding_accumulator_weight_maps(
+                tuple(int(v) for v in roi_size),
+                mode=runtime["mode"],
                 device=accumulation_device,
-                dtype=torch.float32,
+                value_dtype=torch.float32,
             )
+            legacy_value_map = legacy_value_map.unsqueeze(0).unsqueeze(0)
+            legacy_weight_map = legacy_weight_map.unsqueeze(0).unsqueeze(0)
+            partial_value_map = partial_value_map.unsqueeze(0).unsqueeze(0)
+            partial_weight_map = partial_weight_map.unsqueeze(0).unsqueeze(0)
+
+            full_accumulators: list[Optional[torch.Tensor]] = [None] * len(local_combinations)
+            partial_accumulators: list[Optional[torch.Tensor]] = [None] * len(local_combinations)
+            legacy_weight_accumulator: Optional[torch.Tensor] = None
+            partial_weight_accumulators: dict[tuple[int, ...], torch.Tensor] = {}
+            raw_full_channels: Optional[list[int]] = None
+            raw_partial_channels: Optional[list[int]] = None
+            num_raw_channels: Optional[int] = None
             tta_forward_calls = 0
             progress_bar = None
             if tqdm is not None:
@@ -948,11 +1017,12 @@ class TTAPredictor:
                     )
                     image_batch = image_batch.to(device=infer_device, dtype=torch.float32)
 
-                    for aug_idx, (flip_axes, rotation_plane, k_rotations) in enumerate(
-                        local_combinations
-                    ):
+                    weights_added = False
+                    for local_index, view_index in enumerate(local_indices):
+                        flip_axes, rotation_plane, k_rotations = augmentation_combinations[
+                            view_index
+                        ]
                         x_aug = image_batch
-                        flip_dims = None
                         if flip_axes:
                             flip_dims = [
                                 axis + 2
@@ -966,11 +1036,28 @@ class TTAPredictor:
                             x_aug = torch.rot90(x_aug, k=k_rotations, dims=rotation_plane)
 
                         pred = self._run_direct_network(x_aug)
+                        if lazy_affinity_plan:
+                            affinity_plan, lazy_affinity_plan = self._prepare_affinity_plan(
+                                augmentation_combinations,
+                                num_raw=int(pred.shape[1]),
+                            )
 
-                        if rotation_plane is not None and k_rotations > 0:
-                            pred = torch.rot90(pred, k=-k_rotations, dims=rotation_plane)
-                        if flip_dims:
-                            pred = torch.flip(pred, dims=flip_dims)
+                        spatial_plane = (
+                            None
+                            if rotation_plane is None
+                            else (int(rotation_plane[0]) - 2, int(rotation_plane[1]) - 2)
+                        )
+                        view_plan = (
+                            None if affinity_plan is None else affinity_plan.views[view_index]
+                        )
+                        pred, _roi_validity = invert_view(
+                            pred,
+                            flip_axes=flip_axes,
+                            rotation_plane_spatial=spatial_plane,
+                            k=k_rotations,
+                            view_plan=view_plan,
+                            tta_plan=affinity_plan,
+                        )
 
                         if tuple(int(v) for v in pred.shape[2:]) != tuple(int(v) for v in roi_size):
                             raise RuntimeError(
@@ -979,12 +1066,96 @@ class TTAPredictor:
                                 f"and roi_size={roi_size}."
                             )
 
-                        pred = pred.detach().to(device=accumulation_device, dtype=output_dtype)
-                        if raw_accumulators[aug_idx] is None:
-                            raw_accumulators[aug_idx] = torch.zeros(
-                                (1, int(pred.shape[1]), *padded_size),
+                        if num_raw_channels is None:
+                            num_raw_channels = int(pred.shape[1])
+                            partial_set = (
+                                set()
+                                if affinity_plan is None
+                                else set(affinity_plan.partial_channels)
+                            )
+                            raw_partial_channels = sorted(partial_set)
+                            raw_full_channels = [
+                                channel
+                                for channel in range(num_raw_channels)
+                                if channel not in partial_set
+                            ]
+                            if raw_full_channels:
+                                legacy_weight_accumulator = torch.zeros(
+                                    (1, 1, *padded_size),
+                                    device=accumulation_device,
+                                    dtype=torch.float32,
+                                )
+                            if raw_partial_channels:
+                                shift_keys: set[tuple[int, ...]] = {()}
+                                if affinity_plan is not None:
+                                    shift_keys.update(affinity_plan.shifts)
+                                partial_weight_accumulators = {
+                                    key: torch.zeros(
+                                        (1, 1, *padded_size),
+                                        device=accumulation_device,
+                                        dtype=torch.float32,
+                                    )
+                                    for key in shift_keys
+                                }
+                        elif int(pred.shape[1]) != num_raw_channels:
+                            raise RuntimeError(
+                                "Patch-first local TTA model output channel count changed between "
+                                f"views: expected {num_raw_channels}, got {int(pred.shape[1])}."
+                            )
+
+                        assert raw_full_channels is not None
+                        assert raw_partial_channels is not None
+                        if not weights_added:
+                            for location in locations:
+                                global_slices = tuple(
+                                    slice(
+                                        int(location[axis]),
+                                        int(location[axis]) + int(roi_size[axis]),
+                                    )
+                                    for axis in range(spatial_dims)
+                                )
+                                if legacy_weight_accumulator is not None:
+                                    legacy_weight_accumulator[
+                                        (slice(None), slice(None), *global_slices)
+                                    ] += legacy_weight_map
+                                for (
+                                    shift_key,
+                                    weight_accumulator,
+                                ) in partial_weight_accumulators.items():
+                                    valid_box = (
+                                        tuple(slice(0, int(size)) for size in roi_size)
+                                        if not shift_key
+                                        else valid_slices_for_shift(roi_size, shift_key)
+                                    )
+                                    local_slices = tuple(
+                                        slice(int(box.start), int(box.stop)) for box in valid_box
+                                    )
+                                    shifted_global = tuple(
+                                        slice(
+                                            int(location[axis]) + int(local_slices[axis].start),
+                                            int(location[axis]) + int(local_slices[axis].stop),
+                                        )
+                                        for axis in range(spatial_dims)
+                                    )
+                                    weight_accumulator[
+                                        (slice(None), slice(None), *shifted_global)
+                                    ] += partial_weight_map[
+                                        (slice(None), slice(None), *local_slices)
+                                    ]
+                            weights_added = True
+
+                        pred = pred.detach().to(device=accumulation_device)
+                        if raw_full_channels and full_accumulators[local_index] is None:
+                            full_accumulators[local_index] = torch.zeros(
+                                (1, len(raw_full_channels), *padded_size),
                                 device=accumulation_device,
                                 dtype=output_dtype,
+                            )
+                        if raw_partial_channels and partial_accumulators[local_index] is None:
+                            partial_accumulators[local_index] = torch.zeros(
+                                (1, len(raw_partial_channels), *padded_size),
+                                device=accumulation_device,
+                                dtype=torch.float32,
                             )
 
                         for patch_idx, location in enumerate(locations):
@@ -995,13 +1166,24 @@ class TTAPredictor:
                                 )
                                 for axis in range(spatial_dims)
                             )
-                            raw_accumulators[aug_idx][(slice(None), slice(None), *slices)] += (
-                                pred[patch_idx : patch_idx + 1] * value_importance_map
-                            )
-                            if aug_idx == 0:
-                                weight_accumulator[
-                                    (slice(None), slice(None), *slices)
-                                ] += weight_importance_map
+                            if raw_full_channels:
+                                full_accumulator = full_accumulators[local_index]
+                                assert full_accumulator is not None
+                                full_accumulator[(slice(None), slice(None), *slices)] += (
+                                    pred[patch_idx : patch_idx + 1, raw_full_channels, ...].to(
+                                        dtype=output_dtype
+                                    )
+                                    * legacy_value_map
+                                )
+                            if raw_partial_channels:
+                                partial_accumulator = partial_accumulators[local_index]
+                                assert partial_accumulator is not None
+                                partial_accumulator[(slice(None), slice(None), *slices)] += (
+                                    pred[patch_idx : patch_idx + 1, raw_partial_channels, ...].to(
+                                        dtype=torch.float32
+                                    )
+                                    * partial_value_map
+                                )
 
                         tta_forward_calls += 1
                         if (
@@ -1017,26 +1199,82 @@ class TTAPredictor:
                     progress_bar.close()
 
             crop_slices = tuple(slice(0, int(size)) for size in original_size)
-            ensemble_result = None
-            num_predictions = 0
-            for raw_accumulator in raw_accumulators:
-                if raw_accumulator is None:
-                    continue
-                raw_accumulator = normalize_weighted_accumulator(
-                    raw_accumulator, weight_accumulator
+            if num_raw_channels is None:
+                raise RuntimeError("Patch-first local TTA generated no predictions.")
+            assert raw_full_channels is not None
+            assert raw_partial_channels is not None
+            accumulator: Optional[TTAEnsembleAccumulator] = None
+            for local_index, view_index in enumerate(local_indices):
+                raw_volume = torch.zeros(
+                    (1, num_raw_channels, *padded_size),
+                    device=accumulation_device,
+                    dtype=output_dtype,
                 )
-                pred_processed = self.apply_preprocessing(
-                    raw_accumulator[(slice(None), slice(None), *crop_slices)]
-                )
-                ensemble_result, num_predictions = self._accumulate_ensemble_prediction(
-                    ensemble_result,
-                    pred_processed,
-                    ensemble_mode=ensemble_mode,
-                    num_predictions=num_predictions,
-                    distributed_sharding=distributed_sharding,
-                )
+                raw_validity: list = [None] * num_raw_channels
+                if raw_full_channels:
+                    raw_full = full_accumulators[local_index]
+                    if raw_full is None or legacy_weight_accumulator is None:
+                        raise RuntimeError(
+                            "Patch-first local TTA is missing a fully-valid view accumulator."
+                        )
+                    normalized_full = normalize_weighted_accumulator(
+                        raw_full, legacy_weight_accumulator
+                    )
+                    raw_volume[:, raw_full_channels, ...] = normalized_full
+                if raw_partial_channels:
+                    raw_partial = partial_accumulators[local_index]
+                    if raw_partial is None:
+                        raise RuntimeError(
+                            "Patch-first local TTA is missing a partial-channel accumulator."
+                        )
+                    view_plan = None if affinity_plan is None else affinity_plan.views[view_index]
+                    for partial_index, raw_channel in enumerate(raw_partial_channels):
+                        shift = (
+                            None if view_plan is None else view_plan.shift_for_channel(raw_channel)
+                        )
+                        shift_key = () if shift is None else shift
+                        weight = partial_weight_accumulators[shift_key][:, 0, ...]
+                        coverage = weight > 0
+                        normalized = torch.zeros_like(
+                            raw_partial[:, partial_index, ...], dtype=torch.float32
+                        )
+                        normalized[coverage] = (
+                            raw_partial[:, partial_index, ...][coverage] / weight[coverage]
+                        )
+                        raw_volume[:, raw_channel, ...] = normalized.to(dtype=output_dtype)
+                        raw_validity[raw_channel] = coverage
 
-            if ensemble_result is None:
+                raw_volume = raw_volume[(slice(None), slice(None), *crop_slices)]
+                cropped_validity = []
+                for entry in raw_validity:
+                    if torch.is_tensor(entry):
+                        cropped_validity.append(entry[(slice(None), *crop_slices)])
+                    else:
+                        cropped_validity.append(entry)
+                selected_indices = self._select_channel_indices(num_raw_channels)
+                pred_processed = self.apply_preprocessing(raw_volume)
+                selected_validity = ViewValidity(tuple(cropped_validity)).select(selected_indices)
+                if accumulator is None:
+                    mode_map = _resolve_ensemble_mode_map(
+                        ensemble_mode, int(pred_processed.shape[1])
+                    )
+                    partial_channels = self._selected_partial_channels(
+                        affinity_plan,
+                        selected_indices,
+                        num_raw=num_raw_channels,
+                    )
+                    accumulator = TTAEnsembleAccumulator(
+                        pred_processed.shape,
+                        dtype=output_dtype,
+                        device=pred_processed.device,
+                        mode_map=mode_map,
+                        partial_channels=list(partial_channels),
+                        distributed_sharding=distributed_sharding,
+                        max_views=len(augmentation_combinations),
+                    )
+                accumulator.add(pred_processed, selected_validity)
+
+            if accumulator is None:
                 raise RuntimeError("Patch-first local TTA generated no predictions.")
 
             if distributed_sharding:
@@ -1049,9 +1287,8 @@ class TTAPredictor:
                         else torch.device("cpu")
                     )
                 )
-                reduced = self._apply_distributed_reduction(
-                    ensemble_result,
-                    num_predictions,
+                reduced = self._apply_distributed_accumulator_reduction(
+                    accumulator,
                     ensemble_mode,
                     reduction_device,
                 )
@@ -1062,6 +1299,8 @@ class TTAPredictor:
                     outputs.append(torch.empty(0, device=accumulation_device))
                     continue
                 ensemble_result = reduced
+            else:
+                ensemble_result = accumulator.finalize()
 
             outputs.append(ensemble_result)
 
@@ -1099,6 +1338,61 @@ class TTAPredictor:
                     "`inference.test_time_augmentation.patch_first_local`."
                 )
 
+    def _apply_distributed_accumulator_reduction(
+        self,
+        accumulator: TTAEnsembleAccumulator,
+        ensemble_mode: Any,
+        reduction_device: torch.device,
+    ) -> Optional[torch.Tensor]:
+        """Reduce legacy channels plus partial statistics/counts across DDP ranks."""
+        legacy_result = self._apply_distributed_reduction(
+            accumulator.legacy_result,
+            accumulator.num_predictions,
+            ensemble_mode,
+            reduction_device,
+        )
+        if not accumulator.has_partial_channels:
+            return legacy_result
+
+        _is_dist, rank, _world_size = self._distributed_context()
+        unique_modes = {accumulator.mode_map[channel] for channel in accumulator.partial_channels}
+        op_map = {
+            "mean": torch.distributed.ReduceOp.SUM,
+            "min": torch.distributed.ReduceOp.MIN,
+            "max": torch.distributed.ReduceOp.MAX,
+        }
+        reduced_by_mode: dict[str, Optional[torch.Tensor]] = {}
+        for mode in sorted(unique_modes):
+            reduced_by_mode[mode] = self._reduce_cpu_tensor_to_rank_zero(
+                accumulator.partial_statistics,
+                op=op_map[mode],
+                reduction_device=reduction_device,
+            )
+        reduced_counts = self._reduce_cpu_tensor_to_rank_zero(
+            accumulator.partial_counts.to(torch.int32),
+            op=torch.distributed.ReduceOp.SUM,
+            reduction_device=reduction_device,
+        )
+
+        if rank != 0:
+            return None
+        if legacy_result is None or reduced_counts is None:
+            raise RuntimeError("Distributed TTA reduction returned no rank-zero result.")
+        reduced_statistics = accumulator.partial_statistics.clone()
+        for partial_index, channel in enumerate(accumulator.partial_channels):
+            mode = accumulator.mode_map[channel]
+            mode_result = reduced_by_mode[mode]
+            if mode_result is None:
+                raise RuntimeError(
+                    f"Distributed TTA reduction returned no {mode!r} statistics on rank zero."
+                )
+            reduced_statistics[:, partial_index, ...] = mode_result[:, partial_index, ...]
+        return accumulator.finalize(
+            legacy_result=legacy_result,
+            partial_statistics=reduced_statistics,
+            partial_counts=reduced_counts,
+        )
+
     def _apply_distributed_reduction(
         self,
         ensemble_result: torch.Tensor,
@@ -1135,7 +1429,7 @@ class TTAPredictor:
             "max": torch.distributed.ReduceOp.MAX,
         }
         reduced_by_op: dict[str, torch.Tensor | None] = {}
-        for mode in unique_modes:
+        for mode in sorted(unique_modes):
             reduced_by_op[mode] = self._reduce_cpu_tensor_to_rank_zero(
                 ensemble_result,
                 op=op_map[mode],
@@ -1159,13 +1453,19 @@ class TTAPredictor:
                     j += 1
                 ch = slice(i, j)
                 if mode == "mean":
-                    if total_predictions <= 0:
+                    if total_predictions is None or total_predictions <= 0:
                         raise RuntimeError(
                             "Distributed TTA sharding reduced zero predictions on rank 0."
                         )
-                    result[:, ch] = reduced_by_op["mean"][:, ch] / float(total_predictions)
+                    reduced_mean = reduced_by_op["mean"]
+                    if reduced_mean is None:
+                        raise RuntimeError("Distributed mean TTA reduction returned no result.")
+                    result[:, ch] = reduced_mean[:, ch] / float(total_predictions)
                 else:
-                    result[:, ch] = reduced_by_op[mode][:, ch]
+                    reduced_mode = reduced_by_op[mode]
+                    if reduced_mode is None:
+                        raise RuntimeError(f"Distributed {mode} TTA reduction returned no result.")
+                    result[:, ch] = reduced_mode[:, ch]
                 i = j
             return result
 
@@ -1196,6 +1496,8 @@ class TTAPredictor:
                     raise RuntimeError(
                         "Distributed TTA sharding reduced zero predictions on rank 0."
                     )
+                if reduced_sum is None:
+                    raise RuntimeError("Distributed mean TTA reduction returned no result.")
                 return reduced_sum / float(total_predictions)
         elif ensemble_mode == "min":
             result = self._reduce_cpu_tensor_to_rank_zero(
