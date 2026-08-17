@@ -41,7 +41,7 @@ checkpoints live in **[`docs/benchmarks/`](docs/benchmarks/)**.
 |-----------|-------------------------|--------------------|-----------------|-------|
 | Lucchi++  | Mito — semantic         | MedNeXt-S          | Jaccard ↑       | [0.935](https://huggingface.co/pytc/tutorial/tree/main/mito_lucchi%2B%2B) |
 | MitoEM-R  | Mito — instance         | MedNeXt-L + waterz | AP ↑            | —     |
-| SNEMI3D   | Neurons — instance      | RSUNet + waterz    | adapted Rand ↓  | —     |
+| SNEMI3D   | Neurons — instance      | MedNeXt-S + waterz | adapted Rand ↓  | —     |
 | BANIS     | Neurons — instance      | MedNeXt-L + cc3d   | NERL ↑          | [0.601](https://huggingface.co/pytc/tutorial/tree/main/neuron_nisb) |
 | CREMI     | Synapse — semantic      | MONAI U-Net        | F1 ↑            | —     |
 
