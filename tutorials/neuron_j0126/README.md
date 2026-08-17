@@ -25,6 +25,10 @@ the native-window affinity ranked better on the fixed local chunks. The historic
 whole-volume 0.444376 result is the same checkpoint at `[144,144,144]` (`arm0_win144`), not
 the native-window artifact; the native full-volume decode is tracked separately.
 
+Unlike the three pipeline steps, that variant is **trainable from this repository** — it
+carries the full from-scratch recipe, so `--mode train` reproduces the reference checkpoint
+rather than only consuming it (see [Training the supervised variant](#training-the-supervised-variant)).
+
 ## Run
 
 ```bash
@@ -47,6 +51,42 @@ sbatch --array=0-22 --wrap "python scripts/build_contact_graph.py \
     --seg outputs/neuron_j0126/abiss/seg.zarr --slab \$SLURM_ARRAY_TASK_ID --out contacts/"
 python scripts/build_contact_graph.py --seg outputs/neuron_j0126/abiss/seg.zarr --merge --out contacts/
 ```
+
+## Training the supervised variant
+
+Step 1 of the pipeline needs no training: it runs a released NISB checkpoint zero-shot, and
+that model's own recipe is `tutorials/neuron_nisb/base_banis+.yaml`.
+
+The supervised reference is different — `1_affinity_supervised.yaml` carries its own training
+block and reproduces the exact recipe the `arm0_96` results came from
+(`nisb_base_banis_plus_zebrafinch_heavy`, checkpoint `20260726_114349/step=00200000.ckpt`):
+
+```bash
+# train from scratch on the 33 dense GT cubes (4 GPUs, 200k steps)
+python scripts/main.py --config tutorials/neuron_j0126/1_affinity_supervised.yaml --mode train
+
+# then predict affinity with the resulting checkpoint
+python scripts/main.py --config tutorials/neuron_j0126/1_affinity_supervised.yaml --mode test \
+    --checkpoint outputs/1_affinity_supervised/<timestamp>/checkpoints/step=00200000.ckpt
+```
+
+What that recipe pins, all of it inherited from `../banis+.yaml` except where noted:
+
+- **Model** MedNeXt-L / kernel 3 (61.8 M params), 6-channel affinity output, no deep
+  supervision, `external_weights_path: null` — from scratch, *not* initialized from NISB.
+- **Patch** `[48, 96, 96]`, which is ~864 × 864 × 960 nm and so near-isotropic for
+  9 × 9 × 20 nm voxels, versus the inherited 128³ (Z-heavy, 5× more voxels). Both sides
+  divide MedNeXt-L's stride of 16. This patch is why inference uses a `[48, 96, 96]` window.
+- **Batch** 8 per GPU across 4 GPUs, cached in memory (the cubes are small h5 volumes).
+- **Augmentation** `aug_em_neuron` — the DeepEM-matched heavy profile: elastic, ±50%
+  contrast, slice shift/drop, lost sections, motion blur, missing parts, defect mutex. With
+  only 33 cubes this carries the regularization instead of shrinking the model.
+- **Schedule** AdamW at `lr=1e-3` (the from-scratch peak, not a finetune's 1e-4), cosine to
+  200k steps, `16-mixed`, EMA at 0.999.
+- **Data** all 33 padded cubes (`im_*[0-9].h5` / `gt_*[0-9].h5` — the numeric glob avoids
+  pairing the `gt_*_skeleton.h5` caches against the images). Validation is a 3-cube subset
+  that is *also in train*: it drives EMA validation and checkpoint selection only and is not
+  a generalization estimate. Real evaluation is step 3 against the 50 test skeletons.
 
 ## The idea: grow everything, then link
 
