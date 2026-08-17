@@ -1,7 +1,16 @@
 # j0126 step 1, VARIANT: affinity from the SUPERVISED from-scratch model.
 #
+# Train it (200k steps, 4 GPUs, ~batch 8/GPU on the 33 dense GT cubes):
+#
+#   python scripts/main.py --config tutorials/neuron_j0126/1_affinity_supervised.yaml --mode train
+#
+# then infer with the resulting checkpoint:
+#
 #   python scripts/main.py --config tutorials/neuron_j0126/1_affinity_supervised.yaml --mode test \
-#       --checkpoint outputs/nisb_base_banis_plus_zebrafinch_heavy/20260726_114349/checkpoints/step=00200000.ckpt
+#       --checkpoint outputs/1_affinity_supervised/<timestamp>/checkpoints/step=00200000.ckpt
+#
+# The reference run used
+#   outputs/nisb_base_banis_plus_zebrafinch_heavy/20260726_114349/checkpoints/step=00200000.ckpt
 #
 # ############################################################################
 # THIS VARIANT IS NOT GROUND-TRUTH-FREE. It is not part of the 3-step pipeline.
@@ -77,6 +86,38 @@ description: >-
 save_path: outputs/neuron_j0126/affinity_arm0_96
 
 default:
+  system:
+    num_gpus: 4
+  model:
+    # Anisotropic patch matching physical isotropy for 9x9x20 nm voxels:
+    # [48,96,96] = ~864 x 864 x 960 nm, versus the inherited 128^3 = ~1152 x 1152
+    # x 2560 nm (Z-heavy, 5x more voxels). MedNeXt-L is 4-stage / stride-16:
+    # 48/16 = 3 and 96/16 = 6, both integer.
+    input_size: [48, 96, 96]
+    # From scratch. This is the explicit ablation against the init-from-NISB
+    # finetune line, so do NOT set an external_weights_path here.
+    external_weights_path: null
+  data:
+    dataloader:
+      # The GT cubes are small h5 volumes, so cache them in memory; banis.yaml's
+      # `lazy` profile targets the big NISB zarr. Keys are explicit because a
+      # profile payload cannot override an explicit value.
+      profile: cached
+      use_lazy_zarr: false
+      use_cache: false
+      use_preloaded_cache_train: true
+      use_preloaded_cache_val: true
+      # 5x fewer voxels per patch than 128^3, so batch 8 fits where 2 was the
+      # ceiling -- more random crops per step, which regularizes a 62M-param
+      # model on 33 cubes.
+      batch_size: 8
+      # Preflight requires model.input_size == data.dataloader.patch_size.
+      patch_size: [48, 96, 96]
+    augmentation:
+      # DeepEM-matched heavy augmentation: defect_mutex + elastic + ±50% contrast
+      # + slice shift/drop + lost_section + motion blur + missing parts. With only
+      # 33 cubes this carries the regularization instead of shrinking the model.
+      profile: aug_em_neuron
   inference:
     window:
       window_size: [48, 96, 96]
@@ -86,3 +127,40 @@ default:
     # decoding is disabled in step 1. Without this override the native-window
     # run targets the complete 144-window store and silently skip-on-exists.
     save_suffix: zebrafinch_chunk_raw_grid1008_halo72_win48x96x96
+
+train:
+  optimization:
+    optimizer:
+      # From-scratch banis+ peak LR, not the 1e-4 a finetune would use.
+      lr: 0.001
+    max_steps: 200000
+    scheduler:
+      params:
+        t_max: 200000
+  data:
+    train:
+      # All 33 dense GT cubes, as [4,32,32]-per-side padded images. The padding
+      # carries a -1 ignore border, so the loss skips it and no separate mask
+      # volume is needed.
+      #
+      # The `*[0-9]` glob is load-bearing: a bare `gt_*.h5` also matches the
+      # `gt_*_skeleton.h5` caches, which would pair 66 labels against 33 images.
+      path: ""
+      resolution: [10, 10, 10]
+      image: /projects/weilab/dataset/zebrafinch/train/im_raw_4-32-32/im_*[0-9].h5
+      label: /projects/weilab/dataset/zebrafinch/train/seg_gt_4-32-32/gt_*[0-9].h5
+    val:
+      # A 3-cube subset that is also in train. It drives EMA validation and
+      # checkpoint selection only -- no cube is held out, and it is NOT a
+      # generalization estimate. Real evaluation is step 3 against the 50 test
+      # skeletons.
+      path: ""
+      resolution: [10, 10, 10]
+      image:
+        - /projects/weilab/dataset/zebrafinch/train/im_raw_4-32-32/im_z3456-3606_y3188-3338_x4043-4193.h5
+        - /projects/weilab/dataset/zebrafinch/train/im_raw_4-32-32/im_z3914-4064_y9035-9185_x2573-2723.h5
+        - /projects/weilab/dataset/zebrafinch/train/im_raw_4-32-32/im_z734-884_y9561-9711_x563-713.h5
+      label:
+        - /projects/weilab/dataset/zebrafinch/train/seg_gt_4-32-32/gt_z3456-3606_y3188-3338_x4043-4193.h5
+        - /projects/weilab/dataset/zebrafinch/train/seg_gt_4-32-32/gt_z3914-4064_y9035-9185_x2573-2723.h5
+        - /projects/weilab/dataset/zebrafinch/train/seg_gt_4-32-32/gt_z734-884_y9561-9711_x563-713.h5
