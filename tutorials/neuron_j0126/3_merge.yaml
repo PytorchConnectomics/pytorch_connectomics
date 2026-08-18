@@ -1,0 +1,162 @@
+# j0126 step 3 of 3: GT-free agglomeration of the ABISS over-segmentation.
+#
+#   python scripts/main.py --config tutorials/neuron_j0126/3_merge.yaml --mode test
+#
+# Input   outputs/neuron_j0126/abiss/seg.h5   ABISS segmentation (uint64 labels, ZYX)
+# Output  outputs/neuron_j0126/merge/<volume>/decoded_*.h5   merged segmentation
+#         outputs/neuron_j0126/merge/<volume>/eval_*.txt     NERL vs the 50 test skeletons
+#
+# NOTHING HERE USES GROUND TRUTH. The decoder is given a label volume and nothing else.
+# It does not know which segments are neurons, which are debris, or which belong together
+# -- so it grows EVERY segment below `anchor_size`, and decides each one's host from the
+# mean affinity across the shared surface (step 1's own prediction, no labels required). The `evaluation:` and `test:` blocks at the bottom exist only to
+# SCORE the result; delete them and the pipeline runs identically and writes the same
+# segmentation.
+#
+# Decode-only: no checkpoint, no GPU.
+
+experiment_name: neuron_j0126_merge
+description: >-
+  Grow every ABISS fragment into the neighbour it is most strongly connected to by
+  affinity, then link segments bridged by a single substantial fragment.
+  Ground-truth-free: voxel counts, contact areas and the predicted affinity are the
+  only evidence.
+
+default:
+  inference: {}
+
+  decoding:
+    # `raw` is the ABISS segmentation. The affinity from step 1 is loaded by the decoder via
+    # `affinity_path` below and is what decides each fragment's host: measured 0.5036 with
+    # affinity vs 0.4510 with contact area (B1 = 0.4629), and affinity is drop-free while
+    # contact area regresses 3 neurons. See the README "Status".
+    load_prediction_path: outputs/neuron_j0126/abiss/seg.h5
+    save_path: outputs/neuron_j0126/merge
+
+    graph:
+      nodes:
+        - name: merged
+          op: segmentation_merge
+          inputs: [raw]
+          kwargs:
+            # ---- round 1: GROW every fragment ----------------------------------
+            # A segment at or above this many voxels keeps its identity (an "anchor");
+            # everything below it is a fragment to be absorbed. THE one parameter worth
+            # tuning, and it trades recall against safety. Swept on this volume (NERL,
+            # parenthesis = neurons regressed):
+            #     5k 0.4838(0)  10k 0.4937(0)  20k 0.5149(0)  40k 0.5452(0)
+            #    80k 0.5522(1)  160k 0.5631(2)  400k 0.5774(3)
+            # 40,000 is the largest drop-free value. CAVEAT: that sweep used the GT
+            # skeleton graph as a stand-in for voxel contact; on the real contact graph
+            # the absolute values do not hold (see the tutorial README, "Status").
+            # Treat the ordering as indicative and re-sweep on your data.
+            anchor_size: 40000
+
+            # Absorption shells. A fragment touching only other fragments is picked up
+            # once its neighbour has been assigned, so chains need more than one pass.
+            # On the real contact graph this is also the main RISK knob: at hop >= 2 a
+            # speck that was itself mis-assigned acts as a relay and propagates the wrong
+            # host. Raise `min_size` before raising this.
+            hops: 8
+
+            # Minimum mean affinity for a contact to be usable as evidence. Load-bearing for
+            # multi-hop: without it the chain resolves everything and falls back to 0.5037,
+            # with it hop-8 reaches 0.5118. Set against the measured distribution -- edge
+            # mean-affinity is p50 0.000 / p90 0.074, so 0.3 would admit almost nothing.
+            #   hops 1 -> 0.5036 | 2 -> 0.5083 | 4 -> 0.5115 | 8 -> 0.5118  (all 0 regressed)
+            min_affinity: 0.02
+
+            # ---- host-decision gates (GT-free) ---------------------------------
+            # Without these, "absorb into your maximum-contact component" absorbs every
+            # label in the volume (20,072,711 on the reference run) and LOSES ground:
+            # 0.4405 vs a 0.4629 starting point, 4 neurons regressed. The bare argmax is
+            # not a good enough decision rule on a 128M-contact graph.
+            #
+            # dominance: the winning contact must be at least this fraction of the
+            # fragment's total contact area WITH LABELLED NEIGHBOURS -- "of the things I
+            # touch, this one dominates". Measured on the reference volume (NERL,
+            # parenthesis = neurons regressed; B1 start = 0.4629):
+            #   none 0.4405(4) | 0.3 0.4675(1) | 0.5 0.4649(0) | 0.7 0.4641(0) | 0.9 0.4638(0)
+            # 0.5 is the drop-free operating point and is the default. Tightening past it
+            # only trades gain for nothing; loosening to 0.3 buys +0.003 at one regression.
+            # BE HONEST ABOUT THE SCALE: this whole gate is worth ~+0.002 to +0.005, not
+            # the +0.08 an earlier GT-derived bound suggested. See the README "Status".
+            # With affinity available the host argmax is already ~87% accurate and needs no
+            # ambiguity gate; dominance/margin exist for the affinity-less fallback, where the
+            # best they can do is +0.002. Leave null unless running use_affinity: false.
+            dominance: null
+
+            # Rank hosts by mean affinity across the contact rather than by contact area.
+            # This is the whole ballgame: contact area is BELOW the random-guess baseline
+            # (16.2% vs 24.2%) on fragments with 5+ candidate hosts, while affinity is ~87%
+            # and flat in difficulty. Set false only to reproduce the label-only behaviour.
+            use_affinity: true
+            # Step 1's affinity volume, same grid as the segmentation. Channels must be in
+            # XYZ order (the affinity models here emit that); the decoder maps ZYX array
+            # axis `ax` to channel `2-ax`. A reversed mapping still scores 84% vs 86%, so it
+            # will NOT look like a failure -- check it rather than assume it.
+            affinity_path: outputs/neuron_j0126/affinity/affinity.h5
+            affinity_dataset: main
+            # margin: refuse when the runner-up host is within this ratio of the winner,
+            # i.e. the assignment is ambiguous. Measured drop-free alternative to
+            # dominance, and marginally better: 0.25 -> 0.4657 (+0.0029, 0 regressed)
+            # vs dominance 0.5 -> 0.4649 (+0.0020, 0 regressed). The two have not been
+            # measured in combination; enable one or the other, not both, until they are.
+            # Loosening hurts: margin 0.5 -> 0.4481 (-0.0148, 2 regressed).
+            margin: null
+
+            # ---- round 2: LINK across a fragment -------------------------------
+            # OFF, and the measurements say to leave it off. Round 2 was re-derived on both
+            # available features and refuted on both: under contact-balance gating every
+            # drop-free cell was worth <=+0.003, and under affinity gating EVERY setting that
+            # linked anything scored BELOW the link-free 0.5118 while regressing 2-3 neurons
+            # (0.05 -> 0.4884/3 · 0.10 -> 0.5024/2 · 0.20 -> 0.5004/2 · 0.30 -> links nothing).
+            #
+            # The asymmetry is structural, not a tuning failure. Round 1 only ASSIGNS a label,
+            # so an error costs one fragment. Round 2 UNIONS components, so one error costs two
+            # whole neurons -- and the base rate of a touching anchor pair being the same neuron
+            # is 1.91%. No threshold on an ~87%-accurate feature survives that.
+            link: false
+
+            # A linking fragment must be substantial -- a real piece of neurite, not a
+            # speck of debris that happens to sit between two segments.
+            link_min_size: 5000
+
+            # The fragment's two contacts must be comparable, i.e. it passes THROUGH
+            # rather than grazing one side. min(area) >= link_balance * max(area).
+            link_balance: 0.35
+
+            # Ignore contacts smaller than this many voxel faces (segmentation noise).
+            link_min_contact: 20
+
+            # Refuse any union that would put two backbone-scale segments in one
+            # component. This is load-bearing: without it two neurons weld through a
+            # single bad link and BOTH score ~0. Removing it cost -0.008 NERL and
+            # regressed 2 neurons in the reference run.
+            max_hub_size: 2.0e7
+
+            # Ignore labels below this size entirely when building the contact graph.
+            min_size: 200
+
+            # Whole-volume runs: point this at the output of
+            #   python scripts/build_contact_graph.py --seg <seg.zarr> --slab N
+            #   python scripts/build_contact_graph.py --seg <seg.zarr> --merge
+            # and the decoder reads the graph instead of computing it in memory.
+            contact_path: ""
+      output: merged
+
+  # ---- scoring only; delete this block and the `test:` block below to run GT-free ----
+  evaluation:
+    enabled: true
+    metrics: [nerl, nerl_oracle_merge]
+    # 50 is the threshold every published zebrafinch number on this volume uses,
+    # including the FFN reference (0.5390). A NERL quoted without its threshold is
+    # not comparable.
+    nerl_merge_threshold: 50
+
+test:
+  data:
+    test:
+      name: j0126
+      skeleton: /projects/weilab/dataset/zebrafinch/test_50_skeletons.h5
+      resolution: [10, 10, 10]   # z, y, x nm -- array-axis order, not xyz

@@ -55,12 +55,20 @@ DATASETS: dict[str, dict[str, Any]] = {
     },
     "snemi": {
         "name": "SNEMI3D Neuron Segmentation",
-        "url": "https://huggingface.co/datasets/pytc/tutorial/resolve/main/SNEMI3D.zip",
-        "filename": "SNEMI3D.zip",
-        "archive_dir": "SNEMI3D",
-        "extract_dir": "snemi",
+        # Flat repack of the Zenodo release (10.5281/zenodo.7142003), plus the
+        # test labels the challenge never published (see the tutorial README).
+        "url": "https://huggingface.co/pytc/tutorial/resolve/main/neuron_snemi/snemi.zip",
+        "filename": "snemi.zip",
+        "extract_dir": "SNEMI",
+        "extract_to_dataset_dir": True,
         "description": "SNEMI3D neuron segmentation challenge dataset",
-        "size": "~200 MB",
+        "size": "~190 MiB",
+        "files": [
+            "datasets/SNEMI/train-input.tif",
+            "datasets/SNEMI/train-labels.tif",
+            "datasets/SNEMI/test-input.tif",
+            "datasets/SNEMI/test-labels.h5",
+        ],
     },
     "mitoem": {
         "name": "MitoEM Mitochondria Segmentation",

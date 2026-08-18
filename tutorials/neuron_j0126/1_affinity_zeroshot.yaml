@@ -1,0 +1,123 @@
+# j0126 step 1 of 3: EM image -> 3-channel affinity, using the pretrained NISB model.
+#
+#   python scripts/main.py --config tutorials/neuron_j0126/1_affinity_zeroshot.yaml --mode test \
+#       --checkpoint outputs/nisb_base_banis_v3_erosion2/20260508_224029/checkpoints/step=00200000.ckpt
+#
+# The checkpoint is a MedNeXt-L/k3 affinity model trained on NISB ONLY. It has never seen
+# j0126, and no j0126 label is used to select, finetune or calibrate it -- the transfer is
+# zero-shot, which is what keeps the pipeline ground-truth-free end to end.
+#
+# Output  outputs/neuron_j0126/affinity/  float16 3-channel affinity, one h5 per chunk
+#
+# Whole-volume run: ~726 chunks of 1008^3 with a 72-voxel halo. Shard it with
+#   python scripts/main.py --config ... --mode test --shard-id $i --num-shards N
+# one GPU per shard (no torch.distributed).
+#
+# Only the shared, dataset-free `banis+.yaml` recipe is inherited; everything specific to
+# j0126 -- the volume, the chunk grid, the ROI -- lives in this file.
+
+_base_:
+  - ../banis+.yaml
+
+experiment_name: neuron_j0126_affinity
+description: >-
+  Zero-shot affinity prediction on j0126 with the NISB-trained banis+ MedNeXt-L/k3
+  model. Chunked sliding-window inference over the 10 nm isotropic volume.
+
+save_path: outputs/neuron_j0126/affinity
+
+default:
+  inference:
+    # select_channel [0,1,2], output_dtype float16 and the `scale_sigmoid` channel
+    # activation are inherited from banis.yaml unchanged. Step 2's watershed
+    # thresholds were measured on scale_sigmoid affinity, so do not swap in a plain
+    # sigmoid here without recalibrating them (scale_sigmoid 0.70 == plain 0.9857).
+    execution:
+      strategy: chunked
+    window:
+      distributed_sharding: false
+      distributed_reduce_chunk_mb: 128
+      keep_input_on_cpu: true
+      sw_device: cuda
+      output_device: cpu
+      # 144 = 128 (training patch) + 16 voxels of context; bump blending
+      # de-emphasizes the outer band. Must stay a multiple of MedNeXt's 16-voxel
+      # stride.
+      window_size: [144, 144, 144]
+      # Peak GPU memory is linear in sw_batch_size (~3.46 GB/unit + ~0.77 GB fixed
+      # with expandable_segments). 12 targets ~42 GB on a 49 GB L40S (~86%, ~7 GB
+      # headroom); 13 is the hard ceiling and 14 OOMs.
+      sw_batch_size: 12
+      overlap: 0.5
+      blending: bump
+      padding_mode: reflect
+      # BANIS-style boundary handling: snap last window to image_size - roi_size.
+      snap_to_edge: true
+    chunking:
+      enabled: true
+      # raw_prediction lets independent sbatch jobs split the grid via
+      # --shard-id/--num-shards without torch.distributed.
+      output_mode: raw_prediction
+      # Window stride = 144 * (1 - 0.5) = 72, so chunk starts must be multiples of
+      # 72; 1008 = 14 * 72.
+      chunk_size: [1008, 1008, 1008]
+      # Each chunk reads an overlapping halo and writes only its core.
+      halo: [72, 72, 72]
+      axes: all
+      # True EM geometry (ZYX voxels at 10 nm). The im_align volume is rounded out
+      # to 5700 x 12288 x 12288, so the last ~2 chunks in Y/X are pure zero padding.
+      # Clipping the grid to this ROI skips them: 1014 -> 726 chunks.
+      roi: [5700, 10913, 10664]
+    save_results: true
+    save_backend: h5
+    # float16 halves the affinity on disk versus float32.
+    save_dtype: float16
+    test_time_augmentation:
+      enabled: false
+
+  # Step 1 emits affinity only -- ABISS does the segmentation in step 2. Leaving
+  # decoding on makes the test pipeline read the stitched whole-volume prediction
+  # back in one piece (np.array over the full h5), which for j0126 is a 9.4 TiB
+  # allocation and dies.
+  decoding:
+    enabled: false
+    # Kept even though decoding is off: save_suffix is part of the RAW PREDICTION
+    # filename (..._cs1008x1008x1008_halo72x72x72_<suffix>.h5), so dropping it
+    # silently renames step 1's output -- which is what step 2 reads.
+    save_suffix: zebrafinch_chunk_raw_grid1008_halo72
+    # The inherited affinity QC mask is NISB-specific. Empty string = no mask.
+    affinity_mask_path: ""
+
+  evaluation:
+    enabled: false
+
+test:
+  system:
+    # Each shard is an independent one-GPU job; do not use DDP.
+    num_gpus: 1
+  decoding:
+    affinity_mask_path: ""
+  data:
+    test:
+      # 10 nm isotropic resample of the public j0126 volume. To rebuild it from the
+      # public mirror (Januszewski et al. 2018, Nat Methods):
+      #
+      #   gs://j0126-nature-methods-data/GgwKmcKgrcoNxJccKuGIzRnQqfit9hnfK1ctZzNbnuU/
+      #       rawdata_realigned        uint8, 9 x 9 x 20 nm (x,y,z)   <- what FFN segmented
+      #       ffn_segmentation         uint64, same grid              <- the 0.5390 reference
+      #
+      # cloud-volume returns XYZC; transpose to ZYX and resample to 10 nm isotropic
+      # (scale 2 in Z, 1.8 in Y/X) before pointing `image` at the result. The model was
+      # trained at 9 nm isotropic, so the resolution match matters more than the exact
+      # grid; do not feed native 9x9x20 without resampling.
+      #
+      # Dense multiscale OME-Zarr, level 0 = full 10 nm resolution. `dataset_type: null`
+      # selects the generic volume backend and the .zarr suffix picks the zarr reader. Do
+      # NOT point this at the tiled-PNG pyramid: the lazy window re-decodes 4096x4096
+      # tiles per window and runs ~19 h/chunk with the GPU idle, versus ~30 min/chunk here.
+      dataset_type: null
+      image: /projects/weilab/dataset/zebrafinch/im_align_10nm.zarr/0
+      label: null
+      skeleton: null
+      name: im_align_10nm
+      resolution: [10, 10, 10]
