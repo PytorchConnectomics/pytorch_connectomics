@@ -119,3 +119,9 @@ The optional completion-radius link (`prefer_length: true`) is **off** by defaul
 reach lateral-drift gaps that shape matching structurally cannot, but can lose oracle-merge
 ceiling when correct links are not separable from false ones by proximity, caliber, and
 trajectory alone. Enable it only when run length matters more than merge safety.
+
+## Implementation
+
+The packaged operations live in `connectomics/decoding/decoders/branch/`. Their module
+docstrings describe which geometric and affinity signals each stage uses when deciding
+whether two fragments belong to the same axon.

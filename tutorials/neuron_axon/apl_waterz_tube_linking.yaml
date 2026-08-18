@@ -1,0 +1,125 @@
+# APL optic-nerve decoding: per-slice WaterZ -> conservative tube linking.
+#
+#   python scripts/main.py \
+#     --config tutorials/neuron_axon/apl_waterz_tube_linking.yaml \
+#     --mode test
+#
+# Input   datasets/apl_decoding/optic_nerve_afffinities.h5
+#         12-channel CZYX PyTC prediction; channels 0,1,2 are X,Y,Z affinities.
+# Output  outputs/neuron_axon/apl_waterz_tube_strict/<volume>/decoded_*.h5
+#         outputs/neuron_axon/apl_waterz_tube_strict/<volume>/eval_*.txt
+#         outputs/neuron_axon/apl_waterz_tube_strict/<volume>/eval_*_tube_instances.npz
+#
+# `branch_link` requires labels unique to individual z-slices, so the WaterZ
+# seed is deliberately `seg_2d`, not a full-volume `decode_waterz` result.
+
+_base_: tube_analysis.yaml
+
+experiment_name: apl_waterz_tube_linking_strict
+description: >-
+  Reorder the APL PyTC affinity triplet from XYZ to ZYX, build volume-unique
+  per-slice WaterZ sections, link them into conservative tracklets, split
+  suspicious joins, complete reliable tubes, and report GT-free tube quality.
+
+default:
+  decoding:
+    load_prediction_path: datasets/apl_decoding/optic_nerve_afffinities.h5
+    save_path: outputs/neuron_axon/apl_waterz_tube_strict
+
+    graph:
+      nodes:
+        # The source has 12 channels. Its nearest-neighbour triplet is XYZ,
+        # while seg_2d and branch_* consume exactly three channels in ZYX order.
+        - name: affinity_zyx
+          op: select_channels
+          inputs: [raw]
+          kwargs:
+            channels: [2, 1, 0]
+
+        # WaterZ is run independently within each z-slice. Positive IDs are
+        # offset after every slice so branch_link receives volume-unique sections.
+        - name: sections
+          op: seg_2d
+          inputs: [affinity_zyx]
+          kwargs:
+            # False-merge-safe seed: a higher affinity/foreground gate and a
+            # lower WaterZ agglomeration threshold than the tutorial defaults.
+            # In WaterZ, increasing `thr` merges MORE regions.
+            thr: 0.1
+            aff_bg: 0.80
+            aff_low: 0.10
+            small: 0
+            num_workers: 8
+
+        - name: tracklets
+          op: branch_link
+          inputs: [affinity_zyx, sections]
+          kwargs:
+            link_iou: 0.2
+            bb_iou: 0.3
+
+        # Convert suspicious geometric joins into cheaper-to-fix splits.
+        - name: split
+          op: branch_split
+          inputs: [affinity_zyx, tracklets]
+          kwargs:
+            drop_thr: 0.25
+            w: 4
+            min_size: 10000
+            min_frag: 6
+            recover: 1.1
+            host_both: false
+
+        # Reconnect only unambiguous continuations and weak gaps.
+        - name: merged
+          op: branch_merge
+          inputs: [affinity_zyx, split]
+          kwargs:
+            merge_iou: 0.45
+            margin: 0.15
+            aff_lo: 0.4
+            min_ov: 30
+            min_size: 2000
+            rounds: 4
+            weak_max_gap: 15
+            weak_min_iou: 0.35
+            weak_lo: 0.3
+            weak_cal_ratio: 1.6
+            weak_margin: 0.15
+            weak_min_size: 2000
+            weak_rounds: 3
+            weak_dim_tol: 3
+            prefer_length: false
+
+      output: merged
+
+  evaluation:
+    enabled: true
+    metrics: [tube]
+    tube:
+      # Tuned only for useful reporting on this 64-slice crop; these values do
+      # not alter the decoded segmentation.
+      substantial_min_z_slices: 8
+      substantial_min_voxels: 1000
+      long_span_fraction: 0.25
+      decent_min_voxels: 5000
+      border_margin: 2
+      border_patch_min_voxels: 10
+      multi_component_min_voxels: 25
+      multi_component_slice_step: 2
+      parallel_min_slices: 8
+      parallel_fraction_threshold: 0.30
+      disconnected_component_min_voxels: 250
+      bump_min_slices: 20
+      bump_relative_excess: 0.20
+      bump_absolute_excess: 100
+      bump_max_slices: 15
+      bump_median_window: 15
+      top_incomplete: 8
+
+test:
+  data:
+    test:
+      name: apl_optic_nerve
+      label: null
+      resolution: [8, 8, 8]

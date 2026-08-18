@@ -1,0 +1,155 @@
+# APL optic-nerve decoding: conservative tube linking -> two-sided tube extension.
+#
+#   python scripts/main.py \
+#     --config tutorials/neuron_axon/apl_waterz_tube_extend.yaml \
+#     --mode test
+#
+# Input   datasets/apl_decoding/optic_nerve_afffinities.h5
+#         12-channel CZYX PyTC prediction; channels 0,1,2 are X,Y,Z affinities.
+# Output  outputs/neuron_axon/apl_waterz_tube_extend/<volume>/decoded_*.h5
+#         outputs/neuron_axon/apl_waterz_tube_extend/<volume>/eval_*.txt
+#
+# Same graph as apl_waterz_tube_linking.yaml through `merged`, plus a final
+# `branch_extend` stage. That stage walks each decent tube outward from BOTH of
+# its z-ends and absorbs whatever continues the cross-section, until the tube
+# reaches a volume face. It trades the mutual-agreement safety rule of
+# `branch_merge` for length, so run it when the tube report says INCOMPLETE, and
+# compare against the linking baseline rather than replacing it.
+
+_base_: tube_analysis.yaml
+
+experiment_name: apl_waterz_tube_extend
+description: >-
+  Reorder the APL PyTC affinity triplet from XYZ to ZYX, build volume-unique
+  per-slice WaterZ sections, link them into conservative tracklets, split
+  suspicious joins, complete reliable tubes, then extend the decent tubes from
+  both ends toward the volume faces and report GT-free tube quality.
+
+default:
+  decoding:
+    load_prediction_path: datasets/apl_decoding/optic_nerve_afffinities.h5
+    save_path: outputs/neuron_axon/apl_waterz_tube_extend
+
+    graph:
+      nodes:
+        # The source has 12 channels. Its nearest-neighbour triplet is XYZ,
+        # while seg_2d and branch_* consume exactly three channels in ZYX order.
+        - name: affinity_zyx
+          op: select_channels
+          inputs: [raw]
+          kwargs:
+            channels: [2, 1, 0]
+
+        # WaterZ is run independently within each z-slice. Positive IDs are
+        # offset after every slice so branch_link receives volume-unique sections.
+        - name: sections
+          op: seg_2d
+          inputs: [affinity_zyx]
+          kwargs:
+            thr: 0.1
+            aff_bg: 0.80
+            aff_low: 0.10
+            small: 0
+            num_workers: 8
+
+        - name: tracklets
+          op: branch_link
+          inputs: [affinity_zyx, sections]
+          kwargs:
+            link_iou: 0.2
+            bb_iou: 0.3
+
+        # Convert suspicious geometric joins into cheaper-to-fix splits.
+        - name: split
+          op: branch_split
+          inputs: [affinity_zyx, tracklets]
+          kwargs:
+            drop_thr: 0.25
+            w: 4
+            min_size: 10000
+            min_frag: 6
+            recover: 1.1
+            host_both: false
+
+        # Reconnect only unambiguous continuations and weak gaps.
+        - name: merged
+          op: branch_merge
+          inputs: [affinity_zyx, split]
+          kwargs:
+            merge_iou: 0.45
+            margin: 0.15
+            aff_lo: 0.4
+            min_ov: 30
+            min_size: 2000
+            rounds: 4
+            weak_max_gap: 15
+            weak_min_iou: 0.35
+            weak_lo: 0.3
+            weak_cal_ratio: 1.6
+            weak_margin: 0.15
+            weak_min_size: 2000
+            weak_rounds: 3
+            weak_dim_tol: 3
+            prefer_length: false
+
+        # Length-first pass over the tubes only. `min_size`/`min_span_frac`
+        # match the `decent` subset the evaluation below scores, so the stage
+        # works exactly where completeness is measured. Ends that already touch
+        # a face are skipped; only the open ones are walked.
+        - name: extended
+          op: branch_extend
+          inputs: [affinity_zyx, merged]
+          kwargs:
+            min_size: 5000
+            min_span_frac: 0.25
+            # Selector: cross-section IoU to continue. Well below branch_merge's
+            # 0.45 -- these are the joins the conservative pass refused.
+            min_iou: 0.15
+            # 0.0 accepts the best partner even when a runner-up is close.
+            # Raise toward 0.15 to decline on ambiguity instead.
+            margin: 0.0
+            min_ov: 20
+            # Vetoes only, never selectors.
+            aff_lo: 0.3
+            weak_lo: 0.3
+            cal_ratio: 2.5
+            # A step may skip up to 4 slices where the tube has no label at all.
+            max_gap: 5
+            max_steps: 64
+            rounds: 2
+            border: 2
+            # true restores the merge-safe mutual rule (fewer, safer joins).
+            require_mutual: false
+            # false grows into fragments only, never into another decent tube.
+            absorb_tubes: true
+
+      output: extended
+
+  evaluation:
+    enabled: true
+    metrics: [tube]
+    tube:
+      substantial_min_z_slices: 8
+      substantial_min_voxels: 1000
+      long_span_fraction: 0.25
+      decent_min_voxels: 5000
+      border_margin: 2
+      border_patch_min_voxels: 10
+      multi_component_min_voxels: 25
+      multi_component_slice_step: 2
+      parallel_min_slices: 8
+      parallel_fraction_threshold: 0.30
+      disconnected_component_min_voxels: 250
+      bump_min_slices: 20
+      bump_relative_excess: 0.20
+      bump_absolute_excess: 100
+      bump_max_slices: 15
+      bump_median_window: 15
+      top_incomplete: 8
+
+test:
+  data:
+    test:
+      name: apl_optic_nerve
+      label: null
+      resolution: [8, 8, 8]

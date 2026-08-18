@@ -1,0 +1,72 @@
+# j0126 step 2 of 3: affinity -> over-segmentation with ABISS.
+#
+#   python scripts/run_abiss_chunk.py --config tutorials/neuron_j0126/2_abiss.yaml --prepare-only
+#   python scripts/run_abiss_chunk.py --config tutorials/neuron_j0126/2_abiss.yaml
+#
+# Input   outputs/neuron_j0126/affinity/   step 1's float16 affinity chunks
+# Output  .../precomputed/seg              ABISS segmentation (CloudVolume precomputed)
+#
+# ABISS manages its own chunk hierarchy and chunked watershed/agglomeration, so this file
+# is consumed by `scripts/run_abiss_chunk.py`, not by `scripts/main.py`.
+#
+# WHY THESE THRESHOLDS. The pipeline deliberately UNDER-agglomerates here and repairs the
+# splits in step 3. In connectomics a split is cheap (a proofreader reconnects it) and a
+# merge is expensive (it corrupts two neurons), and step 3's grow round is provably
+# merge-safe -- it only ever assigns a fragment to a host, never welds two segments. So
+# every ambiguous decision is better deferred to step 3 than taken here.
+# AGG_THRESHOLD 0.20 with WS_HIGH 0.9 / WS_LOW 0.1 is the setting that reproduces the
+# reference segmentation this tutorial was measured on.
+
+abiss_chunk:
+  abiss_home: /projects/weilab/weidf/lib/pytorch_connectomics/lib/abiss
+  workdir: /projects/weilab/weidf/lib/pytorch_connectomics/outputs/neuron_j0126/abiss/run
+  secrets_dir: /projects/weilab/weidf/lib/pytorch_connectomics/outputs/neuron_j0126/abiss/secrets
+  param_path: /projects/weilab/weidf/lib/pytorch_connectomics/outputs/neuron_j0126/abiss/secrets/param
+
+  source_affinity_h5: /projects/weilab/weidf/lib/pytorch_connectomics/outputs/neuron_j0126/affinity/affinity.h5
+  source_dataset: main
+
+  # On-disk precomputed storage chunks (NOT the ABISS logical chunk grid).
+  copy_block_shape_xyz: [512, 512, 64]
+  aff_chunk_size_xyz: [512, 512, 64]
+  seg_chunk_size_xyz: [512, 512, 80]
+  resolution_xyz: [10, 10, 10]
+
+  root_tag: "4_0_0_0"
+  top_mip: 4
+  overlap_mode: 0
+  meta_dirs: []
+
+  param:
+    NAME: j0126_abiss
+
+    AFF_PATH: file:///projects/weilab/weidf/lib/pytorch_connectomics/outputs/neuron_j0126/abiss/precomputed/affinity
+    WS_PATH: file:///projects/weilab/weidf/lib/pytorch_connectomics/outputs/neuron_j0126/abiss/precomputed/ws
+    SEG_PATH: file:///projects/weilab/weidf/lib/pytorch_connectomics/outputs/neuron_j0126/abiss/precomputed/seg
+    SCRATCH_PATH: file:///projects/weilab/weidf/lib/pytorch_connectomics/outputs/neuron_j0126/abiss/scratch
+    CHUNKMAP_OUTPUT: file:///projects/weilab/weidf/lib/pytorch_connectomics/outputs/neuron_j0126/abiss/chunkmap
+    AFF_RESOLUTION: 0
+
+    # Mip-0 XYZ. The true EM extent of the 10 nm volume is 5700 x 10913 x 10664 (ZYX);
+    # in ABISS's XYZ order that is [0, 0, 0, 10664, 10913, 5700].
+    BBOX: [0, 0, 0, 10664, 10913, 5700]
+
+    # Large in XY to minimise cross-face stitching, chunked in Z for memory.
+    CHUNK_SIZE: [10664, 10913, 80]
+
+    # Conservative watershed: seeds only where affinity is unambiguous.
+    WS_HIGH_THRESHOLD: 0.9
+    WS_LOW_THRESHOLD: 0.1
+    WS_SIZE_THRESHOLD: 400
+    WS_DUST_THRESHOLD: 200
+
+    # Mean-edge agglomeration threshold. Deliberately conservative -- see the header.
+    AGG_THRESHOLD: 0.20
+
+    PARANOID: false
+    CHUNKED_AGG_OUTPUT: false
+
+notes:
+  - "Export the precomputed seg to h5/zarr for step 3, or point step 3's contact-graph builder at the precomputed volume directly."
+  - "seg_chunk_size_xyz must align with every internal CHUNK_SIZE boundary on axes with multiple chunks; with CHUNK_SIZE z=80 the seg z chunk must be 80, not 64."
+  - "Nothing in this step uses ground truth; the thresholds were chosen to under-agglomerate on principle, not fitted to the test skeletons."

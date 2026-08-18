@@ -15,7 +15,8 @@ python scripts/main.py --config tutorials/<config>.yaml
 - `tutorials/mitoEM/HR.yaml`: Joint EM30-H + EM30-R training (MedNeXt, SDT).
 - `tutorials/mito_mitolab.yaml`: CEM-MitoLab 2D mitochondria segmentation (MedNeXt).
 - `tutorials/mito_betaseg.yaml`: BetaSeg mitochondria instance segmentation (MedNeXt, affinity+SDT).
-- `tutorials/neuron_snemi.yaml`: SNEMI3D neuron segmentation (RSUNet, affinities).
+- `tutorials/neuron_snemi/neuron_snemi.yaml`: SNEMI3D neuron instance segmentation
+  (MedNeXt-S, 12-channel affinity, waterz).
 - `tutorials/nuc_nucmm-z.yaml`: NucMM zebrafish nuclei segmentation (MONAI UNet, multi-task).
 - `tutorials/fiber_linghu26.yaml`: Fiber segmentation (MedNeXt, binary+boundary+distance).
 
