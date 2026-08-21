@@ -1,0 +1,676 @@
+
+
+
+
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!-->
+<html class="no-js" lang="en">
+<!--<![endif]-->
+
+<head>
+  <meta charset="utf-8">
+  <meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>CREMI (Synaptic Cleft Detection) &mdash; connectomics latest documentation</title>
+  
+
+  
+  
+  <link rel="shortcut icon" href="../../_static/favicon.svg" />
+  
+  
+  
+
+  
+
+  
+  
+  
+
+  
+
+  
+  <link rel="stylesheet" href="../../_static/css/theme.css" type="text/css" />
+  <!-- <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" /> -->
+  <link rel="stylesheet" href="../../_static/css/pytc-theme.css" type="text/css" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@docsearch/js@alpha" type="text/css" />
+  <link rel="stylesheet" href="../../_static/css/readthedocs-doc-embed.css" type="text/css" />
+  <link rel="index" title="Index" href="../../genindex.html" />
+  <link rel="search" title="Search" href="../../search.html" />
+  <link rel="next" title="EM-R50 (Synaptic Polarity Detection)" href="em_r50.html" />
+  <link rel="prev" title="Synapse Detection" href="index.html" /> 
+
+    <!-- Preload the theme fonts -->
+
+<link rel="preload" href="_static/fonts/FreightSans/freight-sans-book.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="_static/fonts/FreightSans/freight-sans-medium.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="_static/fonts/IBMPlexMono/IBMPlexMono-Medium.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="_static/fonts/FreightSans/freight-sans-bold.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="_static/fonts/FreightSans/freight-sans-medium-italic.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="_static/fonts/IBMPlexMono/IBMPlexMono-SemiBold.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+
+<!-- Preload the katex fonts -->
+
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Math-Italic.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Main-Regular.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Main-Bold.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Size1-Regular.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Size4-Regular.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Size2-Regular.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Size3-Regular.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Caligraphic-Regular.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+
+  <link rel="stylesheet" href="text.css" type="text/css" />
+
+  <!-- at the end of the HEAD -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@docsearch/css@alpha" />
+</head>
+
+<div class="container-fluid header-holder tutorials-header" id="header-holder">
+  <div class="container">
+
+    <a class="header-logo" href="../../index.html" aria-label="PyTC"></a>
+
+    <div class="header-container">
+
+      <div class="main-menu">
+        <ul>
+          <li>
+            <a href="../../notes/installation.html">Get Started</a>
+          </li>
+          <li>
+            <a href="../neuron.html">Tutorials</a>
+          </li>
+          <li>
+            <a href="../../index.html">Docs</a>
+          </li>
+          <li>
+            <a href="https://github.com/zudi-lin/pytorch_connectomics/tree/master">GitHub</a>
+          </li>
+          <li>
+            <a href="../../about/team.html">About Us</a>
+          </li>
+
+        </ul>
+      </div>
+
+      <!-- <a class="main-menu-open-button" href="#" data-behavior="open-mobile-menu"></a> -->
+    </div>
+
+  </div>
+</div>
+
+
+<body class="pytorch-body">
+
+   
+
+  
+
+  <div class="table-of-contents-link-wrapper">
+    <span>Table of Contents</span>
+    <a href="#" class="toggle-table-of-contents" data-behavior="toggle-table-of-contents"></a>
+  </div>
+
+  <nav data-toggle="wy-nav-shift" class="pytorch-left-menu" id="pytorch-left-menu">
+    <div class="pytorch-side-scroll">
+      <div class="pytorch-menu pytorch-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+        <div class="pytorch-left-menu-search">
+          
+
+          
+          
+          
+          <div class="version">
+            latest
+          </div>
+          
+          
+
+          <div id="docsearch"></div>
+
+          
+        </div>
+
+        
+        
+        
+        
+        
+        
+        <p class="caption" role="heading"><span class="caption-text">Get Started</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../notes/installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../notes/config.html">Configuration System</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../notes/dataloading.html">Data Loading</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../notes/axis_order.html">Axis and Channel Order</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../notes/malis.html">MALIS Loss</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../notes/faq.html">FAQ</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Tutorials</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../neuron/index.html">Neuron Segmentation</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../neuron/snemi3d.html">SNEMI3D</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../neuron/nisb.html">NISB</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../neuron/liconn.html">LICONN</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../mito/index.html">Mitochondria Segmentation</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../mito/lucchi.html">Lucchi++ (Semantic Segmentation)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../mito/mitoem.html">MitoEM (Instance Segmentation)</a></li>
+</ul>
+</li>
+<li class="toctree-l1 current"><a class="reference internal" href="index.html">Synapse Detection</a><ul class="current">
+<li class="toctree-l2 current"><a class="current reference internal" href="#">CREMI (Synaptic Cleft Detection)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="em_r50.html">EM-R50 (Synaptic Polarity Detection)</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../wrinkle.html">Wrinkle (2D Binary Segmentation)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../artifact.html">Artifacts Detection (Draft)</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">External Tools</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../external/neuroglancer.html">Neuroglancer</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Package Reference</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../modules/lightning.html">Lightning Module API</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../modules/model.html">connectomics.models</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../modules/data.html">connectomics.data</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../modules/utils.html">connectomics.utils</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">About</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../about/team.html">About Us</a></li>
+</ul>
+
+        
+        
+      </div>
+    </div>
+
+    
+
+
+    
+
+    <!-- 
+    
+    <div class="rst-versions" data-toggle="rst-versions" role="note" aria-label="versions">
+      <span class="rst-current-version" data-toggle="rst-current-version">
+        <span class="fa fa-book"> Read the Docs</span>
+        v: latest
+        <span class="fa fa-caret-down"></span>
+      </span>
+      <div class="rst-other-versions">
+        <dl>
+          <dt>Versions</dt>
+          
+          <dd><a href="#">latest</a></dd>
+          
+        </dl>
+        <dl>
+          <dt>Downloads</dt>
+          <dd><a href="https://github.com/zudi-lin/pytorch_connectomics/">PDF</a>
+          </dd>
+          <dd><a href="https://github.com/zudi-lin/pytorch_connectomics/">HTML</a></dd>
+        </dl>
+        <dl>
+          <dt>On Github</dt>
+          <dd><a href="https://github.com/zudi-lin/pytorch_connectomics">Home</a></dd>
+          <dd><a href="https://github.com/zudi-lin/pytorch_connectomics/">Docs</a></dd>
+        </dl>
+      </div>
+    </div>
+    
+     -->
+
+  </nav>
+
+
+  <div class="pytorch-container">
+    <div class="pytorch-page-level-bar" id="pytorch-page-level-bar">
+      <div class="pytorch-breadcrumbs-wrapper">
+        
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="pytorch-breadcrumbs">
+    
+      <li>
+        <a href="../../index.html">
+          
+            Docs
+          
+        </a> &gt;
+      </li>
+
+        
+          <li><a href="index.html">Synapse Detection</a> &gt;</li>
+        
+      <li>CREMI (Synaptic Cleft Detection)</li>
+    
+    
+      <li class="pytorch-breadcrumbs-aside">
+        
+            
+            <a href="../../_sources/tutorials/synapse/cremi.rst.txt" rel="nofollow"><img src="../../_static/images/view-page-source-icon.svg"></a>
+          
+        
+      </li>
+    
+  </ul>
+
+  
+</div>
+      </div>
+
+      <div class="pytorch-shortcuts-wrapper" id="pytorch-shortcuts-wrapper">
+        Shortcuts
+      </div>
+    </div>
+
+    <section data-toggle="wy-nav-shift" id="pytorch-content-wrap" class="pytorch-content-wrap">
+      <div class="pytorch-content-left">
+
+        
+        
+          <div class="rst-content">
+            
+            <div role="main" class="main-content" itemscope="itemscope" itemtype="http://schema.org/Article">
+              <article itemprop="articleBody" id="pytorch-article" class="pytorch-article">
+                
+  <section id="cremi-synaptic-cleft-detection">
+<h1>CREMI (Synaptic Cleft Detection)<a class="headerlink" href="#cremi-synaptic-cleft-detection" title="Permalink to this heading">¶</a></h1>
+<p>A <a class="reference external" href="https://en.wikipedia.org/wiki/Synapse">synapse</a> is an essential
+structure that allows electric or chemical signals to be passed between
+neurons. Identification of synapses is important for reconstructing the
+wiring diagram of the brain. Signal flows in one direction at a synapse,
+so each synapse usually consists of a pre-synaptic and a post-synaptic
+region.</p>
+<p>This section covers two benchmarks:</p>
+<ul class="simple">
+<li><p><a class="reference internal" href="#"><span class="doc">CREMI</span></a> — synaptic <em>cleft</em> detection on the
+<a class="reference external" href="https://cremi.org">CREMI Challenge</a> dataset (adult <em>Drosophila
+melanogaster</em> brain tissue, 2016).</p></li>
+<li><p><a class="reference internal" href="em_r50.html"><span class="doc">EM-R50</span></a> — synaptic <em>polarity</em> detection on the dataset
+released by
+<a class="reference external" href="http://www.ecva.net/papers/eccv_2020/papers_ECCV/papers/123630103.pdf">Lin et al.</a>
+in 2020 (Layer II/III primary visual cortex of an adult rat). This
+predicts pre-synaptic and post-synaptic masks separately.</p></li>
+</ul>
+<p>This tutorial reproduces synaptic cleft detection on the
+<a class="reference external" href="https://cremi.org">CREMI Challenge</a> dataset using
+<code class="docutils literal notranslate"><span class="pre">tutorials/syn_cremi.yaml</span></code>. The task is binary semantic segmentation
+of cleft pixels with an anisotropic RSUNet, evaluated with the CREMI
+distance metric and Jaccard.</p>
+<section id="goal">
+<h2>Goal<a class="headerlink" href="#goal" title="Permalink to this heading">¶</a></h2>
+<p>The pipeline pins the following setup (encoded in
+<code class="docutils literal notranslate"><span class="pre">tutorials/syn_cremi.yaml</span></code>):</p>
+<ul class="simple">
+<li><p><strong>Input</strong> <code class="docutils literal notranslate"><span class="pre">[18,</span> <span class="pre">256,</span> <span class="pre">256]</span></code> patches at native CREMI resolution
+<code class="docutils literal notranslate"><span class="pre">40</span> <span class="pre">×</span> <span class="pre">4</span> <span class="pre">×</span> <span class="pre">4</span></code> nm.</p></li>
+<li><p><strong>Model</strong> RSUNet with anisotropic down-sampling
+(<code class="docutils literal notranslate"><span class="pre">down_factors:</span> <span class="pre">[[1,2,2]]</span> <span class="pre">*</span> <span class="pre">4</span></code>, <code class="docutils literal notranslate"><span class="pre">depth_2d=1</span></code>,
+<code class="docutils literal notranslate"><span class="pre">kernel_2d=[1,3,3]</span></code>), filters <code class="docutils literal notranslate"><span class="pre">[32,</span> <span class="pre">64,</span> <span class="pre">96,</span> <span class="pre">128,</span> <span class="pre">160]</span></code>, batch
+norm, ELU activation. Single-channel cleft output.</p></li>
+<li><p><strong>Loss</strong> <code class="docutils literal notranslate"><span class="pre">WeightedBCEWithLogitsLoss</span></code> (weight 1.0) plus
+<code class="docutils literal notranslate"><span class="pre">DiceLoss</span></code> (weight 1.0, sigmoid input).</p></li>
+<li><p><strong>Augmentation</strong> flip + rotate + elastic + intensity (Gaussian
+noise, intensity shift, contrast) + EM-specific
+(<code class="docutils literal notranslate"><span class="pre">misalignment</span></code>, <code class="docutils literal notranslate"><span class="pre">missing_section</span></code>, <code class="docutils literal notranslate"><span class="pre">motion_blur</span></code>) — the
+full <code class="docutils literal notranslate"><span class="pre">aug_em_*</span></code> suite enabled inline.</p></li>
+<li><p><strong>Sampling</strong> rejection sampling at <code class="docutils literal notranslate"><span class="pre">size_thres=1000</span></code>, <code class="docutils literal notranslate"><span class="pre">p=0.95</span></code>
+to focus on patches with synaptic clefts; preloaded cache for
+train and val.</p></li>
+<li><p><strong>Optimization</strong> AdamW &#64; <code class="docutils literal notranslate"><span class="pre">lr=1e-3</span></code>, <code class="docutils literal notranslate"><span class="pre">weight_decay=0.01</span></code>,
+cosine to <code class="docutils literal notranslate"><span class="pre">min_lr=1e-5</span></code> over <code class="docutils literal notranslate"><span class="pre">max_steps=150_000</span></code>,
+<code class="docutils literal notranslate"><span class="pre">precision=bf16-mixed</span></code>, EMA enabled with <code class="docutils literal notranslate"><span class="pre">decay=0.999</span></code> and
+<code class="docutils literal notranslate"><span class="pre">warmup_steps=500</span></code> (<code class="docutils literal notranslate"><span class="pre">validate_with_ema=true</span></code>).</p></li>
+<li><p><strong>Inference</strong> sliding window 18 × 256 × 256, 50 % overlap, bump
+blending, reflect padding; sigmoid activation on the cleft
+channel; TTA enabled with <code class="docutils literal notranslate"><span class="pre">flip_axes:</span> <span class="pre">all</span></code>, <code class="docutils literal notranslate"><span class="pre">ensemble_mode:</span> <span class="pre">mean</span></code>.</p></li>
+<li><p><strong>Metrics</strong> <code class="docutils literal notranslate"><span class="pre">cremi_distance</span></code> and <code class="docutils literal notranslate"><span class="pre">jaccard</span></code>.</p></li>
+</ul>
+<section id="get-the-data">
+<h3>1 - Get the data<a class="headerlink" href="#get-the-data" title="Permalink to this heading">¶</a></h3>
+<p>Download from the
+<a class="reference external" href="https://cremi.org/">CREMI challenge page</a> or the Harvard RC mirror:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>mkdir<span class="w"> </span>-p<span class="w"> </span>datasets/corrected<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="nb">cd</span><span class="w"> </span>datasets/corrected
+wget<span class="w"> </span>http://rhoana.rc.fas.harvard.edu/dataset/cremi.zip
+unzip<span class="w"> </span>cremi.zip
+</pre></div>
+</div>
+<p>The config expects re-aligned, crack-corrected versions of the original
+CREMI volumes:</p>
+<div class="highlight-text notranslate"><div class="highlight"><pre><span></span>datasets/corrected/
+    im_A.h5,  im_B.h5,  im_C.h5         # training volumes
+    syn_A.h5, syn_B.h5, syn_C.h5        # cleft labels
+    im_A+.h5, im_B+.h5, im_C+.h5        # held-out test (no labels)
+
+.. note::
+
+    The training pipeline reads the re-aligned volumes (``im_*.h5``
+    without the ``+``); the ``+`` variants are the held-out
+    challenge test set used only for submission. We perform
+    re-alignment of the original CREMI image stacks and remove the
+    crack artifacts. Reverse the alignment before submitting test
+    predictions to the CREMI challenge.
+</pre></div>
+</div>
+</section>
+<section id="run-training">
+<h3>2 - Run training<a class="headerlink" href="#run-training" title="Permalink to this heading">¶</a></h3>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>conda<span class="w"> </span>activate<span class="w"> </span>pytc
+python<span class="w"> </span>scripts/main.py<span class="w"> </span>--config<span class="w"> </span>tutorials/syn_cremi.yaml
+</pre></div>
+</div>
+<p>The config does not pin <code class="docutils literal notranslate"><span class="pre">system.num_gpus</span></code>, so it inherits the
+<code class="docutils literal notranslate"><span class="pre">all-gpu-cpu</span></code> default. Override at the CLI if needed:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>python<span class="w"> </span>scripts/main.py<span class="w"> </span>--config<span class="w"> </span>tutorials/syn_cremi.yaml<span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>system.num_gpus<span class="o">=</span><span class="m">4</span>
+</pre></div>
+</div>
+<p>Training schedule:</p>
+<ul class="simple">
+<li><p><strong>Step-based</strong>: <code class="docutils literal notranslate"><span class="pre">max_steps=150_000</span></code>, <code class="docutils literal notranslate"><span class="pre">n_steps_per_epoch=1280</span></code>.</p></li>
+<li><p>Cosine LR over 150 k steps to <code class="docutils literal notranslate"><span class="pre">min_lr=1e-5</span></code>.</p></li>
+<li><p>EMA shadow weights with <code class="docutils literal notranslate"><span class="pre">decay=0.999</span></code>;
+<code class="docutils literal notranslate"><span class="pre">validate_with_ema=true</span></code> so checkpoint metrics are computed on the
+EMA model.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">checkpoint.monitor=train_loss_total_epoch</span></code>, <code class="docutils literal notranslate"><span class="pre">save_top_k=3</span></code>,
+saved every 10 epochs.</p></li>
+</ul>
+<p>Outputs land in
+<code class="docutils literal notranslate"><span class="pre">outputs/rsunet_cremi_synapse_cleft/&lt;timestamp&gt;/</span></code>.</p>
+<p>Monitor with TensorBoard:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>just<span class="w"> </span>tensorboard<span class="w"> </span>rsunet_cremi_synapse_cleft
+</pre></div>
+</div>
+</section>
+<section id="inference-decoding-evaluation">
+<h3>3 - Inference, decoding, evaluation<a class="headerlink" href="#inference-decoding-evaluation" title="Permalink to this heading">¶</a></h3>
+<p>Run the combined <code class="docutils literal notranslate"><span class="pre">test</span></code> mode:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>python<span class="w"> </span>scripts/main.py<span class="w"> </span>--config<span class="w"> </span>tutorials/syn_cremi.yaml<span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>--mode<span class="w"> </span><span class="nb">test</span><span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>--checkpoint<span class="w"> </span>outputs/rsunet_cremi_synapse_cleft/&lt;timestamp&gt;/checkpoints/last.ckpt
+</pre></div>
+</div>
+<p>What happens, in order:</p>
+<ol class="arabic simple">
+<li><p><strong>Inference</strong>. Sliding window 18 × 256 × 256, 50 % overlap, bump
+blending, reflect padding. TTA on (<code class="docutils literal notranslate"><span class="pre">flip_axes:</span> <span class="pre">all</span></code>,
+<code class="docutils literal notranslate"><span class="pre">ensemble_mode:</span> <span class="pre">mean</span></code>) — predictions averaged across all flip
+variants. Sigmoid on the cleft channel. The raw probability map
+is saved as <code class="docutils literal notranslate"><span class="pre">test_im_prediction.h5</span></code> under
+<code class="docutils literal notranslate"><span class="pre">outputs/rsunet_cremi_synapse_cleft/&lt;timestamp&gt;/results/</span></code>,
+<code class="docutils literal notranslate"><span class="pre">save_dtype:</span> <span class="pre">float32</span></code>.</p></li>
+<li><p><strong>Decoding</strong>. The cleft mask is the binarized probability; no
+instance-level decoder is run for this task.</p></li>
+<li><p><strong>Evaluation</strong>. <code class="docutils literal notranslate"><span class="pre">cremi_distance</span></code> (the official CREMI cleft
+metric) and Jaccard against <code class="docutils literal notranslate"><span class="pre">syn_*.h5</span></code>.</p></li>
+</ol>
+<p>For CREMI challenge submission, switch <code class="docutils literal notranslate"><span class="pre">test.data.test</span></code> to point at
+the held-out volumes (<code class="docutils literal notranslate"><span class="pre">im_A+.h5</span></code> / <code class="docutils literal notranslate"><span class="pre">im_B+.h5</span></code> / <code class="docutils literal notranslate"><span class="pre">im_C+.h5</span></code>) — the
+config has the lines commented in for easy switching. The
+<code class="docutils literal notranslate"><span class="pre">+</span></code> volumes have no public labels, so <code class="docutils literal notranslate"><span class="pre">evaluation.enabled</span></code> should
+be set to <code class="docutils literal notranslate"><span class="pre">false</span></code> for that run; the produced HDF5 should be
+re-aligned back to the original CREMI coordinate system before
+uploading.</p>
+</section>
+<section id="reference-behavior">
+<h3>4 - Reference behavior<a class="headerlink" href="#reference-behavior" title="Permalink to this heading">¶</a></h3>
+<ul class="simple">
+<li><p><strong>Training loss</strong> is the BCE + Dice sum; both terms drop together
+as the cleft mask becomes well-calibrated. EMA validation generally
+produces a slightly better Jaccard than non-EMA late in training.</p></li>
+<li><p><strong>Inference</strong> on a 1250 × 1250 × 125 CREMI volume with TTA takes
+several minutes on a single A100/H100; without TTA it is roughly
+8× faster.</p></li>
+<li><p><strong>CREMI distance</strong> is the headline metric for the challenge; under
+the canonical pin set it lands in the same ballpark as published
+RSUNet baselines after the full 150 k-step schedule completes.</p></li>
+</ul>
+</section>
+</section>
+</section>
+
+
+              </article>
+              
+            </div>
+            <footer>
+  
+  <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
+    
+    <a href="em_r50.html" class="btn btn-neutral float-right" title="EM-R50 (Synaptic Polarity Detection)" accesskey="n"
+      rel="next">Next <img src="../../_static/images/chevron-right-orange.svg"
+        class="next-page"></a>
+    
+    
+    <a href="index.html" class="btn btn-neutral" title="Synapse Detection" accesskey="p"
+      rel="prev"><img src="../../_static/images/chevron-right-orange.svg" class="previous-page"> Previous</a>
+    
+  </div>
+  
+
+  
+
+  <hr>
+
+  
+
+  <div role="contentinfo">
+    <p>
+      &copy; Copyright 2019-2026, PyTorch Connectomics Contributors.
+
+    </p>
+  </div>
+  
+  <div style="margin-bottom:1cm">
+    Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a
+      href="https://github.com/rtfd/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the
+      Docs</a>.
+  </div>
+   
+
+</footer>
+          </div>
+        </div>
+
+        <div class="pytorch-content-right" id="pytorch-content-right">
+          <div class="pytorch-right-menu" id="pytorch-right-menu">
+            <div class="pytorch-side-scroll" id="pytorch-side-scroll-right">
+              <ul>
+<li><a class="reference internal" href="#">CREMI (Synaptic Cleft Detection)</a><ul>
+<li><a class="reference internal" href="#goal">Goal</a><ul>
+<li><a class="reference internal" href="#get-the-data">1 - Get the data</a></li>
+<li><a class="reference internal" href="#run-training">2 - Run training</a></li>
+<li><a class="reference internal" href="#inference-decoding-evaluation">3 - Inference, decoding, evaluation</a></li>
+<li><a class="reference internal" href="#reference-behavior">4 - Reference behavior</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+
+            </div>
+          </div>
+        </div>
+    </section>
+  </div>
+
+  
+
+  
+  <script type="text/javascript" id="documentation_options" data-url_root="../../"
+    src="../../_static/documentation_options.js"></script>
+  <script data-url_root="../../" id="documentation_options" src="../../_static/documentation_options.js"></script>
+  <script src="../../_static/jquery.js"></script>
+  <script src="../../_static/underscore.js"></script>
+  <script src="../../_static/_sphinx_javascript_frameworks_compat.js"></script>
+  <script src="../../_static/doctools.js"></script>
+  <script src="../../_static/sphinx_highlight.js"></script>
+  
+
+  
+
+  <script type="text/javascript" src="../../_static/js/vendor/popper.min.js"></script>
+  <script type="text/javascript" src="../../_static/js/vendor/bootstrap.min.js"></script>
+  <script type="text/javascript" src="../../_static/js/theme.js"></script>
+
+  <script type="text/javascript">
+    jQuery(function () {
+      SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+
+  <!-- Begin Footer -->
+
+  <div class="container-fluid docs-tutorials-resources" id="docs-tutorials-resources">
+    <!-- <div class="container">
+      <div class="row">
+        <div class="col-md-4 text-center">
+          <h2>Visual Computing Group</h2>
+          <p>Visual computing group (VCG) led by Prof. Hanspeter Pfister at Harvard University</p>
+          <a class="with-right-arrow" href="https://vcg.seas.harvard.edu/">View VCG</a>
+        </div>
+        <div class="col-md-4 text-center">
+          <h2>Lichtman Lab</h2>
+          <p>Neuroscience research lab led by Prof. Jeff Lichtman at Harvard University</p>
+          <a class="with-right-arrow" href="https://lichtmanlab.fas.harvard.edu">View Lichtman Lab</a>
+        </div>
+        <div class="col-md-4 text-center">
+          <h2>PyTorch</h2>
+          <p>An open source machine learning framework</p>
+          <a class="with-right-arrow" href="https://pytorch.org/">View PyTorch</a>
+        </div>
+      </div>
+    </div> -->
+  </div>
+
+  <div class="cookie-banner-wrapper">
+  <div class="container">
+    <p class="gdpr-notice">To analyze traffic and optimize your experience, we serve cookies on this site. By clicking or navigating, you agree to allow our usage of cookies. As the current maintainers of this site, Facebook’s Cookies Policy applies. Learn more, including about available controls: <a href="https://www.facebook.com/policies/cookies/">Cookies Policy</a>.</p>
+    <img class="close-button" src="_static/images/pytorch-x.svg">
+  </div>
+</div>
+
+  <!-- End Footer -->
+
+  <!-- Begin Mobile Menu -->
+  <!--
+  <div class="mobile-main-menu">
+    <div class="container-fluid">
+      <div class="container">
+        <div class="mobile-main-menu-header-container">
+          <a class="header-logo" href="https://zudi-lin.github.io/pytorch_connectomics/build/html/index.html" aria-label="PyTorch"></a>
+          <a class="main-menu-close-button" href="#" data-behavior="close-mobile-menu"></a>
+        </div>
+      </div>
+    </div>
+    <div class="mobile-main-menu-links-container">
+      <div class="main-menu">
+        <ul>
+          <li>
+            <a href="#">Get Started</a>
+          </li>
+          <li>
+            <a href="#">Features</a>
+          </li>
+          <li>
+            <a href="#">Ecosystem</a>
+          </li>
+          <li>
+            <a href="">Blog</a>
+          </li>
+          <li>
+            <a href="https://zudi-lin.github.io/pytorch_connectomics/build/html/tutorials/snemi.html">Tutorials</a>
+          </li>
+          <li>
+            <a href="https://zudi-lin.github.io/pytorch_connectomics/build/html/index.html">Docs</a>
+          </li>
+          <li>
+            <a href="">Resources</a>
+          </li>
+          <li>
+            <a href="https://github.com/zudi-lin/pytorch_connectomics/tree/master">Github</a>
+          </li>
+        </ul>
+      </div>
+    </div>
+  </div>
+  -->
+  <!-- End Mobile Menu -->
+
+  <script type="text/javascript" src="../../_static/js/vendor/anchor.min.js"></script>
+
+  <script type="text/javascript">
+    var collapsedSections = ['Notes']
+    $(document).ready(function () {
+      mobileMenu.bind();
+      mobileTOC.bind();
+      pytorchAnchors.bind();
+      sideMenus.bind();
+      scrollToAnchor.bind();
+      highlightNavigation.bind();
+
+      // Add class to links that have code blocks, since we cannot create links in code blocks
+      $("article.pytorch-article a span.pre").each(function (e) {
+        $(this).closest("a").addClass("has-code");
+      });
+
+      // Sidebar accordion: click an L1 parent (that has children) to toggle
+      // .expanded / .collapsed instead of navigating. .current is set by
+      // Sphinx on the active section so it starts open by default; the
+      // explicit .collapsed class lets the user fold even the active one.
+      $('.pytorch-menu-vertical .toctree-l1 > a').each(function () {
+        var $a = $(this);
+        var $li = $a.parent();
+        var $ul = $li.children('ul');
+        if ($ul.length === 0) return;
+        $a.on('click', function (e) {
+          e.preventDefault();
+          if ($ul.is(':visible')) {
+            $li.addClass('collapsed').removeClass('expanded');
+          } else {
+            $li.addClass('expanded').removeClass('collapsed');
+          }
+        });
+      });
+    })
+  </script>
+
+  <!-- at the end of the BODY -->
+  <script src="https://cdn.jsdelivr.net/npm/@docsearch/js@alpha"></script>
+  <script>
+    /* global docsearch */
+    docsearch({
+      container: "#docsearch",
+      apiKey: "f072ddc06d4d2d86f6b26fb6f12a4699",
+      indexName: "readthedocs",
+      placeholder: "Search PyTorch Connectomics",
+    });
+  </script>
+
+</body>
+
+</html>

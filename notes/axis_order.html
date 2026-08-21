@@ -1,0 +1,741 @@
+
+
+
+
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!-->
+<html class="no-js" lang="en">
+<!--<![endif]-->
+
+<head>
+  <meta charset="utf-8">
+  <meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>Axis and Channel Order &mdash; connectomics latest documentation</title>
+  
+
+  
+  
+  <link rel="shortcut icon" href="../_static/favicon.svg" />
+  
+  
+  
+
+  
+
+  
+  
+  
+
+  
+
+  
+  <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
+  <!-- <link rel="stylesheet" href="../_static/pygments.css" type="text/css" /> -->
+  <link rel="stylesheet" href="../_static/css/pytc-theme.css" type="text/css" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@docsearch/js@alpha" type="text/css" />
+  <link rel="stylesheet" href="../_static/css/readthedocs-doc-embed.css" type="text/css" />
+  <link rel="index" title="Index" href="../genindex.html" />
+  <link rel="search" title="Search" href="../search.html" />
+  <link rel="next" title="MALIS Loss" href="malis.html" />
+  <link rel="prev" title="Data Loading" href="dataloading.html" /> 
+
+    <!-- Preload the theme fonts -->
+
+<link rel="preload" href="_static/fonts/FreightSans/freight-sans-book.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="_static/fonts/FreightSans/freight-sans-medium.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="_static/fonts/IBMPlexMono/IBMPlexMono-Medium.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="_static/fonts/FreightSans/freight-sans-bold.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="_static/fonts/FreightSans/freight-sans-medium-italic.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="_static/fonts/IBMPlexMono/IBMPlexMono-SemiBold.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+
+<!-- Preload the katex fonts -->
+
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Math-Italic.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Main-Regular.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Main-Bold.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Size1-Regular.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Size4-Regular.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Size2-Regular.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Size3-Regular.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Caligraphic-Regular.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+
+  <link rel="stylesheet" href="text.css" type="text/css" />
+
+  <!-- at the end of the HEAD -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@docsearch/css@alpha" />
+</head>
+
+<div class="container-fluid header-holder tutorials-header" id="header-holder">
+  <div class="container">
+
+    <a class="header-logo" href="../index.html" aria-label="PyTC"></a>
+
+    <div class="header-container">
+
+      <div class="main-menu">
+        <ul>
+          <li>
+            <a href="installation.html">Get Started</a>
+          </li>
+          <li>
+            <a href="../tutorials/neuron.html">Tutorials</a>
+          </li>
+          <li>
+            <a href="../index.html">Docs</a>
+          </li>
+          <li>
+            <a href="https://github.com/zudi-lin/pytorch_connectomics/tree/master">GitHub</a>
+          </li>
+          <li>
+            <a href="../about/team.html">About Us</a>
+          </li>
+
+        </ul>
+      </div>
+
+      <!-- <a class="main-menu-open-button" href="#" data-behavior="open-mobile-menu"></a> -->
+    </div>
+
+  </div>
+</div>
+
+
+<body class="pytorch-body">
+
+   
+
+  
+
+  <div class="table-of-contents-link-wrapper">
+    <span>Table of Contents</span>
+    <a href="#" class="toggle-table-of-contents" data-behavior="toggle-table-of-contents"></a>
+  </div>
+
+  <nav data-toggle="wy-nav-shift" class="pytorch-left-menu" id="pytorch-left-menu">
+    <div class="pytorch-side-scroll">
+      <div class="pytorch-menu pytorch-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+        <div class="pytorch-left-menu-search">
+          
+
+          
+          
+          
+          <div class="version">
+            latest
+          </div>
+          
+          
+
+          <div id="docsearch"></div>
+
+          
+        </div>
+
+        
+        
+        
+        
+        
+        
+        <p class="caption" role="heading"><span class="caption-text">Get Started</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="config.html">Configuration System</a></li>
+<li class="toctree-l1"><a class="reference internal" href="dataloading.html">Data Loading</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Axis and Channel Order</a></li>
+<li class="toctree-l1"><a class="reference internal" href="malis.html">MALIS Loss</a></li>
+<li class="toctree-l1"><a class="reference internal" href="faq.html">FAQ</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Tutorials</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../tutorials/neuron/index.html">Neuron Segmentation</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../tutorials/neuron/snemi3d.html">SNEMI3D</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../tutorials/neuron/nisb.html">NISB</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../tutorials/neuron/liconn.html">LICONN</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../tutorials/mito/index.html">Mitochondria Segmentation</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../tutorials/mito/lucchi.html">Lucchi++ (Semantic Segmentation)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../tutorials/mito/mitoem.html">MitoEM (Instance Segmentation)</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../tutorials/synapse/index.html">Synapse Detection</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../tutorials/synapse/cremi.html">CREMI (Synaptic Cleft Detection)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../tutorials/synapse/em_r50.html">EM-R50 (Synaptic Polarity Detection)</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../tutorials/wrinkle.html">Wrinkle (2D Binary Segmentation)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../tutorials/artifact.html">Artifacts Detection (Draft)</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">External Tools</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../external/neuroglancer.html">Neuroglancer</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Package Reference</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../modules/lightning.html">Lightning Module API</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/model.html">connectomics.models</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/data.html">connectomics.data</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/utils.html">connectomics.utils</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">About</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../about/team.html">About Us</a></li>
+</ul>
+
+        
+        
+      </div>
+    </div>
+
+    
+
+
+    
+
+    <!-- 
+    
+    <div class="rst-versions" data-toggle="rst-versions" role="note" aria-label="versions">
+      <span class="rst-current-version" data-toggle="rst-current-version">
+        <span class="fa fa-book"> Read the Docs</span>
+        v: latest
+        <span class="fa fa-caret-down"></span>
+      </span>
+      <div class="rst-other-versions">
+        <dl>
+          <dt>Versions</dt>
+          
+          <dd><a href="#">latest</a></dd>
+          
+        </dl>
+        <dl>
+          <dt>Downloads</dt>
+          <dd><a href="https://github.com/zudi-lin/pytorch_connectomics/">PDF</a>
+          </dd>
+          <dd><a href="https://github.com/zudi-lin/pytorch_connectomics/">HTML</a></dd>
+        </dl>
+        <dl>
+          <dt>On Github</dt>
+          <dd><a href="https://github.com/zudi-lin/pytorch_connectomics">Home</a></dd>
+          <dd><a href="https://github.com/zudi-lin/pytorch_connectomics/">Docs</a></dd>
+        </dl>
+      </div>
+    </div>
+    
+     -->
+
+  </nav>
+
+
+  <div class="pytorch-container">
+    <div class="pytorch-page-level-bar" id="pytorch-page-level-bar">
+      <div class="pytorch-breadcrumbs-wrapper">
+        
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="pytorch-breadcrumbs">
+    
+      <li>
+        <a href="../index.html">
+          
+            Docs
+          
+        </a> &gt;
+      </li>
+
+        
+      <li>Axis and Channel Order</li>
+    
+    
+      <li class="pytorch-breadcrumbs-aside">
+        
+            
+            <a href="../_sources/notes/axis_order.rst.txt" rel="nofollow"><img src="../_static/images/view-page-source-icon.svg"></a>
+          
+        
+      </li>
+    
+  </ul>
+
+  
+</div>
+      </div>
+
+      <div class="pytorch-shortcuts-wrapper" id="pytorch-shortcuts-wrapper">
+        Shortcuts
+      </div>
+    </div>
+
+    <section data-toggle="wy-nav-shift" id="pytorch-content-wrap" class="pytorch-content-wrap">
+      <div class="pytorch-content-left">
+
+        
+        
+          <div class="rst-content">
+            
+            <div role="main" class="main-content" itemscope="itemscope" itemtype="http://schema.org/Article">
+              <article itemprop="articleBody" id="pytorch-article" class="pytorch-article">
+                
+  <section id="axis-and-channel-order">
+<h1>Axis and Channel Order<a class="headerlink" href="#axis-and-channel-order" title="Permalink to this heading">¶</a></h1>
+<p>Spatial axis order (<code class="docutils literal notranslate"><span class="pre">xyz</span></code> vs <code class="docutils literal notranslate"><span class="pre">zyx</span></code>) is the single piece of metadata
+most likely to silently corrupt a connectomics pipeline. Different
+consumers in this stack disagree by convention, and affinity channel
+order is <em>coupled</em> to spatial order through the affinity offsets — not
+an independent knob.</p>
+<p>This page is the convention reference. The normative rules live in code
+docstrings (linked below); this page exists so a new contributor can
+build the right mental model in one read.</p>
+<section id="two-orders-two-camps">
+<h2>Two Orders, Two Camps<a class="headerlink" href="#two-orders-two-camps" title="Permalink to this heading">¶</a></h2>
+<p>The codebase touches volumes in two orders:</p>
+<table class="docutils align-default">
+<colgroup>
+<col style="width: 50%" />
+<col style="width: 50%" />
+</colgroup>
+<thead>
+<tr class="row-odd"><th class="head"><p>Order</p></th>
+<th class="head"><p>Used by</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">xyz</span></code> — array indexed <code class="docutils literal notranslate"><span class="pre">arr[x,</span> <span class="pre">y,</span> <span class="pre">z]</span></code></p></td>
+<td><p>BANIS zarr on disk; <code class="docutils literal notranslate"><span class="pre">seunglab</span></code> / <code class="docutils literal notranslate"><span class="pre">abiss</span></code> / <code class="docutils literal notranslate"><span class="pre">cc3d</span></code>;
+CloudVolume / Neuroglancer precomputed output;
+<code class="docutils literal notranslate"><span class="pre">scripts/h5_to_precomputed_cloud.py</span></code>.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">zyx</span></code> — array indexed <code class="docutils literal notranslate"><span class="pre">arr[z,</span> <span class="pre">y,</span> <span class="pre">x]</span></code></p></td>
+<td><p>PyTorch / MONAI training tensors (<code class="docutils literal notranslate"><span class="pre">(C,</span> <span class="pre">Z,</span> <span class="pre">Y,</span> <span class="pre">X)</span></code>);
+<code class="docutils literal notranslate"><span class="pre">waterz</span></code> C++ kernel.</p></td>
+</tr>
+</tbody>
+</table>
+<p>Neither is “right.” They are conventions of the respective ecosystems.
+The pipeline must declare which order a given array is in and convert
+exactly once at each consumer boundary.</p>
+</section>
+<section id="the-coupling-channel-order-follows-spatial-order">
+<h2>The Coupling: Channel Order Follows Spatial Order<a class="headerlink" href="#the-coupling-channel-order-follows-spatial-order" title="Permalink to this heading">¶</a></h2>
+<p><code class="docutils literal notranslate"><span class="pre">connectomics.data.processing.affinity.seg_to_affinity</span></code> is the
+authoritative affinity producer in the framework, and it is
+<strong>positional</strong>: offset <code class="docutils literal notranslate"><span class="pre">(a,</span> <span class="pre">b,</span> <span class="pre">c)</span></code> shifts along the input array’s
+axes <code class="docutils literal notranslate"><span class="pre">0</span></code>, <code class="docutils literal notranslate"><span class="pre">1</span></code>, <code class="docutils literal notranslate"><span class="pre">2</span></code> — <em>regardless of how the caller labels those
+axes</em>. The returned tensor has shape <code class="docutils literal notranslate"><span class="pre">(C,</span> <span class="pre">A0,</span> <span class="pre">A1,</span> <span class="pre">A2)</span></code> and channel
+<code class="docutils literal notranslate"><span class="pre">i</span></code> is the affinity along spatial axis <code class="docutils literal notranslate"><span class="pre">i</span></code>.</p>
+<p>Concretely:</p>
+<ul class="simple">
+<li><p>If the input <code class="docutils literal notranslate"><span class="pre">seg</span></code> is stored <code class="docutils literal notranslate"><span class="pre">xyz</span></code> (axis 0 = X, axis 1 = Y,
+axis 2 = Z), then the offsets <code class="docutils literal notranslate"><span class="pre">[&quot;1-0-0&quot;,</span> <span class="pre">&quot;0-1-0&quot;,</span> <span class="pre">&quot;0-0-1&quot;]</span></code>
+produce channels <code class="docutils literal notranslate"><span class="pre">[X-aff,</span> <span class="pre">Y-aff,</span> <span class="pre">Z-aff]</span></code> in <code class="docutils literal notranslate"><span class="pre">xyz</span></code> order.</p></li>
+<li><p>If the input <code class="docutils literal notranslate"><span class="pre">seg</span></code> is stored <code class="docutils literal notranslate"><span class="pre">zyx</span></code> (axis 0 = Z, axis 1 = Y,
+axis 2 = X), the same offset strings produce channels
+<code class="docutils literal notranslate"><span class="pre">[Z-aff,</span> <span class="pre">Y-aff,</span> <span class="pre">X-aff]</span></code> in <code class="docutils literal notranslate"><span class="pre">zyx</span></code> order.</p></li>
+</ul>
+<p>The implication is the rule that should never be violated:</p>
+<blockquote>
+<div><p><strong>Channel order is not an independent setting. Given the spatial
+axis order of the array and the affinity offset list, the channel
+semantics are determined.</strong></p>
+</div></blockquote>
+<p>When a tool exposes a separate <code class="docutils literal notranslate"><span class="pre">channel_order</span></code> knob (waterz,
+<code class="docutils literal notranslate"><span class="pre">h5_to_precomputed_cloud.py</span></code>), that knob exists to express the
+<em>destination’s</em> expectation; the source order is implicit and must
+match the spatial order the array was actually written with.</p>
+</section>
+<section id="consumers-and-their-required-orders">
+<h2>Consumers and Their Required Orders<a class="headerlink" href="#consumers-and-their-required-orders" title="Permalink to this heading">¶</a></h2>
+<table class="docutils align-default" id="id1">
+<caption><span class="caption-text">What each consumer requires</span><a class="headerlink" href="#id1" title="Permalink to this table">¶</a></caption>
+<colgroup>
+<col style="width: 25%" />
+<col style="width: 25%" />
+<col style="width: 25%" />
+<col style="width: 25%" />
+</colgroup>
+<thead>
+<tr class="row-odd"><th class="head"><p>Consumer</p></th>
+<th class="head"><p>Spatial</p></th>
+<th class="head"><p>Channels (for affinity)</p></th>
+<th class="head"><p>Notes</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>PyTorch / Lightning training</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">zyx</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">zyx</span></code></p></td>
+<td><p>Tensors are <code class="docutils literal notranslate"><span class="pre">(C,</span> <span class="pre">Z,</span> <span class="pre">Y,</span> <span class="pre">X)</span></code>. Targets generated by
+<code class="docutils literal notranslate"><span class="pre">seg_to_affinity</span></code> inherit the input array’s order.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">waterz</span></code> (<code class="docutils literal notranslate"><span class="pre">decoding.decoders.waterz</span></code>)</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">zyx</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">zyx</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">channel_order=&quot;xyz&quot;</span></code> triggers an internal transpose so
+both pieces are converted together.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">abiss</span></code>, seung-lab fragment/agglomerate</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">xyz</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">xyz</span></code></p></td>
+<td><p>No internal reorder.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">cc3d</span></code> / <code class="docutils literal notranslate"><span class="pre">decode_affinity_cc</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">xyz</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">xyz</span></code></p></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p>CloudVolume precomputed / Neuroglancer</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">xyz</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">xyz</span></code></p></td>
+<td><p>Output info layout is <code class="docutils literal notranslate"><span class="pre">xyz</span></code>.</p></td>
+</tr>
+</tbody>
+</table>
+<p>The split is therefore: training and <code class="docutils literal notranslate"><span class="pre">waterz</span></code> are <code class="docutils literal notranslate"><span class="pre">zyx</span></code>;
+everything else is <code class="docutils literal notranslate"><span class="pre">xyz</span></code>.</p>
+</section>
+<section id="where-order-is-currently-declared">
+<h2>Where Order Is Currently Declared<a class="headerlink" href="#where-order-is-currently-declared" title="Permalink to this heading">¶</a></h2>
+<p>There is <strong>no single declared source of truth</strong> in the codebase
+today — the V3 refactor surfaced this and the unification work is
+tracked in <code class="docutils literal notranslate"><span class="pre">.agents/features/xyz-order/plan.md</span></code>. The current
+moving parts are:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">connectomics.inference.artifact.PredictionArtifactMetadata</span></code>
+(<code class="docutils literal notranslate"><span class="pre">layout=&quot;CZYX&quot;</span></code> and optional <code class="docutils literal notranslate"><span class="pre">channel_order</span></code>) — stamped on
+the raw-prediction artifact.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">connectomics.decoding.decoders.waterz.decode_waterz</span></code>
+(<code class="docutils literal notranslate"><span class="pre">channel_order:</span> <span class="pre">str</span> <span class="pre">=</span> <span class="pre">&quot;xyz&quot;</span></code>, <code class="docutils literal notranslate"><span class="pre">edge_offset:</span> <span class="pre">int</span> <span class="pre">=</span> <span class="pre">1</span></code>) —
+decoder-local transpose plus the BANIS source→destination
+<code class="docutils literal notranslate"><span class="pre">np.roll(+1)</span></code> for <code class="docutils literal notranslate"><span class="pre">edge_offset=0</span></code>.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">output_transpose</span></code> in
+<code class="docutils literal notranslate"><span class="pre">connectomics.decoding.stage</span></code> — manual axis permutation applied
+to decode output.</p></li>
+<li><p>The <code class="docutils literal notranslate"><span class="pre">axis_order</span></code> HDF5 attribute (currently only <code class="docutils literal notranslate"><span class="pre">&quot;XYZ&quot;</span></code> is
+accepted), read in <code class="docutils literal notranslate"><span class="pre">connectomics.decoding.stage</span></code> and
+<code class="docutils literal notranslate"><span class="pre">connectomics.decoding.qc.affinity</span></code>.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">--src-axes</span></code> and <code class="docutils literal notranslate"><span class="pre">--reverse-channels</span></code> flags on
+<code class="docutils literal notranslate"><span class="pre">scripts/h5_to_precomputed_cloud.py</span></code>.</p></li>
+</ul>
+<p>These overlap and can disagree. Until the unification plan lands,
+the safest workflow is to <strong>trace the array’s order from disk all
+the way to the consumer by hand</strong> and convert at exactly one
+boundary.</p>
+</section>
+<section id="worked-example-banis-hdf5-cloudvolume-precomputed">
+<h2>Worked Example: BANIS HDF5 → CloudVolume Precomputed<a class="headerlink" href="#worked-example-banis-hdf5-cloudvolume-precomputed" title="Permalink to this heading">¶</a></h2>
+<p>This is the case that motivated this page. The same reasoning
+applies to any external converter.</p>
+<p><strong>Source.</strong> BANIS stores zarr volumes <code class="docutils literal notranslate"><span class="pre">xyz</span></code> on disk and reads them
+without a spatial transpose. <code class="docutils literal notranslate"><span class="pre">seg_to_affinity</span></code> is then called on an
+<code class="docutils literal notranslate"><span class="pre">xyz</span></code> array, so the produced affinity has shape
+<code class="docutils literal notranslate"><span class="pre">(C,</span> <span class="pre">X,</span> <span class="pre">Y,</span> <span class="pre">Z)</span></code> and channel order <code class="docutils literal notranslate"><span class="pre">ch0=X-aff,</span> <span class="pre">ch1=Y-aff,</span>
+<span class="pre">ch2=Z-aff</span></code>.</p>
+<p><strong>Sink.</strong> CloudVolume precomputed expects <code class="docutils literal notranslate"><span class="pre">xyz</span></code> spatial order
+<code class="docutils literal notranslate"><span class="pre">(X,</span> <span class="pre">Y,</span> <span class="pre">Z,</span> <span class="pre">C)</span></code> and <code class="docutils literal notranslate"><span class="pre">xyz</span></code> channels.</p>
+<p><strong>Conversion.</strong> With
+<code class="docutils literal notranslate"><span class="pre">scripts/h5_to_precomputed_cloud.py</span></code>:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>python<span class="w"> </span>scripts/h5_to_precomputed_cloud.py<span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>input.h5<span class="w"> </span>gs://bucket/path/<span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>--src-axes<span class="w"> </span>cxyz<span class="w"> </span><span class="se">\</span>
+<span class="w">    </span><span class="c1"># NO --reverse-channels: source channels are already xyz</span>
+</pre></div>
+</div>
+<p>The <code class="docutils literal notranslate"><span class="pre">--src-axes</span> <span class="pre">cxyz</span></code> transposes <code class="docutils literal notranslate"><span class="pre">(C,</span> <span class="pre">X,</span> <span class="pre">Y,</span> <span class="pre">Z)</span> <span class="pre">→</span> <span class="pre">(X,</span> <span class="pre">Y,</span> <span class="pre">Z,</span> <span class="pre">C)</span></code>,
+preserving the <code class="docutils literal notranslate"><span class="pre">X,</span> <span class="pre">Y,</span> <span class="pre">Z</span></code> spatial order. <code class="docutils literal notranslate"><span class="pre">--reverse-channels</span></code>
+would flip the already-correct <code class="docutils literal notranslate"><span class="pre">xyz</span></code> channels into <code class="docutils literal notranslate"><span class="pre">zyx</span></code>,
+producing an apparently valid but semantically wrong volume that
+only fails at decode time.</p>
+<p>The same script with a <code class="docutils literal notranslate"><span class="pre">zyx</span></code>-on-disk source (e.g. a tensor
+exported directly from a training step) requires
+<code class="docutils literal notranslate"><span class="pre">--src-axes</span> <span class="pre">czyx</span></code> <strong>and</strong> <code class="docutils literal notranslate"><span class="pre">--reverse-channels</span></code> to land on the
+same <code class="docutils literal notranslate"><span class="pre">xyz</span></code>-channel precomputed output.</p>
+</section>
+<section id="the-cost-of-getting-it-wrong">
+<h2>The Cost of Getting It Wrong<a class="headerlink" href="#the-cost-of-getting-it-wrong" title="Permalink to this heading">¶</a></h2>
+<p>The May 2026 BANIS upload (slurm jobs 2505811 / 2505812) ran for
+~2 hours each, then required a complete re-upload (jobs 2517273 /
+2517274, another ~2 hours each) because a misleading
+<code class="docutils literal notranslate"><span class="pre">&quot;z-y-x</span> <span class="pre">format&quot;</span></code> string in an unrelated parser caused
+<code class="docutils literal notranslate"><span class="pre">--reverse-channels</span></code> to be set when it should not have been. The
+data was structurally valid at every checkpoint; the bug only
+surfaced when a downstream block-read was compared against the
+source.</p>
+<p>This is the failure mode that motivates the unification work: a
+quietly inconsistent axis convention produces ~150 GB of plausible
+garbage, not a crash.</p>
+</section>
+<section id="rules-of-thumb">
+<h2>Rules of Thumb<a class="headerlink" href="#rules-of-thumb" title="Permalink to this heading">¶</a></h2>
+<p>When reading or writing a volume:</p>
+<ol class="arabic simple">
+<li><p><strong>State the order explicitly</strong> in a comment or filename when the
+array is not flowing through a typed container that already
+carries it.</p></li>
+<li><p><strong>Do not introduce a separate channel-order knob</strong> for affinity.
+If you need to express channel order, derive it from
+<code class="docutils literal notranslate"><span class="pre">(spatial_axis_order,</span> <span class="pre">offsets)</span></code>.</p></li>
+<li><p><strong>Convert at one boundary, with one helper.</strong> If the same array
+gets transposed in two places, one of them is wrong.</p></li>
+<li><p><strong>Verify against the source</strong> after any large external upload
+(read back a block, compare to the input under the declared
+transpose, <em>without</em> reversing channels). This is what catches
+the silent-corruption class of bugs.</p></li>
+</ol>
+</section>
+<section id="see-also">
+<h2>See Also<a class="headerlink" href="#see-also" title="Permalink to this heading">¶</a></h2>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">connectomics.data.processing.affinity.seg_to_affinity</span></code> — the
+authoritative docstring for the positional offset convention.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">connectomics.decoding.decoders.waterz.decode_waterz</span></code> — the
+<code class="docutils literal notranslate"><span class="pre">channel_order</span></code> / <code class="docutils literal notranslate"><span class="pre">edge_offset</span></code> knobs and their semantics.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">scripts/h5_to_precomputed_cloud.py</span></code> — the standalone converter
+with <code class="docutils literal notranslate"><span class="pre">--src-axes</span></code> and <code class="docutils literal notranslate"><span class="pre">--reverse-channels</span></code> flags.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">.agents/features/xyz-order/plan.md</span></code> — proposal to consolidate
+axis-order handling onto declared metadata and a single
+<code class="docutils literal notranslate"><span class="pre">reorder_affinity</span></code> helper.</p></li>
+</ul>
+</section>
+</section>
+
+
+              </article>
+              
+            </div>
+            <footer>
+  
+  <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
+    
+    <a href="malis.html" class="btn btn-neutral float-right" title="MALIS Loss" accesskey="n"
+      rel="next">Next <img src="../_static/images/chevron-right-orange.svg"
+        class="next-page"></a>
+    
+    
+    <a href="dataloading.html" class="btn btn-neutral" title="Data Loading" accesskey="p"
+      rel="prev"><img src="../_static/images/chevron-right-orange.svg" class="previous-page"> Previous</a>
+    
+  </div>
+  
+
+  
+
+  <hr>
+
+  
+
+  <div role="contentinfo">
+    <p>
+      &copy; Copyright 2019-2026, PyTorch Connectomics Contributors.
+
+    </p>
+  </div>
+  
+  <div style="margin-bottom:1cm">
+    Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a
+      href="https://github.com/rtfd/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the
+      Docs</a>.
+  </div>
+   
+
+</footer>
+          </div>
+        </div>
+
+        <div class="pytorch-content-right" id="pytorch-content-right">
+          <div class="pytorch-right-menu" id="pytorch-right-menu">
+            <div class="pytorch-side-scroll" id="pytorch-side-scroll-right">
+              <ul>
+<li><a class="reference internal" href="#">Axis and Channel Order</a><ul>
+<li><a class="reference internal" href="#two-orders-two-camps">Two Orders, Two Camps</a></li>
+<li><a class="reference internal" href="#the-coupling-channel-order-follows-spatial-order">The Coupling: Channel Order Follows Spatial Order</a></li>
+<li><a class="reference internal" href="#consumers-and-their-required-orders">Consumers and Their Required Orders</a></li>
+<li><a class="reference internal" href="#where-order-is-currently-declared">Where Order Is Currently Declared</a></li>
+<li><a class="reference internal" href="#worked-example-banis-hdf5-cloudvolume-precomputed">Worked Example: BANIS HDF5 → CloudVolume Precomputed</a></li>
+<li><a class="reference internal" href="#the-cost-of-getting-it-wrong">The Cost of Getting It Wrong</a></li>
+<li><a class="reference internal" href="#rules-of-thumb">Rules of Thumb</a></li>
+<li><a class="reference internal" href="#see-also">See Also</a></li>
+</ul>
+</li>
+</ul>
+
+            </div>
+          </div>
+        </div>
+    </section>
+  </div>
+
+  
+
+  
+  <script type="text/javascript" id="documentation_options" data-url_root="../"
+    src="../_static/documentation_options.js"></script>
+  <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script>
+  <script src="../_static/jquery.js"></script>
+  <script src="../_static/underscore.js"></script>
+  <script src="../_static/_sphinx_javascript_frameworks_compat.js"></script>
+  <script src="../_static/doctools.js"></script>
+  <script src="../_static/sphinx_highlight.js"></script>
+  
+
+  
+
+  <script type="text/javascript" src="../_static/js/vendor/popper.min.js"></script>
+  <script type="text/javascript" src="../_static/js/vendor/bootstrap.min.js"></script>
+  <script type="text/javascript" src="../_static/js/theme.js"></script>
+
+  <script type="text/javascript">
+    jQuery(function () {
+      SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+
+  <!-- Begin Footer -->
+
+  <div class="container-fluid docs-tutorials-resources" id="docs-tutorials-resources">
+    <!-- <div class="container">
+      <div class="row">
+        <div class="col-md-4 text-center">
+          <h2>Visual Computing Group</h2>
+          <p>Visual computing group (VCG) led by Prof. Hanspeter Pfister at Harvard University</p>
+          <a class="with-right-arrow" href="https://vcg.seas.harvard.edu/">View VCG</a>
+        </div>
+        <div class="col-md-4 text-center">
+          <h2>Lichtman Lab</h2>
+          <p>Neuroscience research lab led by Prof. Jeff Lichtman at Harvard University</p>
+          <a class="with-right-arrow" href="https://lichtmanlab.fas.harvard.edu">View Lichtman Lab</a>
+        </div>
+        <div class="col-md-4 text-center">
+          <h2>PyTorch</h2>
+          <p>An open source machine learning framework</p>
+          <a class="with-right-arrow" href="https://pytorch.org/">View PyTorch</a>
+        </div>
+      </div>
+    </div> -->
+  </div>
+
+  <div class="cookie-banner-wrapper">
+  <div class="container">
+    <p class="gdpr-notice">To analyze traffic and optimize your experience, we serve cookies on this site. By clicking or navigating, you agree to allow our usage of cookies. As the current maintainers of this site, Facebook’s Cookies Policy applies. Learn more, including about available controls: <a href="https://www.facebook.com/policies/cookies/">Cookies Policy</a>.</p>
+    <img class="close-button" src="_static/images/pytorch-x.svg">
+  </div>
+</div>
+
+  <!-- End Footer -->
+
+  <!-- Begin Mobile Menu -->
+  <!--
+  <div class="mobile-main-menu">
+    <div class="container-fluid">
+      <div class="container">
+        <div class="mobile-main-menu-header-container">
+          <a class="header-logo" href="https://zudi-lin.github.io/pytorch_connectomics/build/html/index.html" aria-label="PyTorch"></a>
+          <a class="main-menu-close-button" href="#" data-behavior="close-mobile-menu"></a>
+        </div>
+      </div>
+    </div>
+    <div class="mobile-main-menu-links-container">
+      <div class="main-menu">
+        <ul>
+          <li>
+            <a href="#">Get Started</a>
+          </li>
+          <li>
+            <a href="#">Features</a>
+          </li>
+          <li>
+            <a href="#">Ecosystem</a>
+          </li>
+          <li>
+            <a href="">Blog</a>
+          </li>
+          <li>
+            <a href="https://zudi-lin.github.io/pytorch_connectomics/build/html/tutorials/snemi.html">Tutorials</a>
+          </li>
+          <li>
+            <a href="https://zudi-lin.github.io/pytorch_connectomics/build/html/index.html">Docs</a>
+          </li>
+          <li>
+            <a href="">Resources</a>
+          </li>
+          <li>
+            <a href="https://github.com/zudi-lin/pytorch_connectomics/tree/master">Github</a>
+          </li>
+        </ul>
+      </div>
+    </div>
+  </div>
+  -->
+  <!-- End Mobile Menu -->
+
+  <script type="text/javascript" src="../_static/js/vendor/anchor.min.js"></script>
+
+  <script type="text/javascript">
+    var collapsedSections = ['Notes']
+    $(document).ready(function () {
+      mobileMenu.bind();
+      mobileTOC.bind();
+      pytorchAnchors.bind();
+      sideMenus.bind();
+      scrollToAnchor.bind();
+      highlightNavigation.bind();
+
+      // Add class to links that have code blocks, since we cannot create links in code blocks
+      $("article.pytorch-article a span.pre").each(function (e) {
+        $(this).closest("a").addClass("has-code");
+      });
+
+      // Sidebar accordion: click an L1 parent (that has children) to toggle
+      // .expanded / .collapsed instead of navigating. .current is set by
+      // Sphinx on the active section so it starts open by default; the
+      // explicit .collapsed class lets the user fold even the active one.
+      $('.pytorch-menu-vertical .toctree-l1 > a').each(function () {
+        var $a = $(this);
+        var $li = $a.parent();
+        var $ul = $li.children('ul');
+        if ($ul.length === 0) return;
+        $a.on('click', function (e) {
+          e.preventDefault();
+          if ($ul.is(':visible')) {
+            $li.addClass('collapsed').removeClass('expanded');
+          } else {
+            $li.addClass('expanded').removeClass('collapsed');
+          }
+        });
+      });
+    })
+  </script>
+
+  <!-- at the end of the BODY -->
+  <script src="https://cdn.jsdelivr.net/npm/@docsearch/js@alpha"></script>
+  <script>
+    /* global docsearch */
+    docsearch({
+      container: "#docsearch",
+      apiKey: "f072ddc06d4d2d86f6b26fb6f12a4699",
+      indexName: "readthedocs",
+      placeholder: "Search PyTorch Connectomics",
+    });
+  </script>
+
+</body>
+
+</html>
