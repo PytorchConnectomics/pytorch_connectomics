@@ -296,6 +296,7 @@ scripts/                            # Entry points and utilities
 ├── downsample_nisb.py              # NISB dataset downsampling
 ├── validate_tutorial_configs.py    # Tutorial config validation (CI)
 └── tools/                          # Additional utility scripts
+    ├── capture_checkpoint_goldens.py
     ├── compare_config.py
     └── eval_curvilinear.py
 
