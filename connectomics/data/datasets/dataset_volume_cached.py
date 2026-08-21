@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import logging
 import random
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Sequence, Tuple
 
 import numpy as np
 from monai.transforms import Compose
@@ -19,6 +19,51 @@ from .base import PatchDataset
 from .crop_sampling import random_crop_position
 
 logger = logging.getLogger(__name__)
+
+
+def _parse_volume_crop(
+    crop: Optional[Sequence[int]],
+) -> Optional[Tuple[Tuple[int, int], ...]]:
+    """``[z0, z1, y0, y1, x0, x1]`` -> ``((z0, z1), (y0, y1), (x0, x1))``.
+
+    Raises rather than silently reinterpreting: a mis-ordered or odd-length crop
+    would otherwise produce an empty or transposed volume and only show up as a
+    loss that never falls.
+    """
+    if crop is None:
+        return None
+    values = [int(v) for v in crop]
+    if len(values) % 2 != 0:
+        raise ValueError(f"crop must hold (start, stop) per axis, got {len(values)} values: {crop}")
+    bounds = tuple((values[i], values[i + 1]) for i in range(0, len(values), 2))
+    for axis, (start, stop) in enumerate(bounds):
+        if start < 0 or stop <= start:
+            raise ValueError(f"crop axis {axis} must satisfy 0 <= start < stop, got ({start}, {stop})")
+    return bounds
+
+
+def _apply_volume_crop(
+    volume: Optional[np.ndarray],
+    bounds: Optional[Tuple[Tuple[int, int], ...]],
+    what: str,
+) -> Optional[np.ndarray]:
+    """Slice the spatial axes of a ``(C, *spatial)`` volume to ``bounds``."""
+    if volume is None or bounds is None:
+        return volume
+    spatial = volume.shape[1:]
+    if len(bounds) != len(spatial):
+        raise ValueError(
+            f"crop has {len(bounds)} axes but {what} is {len(spatial)}-D with shape {spatial}"
+        )
+    for axis, (start, stop) in enumerate(bounds):
+        if stop > spatial[axis]:
+            raise ValueError(
+                f"crop axis {axis} is [{start}, {stop}) but {what} spans only {spatial[axis]}"
+            )
+    # ascontiguousarray, not a bare slice: basic slicing returns a VIEW that keeps
+    # the full-size parent alive, so a preloaded cache of N volumes would still
+    # hold all of them at full size and the crop would save no memory at all.
+    return np.ascontiguousarray(volume[(slice(None),) + tuple(slice(a, b) for a, b in bounds)])
 
 
 def crop_volume(
@@ -96,6 +141,9 @@ class CachedVolumeDataset(PatchDataset):
         foreground_threshold: Min foreground fraction to accept a patch.
         crop_to_nonzero_mask: Constrain crops to intersect mask bounding box.
         sample_nonzero_mask: Center crops on random nonzero mask voxels.
+        volume_crop: ``(z0, z1, y0, y1, x0, x1)`` half-open sub-volume kept from
+            every volume, applied identically to image/label/label_aux/mask
+            immediately after read (``data.<split>.crop``). None = whole volume.
     """
 
     def __init__(
@@ -115,6 +163,7 @@ class CachedVolumeDataset(PatchDataset):
         foreground_threshold: float = 0.05,
         crop_to_nonzero_mask: bool = False,
         sample_nonzero_mask: bool = False,
+        volume_crop: Optional[Sequence[int]] = None,
     ):
         super().__init__(
             patch_size=patch_size,
@@ -129,6 +178,7 @@ class CachedVolumeDataset(PatchDataset):
         self.pad_mode = pad_mode
         self.crop_to_nonzero_mask = crop_to_nonzero_mask
         self.sample_nonzero_mask = sample_nonzero_mask
+        self.volume_crop = _parse_volume_crop(volume_crop)
 
         label_paths = label_paths or [None] * len(image_paths)
         label_aux_paths = label_aux_paths or [None] * len(image_paths)
@@ -148,6 +198,15 @@ class CachedVolumeDataset(PatchDataset):
             lbl = self._load_volume(lbl_path) if lbl_path else None
             aux = self._load_volume(aux_path) if aux_path else None
             msk = self._load_volume(msk_path) if msk_path else None
+
+            # data.<split>.crop: keep only the configured sub-volume, before
+            # anything else looks at the array, so every downstream size (pad,
+            # minimum-size, sampling range) is computed on the cropped extent.
+            if self.volume_crop is not None:
+                img = _apply_volume_crop(img, self.volume_crop, f"image {img_path}")
+                lbl = _apply_volume_crop(lbl, self.volume_crop, f"label {lbl_path}")
+                aux = _apply_volume_crop(aux, self.volume_crop, f"label_aux {aux_path}")
+                msk = _apply_volume_crop(msk, self.volume_crop, f"mask {msk_path}")
 
             # Apply one-time preprocessing before caching
             if pre_cache_transforms is not None:

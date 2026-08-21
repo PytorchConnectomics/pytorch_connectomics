@@ -241,6 +241,23 @@ class DataInputConfig:
     # Voxel resolution (physical dimensions in nm)
     resolution: Optional[List[float]] = None  # Data resolution [z, y, x] in nm
 
+    # Sub-volume kept from every volume in this split, as
+    # ``[z0, z1, y0, y1, x0, x1]`` half-open voxel bounds, applied identically
+    # to image/label/label_aux/mask straight after read and before any other
+    # transform. ``None`` (default) keeps the whole volume.
+    #
+    # For datasets whose annotation covers only part of the stored volume:
+    # uniform patches over the full volume spend most of their loss mask on the
+    # ignore sentinel, so cropping to the annotated region plus a context halo
+    # raises the supervised fraction of every patch without rewriting the
+    # volumes on disk. Every axis of the crop must be at least the read patch
+    # size (``patch_size + target_context``) or the dataset would silently pad;
+    # ``runtime.preflight`` enforces that.
+    #
+    # Only the preloaded-cache path honours this. The lazy zarr/h5 datasets
+    # raise rather than ignore it.
+    crop: Optional[List[int]] = None
+
     # Skeleton ground-truth for NERL evaluation. str path (.pkl skeleton or
     # .npz ERLGraph), per-volume dict {volume_name: path}, or None.
     skeleton: Any = None

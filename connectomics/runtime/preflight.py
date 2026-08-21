@@ -313,6 +313,92 @@ def validate_runtime_coherence(cfg) -> None:
                     "decoding.affinity_qc.image_path or decoding.affinity_mask_path."
                 )
 
+    _validate_volume_crop(cfg)
+    _validate_cosine_horizon(cfg)
+
+
+def _validate_volume_crop(cfg) -> None:
+    """``data.<split>.crop`` must be well-formed and >= the read patch size.
+
+    A crop smaller than ``patch_size + target_context`` on any axis is not an
+    error the dataset reports: ``_ensure_minimum_size`` pads it back up, so the
+    run trains on reflect-padded filler and only shows as a loss that plateaus
+    high. Fail at config load instead.
+    """
+    data_cfg = getattr(cfg, "data", None)
+    if data_cfg is None:
+        return
+    patch_size = [int(v) for v in getattr(data_cfg.dataloader, "patch_size", []) or []]
+    if not patch_size:
+        return
+    raw_context = [int(v) for v in (getattr(data_cfg.dataloader, "target_context", None) or [])]
+    ndim = len(patch_size)
+    if len(raw_context) == 2 * ndim:
+        context = [raw_context[i] + raw_context[ndim + i] for i in range(ndim)]
+    elif len(raw_context) == ndim:
+        context = raw_context
+    else:
+        context = [0] * ndim
+    read_size = [patch_size[i] + context[i] for i in range(ndim)]
+
+    for split in ("train", "val", "test"):
+        split_cfg = getattr(data_cfg, split, None)
+        crop = getattr(split_cfg, "crop", None) if split_cfg is not None else None
+        if crop is None:
+            continue
+        values = [int(v) for v in crop]
+        if len(values) != 2 * ndim:
+            raise ValueError(
+                f"Cross-section validation failed: data.{split}.crop must hold "
+                f"{2 * ndim} values (start, stop per axis) for a {ndim}-D "
+                f"patch_size {patch_size}; got {values}."
+            )
+        for axis in range(ndim):
+            start, stop = values[2 * axis], values[2 * axis + 1]
+            if start < 0 or stop <= start:
+                raise ValueError(
+                    f"Cross-section validation failed: data.{split}.crop axis {axis} "
+                    f"must satisfy 0 <= start < stop; got ({start}, {stop})."
+                )
+            if stop - start < read_size[axis]:
+                raise ValueError(
+                    f"Cross-section validation failed: data.{split}.crop axis {axis} "
+                    f"spans {stop - start} voxels but the read patch needs "
+                    f"{read_size[axis]} (patch_size {patch_size[axis]} + target_context "
+                    f"{context[axis]}). A smaller crop is silently reflect-padded back "
+                    "up, so the model would train on filler."
+                )
+
+
+def _validate_cosine_horizon(cfg) -> None:
+    """``CosineAnnealingLR`` must anneal over the steps actually run.
+
+    ``max_steps`` is routinely overridden from the CLI while ``scheduler.t_max``
+    stays at the tutorial's value; the run then stops partway down the cosine
+    and never sees the low-LR phase that does most of the fitting. Nothing else
+    reports this — the LR curve just looks flat.
+    """
+    optimization = getattr(cfg, "optimization", None)
+    scheduler = getattr(optimization, "scheduler", None) if optimization is not None else None
+    if scheduler is None or getattr(scheduler, "name", "") != "CosineAnnealingLR":
+        return
+    if str(getattr(scheduler, "interval", "step")) != "step":
+        return  # epoch-interval t_max is in epochs; not comparable to max_steps
+    # `scheduler.params` is typed Dict[str, Any]; OmegaConf gives it attribute
+    # access too, so read it both ways rather than depending on which one built it.
+    params = getattr(scheduler, "params", None)
+    t_max = params.get("t_max") if isinstance(params, dict) else getattr(params, "t_max", None)
+    max_steps = getattr(optimization, "max_steps", None)
+    if not t_max or not max_steps or int(max_steps) < 0:
+        return
+    if int(t_max) != int(max_steps):
+        raise ValueError(
+            "Cross-section validation failed: optimization.max_steps="
+            f"{int(max_steps)} but optimization.scheduler.params.t_max={int(t_max)} "
+            "with CosineAnnealingLR on a step interval. The cosine would not reach "
+            "its minimum within the run (or would restart). Set t_max to max_steps."
+        )
+
 
 def preflight_check(cfg) -> list:
     """Run pre-flight checks before training."""
