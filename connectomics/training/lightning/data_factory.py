@@ -52,6 +52,27 @@ def _effective_patch_size(cfg: Config) -> tuple[int, ...]:
     return tuple(patch_size[i] + pre[i] + post[i] for i in range(len(patch_size)))
 
 
+def _volume_crop(cfg: Config, split: str) -> Optional[List[int]]:
+    """``data.<split>.crop`` as a plain list of ints, or None."""
+    crop = getattr(getattr(cfg.data, split), "crop", None)
+    return None if crop is None else [int(v) for v in crop]
+
+
+def _reject_volume_crop_on_lazy(cfg: Config, backend_name: str) -> None:
+    """The lazy datasets index the stored volume directly and cannot honour a crop.
+
+    Raise instead of ignoring it: a silently dropped crop reads as "the fix is in"
+    while every patch still spends most of its loss mask on the ignore sentinel.
+    """
+    for split in ("train", "val"):
+        if _volume_crop(cfg, split) is not None:
+            raise ValueError(
+                f"data.{split}.crop is set but the lazy {backend_name} dataset does not "
+                "support it. Use the preloaded-cache path (data.dataloader.profile: cached "
+                "with use_preloaded_cache_train/val: true), or crop the stored volume."
+            )
+
+
 def _read_downscale(cfg: Config) -> float:
     """Return the validated train/val read-size shrink factor in ``(0, 1]``."""
     s = float(getattr(cfg.data.dataloader, "read_downscale", 1.0))
@@ -922,6 +943,7 @@ def create_datamodule(
             foreground_threshold=cfg.data.dataloader.cached_sampling_foreground_threshold,
             crop_to_nonzero_mask=cfg.data.dataloader.cached_sampling_crop_to_nonzero_mask,
             sample_nonzero_mask=cfg.data.dataloader.cached_sampling_sample_nonzero_mask,
+            volume_crop=_volume_crop(cfg, "train"),
         )
 
         preloaded_num_workers = num_workers
@@ -990,6 +1012,7 @@ def create_datamodule(
                     foreground_threshold=cfg.data.dataloader.cached_sampling_foreground_threshold,
                     crop_to_nonzero_mask=cfg.data.dataloader.cached_sampling_crop_to_nonzero_mask,
                     sample_nonzero_mask=cfg.data.dataloader.cached_sampling_sample_nonzero_mask,
+                    volume_crop=_volume_crop(cfg, "val"),
                 )
             else:
                 from monai.data import CacheDataset, Dataset
@@ -1057,6 +1080,7 @@ def create_datamodule(
                 f"Got: {train_images[:3]}"
             )
 
+        _reject_volume_crop_on_lazy(cfg, backend_name)
         logger.info("Using lazy %s volume loading (crop-on-read, no full preload)", backend_name)
         from torch.utils.data import DataLoader
 
