@@ -38,8 +38,7 @@ from __future__ import annotations
 
 import logging
 from collections import Counter, defaultdict
-from pathlib import Path
-from typing import Dict, Iterable, Sequence, Tuple
+from typing import Dict, Iterable, Tuple
 
 import h5py
 import numpy as np
@@ -78,8 +77,7 @@ def contact_graph(
     if sizes is None:
         sizes = segment_sizes(seg)
     if affinity is not None and affinity.shape[-3:] != seg.shape:
-        raise ValueError(
-            f"affinity spatial shape {affinity.shape[-3:]} != seg shape {seg.shape}")
+        raise ValueError(f"affinity spatial shape {affinity.shape[-3:]} != seg shape {seg.shape}")
     acc: Counter = Counter()
     aff_sum: Counter = Counter()
     for axis in range(3):
@@ -114,7 +112,9 @@ def contact_graph(
 def segment_sizes(seg: np.ndarray) -> Dict[int, int]:
     """Voxel count per label, excluding 0."""
     lab, cnt = np.unique(seg, return_counts=True)
-    return {int(l): int(c) for l, c in zip(lab.tolist(), cnt.tolist()) if l != 0}
+    return {
+        int(label): int(count) for label, count in zip(lab.tolist(), cnt.tolist()) if label != 0
+    }
 
 
 def _neighbours(contacts: Dict[Tuple[int, int], int]) -> Dict[int, Dict[int, int]]:
@@ -185,7 +185,7 @@ def link_through_fragments(
         if min(area_a, area_b) < link_balance * max(area_a, area_b):
             continue
         proposals.append((min(area_a, area_b), c_a, c_b))
-    proposals.sort(reverse=True)          # strongest evidence first
+    proposals.sort(reverse=True)  # strongest evidence first
     return sum(uf.union(c_a, c_b) for _area, c_a, c_b in proposals)
 
 
@@ -303,20 +303,26 @@ def segmentation_merge(
         seg = seg[0]
     if affinity is None and use_affinity and affinity_path:
         with h5py.File(affinity_path, "r") as f:
-            key = affinity_dataset if affinity_dataset in f else next(
-                k for k in f if hasattr(f[k], "shape"))
+            key = (
+                affinity_dataset
+                if affinity_dataset in f
+                else next(k for k in f if hasattr(f[k], "shape"))
+            )
             affinity = f[key][...]
     if affinity is not None and affinity.ndim == 4 and affinity.shape[0] > 3:
-        affinity = np.moveaxis(affinity, -1, 0)      # tolerate ZYXC as well as CZYX
+        affinity = np.moveaxis(affinity, -1, 0)  # tolerate ZYXC as well as CZYX
     if use_affinity and affinity is None:
         logger.warning(
             "segmentation_merge: use_affinity is set but no affinity was given; falling back to "
-            "contact area, which measured 0.4510 vs 0.5036 with affinity (lessons L89/L90).")
+            "contact area, which measured 0.4510 vs 0.5036 with affinity (lessons L89/L90)."
+        )
     sizes = segment_sizes(seg)
     if contact_path:
         loaded = np.load(contact_path)
-        contacts = {(int(a), int(b)): int(n)
-                    for a, b, n in zip(loaded["a"].tolist(), loaded["b"].tolist(), loaded["n"].tolist())}
+        contacts = {
+            (int(a), int(b)): int(n)
+            for a, b, n in zip(loaded["a"].tolist(), loaded["b"].tolist(), loaded["n"].tolist())
+        }
         aff_of = None
     elif affinity is not None and use_affinity:
         contacts, aff_of = contact_graph(seg, min_size=min_size, sizes=sizes, affinity=affinity)
@@ -327,7 +333,10 @@ def segmentation_merge(
     anchors = {s for s, v in sizes.items() if v >= anchor_size}
     logger.info(
         "segmentation_merge: %d labels, %d anchors (>=%d vox), %d contacts",
-        len(sizes), len(anchors), anchor_size, len(contacts),
+        len(sizes),
+        len(anchors),
+        anchor_size,
+        len(contacts),
     )
 
     uf = _UnionFind(sizes, max_hub_size)
@@ -336,17 +345,31 @@ def segmentation_merge(
     linked = 0
     if link:
         linked = link_through_fragments(
-            neighbours, sizes, uf, anchors,
-            anchor_size=anchor_size, link_min_size=link_min_size,
-            link_balance=link_balance, link_min_contact=link_min_contact,
+            neighbours,
+            sizes,
+            uf,
+            anchors,
+            anchor_size=anchor_size,
+            link_min_size=link_min_size,
+            link_balance=link_balance,
+            link_min_contact=link_min_contact,
         )
 
     labels = {a: uf.find(a) for a in anchors}
-    absorbed = grow_fragments(neighbours, sizes, labels,
-                              anchor_size=anchor_size, hops=hops,
-                              min_size=grow_min_size, min_contact=grow_min_contact,
-                              margin=margin, dominance=dominance, affinity_of=aff_of,
-                              min_affinity=min_affinity)
-    logger.info("segmentation_merge: linked %d anchor pairs, absorbed %d fragments",
-                linked, absorbed)
+    absorbed = grow_fragments(
+        neighbours,
+        sizes,
+        labels,
+        anchor_size=anchor_size,
+        hops=hops,
+        min_size=grow_min_size,
+        min_contact=grow_min_contact,
+        margin=margin,
+        dominance=dominance,
+        affinity_of=aff_of,
+        min_affinity=min_affinity,
+    )
+    logger.info(
+        "segmentation_merge: linked %d anchor pairs, absorbed %d fragments", linked, absorbed
+    )
     return cast2dtype(_apply(seg, labels))

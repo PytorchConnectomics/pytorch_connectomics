@@ -75,10 +75,7 @@ def verify_result(
     constraints = json.loads(_output_artifact(result, "cannot_links").read_text())
     rag = json.loads(_output_artifact(result, "local_rag").read_text())
     totals_path = Path(plan.anchor_totals_artifact.uri)
-    if (
-        not totals_path.exists()
-        or sha256_file(totals_path) != plan.anchor_totals_artifact.sha256
-    ):
+    if not totals_path.exists() or sha256_file(totals_path) != plan.anchor_totals_artifact.sha256:
         raise ValueError("required anchor totals artifact is missing or changed")
     totals = json.loads(totals_path.read_text())
     totals_values = totals["totals"]

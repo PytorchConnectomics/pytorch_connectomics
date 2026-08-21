@@ -38,7 +38,9 @@ def _parse_volume_crop(
     bounds = tuple((values[i], values[i + 1]) for i in range(0, len(values), 2))
     for axis, (start, stop) in enumerate(bounds):
         if start < 0 or stop <= start:
-            raise ValueError(f"crop axis {axis} must satisfy 0 <= start < stop, got ({start}, {stop})")
+            raise ValueError(
+                f"crop axis {axis} must satisfy 0 <= start < stop, got ({start}, {stop})"
+            )
     return bounds
 
 

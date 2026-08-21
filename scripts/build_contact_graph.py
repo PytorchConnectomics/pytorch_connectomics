@@ -1,16 +1,18 @@
 """Build a whole-volume contact graph (region adjacency + contact area) from a label volume.
 
-`connectomics.decoding.decoders.segmentation_merge` needs, per pair of touching segments, the number
-of shared voxel faces. On a volume that fits in memory the decoder computes this itself; on a
-whole-dataset segmentation it does not fit, so this script computes it in Z-slabs and the decoder
-reads the result via `contact_path`.
+`connectomics.decoding.decoders.segmentation_merge` needs, per pair of touching
+segments, the number of shared voxel faces. On a volume that fits in memory the
+decoder computes this itself; on a whole-dataset segmentation it does not fit,
+so this script computes it in Z-slabs and the decoder reads the result via
+`contact_path`.
 
 Everything here is ground-truth-free: the only input is the segmentation.
 
-One slab per array task (each slab reads one extra Z row so the face between slabs is counted exactly
-once, by the lower slab), then a merge pass:
+One slab per array task (each slab reads one extra Z row so the face between
+slabs is counted exactly once, by the lower slab), then a merge pass:
 
-    sbatch --array=0-22 ... python scripts/build_contact_graph.py --seg <zarr> --slab $SLURM_ARRAY_TASK_ID
+    sbatch --array=0-22 ... python scripts/build_contact_graph.py --seg <zarr> \
+        --slab $SLURM_ARRAY_TASK_ID
     python scripts/build_contact_graph.py --seg <zarr> --merge
 
 usage:
@@ -40,8 +42,10 @@ class _PrecomputedZYX:
 
     def __init__(self, cloudpath: str, mip):
         from cloudvolume import CloudVolume
-        self._cv = CloudVolume(cloudpath, mip=list(mip), fill_missing=True,
-                               bounded=False, progress=False)
+
+        self._cv = CloudVolume(
+            cloudpath, mip=list(mip), fill_missing=True, bounded=False, progress=False
+        )
         sx, sy, sz = (int(v) for v in self._cv.shape[:3])
         self.shape = (sz, sy, sx)
 
@@ -50,8 +54,10 @@ class _PrecomputedZYX:
 
         def span(s, n):
             if isinstance(s, slice):
-                return (0 if s.start is None else max(0, s.start),
-                        n if s.stop is None else min(n, s.stop))
+                return (
+                    0 if s.start is None else max(0, s.start),
+                    n if s.stop is None else min(n, s.stop),
+                )
             return (s, s + 1)
 
         z0, z1 = span(z, self.shape[0])
@@ -70,22 +76,25 @@ def open_volume(path: str, dataset: str, precomputed: bool = False, mip=(9, 9, 2
         return _PrecomputedZYX(cloudpath, mip)
     if path.endswith(".zarr") or "/.zarray" in path or Path(path, ".zgroup").exists():
         import zarr
+
         z = zarr.open(path, mode="r")
         return z[dataset] if hasattr(z, "array_keys") and dataset in list(z.array_keys()) else z
     import h5py
+
     return h5py.File(path, "r")[dataset]
 
 
 def label_sizes(vol, slab_z: int = 256) -> dict:
     """Voxel count per label, streamed in Z-slabs."""
     from collections import Counter
+
     acc = Counter()
     for z0 in range(0, vol.shape[0], slab_z):
-        sub = np.asarray(vol[z0:min(vol.shape[0], z0 + slab_z)])
+        sub = np.asarray(vol[z0 : min(vol.shape[0], z0 + slab_z)])
         lab, cnt = np.unique(sub, return_counts=True)
-        for l, c in zip(lab.tolist(), cnt.tolist()):
-            if l:
-                acc[l] += c
+        for label, count in zip(lab.tolist(), cnt.tolist()):
+            if label:
+                acc[label] += count
         log(f"  sizes z {z0}/{vol.shape[0]}")
     return dict(acc)
 
@@ -139,8 +148,10 @@ def slab_contacts(vol, sid: int, slab_z: int, yx: int, keep: np.ndarray) -> tupl
                     np.add.at(c2, inv, cc)
                     folded = (u2, c2)
             del v
-        log(f"  y {y0}/{shp[1]}: {0 if folded is None else len(folded[0]):,} pairs "
-            f"[{time.time()-t0:.0f}s]")
+        log(
+            f"  y {y0}/{shp[1]}: {0 if folded is None else len(folded[0]):,} pairs "
+            f"[{time.time()-t0:.0f}s]"
+        )
     if folded is None:
         return np.zeros(0, np.uint64), np.zeros(0, np.uint64), np.zeros(0, np.int64)
     u, c = folded
@@ -150,37 +161,50 @@ def slab_contacts(vol, sid: int, slab_z: int, yx: int, keep: np.ndarray) -> tupl
 
 
 def main() -> None:
-    p = argparse.ArgumentParser(description=__doc__,
-                                formatter_class=argparse.RawDescriptionHelpFormatter)
+    p = argparse.ArgumentParser(
+        description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
+    )
     p.add_argument("--seg", required=True, help="segmentation zarr or h5")
     p.add_argument("--dataset", default="main")
     p.add_argument("--out", default="contacts", help="directory for per-slab shards")
-    p.add_argument("--merged", default="", help="path of the merged .npz (default <out>/merged.npz)")
+    p.add_argument(
+        "--merged", default="", help="path of the merged .npz (default <out>/merged.npz)"
+    )
     p.add_argument("--slab", type=int, default=None, help="slab index to compute")
     p.add_argument("--merge", action="store_true", help="merge existing shards")
     p.add_argument("--sizes", default="", help="cached label sizes .npz (labels, counts)")
     p.add_argument("--slab-z", type=int, default=256)
     p.add_argument("--yx", type=int, default=1024)
-    p.add_argument("--min-size", type=int, default=200,
-                   help="ignore labels smaller than this (noise floor)")
-    p.add_argument("--precomputed", action="store_true",
-                   help="--seg is a CloudVolume precomputed layer (ABISS output)")
-    p.add_argument("--mip", type=int, nargs=3, default=(9, 9, 20),
-                   help="precomputed mip/resolution to read")
+    p.add_argument(
+        "--min-size", type=int, default=200, help="ignore labels smaller than this (noise floor)"
+    )
+    p.add_argument(
+        "--precomputed",
+        action="store_true",
+        help="--seg is a CloudVolume precomputed layer (ABISS output)",
+    )
+    p.add_argument(
+        "--mip", type=int, nargs=3, default=(9, 9, 20), help="precomputed mip/resolution to read"
+    )
     a = p.parse_args()
 
-    out = Path(a.out); out.mkdir(parents=True, exist_ok=True)
+    out = Path(a.out)
+    out.mkdir(parents=True, exist_ok=True)
     merged = Path(a.merged) if a.merged else out / "merged.npz"
 
     if a.merge:
         A, B, N = [], [], []
         for f in sorted(out.glob("slab_*.npz")):
             z = np.load(f)
-            A.append(z["a"]); B.append(z["b"]); N.append(z["n"].astype(np.int64))
+            A.append(z["a"])
+            B.append(z["b"])
+            N.append(z["n"].astype(np.int64))
             log(f"  {f.name}: {len(z['n']):,}")
         if not A:
             raise SystemExit(f"no shards in {out}")
-        A = np.concatenate(A); B = np.concatenate(B); N = np.concatenate(N)
+        A = np.concatenate(A)
+        B = np.concatenate(B)
+        N = np.concatenate(N)
         uq = np.unique(np.concatenate([A, B]))
         bits = int(np.ceil(np.log2(len(uq) + 2)))
         ia = np.searchsorted(uq, A).astype(np.uint64)
@@ -189,10 +213,12 @@ def main() -> None:
         u, inv = np.unique(key, return_inverse=True)
         n = np.zeros(len(u), np.int64)
         np.add.at(n, inv, N)
-        np.savez_compressed(merged,
-                            a=uq[(u >> np.uint64(bits)).astype(np.int64)],
-                            b=uq[(u & np.uint64((1 << bits) - 1)).astype(np.int64)],
-                            n=n.astype(np.uint64))
+        np.savez_compressed(
+            merged,
+            a=uq[(u >> np.uint64(bits)).astype(np.int64)],
+            b=uq[(u & np.uint64((1 << bits) - 1)).astype(np.int64)],
+            n=n.astype(np.uint64),
+        )
         log(f"merged {len(n):,} contacts over {len(uq):,} labels -> {merged}")
         return
 

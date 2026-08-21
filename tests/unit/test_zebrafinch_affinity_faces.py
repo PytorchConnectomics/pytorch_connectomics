@@ -7,7 +7,6 @@ import h5py
 import numpy as np
 import pytest
 
-
 DEV = Path(__file__).resolve().parents[2] / "dev" / "zebrafinch"
 sys.path.insert(0, str(DEV))
 
@@ -25,9 +24,7 @@ def test_missing_low_neighbors_fail_closed_unless_isolated_gate(tmp_path, monkey
     with pytest.raises((FileNotFoundError, OSError)):
         affinity._load_affinity_neg_offset("z1_y1_x1", (1, 1, 1))
 
-    shifted = affinity._load_affinity_neg_offset(
-        "z1_y1_x1", (1, 1, 1), zero_missing_low_faces=True
-    )
+    shifted = affinity._load_affinity_neg_offset("z1_y1_x1", (1, 1, 1), zero_missing_low_faces=True)
     for channel in range(3):
         low_face = [slice(None)] * 3
         low_face[channel] = 0
@@ -36,6 +33,4 @@ def test_missing_low_neighbors_fail_closed_unless_isolated_gate(tmp_path, monkey
         high[channel] = slice(1, None)
         low = [slice(None)] * 3
         low[channel] = slice(0, -1)
-        np.testing.assert_array_equal(
-            shifted[channel][tuple(high)], source[channel][tuple(low)]
-        )
+        np.testing.assert_array_equal(shifted[channel][tuple(high)], source[channel][tuple(low)])

@@ -360,9 +360,7 @@ class NucleusAnchorOperator:
             if config.contact_scopes_uri
             else ()
         )
-        contact_by_identity = {
-            (scope.seg_id, scope.anchor_ids): scope for scope in contact_scopes
-        }
+        contact_by_identity = {(scope.seg_id, scope.anchor_ids): scope for scope in contact_scopes}
         overlaps: dict[int, dict[int, int]] = {}
         if hit.any():
             pairs = np.stack((segmentation[hit], nuclei[hit]), axis=1)
@@ -387,9 +385,7 @@ class NucleusAnchorOperator:
             contact = contact_by_identity.get((str(component_id), qualifying))
             repair_scope = contact.bbox if contact is not None and contact.bbox else config.scope
             repair_component = component_mask[_relative_slices(repair_scope, config.scope)]
-            contained = _component_contained(
-                repair_component, repair_scope, segmentation_shape_zyx
-            )
+            contained = _component_contained(repair_component, repair_scope, segmentation_shape_zyx)
             component = EntityRef(
                 "component",
                 str(component_id),

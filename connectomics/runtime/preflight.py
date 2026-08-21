@@ -294,8 +294,7 @@ def validate_runtime_coherence(cfg) -> None:
         valid_modes = {"post_save", "streaming"}
         if mode not in valid_modes:
             raise ValueError(
-                f"decoding.affinity_qc.mode must be one of {sorted(valid_modes)}, "
-                f"got {mode!r}."
+                f"decoding.affinity_qc.mode must be one of {sorted(valid_modes)}, " f"got {mode!r}."
             )
         if mode == "streaming":
             strategy = getattr(getattr(cfg, "inference", None), "strategy", "")

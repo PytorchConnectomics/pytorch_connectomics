@@ -852,8 +852,7 @@ class EMAWeightsCallback(Callback):
                 )
             with torch.no_grad():
                 self._ema_state = {
-                    name: self._restored_state[name].detach().clone().to(device)
-                    for name in live
+                    name: self._restored_state[name].detach().clone().to(device) for name in live
                 }
             self._updates = self._restored_updates or 0
             self._restored_state = None

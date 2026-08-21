@@ -186,7 +186,6 @@ class ChunkWorkflowConfig:
         )
 
 
-
 def _affinity_extent_xyz(cloudpath: str) -> tuple[int, int, int] | None:
     """Spatial extent (X, Y, Z) of a LOCAL h5/zarr affinity, or None if not knowable.
 
@@ -692,8 +691,11 @@ def prepare_config(config_path: Path) -> ChunkWorkflowConfig:
     default_chunk_xyz = (
         [xdim, ydim, min(zdim, 80)]
         if source_h5 is not None
-        else [bbox_xyz[3] - bbox_xyz[0], bbox_xyz[4] - bbox_xyz[1],
-              min(bbox_xyz[5] - bbox_xyz[2], 80)]
+        else [
+            bbox_xyz[3] - bbox_xyz[0],
+            bbox_xyz[4] - bbox_xyz[1],
+            min(bbox_xyz[5] - bbox_xyz[2], 80),
+        ]
     )
     chunk_size_xyz = _maybe_int_list(
         param.get("CHUNK_SIZE", default_chunk_xyz),
