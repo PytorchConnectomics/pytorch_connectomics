@@ -1,0 +1,13 @@
+usage: nucleus_shell_contamination.py [-h] --seg SEG --bbox X0 Y0 Z0 X1 Y1 Z1
+                                      [--nuclei NUCLEI] [--tol TOL]
+                                      [--mip MIP] [--out OUT]
+
+options:
+  -h, --help            show this help message and exit
+  --seg SEG             precomputed segmentation cloudpath
+  --bbox X0 Y0 Z0 X1 Y1 Z1
+  --nuclei NUCLEI
+  --tol TOL             share of a nucleus's mask below which a segment is
+                        ignored
+  --mip MIP
+  --out OUT

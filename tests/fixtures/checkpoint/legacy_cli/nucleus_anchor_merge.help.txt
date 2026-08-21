@@ -1,0 +1,13 @@
+usage: nucleus_anchor_merge.py [-h] [--arm ARM] --in-name IN_NAME --out-name
+                               OUT_NAME
+                               [--min-nucleus-share MIN_NUCLEUS_SHARE]
+                               [--block BLOCK] [--report REPORT]
+
+options:
+  -h, --help            show this help message and exit
+  --arm ARM
+  --in-name IN_NAME
+  --out-name OUT_NAME
+  --min-nucleus-share MIN_NUCLEUS_SHARE
+  --block BLOCK
+  --report REPORT
