@@ -875,9 +875,27 @@ class ConnectomicsModule(pl.LightningModule):
         outputs = self(images)
 
         # Compute loss using the loss orchestrator
-        total_loss, loss_dict = self._compute_loss(
-            outputs, labels, stage="train", mask=mask, target_mask=target_mask, gt_seg=gt_seg
-        )
+        try:
+            total_loss, loss_dict = self._compute_loss(
+                outputs, labels, stage="train", mask=mask, target_mask=target_mask, gt_seg=gt_seg
+            )
+        except ValueError:
+            # The orchestrator's NaN dump sees only pred/target/mask, so an
+            # input-borne NaN is indistinguishable from a model-borne one. Report
+            # the batch here (costs nothing unless the run is already dying).
+            n_nan = int(torch.isnan(images).sum())
+            n_inf = int(torch.isinf(images).sum())
+            finite = images[torch.isfinite(images)]
+            logger.warning(
+                f"Input image at step {self.global_step}: {n_nan} NaN + {n_inf} Inf "
+                f"of {images.numel()}, finite range "
+                + (
+                    f"[{finite.min():.4f}, {finite.max():.4f}]"
+                    if finite.numel()
+                    else "[no finite elements]"
+                )
+            )
+            raise
 
         # Keep full training curves in TensorBoard while avoiding console spam.
         self.log_dict(

@@ -39,7 +39,25 @@ __all__ = [
     "NaNDetectionCallback",
     "EMAWeightsCallback",
     "ValidationReseedingCallback",
+    "load_ema_state_dict",
 ]
+
+
+def load_ema_state_dict(checkpoint: Dict[str, Any]) -> Optional[Dict[str, torch.Tensor]]:
+    """Return the EMA weights stored in ``checkpoint``, keyed like ``model.state_dict()``.
+
+    ``None`` when the run had EMA disabled, or when the checkpoint predates
+    :meth:`EMAWeightsCallback.state_dict` (those files only ever held the raw
+    training weights, even though ``validate_with_ema`` made the logged ``val_*``
+    metrics — and therefore ``ModelCheckpoint``'s ranking — describe the EMA).
+    """
+    for key, state in (checkpoint.get("callbacks") or {}).items():
+        if not isinstance(state, dict) or not str(key).startswith("EMAWeightsCallback"):
+            continue
+        ema = state.get(EMAWeightsCallback.EMA_STATE_KEY)
+        if ema:
+            return dict(ema)
+    return None
 
 
 def _select_affinity_visualization_group_mask(
@@ -714,7 +732,24 @@ class NaNDetectionCallback(Callback):
 class EMAWeightsCallback(Callback):
     """
     Maintain exponential moving average (EMA) weights and swap them in for evaluation.
+
+    The EMA tensors are checkpointed under this callback's state, for two reasons:
+
+    * **Resume.** ``on_fit_start`` seeds the EMA from the live weights, so without
+      persisted state every resume silently restarts the average from scratch and
+      the configured ``decay`` horizon is a fiction.
+    * **Reproducing the logged metric.** With ``validate_with_ema=True`` the
+      ``val_*`` scalars — including whatever ``ModelCheckpoint`` monitors — are
+      computed on the EMA weights, while ``state_dict`` at save time holds the raw
+      training weights (the swap is undone in ``on_validation_epoch_end``, before
+      the checkpoint is written). Persisting the EMA keeps those weights loadable;
+      see :func:`load_ema_state_dict`.
+
+    Cost: one extra fp32 copy of the model per checkpoint file.
     """
+
+    #: Key under which the EMA weights live inside the callback's checkpoint state.
+    EMA_STATE_KEY = "ema_state"
 
     def __init__(
         self,
@@ -736,6 +771,30 @@ class EMAWeightsCallback(Callback):
         self._ema_device: Optional[torch.device] = None
         self._updates: int = 0
         self._using_ema: bool = False
+        self._restored_state: Optional[Dict[str, torch.Tensor]] = None
+        self._restored_updates: Optional[int] = None
+
+    def state_dict(self) -> Dict[str, Any]:
+        """EMA tensors (on CPU) + the update counter, for the checkpoint."""
+        if self._ema_state is None:
+            return {}
+        return {
+            self.EMA_STATE_KEY: {k: v.detach().cpu().clone() for k, v in self._ema_state.items()},
+            "updates": int(self._updates),
+            "decay": float(self.decay),
+        }
+
+    def load_state_dict(self, state_dict: Dict[str, Any]) -> None:
+        """Stash the checkpointed EMA; ``on_fit_start`` adopts it instead of reseeding.
+
+        Lightning restores callback state before ``on_fit_start`` runs, so the
+        seeding path has to defer to what was loaded rather than overwrite it.
+        """
+        ema = state_dict.get(self.EMA_STATE_KEY)
+        if not ema:
+            return
+        self._restored_state = {k: v.clone() for k, v in ema.items()}
+        self._restored_updates = int(state_dict.get("updates", 0))
 
     def on_fit_start(self, trainer, pl_module):
         self._initialize_ema(pl_module)
@@ -779,9 +838,28 @@ class EMAWeightsCallback(Callback):
         self._restore_original_weights(pl_module)
 
     def _initialize_ema(self, pl_module):
-        """Create EMA storage on the desired device."""
+        """Create EMA storage on the desired device, or adopt a restored one."""
         device = torch.device(self.device) if self.device is not None else pl_module.device
         self._ema_device = device
+
+        if self._restored_state is not None:
+            live = pl_module.model.state_dict()
+            missing = set(live) - set(self._restored_state)
+            if missing:
+                raise RuntimeError(
+                    "Checkpointed EMA state does not match the model: "
+                    f"{len(missing)} key(s) missing, e.g. {sorted(missing)[:3]}."
+                )
+            with torch.no_grad():
+                self._ema_state = {
+                    name: self._restored_state[name].detach().clone().to(device)
+                    for name in live
+                }
+            self._updates = self._restored_updates or 0
+            self._restored_state = None
+            self._restored_updates = None
+            logger.info("[EMA] resumed from checkpoint (%d prior updates)", self._updates)
+            return
 
         with torch.no_grad():
             self._ema_state = {
