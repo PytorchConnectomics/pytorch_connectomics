@@ -55,8 +55,9 @@ DATASETS: dict[str, dict[str, Any]] = {
     },
     "snemi": {
         "name": "SNEMI3D Neuron Segmentation",
-        # Flat repack of the Zenodo release (10.5281/zenodo.7142003), plus the
-        # test labels the challenge never published (see the tutorial README).
+        # The three EM volumes come from Zenodo record 7142003, repacked flat
+        # (the Zenodo archive nests them under image/ and seg/) and joined by
+        # test-labels.h5, which the challenge withheld from that release.
         "url": "https://huggingface.co/pytc/tutorial/resolve/main/neuron_snemi/snemi.zip",
         "filename": "snemi.zip",
         "extract_dir": "SNEMI",
