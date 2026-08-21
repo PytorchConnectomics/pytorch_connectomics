@@ -15,6 +15,7 @@ from connectomics.inference.chunk_grid import (
     validate_chunked_output_format,
 )
 from connectomics.inference.chunked import (
+    _filter_chunks_to_roi,
     _per_chunk_dir,
     _run_chunked_prediction_per_rank,
     _stitch_chunk_prediction_files,
@@ -40,6 +41,66 @@ def test_public_chunk_grid_covers_volume_without_overlap():
 
     assert len(chunks) == 27
     assert np.all(coverage == 1)
+
+
+def test_roi_filter_drops_chunks_outside_and_keeps_interior():
+    chunks = build_chunk_grid((30, 30, 30), (10, 10, 10))
+    roi = ((0, 0, 0), (30, 25, 30))
+
+    kept = _filter_chunks_to_roi(chunks, roi, (0, 0, 0))
+
+    # The y=2 row starts at 20 < 25, so it overlaps and survives; nothing is dropped
+    # on z/x. 3*3*3 minus nothing == 27.
+    assert len(kept) == 27
+    # A chunk fully past the ROI is dropped.
+    kept_tight = _filter_chunks_to_roi(chunks, ((0, 0, 0), (30, 20, 30)), (0, 0, 0))
+    assert len(kept_tight) == 18
+    assert all(chunk.start[1] < 20 for chunk in kept_tight)
+
+
+def test_roi_crops_border_chunks_to_volume_geometry():
+    """Border chunks must be cropped to the ROI, not written at full chunk size.
+
+    A chunk straddling the real-volume boundary otherwise emits pure padding past
+    the true geometry (5.3% of a whole zebrafinch run, ~37e9 voxels).
+    """
+    chunks = build_chunk_grid((30, 30, 30), (10, 10, 10))
+    roi = ((0, 0, 0), (30, 25, 30))
+
+    kept = _filter_chunks_to_roi(chunks, roi, (0, 0, 0))
+    straddling = [chunk for chunk in kept if chunk.index[1] == 2]
+
+    assert straddling, "expected the y=2 chunk row to straddle the ROI boundary"
+    for chunk in straddling:
+        assert chunk.stop[1] == 25, f"{chunk.key} not cropped to ROI: stop={chunk.stop}"
+        assert chunk.shape[1] == 5
+        # Identity is preserved so filenames still match the global grid.
+        assert chunk.key == f"z{chunk.index[0]}_y2_x{chunk.index[2]}"
+
+    # Interior chunks are untouched.
+    for chunk in kept:
+        if chunk.index[1] < 2:
+            assert chunk.shape == (10, 10, 10)
+
+    # Nothing written extends past the ROI on any axis.
+    assert all(
+        chunk.stop[axis] <= roi[1][axis] for chunk in kept for axis in range(3)
+    )
+
+
+def test_roi_crop_accounts_for_global_prediction_crop():
+    """ROI is in INPUT coords; chunk coords are post-crop. The offset must be applied."""
+    chunks = build_chunk_grid((20, 20, 20), (10, 10, 10))
+    crop_before = (4, 0, 0)
+    # In input coords the volume spans 4..24; cut it at 18.
+    roi = ((4, 0, 0), (18, 20, 20))
+
+    kept = _filter_chunks_to_roi(chunks, roi, crop_before)
+
+    for chunk in kept:
+        input_stop = chunk.stop[0] + crop_before[0]
+        assert input_stop <= 18, f"{chunk.key} extends to {input_stop} past ROI stop 18"
+    assert any(chunk.stop[0] == 14 for chunk in kept), "expected a cropped border chunk"
 
 
 def test_union_face_pairs_respects_affinity_mask_and_min_contact():
