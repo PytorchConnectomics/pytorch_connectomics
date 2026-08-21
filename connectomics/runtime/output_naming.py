@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import re
 from pathlib import Path
 from typing import Any, Optional
@@ -16,6 +17,7 @@ _UNINFORMATIVE_STEMS = {"img", "image", "raw", "em", "main", "data"}
 # from an image path: e.g. `/data/seed101/data.zarr/img` should resolve to
 # `seed101`, not `data.zarr`. Lowercase, includes the dot.
 _CONTAINER_PARENT_SUFFIXES = (".zarr", ".n5", ".ome.zarr")
+_MAX_DECODE_GRAPH_TAG_LENGTH = 180
 
 
 def _is_container_dir_name(name: str) -> bool:
@@ -353,7 +355,20 @@ def _format_decode_graph_tag(graph: Any) -> str:
         inputs = "+".join(quote(ref, safe="") for ref in node.inputs)
         parts.append(f"{node_name}-{op}-from-{inputs}")
     output = safe_component(validated.output)
-    return "_graph-" + "__".join(parts) + f"__out-{output}"
+    full_tag = "_graph-" + "__".join(parts) + f"__out-{output}"
+    if len(full_tag) <= _MAX_DECODE_GRAPH_TAG_LENGTH:
+        return full_tag
+
+    digest = hashlib.sha256(full_tag.encode("utf-8")).hexdigest()[:12]
+    compact_parts = [
+        f"{safe_component(node.name)}-{safe_component(node.op.removeprefix('decode_'))}"
+        for node in validated.nodes
+    ]
+    hash_suffix = f"__out-{output}__h-{digest}"
+    compact_prefix = "_graph-" + "__".join(compact_parts)
+    available = _MAX_DECODE_GRAPH_TAG_LENGTH - len(hash_suffix)
+    compact_prefix = compact_prefix[:available].rstrip("-_")
+    return compact_prefix + hash_suffix
 
 
 def format_decode_tag(cfg: Config) -> str:

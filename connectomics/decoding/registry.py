@@ -123,12 +123,14 @@ def register_builtin_decoders() -> None:
         decode_instance_binary_contour_distance,
     )
     from .decoders.segmentation_grow import segmentation_grow
+    from .decoders.segmentation_merge import segmentation_merge
     from .decoders.shape_smooth import shape_smooth
     from .decoders.synapse import polarity2instance
-    from .decoders.transforms import channel_gate
+    from .decoders.transforms import channel_gate, select_channels
     from .decoders.waterz import decode_waterz, naive_waterz
 
     register_decoder("channel_gate", channel_gate, overwrite=True)
+    register_decoder("select_channels", select_channels, overwrite=True)
     register_decoder(
         "decode_instance_binary_contour_distance",
         decode_instance_binary_contour_distance,
@@ -169,6 +171,7 @@ def register_builtin_decoders() -> None:
     )
     register_decoder("longrange_guided_split", longrange_guided_split, overwrite=True)
     register_decoder("segmentation_grow", segmentation_grow, overwrite=True)
+    register_decoder("segmentation_merge", segmentation_merge, overwrite=True)
     register_decoder("shape_smooth", shape_smooth, overwrite=True)
     register_decoder("decode_abiss", decode_abiss, overwrite=True)
     register_decoder("polarity2instance", polarity2instance, overwrite=True)
