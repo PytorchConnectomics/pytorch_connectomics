@@ -107,6 +107,49 @@ def test_nerl_reporting_computes_requested_oracle_merge(monkeypatch):
     assert metrics["nerl_oracle_merge"] == 0.9
 
 
+def test_nerl_reporting_defaults_to_merge_threshold_50(monkeypatch):
+    test_cfg = SimpleNamespace(
+        skeleton="graph.npz",
+        skeleton_mask=None,
+        resolution=[25, 9, 9],
+    )
+    evaluation_cfg = SimpleNamespace(
+        metrics=["nerl"],
+        nerl_chunk_num=1,
+        nerl_num_workers=1,
+    )
+    context = EvaluationContext(
+        cfg=SimpleNamespace(data=SimpleNamespace(test=test_cfg)),
+        evaluation_cfg=evaluation_cfg,
+    )
+    captured = {}
+
+    def fake_score(segmentation, graph_value, **kwargs):
+        captured.update(kwargs)
+        return SimpleNamespace(
+            nerl=0.5,
+            pred_erl=5.0,
+            gt_erl=10.0,
+            num_skeletons=1,
+            graph=SimpleNamespace(skeleton_id=np.array([10], dtype=np.uint64)),
+            per_gt_erl=np.array([[5.0, 10.0]], dtype=np.float64),
+        )
+
+    monkeypatch.setattr(
+        "connectomics.evaluation.nerl.compute_nerl_score_details",
+        fake_score,
+    )
+    compute_nerl_metrics(
+        context,
+        np.array([[[1]]], dtype=np.uint32),
+        "",
+        {},
+        "sample",
+    )
+
+    assert captured["merge_threshold"] == 50
+
+
 def test_nerl_reporting_oracle_only_skips_base_score(monkeypatch):
     test_cfg = SimpleNamespace(
         skeleton="graph.npz",

@@ -163,7 +163,7 @@ def compute_nerl_metrics(
     score_kwargs = {
         "skeleton_mask_value": mask_value,
         "resolution": _nerl_resolution(context, evaluation_cfg),
-        "merge_threshold": int(cfg_value(evaluation_cfg, "nerl_merge_threshold", 1)),
+        "merge_threshold": int(cfg_value(evaluation_cfg, "nerl_merge_threshold", 50)),
         "chunk_num": int(cfg_value(evaluation_cfg, "nerl_chunk_num", 1)),
         "num_workers": _resolve_num_workers(int(cfg_value(evaluation_cfg, "nerl_num_workers", -1))),
         "graph_options": _nerl_graph_options(evaluation_cfg),
