@@ -7,6 +7,7 @@ import logging
 import os
 import time
 from collections.abc import Sequence
+from dataclasses import replace
 from pathlib import Path
 from typing import Any
 
@@ -242,19 +243,30 @@ def _resolve_inference_roi(
 
 
 def _filter_chunks_to_roi(chunks, roi, crop_before):
-    """Drop chunks whose core (in INPUT coords) lies entirely outside ``roi``."""
-    (rz0, ry0, rx0), (rz1, ry1, rx1) = roi
+    """Restrict the chunk grid to ``roi`` (INPUT coords): drop, then crop.
 
-    def _overlaps(ch) -> bool:
+    Chunks entirely outside ``roi`` are dropped. Chunks that *straddle* an ROI
+    boundary are cropped to it, so a border chunk's written core never extends past
+    the real volume geometry into pure padding. Without the crop a straddling chunk
+    is emitted at the full nominal chunk size — 126 of the 726 zebrafinch chunks
+    straddle, writing 37e9 padding voxels (5.3% of the volume).
+
+    ``index``/``key`` come from the pre-crop global grid and are preserved, so chunk
+    filenames still match the full-grid naming.
+    """
+    roi_start, roi_stop = roi
+
+    kept = []
+    for ch in chunks:
         cs = tuple(ch.start[axis] + crop_before[axis] for axis in range(3))
         ce = tuple(ch.stop[axis] + crop_before[axis] for axis in range(3))
-        return (
-            cs[0] < rz1 and ce[0] > rz0
-            and cs[1] < ry1 and ce[1] > ry0
-            and cs[2] < rx1 and ce[2] > rx0
-        )
+        if not all(cs[axis] < roi_stop[axis] and ce[axis] > roi_start[axis] for axis in range(3)):
+            continue
+        start = tuple(max(cs[axis], roi_start[axis]) - crop_before[axis] for axis in range(3))
+        stop = tuple(min(ce[axis], roi_stop[axis]) - crop_before[axis] for axis in range(3))
+        kept.append(ch if (start, stop) == (ch.start, ch.stop) else replace(ch, start=start, stop=stop))
 
-    return [ch for ch in chunks if _overlaps(ch)]
+    return kept
 
 
 def is_external_chunk_sharding_enabled(cfg: Any) -> bool:
