@@ -83,9 +83,7 @@ def test_roi_crops_border_chunks_to_volume_geometry():
             assert chunk.shape == (10, 10, 10)
 
     # Nothing written extends past the ROI on any axis.
-    assert all(
-        chunk.stop[axis] <= roi[1][axis] for chunk in kept for axis in range(3)
-    )
+    assert all(chunk.stop[axis] <= roi[1][axis] for chunk in kept for axis in range(3))
 
 
 def test_roi_crop_accounts_for_global_prediction_crop():

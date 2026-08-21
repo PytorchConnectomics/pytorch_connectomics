@@ -237,8 +237,7 @@ class LossOrchestrator:
         logger.warning(f"Loss value: {loss.item()}")
         if torch.distributed.is_available() and torch.distributed.is_initialized():
             logger.warning(
-                f"Rank: {torch.distributed.get_rank()} of "
-                f"{torch.distributed.get_world_size()}"
+                f"Rank: {torch.distributed.get_rank()} of " f"{torch.distributed.get_world_size()}"
             )
         for line in info_lines:
             logger.warning(line)

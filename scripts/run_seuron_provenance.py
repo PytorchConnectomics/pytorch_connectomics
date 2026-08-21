@@ -403,9 +403,7 @@ def _abiss_build_id(abiss_home: Path) -> str:
         build_dir = abiss_home / "build"
         if build_dir.is_dir():
             runtime_files.extend(
-                path
-                for path in build_dir.iterdir()
-                if path.is_file() and os.access(path, os.X_OK)
+                path for path in build_dir.iterdir() if path.is_file() and os.access(path, os.X_OK)
             )
         if not runtime_files:
             raise RuntimeError(f"No ABISS runtime files found under {abiss_home}.")
@@ -547,6 +545,7 @@ def _preflight_abiss(resolved: ResolvedReplay) -> None:
 # they get this explicit default. It divides the seuron CHUNK_SIZE [512,512,256] on
 # every axis, which is the alignment ABISS needs for its chunked writes.
 _DEFAULT_OUTPUT_CHUNK_XYZ = (256, 256, 256)
+
 
 def _load_volume_backends(abiss_home: Path):
     """Import ABISS' backend dispatcher (lib/abiss/scripts is not a package)."""

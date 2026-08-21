@@ -184,8 +184,7 @@ def _validate_precomputed_alignment(
     if bad:
         raise ValueError(
             "chunking.precomputed_chunk_size must divide the inference chunk on every "
-            "axis so concurrent chunk writes never straddle a storage chunk. "
-            + "; ".join(bad)
+            "axis so concurrent chunk writes never straddle a storage chunk. " + "; ".join(bad)
         )
 
 
@@ -238,7 +237,9 @@ def _resolve_inference_roi(
             f"inference.chunking.roi must have 3 (size) or 6 (start/stop) ints ZYX, got {roi!r}."
         )
     if any(stop[axis] <= start[axis] for axis in range(3)):
-        raise ValueError(f"inference.chunking.roi stop must exceed start on every axis, got {roi!r}.")
+        raise ValueError(
+            f"inference.chunking.roi stop must exceed start on every axis, got {roi!r}."
+        )
     return start, stop
 
 
@@ -264,7 +265,9 @@ def _filter_chunks_to_roi(chunks, roi, crop_before):
             continue
         start = tuple(max(cs[axis], roi_start[axis]) - crop_before[axis] for axis in range(3))
         stop = tuple(min(ce[axis], roi_stop[axis]) - crop_before[axis] for axis in range(3))
-        kept.append(ch if (start, stop) == (ch.start, ch.stop) else replace(ch, start=start, stop=stop))
+        kept.append(
+            ch if (start, stop) == (ch.start, ch.stop) else replace(ch, start=start, stop=stop)
+        )
 
     return kept
 
@@ -604,7 +607,16 @@ def _run_chunked_prediction_per_rank(
             )
             logger.info(
                 "[rank %d] chunk %d/%d %s -> precomputed [%d:%d, %d:%d, %d:%d]",
-                rank, chunk_idx, len(chunks), chunk.key, x0, x1, y0, y1, z0, z1,
+                rank,
+                chunk_idx,
+                len(chunks),
+                chunk.key,
+                x0,
+                x1,
+                y0,
+                y1,
+                z0,
+                z1,
             )
             del pred, core_pred, block
             continue
@@ -752,7 +764,10 @@ def run_chunked_prediction_inference(
             )
         logger.info(
             "Inference ROI %s (input ZYX voxels): kept %d/%d chunks, skipped %d pure-padding.",
-            roi, len(chunks), n_all, n_all - len(chunks),
+            roi,
+            len(chunks),
+            n_all,
+            n_all - len(chunks),
         )
     output_path = Path(output_path)
     output_path.parent.mkdir(parents=True, exist_ok=True)

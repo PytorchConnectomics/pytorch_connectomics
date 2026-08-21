@@ -153,9 +153,7 @@ def test_nucleus_config_inserts_competition_between_remap_and_agglomeration(
 
     result = abiss_chunk.run_abiss_chunk(prepared)
 
-    assert [plan.stage for plan in result.stage_plans] == list(
-        abiss_chunk.STAGES_WITH_NUCLEUS
-    )
+    assert [plan.stage for plan in result.stage_plans] == list(abiss_chunk.STAGES_WITH_NUCLEUS)
     competition = result.stage_plans[2]
     assert Path(competition.argv[1]).name == "nucleus_competition.py"
     assert competition.argv[2] == str(prepared.param_path)

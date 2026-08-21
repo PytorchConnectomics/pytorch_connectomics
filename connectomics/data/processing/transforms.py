@@ -30,13 +30,13 @@ from .target import (
     AffinityTarget,
     seg_erosion_dilation,
     seg_to_affinity,
-    seg_to_thin_affinity_weight,
     seg_to_binary,
     seg_to_eroded_foreground,
     seg_to_flows,
     seg_to_instance_bd,
     seg_to_polarity,
     seg_to_small_seg,
+    seg_to_thin_affinity_weight,
 )
 from .weight import seg_to_weights
 

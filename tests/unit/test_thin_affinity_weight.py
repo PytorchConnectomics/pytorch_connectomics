@@ -56,8 +56,12 @@ def test_cross_instance_and_background_edges_keep_weight_one():
 def test_include_negative_weights_every_edge():
     seg = _two_bars()
     w = seg_to_thin_affinity_weight(
-        seg, offsets=OFFSETS, affinity_mode="banis", radius_ref=4.0,
-        max_weight=5.0, include_negative=True,
+        seg,
+        offsets=OFFSETS,
+        affinity_mode="banis",
+        radius_ref=4.0,
+        max_weight=5.0,
+        include_negative=True,
     )
     aff = seg_to_affinity(seg, offsets=OFFSETS, affinity_mode="banis")
     # boundary voxels of the thick bar are cross-instance/background edges but
@@ -69,12 +73,20 @@ def test_resolution_makes_an_anisotropic_axis_count_more():
     seg = np.zeros((16, 16, 16), np.int32)
     seg[:, 6:10, :] = 1  # 4 voxels wide along axis 1
     iso = seg_to_thin_affinity_weight(
-        seg, offsets=OFFSETS, affinity_mode="banis",
-        resolution=(1.0, 1.0, 1.0), radius_ref=8.0, max_weight=5.0,
+        seg,
+        offsets=OFFSETS,
+        affinity_mode="banis",
+        resolution=(1.0, 1.0, 1.0),
+        radius_ref=8.0,
+        max_weight=5.0,
     )
     aniso = seg_to_thin_affinity_weight(
-        seg, offsets=OFFSETS, affinity_mode="banis",
-        resolution=(1.0, 4.0, 1.0), radius_ref=8.0, max_weight=5.0,
+        seg,
+        offsets=OFFSETS,
+        affinity_mode="banis",
+        resolution=(1.0, 4.0, 1.0),
+        radius_ref=8.0,
+        max_weight=5.0,
     )
     # with axis 1 stretched 4x the bar is physically thicker, so it is weighted less
     assert aniso.mean() < iso.mean()
@@ -86,8 +98,7 @@ def test_shape_matches_the_paired_affinity_target():
         w = seg_to_thin_affinity_weight(
             seg, offsets=offsets, long_range=long_range, affinity_mode="banis"
         )
-        aff = seg_to_affinity(seg, offsets=offsets, long_range=long_range,
-                              affinity_mode="banis")
+        aff = seg_to_affinity(seg, offsets=offsets, long_range=long_range, affinity_mode="banis")
         assert w.shape == aff.values.shape
         assert w.dtype == np.float32
 
@@ -120,8 +131,12 @@ def test_registered_in_the_label_transform_and_channel_count():
         {"name": "affinity", "kwargs": {"offsets": OFFSETS, "affinity_mode": "banis"}},
         {
             "name": "thin_affinity_weight",
-            "kwargs": {"offsets": OFFSETS, "affinity_mode": "banis",
-                       "radius_ref": 4.0, "max_weight": 5.0},
+            "kwargs": {
+                "offsets": OFFSETS,
+                "affinity_mode": "banis",
+                "radius_ref": 4.0,
+                "max_weight": 5.0,
+            },
         },
     ]
     assert count_stacked_label_transform_channels({"targets": tasks}) == 6

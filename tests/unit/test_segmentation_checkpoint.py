@@ -244,8 +244,7 @@ def test_07_scope_safety_and_partial_containment_downgrade(tmp_path: Path) -> No
     containment = next(
         outcome
         for outcome in verified.verification
-        if outcome.invariant
-        == "partial_scope_new_territories_do_not_touch_continuing_boundary"
+        if outcome.invariant == "partial_scope_new_territories_do_not_touch_continuing_boundary"
     )
     assert containment.passed
 

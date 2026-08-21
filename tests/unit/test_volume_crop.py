@@ -18,9 +18,7 @@ from connectomics.data.datasets.dataset_volume_cached import (
 
 
 def _volumes():
-    z, y, x = np.meshgrid(
-        np.arange(20), np.arange(24), np.arange(28), indexing="ij"
-    )
+    z, y, x = np.meshgrid(np.arange(20), np.arange(24), np.arange(28), indexing="ij")
     return {
         "image": (z * 10000 + y * 100 + x).astype(np.float32),
         "label": (z * 10000 + y * 100 + x).astype(np.float32) + 0.5,
@@ -57,9 +55,7 @@ def test_crop_keeps_only_the_requested_subvolume(patched_read):
         dataset.cached_images[0][0], patched_read["image"][5:15, 6:18, 7:21]
     )
     # image and label must be cropped identically or every target is misaligned
-    np.testing.assert_array_equal(
-        dataset.cached_labels[0][0] - 0.5, dataset.cached_images[0][0]
-    )
+    np.testing.assert_array_equal(dataset.cached_labels[0][0] - 0.5, dataset.cached_images[0][0])
 
 
 def test_no_crop_keeps_the_whole_volume(patched_read):
