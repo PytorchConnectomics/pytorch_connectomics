@@ -4,13 +4,12 @@ _base_:
 experiment_name: segem_banis_plus
 description: >-
   banis+ (MedNeXt-L/k3) on the 267 usable SegEM training cubes (Berning 2015,
-  mouse cortex L4, 11.24x11.24x28 nm), trained from scratch.
+  mouse cortex L4, 11.24x11.24x28 nm, SBEM), trained from scratch.
 
   SegEM ships NO instance labels — `target` is ternary {-1 membrane, 0 uncertain,
   +1 intracellular}. `dev/segem/convert_cubes.py` converts it to instances
-  (cc3d conn=6 -> drop <100-voxel debris -> grow the surviving IDs over the
-  membrane band by nearest-instance EDT), so this config trains the standard
-  6-channel banis+ target.
+  (cc3d conn=6 on `target == 1` -> drop <100-voxel debris), so this config trains
+  the standard 6-channel banis+ target.
 
   Why instances and not the semantic mask directly: a semantic mask CANNOT
   express long-range affinity. At offset > 1 the target asks "same object?", and
@@ -19,9 +18,24 @@ description: >-
   is exact for the 3 unit offsets and RAISES on anything longer — there is no
   approximation to fall back on. 6 channels requires real IDs.
 
-  erosion stays at the banis+ default of 2: the converter hands pytc a DENSE
-  label, so pytc places the boundary itself. (SegEM's own band is pre-eroded to
-  ~pytc r=3-4, which is why it is grown back rather than passed through.)
+  MEMBRANE BAND -> BACKGROUND, erosion 0 (was: EDT-grown band, erosion 2). The
+  first run's converter grew instance IDs across SegEM's membrane band, i.e. it
+  supervised 26% of the annotated centre with a geometric guess. Measured on that
+  run's step-60k checkpoint over 26 TRAIN cubes: band edges are 35% of valid
+  affinity edges but carry 89% of the residual training BCE (0.310 vs 0.021 on
+  SegEM's own annotation, where the model already sits at 99.1% edge accuracy),
+  and perfect recalibration recovers only 15% of it — the band target is
+  stochastic given the image, so training longer cannot fit it. Feeding the oracle
+  on band edges alone moved the decode from VOI 0.256 to 0.094 against a 0.029
+  floor: 71% of the whole train-set gap. Dropping the grow costs no topology (the
+  instances are DEFINED by cc3d on `target == 1`, so none needs a path through the
+  band — verified to VOI 0.0002) and makes the decode LOSSLESS: this target's own
+  perfect affinity decodes back to its own labels at VOI 0.0000 with n_pred ==
+  n_gt on every cube, against 0.0288 for the grown+erosion2 target (whose eroded
+  boundary band a perfect model must leave unlabelled). So a checkpoint's VOI here
+  is entirely model error, with no irreducible offset to subtract.
+  Scripts: dev/segem/{fit_stratify,band_entropy,attribute_band,recipe_a_oracle,
+  check_written_floor}.py
 
   Data: each cube is the full 150x200x200 raw with an int32 label that is -1
   (ignore) outside the annotated centre at raw[25:125, 50:150, 50:150] (ZYX),
@@ -51,8 +65,11 @@ default:
       # Long-range@10 needs 10 trailing voxels of context (inherited).
       target_context: [0, 0, 0, 10, 10, 10]
     label_transform:
-      # Dense label in, pytc erodes. Keep IDs stable across crops.
-      erosion: 2
+      # SegEM's own membrane band already separates the instances and the
+      # converter now keeps it as background, so pytc must NOT erode again.
+      # (Erosion is XY-only anyway: at r=2 it converted only 52% of the true band
+      # to boundary, and r=4 reaches 81% by eating 18% of real annotation.)
+      erosion: 0
       relabel_connected_components: false
       targets:
         - name: affinity
@@ -61,6 +78,25 @@ default:
             affinity_mode: banis
     augmentation:
       profile: aug_em_neuron
+      # aug_em_neuron is the DeepEM recipe for ssTEM. SegEM is SBEM block-face,
+      # which cuts and images in place, so the section-registration artifacts it
+      # simulates do not occur. Measured over 90 consecutive-section pairs on 6
+      # cubes by phase correlation: 53% have EXACTLY zero shift, mean |dy| 0.81 px
+      # and |dx| 0.46 px, against the 17 px this block injects. Training the model
+      # to be invariant to a 17 px shear costs capacity and buys nothing here.
+      slice_shift_z:
+        enabled: false
+      # No positive evidence of lost/dropped sections either: section-to-section
+      # NCC is unimodal (median 0.549, p1 0.178 — that spread is real 28 nm
+      # sampling of dense neuropil, not dropout) and only 0.42% of sections are
+      # blur outliers. Kept but rare, since block-face knives do occasionally
+      # skip and one bad section should not derail a whole patch.
+      slice_drop_z:
+        num_sections: [0, 2]
+      lost_section:
+        prob: 0.25
+      # Section mean intensity really does drift (124.3 +/- 6.9, range 110-144),
+      # so the intensity/contrast arm of the profile stays as-is.
   model:
     input_size: [48, 96, 96]
     output_size: [48, 96, 96]
@@ -69,11 +105,29 @@ default:
   inference:
     model:
       select_channel: [0, 1, 2]
+  monitor:
+    checkpoint:
+      # Gate this dataset EXTERNALLY, on VOI against the printed oracle row
+      # (dev/segem/eval_val_cubes.py), not on `val_loss_total`. That metric is a
+      # masked per-channel affinity BCE and it mis-ranked this run in both
+      # directions: steps 10k/15k/30k are statistically indistinguishable on VOI
+      # (8/26 cubes, Wilcoxon p=0.394) while their val losses differ, because the
+      # loss is dominated by band entropy plus a global calibration shift that the
+      # decode threshold absorbs for free. `monitor` is left alone so `save_top_k`
+      # still keeps something, but the gateable artifacts are the step
+      # checkpoints — every 5k, matching val_check_interval, instead of 4 chances
+      # over the whole 200k run.
+      save_every_n_steps: 5000
 
 train:
   optimization:
     optimizer:
       lr: 0.001
+    # t_max MUST equal max_steps: with CosineAnnealingLR on a step interval, a
+    # t_max longer than the run leaves the LR high at the end and the model never
+    # sees the anneal that does most of the fitting. The first run stopped at 60k
+    # of a 200k t_max with LR still at 8e-4. `runtime.preflight` now raises on the
+    # mismatch, so a `--max-steps` override must be paired with a t_max override.
     max_steps: 200000
     scheduler:
       params:
@@ -82,10 +136,22 @@ train:
     train:
       path: ""
       resolution: [28.0, 11.24, 11.24]
-      image: /projects/weilab/dataset/segEM/pytc/train/im/cube*.h5
-      label: /projects/weilab/dataset/segEM/pytc/train/seg/cube*.h5
+      image: /projects/weilab/dataset/segEM/pytc_bg/train/im/cube*.h5
+      label: /projects/weilab/dataset/segEM/pytc_bg/train/seg/cube*.h5
+      # Keep the annotated centre [25:125, 50:150, 50:150] plus a 12-voxel halo.
+      # Uniform patches over the whole 150x200x200 cube put only ~53% of each
+      # patch inside the annotation, and the run is GPU-bound (1425 of 1584 ms per
+      # step is MedNeXt-L fwd+bwd on one A10), so that is half the compute
+      # producing no gradient. This crop raises it to ~89% while leaving 24,187
+      # distinct crop starts per cube. The halo is >= the long-range offset of 10,
+      # so every long-range edge from an annotated voxel still lands on real data
+      # rather than padding. Measured end to end on real batches (mean of
+      # batch["label_mask"], dev/segem/verify_crop_supervision.py): 0.490 -> 0.867,
+      # i.e. 1.77x the supervised affinity edges at the same batch shape.
+      crop: [13, 137, 38, 162, 38, 162]
     val:
       path: ""
       resolution: [28.0, 11.24, 11.24]
-      image: /projects/weilab/dataset/segEM/pytc/val/im/cube*.h5
-      label: /projects/weilab/dataset/segEM/pytc/val/seg/cube*.h5
+      image: /projects/weilab/dataset/segEM/pytc_bg/val/im/cube*.h5
+      label: /projects/weilab/dataset/segEM/pytc_bg/val/seg/cube*.h5
+      crop: [13, 137, 38, 162, 38, 162]
