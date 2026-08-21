@@ -112,7 +112,7 @@ ADVISORY_PATTERNS: List[Tuple[Tuple[str, ...], str]] = [
      "default.data.train.name has no effect; set under val/test instead."),
 ]
 
-CUSTOM_WORKFLOW_ROOTS = {"large_decode", "abiss_chunk", "seuron_replay"}
+CUSTOM_WORKFLOW_ROOTS = {"large_decode", "abiss_chunk", "seuron_replay", "error_correction"}
 
 
 def _has_path(data: Any, path: Tuple[str, ...]) -> bool:
