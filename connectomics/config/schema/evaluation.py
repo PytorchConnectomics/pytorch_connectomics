@@ -36,7 +36,7 @@ class EvaluationConfig:
     prediction_threshold: float = 0.5
     instance_iou_threshold: float = 0.5
     nerl_resolution: Optional[List[float]] = None
-    nerl_merge_threshold: int = 1
+    nerl_merge_threshold: int = 50
     nerl_chunk_num: int = 1
     nerl_num_workers: int = 1
     nerl_skeleton_id_attribute: str = "id"
