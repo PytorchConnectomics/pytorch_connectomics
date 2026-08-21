@@ -131,7 +131,7 @@ def _write_manifest(root: Path, paths: list[Path]) -> None:
 
 def main() -> int:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--repo", type=Path, default=Path(__file__).resolve().parents[1])
+    parser.add_argument("--repo", type=Path, default=Path(__file__).resolve().parents[2])
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--nuclei", type=Path, required=True)
     parser.add_argument("--before-seg", required=True)
