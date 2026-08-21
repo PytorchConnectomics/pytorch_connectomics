@@ -1,0 +1,27 @@
+usage: nucleus_competitive_split.py [-h] [--arm ARM] [--param PARAM]
+                                    [--seg-override SEG_OVERRIDE]
+                                    [--bbox BBOX BBOX BBOX BBOX BBOX BBOX]
+                                    [--nuclei-h5 NUCLEI_H5] --out-name
+                                    OUT_NAME [--factor FACTOR]
+                                    [--min-nucleus-share MIN_NUCLEUS_SHARE]
+                                    [--block BLOCK] [--report REPORT]
+
+options:
+  -h, --help            show this help message and exit
+  --arm ARM
+  --param PARAM         param JSON to take AFF_PATH/convention/keep-mask from
+                        (default: the arm's own)
+  --seg-override SEG_OVERRIDE
+                        segmentation layer, if not the param's SEG_PATH
+  --bbox BBOX BBOX BBOX BBOX BBOX BBOX
+                        restrict to this bbox instead of the param's BBOX
+  --nuclei-h5 NUCLEI_H5
+                        override the nucleus mask
+  --out-name OUT_NAME   name of the new precomputed layer
+  --factor FACTOR       pooling for the flood
+  --min-nucleus-share MIN_NUCLEUS_SHARE
+                        a nucleus counts as present in a segment only if the
+                        segment holds at least this share of THAT nucleus's
+                        whole mask
+  --block BLOCK
+  --report REPORT

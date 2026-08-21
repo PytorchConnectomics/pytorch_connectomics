@@ -1,0 +1,21 @@
+checkpoint_id: worst3_nucleus_anchor
+passes:
+  - pass_id: nucleus_anchor
+    operator: nucleus_anchor
+    segmentation:
+      uri: file:///projects/weilab/weidf/lib/pytorch_connectomics/dev/zebrafinch/nuc_z1_y7_x6/w2ctl/precomputed/seg/w2ctl
+    nuclei:
+      uri: /projects/weilab/dataset/zebrafinch/yl_cb_80nm_neuron.h5
+      dataset: main
+    affinity:
+      uri: file:///projects/weilab/weidf/lib/pytorch_connectomics/outputs/nisb_base_banis_v3_erosion2_zebrafinch_ft/20260727_130307/test_step=00100000/0/raw_x1_ch0-1-2_chunked-raw_cs1008x1008x1008_halo72x72x72_zebrafinch_chunk_raw_grid1008_halo72.h5.chunks
+      dataset: main
+    scope_zyx: [1260, 9324, 2772, 2520, 10584, 3780]
+    contact_scopes: tests/fixtures/checkpoint/contact_scopes.json
+    channel_indices: [0, 1, 2]
+    affinity_channel_axis: 0
+    affinity_convention: banis
+    sigmoid_restore: 0.2
+    pooling_factor: 4
+    nucleus_scale_zyx: [4, 8, 8]
+    max_read_bytes: 67108864

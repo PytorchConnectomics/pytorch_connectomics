@@ -1,0 +1,33 @@
+{
+  "schema_version": "1.0",
+  "captured_before_refactor": true,
+  "git_head": "6ad67866c3ca3e1cf1d52437a0cb300b0340c1bd",
+  "legacy_source_sha256": {
+    "nucleus_competitive_split.py": "62b8e7c714b3e7a158b3a0d8d733e8465072a2a5c9441be2163ba1a27dbef222",
+    "nucleus_anchor_merge.py": "9d9d309c65a6a9626608feff5c8de1f24c1bcf3972e30fc7c389a675db5176cc",
+    "nucleus_shell_contamination.py": "0da49d9f60c8751aa7807ce06cbdea9807db898623a069f7fee634d6633a2dbb"
+  },
+  "inputs": {
+    "nuclei": "/projects/weilab/dataset/zebrafinch/yl_cb_80nm_neuron.h5",
+    "before_seg": "file:///projects/weilab/weidf/lib/pytorch_connectomics/dev/zebrafinch/nuc_z1_y7_x6/w2ctl/precomputed/seg/w2ctl",
+    "after_seg": "file:///projects/weilab/weidf/lib/pytorch_connectomics/dev/zebrafinch/nuc_z1_y7_x6/w2ctl/precomputed/seg/w2ctl_final",
+    "bbox_xyz": [
+      2772,
+      9324,
+      1260,
+      3780,
+      10584,
+      2520
+    ],
+    "mask_origin_zyx": [
+      315,
+      1165,
+      346
+    ],
+    "mask_shape_zyx": [
+      315,
+      158,
+      126
+    ]
+  }
+}

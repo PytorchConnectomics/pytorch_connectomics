@@ -1,0 +1,13 @@
+{
+  "schema_version": "1.0",
+  "artifact_id": "contact-scopes-worst3-golden",
+  "scopes": [
+    {
+      "seg_id": "72198606672811349",
+      "anchor_ids": [275, 319, 373],
+      "provenance": "legacy worst3 arm1_ft measured contact scope",
+      "gap_um": 0.0,
+      "eligibility": "contact"
+    }
+  ]
+}
