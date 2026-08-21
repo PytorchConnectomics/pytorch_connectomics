@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import argparse
 import hashlib
+import importlib.util
 import json
 import math
 import os
@@ -33,6 +34,7 @@ from connectomics.runtime.abiss_chunk import (  # noqa: E402
     OutputLayerSpec,
     PreparedConfig,
     RunResult,
+    default_stages,
     run_abiss_chunk,
 )
 from connectomics.runtime.seuron_provenance import (  # noqa: E402
@@ -237,7 +239,6 @@ def resolve_replay(args: argparse.Namespace) -> ResolvedReplay:
         aff_override=aff_override,
     )
     param = dict(mapped.param)
-
     # Affinity FORMAT keys only. These describe how to READ the affinity (edge
     # convention, sigmoid scaling) -- a storage concern the provenance record has no
     # field for, because Seuron always read a precomputed layer that was already
@@ -245,6 +246,8 @@ def resolve_replay(args: argparse.Namespace) -> ResolvedReplay:
     # fidelity replay, and letting a config retune AGG_THRESHOLD here would quietly
     # invalidate the very comparison the tool exists to make.
     overrides = replay.get("param_overrides") or {}
+    if not isinstance(overrides, Mapping):
+        raise ValueError("seuron_replay.param_overrides must be a mapping.")
     unknown = set(overrides) - _OVERRIDABLE_PARAM_KEYS
     if unknown:
         raise ValueError(
@@ -253,6 +256,10 @@ def resolve_replay(args: argparse.Namespace) -> ResolvedReplay:
             "record and are not overridable."
         )
     param.update(overrides)
+    # An explicit CLI/YAML affinity selection has higher precedence than the generic
+    # format override block.
+    if aff_override is not None:
+        param["AFF_PATH"] = aff_override
 
     exec_value = args.exec_bbox if args.exec_bbox is not None else replay.get("exec_bbox")
     execution_bbox = _bbox(
@@ -268,6 +275,27 @@ def resolve_replay(args: argparse.Namespace) -> ResolvedReplay:
             f"score bbox {list(score_bbox)} must be contained in execution bbox "
             f"{list(execution_bbox)}."
         )
+
+    if param.get("NUC_PATH") and param.get("NUC_COMPETITION_ENABLED", True):
+        param.setdefault(
+            "NUC_COMPETITION_MANIFEST",
+            str((out_root / name / "nucleus_competition" / "manifest.json").resolve()),
+        )
+        resolution = param.get("AFF_RESOLUTION")
+        if "NUC_VOXEL_SIZE_ZYX_NM" not in param:
+            if isinstance(resolution, (str, bytes)) or not isinstance(resolution, Sequence):
+                raise ValueError(
+                    "NUC_VOXEL_SIZE_ZYX_NM is required when AFF_RESOLUTION is not XYZ."
+                )
+            if len(resolution) != 3:
+                raise ValueError(
+                    "AFF_RESOLUTION must contain XYZ values to derive nucleus voxel size."
+                )
+            param["NUC_VOXEL_SIZE_ZYX_NM"] = [
+                int(resolution[2]),
+                int(resolution[1]),
+                int(resolution[0]),
+            ]
 
     return ResolvedReplay(
         config_path=config_path,
@@ -334,6 +362,7 @@ def prepare_execution(
         param_payload=dict(resolved.param),
         root_tag=root_tag,
         top_mip=top_mip,
+        stages=default_stages(resolved.param),
         runtime_secrets_dir=runtime_cloudvolume_root / "secrets",
         output_layer_spec=(
             OutputLayerSpec(
@@ -511,19 +540,17 @@ def _cloudvolume_root_view(secrets_dir: Path) -> Iterator[Path]:
 
 
 def _preflight_abiss(resolved: ResolvedReplay) -> None:
-    missing = [
-        path
-        for path in (
-            resolved.abiss_home / "scripts" / "run_batch.sh",
-            resolved.abiss_home / "scripts" / "remap_batch.sh",
-        )
-        if not path.is_file()
+    required = [
+        resolved.abiss_home / "scripts" / "run_batch.sh",
+        resolved.abiss_home / "scripts" / "remap_batch.sh",
     ]
+    if "competitive_nucleus_growth" in default_stages(resolved.param):
+        required.append(resolved.abiss_home / "scripts" / "nucleus_competition.py")
+    missing = [path for path in required if not path.is_file()]
     if missing:
         raise RuntimeError(
             "ABISS installation is incomplete; missing " + ", ".join(map(str, missing))
         )
-
 
 
 # A bare array carries no storage-chunk geometry to copy into the output layers, so
@@ -608,6 +635,19 @@ def _preflight_affinity_backend(
     )
 
 
+def _preflight_nucleus(resolved: ResolvedReplay) -> None:
+    value = resolved.param.get("NUC_PATH")
+    if not value:
+        return
+    text = str(value).split("::", 1)[0]
+    parsed = urlparse(text)
+    if parsed.scheme not in ("", "file"):
+        return
+    path = Path(unquote(parsed.path if parsed.scheme == "file" else text)).expanduser()
+    if not path.is_file() and not path.is_dir():
+        raise RuntimeError(f"Nucleus instance volume does not exist: {path}")
+
+
 def _preflight_affinity(
     resolved: ResolvedReplay,
     *,
@@ -646,25 +686,46 @@ def _preflight_affinity(
         )
     requested_mip = int(resolved.param["AFF_MIP"])
 
+    backend_path = resolved.abiss_home / "scripts" / "volume_backends.py"
+    spec = importlib.util.spec_from_file_location("_abiss_volume_backends", backend_path)
+    if spec is None or spec.loader is None:
+        raise RuntimeError(f"Cannot load ABISS volume backend from {backend_path}.")
+    volume_backends = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(volume_backends)
+
     old_cloudvolume_root = os.environ.get("CLOUD_VOLUME_DIR")
     os.environ["CLOUD_VOLUME_DIR"] = str(cloudvolume_root)
     try:
-        from cloudvolume import CloudVolume
-
         try:
-            volume = CloudVolume(
+            # ABISS can consume local HDF5, zarr, and grid-indexed HDF5 chunk stores
+            # directly. Using CloudVolume unconditionally rejects those valid inputs
+            # before ABISS gets a chance to open them.
+            volume = volume_backends.open_volume(
                 affinity_path,
                 mip=list(requested_resolution),
                 bounded=True,
                 fill_missing=False,
                 progress=False,
             )
-            actual_mip = int(volume.mip)
-            actual_resolution = tuple(int(value) for value in volume.resolution[:3])
-            volume_bbox = tuple(int(value) for value in volume.bounds.minpt[:3]) + tuple(
-                int(value) for value in volume.bounds.maxpt[:3]
+            actual_mip = int(getattr(volume, "mip", requested_mip))
+            actual_resolution = tuple(
+                int(value) for value in getattr(volume, "resolution", requested_resolution)[:3]
             )
-            chunk_size = tuple(int(value) for value in volume.chunk_size[:3])
+            bounds = getattr(volume, "bounds", None)
+            if bounds is not None:
+                volume_bbox = tuple(int(value) for value in bounds.minpt[:3]) + tuple(
+                    int(value) for value in bounds.maxpt[:3]
+                )
+            else:
+                raw_offset = getattr(volume, "voxel_offset", (0, 0, 0))
+                offset = tuple(int(value) for value in raw_offset[:3])
+                volume_bbox = offset + tuple(
+                    offset[axis] + int(volume.shape[axis]) for axis in range(3)
+                )
+            chunk_size = tuple(
+                int(value)
+                for value in getattr(volume, "chunk_size", resolved.param["CHUNK_SIZE"])[:3]
+            )
         except Exception as exc:
             raise RuntimeError(
                 f"Affinity preflight failed for {affinity_path}: {exc}. Check credentials "
@@ -720,6 +781,7 @@ def execute_replay(resolved: ResolvedReplay) -> RunResult:
     """Preflight, enforce namespace safety, write a manifest, and run ABISS."""
 
     _preflight_abiss(resolved)
+    _preflight_nucleus(resolved)
     with _cloudvolume_root_view(resolved.secrets_dir) as cloudvolume_root:
         affinity_metadata = _preflight_affinity(
             resolved,
@@ -740,7 +802,9 @@ def _resolution_report(resolved: ResolvedReplay, *, execute: bool) -> dict[str, 
         key: resolved.param[key] for key in sorted(GENERATED_OUTPUT) if key in resolved.param
     }
     input_paths = {
-        key: resolved.param[key] for key in ("AFF_PATH", "IMAGE_PATH") if key in resolved.param
+        key: resolved.param[key]
+        for key in ("AFF_PATH", "IMAGE_PATH", "NUC_PATH")
+        if key in resolved.param
     }
     return {
         "backend": resolved.backend,

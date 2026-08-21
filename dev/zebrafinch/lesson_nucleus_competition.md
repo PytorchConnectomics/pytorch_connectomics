@@ -1,8 +1,23 @@
 # Lesson: nucleus competition v2 — split first, then forbid re-merging
 
-2026-08-14. This note distinguishes the current `arm0_96` nucleus-aware ABISS decode from
-the earlier nucleus-veto and post-hoc prototypes. The full-volume v2 decode is still in
-progress, so this is a method/error lesson, not a final score report.
+2026-08-14. This note distinguishes the current arm0 nucleus-aware ABISS decode (labelled
+`arm0_96` throughout this file) from the earlier nucleus-veto and post-hoc prototypes. The
+full-volume v2 decode is still in progress, so this is a method/error lesson, not a final
+score report.
+
+[corrected 2026-08-17: the `arm0_96` name is a misnomer for the whole-volume and hard7
+numbers below. Those runs read
+`outputs/nisb_base_banis_plus_zebrafinch_heavy/20260726_114349/test_step=00200000/0/raw_x1_ch0-1-2_chunked-raw_cs1008x1008x1008_halo72x72x72_zebrafinch_chunk_raw_grid1008_halo72.h5.chunks`
+— the `aff_path` of `wholevol_arm096_fullmask.yaml` and `wholevol_arm096_nuc_competitive_v2.yaml`,
+and the default `abiss_tuning.yaml` `affinity_path` inherited by the `hard7_nucleus` rung —
+which is the window-144 inference; `tier10_matrix_jobs.txt` tags exactly this store
+`t10_arm0_win144`, while true `[48,96,96]` output lives in the sibling
+`_win48x96x96.h5.chunks` store. That native store held only the fixed ten tier-10 chunks
+(2026-07-28) until slurm array 2861372 completed all 726 on 2026-08-16, so no whole-volume
+window-96 number predates 2026-08-16. The two paired gates in the final section are
+correctly attributed: "adversarial win144" is rung `z4_nucleus_matchguard` (default win144
+path) and "native arm0_96" is rung `z4_nucleus_matchguard_win96` (explicit `_win48x96x96`
+path). All measured numbers stand; only the window attribution changes.]
 
 ## Executive conclusion
 
@@ -89,13 +104,18 @@ looks excellent even though the cell bodies are not cleanly separated.
 This is exactly the important contrast between the two affinity arms:
 
 - `arm1_ft` showed both exclusion and anchoring problems: marker mass was spread and shared;
-- `arm0_96` mainly showed an exclusion problem: dominance was 0.9905–1.0000, yet whole
-  somata still shared segments.
+- `arm0` (the whole-volume run labelled `arm0_96`, in fact window-144 affinity) mainly showed
+  an exclusion problem: dominance was 0.9905–1.0000, yet whole somata still shared segments.
 
-For `arm0_96`, 32 final segments contained at least two qualifying nuclei, involving 74 of
+For that arm, 32 final segments contained at least two qualifying nuclei, involving 74 of
 465 neurons (15.9%). The misplaced-marker fraction was only 0.85%, understating the
 instance-level defect by roughly twentyfold. Report fused-neuron incidence, not dominance
 alone.
+
+[corrected 2026-08-17: these figures come from `wholevol_arm096_fullmask`, whose `AFF_PATH` is
+`.../raw_x1_ch0-1-2_chunked-raw_cs1008x1008x1008_halo72x72x72_zebrafinch_chunk_raw_grid1008_halo72.h5.chunks`;
+that store is the window-144 inference (t10_arm0_win144), not window-96. Genuine window-96
+affinity was not computed whole-volume until 2026-08-16, slurm 2861372. Numbers unchanged.]
 
 ### The representational floor
 
@@ -124,14 +144,13 @@ the missing boundary. Seed competition supplies the missing identity prior.
 The canonical order is:
 
 ```text
-arm0_96 affinity + keep mask
+arm0 affinity (window-144 store, historically labelled arm0_96) + keep mask
   -> ABISS watershed L0..L5
   -> global watershed remap
   -> nucleus contact detection and competitive growth
   -> sparse territory overlay while building atomic RAGs
   -> nucleus-aware mean-edge agglomeration L0..L5
   -> final agglomeration remap
-```
 
 The base watershed precomputed volume is not rewritten. The competition stage writes a
 small manifest and pooled territory arrays. `cut_chunk_agg.py` overlays those labels on each
@@ -150,10 +169,19 @@ Only watershed IDs with at least two qualifying nuclei become candidates.
 ### Step 2: separate contacts from neurite bridges
 
 Not every multi-nucleus segment is a soma contact. In the earlier final `arm0_96`
-segmentation, the 32 cases divided evenly:
+segmentation (the `wholevol_arm096_fullmask` run), the 32 cases divided evenly:
 
 - 16 soma-contact cases below an 8 µm surface-gap threshold;
 - 16 neurite-bridge cases, with nuclei as far as 80.6 µm apart.
+
+[corrected 2026-08-17: the `arm0_96` name is a misnomer. That run's `aff_path`
+(`.../20260726_114349/test_step=00200000/0/raw_x1_ch0-1-2_..._grid1008_halo72.h5.chunks`,
+`wholevol_arm096_fullmask.yaml:40`) is the **window-144** inference — `build_tier10_jobs.py`
+keys it `arm0_win144` and `tier10_matrix_jobs.txt` tags it `t10_arm0_win144`; the store's
+filename encodes chunk size and halo only, never the window. Every whole-volume `arm0_96`
+figure in this note comes from that store and is therefore window-144 affinity. Genuine
+window-96 affinity (the separate `_win48x96x96` store) was not computed whole-volume until
+2026-08-16, slurm array 2861372.]
 
 V2 estimates each nucleus center and equivalent-sphere radius from its instance mask. Nuclei
 whose signed surface gap is below `NUC_CONTACT_UM=8.0` form a contact unit. Only contact
@@ -181,16 +209,23 @@ Pooling uses the minimum affinity as a conservative path cost. A seed survives p
 when the pooled block unanimously belongs to one nucleus. The parent mask is max-pooled, so
 the flood cannot leave the object being repaired.
 
-The largest territory retains the original watershed ID. Other territories receive
-deterministic IDs above `2^60`, outside ABISS's native ID range. IDs are derived from the
-parent/anchor pair, collision-checked, and stable across resume.
+Every adjudicated territory receives the deterministic nucleus-owner ID declared by the
+publication's `identity` block. The mint key is the nucleus alone, so one nucleus receives the
+same ID under different parents and in the single-owner canonicalization table. Unadjudicated
+residue deliberately retains the parent watershed ID; parent-ID absence is therefore neither
+asserted nor used as an acceptance gate.
 
-The important safety invariant is refinement:
+The flood geometry is contained by its input parent, but the published labeling is **not** a
+refinement-only operation. Canonicalization assigns the same nucleus-owner ID to every qualified
+single-owner base segment. In native96, 77 source segments consolidate into 15 labels, with one
+nucleus absorbing as many as seven base segments. If a nucleus mask ever places one instance
+across two genuinely different cells, this naming step silently fuses them; a region-graph
+cannot-link cannot detect that fusion. The manifest ledger therefore records every retired source
+and each consolidation's complete `sources` list.
 
-> Every output territory is a subset of its input watershed object.
-
-Competition cannot merge two previously distinct objects. It can only divide a selected
-one.
+Validation follows the artifact, not institutional memory: a validator may enforce what a
+publication declares about its identity and residue, but may not impose a convention remembered
+from another run.
 
 ### Step 4: overlay before the atomic RAG
 
@@ -302,8 +337,12 @@ fallback to unconstrained agglomeration would invalidate the experiment.
 The first full-volume attempt failed at watershed L1, but the L1 merge was only where the
 damage became visible. Five reproduced failures each contained one L0 child whose stored
 boundary affinity was partly or entirely zero. For example, child `0_9_6_8` had an all-zero
-`aff_i_2`; the verified `arm0_96` baseline and a fresh direct read of the same source seam
-both had 225,452 nonzero and 36,692 zero values.
+`aff_i_2`; the verified `wholevol_arm096_fullmask` baseline (window-144 affinity) and a fresh
+direct read of the same source seam both had 225,452 nonzero and 36,692 zero values.
+[corrected 2026-08-17: despite the `arm0_96` name, every `wholevol_arm096_*` run reads
+`.../grid1008_halo72.h5.chunks`, which is the window-144 inference (`t10_arm0_win144`);
+genuine window-96 affinity (`..._grid1008_halo72_win48x96x96.h5.chunks`) was not computed
+whole-volume until 2026-08-16, slurm array 2861372.]
 
 This was not an OOM or a stochastic ABISS merge failure. The affected children crossed a
 1008-voxel HDF5 chunk seam. `_ChunkedH5Array` discovered source chunks with `os.listdir()`
@@ -337,27 +376,88 @@ binaries. Replay manifests now pin both Git HEAD and a SHA-256 digest of all ABI
 scripts plus executable build outputs. Preparation must be rerun after any runtime edit or
 rebuild. Do not edit those files while a submitted chain is using them.
 
+## Controlled hard7 result: the boundary is created, then reconnected
+
+Before interpreting the full-volume jobs, the current arm0_96 parameters were run on seven
+fixed hard chunks in three paired arms:
+
+1. current arm0_96 ABISS control;
+2. the same parameters plus a chunk-local, 26-connected CC3D nucleus veto;
+3. the same parameters plus competitive pre-RAG nucleus territories and the veto.
+
+The mask was cut from `yl_cb_80nm_neuron_v2.h5` at the exact chunk bboxes. CC3D was applied
+per source nucleus ID, keeping only its largest connected component so that disconnected
+islands could not become invented instances. This is a controlled decoder comparison: affinity,
+FFN mask, ABISS parameters, chunks, and scoring are identical between arms.
+
+| arm | hard7 human mt50 linear NERL | hard7 human mt1 linear NERL | fused source/CC3D pairs |
+|---|---:|---:|---:|
+| control | 0.7788734050 | 0.7714437401 | 1 |
+| local nucleus veto | 0.7788734050 | 0.7714437401 | 1 |
+| competitive split + veto | 0.7788734050 | 0.7714437401 | 1 |
+
+The pseudo-label score moves by only about `1e-5`. All three arms therefore have the same
+human NERL and the same single fusion on `z4_y6_x1`.
+
+This is not because competition failed to identify the case. In `z4_y6_x1`, watershed
+segment `72057662824513538` contains CC3D/source nuclei 611 and 651. The corrected
+competition run assigns separate deterministic territories, touches about 22.03 million
+voxels in the overlay, and records a 2.132 um surface gap. Yet the final segmentation still
+places both nuclei in segment `72128031635904131`, with exactly the control NERL
+(`0.8611928694`). The veto and competition arms merely change the final label count
+(29,315 control; 30,109 veto; 29,954 competition).
+
+The likely bypass is later than the RAG operator. `match_chunks.cpp::process_nucs` applies
+the chunk remap and then joins nucleus records; when two different nucleus records collide it
+logs `nuc: load_conflict_collisions` but does not call `nuc_can_merge`. The corrected z4 run
+logs one such collision. The mean agglomerator does call `nuc_can_merge`, but by then it
+cannot undo a remap performed during internal chunk matching. Thus the experiment establishes
+that the current pre-RAG boundary reaches ABISS, but does **not** establish preservation
+through the complete hierarchy.
+
+One false start must remain excluded from the comparison. Replacing the local runner payload
+with a competition manifest did not recompute its stage list, so the nominal competition arm
+initially skipped `competitive_nucleus_growth`. The valid rerun supplies an explicit manifest
+and voxel size and recomputes the default stages. A decoder-arm name is not provenance;
+record and verify the executed stage list.
+
+Decision: do not promote these nucleus parameters yet. First make chunk matching honor the
+same cannot-link constraint, then rerun `z4_y6_x1` alone. Promotion requires distinct final
+segments for nuclei 611 and 651, zero load-conflict collision for that pair, unchanged output
+on the six abstaining controls, and no mt1/dominance regression. Only then rerun hard7 and
+advance to larger regions.
+
 ## What must be measured when the run completes
 
 Do not declare success from nucleus dominance or NERL alone.
 
-1. Inspect the competition manifest:
+1. Before scoring, verify that chunk matching preserves nucleus cannot-links:
+   - count `load_conflict_collisions` at every hierarchy level;
+   - report remaps rejected by the nucleus constraint;
+   - require the known z4 pair to remain in distinct final segments.
+2. Inspect the competition manifest:
    - multi-nucleus watershed IDs;
    - repaired contact units;
    - bridges left untouched;
    - seed/territory voxel counts and repair boxes.
-2. Run `nucleus_shell_contamination.py --tol 0.0` on the final segmentation.
-3. Report at least:
+3. Run `nucleus_shell_contamination.py --tol 0.0` on the final segmentation.
+4. Report at least:
    - fused final segments;
    - fused nucleus pairs;
    - neurons participating in a fusion;
    - contact and bridge cases separately;
    - per-nucleus dominant fraction and number of segments needed for 90% mass.
-4. Verify already-clean nuclei and outside-repair material are unchanged.
-5. Count nucleus-rejected RAG edges from `nuc_cuts.data` across hierarchy levels.
-6. Score canonical funlib NERL at merge threshold 50 against the unchanged
-   `wholevol_arm096_fullmask` baseline (`0.444376`).
-7. Inspect per-skeleton regressions; a global gain can hide over-splitting.
+5. Verify already-clean nuclei and outside-repair material are unchanged.
+6. Count nucleus-rejected RAG edges from `nuc_cuts.data` across hierarchy levels.
+7. Score canonical funlib NERL at merge threshold 50 against the unchanged
+   `wholevol_arm096_fullmask` baseline (`0.444376`) — window-144 affinity despite the
+   `arm096` name.
+   [corrected 2026-08-17: that run's `AFF_PATH` (`seg_arm096_fullmask/.../param`) is
+   `…_grid1008_halo72.h5.chunks`, which `tier10_matrix_jobs.txt` labels `t10_arm0_win144`;
+   genuine window-96 affinity (`…_win48x96x96.h5.chunks`) was not computed whole-volume until
+   2026-08-16, slurm array 2861372. The number and any A/B against it are unaffected — only
+   the window attribution carried by the name.]
+8. Inspect per-skeleton regressions; a global gain can hide over-splitting.
 
 The prior support audit found that soma-contact cases carry 34,615 of 500,845 skeleton
 nodes (6.91%), so the full-volume correction can affect NERL. Still, soma-fusion incidence
@@ -365,12 +465,26 @@ is the direct metric for the biological constraint and must be reported alongsid
 
 ## Status and artifacts
 
-As of 2026-08-14, the corrected fresh full-volume decodes have entered the Slurm watershed
-stage. The arm0 ch0-2 chain is `2855166` (watershed L0) through `2855180` (final remap); the
-independent arm2 ch3-5 chain is `2855181` through `2855195`. L0 requests 19 CPUs and 180 GiB
-per shard. The competition manifests and final nucleus/NERL results do not exist yet. Crop
-behavior, the repaired affinity seam, and software contracts are verified; whole-volume
-effectiveness remains pending.
+As of 2026-08-15, the corrected arm0 ch0-2 full-volume decode is operationally complete.
+Recovery nucleus job `2856392` completed in 7 h 20 min; constrained agglomeration and final
+remap jobs `2856393` through `2856399` all completed with zero failed final shards. The
+competition stage found nine multi-nucleus watershed objects, classified all nine as contact
+units, and wrote nine territory overlays. All expected watershed, agglomeration, and remap
+DONE counts are complete.
+
+Canonical funlib NERL at merge threshold 50 is `0.468030323127`, versus `0.444376` for the
+`wholevol_arm096_fullmask` baseline: `+0.023654323127` absolute and `+5.323%` relative, at 0.996734
+node coverage. Both runs read the identical `AFF_PATH`
+(`.../raw_x1_ch0-1-2_chunked-raw_cs1008x1008x1008_halo72x72x72_zebrafinch_chunk_raw_grid1008_halo72.h5.chunks`),
+so the A/B delta stands; the affinity is window-144, not window-96, despite the `arm096` name.
+[corrected 2026-08-17: this store is the window-144 inference (t10_arm0_win144); genuine
+window-96 affinity was not computed whole-volume until 2026-08-16, slurm 2861372] This is a real whole-volume score for the completed artifact, but it does not
+clear the biological promotion gate above. The current chunk-matching path still lacks a
+`nuc_can_merge` veto; therefore the shell-contamination audit, collision counts, and known z4
+pair remain required before attributing the gain to preserved soma separation.
+
+The independent arm2 ch3-5 decode uses its own v2 namespace. Do not infer its result from
+the arm0 score.
 
 Current implementation and launch configs:
 
@@ -385,6 +499,8 @@ Current implementation and launch configs:
 - `tests/unit/test_abiss_nucleus_competition.py`
 - `lib/abiss/tests/test_nuc_algebra.cpp`
 - `lib/abiss/tests/test_nuc_agg.py`
+- `abiss_tuning/fixed_tiers/reports/hard7_nucleus/summary.json`
+- `reports/abiss_nucleus_cc3d_hard7_0814.md`
 
 Previous methods and diagnostics:
 
@@ -397,5 +513,85 @@ Previous methods and diagnostics:
 
 The shortest correct summary is:
 
-> V1 protected boundaries that already existed. V2 creates the missing soma boundary
-> inside a fused watershed object, then protects it through the complete ABISS hierarchy.
+> V1 protects RAG boundaries that already exist. V2 creates the missing soma boundary inside
+> a fused watershed object, but current chunk matching can remap the two territories together
+> before enforcing the nucleus constraint. Hierarchy-wide protection is not yet established.
+
+## Superseding implementation: identity must survive every representation boundary
+
+The preceding summary describes the first competitive implementation and its initial
+failure. The current implementation is stricter. It treats nucleus identity as an invariant
+that must survive four different representations, not as one extra edge test in mean-edge
+agglomeration.
+
+The important differences from the last version are:
+
+1. **Mask support is measured over the actual mip-0 footprint.** The old manifest sampled
+   one high-resolution center per 80-nm nucleus voxel. The RAG sees nearest-neighbour blocks
+   of `4 x 8 x 8 = 256` voxels, so center sampling could qualify the wrong watershed/owner
+   pair. The manifest now accumulates exact blockwise histograms over that expanded footprint.
+   `ABISS_NUC_MIN_TAGGED=1024` consequently means four source-mask voxels; the former value
+   50 was smaller than a single expanded voxel.
+2. **Owner identity is global only for a real repair.** A zero-repair publication is still a
+   complete publication and still runs ownership filtering and single-owner canonicalization;
+   it is a label no-op only when those tables are empty. For owners participating in a competitive repair,
+   sparse tags below the global `NUC_MIN_SHARE` qualification are removed, every qualified
+   soma piece for one owner receives the *same* deterministic protected ID, and each flooded
+   territory receives that ID plus a dense owner tag. Different owners still receive different
+   IDs. This prevents cross-child aliasing without fragmenting one soma into a protected label
+   per watershed fragment.
+3. **Agglomeration preserves identity-bearing representatives.** A tagged component remains
+   the representative when it absorbs an untagged component. Nucleus cannot-links are checked
+   on every mean-edge merge, and hierarchy matching carries nucleus state. This fixed the
+   original `load_conflict_collisions` failure, including the 611/651 reproduction.
+4. **Array layout is explicit.** CloudVolume cutouts are commonly Fortran ordered. Flattening
+   a channel view with default C-order `reshape` produced a copy, so logs reported filtering
+   and canonicalization while `seg.raw` and `nuc.raw` remained unchanged. Overlay code now
+   mutates explicit C working arrays and always writes both channels back to the original
+   cutouts. A Fortran-order regression test covers this path.
+5. **The final remap replays the same declared overlay.** The RAG path used the competitive labels,
+   but the old final writer reloaded the original `WS_PATH`. A hard gate could therefore show
+   zero hierarchy collisions, distinct top-level owner records, and a rejected nucleus edge,
+   yet fuse 611 and 651 in the materialized segmentation. `cut_chunk_remap.py` now applies the
+   same competition overlay before the aggregation remap table is evaluated.
+
+The fifth issue is qualitatively different from the earlier false merge. Internal graph
+state was already correct: the failed diagnostic retained owner 1 as segment
+`1202455102220122803`, owner 4 as `1217835787581195885`, and one final nucleus-rejected edge.
+Only the output writer reintroduced the fusion. This is why collision logs alone cannot be
+the promotion gate.
+
+The required proof now crosses the full pipeline:
+
+- the manifest uses exact expanded-footprint support and globally qualified owners;
+- a zero-repair manifest completes ownership filtering and canonicalization, and the native gate
+  remains unchanged because it declares neither protected owners nor canonicalization entries;
+- every hierarchy-level `load_conflict_collisions` count is zero;
+- top-level nucleus records retain distinct owners and record the expected veto;
+- the materialized segmentation reports `fused_source_pairs == 0` and maps nuclei 611 and
+  651 to distinct nonzero dominant labels;
+- NERL is reported with the canonical funlib formula at merge threshold 50. The mt1 oracle is
+  not a selection metric because a few outlier false-merge voxels should not invalidate an
+  otherwise good segmentation.
+
+The final paired gates satisfy that proof with runtime hash
+`1686177c2546ffe0f3c9dd067885ab66bf41b85928fff92a2d01763010771d45`:
+
+- The adversarial win144 gate has one repair and protected owners 1 and 4. All 18 hierarchy
+  loads report zero conflicts. Source nuclei 611 and 651 have distinct dominant labels,
+  dominance 0.98249 and 0.99062, and one segment each for 90% of their mass. There are zero
+  fused source pairs. Canonical human mt50 linear NERL is `0.8611928694330402`, restoring the
+  pre-fix score while actually separating the nuclei.
+- The native arm0_96 gate has zero multi-nucleus watershed targets, zero repairs, and zero
+  protected owners. All 16 RAG cutouts and all 16 final-remap cutouts take the explicit no-op
+  path; all 18 hierarchy loads are conflict-free. Sources 611 and 651 retain their original
+  distinct affinity-derived labels with dominance 0.98525 and 0.99044 and one segment each
+  for 90% mass. Canonical human mt50 linear NERL remains `0.9647168642163645`.
+- Focused Python tests cover expanded-footprint histograms, competitive ownership,
+  Fortran-order writeback, protected-only filtering, shared per-owner labels, zero-repair
+  no-op behavior, and final-remap replay.
+
+In short: the last version created a soma boundary locally; the current version gives each
+side a durable identity, anchors the pieces belonging to the same repaired nucleus, protects
+different identities through atomic and composite graph operations, and reconstructs the
+same labeled state when writing the final volume.

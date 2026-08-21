@@ -304,6 +304,7 @@ tutorials/                          # Example configurations (16 canonical YAMLs
 │                                   #   targets, augmentation, schedule, inference defaults).
 │                                   #   Not runnable alone; dataset tutorials `_base_` them
 │                                   #   and add only their own data block.
+├── decoding/                       # Single-volume ABISS decoding
 ├── mitoEM/, neuron_nisb/, neuron_snemi/  # Multi-config experiment families
 │                                   #   neuron_nisb/: base_banis{,+}.yaml = ../banis{,+}.yaml
 │                                   #   + dataset.yaml (NISB paths + decode sweep)
@@ -319,10 +320,8 @@ tutorials/                          # Example configurations (16 canonical YAMLs
 │                                   #   mito_lucchi++, mito_mitolab, mito_betaseg(_banis_v0/v1/v2),
 │                                   #   neuron_liconn_mit(_x2), nuc_nucmm-z, syn_cremi,
 │                                   #   vesicle_xm, fiber_linghu26, minimal, waterz_decoding
-└── waterz_decoding_large{,_abiss}.yaml  # Custom large-volume workflow YAMLs
-                                    #   (top-level `large_decode:`/`abiss_chunk:` keys;
-                                    #   bypass structured Config; consumed by the
-                                    #   `waterz_decode_large` console script in lib/waterz/)
+└── waterz_decoding_large.yaml      # Custom large-volume WaterZ workflow
+                                    #   (`large_decode:` bypasses structured Config)
 
 tests/                              # Test suite
 ├── unit/                           # Unit tests

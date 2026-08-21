@@ -1,0 +1,82 @@
+{
+  "cases": [
+    {
+      "name": "win144_schema_1_0_parent_72199226020331523",
+      "source": {
+        "run": "wholevol_arm096_nuc_competitive_v2",
+        "manifest_schema": "1.0",
+        "manifest_sha256": "5875841d17c91891c5f14fbaaa9deafc7752c6a5975a515dd7b556d8ca5e51a1",
+        "territory_sha256": "41c1c8a179e23767bd30bd3b0786d357617a9b2963c3519c0d20a5e48a67b43a",
+        "source_pooled_origin_xyz": [0, 11, 29]
+      },
+      "manifest": {
+        "schema_version": "1.0",
+        "manifest_type": "abiss_nucleus_competition",
+        "repairs": [
+          {
+            "parent_id": "72199226020331523",
+            "anchor_ids": ["611", "651"],
+            "bbox_xyz": [0, 0, 0, 8, 4, 4],
+            "factor": 4,
+            "territory_file": "territory.npz",
+            "marker_labels": {
+              "1": "1224288040092993667",
+              "2": "72199226020331523"
+            },
+            "pooled_voxels": {
+              "611": 283516,
+              "651": 699656
+            }
+          }
+        ],
+        "bridges_left_untouched": []
+      },
+      "territory": [[[1]], [[2]]],
+      "expected_x_labels": [1224288040092993667, 72199226020331523]
+    },
+    {
+      "name": "native96_schema_1_2_parent_72128993574256642",
+      "source": {
+        "run": "wholevol_arm0_native96_nuc_matchguard",
+        "manifest_schema": "1.2",
+        "manifest_sha256": "59bbece64bf6f988d45309a95c146e8386bfbb6ebca9b4554c681ff271ed073e",
+        "territory_sha256": "1a9dc16f4bc22621cf1ba02b8e697e3bd1bdef88a7406b6eaa882fd5ae099a17",
+        "source_pooled_origin_xyz": [0, 16, 26]
+      },
+      "manifest": {
+        "schema_version": "1.2",
+        "manifest_type": "abiss_nucleus_competition",
+        "qualified_segment_labels": {
+          "72128993574256642": {
+            "22": "1191818983345064871",
+            "37": "1189944491793499337"
+          }
+        },
+        "repairs": [
+          {
+            "parent_id": "72128993574256642",
+            "anchor_ids": ["22", "37"],
+            "bbox_xyz": [0, 0, 0, 8, 4, 4],
+            "factor": 4,
+            "territory_file": "territory.npz",
+            "marker_labels": {
+              "1": "1191818983345064871",
+              "2": "1189944491793499337"
+            },
+            "marker_nucleus_ids": {
+              "1": "22",
+              "2": "37"
+            },
+            "pooled_voxels": {
+              "22": 312737,
+              "37": 694626
+            }
+          }
+        ],
+        "bridges_left_untouched": []
+      },
+      "territory": [[[2]], [[1]]],
+      "expected_x_labels": [1189944491793499337, 1191818983345064871]
+    }
+  ]
+}
