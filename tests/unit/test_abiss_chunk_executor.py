@@ -137,6 +137,82 @@ def test_default_stage_order_preserves_four_stage_pipeline(tmp_path: Path) -> No
     assert [plan.env["STAGE"] for plan in result.stage_plans] == ["ws", "ws", "agg", "agg"]
 
 
+def test_nucleus_config_inserts_competition_between_remap_and_agglomeration(
+    tmp_path: Path,
+) -> None:
+    payload = {
+        **_prepared(tmp_path).param_payload,
+        "NUC_PATH": "/input/nuclei.h5::main",
+        "NUC_COMPETITION_MANIFEST": str(tmp_path / "competition" / "manifest.json"),
+    }
+    prepared = replace(
+        _prepared(tmp_path),
+        param_payload=payload,
+        stages=abiss_chunk.default_stages(payload),
+    )
+
+    result = abiss_chunk.run_abiss_chunk(prepared)
+
+    assert [plan.stage for plan in result.stage_plans] == list(
+        abiss_chunk.STAGES_WITH_NUCLEUS
+    )
+    competition = result.stage_plans[2]
+    assert Path(competition.argv[1]).name == "nucleus_competition.py"
+    assert competition.argv[2] == str(prepared.param_path)
+    assert competition.env["STAGE"] == "nucleus_competition"
+    assert competition.env["PARAM_JSON"] == str(prepared.param_path)
+
+
+def test_nucleus_constraints_can_disable_competitive_growth(tmp_path: Path) -> None:
+    payload = {
+        **_prepared(tmp_path).param_payload,
+        "NUC_PATH": "/input/nuclei.h5::main",
+        "NUC_COMPETITION_MANIFEST": str(tmp_path / "competition" / "manifest.json"),
+        "NUC_COMPETITION_ENABLED": False,
+    }
+
+    assert abiss_chunk.default_stages(payload) == abiss_chunk.STAGES_ALL
+
+
+def test_prepare_config_derives_nucleus_manifest_and_physical_resolution(
+    tmp_path: Path,
+) -> None:
+    source_h5 = tmp_path / "affinity.h5"
+    with h5py.File(source_h5, "w") as handle:
+        handle.create_dataset("main", data=np.zeros((3, 4, 6, 8), dtype=np.uint8))
+    config_path = tmp_path / "abiss.yaml"
+    config_path.write_text(
+        yaml.safe_dump(
+            {
+                "abiss_chunk": {
+                    "abiss_home": str(tmp_path / "abiss"),
+                    "workdir": str(tmp_path / "work"),
+                    "secrets_dir": str(tmp_path / "secrets"),
+                    "source_affinity_h5": str(source_h5),
+                    "source_dataset": "main",
+                    "resolution_xyz": [9, 9, 20],
+                    "param": {
+                        "NAME": "nucleus",
+                        "BBOX": [0, 0, 0, 8, 6, 4],
+                        "CHUNK_SIZE": [8, 6, 4],
+                        "NUC_PATH": str(tmp_path / "nuclei.h5") + "::main",
+                        "NUC_RATIO": [4, 8, 8],
+                    },
+                }
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    workflow = abiss_chunk.prepare_config(config_path)
+
+    assert workflow.param_payload["NUC_VOXEL_SIZE_ZYX_NM"] == [20, 9, 9]
+    assert workflow.param_payload["NUC_COMPETITION_MANIFEST"] == str(
+        (workflow.workdir / "nucleus_competition" / "manifest.json").resolve()
+    )
+    assert workflow.execution_config().stages == abiss_chunk.STAGES_WITH_NUCLEUS
+
+
 def test_nonzero_stage_exit_propagates(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     prepared = _prepared(tmp_path)
     calls = 0
@@ -240,6 +316,18 @@ def test_write_param_false_preserves_prepared_param(
     abiss_chunk.run_abiss_chunk(prepared, execute=True)
 
     assert prepared.param_path.read_text(encoding="utf-8") == "already prepared\n"
+
+
+def test_write_param_invalidates_derived_abiss_config(tmp_path: Path) -> None:
+    param_path = tmp_path / "secrets" / "param"
+    param_path.parent.mkdir(parents=True)
+    config_path = param_path.parent / "config.sh"
+    config_path.write_text('export AGG_THRESHOLD="0.2"\n', encoding="utf-8")
+
+    abiss_chunk._write_param(param_path, {"AGG_THRESHOLD": 0.7})
+
+    assert json.loads(param_path.read_text(encoding="utf-8")) == {"AGG_THRESHOLD": 0.7}
+    assert not config_path.exists()
 
 
 def test_replay_output_initialization_uses_validated_metadata(

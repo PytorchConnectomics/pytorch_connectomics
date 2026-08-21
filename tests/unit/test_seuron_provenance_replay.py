@@ -175,6 +175,86 @@ def test_cli_overrides_yaml_values_without_writing(tmp_path):
     assert not out_root.exists()
 
 
+def test_param_overrides_enable_nucleus_competition_with_cli_affinity_precedence(
+    tmp_path: Path,
+) -> None:
+    from scripts import run_seuron_provenance as cli
+
+    config = tmp_path / "nucleus-replay.yaml"
+    config.write_text(
+        json.dumps(
+            {
+                "seuron_replay": {
+                    "provenance_path": str(FIXTURE),
+                    "out_root": str(tmp_path / "output"),
+                    "name": "nucleus-run",
+                    "abiss_home": str(tmp_path / "abiss"),
+                    "param_overrides": {
+                        "AFF_PATH": "file:///generic-override",
+                        "AGG_THRESHOLD": "0.4",
+                        "NUC_PATH": str(tmp_path / "nuclei.h5") + "::main",
+                        "NUC_RATIO": [4, 8, 8],
+                    },
+                }
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    resolved = cli.resolve_replay(
+        cli.parse_args(
+            [
+                "--config",
+                str(config),
+                "--aff-path",
+                "file:///cli-affinity",
+            ]
+        )
+    )
+    prepared = cli.prepare_execution(resolved)
+
+    assert resolved.param["AFF_PATH"] == "file:///cli-affinity"
+    assert resolved.param["AGG_THRESHOLD"] == "0.4"
+    assert resolved.param["NUC_PATH"].endswith("nuclei.h5::main")
+    assert resolved.param["NUC_VOXEL_SIZE_ZYX_NM"] == [20, 9, 9]
+    assert resolved.param["NUC_COMPETITION_MANIFEST"] == str(
+        (resolved.run_root / "nucleus_competition" / "manifest.json").resolve()
+    )
+    assert prepared.stages == (
+        "watershed",
+        "remap_watershed",
+        "competitive_nucleus_growth",
+        "agglomerate_mean_edge",
+        "remap_agglomeration",
+    )
+
+
+def test_nucleus_preflight_fails_before_execution_for_missing_local_mask(
+    tmp_path: Path,
+) -> None:
+    from scripts import run_seuron_provenance as cli
+
+    resolved = cli.resolve_replay(
+        cli.parse_args(
+            [
+                "--config",
+                str(TUTORIAL),
+                "--out-root",
+                str(tmp_path / "output"),
+                "--name",
+                "missing-nucleus",
+            ]
+        )
+    )
+    resolved = replace(
+        resolved,
+        param={**resolved.param, "NUC_PATH": str(tmp_path / "missing.h5") + "::main"},
+    )
+
+    with pytest.raises(RuntimeError, match="Nucleus instance volume does not exist"):
+        cli._preflight_nucleus(resolved)
+
+
 def test_resolve_cli_does_not_import_cloudvolume_or_create_state(tmp_path):
     home = tmp_path / "home"
     cloudvolume_root = home / ".cloudvolume"
@@ -384,6 +464,56 @@ def test_affinity_preflight_uses_physical_resolution_and_full_bounds(monkeypatch
     with pytest.raises(ValueError, match="outside affinity bounds") as exc_info:
         cli._preflight_affinity(resolved)
     assert "credentials" not in str(exc_info.value)
+
+
+def test_affinity_preflight_accepts_abiss_h5_chunk_store(tmp_path):
+    import h5py
+    import numpy as np
+
+    from scripts import run_seuron_provenance as cli
+
+    affinity = tmp_path / "affinity.h5.chunks"
+    affinity.mkdir()
+    with h5py.File(affinity / "chunk_z0_y0_x0.h5", "w") as handle:
+        dataset = handle.create_dataset(
+            "main",
+            data=np.ones((3, 4, 5, 6), dtype=np.float32),
+        )
+        dataset.attrs["chunk_start_zyx"] = "[0, 0, 0]"
+
+    resolved = cli.resolve_replay(
+        cli.parse_args(
+            [
+                "--config",
+                str(TUTORIAL),
+                "--out-root",
+                str(tmp_path / "output"),
+                "--name",
+                "chunk-store",
+                "--aff-path",
+                str(affinity),
+                "--exec-bbox",
+                "0",
+                "0",
+                "0",
+                "6",
+                "5",
+                "4",
+                "--score-bbox",
+                "0",
+                "0",
+                "0",
+                "1",
+                "1",
+                "1",
+            ]
+        )
+    )
+
+    metadata = cli._preflight_affinity(resolved)
+
+    assert metadata.resolution_xyz == (9, 9, 20)
+    assert metadata.chunk_size_xyz == tuple(resolved.param["CHUNK_SIZE"])
 
 
 def test_replay_execute_writes_copy_uri_transfer_commands(monkeypatch, tmp_path):

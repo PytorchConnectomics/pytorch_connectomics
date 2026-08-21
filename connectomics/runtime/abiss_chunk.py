@@ -1,7 +1,9 @@
-"""Prepare and run vendored ABISS decoding across a logical chunk hierarchy.
+"""Prepare and run vendored ABISS decoding workflows.
 
-This module bridges the tutorial config in ``tutorials/waterz_decoding_large_abiss.yaml``
-to the vendored ABISS shell pipeline by:
+This module bridges the tutorial config in ``tutorials/decoding/decoding_abiss.yaml``
+to the vendored ABISS shell pipeline. That basic config uses one logical chunk;
+other configs can provide a hierarchy whose composite layers stitch multiple
+chunks. The runner handles both cases by:
 - converting saved affinity H5 (C, Z, Y, X) into local precomputed/CloudVolume
 - initializing WS/SEG precomputed outputs
 - writing the ABISS JSON param file expected by ``lib/abiss/scripts/init.sh``
@@ -33,6 +35,25 @@ STAGES_ALL = (
     "agglomerate_mean_edge",
     "remap_agglomeration",
 )
+STAGES_WITH_NUCLEUS = (
+    "watershed",
+    "remap_watershed",
+    "competitive_nucleus_growth",
+    "agglomerate_mean_edge",
+    "remap_agglomeration",
+)
+STAGE_CHOICES = tuple(dict.fromkeys(STAGES_ALL + STAGES_WITH_NUCLEUS))
+
+
+def _nucleus_competition_enabled(payload: Mapping[str, Any]) -> bool:
+    enabled = payload.get("NUC_COMPETITION_ENABLED", True)
+    if not isinstance(enabled, bool):
+        raise ValueError("NUC_COMPETITION_ENABLED must be true or false.")
+    return bool(enabled and payload.get("NUC_PATH") and payload.get("NUC_COMPETITION_MANIFEST"))
+
+
+def default_stages(payload: Mapping[str, Any]) -> tuple[str, ...]:
+    return STAGES_WITH_NUCLEUS if _nucleus_competition_enabled(payload) else STAGES_ALL
 
 
 def _open_cloudvolume(cloudpath: str, **kwargs: Any) -> Any:
@@ -146,9 +167,10 @@ class ChunkWorkflowConfig:
     def execution_config(
         self,
         *,
-        stages: Sequence[str] = STAGES_ALL,
+        stages: Sequence[str] | None = None,
         write_param: bool = True,
     ) -> PreparedConfig:
+        resolved_stages = default_stages(self.param_payload) if stages is None else tuple(stages)
         return PreparedConfig(
             workdir=self.workdir,
             secrets_dir=self.secrets_dir,
@@ -159,7 +181,7 @@ class ChunkWorkflowConfig:
             top_mip=self.top_mip,
             stage_overlap=self.stage_overlap,
             stage_meta=self.stage_meta,
-            stages=tuple(stages),
+            stages=resolved_stages,
             write_param=write_param,
         )
 
@@ -703,6 +725,7 @@ def prepare_config(config_path: Path) -> ChunkWorkflowConfig:
     chunkmap_cloudpath = _normalize_cloudpath(
         param.get("CHUNKMAP_OUTPUT", outputs_root / "chunkmap")
     )
+    chunkmap_input_cloudpath = _normalize_cloudpath(param.get("CHUNKMAP_INPUT", chunkmap_cloudpath))
 
     stage_overlap = str(ab.get("overlap_mode", 0))
     stage_meta = " ".join(str(v) for v in ab.get("meta_dirs", []))
@@ -719,7 +742,7 @@ def prepare_config(config_path: Path) -> ChunkWorkflowConfig:
             "WS_PATH": ws_cloudpath,
             "SEG_PATH": seg_cloudpath,
             "SCRATCH_PATH": scratch_cloudpath,
-            "CHUNKMAP_INPUT": chunkmap_cloudpath,
+            "CHUNKMAP_INPUT": chunkmap_input_cloudpath,
             "CHUNKMAP_OUTPUT": chunkmap_cloudpath,
             "UPLOAD_CMD": upload_cmd,
             "DOWNLOAD_CMD": download_cmd,
@@ -736,6 +759,15 @@ def prepare_config(config_path: Path) -> ChunkWorkflowConfig:
     payload.setdefault("AGG_THRESHOLD", 0.2)
     payload.setdefault("PARANOID", False)
     payload.setdefault("CHUNKED_AGG_OUTPUT", False)
+    if payload.get("NUC_PATH") and payload.get("NUC_COMPETITION_ENABLED", True):
+        payload.setdefault(
+            "NUC_COMPETITION_MANIFEST",
+            str((workdir / "nucleus_competition" / "manifest.json").resolve()),
+        )
+        payload.setdefault(
+            "NUC_VOXEL_SIZE_ZYX_NM",
+            list(reversed(resolution_xyz)),
+        )
 
     return ChunkWorkflowConfig(
         workdir=workdir,
@@ -870,6 +902,14 @@ def _stage_command(cfg: PreparedConfig, stage: str) -> tuple[list[str], dict[str
     elif stage == "remap_watershed":
         env["STAGE"] = "ws"
         cmd = ["bash", str(scripts_dir / "remap_batch.sh"), "ws", str(cfg.top_mip), cfg.root_tag]
+    elif stage == "competitive_nucleus_growth":
+        env["STAGE"] = "nucleus_competition"
+        env["PARAM_JSON"] = str(cfg.param_path)
+        cmd = [
+            sys.executable,
+            str(scripts_dir / "nucleus_competition.py"),
+            str(cfg.param_path),
+        ]
     elif stage == "agglomerate_mean_edge":
         env["STAGE"] = "agg"
         cmd = ["bash", str(scripts_dir / "run_batch.sh"), "me", str(cfg.top_mip), cfg.root_tag]
@@ -893,6 +933,10 @@ def _write_param(param_path: Path, payload: Mapping[str, Any]) -> None:
     with param_path.open("w", encoding="utf-8") as f:
         json.dump(dict(payload), f, indent=2, sort_keys=True)
         f.write("\n")
+    if param_path.name == "param":
+        # ABISS derives config.sh from this JSON but otherwise reuses it forever.
+        # Invalidate that cache so reruns observe changed thresholds and paths.
+        (param_path.parent / "config.sh").unlink(missing_ok=True)
     print(f"Wrote ABISS param JSON: {param_path}")
 
 
@@ -984,11 +1028,12 @@ def _execute_stage(cfg: PreparedConfig, plan: StagePlan) -> None:
 
 
 def run_abiss_chunk(prepared: PreparedConfig, *, execute: bool = False) -> RunResult:
-    """Resolve or execute the canonical four-stage ABISS chunk invocation.
+    """Resolve or execute the canonical ABISS chunk invocation.
 
     Dry resolution is the default and performs no filesystem or subprocess I/O.
     Execution writes the canonical sorted param JSON, runs the requested stages in
-    order, and opens the final segmentation layer for result discovery.
+    order, and opens the final segmentation layer for result discovery. Nucleus-aware
+    configs add competitive growth between watershed remapping and agglomeration.
     """
 
     if not execute:
@@ -1043,8 +1088,8 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
     parser.add_argument(
         "--stages",
         nargs="+",
-        choices=STAGES_ALL,
-        default=STAGES_ALL,
+        choices=STAGE_CHOICES,
+        default=None,
         help="ABISS stages to run after preparation",
     )
     return parser.parse_args(argv)
