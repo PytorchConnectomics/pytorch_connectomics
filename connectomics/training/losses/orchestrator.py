@@ -235,12 +235,39 @@ class LossOrchestrator:
         logger.warning(title)
         logger.warning(f"{'=' * 80}")
         logger.warning(f"Loss value: {loss.item()}")
+        if torch.distributed.is_available() and torch.distributed.is_initialized():
+            logger.warning(
+                f"Rank: {torch.distributed.get_rank()} of "
+                f"{torch.distributed.get_world_size()}"
+            )
         for line in info_lines:
             logger.warning(line)
         for name, tensor in tensor_map.items():
-            tensor_range = f"[{tensor.min():.4f}, {tensor.max():.4f}]"
-            logger.warning(f"{name} shape: {tensor.shape}, range: {tensor_range}")
-            logger.warning(f"{name} contains NaN: {torch.isnan(tensor).any()}")
+            # min()/max() propagate NaN, so a plain range prints "[nan, nan]" for a
+            # single bad element and cannot be distinguished from a fully corrupt
+            # tensor. Report counts and the finite-only range instead.
+            n_nan = int(torch.isnan(tensor).sum())
+            n_inf = int(torch.isinf(tensor).sum())
+            finite = tensor[torch.isfinite(tensor)]
+            finite_range = (
+                f"[{finite.min():.4f}, {finite.max():.4f}]"
+                if finite.numel()
+                else "[no finite elements]"
+            )
+            logger.warning(f"{name} shape: {tensor.shape}, finite range: {finite_range}")
+            logger.warning(
+                f"{name} non-finite: {n_nan} NaN + {n_inf} Inf of {tensor.numel()} "
+                f"({100.0 * (n_nan + n_inf) / max(tensor.numel(), 1):.4f}%)"
+            )
+            if (n_nan or n_inf) and tensor.dim() > 1:
+                # Per-sample fractions separate "one poisoned sample" from "corrupt
+                # shared state": the model normalizes per sample, so a batch-wide
+                # hit implicates the weights rather than the batch.
+                per_sample = (~torch.isfinite(tensor)).flatten(1).float().mean(1)
+                logger.warning(
+                    f"{name} non-finite fraction per sample: "
+                    + ", ".join(f"{v:.4f}" for v in per_sample.tolist())
+                )
         if self.debug_on_nan:
             logger.warning(
                 "debug_on_nan=True is set, but interactive breakpoints are disabled. "
