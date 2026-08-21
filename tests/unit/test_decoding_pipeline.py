@@ -49,6 +49,7 @@ def affinity_with_redundant_channels() -> np.ndarray:
 
 def test_builtin_decoders_are_registered():
     names = set(list_decoders())
+    assert "select_channels" in names
     assert "naive_waterz" in names
     assert "seg_2d" in names
     assert "branch_link" in names

@@ -122,3 +122,52 @@ def test_3d_opening_destroys_a_z_thin_label_that_2d_keeps():
 def test_invalid_plane_is_rejected():
     with pytest.raises(ValueError, match="plane must be"):
         label_opening(_tube(), plane="xy")
+
+
+def _long_tube(z_size: int = 40, size: int = 48) -> np.ndarray:
+    seg = np.zeros((z_size, size, size), np.uint32)
+    seg[:, 18:28, 18:28] = 1
+    return seg
+
+
+def test_single_slice_flip_is_rejected_as_stripe_noise():
+    # One slice gains a lobe. A carve here paints that slice a different colour
+    # between two slices of the original id -- a horizontal stripe.
+    seg = _long_tube()
+    seg[20, 18:28, 30:40] = 1
+
+    kept, splits = split_area_outliers(seg, min_size=100, min_extra=50)
+    assert splits == 0
+    assert np.array_equal(kept, seg)
+
+    # The same volume does carve once the run-length gate is removed, so the
+    # gate is what suppresses it, not the detector failing to fire.
+    _, noisy = split_area_outliers(seg, min_size=100, min_extra=50, min_run=1)
+    assert noisy == 1
+
+
+def test_carve_requires_a_long_enough_tube():
+    # A short label carrying the same area step is left alone.
+    short = np.zeros((40, 48, 48), np.uint32)
+    short[0:8, 18:28, 18:28] = 1
+    short[3:8, 18:28, 30:40] = 1
+    _, splits = split_area_outliers(short, min_size=100, min_extra=50)
+    assert splits == 0
+
+    # The same step on a tube spanning the volume is carved.
+    long_tube = _long_tube()
+    long_tube[20:32, 18:28, 30:40] = 1
+    _, splits = split_area_outliers(long_tube, min_size=100, min_extra=50)
+    assert splits >= 1
+
+
+def test_carve_never_keeps_a_sliver_of_the_tube():
+    # keep_ratio guards the case where the watershed hands most of the slice to
+    # the intruder marker: the kept part must still look like the tube.
+    seg = _long_tube()
+    seg[20:32, 18:28, 30:40] = 1
+    out, splits = split_area_outliers(seg, min_size=100, min_extra=50)
+    assert splits >= 1
+    for z in range(20, 32):
+        kept_area = int((out[z] == 1).sum())
+        assert kept_area >= 0.5 * 100, f"z{z} kept only {kept_area} voxels of the tube"

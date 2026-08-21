@@ -7,6 +7,24 @@ import numpy as np
 from ...utils.channel_slices import resolve_channel_indices
 
 
+def select_channels(
+    predictions: np.ndarray,
+    *,
+    channels,
+) -> np.ndarray:
+    """Select and reorder channels for downstream graph nodes."""
+    arr = np.asarray(predictions)
+    if arr.ndim < 1:
+        raise ValueError("select_channels expects an array with a channel axis.")
+
+    indices = resolve_channel_indices(
+        channels,
+        num_channels=int(arr.shape[0]),
+        context="select_channels.channels",
+    )
+    return arr[indices]
+
+
 def channel_gate(
     predictions: np.ndarray,
     *,
@@ -37,4 +55,4 @@ def channel_gate(
     return gated.astype(arr.dtype, copy=False)
 
 
-__all__ = ["channel_gate"]
+__all__ = ["channel_gate", "select_channels"]

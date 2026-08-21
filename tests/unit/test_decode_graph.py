@@ -89,6 +89,25 @@ def test_raw_ref_grammar_preserves_channel_axis():
     np.testing.assert_array_equal(result, data[1:3])
 
 
+def test_select_channels_graph_node_selects_and_reorders():
+    data = np.arange(5 * 2 * 3 * 4, dtype=np.float32).reshape(5, 2, 3, 4)
+    graph = DecodeGraph(
+        nodes=[
+            DecodeNode(
+                name="zyx",
+                op="select_channels",
+                inputs=["raw"],
+                kwargs={"channels": [2, 1, 0]},
+            )
+        ],
+        output="zyx",
+    )
+
+    result = run_decode_graph(data, graph)
+
+    np.testing.assert_array_equal(result, data[[2, 1, 0]])
+
+
 def test_output_prunes_downstream_nodes_for_one_line_early_stop():
     registry = DecoderRegistry()
     calls = []

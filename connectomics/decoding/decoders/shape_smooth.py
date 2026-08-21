@@ -40,6 +40,8 @@ still leaks voxels, hence the conservative gates.
 
 from __future__ import annotations
 
+from math import ceil
+
 import numpy as np
 from scipy.ndimage import binary_dilation, binary_erosion, distance_transform_edt, median_filter
 from skimage.segmentation import watershed
@@ -53,8 +55,14 @@ CONNECTIVITY = 26
 # Area-outlier detection, mirroring the tube report's bump test.
 BUMP_RATIO, BUMP_WINDOW, BUMP_MIN_EXTRA = 0.5, 15, 100
 # Carve gates.
-ERODE_ITERATIONS, SPLIT_MIN_SIZE, SPLIT_MIN_SPAN, MAX_RUN = 1, 1000, 5, 64
+ERODE_ITERATIONS, SPLIT_MIN_SIZE, MAX_RUN = 1, 1000, 64
 ANCHOR_BORDER = 2
+# Only carve a source label that is actually a tube: long in absolute slices AND
+# spanning a fraction of the volume (the tube report's "long enough" test).
+SPLIT_MIN_SPAN, SPLIT_MIN_SPAN_FRAC = 16, 0.25
+# A carve must survive this many slices, and each slice must keep at least this
+# fraction of the cross-section it continues.
+MIN_RUN, KEEP_RATIO = 3, 0.5
 
 
 def label_opening(
@@ -187,7 +195,10 @@ def split_area_outliers(
     erode_iterations: int = ERODE_ITERATIONS,
     min_size: int = SPLIT_MIN_SIZE,
     min_span: int = SPLIT_MIN_SPAN,
+    min_span_frac: float = SPLIT_MIN_SPAN_FRAC,
     max_run: int = MAX_RUN,
+    min_run: int = MIN_RUN,
+    keep_ratio: float = KEEP_RATIO,
     anchor_border: int = ANCHOR_BORDER,
     inplace: bool = False,
     verbose: bool = False,
@@ -200,11 +211,15 @@ def split_area_outliers(
     bounds, sizes, _ = seg_stats(seg)
     next_id = int(seg.max()) + 1
     splits = 0
+    span_gate = max(min_span, ceil(min_span_frac * seg.shape[0]))
     for label in sorted(bounds):
         if label <= 0 or int(sizes[label]) < min_size:
             continue
         z0, z1 = bounds[label][0], bounds[label][1]
-        if z1 - z0 + 1 < min_span:
+        # Carve only from a long-enough tube. A short label has too little
+        # profile to tell a merge from ordinary caliber variation, and carving
+        # it just fragments it further.
+        if z1 - z0 + 1 < span_gate:
             continue
         profile = _area_profile(seg, label, z0, z1)
         carved_z: set[int] = set()
@@ -227,8 +242,10 @@ def split_area_outliers(
             if not reference.any():
                 continue
             new_id = next_id
-            carved = 0
             truncated = False
+            # Stage the carve rather than writing it: a run has to prove itself
+            # over several slices before any voxel changes id (see min_run).
+            pending: list[tuple[int, np.ndarray]] = []
             # Walk away from the anchor until the extra region stops being
             # substantial -- that is where the merged neighbour left.
             for step in range(max_run):
@@ -247,27 +264,45 @@ def split_area_outliers(
                 if result is None:
                     break
                 kept, extra = result
-                seg[z][extra] = new_id
-                carved_z.add(z)
+                # The kept part is supposed to BE the tube continuing, so it has
+                # to look like the cross-section it came from. Without this the
+                # watershed can hand most of the slice to the intruder marker and
+                # keep a sliver -- measured at 70% of carved slices, which is what
+                # painted single-slice stripes down otherwise clean tubes.
+                if int(kept.sum()) < keep_ratio * int(reference.sum()):
+                    break
+                pending.append((z, extra))
                 reference = kept
-                carved += 1
             else:
                 truncated = True
-            if carved:
-                next_id += 1
-                splits += 1
-                if verbose:
+            # A real merge persists over a run of slices; a one- or two-slice
+            # flip is area-profile noise, and it is exactly what reads as a
+            # horizontal stripe when the new id wins those slices.
+            if len(pending) < min_run:
+                if verbose and pending:
                     print(
-                        f"  split {label} @z{z0 + index} dir{direction:+d}: "
-                        f"{carved} slices carved into {new_id}"
-                        f"{' (hit max_run)' if truncated else ''}",
+                        f"  reject {label} @z{z0 + index} dir{direction:+d}: "
+                        f"only {len(pending)} slices (min_run={min_run})",
                         flush=True,
                     )
-                elif truncated:
-                    print(
-                        f"  split {label} @z{z0 + index}: stopped at max_run={max_run}",
-                        flush=True,
-                    )
+                continue
+            for z, extra in pending:
+                seg[z][extra] = new_id
+                carved_z.add(z)
+            next_id += 1
+            splits += 1
+            if verbose:
+                print(
+                    f"  split {label} @z{z0 + index} dir{direction:+d}: "
+                    f"{len(pending)} slices carved into {new_id}"
+                    f"{' (hit max_run)' if truncated else ''}",
+                    flush=True,
+                )
+            elif truncated:
+                print(
+                    f"  split {label} @z{z0 + index}: stopped at max_run={max_run}",
+                    flush=True,
+                )
     return seg, splits
 
 
@@ -288,7 +323,10 @@ def shape_smooth(
     erode_iterations: int = ERODE_ITERATIONS,
     split_min_size: int = SPLIT_MIN_SIZE,
     split_min_span: int = SPLIT_MIN_SPAN,
+    split_min_span_frac: float = SPLIT_MIN_SPAN_FRAC,
     max_run: int = MAX_RUN,
+    min_run: int = MIN_RUN,
+    keep_ratio: float = KEEP_RATIO,
     anchor_border: int = ANCHOR_BORDER,
     verbose: bool = False,
 ) -> np.ndarray:
@@ -315,8 +353,16 @@ def shape_smooth(
             ``bump_min_extra`` (absolute voxels).
         erode_iterations: erosion applied to the previous cross-section before
             it seeds the continuation marker.
-        split_min_size / split_min_span: labels smaller or shorter than this are
-            not examined.
+        split_min_size / split_min_span / split_min_span_frac: only carve from a
+            long-enough tube. The span gate is ``max(split_min_span,
+            split_min_span_frac * Z)``; a short label has too little profile to
+            tell a merge from ordinary caliber variation.
+        min_run: a carve must survive this many consecutive slices or it is
+            discarded. One- and two-slice flips are area-profile noise and read
+            as horizontal stripes across an otherwise clean tube.
+        keep_ratio: each carved slice must keep at least this fraction of the
+            cross-section it continues, so the watershed cannot hand the tube to
+            the intruder marker and keep a sliver.
         max_run: cap on slices carved from one step; reported when hit.
         anchor_border: refuse to carve when the anchor cross-section is this
             close to a volume z-face, where it is truncated rather than whole.
@@ -368,7 +414,10 @@ def shape_smooth(
             erode_iterations=erode_iterations,
             min_size=split_min_size,
             min_span=split_min_span,
+            min_span_frac=split_min_span_frac,
             max_run=max_run,
+            min_run=min_run,
+            keep_ratio=keep_ratio,
             anchor_border=anchor_border,
             inplace=True,
             verbose=verbose,

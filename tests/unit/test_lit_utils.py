@@ -556,6 +556,37 @@ def test_format_decode_tag_encodes_pruned_graph_chain_and_output():
     assert format_decode_tag(cfg) != first_input_order_tag
 
 
+def test_format_decode_tag_hashes_long_graph_without_losing_cache_identity():
+    cfg = Config()
+    cfg.decoding.graph = {
+        "nodes": [
+            {
+                "name": f"stage_{idx}",
+                "op": "branch_merge",
+                "inputs": ["raw" if idx == 0 else f"stage_{idx - 1}"],
+                "kwargs": {
+                    "merge_iou": 0.45,
+                    "weak_max_gap": 15,
+                    "weak_min_iou": 0.35,
+                    "weak_min_size": 2000 + idx,
+                },
+            }
+            for idx in range(5)
+        ],
+        "output": "stage_4",
+    }
+
+    first = format_decode_tag(cfg)
+    assert len(first) <= 180
+    assert first.startswith("_graph-stage_0-branch_merge")
+    assert "__out-stage_4__h-" in first
+    assert len(final_prediction_output_tag(cfg)) <= 200
+
+    cfg.decoding.graph["nodes"][-1]["kwargs"]["weak_min_size"] += 1
+    second = format_decode_tag(cfg)
+    assert second != first
+
+
 def test_decoding_output_suffix_disambiguates_final_prediction_cache_glob():
     cfg = Config()
     cfg.inference.model.select_channel = [0, 1, 2]
