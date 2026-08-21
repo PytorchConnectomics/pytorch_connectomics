@@ -239,22 +239,12 @@ def resolve_replay(args: argparse.Namespace) -> ResolvedReplay:
         aff_override=aff_override,
     )
     param = dict(mapped.param)
-    # Affinity FORMAT keys only. These describe how to READ the affinity (edge
-    # convention, sigmoid scaling) -- a storage concern the provenance record has no
-    # field for, because Seuron always read a precomputed layer that was already
-    # converted. Segmentation parameters are deliberately NOT overridable: this is a
-    # fidelity replay, and letting a config retune AGG_THRESHOLD here would quietly
-    # invalidate the very comparison the tool exists to make.
+    # Replay YAML may explicitly adapt the captured parameter block, including
+    # nucleus-aware stages that did not exist in the original Seuron record. A CLI
+    # affinity selection still wins below so a generic AFF_PATH cannot shadow it.
     overrides = replay.get("param_overrides") or {}
     if not isinstance(overrides, Mapping):
         raise ValueError("seuron_replay.param_overrides must be a mapping.")
-    unknown = set(overrides) - _OVERRIDABLE_PARAM_KEYS
-    if unknown:
-        raise ValueError(
-            f"param_overrides may only set {sorted(_OVERRIDABLE_PARAM_KEYS)}; got "
-            f"{sorted(unknown)}. Segmentation parameters come from the provenance "
-            "record and are not overridable."
-        )
     param.update(overrides)
     # An explicit CLI/YAML affinity selection has higher precedence than the generic
     # format override block.
@@ -558,10 +548,6 @@ def _preflight_abiss(resolved: ResolvedReplay) -> None:
 # every axis, which is the alignment ABISS needs for its chunked writes.
 _DEFAULT_OUTPUT_CHUNK_XYZ = (256, 256, 256)
 
-# See the note where these are applied: read-format only, never segmentation.
-_OVERRIDABLE_PARAM_KEYS = frozenset({"AFF_CONVENTION", "AFF_RESTORE_SIGMOID"})
-
-
 def _load_volume_backends(abiss_home: Path):
     """Import ABISS' backend dispatcher (lib/abiss/scripts is not a package)."""
     scripts_dir = str(Path(abiss_home) / "scripts")
@@ -619,11 +605,17 @@ def _preflight_affinity_backend(
     except Exception as exc:
         raise RuntimeError(f"Affinity preflight failed for {affinity_path}: {exc}.") from exc
 
+    output_chunk = tuple(
+        int(value) for value in resolved.param.get("CHUNK_SIZE", _DEFAULT_OUTPUT_CHUNK_XYZ)
+    )
+    if len(output_chunk) != 3 or any(value <= 0 for value in output_chunk):
+        raise ValueError(f"CHUNK_SIZE must contain three positive XYZ values, got {output_chunk}.")
+
     print(
         f"affinity preflight: {affinity_path}\n"
         f"  shape(XYZ)={[xdim, ydim, zdim]} channels={volume.shape[3]} dtype={volume.dtype}\n"
         f"  resolution={list(requested_resolution)} (DECLARED, not verifiable for this backend)\n"
-        f"  output layer chunk={list(_DEFAULT_OUTPUT_CHUNK_XYZ)}"
+        f"  output layer chunk={list(output_chunk)}"
     )
     return AffinityMetadata(
         resolution_xyz=(
@@ -631,7 +623,7 @@ def _preflight_affinity_backend(
             requested_resolution[1],
             requested_resolution[2],
         ),
-        chunk_size_xyz=_DEFAULT_OUTPUT_CHUNK_XYZ,
+        chunk_size_xyz=output_chunk,
     )
 
 
