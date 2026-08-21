@@ -96,7 +96,7 @@ def _task_output_channels(task: Any) -> int:
     defaults = MultiTaskLabelTransformd._TASK_DEFAULTS.get(name, {})
     resolved_kwargs = {**defaults, **task_kwargs}
 
-    if name == "affinity":
+    if name in ("affinity", "thin_affinity_weight"):
         return len(resolve_affinity_offsets_from_kwargs(resolved_kwargs))
     if name == "skeleton_aware_edt":
         return 2 if float(resolved_kwargs.get("weight_param", 0.0)) > 0 else 1

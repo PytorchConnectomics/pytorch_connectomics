@@ -30,6 +30,7 @@ from .target import (
     AffinityTarget,
     seg_erosion_dilation,
     seg_to_affinity,
+    seg_to_thin_affinity_weight,
     seg_to_binary,
     seg_to_eroded_foreground,
     seg_to_flows,
@@ -781,6 +782,7 @@ class MultiTaskLabelTransformd(MapTransform):
         "binary": seg_to_binary,
         "eroded_foreground": seg_to_eroded_foreground,
         "affinity": seg_to_affinity,
+        "thin_affinity_weight": seg_to_thin_affinity_weight,
         "instance_boundary": seg_to_instance_bd,
         "instance_edt": edt_instance,
         "skeleton_aware_edt": skeleton_aware_distance_transform,
@@ -800,6 +802,16 @@ class MultiTaskLabelTransformd(MapTransform):
         "affinity": {
             "offsets": ["1-0-0", "0-1-0", "0-0-1"]
         },  # Default: 3 short-range affinities (z, y, x)
+        # Per-edge loss weight paired with an affinity target; offsets/
+        # affinity_mode MUST match that target so channel c weights the same edge.
+        "thin_affinity_weight": {
+            "offsets": ["1-0-0", "0-1-0", "0-0-1"],
+            "affinity_mode": "banis",
+            "resolution": (1.0, 1.0, 1.0),
+            "radius_ref": 8.0,
+            "max_weight": 4.0,
+            "include_negative": False,
+        },
         "instance_boundary": {"thickness": 1, "edge_mode": "seg-all", "mode": "3d"},
         "instance_edt": {"mode": "2d", "quantize": False},
         "skeleton_aware_edt": {
