@@ -8,6 +8,21 @@ This tutorial turns a 10 nm j0126 EM volume into a neuron segmentation in three 
 
 The last step is prediction-only at runtime. It uses the segmentation, affinities, predicted morphology, and an external nucleus-instance manifest; it does not read evaluation skeletons, their lookup table, or an FFN segmentation.
 
+## Results
+
+The table separates the affinity source, conservative decoder, and optional correction steps. The reported full-volume ablation uses the scratch affinity. The synthetic-affinity configuration is provided for transfer experiments, but does not yet have a directly comparable full-volume evaluation.
+
+| Affinity | Decoding | Error correction | NERL mt=0 ↑ | NERL mt=5 ↑ | VOI split ↓ | VOI merge ↓ | VOI ↓ |
+|---|---|---|---:|---:|---:|---:|---:|
+| **FFN reference** | — | — | **0.526** | 0.538 | **1.729** | 0.127 | **1.856** |
+| scratch | ABISS, exclusion mask | — | 0.268 | 0.470 | 2.542 | 0.042 | 2.584 |
+| scratch | + nucleus instance certificate | — | 0.287 | 0.482 | 2.543 | 0.019 | 2.562 |
+| scratch | + nucleus instance certificate | morphology-guided branch linking | 0.301 | 0.539 | 2.355 | 0.019 | 2.374 |
+| scratch | + nucleus instance certificate | + 3×3×3 inter-object erosion | 0.441 | 0.528 | 2.312 | 0.128 | 2.440 |
+| synthetic | — | — | not yet evaluated | not yet evaluated | not yet evaluated | not yet evaluated | not yet evaluated |
+
+`mt=5` is the five-node merge-tolerance NERL. The 3×3×3 erosion is a strict-mt=0 cleanup, not the best operating point for mt=5 NERL or VOI sum.
+
 ## Before running
 
 Edit **only** [params.yaml](params.yaml). It contains the repository checkout, dataset root, writeable output root, and the existing artifacts required to replay the frozen EC recipe. Every step inherits this file, so paths are not duplicated across the workflow YAMLs. Keep the algorithmic thresholds in the step YAMLs unchanged when reproducing the reference recipe.
@@ -47,7 +62,14 @@ Then run them:
 python scripts/run_abiss_chunk.py --config tutorials/neuron_j0126/2_abiss.yaml
 ```
 
-The fixed watershed and agglomeration settings intentionally under-merge. This leaves recoverable fragments for step 3 instead of welding uncertain neurons.
+Use one large shared-memory CPU job, not an array: ABISS runs all ready chunks in parallel and automatically uses the CPUs the scheduler grants the process. For Slurm, a good starting point is:
+
+```bash
+sbatch --cpus-per-task=64 --wrap='python scripts/run_abiss_chunk.py \
+  --config tutorials/neuron_j0126/2_abiss.yaml'
+```
+
+The hierarchy has barriers between levels, so independent jobs would race on the same layers without making the decode faster. The fixed watershed and agglomeration settings intentionally under-merge. This leaves recoverable fragments for step 3 instead of welding uncertain neurons.
 
 ## Step 3 — morphology-based error correction
 
@@ -87,13 +109,6 @@ python scripts/run_error_correction.py --config "$CFG" --stage verify
 
 Stages are restartable: completed chunk artifacts are reused. For a one-core smoke test, append `--max-owned-chunks 1` to an array-stage command.
 
-## Frozen reference result
+## Frozen correction recipe
 
-The recipe freezes 749 branch unions. Evaluation is deliberately outside the EC config and should be run only after the proposal has been frozen.
-
-| segmentation | NERL mt=0 | NERL mt=5 | VOI split | VOI merge | VOI sum |
-|---|---:|---:|---:|---:|---:|
-| v7 unions | 0.300729 | 0.539311 | 2.354895 | 0.019229 | 2.374124 |
-| v7 + 3x3x3 boundary erosion | 0.440506 | 0.527696 | 2.311561 | 0.128437 | 2.439998 |
-
-Use `erosion_radius_zyx: [0, 0, 0]` for the first row and `[1, 1, 1]` for the strict-mt=0 cosmetic cleanup in the second row. The cleanup improves mt=0 NERL, but is not the best choice for mt=5 NERL or VOI sum.
+The scratch run freezes 749 branch unions. Evaluation is deliberately outside the EC config and should be run only after the proposal has been frozen. Use `erosion_radius_zyx: [0, 0, 0]` for morphology linking alone and `[1, 1, 1]` for the strict-mt=0 cleanup shown above.

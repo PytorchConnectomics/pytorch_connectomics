@@ -16,6 +16,10 @@
 # every ambiguous decision is better deferred to step 3 than taken here.
 # AGG_THRESHOLD 0.20 with WS_HIGH 0.9 / WS_LOW 0.1 is the setting that reproduces the
 # reference segmentation this tutorial was measured on.
+#
+# CPU scaling: ABISS uses every CPU granted to this process by the scheduler. Submit this
+# as one shared-memory job (for example, Slurm `--cpus-per-task=64`), not a job array:
+# hierarchy levels have strict barriers and all workers write the same output layers.
 
 _base_: params.yaml
 
