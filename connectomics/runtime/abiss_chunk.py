@@ -27,7 +27,7 @@ from urllib.request import url2pathname
 
 import h5py
 import numpy as np
-import yaml  # type: ignore[import-untyped]
+from ..utils.yaml_config import load_yaml_with_bases_and_params
 
 STAGES_ALL = (
     "watershed",
@@ -621,8 +621,7 @@ def _copy_affinity_h5_to_precomputed(
 
 
 def _load_yaml(path: Path) -> Dict[str, Any]:
-    with path.open("r", encoding="utf-8") as f:
-        return yaml.safe_load(f)
+    return load_yaml_with_bases_and_params(path)
 
 
 def prepare_config(config_path: Path) -> ChunkWorkflowConfig:

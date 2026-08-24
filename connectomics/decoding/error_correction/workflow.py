@@ -11,9 +11,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Mapping, Sequence
 
-import yaml  # type: ignore[import-untyped]
-
 from .artifacts import load_frozen_merge_roots, reject_evaluation_path
+from ...utils.yaml_config import load_yaml_with_bases_and_params
 
 STAGES = (
     "sizes",
@@ -203,7 +202,7 @@ class ErrorCorrectionConfig:
 
     @classmethod
     def load(cls, path: Path) -> "ErrorCorrectionConfig":
-        payload = yaml.safe_load(path.read_text())
+        payload = load_yaml_with_bases_and_params(path)
         if not isinstance(payload, dict) or set(payload) != {"error_correction"}:
             raise ValueError("config must have exactly one top-level 'error_correction' key")
         data = payload["error_correction"]

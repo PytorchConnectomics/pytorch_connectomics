@@ -11,24 +11,23 @@
 # Whole-volume execution is staged because skeleton/contact/postprocess passes are arrays.
 # See README.md for the exact commands.
 
+_base_: params.yaml
+
 error_correction:
   version: 1
 
   # Frozen native-resolution, nucleus-matchguard ABISS base used by the v7 experiment.
   # Replace these five input paths together when applying the method to another decode.
-  segmentation: >-
-    dev/zebrafinch/wholevol_arm0_native96_nuc_matchguard/seg_arm0_native96_nuc_matchguard/precomputed/seg/seg_arm0_native96_nuc_matchguard
-  affinity_chunks: >-
-    outputs/nisb_base_banis_plus_zebrafinch_heavy/20260726_114349/test_step=00200000/0/raw_x1_ch0-1-2_chunked-raw_cs1008x1008x1008_halo72x72x72_zebrafinch_chunk_raw_grid1008_halo72_win48x96x96.h5.chunks
-  keep_mask: dev/zebrafinch/tissue_border_keep_mask_full.zarr
-  nucleus_manifest: >-
-    dev/zebrafinch/wholevol_arm0_native96_nuc_matchguard/seg_arm0_native96_nuc_matchguard/nucleus_competition/manifest.json
+  segmentation: ${params.paths.experiment_root}/wholevol_arm0_native96_nuc_matchguard/seg_arm0_native96_nuc_matchguard/precomputed/seg/seg_arm0_native96_nuc_matchguard
+  affinity_chunks: ${params.paths.repository}/outputs/nisb_base_banis_plus_zebrafinch_heavy/20260726_114349/test_step=00200000/0/raw_x1_ch0-1-2_chunked-raw_cs1008x1008x1008_halo72x72x72_zebrafinch_chunk_raw_grid1008_halo72_win48x96x96.h5.chunks
+  keep_mask: ${params.paths.experiment_root}/tissue_border_keep_mask_full.zarr
+  nucleus_manifest: ${params.paths.experiment_root}/wholevol_arm0_native96_nuc_matchguard/seg_arm0_native96_nuc_matchguard/nucleus_competition/manifest.json
   # ABISS emits one (label,size) table per atomic chunk. The reference workspace already
   # contains their exact aggregate; a fresh run can point this glob at all atomic tables.
-  size_glob: dev/zebrafinch/matchguard_contacts_full/seg_size_all_chunks.data
+  size_glob: ${params.paths.experiment_root}/matchguard_contacts_full/seg_size_all_chunks.data
 
-  workdir: outputs/neuron_j0126/error_correction_v7
-  output_segmentation: outputs/neuron_j0126/error_correction_v7/precomputed/seg
+  workdir: ${params.paths.output_root}/error_correction_v7
+  output_segmentation: ${params.paths.output_root}/error_correction_v7/precomputed/seg
 
   # Native j0126 frame: arrays are ZYX, CloudVolume and chunk cores are XYZ.
   volume_shape_zyx: [5700, 10912, 10664]

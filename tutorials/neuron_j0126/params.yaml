@@ -1,0 +1,21 @@
+# j0126 local settings -------------------------------------------------------
+#
+# This is the only file that should need editing for a new machine or storage
+# layout. All three workflow YAMLs inherit it and use ${params...} references.
+# Paths are deliberately explicit: no environment variables or shell expansion
+# is required, which makes a resolved run easy to inspect and archive.
+
+params:
+  paths:
+    # Repository checkout that contains this tutorial and vendored ABISS.
+    repository: /projects/weilab/weidf/lib/pytorch_connectomics
+    # Writeable location for affinity, ABISS, and EC artifacts.
+    output_root: ${params.paths.repository}/outputs/neuron_j0126
+    # Existing artifacts needed only when replaying the frozen v7 EC recipe.
+    experiment_root: ${params.paths.repository}/dev/zebrafinch
+    dataset_root: /projects/weilab/dataset/zebrafinch
+
+  data:
+    raw_10nm: ${params.paths.dataset_root}/im_align_10nm.zarr/0
+    dense_images: ${params.paths.dataset_root}/train/im_raw_4-32-32
+    dense_labels: ${params.paths.dataset_root}/train/seg_gt_4-32-32
