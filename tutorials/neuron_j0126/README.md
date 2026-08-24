@@ -27,7 +27,7 @@ The table separates the affinity source, conservative decoder, and optional corr
 
 Edit **only** [params.yaml](params.yaml). It contains the repository checkout, dataset root, writeable output root, and the existing artifacts required to replay the frozen EC recipe. Every step inherits this file, so paths are not duplicated across the workflow YAMLs. Keep the algorithmic thresholds in the step YAMLs unchanged when reproducing the reference recipe.
 
-The zero-shot affinity path needs a NISB-trained checkpoint. The supervised affinity YAML is included as a target-domain reference only: it uses j0126 dense labels, so it is not part of the zero-shot pipeline.
+The zero-shot affinity path needs a NISB-trained checkpoint. The supervised affinity YAML is included as a target-domain reference only: it uses j0126 dense labels, so it is not part of the zero-shot pipeline; its trained checkpoint can be downloaded instead of retrained (see [Step 1](#supervised-reference-affinity)).
 
 ## Step 1 — affinity prediction
 
@@ -47,6 +47,21 @@ python scripts/main.py --config tutorials/neuron_j0126/1_affinity_zeroshot.yaml 
 ```
 
 The output is chunked float16, three-channel affinity under `output_root/affinity` after resolving `params.yaml`.
+
+### Supervised reference affinity
+
+`1_affinity_supervised.yaml` is the target-domain reference: MedNeXt-L/k3 trained from scratch for 200k steps on the 33 j0126 dense-GT cubes. It has seen labelled j0126 tissue, so any run that starts here is not ground-truth-free.
+
+Training it costs roughly four GPU-days. Download the reference checkpoint instead:
+
+```bash
+hf download pytc/j0126 affinity_scratch_48x96x96.ckpt --local-dir ckpt/
+
+python scripts/main.py --config tutorials/neuron_j0126/1_affinity_supervised.yaml \
+  --mode test --checkpoint ckpt/affinity_scratch_48x96x96.ckpt
+```
+
+It must be inferred at its native `[48, 96, 96]` window, which the YAML already sets: MedNeXt normalizes without running statistics, so the forward pass depends on the window extent, and the zero-shot config's `[144, 144, 144]` would invert the trained Z-thin anisotropy. Its affinity lands under `output_root/affinity_arm0_96`, so step 2's `source_affinity_h5` has to be repointed there.
 
 ## Step 2 — conservative ABISS decode
 
