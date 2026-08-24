@@ -1,0 +1,34 @@
+{
+  "description": "Frozen j0126 ABISS segmentation parameters used by the PyTC2 table.",
+  "owners": [],
+  "processing": [
+    {
+      "by": "ranl",
+      "date": "2026-07-19 06:57 UTC",
+      "method": {
+        "AFF_MIP": 0,
+        "AFF_PATH": "gs://zebrafinch_aff1/affinity_r1_float32/",
+        "AFF_RESOLUTION": [9, 9, 20],
+        "AGG_THRESHOLD": "0.3",
+        "BBOX": [0, 0, 0, 10664, 10912, 5700],
+        "CHUNKMAP_OUTPUT": "gs://unused-by-local-replay/chunkmap",
+        "CHUNK_SIZE": [512, 512, 256],
+        "IMAGE_PATH": "gs://j0126-nature-methods-data/GgwKmcKgrcoNxJccKuGIzRnQqfit9hnfK1ctZzNbnuU/rawdata_realigned/",
+        "NAME": "seg_20260719054914",
+        "NG_PREFIX": "gs://unused-by-local-replay/precomputed/",
+        "SCRATCH_PATH": "gs://unused-by-local-replay/scratch",
+        "SCRATCH_PREFIX": "gs://unused-by-local-replay/",
+        "SEG_PATH": "gs://unused-by-local-replay/seg",
+        "SEG_PREFIX": "gs://unused-by-local-replay/",
+        "SKIP_SKELETON": true,
+        "WS_DUST_THRESHOLD": "200",
+        "WS_HIGH_THRESHOLD": "0.99999",
+        "WS_LOW_THRESHOLD": "0.00001",
+        "WS_PATH": "gs://unused-by-local-replay/ws",
+        "WS_PREFIX": "gs://unused-by-local-replay/",
+        "WS_SIZE_THRESHOLD": "200"
+      }
+    }
+  ],
+  "sources": []
+}

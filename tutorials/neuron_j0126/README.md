@@ -6,6 +6,10 @@ This tutorial turns a 10 nm j0126 EM volume into a neuron segmentation in three 
 2. Decode them conservatively with ABISS, preferring splits to false merges.
 3. Reconnect only high-confidence, morphologically continuous branches.
 
+For the frozen PyTC2 Zebrafinch replay, including fail-closed input checks and
+non-interactive Slurm submission, follow the
+[reproduction guide](reproduction/README.md).
+
 The last step is prediction-only at runtime. It uses the segmentation, affinities, predicted morphology, and an external nucleus-instance manifest; it does not read evaluation skeletons, their lookup table, or an FFN segmentation.
 
 ## Results
