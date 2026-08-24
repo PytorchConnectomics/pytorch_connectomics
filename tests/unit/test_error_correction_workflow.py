@@ -5,6 +5,7 @@ import numpy as np
 import pytest
 import yaml
 
+from connectomics.config import load_config
 from connectomics.decoding.error_correction.artifacts import (
     load_frozen_merge_roots,
     sha256_file,
@@ -19,6 +20,7 @@ from connectomics.decoding.error_correction.workflow import (
     ErrorCorrectionConfig,
     stage_commands,
 )
+from connectomics.utils.yaml_config import load_yaml_with_bases_and_params
 
 
 def _write_frozen_proposal(tmp_path: Path) -> tuple[Path, Path]:
@@ -101,6 +103,22 @@ def test_tutorial_config_has_exhaustive_gt_free_scope():
     assert "test_50" not in command
     assert "oracle" not in command
     assert "ffn" not in command
+
+
+def test_tutorial_params_are_inherited_and_fully_resolved():
+    affinity = load_config("tutorials/neuron_j0126/1_affinity_zeroshot.yaml")
+    abiss = load_yaml_with_bases_and_params(Path("tutorials/neuron_j0126/2_abiss.yaml"))
+    correction = load_yaml_with_bases_and_params(Path("tutorials/neuron_j0126/3_merge.yaml"))
+
+    assert affinity.save_path.endswith("outputs/neuron_j0126/affinity")
+    assert affinity.test.data.test.image.endswith("im_align_10nm.zarr/0")
+    assert "params" not in abiss
+    assert "${params" not in str(abiss)
+    assert "${params" not in str(correction)
+    assert abiss["abiss_chunk"]["workdir"].endswith("outputs/neuron_j0126/abiss/run")
+    assert correction["error_correction"]["workdir"].endswith(
+        "outputs/neuron_j0126/error_correction_v7"
+    )
 
 
 def test_config_rejects_unknown_and_evaluation_inputs(tmp_path: Path):

@@ -17,13 +17,15 @@
 # AGG_THRESHOLD 0.20 with WS_HIGH 0.9 / WS_LOW 0.1 is the setting that reproduces the
 # reference segmentation this tutorial was measured on.
 
-abiss_chunk:
-  abiss_home: /projects/weilab/weidf/lib/pytorch_connectomics/lib/abiss
-  workdir: /projects/weilab/weidf/lib/pytorch_connectomics/outputs/neuron_j0126/abiss/run
-  secrets_dir: /projects/weilab/weidf/lib/pytorch_connectomics/outputs/neuron_j0126/abiss/secrets
-  param_path: /projects/weilab/weidf/lib/pytorch_connectomics/outputs/neuron_j0126/abiss/secrets/param
+_base_: params.yaml
 
-  source_affinity_h5: /projects/weilab/weidf/lib/pytorch_connectomics/outputs/neuron_j0126/affinity/affinity.h5
+abiss_chunk:
+  abiss_home: ${params.paths.repository}/lib/abiss
+  workdir: ${params.paths.output_root}/abiss/run
+  secrets_dir: ${params.paths.output_root}/abiss/secrets
+  param_path: ${params.paths.output_root}/abiss/secrets/param
+
+  source_affinity_h5: ${params.paths.output_root}/affinity/affinity.h5
   source_dataset: main
 
   # On-disk precomputed storage chunks (NOT the ABISS logical chunk grid).
@@ -40,11 +42,11 @@ abiss_chunk:
   param:
     NAME: j0126_abiss
 
-    AFF_PATH: file:///projects/weilab/weidf/lib/pytorch_connectomics/outputs/neuron_j0126/abiss/precomputed/affinity
-    WS_PATH: file:///projects/weilab/weidf/lib/pytorch_connectomics/outputs/neuron_j0126/abiss/precomputed/ws
-    SEG_PATH: file:///projects/weilab/weidf/lib/pytorch_connectomics/outputs/neuron_j0126/abiss/precomputed/seg
-    SCRATCH_PATH: file:///projects/weilab/weidf/lib/pytorch_connectomics/outputs/neuron_j0126/abiss/scratch
-    CHUNKMAP_OUTPUT: file:///projects/weilab/weidf/lib/pytorch_connectomics/outputs/neuron_j0126/abiss/chunkmap
+    AFF_PATH: file://${params.paths.output_root}/abiss/precomputed/affinity
+    WS_PATH: file://${params.paths.output_root}/abiss/precomputed/ws
+    SEG_PATH: file://${params.paths.output_root}/abiss/precomputed/seg
+    SCRATCH_PATH: file://${params.paths.output_root}/abiss/scratch
+    CHUNKMAP_OUTPUT: file://${params.paths.output_root}/abiss/chunkmap
     AFF_RESOLUTION: 0
 
     # Mip-0 XYZ. The true EM extent of the 10 nm volume is 5700 x 10913 x 10664 (ZYX);

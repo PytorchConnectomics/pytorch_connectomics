@@ -275,6 +275,17 @@ def load_config(config_path: Union[str, Path]) -> Config:
     yaml_conf = _load_config_with_bases(config_path)
     yaml_conf = _YAML_PROFILE_ENGINE.apply(yaml_conf)
 
+    # Tutorial-local parameters are resolved before strict schema validation and
+    # never become part of the runtime configuration.  This keeps machine paths
+    # in one inherited ``params.yaml`` without weakening Config's unknown-key
+    # protection for actual settings.
+    params = yaml_conf.get("params")
+    if params is not None and not isinstance(params, (DictConfig, dict)):
+        raise ValueError("params must be a mapping")
+    if params is not None:
+        OmegaConf.resolve(yaml_conf)
+        del yaml_conf["params"]
+
     _raise_unconsumed_keys(yaml_conf)
 
     explicit_field_paths = _collect_explicit_paths(yaml_conf)

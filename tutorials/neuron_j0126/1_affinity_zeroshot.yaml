@@ -18,13 +18,14 @@
 
 _base_:
   - ../banis+.yaml
+  - params.yaml
 
 experiment_name: neuron_j0126_affinity
 description: >-
   Zero-shot affinity prediction on j0126 with the NISB-trained banis+ MedNeXt-L/k3
   model. Chunked sliding-window inference over the 10 nm isotropic volume.
 
-save_path: outputs/neuron_j0126/affinity
+save_path: ${params.paths.output_root}/affinity
 
 default:
   inference:
@@ -116,7 +117,7 @@ test:
       # NOT point this at the tiled-PNG pyramid: the lazy window re-decodes 4096x4096
       # tiles per window and runs ~19 h/chunk with the GPU idle, versus ~30 min/chunk here.
       dataset_type: null
-      image: /projects/weilab/dataset/zebrafinch/im_align_10nm.zarr/0
+      image: ${params.data.raw_10nm}
       label: null
       skeleton: null
       name: im_align_10nm
