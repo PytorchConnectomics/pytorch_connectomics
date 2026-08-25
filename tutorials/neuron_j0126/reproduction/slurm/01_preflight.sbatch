@@ -17,6 +17,7 @@ set -euo pipefail
 : "${NUCLEUS:?}"
 : "${SKELETONS:?}"
 : "${ABISS_HOME:?}"
+: "${PYTC_PREFIX:?}"
 : "${STORAGE_ROOT:?}"
 : "${PREFLIGHT_JSON:?}"
 
@@ -30,6 +31,7 @@ exec "$PYTHON" \
   --nucleus "$NUCLEUS" \
   --skeletons "$SKELETONS" \
   --abiss-home "$ABISS_HOME" \
+  --pytc-prefix "$PYTC_PREFIX" \
   --storage-root "$STORAGE_ROOT" \
   --output "$PREFLIGHT_JSON" \
   --workers "${SLURM_CPUS_PER_TASK:-8}"

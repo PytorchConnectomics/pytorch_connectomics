@@ -16,7 +16,6 @@ from typing import Any
 
 import h5py
 
-
 EXPECTED_ABISS_COMMIT = "452efa5f87f9d3cb241891ee44010d966a33b316"
 EXPECTED_BBOX_XYZ = (0, 0, 0, 10664, 10912, 5700)
 EXPECTED_INDEX_SHAPE_ZYX = (5700, 12288, 12288)
@@ -39,8 +38,7 @@ def _check_chunk(index_dir: Path, entry: dict[str, Any]) -> dict[str, Any]:
     if not path.is_file():
         raise FileNotFoundError(path)
     expected_spatial = tuple(
-        int(stop) - int(start)
-        for start, stop in zip(entry["start_zyx"], entry["stop_zyx"])
+        int(stop) - int(start) for start, stop in zip(entry["start_zyx"], entry["stop_zyx"])
     )
     with h5py.File(path, "r", locking=False) as handle:
         if "main" not in handle:
@@ -79,6 +77,31 @@ def _git_tracked_status(path: Path) -> str:
     return result.stdout.strip()
 
 
+def _cmake_cache(path: Path) -> dict[str, str]:
+    values = {}
+    for line in path.read_text(encoding="utf-8").splitlines():
+        if not line or line.startswith(("#", "//")) or "=" not in line:
+            continue
+        typed_key, value = line.split("=", 1)
+        key = typed_key.split(":", 1)[0]
+        values[key] = value
+    return values
+
+
+def _dynamic_dependencies(path: Path) -> list[str]:
+    result = subprocess.run(
+        ["readelf", "-d", str(path)],
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    dependencies = []
+    for line in result.stdout.splitlines():
+        if "(NEEDED)" in line and "[" in line and "]" in line:
+            dependencies.append(line.split("[", 1)[1].split("]", 1)[0])
+    return dependencies
+
+
 def _package_versions() -> dict[str, str]:
     versions = {}
     for distribution in (
@@ -105,6 +128,7 @@ def _parse_args() -> argparse.Namespace:
     parser.add_argument("--nucleus", type=Path, required=True)
     parser.add_argument("--skeletons", type=Path, required=True)
     parser.add_argument("--abiss-home", type=Path, required=True)
+    parser.add_argument("--pytc-prefix", type=Path, required=True)
     parser.add_argument("--storage-root", type=Path, required=True)
     parser.add_argument("--min-free-tib", type=float, default=8.0)
     parser.add_argument("--workers", type=int, default=8)
@@ -121,6 +145,7 @@ def main() -> int:
         args.nucleus,
         args.skeletons,
         args.abiss_home,
+        args.pytc_prefix,
         args.storage_root,
     ):
         if not path.exists():
@@ -128,9 +153,7 @@ def main() -> int:
 
     abiss_head = _git_head(args.abiss_home)
     if abiss_head != EXPECTED_ABISS_COMMIT:
-        raise RuntimeError(
-            f"ABISS is {abiss_head}; frozen result requires {EXPECTED_ABISS_COMMIT}"
-        )
+        raise RuntimeError(f"ABISS is {abiss_head}; frozen result requires {EXPECTED_ABISS_COMMIT}")
     tracked_status = _git_tracked_status(args.abiss_home)
     if tracked_status:
         raise RuntimeError(
@@ -141,6 +164,40 @@ def main() -> int:
         path = args.abiss_home / relative
         if not path.is_file():
             raise FileNotFoundError(f"ABISS runtime is incomplete: {path}")
+
+    expected_toolchain = {
+        "CMAKE_C_COMPILER": str(args.pytc_prefix / "bin" / "x86_64-conda-linux-gnu-cc"),
+        "CMAKE_CXX_COMPILER": str(args.pytc_prefix / "bin" / "x86_64-conda-linux-gnu-c++"),
+        "Boost_DIR": str(args.pytc_prefix / "lib" / "cmake" / "Boost-1.82.0"),
+        "TBB_DIR": str(args.pytc_prefix / "lib" / "cmake" / "TBB"),
+        "EXTRACT_SIZE": "ON",
+    }
+    cache_path = args.abiss_home / "build" / "CMakeCache.txt"
+    if not cache_path.is_file():
+        raise FileNotFoundError(f"ABISS build is missing its CMake cache: {cache_path}")
+    cache = _cmake_cache(cache_path)
+    mismatches = {
+        key: {"actual": cache.get(key), "expected": expected}
+        for key, expected in expected_toolchain.items()
+        if cache.get(key) != expected
+    }
+    if mismatches:
+        raise RuntimeError(f"ABISS toolchain mismatch: {mismatches}")
+    binary_dependencies = {
+        name: _dynamic_dependencies(args.abiss_home / "build" / name) for name in ("ws", "agg")
+    }
+    for name, dependencies in binary_dependencies.items():
+        if "libtbb.so.12" not in dependencies:
+            raise RuntimeError(f"ABISS {name} requires {dependencies}; expected libtbb.so.12")
+        incompatible = [
+            dependency
+            for dependency in dependencies
+            if dependency == "libtbb.so.2" or ".so.1.85.0" in dependency
+        ]
+        if incompatible:
+            raise RuntimeError(
+                f"ABISS {name} has incompatible runtime dependencies: {incompatible}"
+            )
 
     index = json.loads(args.affinity_index.read_text(encoding="utf-8"))
     chunks = index.get("chunks", [])
@@ -170,8 +227,7 @@ def main() -> int:
     )
     if covered_shape != EXPECTED_COVERAGE_SHAPE_ZYX:
         raise RuntimeError(
-            f"Affinity covered shape is {covered_shape}, "
-            f"expected {EXPECTED_COVERAGE_SHAPE_ZYX}"
+            f"Affinity covered shape is {covered_shape}, " f"expected {EXPECTED_COVERAGE_SHAPE_ZYX}"
         )
 
     with ThreadPoolExecutor(max_workers=args.workers) as executor:
@@ -217,6 +273,10 @@ def main() -> int:
         "abiss_commit": abiss_head,
         "abiss_binaries_sha256": {
             name: _sha256(args.abiss_home / "build" / name) for name in ("ws", "agg")
+        },
+        "abiss_toolchain": {
+            "cmake": {key: cache[key] for key in expected_toolchain},
+            "dynamic_dependencies": binary_dependencies,
         },
         "environment": {
             "python": platform.python_version(),
