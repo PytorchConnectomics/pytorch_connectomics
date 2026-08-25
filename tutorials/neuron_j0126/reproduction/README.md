@@ -49,16 +49,42 @@ sbatch --export=ALL,REPOSITORY="$PWD",ABISS_HOME="$PWD/lib/abiss",PYTC_PREFIX=/p
   tutorials/neuron_j0126/reproduction/slurm/00_build_abiss.sbatch
 ```
 
-`PYTC_PREFIX` supplies Boost headers and libraries. The job builds `ws` and
-`agg`, then runs all three ABISS tests. Record the successful job ID.
+`PYTC_PREFIX` must contain the conda cross-compiler, Boost 1.82, and oneTBB.
+The job pins all four CMake selections explicitly, enables the required
+`EXTRACT_SIZE=ON` compile definition, and rejects binaries linked to legacy
+`libtbb.so.2` or Boost 1.85. `EXTRACT_SIZE` is not optional for this workflow:
+without it, `acme` writes empty supervoxel-size files and `agg` fails on an
+incomplete RAG. The job then builds `ws` and `agg`, runs all three ABISS tests,
+prints the binary hashes and dynamic dependencies, and records those details
+in the Slurm log. Use a new checkout when changing toolchains; a stale CMake
+build directory is not a reproducible rebuild.
+
+If a previous full replay reached watershed but failed in mean-edge
+agglomeration, validate the replacement binary on one preserved failed chunk
+before launching another full volume:
+
+```bash
+sbatch --export=ALL,\
+SOURCE_CHUNK=/path/to/failed/work/0_2_2_8,\
+VALIDATION_DIR=/path/to/new/agg-regression,\
+ABISS_HOME="$PWD/lib/abiss",\
+ABISS_LIBRARY_PREFIX=/path/to/conda/env \
+  tutorials/neuron_j0126/reproduction/slurm/00_validate_agg.sbatch
+```
+
+The check copies the preserved raw chunk inputs, regenerates the RAG and size
+maps with the replacement `acme`, never modifies the failed run, and writes
+`SUCCESS` only after `agg` produces nonempty residual RAG and remap outputs.
 
 ## 3. Run fail-closed preflight
 
-Submit [01_preflight.sbatch](slurm/01_preflight.sbatch) after the build. Its
+Submit [01_preflight.sbatch](slurm/01_preflight.sbatch) after the build, with
+`PYTC_PREFIX` set to the same environment used by the build. Its
 required environment variables are listed at the top of that script. Preflight
-checks the exact ABISS commit, all 726 affinity chunks and edge reads, the keep
-mask and nucleus shapes, the test skeleton file, and available output capacity.
-It writes a machine-readable JSON report and exits nonzero on any mismatch.
+checks the exact ABISS commit and compiler/Boost/TBB identity, binary dynamic
+dependencies, all 726 affinity chunks and edge reads, the keep mask and nucleus
+shapes, the test skeleton file, and available output capacity. It writes a
+machine-readable JSON report and exits nonzero on any mismatch.
 
 ## 4. Run the ABISS runtime smoke test
 
