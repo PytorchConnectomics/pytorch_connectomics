@@ -1,0 +1,61 @@
+# MICrONS Pinky decode with ABISS watershed + max-affinity agglomeration.
+#
+# Same model and cached affinities as neuron_microns_pinky.yaml -- only the
+# decode step differs:
+#
+#   python scripts/main.py --config tutorials/neuron_microns_pinky_abiss.yaml \
+#     --mode test --checkpoint <run>/checkpoints/step=00200000.ckpt
+#
+# Measured on the six held-out volumes against `decode_affinity_cc`, each
+# decoder given its own best threshold by leave-one-out over the five other
+# volumes (voxel-weighted VOI over the five small volumes):
+#
+#   affinity CC @ 0.60   VOI 2.03   (oracle-merge ceiling 1.94 -- nothing to recover)
+#   ABISS max  @ 0.58    VOI 1.02   (oracle-merge ceiling 0.90)
+#
+# CC's error is false merges baked into its fragments, which no agglomeration
+# can undo; the ABISS watershed produces fragments that are nearly merge-free.
+_base_:
+  - neuron_microns_pinky.yaml
+
+experiment_name: neuron_microns_pinky_affinity_lsd_abiss
+description: >-
+  MICrONS Pinky neuron instance segmentation decoded with the ABISS watershed
+  and max-affinity agglomeration instead of affinity connected components.
+
+default:
+  decoding:
+    steps:
+      - name: decode_abiss
+        kwargs:
+          command: >-
+            {python_exe} scripts/run_abiss_volume.py
+            --input {input_h5}
+            --output {output_h5}
+          input_dataset: main
+          output_dataset: main
+          # This repo stores channel c as the edge along array axis c (z, y, x).
+          # `ws` reads an (X, Y, Z, C) volume whose channel 0 is the X edge, so
+          # the triplet is reversed here. Measured on vol103, oracle VOI:
+          # reversed+shifted 0.18, reversed only 0.49, unreversed 0.59 / 0.60.
+          channels: [2, 1, 0]
+          timeout_sec: 7200
+          cli_args:
+            # The `banis` affinity target stores edge (i, i+1) at voxel i; `ws`
+            # reads the value at i as the edge (i-1, i). Without this the whole
+            # boundary map lands one voxel off along every axis.
+            edge_storage: source
+            # Watershed seeding/pruning bounds. Insensitive here: 0.85-0.91 x
+            # 0.15-0.35 all land within 0.02 VOI of each other.
+            ws_high_threshold: 0.88
+            ws_low_threshold: 0.25
+            # merge_segments only merges when a region is under this size, so
+            # the stock 400 stops agglomeration dead at 4 nm voxels (589
+            # fragments at every merge threshold). Raised out of the way so the
+            # affinity criterion decides.
+            ws_size_threshold: 10000000
+            ws_dust_threshold: 200
+            # `max` beat `mean` at each function's own optimum (0.98 vs 1.16
+            # voxel-weighted VOI). The optimum is flat between 0.56 and 0.62.
+            ws_merge_function: max
+            ws_merge_threshold: 0.58

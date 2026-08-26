@@ -1,0 +1,149 @@
+# MICrONS Pinky neuron instance segmentation at 40 x 4 x 4 nm (ZYX).
+# Prepare the no-copy HDF5 train/test views first:
+#   python scripts/prepare_microns_pinky.py
+#
+# This is the zebrafinch arm0_96 MTLSD model adapted to Pinky's anisotropy:
+# MedNeXt-L/k3, six BANIS affinity channels, a 10-channel auxiliary LSD head,
+# BANIS+ loss/EMA/erosion, heavy EM augmentation, and 200k optimizer steps.
+# [16,160,160] is physically isotropic (640 nm per side) and contains slightly
+# fewer voxels than the source recipe's [48,96,96] patch.
+
+_base_:
+  - banis+.yaml
+
+experiment_name: neuron_microns_pinky_affinity_lsd
+description: >-
+  MICrONS Pinky 3D neuron instance segmentation using the zebrafinch supervised
+  MedNeXt-L affinity+LSD recipe, adapted to native 40x4x4 nm anisotropy. Source
+  volumes are split 80.9/19.1 by valid annotated voxels with no source-volume overlap.
+
+save_path: outputs/neuron_microns_pinky_affinity_lsd
+
+default:
+  system:
+    num_gpus: 4
+    num_workers: -1
+  model:
+    input_size: [16, 160, 160]
+    output_size: [16, 160, 160]
+    out_channels: 16
+    primary_head: aff
+    heads:
+      aff:
+        out_channels: 6
+        num_blocks: 1
+        hidden_channels: 16
+        target_slice: "0:6"
+      lsd:
+        out_channels: 10
+        num_blocks: 1
+        hidden_channels: 16
+        target_slice: "6:16"
+    loss:
+      deep_supervision: false
+      losses:
+        - function: PerChannelBCEWithLogitsLoss
+          weight: 1.0
+          pred_head: aff
+          target_slice: "0:6"
+          kwargs:
+            auto_pos_weight: true
+            max_pos_weight: 10.0
+        - function: WeightedBCEWithLogitsLoss
+          weight: 1.0
+          pred_head: lsd
+          target_slice: "6:16"
+  data:
+    dataloader:
+      profile: lazy
+      patch_size: [16, 160, 160]
+      target_context: [0, 0, 0, 10, 10, 10]
+      batch_size: 8
+      use_lazy_zarr: false
+      use_lazy_h5: true
+      use_cache: false
+      use_preloaded_cache_train: false
+      use_preloaded_cache_val: false
+      cached_sampling_foreground_threshold: 0.01
+      cached_sampling_max_attempts: 50
+      val_random_sampling: true
+    image_transform:
+      normalize: divide-255
+    label_transform:
+      resolution: [40, 4, 4]
+      targets:
+        - name: affinity
+          kwargs:
+            offsets: ["1-0-0", "0-1-0", "0-0-1", "10-0-0", "0-10-0", "0-0-10"]
+            affinity_mode: banis
+        - name: lsd
+          kwargs:
+            sigma: 80
+            voxel_size: [40, 4, 4]
+            downsample: 2
+    augmentation:
+      profile: aug_em_neuron
+  inference:
+    model:
+      head: aff
+      select_channel: [0, 1, 2]
+    window:
+      window_size: [16, 160, 160]
+      sw_batch_size: 32
+    save_all_heads: false
+  decoding:
+    enabled: true
+    steps:
+      - name: decode_affinity_cc
+        kwargs:
+          threshold: 0.75
+          backend: numba
+          edge_offset: 0
+  evaluation:
+    enabled: true
+    metrics: [adapted_rand, voi]
+
+train:
+  optimization:
+    max_steps: 200000
+    scheduler:
+      params:
+        t_max: 200000
+  monitor:
+    logging:
+      scalar:
+        loss:
+          - train_loss_total_epoch
+          - val_loss_total
+          - train_loss_term_0_raw
+          - train_loss_term_0_weighted
+          - train_loss_term_1_raw
+          - train_loss_term_1_weighted
+        loss_every_n_steps: 100
+      images:
+        head: all
+        channel_mode: all
+  data:
+    train:
+      path: /projects/weilab/dataset/mito/microns/pinky/split/train
+      image: "*_image.h5"
+      label: "*_label.h5"
+      mask: "*_mask.h5"
+      resolution: [40, 4, 4]
+    # Match the source zebrafinch recipe: validation repeats a training volume
+    # for EMA/checkpoint monitoring; only test/ is a clean held-out estimate.
+    val:
+      path: /projects/weilab/dataset/mito/microns/pinky/split/train
+      image: pinky_vol502_image.h5
+      label: pinky_vol502_label.h5
+      mask: pinky_vol502_mask.h5
+      resolution: [40, 4, 4]
+
+test:
+  data:
+    test:
+      path: /projects/weilab/dataset/mito/microns/pinky/split/test
+      image: "*_image.h5"
+      label: "*_label.h5"
+      mask: "*_mask.h5"
+      resolution: [40, 4, 4]
