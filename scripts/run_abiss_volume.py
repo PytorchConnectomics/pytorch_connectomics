@@ -23,6 +23,10 @@ from connectomics.data.io import read_hdf5, write_hdf5  # noqa: E402
 
 _ABISS_TAG = "0_0_0_0"
 
+# Which of an edge's two endpoint voxels holds the affinity value. ABISS reads
+# "destination"; this repo's `banis` affinity target writes "source".
+EDGE_STORAGE_CHOICES = ("destination", "source")
+
 
 def _parse_threshold(value: str | float) -> tuple[float, bool]:
     """Parse a threshold value that may be absolute or percentile.
@@ -140,9 +144,37 @@ def _select_affinity_channels(
     return predictions[np.asarray(idx, dtype=np.int64)]
 
 
+def _shift_to_destination_storage(aff_xyzc: np.ndarray) -> np.ndarray:
+    """Move source-stored edges to the destination storage ``ws`` expects.
+
+    ``ws`` reads ``aff[x][y][z][0]`` as the edge between ``x-1`` and ``x``
+    (``basic_watershed.hpp``: ``negx = aff[x][y][z][0]``, ``posx =
+    aff[x+1][y][z][0]``). This repo's ``banis`` affinity target stores each edge
+    at its *source* voxel instead, i.e. edge ``(i, i+1)`` at ``i``, so every
+    boundary decision would land one voxel off without this shift.
+
+    Channel ``k`` of the ABISS layout is the edge along spatial dim ``k``, so
+    each channel shifts by one along its own dim. The exposed face is not a real
+    edge, so it is zeroed rather than wrapped.
+    """
+    shifted = np.empty_like(aff_xyzc)
+    for k in range(3):
+        shifted[..., k] = np.roll(aff_xyzc[..., k], shift=1, axis=k)
+        face = [slice(None)] * 3
+        face[k] = 0
+        shifted[(*face, k)] = 0.0
+    return shifted
+
+
 def _to_abiss_affinity(
-    predictions_czyx: np.ndarray, channels: Optional[Iterable[int]]
+    predictions_czyx: np.ndarray,
+    channels: Optional[Iterable[int]],
+    edge_storage: str = "destination",
 ) -> np.ndarray:
+    if edge_storage not in EDGE_STORAGE_CHOICES:
+        raise ValueError(
+            f"`edge_storage` must be one of {EDGE_STORAGE_CHOICES}, got {edge_storage!r}."
+        )
     selected = np.asarray(_select_affinity_channels(predictions_czyx, channels), dtype=np.float32)
     if selected.ndim != 4:
         raise ValueError(f"Expected selected affinity predictions to be 4D, got {selected.shape}.")
@@ -161,7 +193,11 @@ def _to_abiss_affinity(
                 f">=3 affinity channels; got {n_channels}."
             )
         aff_xyzc = np.transpose(selected[:3], (3, 2, 1, 0))
+        if edge_storage == "source":
+            aff_xyzc = _shift_to_destination_storage(aff_xyzc)
 
+    # The single-channel branch builds edges as min(p[i-1], p[i]), which is
+    # already destination-stored, so `edge_storage` does not apply there.
     return np.asfortranarray(aff_xyzc.astype(np.float32, copy=False))
 
 
@@ -268,6 +304,7 @@ def _run_abiss_ws(
     ws_merge_threshold: Optional[float] = None,
     ws_merge_thresholds: Optional[list[float]] = None,
     ws_merge_function: Optional[str] = None,
+    edge_storage: str = "destination",
 ) -> "np.ndarray | dict[float, np.ndarray]":
     if ws_low_threshold > ws_high_threshold:
         raise ValueError(
@@ -275,7 +312,7 @@ def _run_abiss_ws(
             f"{ws_low_threshold} > {ws_high_threshold}."
         )
 
-    aff_xyzc = _to_abiss_affinity(predictions_czyx, channels=channels)
+    aff_xyzc = _to_abiss_affinity(predictions_czyx, channels=channels, edge_storage=edge_storage)
     output_xyz_shape = tuple(int(v) for v in aff_xyzc.shape[:3])
 
     if workdir is not None:
@@ -363,6 +400,17 @@ def _parse_args() -> argparse.Namespace:
         "--channels",
         default=None,
         help="Optional comma-separated channel indices to pass into ABISS affinity conversion.",
+    )
+    parser.add_argument(
+        "--edge-storage",
+        choices=EDGE_STORAGE_CHOICES,
+        default="destination",
+        help=(
+            "Which endpoint voxel holds each affinity value in the input. "
+            "ABISS reads 'destination' (value at i is the edge i-1 -> i); this "
+            "repo's `banis` affinity target writes 'source' (value at i is the "
+            "edge i -> i+1) and needs a one-voxel shift. Default: destination."
+        ),
     )
     parser.add_argument(
         "--ws-binary",
@@ -487,7 +535,9 @@ def main() -> int:
 
     needs_percentile = any(_parse_threshold(v)[1] for v in all_thresh_strs)
     if needs_percentile:
-        aff_for_pct = _to_abiss_affinity(predictions, channels=channels)
+        aff_for_pct = _to_abiss_affinity(
+            predictions, channels=channels, edge_storage=args.edge_storage
+        )
         print(
             f"Resolving percentile thresholds (affinity range: "
             f"[{aff_for_pct.min():.6f}, {aff_for_pct.max():.6f}]):"
@@ -521,6 +571,7 @@ def main() -> int:
             keep_workdir=bool(args.keep_abiss_workdir),
             ws_merge_thresholds=batch_merge_thresholds,
             ws_merge_function=ws_merge_function,
+            edge_storage=args.edge_storage,
         )
         stem = output_path.stem
         ext = output_path.suffix
@@ -544,6 +595,7 @@ def main() -> int:
         keep_workdir=bool(args.keep_abiss_workdir),
         ws_merge_threshold=ws_merge,
         ws_merge_function=ws_merge_function,
+        edge_storage=args.edge_storage,
     )
 
     _write_array(output_path, segmentation, dataset=args.output_dataset)
