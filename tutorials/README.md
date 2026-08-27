@@ -18,6 +18,8 @@ python scripts/main.py --config tutorials/<config>.yaml
 - `tutorials/neuron_snemi/neuron_snemi.yaml`: SNEMI3D neuron instance segmentation
   (MedNeXt-S, 12-channel affinity, waterz).
 - `tutorials/nuc_nucmm-z.yaml`: NucMM zebrafish nuclei segmentation (MONAI UNet, multi-task).
+- `tutorials/neuron_microns_pinky.yaml`: MICrONS Pinky neuron instance segmentation
+  (MedNeXt-L, affinity + auxiliary LSD, source-volume train/test split).
 - `tutorials/fiber_linghu26.yaml`: Fiber segmentation (MedNeXt, binary+boundary+distance).
 
 ## Shared recipes (not runnable on their own)
