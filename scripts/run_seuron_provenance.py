@@ -18,7 +18,7 @@ import subprocess
 import sys
 import tempfile
 from contextlib import contextmanager
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Iterator, Mapping, Sequence
@@ -31,6 +31,7 @@ if str(_REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT))
 
 from connectomics.runtime.abiss_chunk import (  # noqa: E402
+    STAGE_CHOICES,
     OutputLayerSpec,
     PreparedConfig,
     RunResult,
@@ -768,7 +769,11 @@ def _preflight_affinity(
     return metadata
 
 
-def execute_replay(resolved: ResolvedReplay) -> RunResult:
+def execute_replay(
+    resolved: ResolvedReplay,
+    *,
+    stages: Sequence[str] | None = None,
+) -> RunResult:
     """Preflight, enforce namespace safety, write a manifest, and run ABISS."""
 
     _preflight_abiss(resolved)
@@ -782,10 +787,10 @@ def execute_replay(resolved: ResolvedReplay) -> RunResult:
         expected_manifest = _expected_manifest(resolved, abiss_build_id=build_id)
         _apply_output_mode(resolved, expected_manifest)
         _write_manifest(resolved, expected_manifest)
-        return run_abiss_chunk(
-            prepare_execution(resolved, affinity_metadata),
-            execute=True,
-        )
+        prepared = prepare_execution(resolved, affinity_metadata)
+        if stages is not None:
+            prepared = replace(prepared, stages=tuple(stages))
+        return run_abiss_chunk(prepared, execute=True)
 
 
 def _resolution_report(resolved: ResolvedReplay, *, execute: bool) -> dict[str, Any]:
@@ -849,6 +854,13 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
         action="store_true",
         help="Run ABISS after preflight; omission performs a pure resolve",
     )
+    parser.add_argument(
+        "--stages",
+        nargs="+",
+        choices=STAGE_CHOICES,
+        default=None,
+        help="ABISS stages to run during execution (default: the complete pipeline)",
+    )
     return parser.parse_args(argv)
 
 
@@ -861,7 +873,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         )
         if not args.execute:
             return 0
-        result = execute_replay(resolved)
+        result = execute_replay(resolved, stages=args.stages)
     except (OSError, RuntimeError, ValueError) as exc:
         print(f"error: {exc}", file=sys.stderr)
         return 2

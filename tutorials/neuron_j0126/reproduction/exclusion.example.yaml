@@ -1,0 +1,16 @@
+# Copy this file outside the checkout and replace every /path/to placeholder.
+# The affinity store is reused in place; it is never copied into output_root.
+seuron_replay:
+  provenance_path: seuron_provenance.json
+  backend: abiss_local
+  data: local
+  out_root: /path/to/writeable/j0126-reproduction/exclusion
+  name: abiss_exclusion_frozen
+  secrets_dir: /path/to/writeable/j0126-reproduction/.cloudvolume/secrets
+  abiss_home: /path/to/pytorch_connectomics/lib/abiss
+  aff_path: /path/to/existing/affinity.h5.chunks
+
+  param_overrides:
+    AFF_CONVENTION: banis
+    AFF_RESTORE_SIGMOID: 0.2
+    AFF_KEEP_MASK: /path/to/tissue_border_keep_mask_full.zarr
