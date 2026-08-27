@@ -31,6 +31,16 @@ from .output_naming import (
 logger = logging.getLogger(__name__)
 
 
+def _distributed_barrier_rank() -> int | None:
+    """Synchronize an initialized process group and return this process rank."""
+    import torch
+
+    if not torch.distributed.is_available() or not torch.distributed.is_initialized():
+        return None
+    torch.distributed.barrier()
+    return int(torch.distributed.get_rank())
+
+
 def _best_params_file_has_nonfinite_value(path: Path) -> bool:
     """Return True when a saved best-params file contains inf/nan best_value."""
     try:
@@ -56,6 +66,32 @@ def _unique_prediction_dirs(*paths: str | Path | None) -> list[Path]:
         seen.add(key)
         result.append(resolved)
     return result
+
+
+def _crop_minimum_size_padding(prediction, label, patch_size):
+    """Remove centered inference padding added only to satisfy the model patch size."""
+    prediction_shape = tuple(int(v) for v in prediction.shape[-3:])
+    label_shape = tuple(int(v) for v in label.shape[-3:])
+    if prediction_shape == label_shape or not patch_size or len(patch_size) != 3:
+        return prediction
+
+    expected_padded_shape = tuple(
+        max(label_shape[axis], int(patch_size[axis])) for axis in range(3)
+    )
+    if prediction_shape != expected_padded_shape:
+        return prediction
+
+    crop_slices = []
+    for padded, original in zip(prediction_shape, label_shape):
+        before = (padded - original) // 2
+        crop_slices.append(slice(before, before + original))
+    cropped = prediction[(..., *crop_slices)]
+    logger.info(
+        "Removed minimum-size inference padding: prediction %s -> %s",
+        prediction_shape,
+        tuple(int(v) for v in cropped.shape[-3:]),
+    )
+    return cropped
 
 
 def _resolve_first_complete_tuning_prediction_cache(
@@ -292,6 +328,7 @@ def run_tuning(model, trainer_or_factory, cfg, checkpoint_path=None):
         cache_suffix,
     )
 
+    distributed_inference_rank: int | None = None
     if cache_dir is not None:
         cache_kind = (
             "tuning prediction cache"
@@ -337,6 +374,15 @@ def run_tuning(model, trainer_or_factory, cfg, checkpoint_path=None):
                 model._tune_mode = False
 
         logger.info("Test completed. Results: %s", results)
+        # ``trainer.test`` returns on nonzero ranks before rank zero finishes
+        # writing the assembled distributed-TTA cache. Hold every worker at
+        # this stage boundary, then let rank zero alone run the CPU/Optuna
+        # portion. Nonzero ranks wait at the matching barrier below so a
+        # subsequent tune-test inference starts collectively.
+        distributed_inference_rank = _distributed_barrier_rank()
+        if distributed_inference_rank not in (None, 0):
+            _distributed_barrier_rank()
+            return
         pred_files, expected_pred_files = _resolve_tuning_prediction_files(
             cfg,
             inference_write_dir,
@@ -442,6 +488,12 @@ def run_tuning(model, trainer_or_factory, cfg, checkpoint_path=None):
         )
 
     for idx, pred in enumerate(all_predictions):
+        pred = _crop_minimum_size_padding(
+            pred,
+            all_labels[idx],
+            getattr(getattr(tune_data, "dataloader", None), "patch_size", None),
+        )
+        all_predictions[idx] = pred
         pred_spatial = tuple(int(v) for v in pred.shape[-3:])
         label_spatial = tuple(int(v) for v in all_labels[idx].shape[-3:])
         if pred_spatial != label_spatial:
@@ -475,6 +527,9 @@ def run_tuning(model, trainer_or_factory, cfg, checkpoint_path=None):
 
     if model is not None and hasattr(model, "_tune_predictions_cache"):
         model._tune_predictions_cache.clear()
+
+    if distributed_inference_rank == 0:
+        _distributed_barrier_rank()
 
 
 def load_and_apply_best_params(cfg, checkpoint_path=None):

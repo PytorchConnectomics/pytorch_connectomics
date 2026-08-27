@@ -344,6 +344,59 @@ def test_tune_cache_only_preserves_checkpoint_tag_for_tuning_suffix(tmp_path, mo
     assert captured["checkpoint_path"] == args.checkpoint
 
 
+def test_tune_test_cache_detection_checks_resolved_test_stage(tmp_path, monkeypatch):
+    cfg = Config()
+    cfg.tune = TuneConfig()
+    args = _make_args(tmp_path / "config.yaml", mode="tune-test")
+    test_stage_cfg = Config()
+    captured = {"cache_checks": []}
+
+    monkeypatch.setattr(
+        "connectomics.runtime.dispatch.setup_runtime_directories",
+        lambda _args, _cfg: (tmp_path / "tuning", tmp_path),
+    )
+    monkeypatch.setattr(
+        "connectomics.runtime.dispatch.try_cache_only_test_execution",
+        lambda *_args, **_kwargs: False,
+    )
+    monkeypatch.setattr(
+        "connectomics.runtime.dispatch.resolve_test_stage_runtime",
+        lambda _cfg: test_stage_cfg,
+    )
+    monkeypatch.setattr(
+        "connectomics.runtime.dispatch.has_tta_prediction_file",
+        lambda _cfg: False,
+    )
+
+    def _fake_cache_check(runtime_cfg, mode, **_kwargs):
+        captured["cache_checks"].append((runtime_cfg, mode))
+        return mode == "tune"
+
+    monkeypatch.setattr(
+        "connectomics.runtime.dispatch.has_cached_predictions_in_output_dir",
+        _fake_cache_check,
+    )
+
+    def _fake_model_build(*_args, **kwargs):
+        captured["tta_cached"] = kwargs["tta_cached"]
+        return object(), None
+
+    monkeypatch.setattr("connectomics.runtime.dispatch._create_runtime_model", _fake_model_build)
+    monkeypatch.setattr(
+        "connectomics.runtime.tune_runner.run_tuning",
+        lambda *_args, **_kwargs: None,
+    )
+    monkeypatch.setattr(
+        "connectomics.runtime.dispatch._run_test",
+        lambda *_args, **_kwargs: None,
+    )
+
+    dispatch_runtime(args, cfg)
+
+    assert captured["cache_checks"] == [(cfg, "tune"), (test_stage_cfg, "test")]
+    assert captured["tta_cached"] is False
+
+
 def test_checkpoint_tune_uses_tuning_prediction_folder(tmp_path):
     cfg = Config()
     cfg.tune = TuneConfig()

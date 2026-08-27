@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import os
 import sys
+from copy import deepcopy
 from pathlib import Path
 from typing import Any
 
@@ -318,12 +319,18 @@ def dispatch_runtime(args: Any, cfg: Config) -> None:
             mode="tune",
             checkpoint_path=args.checkpoint,
         )
+        # The active tune-test config is tune-resolved here, so its top-level
+        # data split still points at ``data.val``. Resolve a separate test-stage
+        # view before checking the test cache; otherwise a completed tuning
+        # cache in the shared checkpoint test directory is mistaken for the
+        # unseen test volume and a lightweight model is built.
+        test_cache_cfg = resolve_test_stage_runtime(deepcopy(cfg))
         test_cache_hit = (
             has_saved_prediction
-            or has_tta_prediction_file(cfg)
+            or has_tta_prediction_file(test_cache_cfg)
             or has_cached_predictions_in_output_dir(
-                cfg,
-                mode="tune-test",
+                test_cache_cfg,
+                mode="test",
                 checkpoint_path=args.checkpoint,
             )
         )
