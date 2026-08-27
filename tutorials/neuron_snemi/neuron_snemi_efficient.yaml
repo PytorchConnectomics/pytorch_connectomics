@@ -2,9 +2,9 @@ experiment_name: mednext_s_snemi_deepem_efficient
 description: >
   SNEMI3D neuron affinity learning using the DeepEM 12-affinity target setup
   with MedNeXt-S, DeepEM-style EM augmentation, AdamW warmup/cosine training,
-  EMA, bf16 mixed precision, and TTA-ready inference. This efficient variant
-  disables deep supervision and gradient accumulation, and uses a shorter
-  100-epoch schedule with 200 optimizer steps per epoch.
+  bf16 mixed precision, full-volume training, and TTA-ready inference. This
+  efficient variant disables deep supervision and gradient accumulation, and
+  uses a shorter 100-epoch schedule with 200 optimizer steps per epoch.
 
 _base_:
 - ../../connectomics/config/all_profiles.yaml
@@ -26,12 +26,9 @@ default:
     loss:
       deep_supervision: false
   data:
-    # DeepEM split: top 80 z-slices for train, bottom 20 for validation.
-    split_enabled: true
-    split_train_range: [0.0, 0.8]
-    split_val_range: [0.8, 1.0]
-    split_axis: 0
-    split_pad_val: true
+    # Use all 100 labeled z-slices for training. SNEMI3D has no separate
+    # validation volume, so model selection uses the training loss.
+    split_enabled: false
     image_transform:
       normalize: "0-1"
       clip_percentile_low: 0.0
@@ -123,15 +120,10 @@ train:
     accumulate_grad_batches: 1
     precision: "bf16-mixed"
     gradient_clip_val: 1.0
-    ema:
-      enabled: true
-      decay: 0.999
-      warmup_steps: 1000
-      validate_with_ema: true
   monitor:
     logging:
       scalar:
-        loss: [train_loss_total_epoch, val_loss_total]
+        loss: [train_loss_total_epoch]
         loss_every_n_steps: 50
       images:
         log_every_n_epochs: 10
@@ -140,7 +132,7 @@ train:
         channel_mode: all
     checkpoint:
       save_top_k: 3
-      monitor: val_loss_total
+      monitor: train_loss_total_epoch
       mode: min
 
 test:

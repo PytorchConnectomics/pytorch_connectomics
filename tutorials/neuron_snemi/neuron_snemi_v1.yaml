@@ -3,9 +3,9 @@ description: >
   Efficient DeepEM-inspired SNEMI3D neuron affinity recipe. This keeps the
   paper's strongest ideas: 12-affinity auxiliary targets, top-80/bottom-20
   train/validation split, EM defect augmentation, 50% overlap inference, and
-  TTA-ready affinity decoding. Modern changes: MedNeXt-S, AdamW, bf16, EMA,
-  warmup/cosine, large per-GPU batches, no gradient accumulation, and no deep
-  supervision for better throughput on A10-class GPUs.
+  16-view mean TTA. Modern changes: MedNeXt-S, AdamW, bf16, warmup/cosine,
+  large per-GPU batches, no gradient accumulation, and no deep supervision for
+  better throughput on A10-class GPUs.
 
 _base_:
 - ../../connectomics/config/all_profiles.yaml
@@ -26,10 +26,11 @@ default:
       checkpoint_style: outside_block
     loss:
       # Deep supervision costs memory and dataloader/forward time here. With
-      # batch_size=12/GPU and EMA, the single final head is the efficient choice.
+      # batch_size=12/GPU, the single final head is the efficient choice.
       deep_supervision: false
   data:
-    # DeepEM split: top 80 z-slices for train, bottom 20 for validation.
+    # DeepEM split: top 80 z-slices for training and bottom 20 for validation
+    # and agglomeration tuning. Test labels are never used for tuning.
     split_enabled: true
     split_train_range: [0.0, 0.8]
     split_val_range: [0.8, 1.0]
@@ -77,7 +78,8 @@ default:
       profile: aug_em_neuron
       elastic:
         enabled: true
-        prob: 0.5
+        # DeepEM Warp uses skip=0.3, i.e. applies to about 70% of samples.
+        prob: 0.7
         sigma_range: [4.0, 8.0]
         magnitude_range: [8.0, 16.0]
       motion_blur:
@@ -102,13 +104,17 @@ default:
       sw_batch_size: 4
       overlap: 0.5
       blending: bump
-      keep_input_on_cpu: false
+      # Stream each full-volume prediction to CPU. Keeping all four local TTA
+      # view accumulators resident at once exceeds 100 GiB on the test volume.
+      keep_input_on_cpu: true
     test_time_augmentation:
       enabled: true
-      patch_first_local: true
+      patch_first_local: false
       flip_axes: all
       rotation90_axes: [[1, 2]]
-      ensemble_mode: min
+      rotate90_k: [0, 1, 2, 3]
+      # Lee et al. average their 16 transformed affinity predictions.
+      ensemble_mode: mean
     save_results: true
     save_dtype: float32
 
@@ -170,11 +176,6 @@ train:
         warmup_epochs: 5
         warmup_start_lr: 0.05
         min_lr: 1.0e-06
-    ema:
-      enabled: true
-      decay: 0.999
-      warmup_steps: 500
-      validate_with_ema: true
   monitor:
     logging:
       scalar:
@@ -187,7 +188,7 @@ train:
         channel_mode: all
     checkpoint:
       save_top_k: 5
-      monitor: train_loss_total_epoch
+      monitor: val_loss_total
       mode: min
 
 test:
@@ -206,24 +207,28 @@ tune:
   profile: tune_waterz
   n_trials: 50
   trial_timeout: 300
-  study_name: snemi_waterz_tuning_v1
+  study_name: snemi_waterz_tuning_v1_trainval_mean_tta
+  save_cache_suffix: _tta_mean_x16_prediction.h5
   data:
     val:
-      image: datasets/SNEMI/test-input.tif
-      label: datasets/SNEMI/test-labels.h5
+      # Derived exactly from train-input/train-labels z[80:100]. Keeping these
+      # as standalone volumes lets inference pad the 20-slice validation slab
+      # to the 32-slice MedNeXt window without evaluating training voxels.
+      image: datasets/SNEMI/train-input-val-z80-100.h5
+      label: datasets/SNEMI/train-labels-val-z80-100.h5
       resolution: [30, 6, 6]
   parameter_space:
     decoding:
       defaults:
         thresholds: 0.5
-        merge_function: aff85_his256
+        merge_function: affmean
         aff_threshold: [0.1, 0.999]
       parameters:
         merge_function:
           type: categorical
-          choices: [aff85_his256, aff75_his256, aff50_his256, aff25_his256,
-            aff15_his256]
-          description: "Agglomeration scoring function (quantile via histogram)"
+          choices: [affmean, aff85_his256, aff75_his256, aff50_his256,
+            aff25_his256, aff15_his256]
+          description: "Paper-style mean affinity plus histogram-quantile controls"
         thresholds:
           range: [0.1, 0.9]
           step: 0.1
