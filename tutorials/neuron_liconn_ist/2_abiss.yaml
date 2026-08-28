@@ -1,0 +1,134 @@
+# IST LICONN step 2 of 2: affinity -> instance segmentation with ABISS.
+#
+#   python scripts/main.py --config tutorials/neuron_liconn_ist/2_abiss.yaml \
+#     --mode test --checkpoint ${params.artifacts.checkpoint}
+#
+# Input   ${params.artifacts.val_affinity_h5}   step 1's (3,145,4290,3345) float16
+# Output  ${params.paths.output_root}/abiss/    segmentation + metrics
+#
+# The affinity is loaded from disk via `decoding.load_prediction_path`, so this
+# step re-runs the decode without re-running the model.
+#
+# WHY ABISS AND NOT AFFINITY-CC. Measured on MICrONS Pinky, each decoder given its
+# own leave-one-out best threshold: affinity CC 2.03 VOI vs ABISS 1.02, and CC's
+# oracle-merge ceiling (1.94) sat at its own base score -- its errors are false
+# merges baked into the fragments, which no agglomeration can undo. ABISS's
+# watershed produces near-merge-free fragments instead. That is the same failure
+# mode reported for this tissue, so ABISS is the right default here.
+#
+# ############################################################################
+# THRESHOLDS DO NOT TRANSFER FROM THE OTHER ABISS TUTORIALS. READ THIS.
+# ############################################################################
+# Step 1 saves with `inference.model.channel_activations: scale_sigmoid`, i.e.
+# the stored value is sigmoid(0.2 * logit), not the model's probability. Measured
+# on the actual artifact, this val affinity spans about [0.03, 0.81] and NEVER
+# reaches 0.88. Copying `neuron_microns_pinky_abiss.yaml`'s ws_high_threshold of
+# 0.88 would put the seeding threshold ABOVE the data maximum and seed nothing.
+#
+# Two consequences:
+#   * ws_high / ws_low are given as PERCENTILES here, which is invariant to the
+#     compression and to any future change of activation.
+#   * ws_merge_threshold is an ABSOLUTE value in the COMPRESSED space and must be
+#     swept per volume. Mapping Pinky's plain-sigmoid optimum through the same
+#     compression (p -> sigmoid(0.2*logit(p))) suggested 0.50-0.60; the actual
+#     measured optimum on this volume is 0.47, so the mapping was a useful
+#     starting bracket but not a substitute for sweeping.
+#   * `ws_merge_function: max` is invariant under any monotone remap, so the
+#     sweep explores exactly the same family of segmentations as it would on
+#     uncompressed probabilities. `mean` would NOT be -- do not switch it without
+#     first uncompressing.
+
+_base_:
+  - params.yaml
+  - 1_affinity.yaml
+
+experiment_name: liconn_ist_abiss
+description: >-
+  IST LICONN held-out val decoded with the ABISS watershed and max-affinity
+  agglomeration, scored against the proofread FFN segmentation.
+
+save_path: ${params.paths.output_root}/abiss
+
+default:
+  decoding:
+    # Consume the affinity already on disk instead of re-running the model.
+    load_prediction_path: ${params.artifacts.val_affinity_h5}
+    steps:
+      - name: decode_abiss
+        kwargs:
+          # Output-filename tag. WITHOUT THIS the namer slugifies every kwarg
+          # value into the filename -- including the full command string and the
+          # two absolute scratch paths below -- producing a >255-char name and
+          # `OSError: [Errno 36] File name too long` AFTER the decode has already
+          # run (43 min wasted). `tag` replaces the auto-slug entirely.
+          tag: abiss_max047
+          command: >-
+            {python_exe} scripts/run_abiss_volume.py
+            --input {input_h5}
+            --output {output_h5}
+            --abiss-home ${params.paths.repository}/lib/abiss
+            --abiss-workdir ${params.paths.output_root}/abiss/ws_scratch
+          input_dataset: main
+          output_dataset: main
+          # Both scratch paths must live on /projects. ABISS `ws` and the h5
+          # exchange default to tempfile.gettempdir() == node-local /tmp, which
+          # on this cluster is far too small for a 2.08 G-voxel volume (~25 GB
+          # affinity + ~8-16 GB per seg, ~40-50 GB total).
+          workdir: ${params.paths.output_root}/abiss/exchange
+          # This repo stores channel c as the edge along array axis c (z, y, x).
+          # ABISS `ws` reads an (X, Y, Z, C) volume whose channel 0 is the X
+          # edge, so the triplet is reversed.
+          channels: [2, 1, 0]
+          timeout_sec: 21600
+          cli_args:
+            # The `banis` affinity target stores edge (i, i+1) at voxel i; `ws`
+            # reads the value at i as edge (i-1, i). Without this the whole
+            # boundary map lands one voxel off along every axis.
+            edge_storage: source
+            # Percentiles, not absolutes -- see the header block.
+            ws_high_threshold: "94%"
+            ws_low_threshold: "20%"
+            # merge_segments only merges regions under this size, so the stock
+            # 400 would stop agglomeration dead. Raised out of the way so the
+            # affinity criterion is what decides.
+            ws_size_threshold: 10000000
+            ws_dust_threshold: 200
+            # `max` is monotone-invariant; see the header block.
+            ws_merge_function: max
+            # MEASURED on this volume: sweep_merge_threshold.py over 3
+            # disjoint full-Z 1024^2 val slabs. Mean VOI 0.7367 here; the
+            # optimum is FLAT (0.45 -> 0.7388, 0.47 -> 0.7367, 0.49 -> 0.7484,
+            # a 0.012 spread) so anything in 0.45-0.49 is equivalent, but the
+            # cliff below is steep: 0.38 gives merge-VOI 1.19 (catastrophic
+            # over-merge) and 0.41 is already 0.90. Prefer erring high.
+            ws_merge_threshold: 0.47
+
+  evaluation:
+    enabled: true
+    # Dense GT, no skeletons: VOI is the primary threshold-free readout,
+    # adapted_rand a second view, and nerl_oracle_merge gives the merge-only
+    # ceiling that says whether the remaining error is splits or merges.
+    metrics: [voi, adapted_rand, nerl_oracle_merge]
+
+test:
+  data:
+    test:
+      name: liconn_ist_val
+      path: ${params.data.val}
+      image: data.zarr/img
+      # Step 2 DOES read GT -- this is the scoring step.
+      label: data.zarr/seg
+      skeleton: null
+      resolution: ${params.data.resolution_zyx}
+
+# NOTES
+# - Nothing here is fitted to a test skeleton: the val region is held out of
+#   training, and the sweep is scored on it explicitly rather than frozen from
+#   another dataset.
+# - Single-volume ABISS holds the whole affinity in memory
+#   (3 x 145 x 4290 x 3345 float32 ~= 25 GB before ws internals). Validate on a
+#   z-full slab first (README), and use a big-memory node or the chunked runner
+#   scripts/run_abiss_chunk.py for the full volume.
+# - `notes:` cannot be a top-level YAML key here: unlike neuron_j0126/2_abiss.yaml
+#   (consumed by run_abiss_chunk.py), this file is parsed by the strict Config
+#   schema via scripts/main.py, which raises on unknown top-level keys.

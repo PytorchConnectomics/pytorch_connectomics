@@ -14,6 +14,12 @@ segmentation into memory:
 
 The 270/145 split deliberately leaves at least 138 validation slices, which is
 the BANIS+ 128-voxel patch plus its 10-voxel trailing target context.
+
+Image and segmentation may live at different scales. ``--segmentation-resolution-xyz``
+selects a coarser segmentation scale, which is then nearest-upsampled by the exact
+integer factor implied by the two resolutions. This exports the 9x9x12 nm image with
+the 18x18x24 nm proofread segmentation as GT (the proofread segmentation has no 9 nm
+scale), at the cost of a label whose boundaries stay quantized to the coarse grid.
 """
 
 from __future__ import annotations
@@ -56,6 +62,43 @@ def _exact_scale_index(info: dict, resolution_xyz: Sequence[float]) -> int:
             f"found {len(matches)}; available={available}"
         )
     return matches[0]
+
+
+def _upsample_factor_xyz(
+    image_resolution_xyz: Sequence[float],
+    segmentation_resolution_xyz: Sequence[float],
+    image_size_xyz: Sequence[int],
+    segmentation_size_xyz: Sequence[int],
+) -> tuple[int, ...]:
+    """Per-axis integer factor mapping the segmentation grid onto the image grid.
+
+    Requires the resolution ratio to be a whole number on every axis and the source
+    shapes to agree with it under Neuroglancer's ceil-halving convention, so a fine
+    voxel never reads outside the coarse array.
+    """
+    factors = []
+    for axis, (fine_res, coarse_res) in enumerate(
+        zip(image_resolution_xyz, segmentation_resolution_xyz)
+    ):
+        ratio = float(coarse_res) / float(fine_res)
+        factor = int(round(ratio))
+        if factor < 1 or abs(ratio - factor) > 1.0e-6:
+            raise ValueError(
+                f"Segmentation/image resolution ratio on axis {axis} is {ratio}, "
+                "which is not a positive integer; nearest upsampling needs a whole factor."
+            )
+        factors.append(factor)
+
+    for axis, (fine_size, coarse_size, factor) in enumerate(
+        zip(image_size_xyz, segmentation_size_xyz, factors)
+    ):
+        expected = -(-int(fine_size) // factor)
+        if expected != int(coarse_size):
+            raise ValueError(
+                f"Axis {axis}: image size {fine_size} at factor {factor} implies a "
+                f"segmentation size of {expected}, but the source reports {coarse_size}."
+            )
+    return tuple(factors)
 
 
 def _iter_blocks(
@@ -129,6 +172,41 @@ def _read_zyx_block(
     return np.asarray(array_xyz).transpose(2, 1, 0)
 
 
+def _read_zyx_block_upsampled(
+    store,
+    block_zyx: tuple[slice, slice, slice],
+    source_offset_zyx: Sequence[int],
+    factor_zyx: Sequence[int],
+) -> np.ndarray:
+    """Read a fine-grid block out of a coarser store by integer nearest upsampling.
+
+    Fine index ``f`` maps to coarse index ``f // factor``. The covering coarse range is
+    read once, repeated ``factor`` times per axis, then trimmed back to the requested
+    fine block, so block boundaries need not align to the coarse grid.
+    """
+    coarse_slices = []
+    trims = []
+    for block, offset, factor in zip(block_zyx, source_offset_zyx, factor_zyx):
+        fine_start = int(block.start) + int(offset)
+        fine_stop = int(block.stop) + int(offset)
+        coarse_start = fine_start // int(factor)
+        coarse_stop = -(-fine_stop // int(factor))
+        coarse_slices.append(slice(coarse_start, coarse_stop))
+        trims.append((fine_start - coarse_start * int(factor), fine_stop - fine_start))
+
+    z_slice, y_slice, x_slice = coarse_slices
+    array_xyz = store[x_slice, y_slice, z_slice, 0].read().result()
+    block_array = np.asarray(array_xyz).transpose(2, 1, 0)
+    for axis, factor in enumerate(factor_zyx):
+        if int(factor) != 1:
+            block_array = np.repeat(block_array, int(factor), axis=axis)
+    return block_array[
+        trims[0][0] : trims[0][0] + trims[0][1],
+        trims[1][0] : trims[1][0] + trims[1][1],
+        trims[2][0] : trims[2][0] + trims[2][1],
+    ]
+
+
 def _describe_plan(
     image_path: Path,
     segmentation_path: Path,
@@ -139,10 +217,17 @@ def _describe_plan(
     crop_stop_zyx: Sequence[int],
     crop_shape_zyx: Sequence[int],
     split_z: int,
+    segmentation_resolution_xyz: Sequence[float] | None = None,
+    factor_zyx: Sequence[int] | None = None,
 ) -> None:
     print(f"Image source:       {image_path}")
     print(f"Segmentation source:{segmentation_path}")
     print(f"Resolution XYZ:     {list(resolution_xyz)} nm")
+    if segmentation_resolution_xyz is not None:
+        print(
+            f"Segmentation XYZ:   {list(segmentation_resolution_xyz)} nm "
+            f"(nearest-upsampled by {list(factor_zyx)} ZYX)"
+        )
     print(f"Source shape ZYX:   {tuple(source_shape_zyx)}")
     print(
         "Crop ZYX:           "
@@ -208,15 +293,18 @@ def prepare(args: argparse.Namespace) -> None:
 
     image_info = _read_info(image_path)
     segmentation_info = _read_info(segmentation_path)
+    segmentation_resolution_xyz = args.segmentation_resolution_xyz or args.resolution_xyz
     image_scale_index = _exact_scale_index(image_info, args.resolution_xyz)
-    segmentation_scale_index = _exact_scale_index(segmentation_info, args.resolution_xyz)
+    segmentation_scale_index = _exact_scale_index(segmentation_info, segmentation_resolution_xyz)
     image_scale = image_info["scales"][image_scale_index]
     segmentation_scale = segmentation_info["scales"][segmentation_scale_index]
-    if image_scale["size"] != segmentation_scale["size"]:
-        raise ValueError(
-            "Image/segmentation source shapes differ: "
-            f"{image_scale['size']} vs {segmentation_scale['size']}."
-        )
+    factor_xyz = _upsample_factor_xyz(
+        args.resolution_xyz,
+        segmentation_resolution_xyz,
+        image_scale["size"],
+        segmentation_scale["size"],
+    )
+    factor_zyx = tuple(reversed(factor_xyz))
 
     source_shape_zyx = tuple(reversed([int(value) for value in image_scale["size"]]))
     crop_shape_zyx = _validate_crop(
@@ -235,6 +323,8 @@ def prepare(args: argparse.Namespace) -> None:
         args.crop_stop_zyx,
         crop_shape_zyx,
         args.split_z,
+        segmentation_resolution_xyz,
+        factor_zyx,
     )
     if args.dry_run:
         return
@@ -268,6 +358,10 @@ def prepare(args: argparse.Namespace) -> None:
         "source_crop_start_zyx": [int(value) for value in args.crop_start_zyx],
         "source_crop_stop_zyx": [int(value) for value in args.crop_stop_zyx],
         "split_z_in_crop": int(args.split_z),
+        "segmentation_source_resolution_nm_xyz": [
+            float(value) for value in segmentation_resolution_xyz
+        ],
+        "segmentation_upsample_factor_zyx": [int(value) for value in factor_zyx],
     }
 
     # PyTC currently targets Zarr v2 stores. Explicitly select v2 so the
@@ -315,7 +409,12 @@ def prepare(args: argparse.Namespace) -> None:
         )
         for block in _iter_blocks(local_shape, args.block_shape):
             image_block = _read_zyx_block(image_store, block, source_offset)
-            segmentation_block = _read_zyx_block(segmentation_store, block, source_offset)
+            if factor_zyx == (1, 1, 1):
+                segmentation_block = _read_zyx_block(segmentation_store, block, source_offset)
+            else:
+                segmentation_block = _read_zyx_block_upsampled(
+                    segmentation_store, block, source_offset, factor_zyx
+                )
             image_output[block] = image_block
             segmentation_output[block] = segmentation_block
             if args.verify_writes:
@@ -347,6 +446,17 @@ def parse_args() -> argparse.Namespace:
         type=float,
         nargs=3,
         default=[18.0, 18.0, 24.0],
+    )
+    parser.add_argument(
+        "--segmentation-resolution-xyz",
+        type=float,
+        nargs=3,
+        default=None,
+        help=(
+            "Segmentation scale to read, when it differs from --resolution-xyz. "
+            "Must be a whole-number multiple of it; the labels are nearest-upsampled "
+            "onto the image grid. Defaults to --resolution-xyz."
+        ),
     )
     parser.add_argument(
         "--crop-start-zyx",
