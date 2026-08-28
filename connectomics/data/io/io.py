@@ -4,6 +4,7 @@ Consolidated I/O operations for all formats.
 This module provides I/O functions for:
 - HDF5 files (.h5, .hdf5)
 - Image files (PNG, TIFF)
+- Nikon ND2 microscopy files (.nd2)
 - NIfTI files (.nii, .nii.gz)
 - High-level volume operations
 """
@@ -34,7 +35,7 @@ def _detect_format(filename: str) -> str:
     """Detect file format from filename.
 
     Returns canonical format string:
-    'h5', 'tiff', 'png', 'nifti', 'zarr'.
+    'h5', 'tiff', 'png', 'nd2', 'nifti', 'zarr'.
     """
     if filename.endswith(".nii.gz"):
         return "nifti"
@@ -45,6 +46,7 @@ def _detect_format(filename: str) -> str:
         "tif": "tiff",
         "tiff": "tiff",
         "png": "png",
+        "nd2": "nd2",
         "nii": "nifti",
     }
     fmt = _SUFFIX_MAP.get(suffix)
@@ -54,7 +56,7 @@ def _detect_format(filename: str) -> str:
         return "zarr"
     raise ValueError(
         f"Unrecognizable file format for {filename}. "
-        f"Expected: h5, hdf5, tif, tiff, png, nii, nii.gz, zarr"
+        f"Expected: h5, hdf5, tif, tiff, png, nd2, nii, nii.gz, zarr"
     )
 
 
@@ -260,6 +262,84 @@ def _normalize_4d_volume(data: np.ndarray) -> np.ndarray:
 
 
 # =============================================================================
+# ND2 helpers (lazy import)
+# =============================================================================
+
+
+def _nd2_output_axes_and_shape(
+    filename: str, sizes: dict[str, int]
+) -> tuple[list[str], tuple]:
+    """Resolve ND2 axes to PyTC's channel-first volume convention."""
+    unsupported = [axis for axis in sizes if axis not in {"C", "Z", "Y", "X"}]
+    if unsupported:
+        details = ", ".join(f"{axis}={sizes[axis]}" for axis in unsupported)
+        if "P" in unsupported:
+            raise ValueError(
+                f"ND2 input must contain one XY position/tile; found {details} in {filename}. "
+                "Tile concatenation is not supported."
+            )
+        raise ValueError(
+            f"ND2 input contains unsupported axes ({details}) in {filename}. "
+            "Only channel, Z, Y, and X axes are supported."
+        )
+    if "Y" not in sizes or "X" not in sizes:
+        raise ValueError(f"ND2 input must contain Y and X axes: {filename}")
+
+    output_axes = [axis for axis in ("C", "Z", "Y", "X") if axis in sizes]
+    output_shape = tuple(int(sizes[axis]) for axis in output_axes)
+    return output_axes, output_shape
+
+
+def _read_nd2_volume(filename: str) -> np.ndarray:
+    """Read the raw, full-resolution ND2 pixels in PyTC axis order."""
+    try:
+        import nd2
+    except ModuleNotFoundError as exc:
+        raise ModuleNotFoundError(
+            "ND2 support requires the optional 'nd2' package. "
+            "Install PyTC with `pip install -e '.[full]'` or install `nd2`."
+        ) from exc
+
+    with nd2.ND2File(filename) as nd2_file:
+        sizes = {str(axis): int(size) for axis, size in nd2_file.sizes.items()}
+        output_axes, output_shape = _nd2_output_axes_and_shape(filename, sizes)
+        input_axes = list(sizes)
+        data = np.asarray(nd2_file.asarray())
+
+    expected_input_shape = tuple(sizes[axis] for axis in input_axes)
+    if data.shape != expected_input_shape:
+        raise ValueError(
+            f"ND2 axis metadata does not match pixel data for {filename}: "
+            f"axes={input_axes}, sizes={expected_input_shape}, data shape={data.shape}."
+        )
+
+    permutation = tuple(input_axes.index(axis) for axis in output_axes)
+    data = np.transpose(data, permutation)
+    if data.shape != output_shape:
+        raise ValueError(
+            f"Unexpected ND2 output shape for {filename}: "
+            f"expected {output_shape}, got {data.shape}."
+        )
+    return data
+
+
+def _get_nd2_volume_shape(filename: str) -> tuple:
+    """Get the PyTC-order ND2 shape without loading pixel data."""
+    try:
+        import nd2
+    except ModuleNotFoundError as exc:
+        raise ModuleNotFoundError(
+            "ND2 support requires the optional 'nd2' package. "
+            "Install PyTC with `pip install -e '.[full]'` or install `nd2`."
+        ) from exc
+
+    with nd2.ND2File(filename) as nd2_file:
+        sizes = {str(axis): int(size) for axis, size in nd2_file.sizes.items()}
+    _, shape = _nd2_output_axes_and_shape(filename, sizes)
+    return shape
+
+
+# =============================================================================
 # NIfTI helpers (lazy import)
 # =============================================================================
 
@@ -317,7 +397,7 @@ def read_volume(
     dataset: Optional[str] = None,
     drop_channel: bool = False,
 ) -> np.ndarray:
-    """Load volumetric data (HDF5, TIFF, PNG, NIfTI).
+    """Load volumetric data (HDF5, TIFF, PNG, ND2, NIfTI, Zarr).
 
     Returns array with shape (D, H, W) or (C, D, H, W).
     """
@@ -348,6 +428,9 @@ def read_volume(
         if data.ndim == 4:
             # (D, H, W, C) -> (C, D, H, W)
             data = data.transpose(3, 0, 1, 2)
+
+    elif fmt == "nd2":
+        data = _read_nd2_volume(filename)
 
     elif fmt == "nifti":
         data = _read_nifti(filename)
@@ -493,6 +576,9 @@ def get_vol_shape(
 
     if fmt == "tiff":
         return _get_tiff_volume_shape(filename)
+
+    if fmt == "nd2":
+        return _get_nd2_volume_shape(filename)
 
     if fmt == "png":
         file_list = sorted(glob.glob(filename))

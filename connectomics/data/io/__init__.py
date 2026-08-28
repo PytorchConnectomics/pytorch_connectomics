@@ -2,7 +2,7 @@
 I/O utilities for PyTorch Connectomics.
 
 Organization:
-    io.py              - Format-specific I/O (HDF5, TIFF, PNG, NIfTI)
+    io.py              - Format-specific I/O (HDF5, TIFF, PNG, ND2, NIfTI)
     transforms.py      - MONAI-compatible data loading transforms
     tiles.py           - Tile-based operations for large datasets
     utils.py           - RGB/seg conversion, mask splitting
