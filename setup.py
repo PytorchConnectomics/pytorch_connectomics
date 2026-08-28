@@ -48,6 +48,7 @@ extras_require = {
     # Full installation with all recommended features
     "full": [
         "gputil>=1.4.0",
+        "nd2>=0.7.0",
         "tifffile>=2021.11.2",
         "wandb>=0.13.0",
         "optuna>=2.10.0",
