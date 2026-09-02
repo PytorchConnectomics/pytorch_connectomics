@@ -16,6 +16,10 @@ params:
     dataset_root: /projects/weilab/dataset/zebrafinch
 
   data:
-    raw_10nm: ${params.paths.dataset_root}/im_align_10nm.zarr/0
+    # Native FFN mip 0: 9 x 9 x 20 nm (x,y,z) = [20, 9, 9] in ZYX. The
+    # `im_align_10nm.zarr` name is historical -- the store is byte-for-byte
+    # equal to mip 0 on the same coordinates, not a 10 nm isotropic resample.
+    # Any ZYX zarr from `scripts/download_precompute.py --mip 0` works here.
+    raw_em: ${params.paths.dataset_root}/im_align_10nm.zarr/0
     dense_images: ${params.paths.dataset_root}/train/im_raw_4-32-32
     dense_labels: ${params.paths.dataset_root}/train/seg_gt_4-32-32
