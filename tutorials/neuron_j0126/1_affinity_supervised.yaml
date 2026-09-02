@@ -1,77 +1,59 @@
-# j0126 step 1, VARIANT: affinity from the SUPERVISED from-scratch model.
+# j0126 step 1, VARIANT: the SUPERVISED reference affinity.
 #
-# Train it (200k steps, 4 GPUs, ~batch 8/GPU on the 33 dense GT cubes):
-#
-#   python scripts/main.py --config tutorials/neuron_j0126/1_affinity_supervised.yaml --mode train
-#
-# then infer with the resulting checkpoint:
-#
-#   python scripts/main.py --config tutorials/neuron_j0126/1_affinity_supervised.yaml --mode test \
-#       --checkpoint outputs/1_affinity_supervised/<timestamp>/checkpoints/step=00200000.ckpt
-#
-# The reference run used
-#   outputs/nisb_base_banis_plus_zebrafinch_heavy/20260726_114349/checkpoints/step=00200000.ckpt
+#   train:  python scripts/main.py --config tutorials/neuron_j0126/1_affinity_supervised.yaml --mode train
+#   infer:  python scripts/main.py --config tutorials/neuron_j0126/1_affinity_supervised.yaml --mode test \
+#               --checkpoint <run>/checkpoints/step=00200000.ckpt
 #
 # ############################################################################
 # THIS VARIANT IS NOT GROUND-TRUTH-FREE. It is not part of the 3-step pipeline.
 # ############################################################################
+# MedNeXt-L/k3 (62M) trained from scratch for 200k steps on the j0126 dense GT
+# cubes. It has seen labelled j0126 tissue, so the README's headline claim --
+# "no step uses ground truth" -- does NOT hold for any run that starts here.
+# Use it as the SUPERVISED UPPER REFERENCE that says what the GT-free path is
+# giving up. (The cubes come from a different alignment of the volume than the
+# test skeletons, so this is target-domain supervision, not voxel-level test
+# contamination.)
 #
-# The checkpoint is MedNeXt-L/k3 (62M) trained from scratch for 200k steps ON THE 33
-# ZEBRAFINCH DENSE GT CUBES (`tutorials/neuron_nisb/base_banis+_zebrafinch_heavy.yaml`,
-# heavy `aug_em_neuron`). Those cubes are j0126 ground truth, so this model has seen
-# labelled j0126 tissue and the README's headline claim -- "no step uses ground truth" --
-# does NOT hold for any run that starts here. Use it as the SUPERVISED UPPER REFERENCE
-# that tells you what the GT-free path is giving up, not as a drop-in for `1_affinity_zeroshot.yaml`.
+# DATA -- the PADDED cubes (`im_raw_4-32-32` / `seg_gt_4-32-32`), not the raw
+# ones. The [4,32,32]-per-side pad is real EM context on the image side and -1
+# on the label side, so the loss skips the border and no mask volume is needed.
+# Paths are listed explicitly rather than globbed: a bare `gt_*.h5` also matches
+# the `gt_*_skeleton.h5` siblings and would pair 66 labels against 33 images.
 #
-# (The 33 cubes come from a different alignment of the volume than the test skeletons, so
-# this is not voxel-level test contamination. It is still supervision on the target domain.)
+# SPLIT -- 25 train / 8 val, disjoint. Rule: sort the 33 cube names, take every
+# 4th starting at index 2 for val. That holds out 8 cubes including 2 of the 4
+# large 128x256x256 ones, so val is not systematically the small cubes.
+#   The released checkpoint (`pytc/j0126 affinity_scratch_48x96x96.ckpt`) and
+#   every number in the README results table PREDATE this split: that run
+#   trained on all 33 cubes and validated on a 3-cube subset that was also in
+#   train, so its val curve was not a generalization estimate. Retraining with
+#   this config gives an honest held-out curve and a slightly different model;
+#   it does not reproduce that checkpoint bit for bit.
 #
-# The native-window full-volume affinity/decode is being produced separately. The prior
-# whole-volume score 0.444376 came from this checkpoint inferred at [144,144,144]: its
-# affinity path has the default suffix and is `arm0_win144`, not this config. Do not attach
-# that number or its 0.941244 union-only oracle to the native-window artifact.
+# RESOLUTION -- 20 x 9 x 9 nm in ZYX (9 x 9 x 20 nm in XYZ), the native FFN
+# mip-0 grid. The cubes, the inference volume and the evaluation skeletons all
+# live on it. Nothing here is 10 nm isotropic despite the `im_align_10nm.zarr`
+# name: that store is byte-for-byte equal to mip 0 on the same coordinates.
+# Patch [48,96,96] is therefore 960 x 864 x 864 nm -- near-isotropic in physical
+# space, which is the point of the anisotropic shape. MedNeXt-L is 4-stage /
+# stride-16, and 48/16 = 3, 96/16 = 6, both integer.
 #
-# Output: the checkpoint-derived test directory, with one float16 CZYX HDF5 per chunk under
-# a store whose name ends `_win48x96x96.h5.chunks`.
+# WINDOW -- infer at the trained [48,96,96]. MedNeXt normalizes with per-sample
+# `GroupNorm(num_groups=C, num_channels=C)` and NO running statistics, so the
+# forward pass depends on the window's spatial extent; the zero-shot
+# [144,144,144] would invert the trained Z-thin anisotropy. Both window keys
+# must live in YAML, never on the CLI: `inference.window` is copied into the
+# runtime-owned `inference.sliding_window` alias, and the `default.inference`
+# stage merge can clobber a pre-resolution CLI override. At the inherited
+# `overlap: 0.5` the strides are (24,48,48) and 1008 % 24 == 1008 % 48 == 0, so
+# every chunk's window lattice keeps the same phase and the seams stay
+# reproducible. `sw_batch_size: 32` is ~17 GB; drop to 16 if it OOMs.
 #
-# ---------------------------------------------------------------------------
-# WHY THE WINDOW CHANGES, AND WHY IT MUST
-#
-# This model was trained at patch [48,96,96] (anisotropic -- near-isotropic in nm for
-# 9x9x20 voxels), NOT at the 128^3 the pretrain model used. MedNeXt normalizes with
-# `nn.GroupNorm(num_groups=C, num_channels=C)`, i.e. per-sample per-channel InstanceNorm
-# with NO running statistics
-# (lib/MedNeXt/nnunet_mednext/network_architecture/mednextv1/blocks.py:42). Normalization
-# statistics are therefore computed over the *window's* spatial extent at every block, so
-# THE FORWARD PASS IS WINDOW-SIZE DEPENDENT. Running this checkpoint at the inherited
-# [144,144,144] would be a 3x Z / 1.5x XY extent mismatch and would invert the trained
-# Z-thin anisotropy. Native-window affinities ranked better on the fixed local chunks; a
-# whole-volume funlib/mt50 value must wait for the native store and decode to finish.
-#
-# Divisibility, which the [48,96,96] choice has to satisfy on two counts:
-#   * MedNeXt-L is 4-stage / stride-16: 48/16 = 3 and 96/16 = 6.
-#   * At the inherited `overlap: 0.5` the strides are (24,48,48); 1008 % 24 == 0 and
-#     1008 % 48 == 0, so every chunk's window lattice has the same phase and chunk seams
-#     stay reproducible. (This is the invariant the "1008 = 14 * 72" comment in
-#     base_banis+_zebrafinch.yaml protects for the 144 window.)
-# Total voxel-forwards per chunk land within 10% of the [144,144,144] run (24,863 small
-# windows vs 3,375 large), so wall-clock is comparable despite the 7.4x window count.
-#
-# sw_batch_size 32: the pretrain model measures ~3.46 GB per batch unit at 144^3 (+0.77 GB
-# fixed). A [48,96,96] window is 6.75x fewer voxels => ~0.51 GB/unit => 32 units ~= 17 GB,
-# which fits both the 40 GB A100 (g003-g006) and the 49 GB L40S (g010-g018). Drop to 16 if
-# it OOMs.
-#
-# BOTH window keys MUST live in YAML, never on the CLI: `inference.window` is copied into
-# the runtime-owned `inference.sliding_window` alias (which the lazy/zarr path actually
-# reads) by `sync_inference_runtime_aliases`, and the `default.inference` stage merge can
-# clobber a pre-resolution CLI override. Original diagnosis in
-# base_banis+_zebrafinch_zarr_b4.yaml; the same class of bug silently reverted an ROI
-# override via runtime/sharding.py:57.
-#
-# Everything else -- input zarr, 1008^3 grid, halo 72, reflect padding, roi
-# [5700,10913,10664], select_channel [0,1,2], scale_sigmoid, float16 -- is inherited
-# unchanged, so these chunks are directly comparable in layout with `1_affinity_zeroshot.yaml`'s.
+# Everything else -- input volume, 1008^3 grid, halo 72, reflect padding, ROI
+# [5700,10913,10664], select_channel [0,1,2], scale_sigmoid, float16 -- is
+# inherited from `1_affinity_zeroshot.yaml` unchanged, so these chunks are
+# directly comparable in layout with the zero-shot ones.
 
 _base_:
   - 1_affinity_zeroshot.yaml
@@ -79,9 +61,9 @@ _base_:
 experiment_name: neuron_j0126_affinity_arm0_96
 description: >-
   Supervised reference affinity for j0126: from-scratch MedNeXt-L/k3 trained 200k steps on
-  the 33 zebrafinch dense GT cubes, inferred at its native [48,96,96] window. NOT
-  ground-truth-free -- provided as the upper reference against the zero-shot
-  1_affinity_zeroshot.yaml, not as part of the GT-free pipeline.
+  the j0126 dense GT cubes (25 train / 8 held-out val), inferred at its native [48,96,96]
+  window. NOT ground-truth-free -- the upper reference against 1_affinity_zeroshot.yaml,
+  not a drop-in for it.
 
 save_path: ${params.paths.output_root}/affinity_arm0_96
 
@@ -89,10 +71,6 @@ default:
   system:
     num_gpus: 4
   model:
-    # Anisotropic patch matching physical isotropy for 9x9x20 nm voxels:
-    # [48,96,96] = ~864 x 864 x 960 nm, versus the inherited 128^3 = ~1152 x 1152
-    # x 2560 nm (Z-heavy, 5x more voxels). MedNeXt-L is 4-stage / stride-16:
-    # 48/16 = 3 and 96/16 = 6, both integer.
     input_size: [48, 96, 96]
     # From scratch. This is the explicit ablation against the init-from-NISB
     # finetune line, so do NOT set an external_weights_path here.
@@ -109,14 +87,14 @@ default:
       use_preloaded_cache_val: true
       # 5x fewer voxels per patch than 128^3, so batch 8 fits where 2 was the
       # ceiling -- more random crops per step, which regularizes a 62M-param
-      # model on 33 cubes.
+      # model on 25 cubes.
       batch_size: 8
       # Preflight requires model.input_size == data.dataloader.patch_size.
       patch_size: [48, 96, 96]
     augmentation:
       # DeepEM-matched heavy augmentation: defect_mutex + elastic + ±50% contrast
-      # + slice shift/drop + lost_section + motion blur + missing parts. With only
-      # 33 cubes this carries the regularization instead of shrinking the model.
+      # + slice shift/drop + lost_section + motion blur + missing parts. With so
+      # few cubes this carries the regularization instead of shrinking the model.
       profile: aug_em_neuron
   inference:
     window:
@@ -125,7 +103,7 @@ default:
   decoding:
     # Chunked raw prediction naming still uses the decode suffix even though
     # decoding is disabled in step 1. Without this override the native-window
-    # run targets the complete 144-window store and silently skip-on-exists.
+    # run targets the complete 144-window store and silently skips on exists.
     save_suffix: zebrafinch_chunk_raw_grid1008_halo72_win48x96x96
 
 train:
@@ -139,28 +117,82 @@ train:
         t_max: 200000
   data:
     train:
-      # All 33 dense GT cubes, as [4,32,32]-per-side padded images. The padding
-      # carries a -1 ignore border, so the loss skips it and no separate mask
-      # volume is needed.
-      #
-      # The `*[0-9]` glob is load-bearing: a bare `gt_*.h5` also matches the
-      # `gt_*_skeleton.h5` caches, which would pair 66 labels against 33 images.
+      # The 25 training cubes: sorted cube names minus every 4th from index 2.
       path: ""
-      resolution: [10, 10, 10]
-      image: ${params.data.dense_images}/im_*[0-9].h5
-      label: ${params.data.dense_labels}/gt_*[0-9].h5
-    val:
-      # A 3-cube subset that is also in train. It drives EMA validation and
-      # checkpoint selection only -- no cube is held out, and it is NOT a
-      # generalization estimate. Real evaluation is step 3 against the 50 test
-      # skeletons.
-      path: ""
-      resolution: [10, 10, 10]
+      resolution: [20, 9, 9]
       image:
+        - ${params.data.dense_images}/im_z255-383_y1407-1663_x1535-1791.h5
+        - ${params.data.dense_images}/im_z2559-2687_y4991-5247_x4863-5119.h5
+        - ${params.data.dense_images}/im_z2834-2984_y5311-5461_x5077-5227.h5
+        - ${params.data.dense_images}/im_z2868-3018_y5744-5894_x5157-5307.h5
+        - ${params.data.dense_images}/im_z2874-3024_y5707-5857_x5304-5454.h5
+        - ${params.data.dense_images}/im_z3096-3246_y5954-6104_x5813-5963.h5
+        - ${params.data.dense_images}/im_z3118-3268_y6538-6688_x6100-6250.h5
+        - ${params.data.dense_images}/im_z3126-3276_y6857-7007_x5694-5844.h5
+        - ${params.data.dense_images}/im_z3438-3588_y2775-2925_x3476-3626.h5
         - ${params.data.dense_images}/im_z3456-3606_y3188-3338_x4043-4193.h5
-        - ${params.data.dense_images}/im_z3914-4064_y9035-9185_x2573-2723.h5
+        - ${params.data.dense_images}/im_z3492-3642_y7888-8038_x8374-8524.h5
+        - ${params.data.dense_images}/im_z3596-3746_y3888-4038_x3661-3811.h5
+        - ${params.data.dense_images}/im_z3604-3754_y4101-4251_x3493-3643.h5
+        - ${params.data.dense_images}/im_z3608-3758_y3829-3979_x3423-3573.h5
+        - ${params.data.dense_images}/im_z3710-3860_y8691-8841_x2889-3039.h5
+        - ${params.data.dense_images}/im_z3722-3872_y4548-4698_x2879-3029.h5
+        - ${params.data.dense_images}/im_z3734-3884_y4315-4465_x2209-2359.h5
+        - ${params.data.dense_images}/im_z4102-4252_y6330-6480_x1899-2049.h5
+        - ${params.data.dense_images}/im_z4312-4462_y9341-9491_x2419-2569.h5
+        - ${params.data.dense_images}/im_z4440-4590_y7294-7444_x2350-2500.h5
+        - ${params.data.dense_images}/im_z4905-5055_y928-1078_x1729-1879.h5
+        - ${params.data.dense_images}/im_z4951-5101_y9415-9565_x2272-2422.h5
+        - ${params.data.dense_images}/im_z5001-5151_y9426-9576_x2197-2347.h5
+        - ${params.data.dense_images}/im_z5405-5555_y10490-10640_x3406-3556.h5
         - ${params.data.dense_images}/im_z734-884_y9561-9711_x563-713.h5
       label:
+        - ${params.data.dense_labels}/gt_z255-383_y1407-1663_x1535-1791.h5
+        - ${params.data.dense_labels}/gt_z2559-2687_y4991-5247_x4863-5119.h5
+        - ${params.data.dense_labels}/gt_z2834-2984_y5311-5461_x5077-5227.h5
+        - ${params.data.dense_labels}/gt_z2868-3018_y5744-5894_x5157-5307.h5
+        - ${params.data.dense_labels}/gt_z2874-3024_y5707-5857_x5304-5454.h5
+        - ${params.data.dense_labels}/gt_z3096-3246_y5954-6104_x5813-5963.h5
+        - ${params.data.dense_labels}/gt_z3118-3268_y6538-6688_x6100-6250.h5
+        - ${params.data.dense_labels}/gt_z3126-3276_y6857-7007_x5694-5844.h5
+        - ${params.data.dense_labels}/gt_z3438-3588_y2775-2925_x3476-3626.h5
         - ${params.data.dense_labels}/gt_z3456-3606_y3188-3338_x4043-4193.h5
-        - ${params.data.dense_labels}/gt_z3914-4064_y9035-9185_x2573-2723.h5
+        - ${params.data.dense_labels}/gt_z3492-3642_y7888-8038_x8374-8524.h5
+        - ${params.data.dense_labels}/gt_z3596-3746_y3888-4038_x3661-3811.h5
+        - ${params.data.dense_labels}/gt_z3604-3754_y4101-4251_x3493-3643.h5
+        - ${params.data.dense_labels}/gt_z3608-3758_y3829-3979_x3423-3573.h5
+        - ${params.data.dense_labels}/gt_z3710-3860_y8691-8841_x2889-3039.h5
+        - ${params.data.dense_labels}/gt_z3722-3872_y4548-4698_x2879-3029.h5
+        - ${params.data.dense_labels}/gt_z3734-3884_y4315-4465_x2209-2359.h5
+        - ${params.data.dense_labels}/gt_z4102-4252_y6330-6480_x1899-2049.h5
+        - ${params.data.dense_labels}/gt_z4312-4462_y9341-9491_x2419-2569.h5
+        - ${params.data.dense_labels}/gt_z4440-4590_y7294-7444_x2350-2500.h5
+        - ${params.data.dense_labels}/gt_z4905-5055_y928-1078_x1729-1879.h5
+        - ${params.data.dense_labels}/gt_z4951-5101_y9415-9565_x2272-2422.h5
+        - ${params.data.dense_labels}/gt_z5001-5151_y9426-9576_x2197-2347.h5
+        - ${params.data.dense_labels}/gt_z5405-5555_y10490-10640_x3406-3556.h5
         - ${params.data.dense_labels}/gt_z734-884_y9561-9711_x563-713.h5
+    val:
+      # The 8 held-out cubes. Disjoint from train, so val/loss is a real
+      # generalization signal for checkpoint selection. End-to-end evaluation is
+      # still step 3 against the 50 test skeletons.
+      path: ""
+      resolution: [20, 9, 9]
+      image:
+        - ${params.data.dense_images}/im_z2815-2943_y5631-5887_x4607-4863.h5
+        - ${params.data.dense_images}/im_z2934-3084_y5115-5265_x5140-5290.h5
+        - ${params.data.dense_images}/im_z3436-3586_y599-749_x2779-2929.h5
+        - ${params.data.dense_images}/im_z3492-3642_y841-991_x381-531.h5
+        - ${params.data.dense_images}/im_z3702-3852_y9605-9755_x2244-2394.h5
+        - ${params.data.dense_images}/im_z3914-4064_y9035-9185_x2573-2723.h5
+        - ${params.data.dense_images}/im_z4801-4951_y10154-10304_x1972-2122.h5
+        - ${params.data.dense_images}/im_z5119-5247_y1023-1279_x1663-1919.h5
+      label:
+        - ${params.data.dense_labels}/gt_z2815-2943_y5631-5887_x4607-4863.h5
+        - ${params.data.dense_labels}/gt_z2934-3084_y5115-5265_x5140-5290.h5
+        - ${params.data.dense_labels}/gt_z3436-3586_y599-749_x2779-2929.h5
+        - ${params.data.dense_labels}/gt_z3492-3642_y841-991_x381-531.h5
+        - ${params.data.dense_labels}/gt_z3702-3852_y9605-9755_x2244-2394.h5
+        - ${params.data.dense_labels}/gt_z3914-4064_y9035-9185_x2573-2723.h5
+        - ${params.data.dense_labels}/gt_z4801-4951_y10154-10304_x1972-2122.h5
+        - ${params.data.dense_labels}/gt_z5119-5247_y1023-1279_x1663-1919.h5
