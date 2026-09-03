@@ -1,0 +1,120 @@
+# Moritz L4 step 2 of 3: whole-volume affinity -> over-segmentation with ABISS.
+#
+#   python scripts/run_abiss_chunk.py --config tutorials/neuron_moritz_l4/2_abiss.yaml --prepare-only
+#   python scripts/run_abiss_chunk.py --config tutorials/neuron_moritz_l4/2_abiss.yaml
+#
+# Input   the whole-volume affinity precomputed layer written by the inference pass
+# Output  .../precomputed/seg   ABISS segmentation (CloudVolume precomputed)
+#
+# NO AFFINITY COPY. `source_affinity_h5` is deliberately omitted: the inference pass
+# already wrote a precomputed layer *in the ABISS convention* (edge shift v->v-1 and
+# channel order [x,y,z]) -- measured, not assumed, see FRAME.md. AFF_PATH is therefore
+# used as-is, which avoids a 645 GB copy and makes `param.BBOX` required.
+#
+# FRAME. Every coordinate here is in the VOLUME frame, whose origin is global
+# (118, 0, 0) zyx. The 96 GT skeletons are in the GLOBAL frame, so evaluation must add
+# 118 to z. Getting this wrong yields a plausible segmentation that scores ~0.
+#
+# CPU scaling: ABISS uses every CPU the scheduler grants this process. Submit as ONE
+# shared-memory job (`--cpus-per-task=64`), not a job array: hierarchy levels have
+# strict barriers and all workers write the same output layers.
+
+_base_: params.yaml
+
+abiss_chunk:
+  abiss_home: ${params.paths.repository}/lib/abiss
+  workdir: ${params.paths.output_root}/abiss/run
+  secrets_dir: ${params.paths.output_root}/abiss/secrets
+  param_path: ${params.paths.output_root}/abiss/secrets/param
+
+  # On-disk precomputed storage chunks (NOT the ABISS logical chunk grid).
+  # aff must match the affinity layer's own chunk_sizes ([128,128,48] from its info);
+  # seg z must equal CHUNK_SIZE z (80), per the j0126 alignment rule.
+  copy_block_shape_xyz: [128, 128, 48]
+  aff_chunk_size_xyz: [128, 128, 48]
+  seg_chunk_size_xyz: [128, 128, 32]
+  resolution_xyz: [11, 11, 28]        # ints only (_maybe_int_list); display metadata
+
+  # _compute_top_mip([0,0,0,5599,8534,3306], [5599,8534,32]) == 7  (checked, not guessed)
+  root_tag: "7_0_0_0"
+  top_mip: 7
+  overlap_mode: 0
+  meta_dirs: []
+
+  param:
+    NAME: moritz_l4_abiss
+
+    AFF_PATH: file://${params.data.affinity_precomputed}
+    WS_PATH: file://${params.paths.output_root}/abiss/precomputed/ws
+    SEG_PATH: file://${params.paths.output_root}/abiss/precomputed/seg
+    SCRATCH_PATH: file://${params.paths.output_root}/abiss/scratch
+    CHUNKMAP_OUTPUT: file://${params.paths.output_root}/abiss/chunkmap
+    AFF_RESOLUTION: 0
+
+    # Volume frame, XYZ. Tissue is a subset of this; the layer keeps the y<103 / x<103
+    # zero padding and is cropped only on the far face.
+    BBOX: [0, 0, 0, 5599, 8534, 3306]
+
+    # Large in XY to minimise cross-face stitching, chunked in Z.
+    #
+    # Z IS 32 BECAUSE OF A HARD 32-BIT CAP, not because of memory. ABISS's watershed
+    # uses `internal_seg_t = uint32_t` and asserts
+    #   atomic_chunk.cpp:135  chunk_size < watershed_traits<uint32_t>::high_bit
+    # so a PADDED atomic chunk must be < 2^31 = 2.147e9 voxels. Padding is core+1 on
+    # every side (param.txt showed `5601 8536 82` for a [5599,8534,80] core).
+    #   z=80 -> 3.92e9 = 183% of the cap   (job 2954910 died on the assertion)
+    #   z=40 -> 2.01e9 =  94% -- too close to a hard assert to be worth it
+    #   z=32 -> 1.63e9 =  76%  <-- chosen
+    # -> grid 1 x 1 x 104 chunks, 1.53e9 voxels each.
+    #
+    # NOTE j0126's documented CHUNK_SIZE [10664, 10913, 80] is 9.3e9 voxels and would
+    # trip the same assertion, so that tutorial's config cannot have run against this
+    # vendored binary as written. Do not copy chunk sizes from it without checking.
+    CHUNK_SIZE: [5599, 8534, 32]
+
+    # WATERSHED args -- validly fitted GT-free on the 26 held-out val cubes (decision
+    # D2; the 96 test skeletons were never used). These four are argv[3..6] of the `ws`
+    # binary and mean the same thing in both the single-volume and chunked paths.
+    #   ABISS 0.0726 mean VOI / 0.0373 median vs decode_affinity_cc 0.2201 / 0.1954,
+    #   better on 26/26 cubes; n_pred 55.3 vs n_gt 45.1 (conservative over-split).
+    # WS_HIGH is bracketed (0.45->0.0730, 0.50->0.0726, 0.55->0.0744); WS_LOW saturates
+    # at its domain floor. j0126's WS_HIGH 0.9 is wrong here and wrong DIRECTIONALLY:
+    # this affinity's interior mode is ~0.89, so 0.9 halves it and starves the
+    # watershed -- at j0126's values ABISS loses to a plain threshold decode.
+    WS_HIGH_THRESHOLD: 0.5
+    WS_LOW_THRESHOLD: 0.0
+    WS_SIZE_THRESHOLD: 400
+    WS_DUST_THRESHOLD: 200
+
+    # AGG_THRESHOLD IS **NOT** FITTED, AND MUST NOT BE TAKEN FROM THE VAL-CUBE SWEEP.
+    #
+    # A first whole-volume run used 0.001 here, taken from that sweep, and PERCOLATED:
+    # one segment held 96.63% of all GT skeleton nodes, base NERL 0.0007, voi_merge
+    # 5.8778 (job 2958127 decode, scored by job 2959751). The merge oracle on the same
+    # output was 0.9158, i.e. the fragments were excellent and the agglomeration fused
+    # them.
+    #
+    # The cause was a parameter conflation, not scale. The two paths do DIFFERENT things:
+    #   single-volume `ws` binary: merge_segments(..., pair(size_threshold, merge_thr), dust)
+    #       -> SIZE-GATED, only absorbs fragments under WS_SIZE_THRESHOLD (400 voxels).
+    #          This is what the val-cube sweep varied, which is why it looked "inert"
+    #          across 0.0002..0.01 -- it only ever touched sub-400-voxel dust.
+    #   chunked path: `agg $AGG_THRESHOLD input_rg.data` (atomic_chunk_me.sh:43)
+    #       -> UNRESTRICTED mean-edge agglomeration on the region graph. With this
+    #          affinity's background mode at ~0.05, a 0.001 threshold merges everything.
+    #
+    # 0.20 is j0126's value, which produced their reference segmentation and was never
+    # invalidated by anything measured here. Treat it as a starting point: it has NOT
+    # been fitted on this volume. Fit it GT-free via the largest-segment volume
+    # fraction (a percolated segment is absurdly large, no GT needed), not by VOI on
+    # 100^3 cubes, which cannot see percolation at all.
+    AGG_THRESHOLD: 0.20
+
+    PARANOID: false
+    CHUNKED_AGG_OUTPUT: false
+
+notes:
+  - "Thresholds are fitted on val cubes (VOI, local) and transferred to the whole volume (NERL, long-range). If the S3 oracle ceiling is high but the base NERL is low, suspect this transfer before suspecting the affinity."
+  - "WS_LOW 0.0 means no affinity edge is declared a hard boundary a priori. On 100^3 cubes percolation cannot manifest, but this volume is 158 Gvox, where one low-affinity path can chain two neurons. The guard is AGG_THRESHOLD 0.001, which is extremely conservative. If S3 reports a merge problem, WS_LOW 1e-4 costs only +0.010 VOI on the cubes and is the first thing to try."
+  - "Per-chunk peak RSS scales with chunk voxels: 92.0 GB measured at 3.82e9 voxels (job 2954892) => ~24 bytes/voxel => ~37 GB at 1.53e9. ABISS concurrency IS the CPU count, so keep ncpus * per-chunk-RSS under the memory request."
+  - "Storage: ~0.2 TiB scratch and ~11 GB final segmentation, scaling j0126's figures by the 4.2x smaller volume."
