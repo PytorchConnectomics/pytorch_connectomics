@@ -73,45 +73,53 @@ def _reject_volume_crop_on_lazy(cfg: Config, backend_name: str) -> None:
             )
 
 
-def _read_downscale(cfg: Config) -> float:
-    """Return the validated train/val read-size shrink factor in ``(0, 1]``."""
-    s = float(getattr(cfg.data.dataloader, "read_downscale", 1.0))
-    if not (0.0 < s <= 1.0):
+def _read_downscale(cfg: Config) -> tuple[float, ...]:
+    """Return validated per-axis train/val native-read scale factors."""
+    raw = getattr(cfg.data.dataloader, "read_downscale", 1.0)
+    ndim = len(cfg.data.dataloader.patch_size)
+    if isinstance(raw, (list, tuple)):
+        factors = tuple(float(value) for value in raw)
+        if len(factors) != ndim:
+            raise ValueError(
+                "data.dataloader.read_downscale must be a scalar or have one factor "
+                f"per patch axis ({ndim}); got {raw}."
+            )
+    else:
+        factors = (float(raw),) * ndim
+    if any(value <= 0.0 for value in factors):
         raise ValueError(
-            "data.dataloader.read_downscale must be in (0, 1]; "
-            f"got {s}. Use 1.0 (default) for native reads, or a fraction "
-            "(e.g. 0.5) to read a smaller native crop and upsample it back "
-            "via data.data_transform.resize."
+            "data.dataloader.read_downscale factors must be positive; "
+            f"got {raw}. Use 1.0 for native reads, or e.g. [1, 2, 2] "
+            "to read native 4 nm XY data then downsample to 8 nm."
         )
-    return s
+    return factors
 
 
 def _read_patch_size(cfg: Config) -> tuple[int, ...]:
-    """Native train/val read (crop) size = effective patch size * read_downscale.
+    """Native train/val crop size = effective patch size * read_downscale.
 
     With ``read_downscale == 1.0`` this is exactly ``_effective_patch_size``
-    (a no-op). With ``read_downscale < 1.0`` the dataset reads this smaller
-    native crop; a ``data.data_transform.resize`` step upsamples it back to the
-    effective patch size before erosion/affinity target generation, so training
-    targets and model input are unchanged while the disk read shrinks.
+    (a no-op). Non-unit factors permit resampling an anisotropic native crop to
+    model space. ``data.data_transform.resize`` restores the effective patch
+    size before erosion/affinity target generation, so target and model sizes
+    stay unchanged.
     """
     eff = _effective_patch_size(cfg)
-    s = _read_downscale(cfg)
-    if s == 1.0:
+    factors = _read_downscale(cfg)
+    if all(value == 1.0 for value in factors):
         return eff
-    return tuple(int(round(e * s)) for e in eff)
+    return tuple(int(round(e * factor)) for e, factor in zip(eff, factors))
 
 
 def _validate_read_downscale(cfg: Config) -> None:
-    """Guard: ``read_downscale < 1`` requires ``resize == effective patch size``.
+    """Guard: non-unit ``read_downscale`` requires ``resize == effective patch size``.
 
-    When the dataset reads a smaller native crop, ``data.data_transform.resize``
-    must upsample it back to the effective patch size; otherwise the model would
-    silently train on a smaller-than-intended input. Validated once at datamodule
-    build time so the failure is loud and early (not 3 days into a GPU run).
+    ``data.data_transform.resize`` must return the effective patch size;
+    otherwise the model would silently train at an unintended input size.
+    Validated once at datamodule build time so the failure is loud and early.
     """
-    s = _read_downscale(cfg)
-    if s == 1.0:
+    factors = _read_downscale(cfg)
+    if all(value == 1.0 for value in factors):
         return
     eff = _effective_patch_size(cfg)
     resize = getattr(cfg.data.data_transform, "resize", None)
@@ -119,7 +127,8 @@ def _validate_read_downscale(cfg: Config) -> None:
     if resize_tuple != eff:
         raise ValueError(
             "data.dataloader.read_downscale="
-            f"{s} (< 1.0) requires data.data_transform.resize to equal the "
+            f"{list(factors)} (with a non-unit factor) requires "
+            "data.data_transform.resize to equal the "
             f"effective patch size {list(eff)} (= patch_size + target_context) "
             "so the smaller native read is upsampled back exactly. "
             f"Got data.data_transform.resize={resize}. "
