@@ -13,29 +13,18 @@ non-interactive Slurm submission, follow the
 
 The last step is prediction-only at runtime. It uses the segmentation, affinities, predicted morphology, and an external nucleus-instance manifest; it does not read evaluation skeletons, their lookup table, or an FFN segmentation.
 
-## Results
+## Before running
 
-The table separates the affinity source, conservative decoder, and optional correction steps. The reported full-volume ablation uses the scratch affinity; the synthetic row is the zero-shot transfer of an NISB-trained checkpoint to this volume, evaluated on the same skeletons and metric.
+Edit **only** [params.yaml](params.yaml). It contains the repository checkout, dataset root, writeable output root, and the existing artifacts required to replay the frozen EC recipe. Every step inherits this file, so paths are not duplicated across the workflow YAMLs. Keep the algorithmic thresholds in the step YAMLs unchanged when reproducing the reference recipe.
 
-| Affinity | Decoding | Error correction | NERL mt=0 ↑ | NERL mt=5 ↑ | VOI split ↓ | VOI merge ↓ | VOI ↓ |
-|---|---|---|---:|---:|---:|---:|---:|
-| **FFN reference** | — | — | **0.526** | 0.538 | **1.729** | 0.127 | **1.856** |
-| scratch | ABISS, exclusion mask | — | 0.268 | 0.470 | 2.542 | 0.042 | 2.584 |
-| scratch | + nucleus instance certificate | — | 0.287 | 0.482 | 2.543 | 0.019 | 2.562 |
-| scratch | + nucleus instance certificate | morphology-guided branch linking | 0.301 | 0.539 | 2.355 | 0.019 | 2.374 |
-| scratch | + nucleus instance certificate | + 3×3×3 inter-object erosion | 0.441 | 0.528 | 2.312 | 0.128 | 2.440 |
-| synthetic | + nucleus instance certificate | — | 0.314 | 0.383 | 3.311 | 0.020 | 3.331 |
+The zero-shot affinity path needs a NISB-trained checkpoint. The supervised affinity YAML is included as a target-domain reference only: it uses j0126 dense labels, so it is not part of the zero-shot pipeline; its trained checkpoint can be downloaded instead of retrained (see [Step 1](#supervised-reference-affinity)).
 
-`mt=5` is the five-node merge-tolerance NERL. The 3×3×3 erosion is a strict-mt=0 cleanup, not the best operating point for mt=5 NERL or VOI sum.
+Whole-volume planning figures live in [RESOURCE.md](RESOURCE.md), and the staged storage cleanup that keeps the peak down is in [CLEANUP.md](CLEANUP.md).
 
-On the synthetic affinity the nucleus certificate is **inert**: its scan finds 0 multi-nucleus watershed objects, so it publishes zero repairs and that row is also the exclusion-mask baseline. Whether the certificate has anything to correct is a property of the watershed, not of the nucleus mask — the scratch affinity fuses 8 soma pairs at the watershed stage and this one fuses none. An independent replay of the same affinity scores 0.383 at the same tolerance, so the no-op is confirmed rather than assumed. The synthetic row trails scratch on NERL and VOI split; it is a zero-shot transfer result, not a tuned one.
 
 ## Step 0 — get the data
 
-Two inputs, and the first one is only needed if you retrain the supervised
-reference affinity in step 1.
-
-**Labelled cubes** (395 MB) — 33 densely labelled subvolumes:
+**Training data** (395 MB) — 33 densely labelled subvolumes (No need if use existing models):
 
 ```bash
 wget https://huggingface.co/datasets/pytc/zebrafinch-j0126/resolve/main/j0126-train-33vol.zip
@@ -47,7 +36,7 @@ That gives `im_raw/` + `seg_gt/` and the padded pair `im_raw_4-32-32/` +
 reads: the padding is real EM context on the image side and `-1` on the label
 side, so the loss ignores the border and no mask volume is needed.
 
-**EM volume** — the public FFN mirror (Januszewski et al. 2018), uint8 at
+**Testing data** — the public FFN mirror (Januszewski et al. 2018), uint8 at
 9 × 9 × 20 nm (x, y, z), i.e. `[20, 9, 9]` in the ZYX order the configs use:
 
 ```
@@ -73,23 +62,10 @@ python scripts/download_precompute.py <same source> \
 
 Then point `params.data.raw_em` at the array, e.g. `<dataset_root>/j0126_em.zarr/main`.
 
-Take mip 0 and do not resample. It is the grid FFN published, the grid the
-evaluation skeletons index, and the grid the reference affinity run actually
-used — the local `im_align_10nm.zarr` is byte-for-byte equal to mip 0 on the
-same coordinates despite its name, so 9 × 9 × 20 nm anisotropic voxels are what
-every number in the results table was produced on.
-
-## Before running
-
-Edit **only** [params.yaml](params.yaml). It contains the repository checkout, dataset root, writeable output root, and the existing artifacts required to replay the frozen EC recipe. Every step inherits this file, so paths are not duplicated across the workflow YAMLs. Keep the algorithmic thresholds in the step YAMLs unchanged when reproducing the reference recipe.
-
-The zero-shot affinity path needs a NISB-trained checkpoint. The supervised affinity YAML is included as a target-domain reference only: it uses j0126 dense labels, so it is not part of the zero-shot pipeline; its trained checkpoint can be downloaded instead of retrained (see [Step 1](#supervised-reference-affinity)).
-
-Whole-volume planning figures live in [RESOURCE.md](RESOURCE.md), and the staged storage cleanup that keeps the peak down is in [CLEANUP.md](CLEANUP.md).
 
 ## Step 1 — affinity prediction
 
-Run zero-shot inference with an NISB checkpoint:
+- Option 1: Run zero-shot inference with an NISB checkpoint:
 
 ```bash
 python scripts/main.py --config tutorials/neuron_j0126/1_affinity_zeroshot.yaml \
@@ -106,7 +82,7 @@ python scripts/main.py --config tutorials/neuron_j0126/1_affinity_zeroshot.yaml 
 
 The output is chunked float16, three-channel affinity under `output_root/affinity` after resolving `params.yaml`.
 
-### Supervised reference affinity
+- Option 2: Supervised training
 
 `1_affinity_supervised.yaml` is the target-domain reference: MedNeXt-L/k3 trained from scratch for 200k steps on the j0126 dense-GT cubes, 25 for training and 8 held out for validation. It has seen labelled j0126 tissue, so any run that starts here is not ground-truth-free.
 
@@ -184,6 +160,19 @@ python scripts/run_error_correction.py --config "$CFG" --stage verify
 
 Stages are restartable: completed chunk artifacts are reused. For a one-core smoke test, append `--max-owned-chunks 1` to an array-stage command.
 
-## Frozen correction recipe
+## Results
 
-The scratch run freezes 749 branch unions. Evaluation is deliberately outside the EC config and should be run only after the proposal has been frozen. Use `erosion_radius_zyx: [0, 0, 0]` for morphology linking alone and `[1, 1, 1]` for the strict-mt=0 cleanup shown above.
+The table separates the affinity source, conservative decoder, and optional correction steps. The reported full-volume ablation uses the scratch affinity; the synthetic row is the zero-shot transfer of an NISB-trained checkpoint to this volume, evaluated on the same skeletons and metric.
+
+| Affinity | Decoding | Error correction | NERL mt=0 ↑ | NERL mt=5 ↑ | VOI split ↓ | VOI merge ↓ | VOI ↓ |
+|---|---|---|---:|---:|---:|---:|---:|
+| **FFN reference** | — | — | **0.526** | 0.538 | **1.729** | 0.127 | **1.856** |
+| scratch | ABISS, exclusion mask | — | 0.268 | 0.470 | 2.542 | 0.042 | 2.584 |
+| scratch | + nucleus instance certificate | — | 0.287 | 0.482 | 2.543 | 0.019 | 2.562 |
+| scratch | + nucleus instance certificate | morphology-guided branch linking | 0.301 | 0.539 | 2.355 | 0.019 | 2.374 |
+| scratch | + nucleus instance certificate | + 3×3×3 inter-object erosion | 0.441 | 0.528 | 2.312 | 0.128 | 2.440 |
+| synthetic | + nucleus instance certificate | — | 0.314 | 0.383 | 3.311 | 0.020 | 3.331 |
+
+`mt=5` is the five-node merge-tolerance NERL. The 3×3×3 erosion is a strict-mt=0 cleanup, not the best operating point for mt=5 NERL or VOI sum.
+
+On the synthetic affinity the nucleus certificate is **inert**: its scan finds 0 multi-nucleus watershed objects, so it publishes zero repairs and that row is also the exclusion-mask baseline. Whether the certificate has anything to correct is a property of the watershed, not of the nucleus mask — the scratch affinity fuses 8 soma pairs at the watershed stage and this one fuses none. An independent replay of the same affinity scores 0.383 at the same tolerance, so the no-op is confirmed rather than assumed. The synthetic row trails scratch on NERL and VOI split; it is a zero-shot transfer result, not a tuned one.
