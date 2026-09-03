@@ -2,6 +2,7 @@
 
 This tutorial turns the j0126 EM volume (9 x 9 x 20 nm) into a neuron segmentation in three steps:
 
+0. Download data
 1. Predict voxel affinities.
 2. Decode them conservatively with ABISS, preferring splits to false merges.
 3. Reconnect only high-confidence, morphologically continuous branches.
