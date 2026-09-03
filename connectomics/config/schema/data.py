@@ -175,13 +175,15 @@ class DataloaderConfig:
     # side per axis (legacy; equivalent to ``[0, 0, 0, a, b, c]``). Length 6
     # ``[pre0, pre1, pre2, post0, post1, post2]`` is the canonical asymmetric
     # form.
-    read_downscale: float = 1.0
+    read_downscale: Any = 1.0
     # Train/val read-size shrink factor in (0, 1]. The dataset reads a
     # ``round(effective_patch_size * read_downscale)`` native crop and then a
     # ``data.data_transform.resize`` step upsamples it back to the effective
     # patch size, so erosion/affinity/model sizing are unchanged while the
-    # per-sample disk read shrinks by ``read_downscale**ndim`` (e.g. 0.5 -> 8x
-    # fewer voxels read in 3D). 1.0 (default) is a complete no-op. When < 1.0,
+    # per-sample disk read changes by the product of per-axis factors (e.g.
+    # ``[1, 2, 2]`` reads a 2x wider XY crop before downsampling it). A scalar
+    # applies to every axis. 1.0 (default) is a complete no-op. When any
+    # factor differs from 1.0,
     # ``data.data_transform.resize`` MUST equal the effective patch size so the
     # native crop is upsampled back exactly (a guard enforces this).
     pin_memory: bool = True
