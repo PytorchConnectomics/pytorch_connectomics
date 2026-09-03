@@ -16,15 +16,21 @@ _base_: params.yaml
 error_correction:
   version: 1
 
-  # Frozen native-resolution, nucleus-matchguard ABISS base used by the v7 experiment.
-  # Replace these five input paths together when applying the method to another decode.
-  segmentation: ${params.paths.experiment_root}/wholevol_arm0_native96_nuc_matchguard/seg_arm0_native96_nuc_matchguard/precomputed/seg/seg_arm0_native96_nuc_matchguard
-  affinity_chunks: ${params.paths.repository}/outputs/nisb_base_banis_plus_zebrafinch_heavy/20260726_114349/test_step=00200000/0/raw_x1_ch0-1-2_chunked-raw_cs1008x1008x1008_halo72x72x72_zebrafinch_chunk_raw_grid1008_halo72_win48x96x96.h5.chunks
-  keep_mask: ${params.paths.experiment_root}/tissue_border_keep_mask_full.zarr
-  nucleus_manifest: ${params.paths.experiment_root}/wholevol_arm0_native96_nuc_matchguard/seg_arm0_native96_nuc_matchguard/nucleus_competition/manifest.json
-  # ABISS emits one (label,size) table per atomic chunk. The reference workspace already
-  # contains their exact aggregate; a fresh run can point this glob at all atomic tables.
-  size_glob: ${params.paths.experiment_root}/matchguard_contacts_full/seg_size_all_chunks.data
+  # The five inputs, all produced by earlier steps of this tutorial. The published v7
+  # result used a nucleus-matchguard ABISS base; any ABISS decode of the same volume
+  # works, but replace these five together rather than one at a time.
+  segmentation: ${params.paths.output_root}/abiss/precomputed/seg
+  # Step 2's chunk store. `scripts/main.py --mode test` writes it under a timestamped
+  # run directory, so check `run_j0126.py --check`, which prints the store it found,
+  # and set the exact path here.
+  affinity_chunks: ${params.paths.output_root}/affinity/affinity.h5.chunks
+  keep_mask: ${params.data.keep_mask}
+  # Written by ABISS when nucleus competition is enabled in 3_abiss.yaml.
+  nucleus_manifest: ${params.paths.output_root}/abiss/run/nucleus_competition/manifest.json
+  # ABISS emits one (label,size) table per atomic chunk; this aggregates them. Adjust the
+  # pattern if your ABISS scratch layout differs -- the sizes stage fails loudly when the
+  # glob matches nothing.
+  size_glob: ${params.paths.output_root}/abiss/scratch/**/*.data
 
   workdir: ${params.paths.output_root}/error_correction_v7
   output_segmentation: ${params.paths.output_root}/error_correction_v7/precomputed/seg

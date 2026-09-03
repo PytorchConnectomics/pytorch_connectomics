@@ -1,25 +1,29 @@
 # j0126 local settings -------------------------------------------------------
 #
 # This is the only file that should need editing for a new machine or storage
-# layout. All three workflow YAMLs inherit it and use ${params...} references.
+# layout. Every workflow YAML inherits it and uses ${params...} references.
 # Paths are deliberately explicit: no environment variables or shell expansion
 # is required, which makes a resolved run easy to inspect and archive.
+#
+# Everything below either is produced by step 0 of the README or is written by
+# the pipeline itself, so no path points at an artifact you have to be given.
 
 params:
   paths:
     # Repository checkout that contains this tutorial and vendored ABISS.
-    repository: /projects/weilab/weidf/lib/pytorch_connectomics
-    # Writeable location for affinity, ABISS, and EC artifacts.
+    repository: /path/to/pytorch_connectomics
+    # Writeable location for affinity, ABISS, and error-correction artifacts.
     output_root: ${params.paths.repository}/outputs/neuron_j0126
-    # Existing artifacts needed only when replaying the frozen v7 EC recipe.
-    experiment_root: ${params.paths.repository}/dev/zebrafinch
-    dataset_root: /projects/weilab/dataset/zebrafinch
+    # Where step 0 downloaded the EM volume, the labelled cubes and the mask.
+    dataset_root: /path/to/j0126
 
   data:
-    # Native FFN mip 0: 9 x 9 x 20 nm (x,y,z) = [20, 9, 9] in ZYX. The
-    # `im_align_10nm.zarr` name is historical -- the store is byte-for-byte
-    # equal to mip 0 on the same coordinates, not a 10 nm isotropic resample.
-    # Any ZYX zarr from `scripts/download_precompute.py --mip 0` works here.
-    raw_em: ${params.paths.dataset_root}/im_align_10nm.zarr/0
+    # EM volume in ZYX, native FFN mip 0 (9 x 9 x 20 nm xyz = [20, 9, 9] zyx),
+    # as written by `scripts/download_precompute.py --mip 0`. Point this at any
+    # ZYX zarr array on that grid, or straight at the public bucket.
+    raw_em: ${params.paths.dataset_root}/j0126_em.zarr/main
+    # The two directories the training zip unpacks into.
     dense_images: ${params.paths.dataset_root}/train/im_raw_4-32-32
     dense_labels: ${params.paths.dataset_root}/train/seg_gt_4-32-32
+    # Tissue AND border keep-mask built in step 0.
+    keep_mask: ${params.paths.dataset_root}/tissue_border_keep_mask_full.zarr

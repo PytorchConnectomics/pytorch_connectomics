@@ -33,8 +33,7 @@
 #
 # RESOLUTION -- 20 x 9 x 9 nm in ZYX (9 x 9 x 20 nm in XYZ), the native FFN
 # mip-0 grid. The cubes, the inference volume and the evaluation skeletons all
-# live on it. Nothing here is 10 nm isotropic despite the `im_align_10nm.zarr`
-# name: that store is byte-for-byte equal to mip 0 on the same coordinates.
+# live on it, and nothing in this tutorial is resampled to 10 nm isotropic.
 # Patch [48,96,96] is therefore 960 x 864 x 864 nm -- near-isotropic in physical
 # space, which is the point of the anisotropic shape. MedNeXt-L is 4-stage /
 # stride-16, and 48/16 = 3, 96/16 = 6, both integer.

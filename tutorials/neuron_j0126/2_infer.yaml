@@ -65,9 +65,9 @@ default:
       # Each chunk reads an overlapping halo and writes only its core.
       halo: [72, 72, 72]
       axes: all
-      # True EM geometry (ZYX voxels at 20 x 9 x 9 nm). The im_align volume is rounded out
-      # to 5700 x 12288 x 12288, so the last ~2 chunks in Y/X are pure zero padding.
-      # Clipping the grid to this ROI skips them: 1014 -> 726 chunks.
+      # True EM geometry (ZYX voxels at 20 x 9 x 9 nm). A store padded out in XY (the
+      # public grid rounded to 12288, say) would add chunks of pure zero padding;
+      # clipping the grid to this ROI skips them, 1014 -> 726 chunks.
       roi: [5700, 10913, 10664]
     save_results: true
     save_backend: h5
@@ -108,12 +108,9 @@ test:
       #       ffn_segmentation         uint64, same grid              <- the 0.5390 reference
       #
       # Fetch it with `scripts/download_precompute.py <source> --mip 0 --out <store>.zarr`,
-      # which returns ZYX (see Step 0 of the README). Do NOT resample: mip 0 is the grid
-      # FFN published and the grid the evaluation skeletons index, and it is what the
-      # reference runs actually consumed. `im_align_10nm.zarr` is a MISNOMER kept for
-      # artifact-path compatibility -- it is byte-for-byte equal to mip 0 on the same
-      # coordinates (checked on scattered blocks), XY-padded out to 12288, and its voxels
-      # are 9 x 9 x 20 nm, not 10 nm isotropic.
+      # which returns ZYX (see step 0 of the README). Do NOT resample: mip 0 is the grid
+      # FFN published, the grid the evaluation skeletons index, and what the reference
+      # runs consumed. Its voxels are 9 x 9 x 20 nm; nothing here is 10 nm isotropic.
       #
       # Dense multiscale OME-Zarr, level 0 = full resolution. `dataset_type: null`
       # selects the generic volume backend and the .zarr suffix picks the zarr reader. Do
@@ -123,6 +120,6 @@ test:
       image: ${params.data.raw_em}
       label: null
       skeleton: null
-      # Legacy label: it is baked into the artifact filenames step 2 reads.
-      name: im_align_10nm
+      # Part of every output artifact's filename.
+      name: j0126_em
       resolution: [20, 9, 9]

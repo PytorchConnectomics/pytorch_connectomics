@@ -30,6 +30,7 @@ repoint them at this run's outputs; see that file's comment.
 from __future__ import annotations
 
 import argparse
+import glob
 import json
 import shlex
 import subprocess
@@ -107,6 +108,14 @@ def check_affinity(save_path: Path, suffix: str = "") -> Status:
 
 def check_path(path: Path, label: str) -> Status:
     return Status(path.exists(), f"{'found' if path.exists() else 'MISSING'} {label}")
+
+
+def input_exists(path: Path) -> bool:
+    """Existence test that also accepts a glob pattern (the EC size tables)."""
+    text = str(path)
+    if any(ch in text for ch in "*?["):
+        return bool(glob.glob(text, recursive=True))
+    return path.exists()
 
 
 # --------------------------------------------------------------------------- steps
@@ -275,7 +284,7 @@ def main() -> int:
         mark = "done" if status.done else "todo"
         print(f"[{mark}] {step.title}\n       {status.detail}")
         for label, path in step.inputs:
-            print(f"       input {label}: {'ok' if path.exists() else 'MISSING'} {path}")
+            print(f"       input {label}: {'ok' if input_exists(path) else 'MISSING'} {path}")
         if args.check:
             print()
             continue
@@ -285,7 +294,7 @@ def main() -> int:
         if step.optional and args.checkpoint:
             print("       skipping (checkpoint supplied)\n")
             continue
-        missing = [f"{label} ({path})" for label, path in step.inputs if not path.exists()]
+        missing = [f"{label} ({path})" for label, path in step.inputs if not input_exists(path)]
         if missing:
             print(f"       BLOCKED, missing input: {'; '.join(missing)}\n")
             return 1
