@@ -1,4 +1,5 @@
 import json
+import shutil
 from pathlib import Path
 
 import numpy as np
@@ -86,7 +87,7 @@ def test_size_inventory_aggregates_duplicate_labels(tmp_path: Path):
 
 
 def test_tutorial_config_has_exhaustive_gt_free_scope():
-    config_path = Path("tutorials/neuron_j0126/3_merge.yaml")
+    config_path = Path("tutorials/neuron_j0126/4_error_correction.yaml")
     config = ErrorCorrectionConfig.load(config_path)
 
     commands = stage_commands(
@@ -106,9 +107,9 @@ def test_tutorial_config_has_exhaustive_gt_free_scope():
 
 
 def test_tutorial_params_are_inherited_and_fully_resolved():
-    affinity = load_config("tutorials/neuron_j0126/1_affinity_zeroshot.yaml")
-    abiss = load_yaml_with_bases_and_params(Path("tutorials/neuron_j0126/2_abiss.yaml"))
-    correction = load_yaml_with_bases_and_params(Path("tutorials/neuron_j0126/3_merge.yaml"))
+    affinity = load_config("tutorials/neuron_j0126/2_infer.yaml")
+    abiss = load_yaml_with_bases_and_params(Path("tutorials/neuron_j0126/3_abiss.yaml"))
+    correction = load_yaml_with_bases_and_params(Path("tutorials/neuron_j0126/4_error_correction.yaml"))
 
     assert affinity.save_path.endswith("outputs/neuron_j0126/affinity")
     assert affinity.test.data.test.image.endswith("im_align_10nm.zarr/0")
@@ -122,7 +123,10 @@ def test_tutorial_params_are_inherited_and_fully_resolved():
 
 
 def test_config_rejects_unknown_and_evaluation_inputs(tmp_path: Path):
-    original = yaml.safe_load(Path("tutorials/neuron_j0126/3_merge.yaml").read_text())
+    original = yaml.safe_load(Path("tutorials/neuron_j0126/4_error_correction.yaml").read_text())
+    # The copy keeps `_base_: params.yaml`, which resolves next to the config being
+    # loaded, so params.yaml has to travel with it into tmp_path.
+    shutil.copy("tutorials/neuron_j0126/params.yaml", tmp_path / "params.yaml")
     original["error_correction"]["surprise"] = True
     path = tmp_path / "unknown.yaml"
     path.write_text(yaml.safe_dump(original))

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Export a trained checkpoint to ONNX.
 
-    python scripts/export_onnx.py --config tutorials/neuron_j0126/1_affinity_supervised.yaml \
+    python scripts/export_onnx.py --config tutorials/neuron_j0126/1_train.yaml \
         --checkpoint outputs/.../checkpoints/step=00200000.ckpt --output model.onnx
 
 The graph is the MAIN head only. Deep supervision is switched off before tracing, so the

@@ -1,7 +1,7 @@
 # j0126 step 2 of 3: affinity -> over-segmentation with ABISS.
 #
-#   python scripts/run_abiss_chunk.py --config tutorials/neuron_j0126/2_abiss.yaml --prepare-only
-#   python scripts/run_abiss_chunk.py --config tutorials/neuron_j0126/2_abiss.yaml
+#   python scripts/run_abiss_chunk.py --config tutorials/neuron_j0126/3_abiss.yaml --prepare-only
+#   python scripts/run_abiss_chunk.py --config tutorials/neuron_j0126/3_abiss.yaml
 #
 # Input   outputs/neuron_j0126/affinity/   step 1's float16 affinity chunks
 # Output  .../precomputed/seg              ABISS segmentation (CloudVolume precomputed)

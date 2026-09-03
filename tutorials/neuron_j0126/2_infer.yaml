@@ -1,6 +1,6 @@
 # j0126 step 1 of 3: EM image -> 3-channel affinity, using the pretrained NISB model.
 #
-#   python scripts/main.py --config tutorials/neuron_j0126/1_affinity_zeroshot.yaml --mode test \
+#   python scripts/main.py --config tutorials/neuron_j0126/2_infer.yaml --mode test \
 #       --checkpoint outputs/nisb_base_banis_v3_erosion2/20260508_224029/checkpoints/step=00200000.ckpt
 #
 # The checkpoint is a MedNeXt-L/k3 affinity model trained on NISB ONLY. It has never seen
