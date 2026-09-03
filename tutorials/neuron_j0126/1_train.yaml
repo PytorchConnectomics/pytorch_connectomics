@@ -1,7 +1,7 @@
 # j0126 step 1, VARIANT: the SUPERVISED reference affinity.
 #
-#   train:  python scripts/main.py --config tutorials/neuron_j0126/1_affinity_supervised.yaml --mode train
-#   infer:  python scripts/main.py --config tutorials/neuron_j0126/1_affinity_supervised.yaml --mode test \
+#   train:  python scripts/main.py --config tutorials/neuron_j0126/1_train.yaml --mode train
+#   infer:  python scripts/main.py --config tutorials/neuron_j0126/1_train.yaml --mode test \
 #               --checkpoint <run>/checkpoints/step=00200000.ckpt
 #
 # ############################################################################
@@ -52,17 +52,17 @@
 #
 # Everything else -- input volume, 1008^3 grid, halo 72, reflect padding, ROI
 # [5700,10913,10664], select_channel [0,1,2], scale_sigmoid, float16 -- is
-# inherited from `1_affinity_zeroshot.yaml` unchanged, so these chunks are
+# inherited from `2_infer.yaml` unchanged, so these chunks are
 # directly comparable in layout with the zero-shot ones.
 
 _base_:
-  - 1_affinity_zeroshot.yaml
+  - 2_infer.yaml
 
 experiment_name: neuron_j0126_affinity_arm0_96
 description: >-
   Supervised reference affinity for j0126: from-scratch MedNeXt-L/k3 trained 200k steps on
   the j0126 dense GT cubes (25 train / 8 held-out val), inferred at its native [48,96,96]
-  window. NOT ground-truth-free -- the upper reference against 1_affinity_zeroshot.yaml,
+  window. NOT ground-truth-free -- the upper reference against 2_infer.yaml,
   not a drop-in for it.
 
 save_path: ${params.paths.output_root}/affinity_arm0_96

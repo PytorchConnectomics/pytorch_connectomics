@@ -129,6 +129,6 @@ test:
 #   (3 x 145 x 4290 x 3345 float32 ~= 25 GB before ws internals). Validate on a
 #   z-full slab first (README), and use a big-memory node or the chunked runner
 #   scripts/run_abiss_chunk.py for the full volume.
-# - `notes:` cannot be a top-level YAML key here: unlike neuron_j0126/2_abiss.yaml
+# - `notes:` cannot be a top-level YAML key here: unlike neuron_j0126/3_abiss.yaml
 #   (consumed by run_abiss_chunk.py), this file is parsed by the strict Config
 #   schema via scripts/main.py, which raises on unknown top-level keys.

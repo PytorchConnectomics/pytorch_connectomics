@@ -37,19 +37,17 @@ python scripts/run_j0126.py --launcher slurm --num-shards 80 \
 
 | # | step | config | command | complete when |
 |---|---|---|---|---|
-| 1 | train (optional) | `1_affinity_supervised.yaml` | `scripts/main.py --mode train` | a `.ckpt` under `<save_path>/*/checkpoints/` |
-| 2 | infer | `1_affinity_zeroshot.yaml` | `scripts/main.py --mode test --checkpoint …` | every chunk listed in `*.h5.index.json` is on disk |
-| 3 | abiss | `2_abiss.yaml` | `scripts/run_abiss_chunk.py` | `abiss/precomputed/seg/info` exists |
-| 4 | ec | `3_merge.yaml` | `scripts/run_error_correction.py --stage all --num-tasks 1` | `error_correction_v7/error_correction_manifest.json` exists |
+| 1 | train (optional) | `1_train.yaml` | `scripts/main.py --mode train` | a `.ckpt` under `<save_path>/*/checkpoints/` |
+| 2 | infer | `2_infer.yaml` | `scripts/main.py --mode test --checkpoint …` | every chunk listed in `*.h5.index.json` is on disk |
+| 3 | abiss | `3_abiss.yaml` | `scripts/run_abiss_chunk.py` | `abiss/precomputed/seg/info` exists |
+| 4 | ec | `4_error_correction.yaml` | `scripts/run_error_correction.py --stage all --num-tasks 1` | `error_correction_v7/error_correction_manifest.json` exists |
 
 Edit **only** [params.yaml](params.yaml): repository checkout, dataset root, writeable
 output root. Every config inherits it, so paths are never duplicated. Keep the algorithmic
 thresholds in the step YAMLs unchanged when reproducing the reference recipe.
 
 Whole-volume planning figures are in [RESOURCE.md](RESOURCE.md); reclaiming disk while the
-run is in flight is in [CLEANUP.md](CLEANUP.md). A bit-exact replay of the two published
-ABISS rows, with fail-closed input checks, is [reproduction/](reproduction/README.md) — a
-separate, frozen code path, not this one.
+run is in flight is in [CLEANUP.md](CLEANUP.md).
 
 ## Step 0 — data
 
@@ -112,11 +110,11 @@ with myelin on its own.
 
 ## Step 1 — train the affinity model (optional)
 
-`1_affinity_supervised.yaml` trains MedNeXt-L/k3 from scratch for 200k steps on the dense
+`1_train.yaml` trains MedNeXt-L/k3 from scratch for 200k steps on the dense
 GT cubes, 25 for training and 8 held out, at roughly four GPU-days on 4 GPUs:
 
 ```bash
-python scripts/main.py --config tutorials/neuron_j0126/1_affinity_supervised.yaml --mode train
+python scripts/main.py --config tutorials/neuron_j0126/1_train.yaml --mode train
 ```
 
 Skip this and pass `--checkpoint` instead if you already have one:
@@ -135,7 +133,7 @@ slightly different model.
 ## Step 2 — predict affinity
 
 ```bash
-python scripts/main.py --config tutorials/neuron_j0126/1_affinity_zeroshot.yaml \
+python scripts/main.py --config tutorials/neuron_j0126/2_infer.yaml \
   --mode test --checkpoint /path/to/affinity.ckpt
 ```
 
@@ -145,16 +143,33 @@ volume is 726 chunks of 1008³ with a 72-voxel halo; shard it with
 
 The config must match the window its checkpoint was trained at. MedNeXt normalizes without
 running statistics, so the forward pass depends on the window extent and a mismatch
-silently inverts the trained anisotropy. `1_affinity_zeroshot.yaml` runs `[144, 144, 144]`;
-a checkpoint trained on the j0126 cubes needs `1_affinity_supervised.yaml` instead
+silently inverts the trained anisotropy. `2_infer.yaml` runs `[144, 144, 144]`;
+a checkpoint trained on the j0126 cubes needs `1_train.yaml` instead
 (`[48, 96, 96]`, output `affinity_arm0_96/`, so step 3's `source_affinity_h5` must be
 repointed there).
 
 ## Step 3 — ABISS decode
 
+ABISS is a separate C++ dependency, pinned to the commit the reference decode used:
+
 ```bash
-python scripts/run_abiss_chunk.py --config tutorials/neuron_j0126/2_abiss.yaml --prepare-only
-python scripts/run_abiss_chunk.py --config tutorials/neuron_j0126/2_abiss.yaml
+git clone https://github.com/PytorchConnectomics/ABISS.git lib/abiss
+git -C lib/abiss checkout 452efa5f87f9d3cb241891ee44010d966a33b316
+
+cmake -S lib/abiss -B lib/abiss/build -DCMAKE_BUILD_TYPE=Release \
+  -DBOOST_ROOT="$CONDA_PREFIX" -DEXTRACT_SIZE=ON -DBUILD_TESTING=ON
+cmake --build lib/abiss/build --parallel 8
+ctest --test-dir lib/abiss/build --output-on-failure
+```
+
+`EXTRACT_SIZE=ON` is not optional: without it `acme` writes empty supervoxel-size files and
+`agg` fails on an incomplete RAG. Build Boost 1.82 and oneTBB from the same conda
+environment — binaries linked to legacy `libtbb.so.2` or to Boost 1.85 fail in mean-edge
+agglomeration, and a stale CMake build directory is not a reproducible rebuild.
+
+```bash
+python scripts/run_abiss_chunk.py --config tutorials/neuron_j0126/3_abiss.yaml --prepare-only
+python scripts/run_abiss_chunk.py --config tutorials/neuron_j0126/3_abiss.yaml
 ```
 
 ABISS uses every CPU the scheduler grants the process, so submit **one shared-memory job**
@@ -174,15 +189,15 @@ needs. It is serial, hence `--num-tasks 1`; add `--dry-run` to print the plan:
 
 ```bash
 python scripts/run_error_correction.py \
-  --config tutorials/neuron_j0126/3_merge.yaml --stage all --num-tasks 1
+  --config tutorials/neuron_j0126/4_error_correction.yaml --stage all --num-tasks 1
 ```
 
 Only three stages are chunk-parallel. For the whole volume, submit `skeletonize`,
 `contacts` and `postprocess` as Slurm arrays at the task count configured in
-`3_merge.yaml` (80 in the reference run), and run the rest serially in between:
+`4_error_correction.yaml` (80 in the reference run), and run the rest serially in between:
 
 ```bash
-CFG=tutorials/neuron_j0126/3_merge.yaml
+CFG=tutorials/neuron_j0126/4_error_correction.yaml
 ARRAY="--task-id $SLURM_ARRAY_TASK_ID --num-tasks 80"
 
 python scripts/run_error_correction.py --config "$CFG" --stage sizes
@@ -205,7 +220,7 @@ That is the order `--stage all` executes, so the two forms agree.
 Stages are restartable: completed chunk artifacts are reused. For a one-core smoke test,
 append `--max-owned-chunks 1` to an array-stage command.
 
-`3_merge.yaml`'s five input paths are pinned to the frozen reference run. Repoint all five
+`4_error_correction.yaml`'s five input paths are pinned to the frozen reference run. Repoint all five
 together when applying the method to your own decode; `run_j0126.py --check` reports which
 of them are missing.
 

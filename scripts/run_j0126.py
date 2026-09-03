@@ -23,7 +23,7 @@ so that file is the only thing to edit. `--launcher slurm` wraps each step in
       --num-shards 80
 
 Step 4's five input paths are pinned to the frozen reference run in
-`3_merge.yaml`. The driver reports which of them are missing but does NOT
+`4_error_correction.yaml`. The driver reports which of them are missing but does NOT
 repoint them at this run's outputs; see that file's comment.
 """
 
@@ -129,9 +129,9 @@ def build_steps(args) -> list[Step]:
     output_root = Path(params.params.paths.output_root)
 
     infer_yaml = TUTORIAL / args.infer_config
-    train_yaml = TUTORIAL / "1_affinity_supervised.yaml"
-    abiss_yaml = TUTORIAL / "2_abiss.yaml"
-    ec_yaml = TUTORIAL / "3_merge.yaml"
+    train_yaml = TUTORIAL / "1_train.yaml"
+    abiss_yaml = TUTORIAL / "3_abiss.yaml"
+    ec_yaml = TUTORIAL / "4_error_correction.yaml"
 
     train_cfg = load_pytc_config(train_yaml)
     infer_cfg = load_pytc_config(infer_yaml)
@@ -248,8 +248,8 @@ def parse_args():
     ap.add_argument("--checkpoint", help="affinity checkpoint; skips step 1 when given")
     ap.add_argument(
         "--infer-config",
-        default="1_affinity_zeroshot.yaml",
-        help="config for step 2; use 1_affinity_supervised.yaml for a j0126-trained checkpoint",
+        default="2_infer.yaml",
+        help="config for step 2; use 1_train.yaml for a j0126-trained checkpoint",
     )
     ap.add_argument("--num-shards", type=int, default=1, help="shard step 2 across this many jobs")
     ap.add_argument("--check", action="store_true", help="report status and exit")

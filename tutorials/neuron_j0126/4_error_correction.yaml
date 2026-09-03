@@ -6,7 +6,7 @@
 #
 # Print the complete execution plan without touching data:
 #   python scripts/run_error_correction.py \
-#       --config tutorials/neuron_j0126/3_merge.yaml --stage all --num-tasks 1 --dry-run
+#       --config tutorials/neuron_j0126/4_error_correction.yaml --stage all --num-tasks 1 --dry-run
 #
 # Whole-volume execution is staged because skeleton/contact/postprocess passes are arrays.
 # See README.md for the exact commands.

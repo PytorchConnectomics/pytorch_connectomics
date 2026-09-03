@@ -101,7 +101,7 @@ tuned.**
 Single-volume ABISS holds the whole affinity in memory: `3 × 145 × 4290 × 3345`
 float32 ≈ 25 GB before `ws` internals. Validate on a slab first; for the full
 val volume use a big-memory node, or the chunked runner
-`scripts/run_abiss_chunk.py` (see `tutorials/neuron_j0126/2_abiss.yaml` for a
+`scripts/run_abiss_chunk.py` (see `tutorials/neuron_j0126/3_abiss.yaml` for a
 chunked-hierarchy example).
 
 ## Results
