@@ -6,45 +6,10 @@ branches. The decode deliberately under-merges — a split is cheap to repair, a
 corrupts two neurons — and step 4 repairs the splits from the segmentation, affinity,
 predicted morphology and an external nucleus manifest, never from ground truth.
 
-The volume is **9 × 9 × 20 nm (x, y, z)** = `[20, 9, 9]` ZYX. Nothing here is 10 nm
-isotropic; `im_align_10nm.zarr` is a misnomer for a store byte-identical to public mip 0.
+The volume is **9 × 9 × 20 nm (x, y, z)** = `[20, 9, 9]` ZYX throughout — the native FFN
+mip 0 grid. Nothing here is 10 nm isotropic, and nothing is resampled.
 
-## Run it
-
-One driver runs all four steps. It checks each step's output artifact first and skips the
-step when it is already complete, so re-running resumes instead of recomputing.
-
-```bash
-python scripts/run_j0126.py --check                      # what exists, what is missing
-python scripts/run_j0126.py --checkpoint ckpt/aff.ckpt   # run every missing step
-python scripts/run_j0126.py --steps abiss,ec --dry-run   # print the commands only
-python scripts/run_j0126.py --force infer                # rerun a completed step
-```
-
-`--launcher slurm` wraps each step in `sbatch --wrap`, chains them with `afterok`, and
-submits step 2 as an array; per-step resources go in `--slurm-<step>`:
-
-```bash
-python scripts/run_j0126.py --launcher slurm --num-shards 80 \
-  --checkpoint ckpt/aff.ckpt \
-  --slurm-infer "-p gpu --gres=gpu:1 -c 8 --mem 64G -t 8:00:00" \
-  --slurm-abiss "-c 64 --mem 250G -t 24:00:00" \
-  --slurm-ec    "-c 8 --mem 64G -t 12:00:00"
-```
-
-| # | step | config | complete when |
-|---|---|---|---|
-| 1 | train (optional) | `1_train.yaml` | a `.ckpt` under `<save_path>/*/checkpoints/` |
-| 2 | infer | `2_infer.yaml` | every chunk in `*.h5.index.json` is on disk |
-| 3 | abiss | `3_abiss.yaml` | `abiss/precomputed/seg/info` exists |
-| 4 | ec | `4_error_correction.yaml` | `error_correction_manifest.json` exists |
-
-Edit **only** [params.yaml](params.yaml): repository, dataset root, writeable output root.
-Every config inherits it. Keep the step YAMLs' thresholds unchanged to reproduce the
-reference recipe. Planning figures: [RESOURCE.md](RESOURCE.md). Disk cleanup mid-run:
-[CLEANUP.md](CLEANUP.md).
-
-## Step 0 — data
+## 1. Download the data
 
 **Training data** (395 MB, skip if you use an existing model) — 33 labelled subvolumes:
 
@@ -80,7 +45,7 @@ python dev/zebrafinch/build_ffn_tissue_mask.py \
   --shard-id "$SLURM_ARRAY_TASK_ID" --num-shards 16
 
 python dev/zebrafinch/build_unclipped_mask_region.py \
-  --out <experiment_root>/tissue_border_keep_mask_full.zarr \
+  --out <dataset_root>/tissue_border_keep_mask_full.zarr \
   --bbox-xyz 0 0 0 10664 10912 5700 --shard "$SLURM_ARRAY_TASK_ID" --nshard 40
 ```
 
@@ -88,7 +53,46 @@ It comes from FFN's own CNN and removes 15.64% of the volume, which weakens a "w
 FFN" comparison. `dev/zebrafinch/build_bv_border_mask.py` is the alternative built from a
 vessel volume we own: no myelin masked, 1.38% removed.
 
-## Step 1 — train the affinity model (optional)
+## 2. Run the pipeline
+
+One driver runs all four steps. It checks each step's output artifact first and skips the
+step when it is already complete, so re-running resumes instead of recomputing.
+
+```bash
+python scripts/run_j0126.py --check                      # what exists, what is missing
+python scripts/run_j0126.py --checkpoint ckpt/aff.ckpt   # run every missing step
+python scripts/run_j0126.py --steps abiss,ec --dry-run   # print the commands only
+python scripts/run_j0126.py --force infer                # rerun a completed step
+```
+
+`--launcher slurm` wraps each step in `sbatch --wrap`, chains them with `afterok`, and
+submits step 2 as an array; per-step resources go in `--slurm-<step>`:
+
+```bash
+python scripts/run_j0126.py --launcher slurm --num-shards 80 \
+  --checkpoint ckpt/aff.ckpt \
+  --slurm-infer "-p gpu --gres=gpu:1 -c 8 --mem 64G -t 8:00:00" \
+  --slurm-abiss "-c 64 --mem 250G -t 24:00:00" \
+  --slurm-ec    "-c 8 --mem 64G -t 12:00:00"
+```
+
+| # | step | config | complete when |
+|---|---|---|---|
+| 1 | train (optional) | `1_train.yaml` | a `.ckpt` under `<save_path>/*/checkpoints/` |
+| 2 | infer | `2_infer.yaml` | every chunk in `*.h5.index.json` is on disk |
+| 3 | abiss | `3_abiss.yaml` | `abiss/precomputed/seg/info` exists |
+| 4 | ec | `4_error_correction.yaml` | `error_correction_manifest.json` exists |
+
+Edit **only** [params.yaml](params.yaml): repository, dataset root, writeable output root.
+Every config inherits it. Keep the step YAMLs' thresholds unchanged to reproduce the
+reference recipe. Planning figures: [RESOURCE.md](RESOURCE.md). Disk cleanup mid-run:
+[CLEANUP.md](CLEANUP.md).
+
+## Step details
+
+What the driver runs at each step, and the constraints that matter if you adapt it.
+
+### Step 1 — train the affinity model (optional)
 
 `1_train.yaml` trains MedNeXt-L/k3 from scratch for 200k steps on the dense GT cubes,
 25 train / 8 held out, at roughly four GPU-days on 4 GPUs. Or download one and pass
@@ -104,7 +108,7 @@ split (all 33 cubes in training, 3 of them reused as validation), and every numb
 results table comes from it, so retraining gives an honest curve and a slightly different
 model.
 
-## Step 2 — predict affinity
+### Step 2 — predict affinity
 
 Output is chunked float16, three-channel affinity under `output_root/affinity`; the full
 volume is 726 chunks of 1008³ with a 72-voxel halo, one GPU per shard.
@@ -115,7 +119,7 @@ mismatch silently inverts the trained anisotropy. `2_infer.yaml` runs `[144, 144
 a j0126-trained checkpoint needs `1_train.yaml` instead (`[48, 96, 96]`, output
 `affinity_arm0_96/`, so step 3's `source_affinity_h5` must be repointed there).
 
-## Step 3 — ABISS decode
+### Step 3 — ABISS decode
 
 ABISS is a separate C++ dependency, pinned to the commit the reference decode used:
 
@@ -137,7 +141,7 @@ ABISS uses every CPU granted to the process, so submit **one shared-memory job**
 (`--cpus-per-task=64` is a good start), never a job array: independent copies race on the
 same hierarchy layers. The recorded 40-node run took 3.75 h.
 
-## Step 4 — morphology error correction
+### Step 4 — morphology error correction
 
 Builds skeletons for large segments, evaluates every sufficiently confident contact, and
 accepts only hard-gated branch continuations. It protects external nucleus identities and

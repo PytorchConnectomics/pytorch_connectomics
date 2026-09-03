@@ -112,7 +112,11 @@ def test_tutorial_params_are_inherited_and_fully_resolved():
     correction = load_yaml_with_bases_and_params(Path("tutorials/neuron_j0126/4_error_correction.yaml"))
 
     assert affinity.save_path.endswith("outputs/neuron_j0126/affinity")
-    assert affinity.test.data.test.image.endswith("im_align_10nm.zarr/0")
+    assert affinity.test.data.test.image.endswith("j0126_em.zarr/main")
+    # No input may point outside what step 0 downloads or the pipeline writes.
+    for key in ("segmentation", "affinity_chunks", "keep_mask", "nucleus_manifest", "size_glob"):
+        value = correction["error_correction"][key]
+        assert "dev/zebrafinch" not in value, (key, value)
     assert "params" not in abiss
     assert "${params" not in str(abiss)
     assert "${params" not in str(correction)
