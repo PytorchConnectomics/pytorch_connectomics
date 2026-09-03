@@ -1,55 +1,79 @@
 # j0126: conservative segmentation, morphology-based reconnecting
 
-This tutorial turns the j0126 EM volume (9 x 9 x 20 nm) into a neuron segmentation in three steps:
+Turns the j0126 EM volume into a neuron segmentation in four steps: train an affinity
+model, predict affinity, decode conservatively with ABISS, reconnect high-confidence
+branches. The decode deliberately under-merges — a split is cheap to repair, a merge
+corrupts two neurons — and step 4 repairs the splits. Step 4 is prediction-only: it reads
+the segmentation, affinity, predicted morphology and an external nucleus manifest, never
+evaluation skeletons, their lookup table, or an FFN segmentation.
 
-0. Download data
-1. Predict voxel affinities.
-2. Decode them conservatively with ABISS, preferring splits to false merges.
-3. Reconnect only high-confidence, morphologically continuous branches.
+The volume is **9 × 9 × 20 nm (x, y, z)**, i.e. `[20, 9, 9]` in the ZYX order every config
+uses. Nothing here is 10 nm isotropic: `im_align_10nm.zarr` is a misnomer for a store that
+is byte-identical to the public mip 0.
 
-For the frozen PyTC2 Zebrafinch replay, including fail-closed input checks and
-non-interactive Slurm submission, follow the
-[reproduction guide](reproduction/README.md).
+## Run it
 
-The last step is prediction-only at runtime. It uses the segmentation, affinities, predicted morphology, and an external nucleus-instance manifest; it does not read evaluation skeletons, their lookup table, or an FFN segmentation.
+One driver runs all four steps. It checks each step's output artifact before running the
+step and skips the step when it is already complete, so re-running resumes a partial
+pipeline instead of recomputing it.
 
-## Before running
+```bash
+python scripts/run_j0126.py --check                      # what exists, what is missing
+python scripts/run_j0126.py --checkpoint ckpt/aff.ckpt   # run every missing step
+python scripts/run_j0126.py --steps abiss,ec --dry-run   # print the commands only
+python scripts/run_j0126.py --force infer                # rerun a step that looks complete
+```
 
-Edit **only** [params.yaml](params.yaml). It contains the repository checkout, dataset root, writeable output root, and the existing artifacts required to replay the frozen EC recipe. Every step inherits this file, so paths are not duplicated across the workflow YAMLs. Keep the algorithmic thresholds in the step YAMLs unchanged when reproducing the reference recipe.
+On a cluster, `--launcher slurm` wraps each step in `sbatch --wrap`, chains the steps with
+`afterok`, and submits step 2 as an array:
 
-The zero-shot affinity path needs a NISB-trained checkpoint. The supervised affinity YAML is included as a target-domain reference only: it uses j0126 dense labels, so it is not part of the zero-shot pipeline; its trained checkpoint can be downloaded instead of retrained (see [Step 1](#supervised-reference-affinity)).
+```bash
+python scripts/run_j0126.py --launcher slurm --num-shards 80 \
+  --checkpoint ckpt/aff.ckpt \
+  --slurm-infer "-p gpu --gres=gpu:1 -c 8 --mem 64G -t 8:00:00" \
+  --slurm-abiss "-c 64 --mem 250G -t 24:00:00" \
+  --slurm-ec    "-c 8 --mem 64G -t 12:00:00"
+```
 
-Whole-volume planning figures live in [RESOURCE.md](RESOURCE.md), and the staged storage cleanup that keeps the peak down is in [CLEANUP.md](CLEANUP.md).
+| # | step | config | command | complete when |
+|---|---|---|---|---|
+| 1 | train (optional) | `1_affinity_supervised.yaml` | `scripts/main.py --mode train` | a `.ckpt` under `<save_path>/*/checkpoints/` |
+| 2 | infer | `1_affinity_zeroshot.yaml` | `scripts/main.py --mode test --checkpoint …` | every chunk listed in `*.h5.index.json` is on disk |
+| 3 | abiss | `2_abiss.yaml` | `scripts/run_abiss_chunk.py` | `abiss/precomputed/seg/info` exists |
+| 4 | ec | `3_merge.yaml` | `scripts/run_error_correction.py --stage all --num-tasks 1` | `error_correction_v7/error_correction_manifest.json` exists |
 
+Edit **only** [params.yaml](params.yaml): repository checkout, dataset root, writeable
+output root. Every config inherits it, so paths are never duplicated. Keep the algorithmic
+thresholds in the step YAMLs unchanged when reproducing the reference recipe.
 
-## Step 0 — get the data
+Whole-volume planning figures are in [RESOURCE.md](RESOURCE.md); reclaiming disk while the
+run is in flight is in [CLEANUP.md](CLEANUP.md). A bit-exact replay of the two published
+ABISS rows, with fail-closed input checks, is [reproduction/](reproduction/README.md) — a
+separate, frozen code path, not this one.
 
-**Training data** (395 MB) — 33 densely labelled subvolumes (No need if use existing models):
+## Step 0 — data
+
+**Training data** (395 MB, not needed if you use an existing model) — 33 densely labelled subvolumes:
 
 ```bash
 wget https://huggingface.co/datasets/pytc/zebrafinch-j0126/resolve/main/j0126-train-33vol.zip
 unzip j0126-train-33vol.zip -d <dataset_root>/train/
 ```
 
-That gives `im_raw/` + `seg_gt/` and the padded pair `im_raw_4-32-32/` +
-`seg_gt_4-32-32/`, which is what [1_affinity_supervised.yaml](1_affinity_supervised.yaml)
-reads: the padding is real EM context on the image side and `-1` on the label
-side, so the loss ignores the border and no mask volume is needed.
+Gives `im_raw/` + `seg_gt/` and the padded pair `im_raw_4-32-32/` + `seg_gt_4-32-32/`.
+Training reads the padded pair: the pad is real EM context on the image side and `-1` on
+the label side, so the loss ignores the border and no mask volume is needed.
 
-**Testing data** — the public FFN mirror (Januszewski et al. 2018), uint8 at
-9 × 9 × 20 nm (x, y, z), i.e. `[20, 9, 9]` in the ZYX order the configs use:
+**Testing data** — the EM volume to segment, from the public FFN mirror (Januszewski et al. 2018), uint8:
 
 ```
 gs://j0126-nature-methods-data/GgwKmcKgrcoNxJccKuGIzRnQqfit9hnfK1ctZzNbnuU/rawdata_realigned
 ```
 
-Running one or two chunks? Point the config straight at the bucket and skip the
-copy. For a whole-volume run, or anything you will read more than a few times,
-download mip 0 once into a local zarr:
+For one or two chunks, point the config straight at the bucket. For a whole-volume run,
+download mip 0 once (5700 × 10913 × 10664 uint8 ≈ 660 GB):
 
 ```bash
-# whole volume: 5700 x 10913 x 10664 uint8 = ~660 GB; shard it across an array job
-# (the 5.3 TB uint64 FFN segmentation layer took ~2 h at 8 shards, so this is less)
 python scripts/download_precompute.py \
   gs://j0126-nature-methods-data/GgwKmcKgrcoNxJccKuGIzRnQqfit9hnfK1ctZzNbnuU/rawdata_realigned \
   --out <dataset_root>/j0126_em.zarr --mip 0 --tile-xy 2048 --slab 64 \
@@ -60,91 +84,111 @@ python scripts/download_precompute.py <same source> \
   --out /tmp/j0126_crop.zarr --mip 0 --bbox 2016 3024 5040 6048 5040 6048
 ```
 
-Then point `params.data.raw_em` at the array, e.g. `<dataset_root>/j0126_em.zarr/main`.
+Point `params.data.raw_em` at the array, e.g. `<dataset_root>/j0126_em.zarr/main`. Take
+mip 0 and do not resample: it is the grid FFN published, the grid the evaluation skeletons
+index, and the grid the reference runs used.
 
-
-## Step 1 — affinity prediction
-
-- Option 1: Run zero-shot inference with an NISB checkpoint:
-
-```bash
-python scripts/main.py --config tutorials/neuron_j0126/1_affinity_zeroshot.yaml \
-  --mode test --checkpoint /path/to/nisb_affinity.ckpt
-```
-
-For the full volume, run independent one-GPU shards:
+**Tissue mask** — FFN's `tissue_classification` layer in the same bucket is a 6-channel
+probability volume at 18 × 18 × 20 nm; thresholding it gives the binary keep-mask
+`NOT(blood vessel | myelin | out-of-bounds)`, and combining that with the border ring
+gives step 4's `keep_mask`:
 
 ```bash
-python scripts/main.py --config tutorials/neuron_j0126/1_affinity_zeroshot.yaml \
-  --mode test --checkpoint /path/to/nisb_affinity.ckpt \
-  --shard-id "$SLURM_ARRAY_TASK_ID" --num-shards 80
+python dev/zebrafinch/build_ffn_tissue_mask.py \
+  --output <dataset_root>/ffn_tissue_mask_18-18-20.zarr \
+  --shard-id "$SLURM_ARRAY_TASK_ID" --num-shards 16
+
+python dev/zebrafinch/build_unclipped_mask_region.py \
+  --out <experiment_root>/tissue_border_keep_mask_full.zarr \
+  --bbox-xyz 0 0 0 10664 10912 5700 --shard "$SLURM_ARRAY_TASK_ID" --nshard 40
 ```
 
-The output is chunked float16, three-channel affinity under `output_root/affinity` after resolving `params.yaml`.
+The mask is half resolution in XY and 1:1 in Z; it is nearest-upsampled 2× in XY at use
+time. Note what it borrows: it comes from FFN's own CNN and removes 15.64% of the volume,
+which makes a "we beat FFN" comparison weaker than it looks. If that matters,
+`dev/zebrafinch/build_bv_border_mask.py` builds the same kind of mask from a blood-vessel
+volume we own, masks no myelin at all, and removes 1.38% — the decode then has to cope
+with myelin on its own.
 
-- Option 2: Supervised training
+## Step 1 — train the affinity model (optional)
 
-`1_affinity_supervised.yaml` is the target-domain reference: MedNeXt-L/k3 trained from scratch for 200k steps on the j0126 dense-GT cubes, 25 for training and 8 held out for validation. It has seen labelled j0126 tissue, so any run that starts here is not ground-truth-free.
+`1_affinity_supervised.yaml` trains MedNeXt-L/k3 from scratch for 200k steps on the dense
+GT cubes, 25 for training and 8 held out, at roughly four GPU-days on 4 GPUs:
 
-Training it costs roughly four GPU-days. Download the reference checkpoint instead:
+```bash
+python scripts/main.py --config tutorials/neuron_j0126/1_affinity_supervised.yaml --mode train
+```
+
+Skip this and pass `--checkpoint` instead if you already have one:
 
 ```bash
 hf download pytc/j0126 affinity_scratch_48x96x96.ckpt --local-dir ckpt/
-
-python scripts/main.py --config tutorials/neuron_j0126/1_affinity_supervised.yaml \
-  --mode test --checkpoint ckpt/affinity_scratch_48x96x96.ckpt
 ```
 
-The released checkpoint predates the held-out split: it trained on all 33 cubes and validated on a 3-cube subset that was also in training, so its validation curve was not a generalization estimate. Every number in the results table comes from that checkpoint. Retraining with the current YAML gives an honest held-out curve and a slightly different model — it does not reproduce the released weights bit for bit.
+That checkpoint has seen labelled j0126 tissue, so a run starting from it is **not**
+ground-truth-free; it is the supervised upper reference. It also predates the held-out
+split — it trained on all 33 cubes and validated on 3 that were also in training, so its
+validation curve was not a generalization estimate. Every number in the results table
+comes from it. Retraining with the current YAML gives an honest held-out curve and a
+slightly different model.
 
-It must be inferred at its native `[48, 96, 96]` window, which the YAML already sets: MedNeXt normalizes without running statistics, so the forward pass depends on the window extent, and the zero-shot config's `[144, 144, 144]` would invert the trained Z-thin anisotropy. Its affinity lands under `output_root/affinity_arm0_96`, so step 2's `source_affinity_h5` has to be repointed there.
+## Step 2 — predict affinity
 
-## Step 2 — conservative ABISS decode
+```bash
+python scripts/main.py --config tutorials/neuron_j0126/1_affinity_zeroshot.yaml \
+  --mode test --checkpoint /path/to/affinity.ckpt
+```
 
-First inspect the planned ABISS commands:
+Output: chunked float16, three-channel affinity under `output_root/affinity`. The full
+volume is 726 chunks of 1008³ with a 72-voxel halo; shard it with
+`--shard-id`/`--num-shards`, one GPU per shard, no `torch.distributed`.
+
+The config must match the window its checkpoint was trained at. MedNeXt normalizes without
+running statistics, so the forward pass depends on the window extent and a mismatch
+silently inverts the trained anisotropy. `1_affinity_zeroshot.yaml` runs `[144, 144, 144]`;
+a checkpoint trained on the j0126 cubes needs `1_affinity_supervised.yaml` instead
+(`[48, 96, 96]`, output `affinity_arm0_96/`, so step 3's `source_affinity_h5` must be
+repointed there).
+
+## Step 3 — ABISS decode
 
 ```bash
 python scripts/run_abiss_chunk.py --config tutorials/neuron_j0126/2_abiss.yaml --prepare-only
-```
-
-Then run them:
-
-```bash
 python scripts/run_abiss_chunk.py --config tutorials/neuron_j0126/2_abiss.yaml
 ```
 
-For a small or single-node run, use one shared-memory CPU job: ABISS uses the CPUs the scheduler grants the process. For Slurm, a good starting point is:
+ABISS uses every CPU the scheduler grants the process, so submit **one shared-memory job**
+(`--cpus-per-task=64` is a good start), never a job array — independent copies would race
+on the same hierarchy layers. For the fastest whole-volume decode, shard each hierarchy
+layer across nodes and wait for that layer before launching the next: the recorded 40-node
+run took 3.75 h, and an 80/24/16/14/8/1-shard layout is projected at ~1.9 h.
 
-```bash
-sbatch --cpus-per-task=64 --wrap='python scripts/run_abiss_chunk.py \
-  --config tutorials/neuron_j0126/2_abiss.yaml'
-```
+## Step 4 — morphology error correction
 
-For the fastest full-volume decode, shard each hierarchy layer across nodes, wait for that layer to finish, then launch the next layer. The recorded 40-node run took 3.75 h; a 80/24/16/14/8/1-shard layout is projected at ~1.9 h. Do not launch independent copies of the complete decoder: they would race on the same layers. The fixed watershed and agglomeration settings intentionally under-merge, leaving recoverable fragments for step 3 instead of welding uncertain neurons.
+Step 4 builds skeletons for large predicted segments, evaluates every sufficiently
+confident contact, and accepts only hard-gated branch continuations. It protects external
+nucleus identities and never joins two different ones.
 
-## Step 3 — morphology-based error correction
-
-Step 3 builds skeletons for large predicted segments, evaluates every sufficiently confident contact, and accepts only hard-gated branch continuations. It protects external nucleus identities and never joins two different identities.
-
-Preview the complete plan first:
+`--stage all` runs the thirteen stages in order in one process, which is all a small volume
+needs. It is serial, hence `--num-tasks 1`; add `--dry-run` to print the plan:
 
 ```bash
 python scripts/run_error_correction.py \
-  --config tutorials/neuron_j0126/3_merge.yaml --stage all --num-tasks 1 --dry-run
+  --config tutorials/neuron_j0126/3_merge.yaml --stage all --num-tasks 1
 ```
 
-For the full volume, run the array stages with the same task count configured in `3_merge.yaml` (80 in the reference run):
+Only three stages are chunk-parallel. For the whole volume, submit `skeletonize`,
+`contacts` and `postprocess` as Slurm arrays at the task count configured in
+`3_merge.yaml` (80 in the reference run), and run the rest serially in between:
 
 ```bash
 CFG=tutorials/neuron_j0126/3_merge.yaml
+ARRAY="--task-id $SLURM_ARRAY_TASK_ID --num-tasks 80"
 
 python scripts/run_error_correction.py --config "$CFG" --stage sizes
-python scripts/run_error_correction.py --config "$CFG" --stage skeletonize \
-  --task-id "$SLURM_ARRAY_TASK_ID" --num-tasks 80
-python scripts/run_error_correction.py --config "$CFG" --stage contacts \
-  --task-id "$SLURM_ARRAY_TASK_ID" --num-tasks 80
-
+python scripts/run_error_correction.py --config "$CFG" --stage skeletonize $ARRAY   # array
 python scripts/run_error_correction.py --config "$CFG" --stage skeletons
+python scripts/run_error_correction.py --config "$CFG" --stage contacts $ARRAY      # array
 python scripts/run_error_correction.py --config "$CFG" --stage contact_graph
 python scripts/run_error_correction.py --config "$CFG" --stage candidates
 python scripts/run_error_correction.py --config "$CFG" --stage junction_scope
@@ -152,13 +196,22 @@ python scripts/run_error_correction.py --config "$CFG" --stage junction_features
 python scripts/run_error_correction.py --config "$CFG" --stage boundary
 python scripts/run_error_correction.py --config "$CFG" --stage resolve
 python scripts/run_error_correction.py --config "$CFG" --stage prepare_output
-
-python scripts/run_error_correction.py --config "$CFG" --stage postprocess \
-  --task-id "$SLURM_ARRAY_TASK_ID" --num-tasks 80
+python scripts/run_error_correction.py --config "$CFG" --stage postprocess $ARRAY   # array
 python scripts/run_error_correction.py --config "$CFG" --stage verify
 ```
 
-Stages are restartable: completed chunk artifacts are reused. For a one-core smoke test, append `--max-owned-chunks 1` to an array-stage command.
+That is the order `--stage all` executes, so the two forms agree.
+
+Stages are restartable: completed chunk artifacts are reused. For a one-core smoke test,
+append `--max-owned-chunks 1` to an array-stage command.
+
+`3_merge.yaml`'s five input paths are pinned to the frozen reference run. Repoint all five
+together when applying the method to your own decode; `run_j0126.py --check` reports which
+of them are missing.
+
+Use `erosion_radius_zyx: [0, 0, 0]` for morphology linking alone and `[1, 1, 1]` for the
+strict-mt=0 cleanup. The scratch run freezes 749 branch unions. Evaluation is deliberately
+outside the EC config and should be run only after the proposal has been frozen.
 
 ## Results
 
