@@ -97,7 +97,7 @@ def check_affinity(save_path: Path, suffix: str = "") -> Status:
     if not indexes:
         return Status(False, f"no *.h5.index.json under {save_path}")
     index = indexes[-1]
-    store = index.name[: -len(".index.json")]
+    store = index.parent / (index.name[: -len(".index.json")] + ".chunks")
     payload = json.loads(index.read_text())
     chunks = payload.get("chunks", [])
     root = index.parent
