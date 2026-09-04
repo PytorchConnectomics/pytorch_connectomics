@@ -55,18 +55,17 @@ vessel volume we own: no myelin masked, 1.38% removed.
 
 ## 2. Run the pipeline
 
-One driver runs all four steps. It checks each step's output artifact first and skips the
-step when it is already complete, so re-running resumes instead of recomputing.
+Edit **only** [params.yaml](params.yaml) — repository, dataset root, writeable output
+root. Every config inherits it. Then one driver runs all four steps.
+
+On a single machine:
 
 ```bash
-python scripts/run_j0126.py --check                      # what exists, what is missing
-python scripts/run_j0126.py --checkpoint ckpt/aff.ckpt   # run every missing step
-python scripts/run_j0126.py --steps abiss,ec --dry-run   # print the commands only
-python scripts/run_j0126.py --force infer                # rerun a completed step
+python scripts/run_j0126.py --checkpoint ckpt/aff.ckpt
 ```
 
-`--launcher slurm` wraps each step in `sbatch --wrap`, chains them with `afterok`, and
-submits step 2 as an array; per-step resources go in `--slurm-<step>`:
+On a Slurm cluster, where each step becomes an `sbatch --wrap` job chained with `afterok`
+and step 2 becomes an array of `--num-shards` one-GPU jobs:
 
 ```bash
 python scripts/run_j0126.py --launcher slurm --num-shards 80 \
@@ -83,10 +82,24 @@ python scripts/run_j0126.py --launcher slurm --num-shards 80 \
 | 3 | abiss | `3_abiss.yaml` | `abiss/precomputed/seg/info` exists |
 | 4 | ec | `4_error_correction.yaml` | `error_correction_manifest.json` exists |
 
-Edit **only** [params.yaml](params.yaml): repository, dataset root, writeable output root.
-Every config inherits it. Keep the step YAMLs' thresholds unchanged to reproduce the
-reference recipe. Planning figures: [RESOURCE.md](RESOURCE.md). Disk cleanup mid-run:
-[CLEANUP.md](CLEANUP.md).
+Keep the step YAMLs' thresholds unchanged to reproduce the reference recipe. Planning
+figures: [RESOURCE.md](RESOURCE.md). Disk cleanup mid-run: [CLEANUP.md](CLEANUP.md).
+
+## Resuming, inspecting, rerunning
+
+Each step checks the artifact in the table above before it runs and skips the step when it
+is already there, so the same command resumes a partial pipeline instead of recomputing
+it. Step 2 resumes per chunk.
+
+```bash
+python scripts/run_j0126.py --check                      # what exists, what is missing
+python scripts/run_j0126.py --steps abiss,ec --dry-run   # print the commands only
+python scripts/run_j0126.py --steps infer                # run one step
+python scripts/run_j0126.py --force infer                # rerun a step that looks complete
+```
+
+`--check` prints every input and output path with its status, including the affinity chunk
+store it found for step 2 — which is the path `4_error_correction.yaml` needs.
 
 ## Step details
 
