@@ -108,7 +108,29 @@ abiss_chunk:
     # been fitted on this volume. Fit it GT-free via the largest-segment volume
     # fraction (a percolated segment is absurdly large, no GT needed), not by VOI on
     # 100^3 cubes, which cannot see percolation at all.
-    AGG_THRESHOLD: 0.20
+    AGG_THRESHOLD: 0.80
+
+    # --- agglomeration SIZE HEURISTIC -------------------------------------------
+    # THIS, not AGG_THRESHOLD, is what percolated the volume. `agg` force-merges any
+    # edge at affinity >= size_params.aff_threshold when a segment is under
+    # small_voxel_threshold, INDEPENDENT of AGG_THRESHOLD and of the 0.9-down-by-0.1
+    # schedule. Vendored defaults (mean_aggl.cpp:121) are
+    #     aff_threshold 0.35 / small 1e6 voxels / large 1e7 voxels
+    # and at 11.24 x 11.24 x 28 nm, 1e6 voxels is ~3546 um^3 -- i.e. essentially every
+    # neurite in this volume counts as "small" and gets chained at aff >= 0.35.
+    #
+    # Evidence it is the culprit, not AGG_THRESHOLD: the guard's largest-label share is
+    # flat at 67.05% / 68.35% / 66.38% for AGG_THRESHOLD 0.001 / 0.20 / 0.35 (three
+    # orders of magnitude) while the `ws` layer is healthy at 1.74%. Label counts DO
+    # respond (1056 -> 3882), so the threshold prunes weak edges but never touches the
+    # high-affinity chains the size heuristic creates.
+    #
+    # These are env-settable (set_env.py exports them; the binary falls back to its
+    # literals when absent, so omitting them reproduces the old behaviour exactly).
+    # Absorb only genuine dust, and require real confidence to do it.
+    AGG_SIZE_AFF_THRESHOLD: 0.35
+    AGG_SMALL_VOXEL_THRESHOLD: 1000000
+    AGG_LARGE_VOXEL_THRESHOLD: 10000000
 
     PARANOID: false
     CHUNKED_AGG_OUTPUT: false
