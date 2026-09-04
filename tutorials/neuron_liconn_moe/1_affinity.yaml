@@ -1,0 +1,84 @@
+# LICONN ExPID96 "moe" step 1 of 2: image -> voxel affinity.
+#
+#   python scripts/main.py --config tutorials/neuron_liconn_moe/1_affinity.yaml \
+#     --mode test --checkpoint <params.artifacts.checkpoint>
+#
+# NO TRAINING HAPPENS HERE. The moe volumes have no ground truth, so this reuses
+# the 200k banis+ checkpoint trained on the IST LICONN final_proofread volume
+# (tutorials/neuron_liconn_ist/1_affinity.yaml) and applies it cross-sample. The
+# `train:` block below exists only because the strict schema wants the section
+# populated; running --mode train from this file is not the intent.
+#
+# THE ONE THING THAT MAKES THE TRANSFER MEANINGFUL: matched voxel size. The
+# checkpoint is a 3D conv net trained at [24, 18, 18] nm ZYX, so neurite caliber
+# in voxels is part of what it learned. Fed the native 18x volume at
+# [22.22, 9.03, 9.03] nm it would see every process twice as thick as anything in
+# training. `prepare_volume.py` writes the (1,2,2)-averaged copy that this config
+# reads; see params.yaml for why the 18x volume is the only viable choice and
+# prepare_volume.py for why the source NGFF pyramid cannot supply it.
+#
+# WHAT IS STILL UNMATCHED, and why every downstream number is provisional:
+# different sample (ExPID96 vs ExPID82_1), different expansion protocol, and moe
+# went through per-plane 1-99 percentile clip + CLAHE while the IST export did
+# not. Measured on 4 slabs, the intensity histograms happen to land close after
+# downsampling -- train mean 128.2 / std 53.7 / median 120 vs moe-ds
+# mean 128.0 / std 60.4 / median 120 -- which is why `normalize: divide-255` is
+# left alone. That is an encouraging coincidence, not a validation.
+#
+# OUTPUT CONVENTION (step 2 depends on both of these):
+#   * arrays are ZYX, so affinity channel c is the edge along array axis c:
+#     ch0 = Z, ch1 = Y, ch2 = X. Channel c == axis c, NOT 2-ax.
+#   * `channel_activations: scale_sigmoid` means the stored value is
+#     sigmoid(0.2 * logit), NOT the model's probability. The array never reaches
+#     0 or 1. Any absolute threshold copied from another tutorial will be wrong.
+
+_base_:
+  - params.yaml
+  - ../neuron_nisb/base_banis+.yaml
+
+experiment_name: liconn_moe_affinity
+description: >-
+  IST-LICONN banis+ (MedNeXt-L/k3, 6-ch r1+r10 affinity, scale_sigmoid) applied
+  cross-sample to the ExPID96 moe 18x volume, resampled to the checkpoint's
+  [24, 18, 18] nm training grid.
+
+save_path: ${params.paths.output_root}/affinity
+
+default:
+  # No labels and no skeletons exist for moe, so there is nothing to score.
+  # Leaving the inherited `evaluation.enabled: true` / `metrics: [nerl]` in place
+  # would send the evaluation stage looking for GT that is not there.
+  evaluation:
+    enabled: false
+    metrics: []
+  decoding:
+    # Step 1 writes raw affinity only; step 2 decodes it from disk.
+    load_prediction_path: ""
+    save_path: ""
+    steps: []
+
+test:
+  data:
+    test:
+      # Sets the per-volume output leaf under <ckpt_run>/test_step=00200000/.
+      name: ${params.artifacts.volume_name}
+      path: ${params.data.volume}
+      image: ${params.data.image}
+      label: null
+      skeleton: null
+      resolution: ${params.data.resolution_zyx}
+
+# The moe volumes have no paired segmentation; these point at the IST data the
+# checkpoint was actually trained on, purely so the schema resolves.
+train:
+  data:
+    train:
+      path: /projects/weilab/dataset/liconn/pytc/final_proofread/train
+      image: data.zarr/img
+      label: data.zarr/seg
+      resolution: [24, 18, 18]
+    val:
+      path: /projects/weilab/dataset/liconn/pytc/final_proofread/val
+      image: data.zarr/img
+      label: data.zarr/seg
+      resolution: [24, 18, 18]

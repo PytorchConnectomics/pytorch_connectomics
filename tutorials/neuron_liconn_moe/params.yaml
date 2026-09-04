@@ -1,0 +1,86 @@
+# LICONN ExPID96 "moe" local settings -----------------------------------------
+#
+# The only file to edit for a new machine, volume, or storage layout. Every step
+# YAML inherits it and refers to ${params...}, so paths are never duplicated.
+#
+# WHICH LICONN IS THIS. Three different volumes go by "liconn" in this repo:
+#   * simulated NISB liconn   /projects/weilab/dataset/nisb/liconn      (seeds 0-6)
+#   * IST final_proofread     /projects/weilab/dataset/liconn/pytc/...  (tutorials/neuron_liconn_ist)
+#   * ExPID96 "moe"           THIS ONE -- 8 expansion-LM volumes imaged by
+#     Mojtaba Tavakoli, raw ND2 in /projects/weilab/dataset/liconn/moe/.
+# There is NO ground truth for the moe volumes, so this workflow is inference +
+# decode only: no training, no NERL, no VOI.
+
+params:
+  paths:
+    # Must be the MAIN checkout, not a worktree: it carries the vendored ABISS
+    # build (lib/abiss/build/ws) that step 2 shells out to.
+    repository: /projects/weilab/weidf/lib/pytorch_connectomics
+    output_root: ${params.paths.repository}/outputs/neuron_liconn_moe
+    moe_root: /projects/weilab/dataset/liconn/moe/preprocessed/clip_percentile_1_99
+
+  data:
+    # DEFAULTS FOR THE FIRST VOLUME ONLY. The batch does not use these: it
+    # generates a four-line override per volume with `make_volume_config.py`,
+    # driven by the recipe table in `volumes.py`. Kept so this config is still
+    # runnable on its own.
+    #
+    # WHY A RESAMPLE AT ALL. The checkpoint was trained at [24, 18, 18] nm ZYX
+    # (biological nm -- the moe spacings already have the expansion factor
+    # divided out), and native moe XY is 9.03 / 7.39 / 5.80 / 5.08 nm for the
+    # 18x / 22x / 28x / 32x volumes. Fed natively, a neurite would look 2-3.5x
+    # too thick to a conv net for which voxel size is not a free parameter.
+    #
+    # The 18x pair is the only one an integer factor away:
+    #     18x native  [22.22,  9.03,  9.03]  x(1,2,2) -> [22.22, 18.06, 18.06]
+    # within 0.3% of the training XY and 7.4% of its Z, with no interpolation.
+    # The other six take an area-average resample to [24, 18, 18]; see
+    # `volumes.py` for why that beats rounding to the nearest integer factor,
+    # and `prepare_volume.py` for why the NGFF pyramid already in the source
+    # cannot supply either (its level 1 halves Z too).
+    #
+    # ExPID96_2ndgel_S1_40XW001_18x is the larger of the two 18x volumes
+    # (585 vs 316 z planes) and is the one published first.
+    volume: ${params.paths.moe_root}/zarr_ds1-2-2
+    image: ExPID96_2ndgel_S1_40XW001_18x.zarr/0
+    # Resolution of the ds1-2-2 copy, ZYX nm.
+    resolution_zyx: [22.222222, 18.055556, 18.055556]
+
+  artifacts:
+    # Trained on the IST LICONN final_proofread volume at 18x18x24 nm; 200k
+    # steps, exit clean 2026-07-30. Shared with tutorials/neuron_liconn_ist.
+    # THIS IS A CROSS-SAMPLE, CROSS-MODALITY TRANSFER: the checkpoint never saw
+    # ExPID96 tissue, a different expansion protocol, or moe's CLAHE. Treat every
+    # number below as unvalidated until a human looks at the segmentation.
+    checkpoint: ${params.paths.repository}/outputs/liconn_final_banis_plus_tube/20260728_032436/checkpoints/step=00200000.ckpt
+    # Written by step 1, consumed by step 2.
+    #
+    # TWO SURPRISES ARE BAKED INTO THIS PATH.
+    #
+    # 1. The directory comes from the CHECKPOINT, not from `save_path`. In
+    #    --mode test `runtime/checkpoint_dispatch.py::configure_checkpoint_output_paths`
+    #    overwrites `inference.save_path` with <ckpt_run_dir>/test_<ckpt_stem>/,
+    #    so results land inside the IST training run's directory and the
+    #    `save_path:` in the step YAMLs is ignored.
+    #
+    # 2. The per-volume leaf is `0`, not `data.test.name`. Two different helpers
+    #    name that folder and they disagree:
+    #      * `runtime/output_naming.py::resolve_dataset_volume_stems` honours
+    #        `data.test.name` (its documented resolution order 1, and what
+    #        `config/schema/data.py` advertises the field for);
+    #      * `inference/output.py::resolve_output_filenames`, which is what
+    #        ACTUALLY writes the file, never reads it -- it calls
+    #        `_stem_from_image_path` on the image path. For an OME-NGFF volume
+    #        that path ends in the level index, and `"0"` is not in
+    #        `_UNINFORMATIVE_STEMS`, so the walk-up-to-parent rule that turns
+    #        `data.zarr/img` into `seed101` never fires.
+    #    Consequence: every volume read as `<vol>.zarr/0` shares the leaf `0`
+    #    and overwrites the previous one. THE BATCH SIDESTEPS THIS by having
+    #    `prepare_volume.py` write `<vol>.h5`, whose stem is the volume's own
+    #    name -- so the leaf below is `0` only for this first volume, and
+    #    `<vol>` for every other. `data.test.name` is still set in
+    #    1_affinity.yaml because it does steer the resolver side (cache
+    #    detection, tuning); it just is not what names the file.
+    volume_name: moe_ExPID96_S1_18x
+    volume_dir: ${params.paths.repository}/outputs/liconn_final_banis_plus_tube/20260728_032436/test_step=00200000/0
+    affinity_h5: ${params.artifacts.volume_dir}/raw_x1_ch0-1-2.h5
