@@ -1,29 +1,137 @@
-# j0126 local settings -------------------------------------------------------
+# j0126 settings -- THE ONLY FILE YOU EDIT.
 #
-# This is the only file that should need editing for a new machine or storage
-# layout. Every workflow YAML inherits it and uses ${params...} references.
-# Paths are deliberately explicit: no environment variables or shell expansion
-# is required, which makes a resolved run easy to inspect and archive.
+#   python scripts/run_j0126.py
 #
-# Everything below either is produced by step 0 of the README or is written by
-# the pipeline itself, so no path points at an artifact you have to be given.
+# runs the whole tutorial from this file: download, optional training, affinity
+# inference, ABISS decode, morphology error correction. Every step reads its
+# paths and its Slurm resources from here, so a resolved run is reproducible
+# from one artifact. No environment variables, no shell expansion.
 
 params:
-  paths:
-    # Repository checkout that contains this tutorial and vendored ABISS.
-    repository: /path/to/pytorch_connectomics
-    # Writeable location for affinity, ABISS, and error-correction artifacts.
-    output_root: ${params.paths.repository}/outputs/neuron_j0126
-    # Where step 0 downloaded the EM volume, the labelled cubes and the mask.
-    dataset_root: /path/to/j0126
 
+  # --------------------------------------------------------------- where
+  paths:
+    # This repository checkout (the one containing scripts/run_j0126.py).
+    repository: /path/to/pytorch_connectomics
+    # Downloads land here: EM volume, training cubes, checkpoint, masks.
+    dataset_root: /path/to/j0126
+    # Everything the pipeline produces. Budget ~5 TB for the whole volume.
+    output_root: ${params.paths.repository}/outputs/neuron_j0126
+
+  # --------------------------------------------------------------- how
+  cluster:
+    # local  = run each step in the foreground, one after another.
+    # slurm  = submit each step with sbatch, chained with --dependency=afterok,
+    #          so the single command below queues the entire pipeline and exits.
+    launcher: slurm
+    # sbatch -A <account>; leave "" to omit.
+    account: ""
+    # Extra sbatch flags added to every step, e.g. "--qos=normal".
+    extra: ""
+
+  # --------------------------------------------------------------- step 0
+  download:
+    enabled: true
+    # Public FFN mirror of the EM volume (Januszewski et al. 2018, Nat Methods).
+    em_source: gs://j0126-nature-methods-data/GgwKmcKgrcoNxJccKuGIzRnQqfit9hnfK1ctZzNbnuU/rawdata_realigned
+    # [] = the whole ~660 GB volume. [z0, z1, y0, y1, x0, x1] fetches one crop
+    # instead; [2900, 3908, 5000, 6008, 5000, 6008] is a single 1008^3 chunk,
+    # a few minutes and ~1 GB, and is the right way to smoke-test this file.
+    em_bbox: []
+    # Download job granularity: one (z-slab x XY-tile) block per unit of work.
+    slab: 64
+    tile_xy: 2048
+    # 33 densely labelled cubes; only needed when train.enabled is true.
+    train_zip: https://huggingface.co/datasets/pytc/zebrafinch-j0126/resolve/main/j0126-train-33vol.zip
+    # Supervised reference affinity model; used when train.enabled is false.
+    # It has seen labelled j0126 tissue, so a run from it is NOT
+    # ground-truth-free -- it is the supervised upper reference.
+    checkpoint_url: https://huggingface.co/pytc/vEM/resolve/main/j0126/affinity_scratch_48x96x96.ckpt
+    num_shards: 8
+    slurm_partition: ""
+    cpus: 8
+    memory: 32G
+    time: "24:00:00"
+
+  # --------------------------------------------------------------- step 0b
+  # Tissue AND border keep-mask: FFN's own tissue_classification thresholded to
+  # NOT(blood vessel | myelin | out-of-bounds), combined with the 0/255 border
+  # ring of the aligned EM. Removes 15.64% of the volume. ABISS masks affinity
+  # with it and error correction reuses it.
+  mask:
+    enabled: true
+    num_shards: 16
+    slurm_partition: ""
+    cpus: 8
+    memory: 64G
+    time: "12:00:00"
+
+  # --------------------------------------------------------------- step 1
+  train:
+    # false = use the downloaded checkpoint and skip straight to inference.
+    # true  = train MedNeXt-L/k3 from scratch for 200k steps on the labelled
+    #         cubes, ~4 GPU-days on 4 GPUs, then infer with that checkpoint.
+    enabled: false
+    num_gpus: 4
+    slurm_partition: gpu
+    cpus: 32
+    memory: 256G
+    time: "96:00:00"
+
+  # --------------------------------------------------------------- step 2
+  inference:
+    # The whole volume is 726 chunks of 1008^3; one GPU per shard, no DDP.
+    num_shards: 80
+    # Must match the window the checkpoint was trained at. MedNeXt normalizes
+    # without running statistics, so the forward pass depends on the window
+    # extent and a mismatch silently inverts the trained anisotropy.
+    #   [48, 96, 96]    the j0126 checkpoint above, and train.enabled: true
+    #   [144, 144, 144] a NISB-trained zero-shot checkpoint
+    window_size: [48, 96, 96]
+    # Always one GPU per shard: the shards are independent processes, not DDP.
+    slurm_partition: gpu
+    cpus: 8
+    memory: 64G
+    time: "8:00:00"
+
+  # --------------------------------------------------------------- step 3
+  # ABISS uses every CPU granted to the process, so this is ONE shared-memory
+  # job, never an array: independent copies race on the same hierarchy layers.
+  # The recorded whole-volume run took 3.75 h on 64 cores.
+  abiss:
+    slurm_partition: ""
+    cpus: 64
+    memory: 250G
+    time: "24:00:00"
+
+  # --------------------------------------------------------------- step 4
+  error_correction:
+    slurm_partition: ""
+    cpus: 16
+    memory: 128G
+    time: "24:00:00"
+
+  # --------------------------------------------------------------- derived
+  # Written by the steps above; you should not need to touch anything below.
   data:
-    # EM volume in ZYX, native FFN mip 0 (9 x 9 x 20 nm xyz = [20, 9, 9] zyx),
-    # as written by `scripts/download_precompute.py --mip 0`. Point this at any
-    # ZYX zarr array on that grid, or straight at the public bucket.
+    # EM volume in ZYX at native FFN mip 0 (9 x 9 x 20 nm xyz = [20, 9, 9] zyx).
+    # Do not resample: this is the grid FFN published and the grid the
+    # evaluation skeletons index.
     raw_em: ${params.paths.dataset_root}/j0126_em.zarr/main
-    # The two directories the training zip unpacks into.
+    # The two directories the training zip unpacks into. The pad is real EM
+    # context on the image and -1 on the label, so the loss ignores the border.
     dense_images: ${params.paths.dataset_root}/train/im_raw_4-32-32
     dense_labels: ${params.paths.dataset_root}/train/seg_gt_4-32-32
-    # Tissue AND border keep-mask built in step 0.
+    # Built by the mask step.
+    tissue_mask: ${params.paths.dataset_root}/ffn_tissue_mask_18-18-20.zarr
     keep_mask: ${params.paths.dataset_root}/tissue_border_keep_mask_full.zarr
+    # Optional external nucleus segmentation. When set, ABISS runs competitive
+    # nucleus growth and writes the identity manifest that step 4 uses as a
+    # firewall (it never joins two different nucleus identities). Leave "" if
+    # you have none: the run still completes, without that protection -- the
+    # "+ nucleus instance certificate" rows in the README are what it buys.
+    nucleus_volume: ""
+    nucleus_ratio: [4, 8, 8]
+    # Affinity handed to ABISS: a virtual dataset over step 2's chunk store,
+    # built by the vds step. No data is copied.
+    affinity_h5: ${params.paths.output_root}/affinity/affinity.h5
