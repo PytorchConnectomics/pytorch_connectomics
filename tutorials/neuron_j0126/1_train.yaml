@@ -24,7 +24,7 @@
 # SPLIT -- 25 train / 8 val, disjoint. Rule: sort the 33 cube names, take every
 # 4th starting at index 2 for val. That holds out 8 cubes including 2 of the 4
 # large 128x256x256 ones, so val is not systematically the small cubes.
-#   The released checkpoint (`pytc/j0126 affinity_scratch_48x96x96.ckpt`) and
+#   The released checkpoint (`pytc/vEM j0126/affinity_scratch_48x96x96.ckpt`) and
 #   every number in the README results table PREDATE this split: that run
 #   trained on all 33 cubes and validated on a 3-cube subset that was also in
 #   train, so its val curve was not a generalization estimate. Retraining with
@@ -68,7 +68,7 @@ save_path: ${params.paths.output_root}/affinity_arm0_96
 
 default:
   system:
-    num_gpus: 4
+    num_gpus: ${params.train.num_gpus}
   model:
     input_size: [48, 96, 96]
     # From scratch. This is the explicit ablation against the init-from-NISB

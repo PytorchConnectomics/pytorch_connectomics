@@ -29,7 +29,10 @@ abiss_chunk:
   secrets_dir: ${params.paths.output_root}/abiss/secrets
   param_path: ${params.paths.output_root}/abiss/secrets/param
 
-  source_affinity_h5: ${params.paths.output_root}/affinity/affinity.h5
+  # A virtual dataset over step 2's chunk store, built by `run_j0126.py` right
+  # before this step. It copies nothing -- the whole-volume affinity is ~4 TB --
+  # but reads through h5py exactly like a stitched file.
+  source_affinity_h5: ${params.data.affinity_h5}
   source_dataset: main
 
   # On-disk precomputed storage chunks (NOT the ABISS logical chunk grid).
@@ -38,8 +41,8 @@ abiss_chunk:
   seg_chunk_size_xyz: [512, 512, 80]
   resolution_xyz: [10, 10, 10]
 
-  root_tag: "4_0_0_0"
-  top_mip: 4
+  # top_mip and root_tag are derived from BBOX / CHUNK_SIZE below; pinning them
+  # here only creates a second place to get the chunk hierarchy wrong.
   overlap_mode: 0
   meta_dirs: []
 
@@ -52,6 +55,27 @@ abiss_chunk:
     SCRATCH_PATH: file://${params.paths.output_root}/abiss/scratch
     CHUNKMAP_OUTPUT: file://${params.paths.output_root}/abiss/chunkmap
     AFF_RESOLUTION: 0
+
+    # Exclusion mask: FFN tissue AND the 0/255 border ring, built by the mask
+    # step. This is the "ABISS, exclusion mask" row of the README's table; the
+    # affinity is zeroed outside it before the watershed sees it.
+    AFF_KEEP_MASK: ${params.data.keep_mask}
+
+    # External nucleus identities. Empty NUC_PATH disables competitive nucleus
+    # growth entirely, which is the default because no nucleus volume ships with
+    # this tutorial; point it at one to get the "+ nucleus instance certificate"
+    # rows. NUC_RATIO expands one source voxel to mip-0 tags, so ABISS_NUC_MIN_TAGGED
+    # of 1024 is four source voxels -- enough that a resampling-edge speck cannot
+    # become an identity.
+    NUC_PATH: ${params.data.nucleus_volume}
+    NUC_RATIO: ${params.data.nucleus_ratio}
+    NUC_OFFSET: [0, 0, 0]
+    NUC_MIN_SHARE: 0.02
+    NUC_CONTACT_UM: 8.0
+    NUC_COMPETITION_MARGIN_ZYX: [1024, 1024, 512]
+    NUC_COMPETITION_FACTOR: 4
+    ABISS_NUC_DOMINANCE: 0.6
+    ABISS_NUC_MIN_TAGGED: 1024
 
     # Mip-0 XYZ. The true EM extent of the 10 nm volume is 5700 x 10913 x 10664 (ZYX);
     # in ABISS's XYZ order that is [0, 0, 0, 10664, 10913, 5700].

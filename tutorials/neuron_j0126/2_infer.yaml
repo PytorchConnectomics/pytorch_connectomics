@@ -41,10 +41,13 @@ default:
       keep_input_on_cpu: true
       sw_device: cuda
       output_device: cpu
-      # 144 = 128 (training patch) + 16 voxels of context; bump blending
-      # de-emphasizes the outer band. Must stay a multiple of MedNeXt's 16-voxel
-      # stride.
-      window_size: [144, 144, 144]
+      # Set in params.yaml, because it has to match the checkpoint: MedNeXt
+      # normalizes without running statistics, so the forward pass depends on the
+      # window extent. [144,144,144] is 128 (the NISB training patch) + 16 voxels
+      # of context; bump blending de-emphasizes the outer band. Any value must
+      # stay a multiple of MedNeXt's 16-voxel stride, and its half-overlap stride
+      # must divide the 1008 chunk below.
+      window_size: ${params.inference.window_size}
       # Peak GPU memory is linear in sw_batch_size (~3.46 GB/unit + ~0.77 GB fixed
       # with expandable_segments). 12 targets ~42 GB on a 49 GB L40S (~86%, ~7 GB
       # headroom); 13 is the hard ceiling and 14 OOMs.
