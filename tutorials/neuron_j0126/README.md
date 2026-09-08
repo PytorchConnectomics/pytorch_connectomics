@@ -7,7 +7,7 @@ corrupts two neurons — and step 4 repairs the splits from the segmentation, af
 predicted morphology and an external nucleus manifest, never from ground truth.
 
 The volume is **9 × 9 × 20 nm (x, y, z)** = `[20, 9, 9]` ZYX throughout — the native FFN
-mip 0 grid. Nothing here is 10 nm isotropic, and nothing is resampled.
+mip 0 grid.
 
 ## 1. Download the data
 
