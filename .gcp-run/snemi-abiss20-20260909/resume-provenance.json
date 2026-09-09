@@ -1,0 +1,32 @@
+{
+  "source_gcs": "gs://donglai/em/snemi/cloud-runs/snemi_4l4_20260903b/training/20260903_151723/checkpoints/last.ckpt",
+  "source_sha256": "456f0ef732021c08013af0adb809ef4b59968f3c71994dc41df85362adfe31a9",
+  "derived_sha256": "839c9c6a7075f3bdfa1ef13a6347320494773cce3566ea03d7db0cc25c3eafd3",
+  "epoch": 2,
+  "global_step": 600,
+  "old_max_iters": 3,
+  "new_max_iters": 20,
+  "warmup_iters_unchanged": 1,
+  "last_epoch_unchanged": 3,
+  "old_lr": [
+    1e-06
+  ],
+  "new_lr": [
+    0.0004728061277849978
+  ],
+  "changes": [
+    "lr_schedulers[0].max_iters",
+    "lr_schedulers[0]._last_lr",
+    "optimizer_states[0].param_groups[*].lr"
+  ],
+  "preserved": [
+    "model weights",
+    "optimizer moments",
+    "optimizer steps",
+    "epoch",
+    "global_step",
+    "scheduler counters",
+    "Lightning loops",
+    "callbacks"
+  ]
+}
