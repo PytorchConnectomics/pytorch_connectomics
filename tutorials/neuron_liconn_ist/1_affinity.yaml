@@ -1,0 +1,64 @@
+# IST LICONN step 1 of 2: EM -> voxel affinity.
+#
+# Train (200k steps, ~2 GPU-days):
+#   python scripts/main.py --config tutorials/neuron_liconn_ist/1_affinity.yaml --mode train
+#
+# Infer the held-out val region:
+#   python scripts/main.py --config tutorials/neuron_liconn_ist/1_affinity.yaml \
+#     --mode test --checkpoint ${params.artifacts.checkpoint}
+#
+# ALREADY DONE. The reference run is
+#   outputs/liconn_final_banis_plus_tube/20260728_032436
+# (200k, exit clean 2026-07-30, val_loss 1.2863 -> 1.0601) and its val affinity
+# already exists at ${params.artifacts.val_affinity_h5} --
+# (3, 145, 4290, 3345) float16, verified non-degenerate. Step 2 consumes that
+# artifact directly; you do not need to re-run this step to reproduce the decode.
+#
+# OUTPUT CONVENTION, and the one thing step 2 depends on:
+#   * arrays are ZYX, so affinity channel c is the edge along array axis c:
+#     ch0 = Z, ch1 = Y, ch2 = X. (Channel c == axis c, NOT 2-ax.)
+#   * `inference.model.channel_activations` is `scale_sigmoid`, i.e. the stored
+#     value is sigmoid(0.2 * logit), NOT the model's probability. The saved array
+#     therefore spans about [0.03, 0.81] and never reaches 0 or 1. Any threshold
+#     read off another dataset's tutorial will be wrong here -- see 2_abiss.yaml.
+
+_base_:
+  - params.yaml
+  - ../neuron_nisb/base_banis+.yaml
+
+experiment_name: liconn_ist_affinity
+description: >-
+  BANIS+ (MedNeXt-L/k3, 6-ch r1+r10 affinity, per-channel BCE, EMA, erosion=2)
+  trained from scratch on the IST LICONN final-proofread volume at
+  18x18x24 nm XYZ. Held-out val is the trailing 145 z-slices.
+
+save_path: ${params.paths.output_root}/affinity
+
+default:
+  data:
+    dataloader:
+      batch_size: 2
+
+train:
+  data:
+    train:
+      path: ${params.data.train}
+      image: data.zarr/img
+      label: data.zarr/seg
+      resolution: ${params.data.resolution_zyx}
+    val:
+      path: ${params.data.val}
+      image: data.zarr/img
+      label: data.zarr/seg
+      resolution: ${params.data.resolution_zyx}
+
+test:
+  data:
+    test:
+      name: liconn_ist_val
+      path: ${params.data.val}
+      image: data.zarr/img
+      # GT is read by step 2's evaluation, not by inference.
+      label: null
+      skeleton: null
+      resolution: ${params.data.resolution_zyx}

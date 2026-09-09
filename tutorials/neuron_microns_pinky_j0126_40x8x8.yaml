@@ -1,0 +1,88 @@
+# MICrONS Pinky supervised affinity training at 40 x 8 x 8 nm (ZYX).
+# Source HDF5 volumes are 40 x 4 x 4 nm. Lazy-read crops are downsampled twofold
+# in Y/X before affinity targets are made, so no resampled copy is written.
+# Prepare source-volume-disjoint views first: python scripts/prepare_microns_pinky.py
+
+_base_:
+  - neuron_j0126/1_train.yaml
+
+experiment_name: neuron_microns_pinky_j0126_affinity_40x8x8
+description: >-
+  MICrONS Pinky supervised six-channel affinity model using the j0126
+  MedNeXt-L/k3 recipe at 40x8x8 nm. Train/test splits are disjoint Pinky
+  source volumes, resized in-flight from native 40x4x4 nm.
+
+save_path: outputs/neuron_microns_pinky_j0126_affinity_40x8x8
+
+default:
+  system:
+    num_gpus: 4
+    num_workers: -1
+  model:
+    # Similar physical field of view to j0126's [48,96,96] at 10 nm, with
+    # every dimension divisible by MedNeXt's stride 16.
+    input_size: [16, 128, 128]
+  data:
+    dataloader:
+      profile: lazy
+      patch_size: [16, 128, 128]
+      # Native read [18,280,280], then resize to [18,140,140] at 40x8x8.
+      target_context: [0, 0, 0, 2, 12, 12]
+      read_downscale: [1.0, 2.0, 2.0]
+      use_lazy_zarr: false
+      use_lazy_h5: true
+      use_cache: false
+      use_preloaded_cache_train: false
+      use_preloaded_cache_val: false
+      cached_sampling_foreground_threshold: 0.01
+      cached_sampling_max_attempts: 50
+      val_random_sampling: true
+    data_transform:
+      resize: [18, 140, 140]
+    image_transform:
+      normalize: divide-255
+    label_transform:
+      resolution: [40, 8, 8]
+      # Nearest physical equivalents to j0126's 10 nm / 100 nm affinities.
+      targets:
+        - name: affinity
+          kwargs:
+            offsets: ["1-0-0", "0-1-0", "0-0-1", "2-0-0", "0-12-0", "0-0-12"]
+            affinity_mode: banis
+    augmentation:
+      profile: aug_em_neuron
+  inference:
+    window:
+      window_size: [16, 128, 128]
+      sw_batch_size: 32
+
+train:
+  optimization:
+    optimizer:
+      lr: 0.001
+    max_steps: 200000
+    scheduler:
+      params:
+        t_max: 200000
+  data:
+    train:
+      path: ""
+      image: /projects/weilab/dataset/microns/train/pinky/split/train/*_image.h5
+      label: /projects/weilab/dataset/microns/train/pinky/split/train/*_label.h5
+      mask: /projects/weilab/dataset/microns/train/pinky/split/train/*_mask.h5
+      resolution: [40, 8, 8]
+    val:
+      path: ""
+      image: /projects/weilab/dataset/microns/train/pinky/split/train/pinky_vol502_image.h5
+      label: /projects/weilab/dataset/microns/train/pinky/split/train/pinky_vol502_label.h5
+      mask: /projects/weilab/dataset/microns/train/pinky/split/train/pinky_vol502_mask.h5
+      resolution: [40, 8, 8]
+
+test:
+  data:
+    test:
+      path: ""
+      image: /projects/weilab/dataset/microns/train/pinky/split/test/*_image.h5
+      label: /projects/weilab/dataset/microns/train/pinky/split/test/*_label.h5
+      mask: /projects/weilab/dataset/microns/train/pinky/split/test/*_mask.h5
+      resolution: [40, 8, 8]

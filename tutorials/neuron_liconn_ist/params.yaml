@@ -1,0 +1,34 @@
+# IST LICONN (final_proofread) local settings ---------------------------------
+#
+# This is the only file that should need editing for a new machine or storage
+# layout. Every step YAML inherits it and uses ${params...} references, so paths
+# are never duplicated across the workflow.
+#
+# NOTE ON WHICH LICONN THIS IS. This tutorial is the REAL IST LICONN volume
+# (ExPID82_1, FFN-proofread). It is NOT the simulated NISB liconn under
+# /projects/weilab/dataset/nisb/liconn that tutorials/neuron_nisb/liconn_*.yaml
+# and the 0.211 NERL number refer to. See
+# pytc-agent/projects/2026_ist_liconn/lessons/lesson_mip0_resolution_gate.md §0.
+
+params:
+  paths:
+    # Repository checkout that contains this tutorial AND the vendored ABISS
+    # build (lib/abiss/build/ws). Worktrees do not carry lib/, so this must
+    # point at the main checkout even when running from a worktree.
+    repository: /projects/weilab/weidf/lib/pytorch_connectomics
+    output_root: ${params.paths.repository}/outputs/neuron_liconn_ist
+    dataset_root: /projects/weilab/dataset/liconn/pytc
+
+  data:
+    # 18x18x24 nm XYZ = [24, 18, 18] nm ZYX. Both img and seg. This is the
+    # finest scale at which the proofread FFN segmentation exists.
+    train: ${params.paths.dataset_root}/final_proofread/train
+    val: ${params.paths.dataset_root}/final_proofread/val
+    resolution_zyx: [24, 18, 18]
+
+  artifacts:
+    # Existing 200k banis+ checkpoint trained on this volume at 18 nm.
+    checkpoint: ${params.paths.repository}/outputs/liconn_final_banis_plus_tube/20260728_032436/checkpoints/step=00200000.ckpt
+    # Its val affinity, already computed: (3, 145, 4290, 3345) float16, ZYX
+    # channel order, scale_sigmoid-compressed (see 2_abiss.yaml).
+    val_affinity_h5: ${params.paths.repository}/outputs/liconn_final_banis_plus_tube/20260728_032436/test_step=00200000/val/raw_x1_ch0-1-2.h5
