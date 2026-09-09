@@ -1,0 +1,1081 @@
+
+
+
+
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!-->
+<html class="no-js" lang="en">
+<!--<![endif]-->
+
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>connectomics.metrics.tube &mdash; connectomics latest documentation</title>
+  
+
+  
+  
+  <link rel="shortcut icon" href="../../../_static/favicon.svg" />
+  
+  
+  
+
+  
+
+  
+  
+  
+
+  
+
+  
+  <link rel="stylesheet" href="../../../_static/css/theme.css" type="text/css" />
+  <!-- <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" /> -->
+  <link rel="stylesheet" href="../../../_static/css/pytc-theme.css" type="text/css" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@docsearch/js@alpha" type="text/css" />
+  <link rel="stylesheet" href="../../../_static/css/readthedocs-doc-embed.css" type="text/css" />
+  <link rel="index" title="Index" href="../../../genindex.html" />
+  <link rel="search" title="Search" href="../../../search.html" /> 
+
+    <!-- Preload the theme fonts -->
+
+<link rel="preload" href="_static/fonts/FreightSans/freight-sans-book.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="_static/fonts/FreightSans/freight-sans-medium.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="_static/fonts/IBMPlexMono/IBMPlexMono-Medium.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="_static/fonts/FreightSans/freight-sans-bold.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="_static/fonts/FreightSans/freight-sans-medium-italic.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="_static/fonts/IBMPlexMono/IBMPlexMono-SemiBold.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+
+<!-- Preload the katex fonts -->
+
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Math-Italic.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Main-Regular.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Main-Bold.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Size1-Regular.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Size4-Regular.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Size2-Regular.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Size3-Regular.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Caligraphic-Regular.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+
+  <link rel="stylesheet" href="text.css" type="text/css" />
+
+  <!-- at the end of the HEAD -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@docsearch/css@alpha" />
+</head>
+
+<div class="container-fluid header-holder tutorials-header" id="header-holder">
+  <div class="container">
+
+    <a class="header-logo" href="../../../index.html" aria-label="PyTC"></a>
+
+    <div class="header-container">
+
+      <div class="main-menu">
+        <ul>
+          <li>
+            <a href="../../../notes/installation.html">Get Started</a>
+          </li>
+          <li>
+            <a href="../../../tutorials/neuron.html">Tutorials</a>
+          </li>
+          <li>
+            <a href="../../../index.html">Docs</a>
+          </li>
+          <li>
+            <a href="https://github.com/zudi-lin/pytorch_connectomics/tree/master">GitHub</a>
+          </li>
+          <li>
+            <a href="../../../about/team.html">About Us</a>
+          </li>
+
+        </ul>
+      </div>
+
+      <!-- <a class="main-menu-open-button" href="#" data-behavior="open-mobile-menu"></a> -->
+    </div>
+
+  </div>
+</div>
+
+
+<body class="pytorch-body">
+
+   
+
+  
+
+  <div class="table-of-contents-link-wrapper">
+    <span>Table of Contents</span>
+    <a href="#" class="toggle-table-of-contents" data-behavior="toggle-table-of-contents"></a>
+  </div>
+
+  <nav data-toggle="wy-nav-shift" class="pytorch-left-menu" id="pytorch-left-menu">
+    <div class="pytorch-side-scroll">
+      <div class="pytorch-menu pytorch-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+        <div class="pytorch-left-menu-search">
+          
+
+          
+          
+          
+          <div class="version">
+            latest
+          </div>
+          
+          
+
+          <div id="docsearch"></div>
+
+          
+        </div>
+
+        
+        
+        
+        
+        
+        
+        <p class="caption" role="heading"><span class="caption-text">Get Started</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../notes/installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../notes/config.html">Configuration System</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../notes/dataloading.html">Data Loading</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../notes/axis_order.html">Axis and Channel Order</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../notes/malis.html">MALIS Loss</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../notes/faq.html">FAQ</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Tutorials</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../tutorials/neuron/index.html">Neuron Segmentation</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../../tutorials/neuron/snemi3d.html">SNEMI3D</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../tutorials/neuron/nisb.html">NISB</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../tutorials/neuron/liconn.html">LICONN</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../../../tutorials/mito/index.html">Mitochondria Segmentation</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../../tutorials/mito/lucchi.html">Lucchi++ (Semantic Segmentation)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../tutorials/mito/mitoem.html">MitoEM (Instance Segmentation)</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../../../tutorials/synapse/index.html">Synapse Detection</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../../tutorials/synapse/cremi.html">CREMI (Synaptic Cleft Detection)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../tutorials/synapse/em_r50.html">EM-R50 (Synaptic Polarity Detection)</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../../../tutorials/wrinkle.html">Wrinkle (2D Binary Segmentation)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../tutorials/artifact.html">Artifacts Detection (Draft)</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">External Tools</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../external/neuroglancer.html">Neuroglancer</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Package Reference</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../modules/lightning.html">Lightning Module API</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../modules/model.html">connectomics.models</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../modules/data.html">connectomics.data</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../modules/utils.html">connectomics.utils</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">About</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../about/team.html">About Us</a></li>
+</ul>
+
+        
+        
+      </div>
+    </div>
+
+    
+
+
+    
+
+    <!-- 
+    
+    <div class="rst-versions" data-toggle="rst-versions" role="note" aria-label="versions">
+      <span class="rst-current-version" data-toggle="rst-current-version">
+        <span class="fa fa-book"> Read the Docs</span>
+        v: latest
+        <span class="fa fa-caret-down"></span>
+      </span>
+      <div class="rst-other-versions">
+        <dl>
+          <dt>Versions</dt>
+          
+          <dd><a href="#">latest</a></dd>
+          
+        </dl>
+        <dl>
+          <dt>Downloads</dt>
+          <dd><a href="https://github.com/zudi-lin/pytorch_connectomics/">PDF</a>
+          </dd>
+          <dd><a href="https://github.com/zudi-lin/pytorch_connectomics/">HTML</a></dd>
+        </dl>
+        <dl>
+          <dt>On Github</dt>
+          <dd><a href="https://github.com/zudi-lin/pytorch_connectomics">Home</a></dd>
+          <dd><a href="https://github.com/zudi-lin/pytorch_connectomics/">Docs</a></dd>
+        </dl>
+      </div>
+    </div>
+    
+     -->
+
+  </nav>
+
+
+  <div class="pytorch-container">
+    <div class="pytorch-page-level-bar" id="pytorch-page-level-bar">
+      <div class="pytorch-breadcrumbs-wrapper">
+        
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="pytorch-breadcrumbs">
+    
+      <li>
+        <a href="../../../index.html">
+          
+            Docs
+          
+        </a> &gt;
+      </li>
+
+        
+          <li><a href="../../index.html">Module code</a> &gt;</li>
+        
+      <li>connectomics.metrics.tube</li>
+    
+    
+      <li class="pytorch-breadcrumbs-aside">
+        
+      </li>
+    
+  </ul>
+
+  
+</div>
+      </div>
+
+      <div class="pytorch-shortcuts-wrapper" id="pytorch-shortcuts-wrapper">
+        Shortcuts
+      </div>
+    </div>
+
+    <section data-toggle="wy-nav-shift" id="pytorch-content-wrap" class="pytorch-content-wrap">
+      <div class="pytorch-content-left">
+
+        
+        
+          <div class="rst-content">
+            
+            <div role="main" class="main-content" itemscope="itemscope" itemtype="http://schema.org/Article">
+              <article itemprop="articleBody" id="pytorch-article" class="pytorch-article">
+                
+  <h1>Source code for connectomics.metrics.tube</h1><div class="highlight"><pre>
+<span></span><span class="sd">"""Ground-truth-free analysis for tube-like instance segmentations.</span>
+
+<span class="sd">The metrics in this module describe whether predicted instances look like</span>
+<span class="sd">substantial, complete, single tubes. They are diagnostic rankers, not proof of</span>
+<span class="sd">biological correctness: real axons may terminate inside a volume, and a</span>
+<span class="sd">geometrically clean tube can still join two different axons end to end.</span>
+<span class="sd">"""</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">__future__</span><span class="w"> </span><span class="kn">import</span> <span class="n">annotations</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">dataclasses</span><span class="w"> </span><span class="kn">import</span> <span class="n">dataclass</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">math</span><span class="w"> </span><span class="kn">import</span> <span class="n">ceil</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Any</span>
+
+<span class="kn">import</span><span class="w"> </span><span class="nn">cc3d</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">scipy.ndimage</span><span class="w"> </span><span class="kn">import</span> <span class="n">label</span> <span class="k">as</span> <span class="n">cc_label</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">scipy.ndimage</span><span class="w"> </span><span class="kn">import</span> <span class="n">median_filter</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">connectomics.data.processing.bbox</span><span class="w"> </span><span class="kn">import</span> <span class="n">seg_stats</span>
+
+<span class="n">MIN_SPAN_FRAC</span> <span class="o">=</span> <span class="mf">0.25</span>
+<span class="n">MIN_SIZE</span> <span class="o">=</span> <span class="mi">20000</span>
+<span class="n">BORDER</span> <span class="o">=</span> <span class="mi">2</span>
+
+<span class="n">_FACE_NAMES</span> <span class="o">=</span> <span class="p">(</span><span class="s2">"z0"</span><span class="p">,</span> <span class="s2">"zmax"</span><span class="p">,</span> <span class="s2">"y0"</span><span class="p">,</span> <span class="s2">"ymax"</span><span class="p">,</span> <span class="s2">"x0"</span><span class="p">,</span> <span class="s2">"xmax"</span><span class="p">)</span>
+
+
+<div class="viewcode-block" id="TubeAnalysisConfig"><a class="viewcode-back" href="../../../modules/metrics.html#connectomics.metrics.TubeAnalysisConfig">[docs]</a><span class="nd">@dataclass</span><span class="p">(</span><span class="n">frozen</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">TubeAnalysisConfig</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Thresholds for :func:`analyze_tubes`.</span>
+
+<span class="sd">    A label enters the detailed analysis when it is either long or large.</span>
+<span class="sd">    ``border_margin`` is the maximum voxel distance from a volume face, so a</span>
+<span class="sd">    margin of two includes coordinates 0, 1, and 2. Parallel-strand fractions</span>
+<span class="sd">    are estimated from every ``multi_component_slice_step`` slice;</span>
+<span class="sd">    ``parallel_min_slices`` remains expressed in original z slices.</span>
+<span class="sd">    """</span>
+
+    <span class="n">substantial_min_z_slices</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">21</span>
+    <span class="n">substantial_min_voxels</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">10000</span>
+    <span class="n">long_span_fraction</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="n">MIN_SPAN_FRAC</span>
+    <span class="n">decent_min_voxels</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="n">MIN_SIZE</span>
+    <span class="n">border_margin</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="n">BORDER</span>
+    <span class="n">border_patch_min_voxels</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">10</span>
+    <span class="n">multi_component_min_voxels</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">50</span>
+    <span class="n">multi_component_slice_step</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">3</span>
+    <span class="n">parallel_min_slices</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">15</span>
+    <span class="n">parallel_fraction_threshold</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.30</span>
+    <span class="n">disconnected_component_min_voxels</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">1000</span>
+    <span class="n">bump_min_slices</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">40</span>
+    <span class="n">bump_relative_excess</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.20</span>
+    <span class="n">bump_absolute_excess</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">200</span>
+    <span class="n">bump_max_slices</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">30</span>
+    <span class="n">bump_median_window</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">31</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">__post_init__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">positive_ints</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="s2">"substantial_min_z_slices"</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">substantial_min_z_slices</span><span class="p">,</span>
+            <span class="s2">"substantial_min_voxels"</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">substantial_min_voxels</span><span class="p">,</span>
+            <span class="s2">"decent_min_voxels"</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">decent_min_voxels</span><span class="p">,</span>
+            <span class="s2">"border_patch_min_voxels"</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">border_patch_min_voxels</span><span class="p">,</span>
+            <span class="s2">"multi_component_min_voxels"</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">multi_component_min_voxels</span><span class="p">,</span>
+            <span class="s2">"multi_component_slice_step"</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">multi_component_slice_step</span><span class="p">,</span>
+            <span class="s2">"parallel_min_slices"</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">parallel_min_slices</span><span class="p">,</span>
+            <span class="s2">"disconnected_component_min_voxels"</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">disconnected_component_min_voxels</span><span class="p">,</span>
+            <span class="s2">"bump_min_slices"</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">bump_min_slices</span><span class="p">,</span>
+            <span class="s2">"bump_absolute_excess"</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">bump_absolute_excess</span><span class="p">,</span>
+            <span class="s2">"bump_max_slices"</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">bump_max_slices</span><span class="p">,</span>
+            <span class="s2">"bump_median_window"</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">bump_median_window</span><span class="p">,</span>
+        <span class="p">}</span>
+        <span class="k">for</span> <span class="n">name</span><span class="p">,</span> <span class="n">value</span> <span class="ow">in</span> <span class="n">positive_ints</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+            <span class="k">if</span> <span class="n">value</span> <span class="o">&lt;</span> <span class="mi">1</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">name</span><span class="si">}</span><span class="s2"> must be at least 1, got </span><span class="si">{</span><span class="n">value</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">border_margin</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">"border_margin must be non-negative, got </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">border_margin</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">name</span><span class="p">,</span> <span class="n">fraction_value</span> <span class="ow">in</span> <span class="p">(</span>
+            <span class="p">(</span><span class="s2">"long_span_fraction"</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">long_span_fraction</span><span class="p">),</span>
+            <span class="p">(</span><span class="s2">"parallel_fraction_threshold"</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">parallel_fraction_threshold</span><span class="p">),</span>
+        <span class="p">):</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="mf">0.0</span> <span class="o">&lt;=</span> <span class="n">fraction_value</span> <span class="o">&lt;=</span> <span class="mf">1.0</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">name</span><span class="si">}</span><span class="s2"> must be in [0, 1], got </span><span class="si">{</span><span class="n">fraction_value</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">bump_relative_excess</span> <span class="o">&lt;</span> <span class="mf">0.0</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                <span class="s2">"bump_relative_excess must be non-negative, "</span> <span class="sa">f</span><span class="s2">"got </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">bump_relative_excess</span><span class="si">}</span><span class="s2">"</span>
+            <span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="TubeRecord"><a class="viewcode-back" href="../../../modules/metrics.html#connectomics.metrics.TubeRecord">[docs]</a><span class="nd">@dataclass</span><span class="p">(</span><span class="n">frozen</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">TubeRecord</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""GT-free measurements for one substantial predicted instance."""</span>
+
+    <span class="n">label</span><span class="p">:</span> <span class="nb">int</span>
+    <span class="n">voxel_count</span><span class="p">:</span> <span class="nb">int</span>
+    <span class="n">z_min</span><span class="p">:</span> <span class="nb">int</span>
+    <span class="n">z_max</span><span class="p">:</span> <span class="nb">int</span>
+    <span class="n">z_span</span><span class="p">:</span> <span class="nb">int</span>
+    <span class="n">z_slice_count</span><span class="p">:</span> <span class="nb">int</span>
+    <span class="n">z_occupancy_fraction</span><span class="p">:</span> <span class="nb">float</span>
+    <span class="n">is_long_enough</span><span class="p">:</span> <span class="nb">bool</span>
+    <span class="n">is_decent</span><span class="p">:</span> <span class="nb">bool</span>
+    <span class="n">face_contacts</span><span class="p">:</span> <span class="nb">tuple</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="o">...</span><span class="p">]</span>
+    <span class="n">border_end_count</span><span class="p">:</span> <span class="nb">int</span>
+    <span class="n">border_patch_count</span><span class="p">:</span> <span class="nb">int</span>
+    <span class="n">median_cross_section_area</span><span class="p">:</span> <span class="nb">float</span>
+    <span class="n">max_cross_section_area</span><span class="p">:</span> <span class="nb">int</span>
+    <span class="n">bump_count</span><span class="p">:</span> <span class="nb">int</span>
+    <span class="n">multi_component_sample_count</span><span class="p">:</span> <span class="nb">int</span>
+    <span class="n">evaluated_sample_count</span><span class="p">:</span> <span class="nb">int</span>
+    <span class="n">multi_component_fraction</span><span class="p">:</span> <span class="nb">float</span>
+    <span class="n">is_parallel</span><span class="p">:</span> <span class="nb">bool</span>
+    <span class="n">component_count_3d</span><span class="p">:</span> <span class="nb">int</span>
+    <span class="n">significant_component_count_3d</span><span class="p">:</span> <span class="nb">int</span>
+    <span class="n">is_disconnected</span><span class="p">:</span> <span class="nb">bool</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">face_count</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""Number of distinct relaxed volume faces touched."""</span>
+
+        <span class="k">return</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">face_contacts</span><span class="p">)</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">is_complete</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""Whether both z-directed tube ends reach a volume face."""</span>
+
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">border_end_count</span> <span class="o">&gt;=</span> <span class="mi">2</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">is_single_tube</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""Whether no persistent parallel strand or 3D disconnection is found."""</span>
+
+        <span class="k">return</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">is_parallel</span> <span class="ow">and</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">is_disconnected</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">is_valid_tube</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""Whether the instance is both complete and geometrically single."""</span>
+
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">is_complete</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">is_single_tube</span></div>
+
+
+<div class="viewcode-block" id="TubeAnalysisSummary"><a class="viewcode-back" href="../../../modules/metrics.html#connectomics.metrics.TubeAnalysisSummary">[docs]</a><span class="nd">@dataclass</span><span class="p">(</span><span class="n">frozen</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">TubeAnalysisSummary</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Aggregate count- and volume-weighted tube statistics."""</span>
+
+    <span class="n">total_label_count</span><span class="p">:</span> <span class="nb">int</span>
+    <span class="n">total_foreground_voxels</span><span class="p">:</span> <span class="nb">int</span>
+    <span class="n">substantial_count</span><span class="p">:</span> <span class="nb">int</span>
+    <span class="n">substantial_voxels</span><span class="p">:</span> <span class="nb">int</span>
+    <span class="n">long_enough_count</span><span class="p">:</span> <span class="nb">int</span>
+    <span class="n">decent_count</span><span class="p">:</span> <span class="nb">int</span>
+    <span class="n">decent_voxels</span><span class="p">:</span> <span class="nb">int</span>
+    <span class="n">complete_count</span><span class="p">:</span> <span class="nb">int</span>
+    <span class="n">complete_voxels</span><span class="p">:</span> <span class="nb">int</span>
+    <span class="n">valid_count</span><span class="p">:</span> <span class="nb">int</span>
+    <span class="n">valid_voxels</span><span class="p">:</span> <span class="nb">int</span>
+    <span class="n">parallel_count</span><span class="p">:</span> <span class="nb">int</span>
+    <span class="n">disconnected_count</span><span class="p">:</span> <span class="nb">int</span>
+    <span class="n">bumped_count</span><span class="p">:</span> <span class="nb">int</span>
+    <span class="n">complete_fraction</span><span class="p">:</span> <span class="nb">float</span>
+    <span class="n">complete_volume_fraction</span><span class="p">:</span> <span class="nb">float</span>
+    <span class="n">valid_fraction</span><span class="p">:</span> <span class="nb">float</span>
+    <span class="n">valid_volume_fraction</span><span class="p">:</span> <span class="nb">float</span>
+    <span class="n">face_count_histogram</span><span class="p">:</span> <span class="nb">tuple</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="o">...</span><span class="p">]</span>
+    <span class="n">border_end_histogram</span><span class="p">:</span> <span class="nb">tuple</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="o">...</span><span class="p">]</span></div>
+
+
+<div class="viewcode-block" id="TubeAnalysis"><a class="viewcode-back" href="../../../modules/metrics.html#connectomics.metrics.TubeAnalysis">[docs]</a><span class="nd">@dataclass</span><span class="p">(</span><span class="n">frozen</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">TubeAnalysis</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Detailed and aggregate output from :func:`analyze_tubes`."""</span>
+
+    <span class="n">volume_shape</span><span class="p">:</span> <span class="nb">tuple</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="nb">int</span><span class="p">,</span> <span class="nb">int</span><span class="p">]</span>
+    <span class="n">config</span><span class="p">:</span> <span class="n">TubeAnalysisConfig</span>
+    <span class="n">total_label_count</span><span class="p">:</span> <span class="nb">int</span>
+    <span class="n">total_foreground_voxels</span><span class="p">:</span> <span class="nb">int</span>
+    <span class="n">tubes</span><span class="p">:</span> <span class="nb">tuple</span><span class="p">[</span><span class="n">TubeRecord</span><span class="p">,</span> <span class="o">...</span><span class="p">]</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">summary</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">TubeAnalysisSummary</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""Compute aggregate statistics over the analyzed tubes."""</span>
+
+        <span class="n">decent</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">tube</span> <span class="k">for</span> <span class="n">tube</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">tubes</span> <span class="k">if</span> <span class="n">tube</span><span class="o">.</span><span class="n">is_decent</span><span class="p">)</span>
+        <span class="n">complete</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">tube</span> <span class="k">for</span> <span class="n">tube</span> <span class="ow">in</span> <span class="n">decent</span> <span class="k">if</span> <span class="n">tube</span><span class="o">.</span><span class="n">is_complete</span><span class="p">)</span>
+        <span class="n">valid</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">tube</span> <span class="k">for</span> <span class="n">tube</span> <span class="ow">in</span> <span class="n">decent</span> <span class="k">if</span> <span class="n">tube</span><span class="o">.</span><span class="n">is_valid_tube</span><span class="p">)</span>
+        <span class="n">substantial_voxels</span> <span class="o">=</span> <span class="nb">sum</span><span class="p">(</span><span class="n">tube</span><span class="o">.</span><span class="n">voxel_count</span> <span class="k">for</span> <span class="n">tube</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">tubes</span><span class="p">)</span>
+        <span class="n">decent_voxels</span> <span class="o">=</span> <span class="nb">sum</span><span class="p">(</span><span class="n">tube</span><span class="o">.</span><span class="n">voxel_count</span> <span class="k">for</span> <span class="n">tube</span> <span class="ow">in</span> <span class="n">decent</span><span class="p">)</span>
+        <span class="n">complete_voxels</span> <span class="o">=</span> <span class="nb">sum</span><span class="p">(</span><span class="n">tube</span><span class="o">.</span><span class="n">voxel_count</span> <span class="k">for</span> <span class="n">tube</span> <span class="ow">in</span> <span class="n">complete</span><span class="p">)</span>
+        <span class="n">valid_voxels</span> <span class="o">=</span> <span class="nb">sum</span><span class="p">(</span><span class="n">tube</span><span class="o">.</span><span class="n">voxel_count</span> <span class="k">for</span> <span class="n">tube</span> <span class="ow">in</span> <span class="n">valid</span><span class="p">)</span>
+        <span class="n">face_histogram</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">(</span>
+            <span class="nb">sum</span><span class="p">(</span><span class="n">tube</span><span class="o">.</span><span class="n">face_count</span> <span class="o">==</span> <span class="n">face_count</span> <span class="k">for</span> <span class="n">tube</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">tubes</span><span class="p">)</span> <span class="k">for</span> <span class="n">face_count</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">7</span><span class="p">)</span>
+        <span class="p">)</span>
+        <span class="n">end_histogram</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">(</span>
+            <span class="nb">sum</span><span class="p">(</span><span class="n">tube</span><span class="o">.</span><span class="n">border_end_count</span> <span class="o">==</span> <span class="n">end_count</span> <span class="k">for</span> <span class="n">tube</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">tubes</span><span class="p">)</span> <span class="k">for</span> <span class="n">end_count</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">3</span><span class="p">)</span>
+        <span class="p">)</span>
+        <span class="k">return</span> <span class="n">TubeAnalysisSummary</span><span class="p">(</span>
+            <span class="n">total_label_count</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">total_label_count</span><span class="p">,</span>
+            <span class="n">total_foreground_voxels</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">total_foreground_voxels</span><span class="p">,</span>
+            <span class="n">substantial_count</span><span class="o">=</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">tubes</span><span class="p">),</span>
+            <span class="n">substantial_voxels</span><span class="o">=</span><span class="n">substantial_voxels</span><span class="p">,</span>
+            <span class="n">long_enough_count</span><span class="o">=</span><span class="nb">sum</span><span class="p">(</span><span class="n">tube</span><span class="o">.</span><span class="n">is_long_enough</span> <span class="k">for</span> <span class="n">tube</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">tubes</span><span class="p">),</span>
+            <span class="n">decent_count</span><span class="o">=</span><span class="nb">len</span><span class="p">(</span><span class="n">decent</span><span class="p">),</span>
+            <span class="n">decent_voxels</span><span class="o">=</span><span class="n">decent_voxels</span><span class="p">,</span>
+            <span class="n">complete_count</span><span class="o">=</span><span class="nb">len</span><span class="p">(</span><span class="n">complete</span><span class="p">),</span>
+            <span class="n">complete_voxels</span><span class="o">=</span><span class="n">complete_voxels</span><span class="p">,</span>
+            <span class="n">valid_count</span><span class="o">=</span><span class="nb">len</span><span class="p">(</span><span class="n">valid</span><span class="p">),</span>
+            <span class="n">valid_voxels</span><span class="o">=</span><span class="n">valid_voxels</span><span class="p">,</span>
+            <span class="n">parallel_count</span><span class="o">=</span><span class="nb">sum</span><span class="p">(</span><span class="n">tube</span><span class="o">.</span><span class="n">is_parallel</span> <span class="k">for</span> <span class="n">tube</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">tubes</span><span class="p">),</span>
+            <span class="n">disconnected_count</span><span class="o">=</span><span class="nb">sum</span><span class="p">(</span><span class="n">tube</span><span class="o">.</span><span class="n">is_disconnected</span> <span class="k">for</span> <span class="n">tube</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">tubes</span><span class="p">),</span>
+            <span class="n">bumped_count</span><span class="o">=</span><span class="nb">sum</span><span class="p">(</span><span class="n">tube</span><span class="o">.</span><span class="n">bump_count</span> <span class="o">&gt;</span> <span class="mi">0</span> <span class="k">for</span> <span class="n">tube</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">tubes</span><span class="p">),</span>
+            <span class="n">complete_fraction</span><span class="o">=</span><span class="n">_safe_fraction</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">complete</span><span class="p">),</span> <span class="nb">len</span><span class="p">(</span><span class="n">decent</span><span class="p">)),</span>
+            <span class="n">complete_volume_fraction</span><span class="o">=</span><span class="n">_safe_fraction</span><span class="p">(</span><span class="n">complete_voxels</span><span class="p">,</span> <span class="n">decent_voxels</span><span class="p">),</span>
+            <span class="n">valid_fraction</span><span class="o">=</span><span class="n">_safe_fraction</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">valid</span><span class="p">),</span> <span class="nb">len</span><span class="p">(</span><span class="n">decent</span><span class="p">)),</span>
+            <span class="n">valid_volume_fraction</span><span class="o">=</span><span class="n">_safe_fraction</span><span class="p">(</span><span class="n">valid_voxels</span><span class="p">,</span> <span class="n">decent_voxels</span><span class="p">),</span>
+            <span class="n">face_count_histogram</span><span class="o">=</span><span class="n">face_histogram</span><span class="p">,</span>
+            <span class="n">border_end_histogram</span><span class="o">=</span><span class="n">end_histogram</span><span class="p">,</span>
+        <span class="p">)</span>
+
+<div class="viewcode-block" id="TubeAnalysis.largest_incomplete"><a class="viewcode-back" href="../../../modules/metrics.html#connectomics.metrics.TubeAnalysis.largest_incomplete">[docs]</a>    <span class="k">def</span><span class="w"> </span><span class="nf">largest_incomplete</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">limit</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">8</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">[</span><span class="n">TubeRecord</span><span class="p">,</span> <span class="o">...</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">"""Return the largest decent tubes whose two ends do not reach a border."""</span>
+
+        <span class="k">if</span> <span class="n">limit</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">"limit must be non-negative, got </span><span class="si">{</span><span class="n">limit</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
+        <span class="n">incomplete</span> <span class="o">=</span> <span class="p">(</span><span class="n">tube</span> <span class="k">for</span> <span class="n">tube</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">tubes</span> <span class="k">if</span> <span class="n">tube</span><span class="o">.</span><span class="n">is_decent</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">tube</span><span class="o">.</span><span class="n">is_complete</span><span class="p">)</span>
+        <span class="k">return</span> <span class="nb">tuple</span><span class="p">(</span><span class="nb">sorted</span><span class="p">(</span><span class="n">incomplete</span><span class="p">,</span> <span class="n">key</span><span class="o">=</span><span class="k">lambda</span> <span class="n">tube</span><span class="p">:</span> <span class="n">tube</span><span class="o">.</span><span class="n">voxel_count</span><span class="p">,</span> <span class="n">reverse</span><span class="o">=</span><span class="kc">True</span><span class="p">)[:</span><span class="n">limit</span><span class="p">])</span></div></div>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_safe_fraction</span><span class="p">(</span><span class="n">numerator</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">denominator</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">float</span><span class="p">:</span>
+    <span class="k">return</span> <span class="nb">float</span><span class="p">(</span><span class="n">numerator</span> <span class="o">/</span> <span class="n">denominator</span><span class="p">)</span> <span class="k">if</span> <span class="n">denominator</span> <span class="k">else</span> <span class="mf">0.0</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_validate_segmentation</span><span class="p">(</span><span class="n">seg</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
+    <span class="n">seg</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">seg</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">seg</span><span class="o">.</span><span class="n">ndim</span> <span class="o">!=</span> <span class="mi">3</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Tube analysis requires a 3D segmentation, got shape </span><span class="si">{</span><span class="n">seg</span><span class="o">.</span><span class="n">shape</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">np</span><span class="o">.</span><span class="n">issubdtype</span><span class="p">(</span><span class="n">seg</span><span class="o">.</span><span class="n">dtype</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">integer</span><span class="p">):</span>
+        <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Tube analysis requires integer labels, got dtype </span><span class="si">{</span><span class="n">seg</span><span class="o">.</span><span class="n">dtype</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">np</span><span class="o">.</span><span class="n">issubdtype</span><span class="p">(</span><span class="n">seg</span><span class="o">.</span><span class="n">dtype</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">signedinteger</span><span class="p">)</span> <span class="ow">and</span> <span class="n">np</span><span class="o">.</span><span class="n">any</span><span class="p">(</span><span class="n">seg</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">):</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">"Tube analysis requires non-negative labels"</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">seg</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_area_profiles</span><span class="p">(</span><span class="n">seg</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">labels</span><span class="p">:</span> <span class="nb">set</span><span class="p">[</span><span class="nb">int</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="nb">int</span><span class="p">]]:</span>
+    <span class="n">profiles</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="nb">int</span><span class="p">]]</span> <span class="o">=</span> <span class="p">{</span><span class="n">label</span><span class="p">:</span> <span class="p">{}</span> <span class="k">for</span> <span class="n">label</span> <span class="ow">in</span> <span class="n">labels</span><span class="p">}</span>
+    <span class="k">for</span> <span class="n">z</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">seg</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]):</span>
+        <span class="n">slice_labels</span><span class="p">,</span> <span class="n">counts</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">unique</span><span class="p">(</span><span class="n">seg</span><span class="p">[</span><span class="n">z</span><span class="p">],</span> <span class="n">return_counts</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">label</span><span class="p">,</span> <span class="n">count</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">slice_labels</span><span class="o">.</span><span class="n">tolist</span><span class="p">(),</span> <span class="n">counts</span><span class="o">.</span><span class="n">tolist</span><span class="p">()):</span>
+            <span class="n">label</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">label</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">label</span> <span class="ow">in</span> <span class="n">labels</span><span class="p">:</span>
+                <span class="n">profiles</span><span class="p">[</span><span class="n">label</span><span class="p">][</span><span class="n">z</span><span class="p">]</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">count</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">profiles</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_face_contacts</span><span class="p">(</span>
+    <span class="n">seg</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span>
+    <span class="n">labels</span><span class="p">:</span> <span class="nb">set</span><span class="p">[</span><span class="nb">int</span><span class="p">],</span>
+    <span class="n">margin</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="nb">tuple</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="o">...</span><span class="p">]]:</span>
+    <span class="n">width</span> <span class="o">=</span> <span class="n">margin</span> <span class="o">+</span> <span class="mi">1</span>
+    <span class="n">slabs</span> <span class="o">=</span> <span class="p">(</span>
+        <span class="n">seg</span><span class="p">[:</span><span class="n">width</span><span class="p">],</span>
+        <span class="n">seg</span><span class="p">[</span><span class="o">-</span><span class="n">width</span><span class="p">:],</span>
+        <span class="n">seg</span><span class="p">[:,</span> <span class="p">:</span><span class="n">width</span><span class="p">],</span>
+        <span class="n">seg</span><span class="p">[:,</span> <span class="o">-</span><span class="n">width</span><span class="p">:],</span>
+        <span class="n">seg</span><span class="p">[:,</span> <span class="p">:,</span> <span class="p">:</span><span class="n">width</span><span class="p">],</span>
+        <span class="n">seg</span><span class="p">[:,</span> <span class="p">:,</span> <span class="o">-</span><span class="n">width</span><span class="p">:],</span>
+    <span class="p">)</span>
+    <span class="n">contacts</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="nb">set</span><span class="p">[</span><span class="nb">str</span><span class="p">]]</span> <span class="o">=</span> <span class="p">{</span><span class="n">label</span><span class="p">:</span> <span class="nb">set</span><span class="p">()</span> <span class="k">for</span> <span class="n">label</span> <span class="ow">in</span> <span class="n">labels</span><span class="p">}</span>
+    <span class="k">for</span> <span class="n">face_name</span><span class="p">,</span> <span class="n">slab</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">_FACE_NAMES</span><span class="p">,</span> <span class="n">slabs</span><span class="p">):</span>
+        <span class="k">for</span> <span class="n">label</span> <span class="ow">in</span> <span class="n">np</span><span class="o">.</span><span class="n">unique</span><span class="p">(</span><span class="n">slab</span><span class="p">)</span><span class="o">.</span><span class="n">tolist</span><span class="p">():</span>
+            <span class="n">label</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">label</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">label</span> <span class="ow">in</span> <span class="n">labels</span><span class="p">:</span>
+                <span class="n">contacts</span><span class="p">[</span><span class="n">label</span><span class="p">]</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">face_name</span><span class="p">)</span>
+    <span class="k">return</span> <span class="p">{</span><span class="n">label</span><span class="p">:</span> <span class="nb">tuple</span><span class="p">(</span><span class="nb">sorted</span><span class="p">(</span><span class="n">names</span><span class="p">))</span> <span class="k">for</span> <span class="n">label</span><span class="p">,</span> <span class="n">names</span> <span class="ow">in</span> <span class="n">contacts</span><span class="o">.</span><span class="n">items</span><span class="p">()}</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_border_end_count</span><span class="p">(</span>
+    <span class="n">sub</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span>
+    <span class="n">bounds</span><span class="p">:</span> <span class="nb">tuple</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="nb">int</span><span class="p">,</span> <span class="nb">int</span><span class="p">,</span> <span class="nb">int</span><span class="p">,</span> <span class="nb">int</span><span class="p">,</span> <span class="nb">int</span><span class="p">],</span>
+    <span class="n">volume_shape</span><span class="p">:</span> <span class="nb">tuple</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="nb">int</span><span class="p">,</span> <span class="nb">int</span><span class="p">],</span>
+    <span class="n">margin</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
+    <span class="n">z0</span><span class="p">,</span> <span class="n">z1</span><span class="p">,</span> <span class="n">y0</span><span class="p">,</span> <span class="n">_y1</span><span class="p">,</span> <span class="n">x0</span><span class="p">,</span> <span class="n">_x1</span> <span class="o">=</span> <span class="n">bounds</span>
+    <span class="n">zyx_ends</span> <span class="o">=</span> <span class="p">((</span><span class="mi">0</span><span class="p">,</span> <span class="n">z0</span><span class="p">),)</span> <span class="k">if</span> <span class="n">z0</span> <span class="o">==</span> <span class="n">z1</span> <span class="k">else</span> <span class="p">((</span><span class="mi">0</span><span class="p">,</span> <span class="n">z0</span><span class="p">),</span> <span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="n">z1</span><span class="p">))</span>
+    <span class="n">count</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="k">for</span> <span class="n">local_z</span><span class="p">,</span> <span class="n">global_z</span> <span class="ow">in</span> <span class="n">zyx_ends</span><span class="p">:</span>
+        <span class="n">ys</span><span class="p">,</span> <span class="n">xs</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">sub</span><span class="p">[</span><span class="n">local_z</span><span class="p">])</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">ys</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="k">continue</span>
+        <span class="n">global_ys</span> <span class="o">=</span> <span class="n">ys</span> <span class="o">+</span> <span class="n">y0</span>
+        <span class="n">global_xs</span> <span class="o">=</span> <span class="n">xs</span> <span class="o">+</span> <span class="n">x0</span>
+        <span class="k">if</span> <span class="p">(</span>
+            <span class="n">global_z</span> <span class="o">&lt;=</span> <span class="n">margin</span>
+            <span class="ow">or</span> <span class="n">global_z</span> <span class="o">&gt;=</span> <span class="n">volume_shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">-</span> <span class="mi">1</span> <span class="o">-</span> <span class="n">margin</span>
+            <span class="ow">or</span> <span class="nb">int</span><span class="p">(</span><span class="n">global_ys</span><span class="o">.</span><span class="n">min</span><span class="p">())</span> <span class="o">&lt;=</span> <span class="n">margin</span>
+            <span class="ow">or</span> <span class="nb">int</span><span class="p">(</span><span class="n">global_ys</span><span class="o">.</span><span class="n">max</span><span class="p">())</span> <span class="o">&gt;=</span> <span class="n">volume_shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">-</span> <span class="mi">1</span> <span class="o">-</span> <span class="n">margin</span>
+            <span class="ow">or</span> <span class="nb">int</span><span class="p">(</span><span class="n">global_xs</span><span class="o">.</span><span class="n">min</span><span class="p">())</span> <span class="o">&lt;=</span> <span class="n">margin</span>
+            <span class="ow">or</span> <span class="nb">int</span><span class="p">(</span><span class="n">global_xs</span><span class="o">.</span><span class="n">max</span><span class="p">())</span> <span class="o">&gt;=</span> <span class="n">volume_shape</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span> <span class="o">-</span> <span class="mi">1</span> <span class="o">-</span> <span class="n">margin</span>
+        <span class="p">):</span>
+            <span class="n">count</span> <span class="o">+=</span> <span class="mi">1</span>
+    <span class="k">return</span> <span class="n">count</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_border_patch_count</span><span class="p">(</span>
+    <span class="n">sub</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span>
+    <span class="n">bounds</span><span class="p">:</span> <span class="nb">tuple</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="nb">int</span><span class="p">,</span> <span class="nb">int</span><span class="p">,</span> <span class="nb">int</span><span class="p">,</span> <span class="nb">int</span><span class="p">,</span> <span class="nb">int</span><span class="p">],</span>
+    <span class="n">volume_shape</span><span class="p">:</span> <span class="nb">tuple</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="nb">int</span><span class="p">,</span> <span class="nb">int</span><span class="p">],</span>
+    <span class="n">margin</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+    <span class="n">min_voxels</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
+    <span class="n">z0</span><span class="p">,</span> <span class="n">z1</span><span class="p">,</span> <span class="n">y0</span><span class="p">,</span> <span class="n">y1</span><span class="p">,</span> <span class="n">x0</span><span class="p">,</span> <span class="n">x1</span> <span class="o">=</span> <span class="n">bounds</span>
+    <span class="n">zz</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">z0</span><span class="p">,</span> <span class="n">z1</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)[:,</span> <span class="kc">None</span><span class="p">,</span> <span class="kc">None</span><span class="p">]</span>
+    <span class="n">yy</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">y0</span><span class="p">,</span> <span class="n">y1</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)[</span><span class="kc">None</span><span class="p">,</span> <span class="p">:,</span> <span class="kc">None</span><span class="p">]</span>
+    <span class="n">xx</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">x0</span><span class="p">,</span> <span class="n">x1</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)[</span><span class="kc">None</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="p">:]</span>
+    <span class="n">shell</span> <span class="o">=</span> <span class="p">(</span>
+        <span class="p">(</span><span class="n">zz</span> <span class="o">&lt;=</span> <span class="n">margin</span><span class="p">)</span>
+        <span class="o">|</span> <span class="p">(</span><span class="n">zz</span> <span class="o">&gt;=</span> <span class="n">volume_shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">-</span> <span class="mi">1</span> <span class="o">-</span> <span class="n">margin</span><span class="p">)</span>
+        <span class="o">|</span> <span class="p">(</span><span class="n">yy</span> <span class="o">&lt;=</span> <span class="n">margin</span><span class="p">)</span>
+        <span class="o">|</span> <span class="p">(</span><span class="n">yy</span> <span class="o">&gt;=</span> <span class="n">volume_shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">-</span> <span class="mi">1</span> <span class="o">-</span> <span class="n">margin</span><span class="p">)</span>
+        <span class="o">|</span> <span class="p">(</span><span class="n">xx</span> <span class="o">&lt;=</span> <span class="n">margin</span><span class="p">)</span>
+        <span class="o">|</span> <span class="p">(</span><span class="n">xx</span> <span class="o">&gt;=</span> <span class="n">volume_shape</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span> <span class="o">-</span> <span class="mi">1</span> <span class="o">-</span> <span class="n">margin</span><span class="p">)</span>
+    <span class="p">)</span>
+    <span class="n">contact</span> <span class="o">=</span> <span class="n">sub</span> <span class="o">&amp;</span> <span class="n">shell</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">contact</span><span class="o">.</span><span class="n">any</span><span class="p">():</span>
+        <span class="k">return</span> <span class="mi">0</span>
+    <span class="n">components</span> <span class="o">=</span> <span class="n">cc3d</span><span class="o">.</span><span class="n">connected_components</span><span class="p">(</span><span class="n">contact</span><span class="p">,</span> <span class="n">connectivity</span><span class="o">=</span><span class="mi">26</span><span class="p">)</span>
+    <span class="n">component_sizes</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">bincount</span><span class="p">(</span><span class="n">components</span><span class="o">.</span><span class="n">ravel</span><span class="p">())</span>
+    <span class="k">return</span> <span class="nb">int</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">count_nonzero</span><span class="p">(</span><span class="n">component_sizes</span><span class="p">[</span><span class="mi">1</span><span class="p">:]</span> <span class="o">&gt;=</span> <span class="n">min_voxels</span><span class="p">))</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_multi_component_stats</span><span class="p">(</span>
+    <span class="n">sub</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span>
+    <span class="n">min_voxels</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+    <span class="n">step</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="nb">int</span><span class="p">,</span> <span class="nb">float</span><span class="p">]:</span>
+    <span class="n">multi_count</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="n">evaluated_count</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="k">for</span> <span class="n">section</span> <span class="ow">in</span> <span class="n">sub</span><span class="p">[::</span><span class="n">step</span><span class="p">]:</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">section</span><span class="o">.</span><span class="n">any</span><span class="p">():</span>
+            <span class="k">continue</span>
+        <span class="n">evaluated_count</span> <span class="o">+=</span> <span class="mi">1</span>
+        <span class="n">components</span><span class="p">,</span> <span class="n">count</span> <span class="o">=</span> <span class="n">cc_label</span><span class="p">(</span><span class="n">section</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">count</span> <span class="o">&lt;</span> <span class="mi">2</span><span class="p">:</span>
+            <span class="k">continue</span>
+        <span class="n">component_sizes</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">bincount</span><span class="p">(</span><span class="n">components</span><span class="o">.</span><span class="n">ravel</span><span class="p">())[</span><span class="mi">1</span><span class="p">:]</span>
+        <span class="k">if</span> <span class="n">np</span><span class="o">.</span><span class="n">count_nonzero</span><span class="p">(</span><span class="n">component_sizes</span> <span class="o">&gt;=</span> <span class="n">min_voxels</span><span class="p">)</span> <span class="o">&gt;=</span> <span class="mi">2</span><span class="p">:</span>
+            <span class="n">multi_count</span> <span class="o">+=</span> <span class="mi">1</span>
+    <span class="k">return</span> <span class="n">multi_count</span><span class="p">,</span> <span class="n">evaluated_count</span><span class="p">,</span> <span class="n">_safe_fraction</span><span class="p">(</span><span class="n">multi_count</span><span class="p">,</span> <span class="n">evaluated_count</span><span class="p">)</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_component_stats</span><span class="p">(</span>
+    <span class="n">sub</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span>
+    <span class="n">min_voxels</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="nb">int</span><span class="p">]:</span>
+    <span class="n">components</span> <span class="o">=</span> <span class="n">cc3d</span><span class="o">.</span><span class="n">connected_components</span><span class="p">(</span><span class="n">sub</span><span class="p">,</span> <span class="n">connectivity</span><span class="o">=</span><span class="mi">26</span><span class="p">)</span>
+    <span class="n">component_sizes</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">bincount</span><span class="p">(</span><span class="n">components</span><span class="o">.</span><span class="n">ravel</span><span class="p">())[</span><span class="mi">1</span><span class="p">:]</span>
+    <span class="k">return</span> <span class="nb">len</span><span class="p">(</span><span class="n">component_sizes</span><span class="p">),</span> <span class="nb">int</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">count_nonzero</span><span class="p">(</span><span class="n">component_sizes</span> <span class="o">&gt;=</span> <span class="n">min_voxels</span><span class="p">))</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_area_bumps</span><span class="p">(</span>
+    <span class="n">profile</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="nb">int</span><span class="p">],</span>
+    <span class="n">config</span><span class="p">:</span> <span class="n">TubeAnalysisConfig</span><span class="p">,</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">[</span><span class="nb">tuple</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="nb">int</span><span class="p">,</span> <span class="nb">int</span><span class="p">,</span> <span class="nb">int</span><span class="p">],</span> <span class="o">...</span><span class="p">]:</span>
+    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">profile</span><span class="p">)</span> <span class="o">&lt;</span> <span class="n">config</span><span class="o">.</span><span class="n">bump_median_window</span><span class="p">:</span>
+        <span class="k">return</span> <span class="p">()</span>
+    <span class="n">z_min</span><span class="p">,</span> <span class="n">z_max</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span><span class="n">profile</span><span class="p">),</span> <span class="nb">max</span><span class="p">(</span><span class="n">profile</span><span class="p">)</span>
+    <span class="n">areas</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">z_max</span> <span class="o">-</span> <span class="n">z_min</span> <span class="o">+</span> <span class="mi">1</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">)</span>
+    <span class="k">for</span> <span class="n">z</span><span class="p">,</span> <span class="n">area</span> <span class="ow">in</span> <span class="n">profile</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+        <span class="n">areas</span><span class="p">[</span><span class="n">z</span> <span class="o">-</span> <span class="n">z_min</span><span class="p">]</span> <span class="o">=</span> <span class="n">area</span>
+    <span class="n">baseline</span> <span class="o">=</span> <span class="n">median_filter</span><span class="p">(</span><span class="n">areas</span><span class="p">,</span> <span class="n">size</span><span class="o">=</span><span class="n">config</span><span class="o">.</span><span class="n">bump_median_window</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="s2">"nearest"</span><span class="p">)</span>
+    <span class="n">flags</span> <span class="o">=</span> <span class="p">(</span>
+        <span class="p">(</span><span class="n">areas</span> <span class="o">&gt;</span> <span class="p">(</span><span class="mf">1.0</span> <span class="o">+</span> <span class="n">config</span><span class="o">.</span><span class="n">bump_relative_excess</span><span class="p">)</span> <span class="o">*</span> <span class="n">baseline</span><span class="p">)</span>
+        <span class="o">&amp;</span> <span class="p">(</span><span class="n">areas</span> <span class="o">-</span> <span class="n">baseline</span> <span class="o">&gt;</span> <span class="n">config</span><span class="o">.</span><span class="n">bump_absolute_excess</span><span class="p">)</span>
+        <span class="o">&amp;</span> <span class="p">(</span><span class="n">areas</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">)</span>
+    <span class="p">)</span>
+    <span class="n">bumps</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">tuple</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="nb">int</span><span class="p">,</span> <span class="nb">int</span><span class="p">,</span> <span class="nb">int</span><span class="p">]]</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="n">index</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="k">while</span> <span class="n">index</span> <span class="o">&lt;</span> <span class="nb">len</span><span class="p">(</span><span class="n">flags</span><span class="p">):</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">flags</span><span class="p">[</span><span class="n">index</span><span class="p">]:</span>
+            <span class="n">index</span> <span class="o">+=</span> <span class="mi">1</span>
+            <span class="k">continue</span>
+        <span class="n">end</span> <span class="o">=</span> <span class="n">index</span>
+        <span class="k">while</span> <span class="n">end</span> <span class="o">+</span> <span class="mi">1</span> <span class="o">&lt;</span> <span class="nb">len</span><span class="p">(</span><span class="n">flags</span><span class="p">)</span> <span class="ow">and</span> <span class="n">flags</span><span class="p">[</span><span class="n">end</span> <span class="o">+</span> <span class="mi">1</span><span class="p">]:</span>
+            <span class="n">end</span> <span class="o">+=</span> <span class="mi">1</span>
+        <span class="n">bump_z0</span><span class="p">,</span> <span class="n">bump_z1</span> <span class="o">=</span> <span class="n">z_min</span> <span class="o">+</span> <span class="n">index</span><span class="p">,</span> <span class="n">z_min</span> <span class="o">+</span> <span class="n">end</span>
+        <span class="n">before</span><span class="p">,</span> <span class="n">after</span> <span class="o">=</span> <span class="n">bump_z0</span> <span class="o">-</span> <span class="mi">1</span><span class="p">,</span> <span class="n">bump_z1</span> <span class="o">+</span> <span class="mi">1</span>
+        <span class="k">if</span> <span class="p">(</span>
+            <span class="n">bump_z1</span> <span class="o">-</span> <span class="n">bump_z0</span> <span class="o">+</span> <span class="mi">1</span> <span class="o">&lt;=</span> <span class="n">config</span><span class="o">.</span><span class="n">bump_max_slices</span>
+            <span class="ow">and</span> <span class="n">before</span> <span class="ow">in</span> <span class="n">profile</span>
+            <span class="ow">and</span> <span class="n">after</span> <span class="ow">in</span> <span class="n">profile</span>
+        <span class="p">):</span>
+            <span class="n">bumps</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="n">bump_z0</span><span class="p">,</span> <span class="n">bump_z1</span><span class="p">,</span> <span class="n">before</span><span class="p">,</span> <span class="n">after</span><span class="p">))</span>
+        <span class="n">index</span> <span class="o">=</span> <span class="n">end</span> <span class="o">+</span> <span class="mi">1</span>
+    <span class="k">return</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">bumps</span><span class="p">)</span>
+
+
+<div class="viewcode-block" id="analyze_tubes"><a class="viewcode-back" href="../../../modules/metrics.html#connectomics.metrics.analyze_tubes">[docs]</a><span class="k">def</span><span class="w"> </span><span class="nf">analyze_tubes</span><span class="p">(</span>
+    <span class="n">seg</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span>
+    <span class="n">config</span><span class="p">:</span> <span class="n">TubeAnalysisConfig</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">stats</span><span class="p">:</span> <span class="n">Any</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">TubeAnalysis</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Analyze a 3D instance segmentation without ground truth.</span>
+
+<span class="sd">    The detailed set includes every label meeting either the configured</span>
+<span class="sd">    z-slice or voxel-count threshold. Completeness is reported separately for</span>
+<span class="sd">    the stricter "decent" subset that is both large and spans a configured</span>
+<span class="sd">    fraction of the volume in z.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        seg: Three-dimensional non-negative integer instance segmentation.</span>
+<span class="sd">        config: Analysis thresholds. Defaults preserve the LiCONN research</span>
+<span class="sd">            operating points.</span>
+<span class="sd">        stats: Optional cached ``seg_stats`` output or ``(bounds, sizes)``.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        Structured per-label and aggregate GT-free analysis.</span>
+<span class="sd">    """</span>
+
+    <span class="n">seg</span> <span class="o">=</span> <span class="n">_validate_segmentation</span><span class="p">(</span><span class="n">seg</span><span class="p">)</span>
+    <span class="n">config</span> <span class="o">=</span> <span class="n">config</span> <span class="ow">or</span> <span class="n">TubeAnalysisConfig</span><span class="p">()</span>
+    <span class="k">if</span> <span class="n">stats</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">bounds</span><span class="p">,</span> <span class="n">sizes</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">seg_stats</span><span class="p">(</span><span class="n">seg</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">bounds</span><span class="p">,</span> <span class="n">sizes</span> <span class="o">=</span> <span class="n">stats</span><span class="p">[:</span><span class="mi">2</span><span class="p">]</span>
+    <span class="n">selected</span> <span class="o">=</span> <span class="p">{</span>
+        <span class="nb">int</span><span class="p">(</span><span class="n">label</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">label</span><span class="p">,</span> <span class="n">bbox</span> <span class="ow">in</span> <span class="n">bounds</span><span class="o">.</span><span class="n">items</span><span class="p">()</span>
+        <span class="k">if</span> <span class="nb">int</span><span class="p">(</span><span class="n">sizes</span><span class="p">[</span><span class="n">label</span><span class="p">])</span> <span class="o">&gt;=</span> <span class="n">config</span><span class="o">.</span><span class="n">substantial_min_voxels</span>
+        <span class="ow">or</span> <span class="n">bbox</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">-</span> <span class="n">bbox</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">+</span> <span class="mi">1</span> <span class="o">&gt;=</span> <span class="n">config</span><span class="o">.</span><span class="n">substantial_min_z_slices</span>
+    <span class="p">}</span>
+    <span class="n">profiles</span> <span class="o">=</span> <span class="n">_area_profiles</span><span class="p">(</span><span class="n">seg</span><span class="p">,</span> <span class="n">selected</span><span class="p">)</span>
+    <span class="n">contacts</span> <span class="o">=</span> <span class="n">_face_contacts</span><span class="p">(</span><span class="n">seg</span><span class="p">,</span> <span class="n">selected</span><span class="p">,</span> <span class="n">config</span><span class="o">.</span><span class="n">border_margin</span><span class="p">)</span>
+    <span class="n">long_span</span> <span class="o">=</span> <span class="n">ceil</span><span class="p">(</span><span class="n">config</span><span class="o">.</span><span class="n">long_span_fraction</span> <span class="o">*</span> <span class="n">seg</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+    <span class="n">volume_shape</span> <span class="o">=</span> <span class="p">(</span><span class="nb">int</span><span class="p">(</span><span class="n">seg</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]),</span> <span class="nb">int</span><span class="p">(</span><span class="n">seg</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]),</span> <span class="nb">int</span><span class="p">(</span><span class="n">seg</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">2</span><span class="p">]))</span>
+    <span class="n">records</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="n">TubeRecord</span><span class="p">]</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">label</span> <span class="ow">in</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">selected</span><span class="p">):</span>
+        <span class="n">label_bounds</span> <span class="o">=</span> <span class="p">(</span>
+            <span class="nb">int</span><span class="p">(</span><span class="n">bounds</span><span class="p">[</span><span class="n">label</span><span class="p">][</span><span class="mi">0</span><span class="p">]),</span>
+            <span class="nb">int</span><span class="p">(</span><span class="n">bounds</span><span class="p">[</span><span class="n">label</span><span class="p">][</span><span class="mi">1</span><span class="p">]),</span>
+            <span class="nb">int</span><span class="p">(</span><span class="n">bounds</span><span class="p">[</span><span class="n">label</span><span class="p">][</span><span class="mi">2</span><span class="p">]),</span>
+            <span class="nb">int</span><span class="p">(</span><span class="n">bounds</span><span class="p">[</span><span class="n">label</span><span class="p">][</span><span class="mi">3</span><span class="p">]),</span>
+            <span class="nb">int</span><span class="p">(</span><span class="n">bounds</span><span class="p">[</span><span class="n">label</span><span class="p">][</span><span class="mi">4</span><span class="p">]),</span>
+            <span class="nb">int</span><span class="p">(</span><span class="n">bounds</span><span class="p">[</span><span class="n">label</span><span class="p">][</span><span class="mi">5</span><span class="p">]),</span>
+        <span class="p">)</span>
+        <span class="n">z0</span><span class="p">,</span> <span class="n">z1</span><span class="p">,</span> <span class="n">y0</span><span class="p">,</span> <span class="n">y1</span><span class="p">,</span> <span class="n">x0</span><span class="p">,</span> <span class="n">x1</span> <span class="o">=</span> <span class="n">label_bounds</span>
+        <span class="n">sub</span> <span class="o">=</span> <span class="n">seg</span><span class="p">[</span><span class="n">z0</span> <span class="p">:</span> <span class="n">z1</span> <span class="o">+</span> <span class="mi">1</span><span class="p">,</span> <span class="n">y0</span> <span class="p">:</span> <span class="n">y1</span> <span class="o">+</span> <span class="mi">1</span><span class="p">,</span> <span class="n">x0</span> <span class="p">:</span> <span class="n">x1</span> <span class="o">+</span> <span class="mi">1</span><span class="p">]</span> <span class="o">==</span> <span class="n">label</span>
+        <span class="n">profile</span> <span class="o">=</span> <span class="n">profiles</span><span class="p">[</span><span class="n">label</span><span class="p">]</span>
+        <span class="n">z_span</span> <span class="o">=</span> <span class="n">z1</span> <span class="o">-</span> <span class="n">z0</span> <span class="o">+</span> <span class="mi">1</span>
+        <span class="n">z_slice_count</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">profile</span><span class="p">)</span>
+        <span class="n">multi_count</span><span class="p">,</span> <span class="n">evaluated_count</span><span class="p">,</span> <span class="n">multi_fraction</span> <span class="o">=</span> <span class="n">_multi_component_stats</span><span class="p">(</span>
+            <span class="n">sub</span><span class="p">,</span>
+            <span class="n">config</span><span class="o">.</span><span class="n">multi_component_min_voxels</span><span class="p">,</span>
+            <span class="n">config</span><span class="o">.</span><span class="n">multi_component_slice_step</span><span class="p">,</span>
+        <span class="p">)</span>
+        <span class="n">component_count</span><span class="p">,</span> <span class="n">significant_component_count</span> <span class="o">=</span> <span class="n">_component_stats</span><span class="p">(</span>
+            <span class="n">sub</span><span class="p">,</span>
+            <span class="n">config</span><span class="o">.</span><span class="n">disconnected_component_min_voxels</span><span class="p">,</span>
+        <span class="p">)</span>
+        <span class="n">cross_section_areas</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">fromiter</span><span class="p">(</span><span class="n">profile</span><span class="o">.</span><span class="n">values</span><span class="p">(),</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">int64</span><span class="p">)</span>
+        <span class="n">is_long_enough</span> <span class="o">=</span> <span class="n">z_span</span> <span class="o">&gt;=</span> <span class="n">long_span</span>
+        <span class="n">records</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+            <span class="n">TubeRecord</span><span class="p">(</span>
+                <span class="n">label</span><span class="o">=</span><span class="n">label</span><span class="p">,</span>
+                <span class="n">voxel_count</span><span class="o">=</span><span class="nb">int</span><span class="p">(</span><span class="n">sizes</span><span class="p">[</span><span class="n">label</span><span class="p">]),</span>
+                <span class="n">z_min</span><span class="o">=</span><span class="n">z0</span><span class="p">,</span>
+                <span class="n">z_max</span><span class="o">=</span><span class="n">z1</span><span class="p">,</span>
+                <span class="n">z_span</span><span class="o">=</span><span class="n">z_span</span><span class="p">,</span>
+                <span class="n">z_slice_count</span><span class="o">=</span><span class="n">z_slice_count</span><span class="p">,</span>
+                <span class="n">z_occupancy_fraction</span><span class="o">=</span><span class="n">_safe_fraction</span><span class="p">(</span><span class="n">z_slice_count</span><span class="p">,</span> <span class="n">z_span</span><span class="p">),</span>
+                <span class="n">is_long_enough</span><span class="o">=</span><span class="n">is_long_enough</span><span class="p">,</span>
+                <span class="n">is_decent</span><span class="o">=</span><span class="n">is_long_enough</span> <span class="ow">and</span> <span class="nb">int</span><span class="p">(</span><span class="n">sizes</span><span class="p">[</span><span class="n">label</span><span class="p">])</span> <span class="o">&gt;=</span> <span class="n">config</span><span class="o">.</span><span class="n">decent_min_voxels</span><span class="p">,</span>
+                <span class="n">face_contacts</span><span class="o">=</span><span class="n">contacts</span><span class="p">[</span><span class="n">label</span><span class="p">],</span>
+                <span class="n">border_end_count</span><span class="o">=</span><span class="n">_border_end_count</span><span class="p">(</span>
+                    <span class="n">sub</span><span class="p">,</span>
+                    <span class="n">label_bounds</span><span class="p">,</span>
+                    <span class="n">volume_shape</span><span class="p">,</span>
+                    <span class="n">config</span><span class="o">.</span><span class="n">border_margin</span><span class="p">,</span>
+                <span class="p">),</span>
+                <span class="n">border_patch_count</span><span class="o">=</span><span class="n">_border_patch_count</span><span class="p">(</span>
+                    <span class="n">sub</span><span class="p">,</span>
+                    <span class="n">label_bounds</span><span class="p">,</span>
+                    <span class="n">volume_shape</span><span class="p">,</span>
+                    <span class="n">config</span><span class="o">.</span><span class="n">border_margin</span><span class="p">,</span>
+                    <span class="n">config</span><span class="o">.</span><span class="n">border_patch_min_voxels</span><span class="p">,</span>
+                <span class="p">),</span>
+                <span class="n">median_cross_section_area</span><span class="o">=</span><span class="nb">float</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">median</span><span class="p">(</span><span class="n">cross_section_areas</span><span class="p">)),</span>
+                <span class="n">max_cross_section_area</span><span class="o">=</span><span class="nb">int</span><span class="p">(</span><span class="n">cross_section_areas</span><span class="o">.</span><span class="n">max</span><span class="p">()),</span>
+                <span class="n">bump_count</span><span class="o">=</span><span class="p">(</span>
+                    <span class="nb">len</span><span class="p">(</span><span class="n">_area_bumps</span><span class="p">(</span><span class="n">profile</span><span class="p">,</span> <span class="n">config</span><span class="p">))</span>
+                    <span class="k">if</span> <span class="n">z_slice_count</span> <span class="o">&gt;=</span> <span class="n">config</span><span class="o">.</span><span class="n">bump_min_slices</span>
+                    <span class="k">else</span> <span class="mi">0</span>
+                <span class="p">),</span>
+                <span class="n">multi_component_sample_count</span><span class="o">=</span><span class="n">multi_count</span><span class="p">,</span>
+                <span class="n">evaluated_sample_count</span><span class="o">=</span><span class="n">evaluated_count</span><span class="p">,</span>
+                <span class="n">multi_component_fraction</span><span class="o">=</span><span class="n">multi_fraction</span><span class="p">,</span>
+                <span class="n">is_parallel</span><span class="o">=</span><span class="p">(</span>
+                    <span class="n">multi_count</span>
+                    <span class="o">&gt;=</span> <span class="n">ceil</span><span class="p">(</span><span class="n">config</span><span class="o">.</span><span class="n">parallel_min_slices</span> <span class="o">/</span> <span class="n">config</span><span class="o">.</span><span class="n">multi_component_slice_step</span><span class="p">)</span>
+                    <span class="ow">and</span> <span class="n">multi_fraction</span> <span class="o">&gt;</span> <span class="n">config</span><span class="o">.</span><span class="n">parallel_fraction_threshold</span>
+                <span class="p">),</span>
+                <span class="n">component_count_3d</span><span class="o">=</span><span class="n">component_count</span><span class="p">,</span>
+                <span class="n">significant_component_count_3d</span><span class="o">=</span><span class="n">significant_component_count</span><span class="p">,</span>
+                <span class="n">is_disconnected</span><span class="o">=</span><span class="n">significant_component_count</span> <span class="o">&gt;=</span> <span class="mi">2</span><span class="p">,</span>
+            <span class="p">)</span>
+        <span class="p">)</span>
+    <span class="n">total_foreground_voxels</span> <span class="o">=</span> <span class="nb">sum</span><span class="p">(</span><span class="nb">int</span><span class="p">(</span><span class="n">sizes</span><span class="p">[</span><span class="n">label</span><span class="p">])</span> <span class="k">for</span> <span class="n">label</span> <span class="ow">in</span> <span class="n">bounds</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">TubeAnalysis</span><span class="p">(</span>
+        <span class="n">volume_shape</span><span class="o">=</span><span class="n">volume_shape</span><span class="p">,</span>
+        <span class="n">config</span><span class="o">=</span><span class="n">config</span><span class="p">,</span>
+        <span class="n">total_label_count</span><span class="o">=</span><span class="nb">len</span><span class="p">(</span><span class="n">bounds</span><span class="p">),</span>
+        <span class="n">total_foreground_voxels</span><span class="o">=</span><span class="n">total_foreground_voxels</span><span class="p">,</span>
+        <span class="n">tubes</span><span class="o">=</span><span class="nb">tuple</span><span class="p">(</span><span class="n">records</span><span class="p">),</span>
+    <span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="format_tube_analysis"><a class="viewcode-back" href="../../../modules/metrics.html#connectomics.metrics.format_tube_analysis">[docs]</a><span class="k">def</span><span class="w"> </span><span class="nf">format_tube_analysis</span><span class="p">(</span><span class="n">analysis</span><span class="p">:</span> <span class="n">TubeAnalysis</span><span class="p">,</span> <span class="n">top_incomplete</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">8</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Format a concise human-readable tube analysis report."""</span>
+
+    <span class="k">if</span> <span class="n">top_incomplete</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">"top_incomplete must be non-negative, got </span><span class="si">{</span><span class="n">top_incomplete</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
+    <span class="n">summary</span> <span class="o">=</span> <span class="n">analysis</span><span class="o">.</span><span class="n">summary</span>
+    <span class="n">lines</span> <span class="o">=</span> <span class="p">[</span>
+        <span class="p">(</span>
+            <span class="sa">f</span><span class="s2">"Tube analysis: </span><span class="si">{</span><span class="n">summary</span><span class="o">.</span><span class="n">total_label_count</span><span class="si">}</span><span class="s2"> labels, "</span>
+            <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">summary</span><span class="o">.</span><span class="n">substantial_count</span><span class="si">}</span><span class="s2"> substantial "</span>
+            <span class="sa">f</span><span class="s2">"(z&gt;=</span><span class="si">{</span><span class="n">analysis</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">substantial_min_z_slices</span><span class="si">}</span><span class="s2"> slices or "</span>
+            <span class="sa">f</span><span class="s2">"voxels&gt;=</span><span class="si">{</span><span class="n">analysis</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">substantial_min_voxels</span><span class="si">}</span><span class="s2">)"</span>
+        <span class="p">),</span>
+        <span class="p">(</span>
+            <span class="sa">f</span><span class="s2">"  long enough: </span><span class="si">{</span><span class="n">summary</span><span class="o">.</span><span class="n">long_enough_count</span><span class="si">}</span><span class="s2">/</span><span class="si">{</span><span class="n">summary</span><span class="o">.</span><span class="n">substantial_count</span><span class="si">}</span><span class="s2">; "</span>
+            <span class="sa">f</span><span class="s2">"decent (long and voxels&gt;=</span><span class="si">{</span><span class="n">analysis</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">decent_min_voxels</span><span class="si">}</span><span class="s2">): "</span>
+            <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">summary</span><span class="o">.</span><span class="n">decent_count</span><span class="si">}</span><span class="s2">"</span>
+        <span class="p">),</span>
+        <span class="p">(</span>
+            <span class="sa">f</span><span class="s2">"  COMPLETE (&gt;=2 border ends): </span><span class="si">{</span><span class="n">summary</span><span class="o">.</span><span class="n">complete_count</span><span class="si">}</span><span class="s2">/</span><span class="si">{</span><span class="n">summary</span><span class="o">.</span><span class="n">decent_count</span><span class="si">}</span><span class="s2"> "</span>
+            <span class="sa">f</span><span class="s2">"(</span><span class="si">{</span><span class="mf">100.0</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="n">summary</span><span class="o">.</span><span class="n">complete_fraction</span><span class="si">:</span><span class="s2">.1f</span><span class="si">}</span><span class="s2">%, "</span>
+            <span class="sa">f</span><span class="s2">"volume </span><span class="si">{</span><span class="mf">100.0</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="n">summary</span><span class="o">.</span><span class="n">complete_volume_fraction</span><span class="si">:</span><span class="s2">.1f</span><span class="si">}</span><span class="s2">%) | "</span>
+            <span class="sa">f</span><span class="s2">"INCOMPLETE: </span><span class="si">{</span><span class="n">summary</span><span class="o">.</span><span class="n">decent_count</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="n">summary</span><span class="o">.</span><span class="n">complete_count</span><span class="si">}</span><span class="s2">"</span>
+        <span class="p">),</span>
+        <span class="p">(</span>
+            <span class="sa">f</span><span class="s2">"  VALID (complete and single): </span><span class="si">{</span><span class="n">summary</span><span class="o">.</span><span class="n">valid_count</span><span class="si">}</span><span class="s2">/</span><span class="si">{</span><span class="n">summary</span><span class="o">.</span><span class="n">decent_count</span><span class="si">}</span><span class="s2"> "</span>
+            <span class="sa">f</span><span class="s2">"(</span><span class="si">{</span><span class="mf">100.0</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="n">summary</span><span class="o">.</span><span class="n">valid_fraction</span><span class="si">:</span><span class="s2">.1f</span><span class="si">}</span><span class="s2">%, "</span>
+            <span class="sa">f</span><span class="s2">"volume </span><span class="si">{</span><span class="mf">100.0</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="n">summary</span><span class="o">.</span><span class="n">valid_volume_fraction</span><span class="si">:</span><span class="s2">.1f</span><span class="si">}</span><span class="s2">%)"</span>
+        <span class="p">),</span>
+        <span class="p">(</span>
+            <span class="sa">f</span><span class="s2">"  quality flags among substantial tubes: parallel </span><span class="si">{</span><span class="n">summary</span><span class="o">.</span><span class="n">parallel_count</span><span class="si">}</span><span class="s2">, "</span>
+            <span class="sa">f</span><span class="s2">"disconnected </span><span class="si">{</span><span class="n">summary</span><span class="o">.</span><span class="n">disconnected_count</span><span class="si">}</span><span class="s2">, bumped </span><span class="si">{</span><span class="n">summary</span><span class="o">.</span><span class="n">bumped_count</span><span class="si">}</span><span class="s2">"</span>
+        <span class="p">),</span>
+        <span class="sa">f</span><span class="s2">"  distinct-face histogram: </span><span class="si">{</span><span class="nb">dict</span><span class="p">(</span><span class="nb">enumerate</span><span class="p">(</span><span class="n">summary</span><span class="o">.</span><span class="n">face_count_histogram</span><span class="p">))</span><span class="si">}</span><span class="s2">"</span><span class="p">,</span>
+    <span class="p">]</span>
+    <span class="n">incomplete</span> <span class="o">=</span> <span class="n">analysis</span><span class="o">.</span><span class="n">largest_incomplete</span><span class="p">(</span><span class="n">top_incomplete</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">incomplete</span><span class="p">:</span>
+        <span class="n">lines</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s2">"  largest incomplete decent tubes:"</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">tube</span> <span class="ow">in</span> <span class="n">incomplete</span><span class="p">:</span>
+            <span class="n">lines</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+                <span class="sa">f</span><span class="s2">"    seg </span><span class="si">{</span><span class="n">tube</span><span class="o">.</span><span class="n">label</span><span class="si">}</span><span class="s2">: voxels </span><span class="si">{</span><span class="n">tube</span><span class="o">.</span><span class="n">voxel_count</span><span class="si">}</span><span class="s2">, "</span>
+                <span class="sa">f</span><span class="s2">"z</span><span class="si">{</span><span class="n">tube</span><span class="o">.</span><span class="n">z_min</span><span class="si">}</span><span class="s2">-</span><span class="si">{</span><span class="n">tube</span><span class="o">.</span><span class="n">z_max</span><span class="si">}</span><span class="s2"> (</span><span class="si">{</span><span class="n">tube</span><span class="o">.</span><span class="n">z_span</span><span class="si">}</span><span class="s2"> span), "</span>
+                <span class="sa">f</span><span class="s2">"border ends </span><span class="si">{</span><span class="n">tube</span><span class="o">.</span><span class="n">border_end_count</span><span class="si">}</span><span class="s2">, "</span>
+                <span class="sa">f</span><span class="s2">"parallel </span><span class="si">{</span><span class="n">tube</span><span class="o">.</span><span class="n">is_parallel</span><span class="si">}</span><span class="s2">, disconnected </span><span class="si">{</span><span class="n">tube</span><span class="o">.</span><span class="n">is_disconnected</span><span class="si">}</span><span class="s2">"</span>
+            <span class="p">)</span>
+    <span class="k">return</span> <span class="s2">"</span><span class="se">\n</span><span class="s2">"</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">lines</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="completeness_report"><a class="viewcode-back" href="../../../modules/metrics.html#connectomics.metrics.completeness_report">[docs]</a><span class="k">def</span><span class="w"> </span><span class="nf">completeness_report</span><span class="p">(</span>
+    <span class="n">seg</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span>
+    <span class="n">verbose_top</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">8</span><span class="p">,</span>
+    <span class="n">stats</span><span class="p">:</span> <span class="n">Any</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="nb">int</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">"""Print and return the complete/decent tube counts.</span>
+
+<span class="sd">    This preserves the original public completeness entry point while using</span>
+<span class="sd">    the richer canonical tube analysis.</span>
+<span class="sd">    """</span>
+
+    <span class="n">analysis</span> <span class="o">=</span> <span class="n">analyze_tubes</span><span class="p">(</span><span class="n">seg</span><span class="p">,</span> <span class="n">stats</span><span class="o">=</span><span class="n">stats</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="n">format_tube_analysis</span><span class="p">(</span><span class="n">analysis</span><span class="p">,</span> <span class="n">top_incomplete</span><span class="o">=</span><span class="n">verbose_top</span><span class="p">),</span> <span class="n">flush</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="n">summary</span> <span class="o">=</span> <span class="n">analysis</span><span class="o">.</span><span class="n">summary</span>
+    <span class="k">return</span> <span class="n">summary</span><span class="o">.</span><span class="n">complete_count</span><span class="p">,</span> <span class="n">summary</span><span class="o">.</span><span class="n">decent_count</span></div>
+
+
+<span class="n">__all__</span> <span class="o">=</span> <span class="p">[</span>
+    <span class="s2">"BORDER"</span><span class="p">,</span>
+    <span class="s2">"MIN_SIZE"</span><span class="p">,</span>
+    <span class="s2">"MIN_SPAN_FRAC"</span><span class="p">,</span>
+    <span class="s2">"TubeAnalysis"</span><span class="p">,</span>
+    <span class="s2">"TubeAnalysisConfig"</span><span class="p">,</span>
+    <span class="s2">"TubeAnalysisSummary"</span><span class="p">,</span>
+    <span class="s2">"TubeRecord"</span><span class="p">,</span>
+    <span class="s2">"analyze_tubes"</span><span class="p">,</span>
+    <span class="s2">"completeness_report"</span><span class="p">,</span>
+    <span class="s2">"format_tube_analysis"</span><span class="p">,</span>
+<span class="p">]</span>
+</pre></div>
+
+              </article>
+              
+            </div>
+            <footer>
+  
+
+  
+
+  <hr>
+
+  
+
+  <div role="contentinfo">
+    <p>
+      &copy; Copyright 2019-2026, PyTorch Connectomics Contributors.
+
+    </p>
+  </div>
+  
+  <div style="margin-bottom:1cm">
+    Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a
+      href="https://github.com/rtfd/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the
+      Docs</a>.
+  </div>
+   
+
+</footer>
+          </div>
+        </div>
+
+        <div class="pytorch-content-right" id="pytorch-content-right">
+          <div class="pytorch-right-menu" id="pytorch-right-menu">
+            <div class="pytorch-side-scroll" id="pytorch-side-scroll-right">
+              
+            </div>
+          </div>
+        </div>
+    </section>
+  </div>
+
+  
+
+  
+  <script type="text/javascript" id="documentation_options" data-url_root="../../../"
+    src="../../../_static/documentation_options.js"></script>
+  <script data-url_root="../../../" id="documentation_options" src="../../../_static/documentation_options.js"></script>
+  <script src="../../../_static/jquery.js"></script>
+  <script src="../../../_static/underscore.js"></script>
+  <script src="../../../_static/_sphinx_javascript_frameworks_compat.js"></script>
+  <script src="../../../_static/doctools.js"></script>
+  <script src="../../../_static/sphinx_highlight.js"></script>
+  
+
+  
+
+  <script type="text/javascript" src="../../../_static/js/vendor/popper.min.js"></script>
+  <script type="text/javascript" src="../../../_static/js/vendor/bootstrap.min.js"></script>
+  <script type="text/javascript" src="../../../_static/js/theme.js"></script>
+
+  <script type="text/javascript">
+    jQuery(function () {
+      SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+
+  <!-- Begin Footer -->
+
+  <div class="container-fluid docs-tutorials-resources" id="docs-tutorials-resources">
+    <!-- <div class="container">
+      <div class="row">
+        <div class="col-md-4 text-center">
+          <h2>Visual Computing Group</h2>
+          <p>Visual computing group (VCG) led by Prof. Hanspeter Pfister at Harvard University</p>
+          <a class="with-right-arrow" href="https://vcg.seas.harvard.edu/">View VCG</a>
+        </div>
+        <div class="col-md-4 text-center">
+          <h2>Lichtman Lab</h2>
+          <p>Neuroscience research lab led by Prof. Jeff Lichtman at Harvard University</p>
+          <a class="with-right-arrow" href="https://lichtmanlab.fas.harvard.edu">View Lichtman Lab</a>
+        </div>
+        <div class="col-md-4 text-center">
+          <h2>PyTorch</h2>
+          <p>An open source machine learning framework</p>
+          <a class="with-right-arrow" href="https://pytorch.org/">View PyTorch</a>
+        </div>
+      </div>
+    </div> -->
+  </div>
+
+  <div class="cookie-banner-wrapper">
+  <div class="container">
+    <p class="gdpr-notice">To analyze traffic and optimize your experience, we serve cookies on this site. By clicking or navigating, you agree to allow our usage of cookies. As the current maintainers of this site, Facebook’s Cookies Policy applies. Learn more, including about available controls: <a href="https://www.facebook.com/policies/cookies/">Cookies Policy</a>.</p>
+    <img class="close-button" src="_static/images/pytorch-x.svg">
+  </div>
+</div>
+
+  <!-- End Footer -->
+
+  <!-- Begin Mobile Menu -->
+  <!--
+  <div class="mobile-main-menu">
+    <div class="container-fluid">
+      <div class="container">
+        <div class="mobile-main-menu-header-container">
+          <a class="header-logo" href="https://zudi-lin.github.io/pytorch_connectomics/build/html/index.html" aria-label="PyTorch"></a>
+          <a class="main-menu-close-button" href="#" data-behavior="close-mobile-menu"></a>
+        </div>
+      </div>
+    </div>
+    <div class="mobile-main-menu-links-container">
+      <div class="main-menu">
+        <ul>
+          <li>
+            <a href="#">Get Started</a>
+          </li>
+          <li>
+            <a href="#">Features</a>
+          </li>
+          <li>
+            <a href="#">Ecosystem</a>
+          </li>
+          <li>
+            <a href="">Blog</a>
+          </li>
+          <li>
+            <a href="https://zudi-lin.github.io/pytorch_connectomics/build/html/tutorials/snemi.html">Tutorials</a>
+          </li>
+          <li>
+            <a href="https://zudi-lin.github.io/pytorch_connectomics/build/html/index.html">Docs</a>
+          </li>
+          <li>
+            <a href="">Resources</a>
+          </li>
+          <li>
+            <a href="https://github.com/zudi-lin/pytorch_connectomics/tree/master">Github</a>
+          </li>
+        </ul>
+      </div>
+    </div>
+  </div>
+  -->
+  <!-- End Mobile Menu -->
+
+  <script type="text/javascript" src="../../../_static/js/vendor/anchor.min.js"></script>
+
+  <script type="text/javascript">
+    var collapsedSections = ['Notes']
+    $(document).ready(function () {
+      mobileMenu.bind();
+      mobileTOC.bind();
+      pytorchAnchors.bind();
+      sideMenus.bind();
+      scrollToAnchor.bind();
+      highlightNavigation.bind();
+
+      // Add class to links that have code blocks, since we cannot create links in code blocks
+      $("article.pytorch-article a span.pre").each(function (e) {
+        $(this).closest("a").addClass("has-code");
+      });
+
+      // Sidebar accordion: click an L1 parent (that has children) to toggle
+      // .expanded / .collapsed instead of navigating. .current is set by
+      // Sphinx on the active section so it starts open by default; the
+      // explicit .collapsed class lets the user fold even the active one.
+      $('.pytorch-menu-vertical .toctree-l1 > a').each(function () {
+        var $a = $(this);
+        var $li = $a.parent();
+        var $ul = $li.children('ul');
+        if ($ul.length === 0) return;
+        $a.on('click', function (e) {
+          e.preventDefault();
+          if ($ul.is(':visible')) {
+            $li.addClass('collapsed').removeClass('expanded');
+          } else {
+            $li.addClass('expanded').removeClass('collapsed');
+          }
+        });
+      });
+    })
+  </script>
+
+  <!-- at the end of the BODY -->
+  <script src="https://cdn.jsdelivr.net/npm/@docsearch/js@alpha"></script>
+  <script>
+    /* global docsearch */
+    docsearch({
+      container: "#docsearch",
+      apiKey: "f072ddc06d4d2d86f6b26fb6f12a4699",
+      indexName: "readthedocs",
+      placeholder: "Search PyTorch Connectomics",
+    });
+  </script>
+
+</body>
+
+</html>
