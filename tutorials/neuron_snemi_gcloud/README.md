@@ -127,6 +127,26 @@ score in the handoff is **not an ABISS result**.
 
 ## 4. Continue the saved cloud checkpoint
 
+**September 9 audit:** this particular checkpoint saved `max_iters=3`,
+`warmup_iters=1`, epoch 2/global step 600, and LR `1e-6`. Contrary to the earlier
+handoff, its scheduler was already complete. `--resume-to` changes the training
+limit only; it does not repair or extend saved scheduler state. For the live
+20-epoch continuation, use the audited derived checkpoint and matching YAML:
+
+```bash
+gcloud storage cp \
+  gs://donglai/em/snemi/cloud-runs/snemi-abiss20-20260909/resume20.ckpt \
+  /work/checkpoints/snemi_resume20.ckpt
+gcloud storage cp \
+  gs://donglai/em/snemi/cloud-runs/snemi-abiss20-20260909/resume-provenance.json \
+  /work/checkpoints/resume-provenance.json
+```
+
+That copy retains the model, optimizer moments, and counters, extends the
+cosine horizon to 20, and updates the current LR to approximately `4.73e-4`.
+Use `neuron_snemi_gcloud_20epoch.yaml` with it. It is an explicit schedule
+extension, not a claim that the original three epochs used a 20-epoch schedule.
+
 Stage the existing three-epoch checkpoint once:
 
 ```bash
@@ -150,9 +170,9 @@ docker run --rm --gpus all --ipc=host \
   --env TMPDIR=/workspace/outputs \
   pytc:snemi-abiss \
   python -m connectomics.runtime.snemi_benchmark \
-    --config tutorials/neuron_snemi_gcloud/neuron_snemi_gcloud.yaml \
+    --config tutorials/neuron_snemi_gcloud/neuron_snemi_gcloud_20epoch.yaml \
     --output "/workspace/outputs/$RUN_ID" \
-    --checkpoint /checkpoints/snemi_epoch2.ckpt \
+    --checkpoint /checkpoints/snemi_resume20.ckpt \
     --resume-to 20 \
   2>&1 | tee "$OUTPUT_ROOT/$RUN_ID.console.log"
 ```
@@ -160,8 +180,8 @@ docker run --rm --gpus all --ipc=host \
 The runner copies the source checkpoint into the new run before training
 because Lightning resumes into the checkpoint's directory. The source stays
 untouched. The only reset flag passed is `--reset-max-epochs 20`; optimizer,
-scheduler, global step, and epoch state are restored. The cosine horizon stays
-100 epochs. Check the restored learning rate and GPU use in the first resumed
+scheduler, global step, and epoch state are restored from the audited derived
+checkpoint. Its cosine horizon is 20 epochs. Check the restored learning rate and GPU use in the first resumed
 epoch. Final inference uses the new `last.ckpt`; it does not select a checkpoint
 using test-label scores.
 
