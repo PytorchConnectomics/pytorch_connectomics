@@ -1,0 +1,10 @@
+{
+  "project": "sunny-catalyst-506019-a2",
+  "zone": "us-central1-a",
+  "run_id": "snemi-abiss20-20260909",
+  "gcs": "gs://donglai/em/snemi/cloud-runs/snemi-abiss20-20260909",
+  "builder": "pytc-abiss-build-20260909",
+  "vm": "pytc-snemi20-20260909",
+  "image": "common-cu129-ubuntu-2204-nvidia-580-v20260831",
+  "source_commit": "bbe1a2ce3ceebcb472926cd261581c22f3fa0042"
+}

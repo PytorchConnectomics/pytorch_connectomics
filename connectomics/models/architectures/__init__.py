@@ -48,6 +48,7 @@ except ImportError:
 
 # Import MedNeXt models to trigger registration
 try:
+    from . import dual_view_mednext  # noqa: F401
     from . import mednext_models  # noqa: F401
 
     _MEDNEXT_AVAILABLE = True

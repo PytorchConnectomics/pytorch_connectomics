@@ -243,5 +243,6 @@ modules and patches `~/.bashrc` to load them automatically. This is
 not part of the canonical install path; use it only if you know your
 cluster's module conventions.
 
-For Docker, see [`docker/Dockerfile`](docker/Dockerfile). The
-container image is not actively maintained beyond CUDA 11.3.
+For Docker, see [`docker/README.md`](docker/README.md). The canonical image is
+built from the repository root, pins an official CUDA-enabled PyTorch base, and
+runs as a non-root user whose UID/GID can be matched to the host.

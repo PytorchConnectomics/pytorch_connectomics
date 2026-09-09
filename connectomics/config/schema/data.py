@@ -133,6 +133,7 @@ class ImageTransformConfig:
     clip_percentile_high: float = (
         1.0  # Upper percentile for clipping (1.0 = no clip, 0.95 = 95th percentile)
     )
+    channelwise: bool = False  # Normalize each CZYX input channel independently.
 
 
 @dataclass
@@ -347,6 +348,16 @@ class IntensityConfig:
 
 
 @dataclass
+class ViewDropoutConfig:
+    """Drop exactly one input view for robustness to degraded acquisitions."""
+
+    enabled: bool = False
+    prob: float = 0.0
+    channels: List[int] = field(default_factory=lambda: [0, 1])
+    fill_value: float = 0.0
+
+
+@dataclass
 class MisalignmentConfig:
     """Misalignment augmentation configuration."""
 
@@ -527,6 +538,7 @@ class AugmentationConfig:
     rotate: RotateConfig = field(default_factory=RotateConfig)
     elastic: ElasticConfig = field(default_factory=ElasticConfig)
     intensity: IntensityConfig = field(default_factory=IntensityConfig)
+    view_dropout: ViewDropoutConfig = field(default_factory=ViewDropoutConfig)
 
     # Artifact simulation augmentations
     slice_shift: SliceShiftConfig = field(default_factory=SliceShiftConfig)

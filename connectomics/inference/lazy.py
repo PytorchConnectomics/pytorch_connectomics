@@ -468,6 +468,7 @@ class LazyVolumeAccessor:
         normalize_mode: str = "none",
         clip_percentile_low: float = 0.0,
         clip_percentile_high: float = 1.0,
+        normalize_channelwise: bool = False,
         binarize: bool = False,
         threshold: float = 0.0,
         tile_read_workers: int = 1,
@@ -486,6 +487,7 @@ class LazyVolumeAccessor:
         self.normalize_mode = normalize_mode
         self.clip_percentile_low = float(clip_percentile_low)
         self.clip_percentile_high = float(clip_percentile_high)
+        self.normalize_channelwise = bool(normalize_channelwise)
         self.binarize = bool(binarize)
         self.threshold = float(threshold)
 
@@ -899,6 +901,7 @@ class LazyVolumeAccessor:
                 divide_value=None,
                 clip_percentile_low=self.clip_percentile_low,
                 clip_percentile_high=self.clip_percentile_high,
+                channelwise=self.normalize_channelwise,
             ).astype(np.float32, copy=False)
 
         return patch.astype(np.float32, copy=False)
@@ -931,10 +934,12 @@ def _build_accessor(cfg, path: str, *, kind: str, mode: str) -> LazyVolumeAccess
     normalize_mode = "none"
     clip_low = 0.0
     clip_high = 1.0
+    normalize_channelwise = False
     if kind == "image":
         normalize_mode = getattr(data_cfg.image_transform, "normalize", "none")
         clip_low = float(getattr(data_cfg.image_transform, "clip_percentile_low", 0.0))
         clip_high = float(getattr(data_cfg.image_transform, "clip_percentile_high", 1.0))
+        normalize_channelwise = bool(getattr(data_cfg.image_transform, "channelwise", False))
 
     binarize = False
     threshold = 0.0
@@ -953,6 +958,7 @@ def _build_accessor(cfg, path: str, *, kind: str, mode: str) -> LazyVolumeAccess
         normalize_mode=normalize_mode,
         clip_percentile_low=clip_low,
         clip_percentile_high=clip_high,
+        normalize_channelwise=normalize_channelwise,
         binarize=binarize,
         threshold=threshold,
         tile_read_workers=max(1, int(cfg.system.num_workers)),

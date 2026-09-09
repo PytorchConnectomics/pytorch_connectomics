@@ -1,132 +1,129 @@
-# PyTC Docker Guidance
+# PyTC GPU container
 
-To improve usability, we pushed a PyTC Docker image to the public docker registry.
-Additionally, we provide the corresponding Dockerfile to enable individual modifications.
+This container packages the checked-out PyTorch Connectomics source on the
+official PyTorch 2.13 image with CUDA 12.6 and cuDNN 9. The default CUDA line
+retains support for older NVIDIA architectures that are not supported by CUDA
+13 builds. Select a CUDA 13 base explicitly when targeting a newer GPU that
+requires it.
 
-## Prerequisite
+The image contains code and dependencies only. Keep datasets, checkpoints, and
+credentials outside the image and attach them at runtime.
 
-- Install [docker-ce](https://docs.docker.com/install/linux/docker-ce/ubuntu/)
-- Install [nvidia-docker](https://github.com/NVIDIA/nvidia-docker#quickstart)
+## Host requirements
 
-### Limitations 
+- Linux x86-64 with an NVIDIA GPU and a compatible NVIDIA driver.
+- Docker 23 or newer.
+- [NVIDIA Container Toolkit](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html)
+  configured for Docker.
 
-Nvidia-docker is only compatible with Linux distributions. If you are trying to run PyTC Docker on a macOS or Windows machine, please adapt the Dockerfile accordingly and build a new docker image as explained below.  
-
-### Quick setup (03/11/2022)
-
-If your current system does not meet the prerequisite, here is a quick setup guide with the steps copied directly from the official installation websites.
-
-**Docker-CE**
-
-Docker-CE on Ubuntu can be setup using [Docker’s official convenience script](https://docs.docker.com/engine/install/ubuntu/#install-using-the-convenience-script):
+Verify GPU passthrough before building PyTC:
 
 ```bash
-$ curl https://get.docker.com | sh \
-  && sudo systemctl --now enable docker
+docker run --rm --gpus all \
+  nvidia/cuda:12.6.3-base-ubuntu22.04 nvidia-smi
 ```
 
-**NVIDIA Docker**
+## Build
 
-- Setup the stable repository and the GPG key:
+Run the build from the repository root, not from `docker/`, so the checked-out
+source is included in the image:
 
 ```bash
-distribution=$(. /etc/os-release;echo $ID$VERSION_ID) \
-   && curl -s -L https://nvidia.github.io/nvidia-docker/gpgkey | sudo apt-key add - \
-   && curl -s -L https://nvidia.github.io/nvidia-docker/$distribution/nvidia-docker.list | sudo tee /etc/apt/sources.list.d/nvidia-docker.list
+docker build \
+  --file docker/Dockerfile \
+  --tag pytc:gpu \
+  --build-arg PYTC_UID="$(id -u)" \
+  --build-arg PYTC_GID="$(id -g)" \
+  .
 ```
 
-- Install the nvidia-docker2 package (and dependencies) after updating the package listing:
+The PyTorch base is pinned by version and digest for reproducibility. Override
+it only with an official `pytorch/pytorch` image whose Python version satisfies
+`pyproject.toml` and whose CUDA version is supported by the host driver:
 
 ```bash
-sudo apt-get update
-sudo apt-get install -y nvidia-docker2
+docker build \
+  --file docker/Dockerfile \
+  --tag pytc:gpu \
+  --build-arg PYTORCH_IMAGE=pytorch/pytorch:2.13.0-cuda12.6-cudnn9-runtime \
+  .
 ```
 
-- Restart the Docker daemon to complete the installation after setting the default runtime:
+## Verify
 
 ```bash
-sudo systemctl restart docker
+docker run --rm --gpus all pytc:gpu \
+  python -c 'import torch; print(torch.__version__); print(torch.cuda.is_available())'
+
+docker run --rm --gpus all --ipc=host pytc:gpu \
+  python scripts/main.py --demo
 ```
 
-- At this point, a working setup can be tested by running a base CUDA container:
+The first command must print `True` for CUDA availability.
+
+## Train with host-mounted data
+
+Mount input data read-only and mount the output directory read-write. Using
+`--ipc=host` prevents PyTorch DataLoader workers from exhausting Docker's small
+default shared-memory allocation.
 
 ```bash
-sudo docker run --rm --gpus all nvidia/cuda:11.0-base nvidia-smi
+mkdir -p data outputs
+
+docker run --rm \
+  --gpus all \
+  --ipc=host \
+  --volume "$PWD/data:/data:ro" \
+  --volume "$PWD/outputs:/workspace/outputs" \
+  pytc:gpu \
+  python scripts/main.py \
+    --config tutorials/mito_lucchi++/mito_lucchi++.yaml \
+    --mode train \
+    data.train.image=/data/train.h5 \
+    data.train.label=/data/label.h5 \
+    save_path=/workspace/outputs/run-001 \
+    system.num_gpus=1
 ```
 
-## Obtaining a Docker image
+Change the tutorial and data overrides for the target dataset. Use
+`system.num_gpus=-1` to make all GPUs passed through by `--gpus` available to
+Lightning.
 
-To obtain the docker image, pull the prebuilt image from the public registry or build it directly using the provided Dockerfile.
-
-### Building image from Dockerfile
-
-Download the [Dockerfile](Dockerfile) from this directory and run 
+For an interactive shell:
 
 ```bash
-docker build -t [target_tag] <path to folder containing the downloaded Dockerfile>
+docker run --rm -it --gpus all --ipc=host \
+  --volume "$PWD/data:/data:ro" \
+  --volume "$PWD/outputs:/workspace/outputs" \
+  pytc:gpu bash
 ```
 
-- Replace `[target_tag]` with the name that you want to assign to the image.
-- Use `.` for the path argument when running the command inside the directory that contains the Dockerfile.
+## Google Cloud Storage workflow
 
-### Pull pre-built image 
+Attach a user-managed service account to the GPU VM and grant it only the
+bucket-level permissions it needs. Do not copy a service-account JSON key into
+the image.
 
-Run the following command to pull the pre-built docker image from the public registry.
+For HDF5 and other randomly accessed volumes, stage data on Persistent Disk or
+Local SSD before starting the container:
 
 ```bash
-docker pull lauenburg/pytc
+mkdir -p data outputs
+gcloud storage rsync gs://INPUT_BUCKET/TRAINING_DATA ./data --recursive
 ```
 
-## Create and run a Docker container
-
-
-Start an interactive docker session:
+Run training with the bind mounts shown above, then upload the durable outputs:
 
 ```bash
-nvidia-docker run -it -p 6006:6006  [target_tag]
+gcloud storage rsync ./outputs gs://OUTPUT_BUCKET/TRAINING_RUNS/run-001 --recursive
 ```
 
-- If you pulled the image from the public container registry, replace `[target_tag]` with `lauenburg/pytc`.
-- We map the container's TCP port `6006` to the port `6006` on the Docker host to access the TensorBoard visualization on the host machine.
+For data that is too large to stage, mount the bucket on the host with Cloud
+Storage FUSE and enable file caching, then bind-mount that directory into the
+container. Keep the FUSE mount and Google Cloud authentication on the host.
 
+## Publishing for repeated jobs
 
-
-## Hints and additional information
-
-- Keywords
-
-    - Dockerfile: A recipe for creating Docker images
-    - Docker image: A read-only template used to build containers
-    - Container: A deployed instance created from a Docker image
-
-
-- Docker commands
-
-    - `docker build`: Build a new image from a Dockerfile
-    - `docker create`: Creates a writeable container from an image and prepares it for running.
-    - `docker run`: Creates a container (same as Docker create) and runs it.
-
-
-- Interactive mode
-
-We did not define a command or entry point at the end of our Dockerfile. It is, therefore, necessary to run the docker image in interactive mode. Docker's primary purpose is to create and deploy services. It, therefore, requires a command to keep running in the foreground. Otherwise, it thinks that the application stopped and shuts down the container. We start the container with an active bash as the foreground process when running it in interactive mode.
-
-- HPC users
-
-It is impossible to install or use Docker on the HPC environment, since Docker requires root (`sudo`) privileges.
-
-> Docker containers need root privileges for full functionality, which is not suitable for a shared HPC environment. 
->
-> <cite>https://docs.rc.fas.harvard.edu/kb/singularity-on-the-cluster/</cite>
-
-However, it is possible to pull and run the pre-build container image from the public registry using Singularity.
-Singularity is preinstalled on the cluster. For more information click [here](https://docs.rc.fas.harvard.edu/kb/singularity-on-the-cluster)
-
-- GCP
-
-When creating a GPU compute instance using the Google Cloud Platform, you need to install the Nvidia driver.
-The easiest way to do this is using the install script referenced by GCP [here](https://cloud.google.com/compute/docs/gpus/install-drivers-gpu#installation_scripts).
-
-- Privilege
-
-You may have to run the docker commands using `sudo`
+Tag and push the tested image to Artifact Registry when it will be reused by
+multiple VMs or a Vertex AI Custom Job. Do not use a floating `latest` base tag;
+update the pinned PyTorch image deliberately and rerun the verification steps.
