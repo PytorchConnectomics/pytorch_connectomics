@@ -234,6 +234,11 @@ def _resolve_inputs(
 
 def _resolve_decoder_kwargs(node: DecodeNode, inputs: Sequence[np.ndarray]) -> dict[str, Any]:
     kwargs = dict(node.kwargs)
+    # `tag` is reserved for output naming (runtime.output_naming reads it to
+    # replace the auto-generated kwargs slug) and is never a decoder argument.
+    # Without this pop the naming feature is unusable: passing it would reach
+    # the decoder as an unexpected keyword.
+    kwargs.pop("tag", None)
     for key, value in list(kwargs.items()):
         if not key.endswith("_channels"):
             continue

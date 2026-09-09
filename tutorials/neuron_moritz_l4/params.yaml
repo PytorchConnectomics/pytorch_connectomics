@@ -1,0 +1,35 @@
+# Moritz L4 local settings ---------------------------------------------------
+#
+# The only file that should need editing for a new machine or storage layout.
+# Every workflow YAML here inherits it and uses ${params...} references.
+
+params:
+  paths:
+    repository: /projects/weilab/weidf/lib/pytorch_connectomics
+    output_root: ${params.paths.repository}/outputs/neuron_moritz_l4
+    dataset_root: /projects/weilab/dataset/segEM/Moritz_l4_2019
+    project: /projects/weilab/pytc-agent/projects/2026_moritz_l4
+
+  data:
+    # 11.24 x 11.24 x 28 nm EM, converted once from tiled PNG (see lesson_wholevol_io).
+    # zarr index 0 is global z 118; the imaged range is z 118-3423. See FRAME.md.
+    raw_11nm: ${params.paths.dataset_root}/em/mip0_11nm.zarr/0
+
+    # Whole-volume affinity, already written in the ABISS convention
+    # (edge shift v->v-1 and channels [x,y,z]) -- verified, see FRAME.md.
+    # float16, 3 channels, size xyz [5599, 8534, 3306], 288/288 chunks, 645 GB.
+    affinity_precomputed: ${params.paths.repository}/outputs/segem_banis_plus/20260824_165054/test_step=00030000/0/raw_x1_ch0-1-2_chunked-raw_cs1104x768x768_halo24x48x48_moritz_l4_grid1104x768x768_halo24x48x48_win48x96x96
+
+    # 96 manual neuron reconstructions, 71.221 mm of path length, 99.78% inside the
+    # affinity ROI. These are the EVALUATION set and must not be fitted against.
+    gt_skeletons: ${params.paths.dataset_root}/manual-neuron-reconstructions
+
+    # Prediction-only masks (Peng, frozen, no GT used), 4x8x8 downsampled.
+    blood_vessel: /projects/weilab/liupeng/runs/trisam-moritz-segem/blood_vessel_trisam_clean_r8.h5
+    nuclei: /projects/weilab/liupeng/runs/trisam-moritz-segem/nuclei_instances.h5
+
+  frame:
+    # global_zyx = volume_zyx + (118, 0, 0). See FRAME.md.
+    volume_shape_zyx: [3306, 8534, 5599]
+    volume_origin_global_zyx: [118, 0, 0]
+    resolution_xyz_nm: [11.24, 11.24, 28.0]

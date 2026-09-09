@@ -20,7 +20,7 @@ from typing import Iterable
 import h5py
 import numpy as np
 
-DEFAULT_ROOT = Path("/projects/weilab/dataset/mito/microns/pinky")
+DEFAULT_ROOT = Path("/projects/weilab/dataset/microns/train/pinky")
 RESOLUTION_NM = (40.0, 4.0, 4.0)
 
 # 804,658,862 / 994,661,430 valid voxels (80.9%).  All training views can

@@ -1,6 +1,6 @@
 # j0126 step 1 of 3: EM image -> 3-channel affinity, using the pretrained NISB model.
 #
-#   python scripts/main.py --config tutorials/neuron_j0126/1_affinity_zeroshot.yaml --mode test \
+#   python scripts/main.py --config tutorials/neuron_j0126/2_infer.yaml --mode test \
 #       --checkpoint outputs/nisb_base_banis_v3_erosion2/20260508_224029/checkpoints/step=00200000.ckpt
 #
 # The checkpoint is a MedNeXt-L/k3 affinity model trained on NISB ONLY. It has never seen
@@ -23,7 +23,7 @@ _base_:
 experiment_name: neuron_j0126_affinity
 description: >-
   Zero-shot affinity prediction on j0126 with the NISB-trained banis+ MedNeXt-L/k3
-  model. Chunked sliding-window inference over the 10 nm isotropic volume.
+  model. Chunked sliding-window inference over the native 9 x 9 x 20 nm volume.
 
 save_path: ${params.paths.output_root}/affinity
 
@@ -41,10 +41,13 @@ default:
       keep_input_on_cpu: true
       sw_device: cuda
       output_device: cpu
-      # 144 = 128 (training patch) + 16 voxels of context; bump blending
-      # de-emphasizes the outer band. Must stay a multiple of MedNeXt's 16-voxel
-      # stride.
-      window_size: [144, 144, 144]
+      # Set in params.yaml, because it has to match the checkpoint: MedNeXt
+      # normalizes without running statistics, so the forward pass depends on the
+      # window extent. [144,144,144] is 128 (the NISB training patch) + 16 voxels
+      # of context; bump blending de-emphasizes the outer band. Any value must
+      # stay a multiple of MedNeXt's 16-voxel stride, and its half-overlap stride
+      # must divide the 1008 chunk below.
+      window_size: ${params.inference.window_size}
       # Peak GPU memory is linear in sw_batch_size (~3.46 GB/unit + ~0.77 GB fixed
       # with expandable_segments). 12 targets ~42 GB on a 49 GB L40S (~86%, ~7 GB
       # headroom); 13 is the hard ceiling and 14 OOMs.
@@ -65,9 +68,9 @@ default:
       # Each chunk reads an overlapping halo and writes only its core.
       halo: [72, 72, 72]
       axes: all
-      # True EM geometry (ZYX voxels at 10 nm). The im_align volume is rounded out
-      # to 5700 x 12288 x 12288, so the last ~2 chunks in Y/X are pure zero padding.
-      # Clipping the grid to this ROI skips them: 1014 -> 726 chunks.
+      # True EM geometry (ZYX voxels at 20 x 9 x 9 nm). A store padded out in XY (the
+      # public grid rounded to 12288, say) would add chunks of pure zero padding;
+      # clipping the grid to this ROI skips them, 1014 -> 726 chunks.
       roi: [5700, 10913, 10664]
     save_results: true
     save_backend: h5
@@ -100,25 +103,26 @@ test:
     affinity_mask_path: ""
   data:
     test:
-      # 10 nm isotropic resample of the public j0126 volume. To rebuild it from the
-      # public mirror (Januszewski et al. 2018, Nat Methods):
+      # The public j0126 EM volume at NATIVE mip 0. Mirror of Januszewski et al.
+      # 2018, Nat Methods:
       #
       #   gs://j0126-nature-methods-data/GgwKmcKgrcoNxJccKuGIzRnQqfit9hnfK1ctZzNbnuU/
       #       rawdata_realigned        uint8, 9 x 9 x 20 nm (x,y,z)   <- what FFN segmented
       #       ffn_segmentation         uint64, same grid              <- the 0.5390 reference
       #
-      # cloud-volume returns XYZC; transpose to ZYX and resample to 10 nm isotropic
-      # (scale 2 in Z, 1.8 in Y/X) before pointing `image` at the result. The model was
-      # trained at 9 nm isotropic, so the resolution match matters more than the exact
-      # grid; do not feed native 9x9x20 without resampling.
+      # Fetch it with `scripts/download_precompute.py <source> --mip 0 --out <store>.zarr`,
+      # which returns ZYX (see step 0 of the README). Do NOT resample: mip 0 is the grid
+      # FFN published, the grid the evaluation skeletons index, and what the reference
+      # runs consumed. Its voxels are 9 x 9 x 20 nm; nothing here is 10 nm isotropic.
       #
-      # Dense multiscale OME-Zarr, level 0 = full 10 nm resolution. `dataset_type: null`
+      # Dense multiscale OME-Zarr, level 0 = full resolution. `dataset_type: null`
       # selects the generic volume backend and the .zarr suffix picks the zarr reader. Do
       # NOT point this at the tiled-PNG pyramid: the lazy window re-decodes 4096x4096
       # tiles per window and runs ~19 h/chunk with the GPU idle, versus ~30 min/chunk here.
       dataset_type: null
-      image: ${params.data.raw_10nm}
+      image: ${params.data.raw_em}
       label: null
       skeleton: null
-      name: im_align_10nm
-      resolution: [10, 10, 10]
+      # Part of every output artifact's filename.
+      name: j0126_em
+      resolution: [20, 9, 9]
