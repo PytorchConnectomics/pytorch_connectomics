@@ -251,11 +251,18 @@ reports one fixed-decoder result rather than searching test-label scores.
 
 ## Validation status
 
+Cloud execution started on September 9, 2026 under run
+`snemi-abiss20-20260909`. The Docker build passed the real ABISS synthetic
+end-to-end test with adapted Rand error 0. CUDA passthrough showed four L4s;
+training resumed at epoch index 3 and logged finite loss 2.9455762 at global
+step 624. The 20-epoch model score is still pending. The CPU builder was
+deleted; the training VM has a twelve-hour auto-delete backstop and an active
+completion/cleanup monitor. See the cloud handoff for current execution state.
+
 Local validation covers structured config/profile resolution, the benchmark's
 artifact/failure/resume contracts, ABISS wrapper and edge-storage tests, and
-the real SNEMI challenge evaluator on synthetic labels. Docker/CUDA and the
-real ABISS binary require the Linux host build/run above; no cloud ABISS score
-has been measured by adding this tutorial.
+the real SNEMI challenge evaluator on synthetic labels. These checks establish
+workflow correctness, not the pending model's segmentation accuracy.
 
 Verified locally in conda environment `pytc`:
 

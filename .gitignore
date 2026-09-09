@@ -163,3 +163,4 @@ notebooks/
 .claude
 .agent/
 slurm_jobs/
+.gcp-run/
