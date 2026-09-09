@@ -2,7 +2,7 @@
 MONAI transforms for connectomics I/O operations.
 
 This module provides MONAI-compatible transforms for:
-- Volume loading (HDF5, TIFF, PNG)
+- Volume loading (HDF5, TIFF, PNG, ND2, NIfTI, Zarr)
 - Volume saving
 - Tile-based loading for large datasets
 """
@@ -23,7 +23,7 @@ from .tiles import reconstruct_volume_from_tiles
 class LoadVolumed(MapTransform):
     """MONAI loader for connectomics volume data.
 
-    Loads HDF5, TIFF, PNG, NIfTI files and ensures
+    Loads HDF5, TIFF, PNG, ND2, NIfTI, and Zarr files and ensures
     channel-first format with a channel dimension.
 
     Args:

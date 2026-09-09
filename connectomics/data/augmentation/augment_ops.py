@@ -555,6 +555,7 @@ def smart_normalize(
     divide_value: Optional[float] = None,
     clip_percentile_low: float = 0.0,
     clip_percentile_high: float = 1.0,
+    channelwise: bool = False,
 ) -> np.ndarray:
     """Apply smart normalization with optional percentile clipping.
 
@@ -565,7 +566,24 @@ def smart_normalize(
         divide_value: divisor when mode='divide'. Ignored when mode is 'divide-K' form.
         clip_percentile_low: lower percentile for clipping (0.0 = no clip)
         clip_percentile_high: upper percentile for clipping (1.0 = no clip)
+        channelwise: normalize each channel of a CZYX array independently
     """
+    if channelwise and volume.ndim >= 4:
+        return np.stack(
+            [
+                smart_normalize(
+                    channel,
+                    mode,
+                    divide_value,
+                    clip_percentile_low,
+                    clip_percentile_high,
+                    channelwise=False,
+                )
+                for channel in volume
+            ],
+            axis=0,
+        )
+
     if mode.startswith("divide-"):
         try:
             divide_value = float(mode.split("-", 1)[1])

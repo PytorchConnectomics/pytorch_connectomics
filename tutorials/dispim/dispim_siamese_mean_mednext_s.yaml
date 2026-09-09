@@ -1,0 +1,24 @@
+experiment_name: dispim_siamese_mean_mednext_s
+description: >
+  Strict Siamese ablation: the two views reuse every MedNeXt-S encoder weight,
+  corresponding features are averaged at all five scales, and one decoder
+  predicts nine affinities.
+
+_base_:
+- dispim_early_fusion_mednext_s.yaml
+
+save_path: outputs/dispim/siamese_mean_mednext_s
+
+default:
+  model:
+    arch:
+      type: mednext_dual_view
+    dual_view:
+      design: siamese_mean
+      view_angles_deg: [45.0, 135.0]
+      angle_conditioning: false
+      gate_reduction: 4
+
+tune:
+  study_name: dispim_siamese_mean_waterz
+

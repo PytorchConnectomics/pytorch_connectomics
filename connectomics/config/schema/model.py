@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional
 
+from .model_dual_view_mednext import DualViewMedNeXtConfig
 from .model_mednext import MedNeXtConfig
 from .model_monai import MonaiConfig, TransformerConfig
 from .model_nnunet import NNUNetConfig
@@ -108,6 +109,7 @@ class ModelConfig:
     monai: MonaiConfig = field(default_factory=MonaiConfig)
     transformer: TransformerConfig = field(default_factory=TransformerConfig)
     mednext: MedNeXtConfig = field(default_factory=MedNeXtConfig)
+    dual_view: DualViewMedNeXtConfig = field(default_factory=DualViewMedNeXtConfig)
     rsunet: RSUNetConfig = field(default_factory=RSUNetConfig)
     nnunet: NNUNetConfig = field(default_factory=NNUNetConfig)
 

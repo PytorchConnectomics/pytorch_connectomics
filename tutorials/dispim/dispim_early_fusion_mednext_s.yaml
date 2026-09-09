@@ -1,0 +1,174 @@
+experiment_name: dispim_early_fusion_mednext_s
+description: >
+  Baseline: stack registered diSPIM A/B views as two input channels and fuse
+  them in the ordinary MedNeXt-S stem. Predict nine short/mid/long affinities.
+
+_base_:
+- ../../connectomics/config/all_profiles.yaml
+
+save_path: outputs/dispim/early_fusion_mednext_s
+
+default:
+  system:
+    profile: single-gpu-cpu
+    accelerator: mps
+    num_gpus: 1
+    num_workers: 4
+  model:
+    arch:
+      profile: mednext_s
+    in_channels: 2
+    out_channels: 9
+    input_size: [32, 128, 128]
+    output_size: [32, 128, 128]
+    mednext:
+      size: S
+      kernel_size: 3
+      dim: 3d
+      checkpoint_style: outside_block
+    loss:
+      profile: loss_per_channel
+      deep_supervision: true
+  data:
+    # Run prepare_paired_zarr.py first. Relative to the PyTC repository root.
+    root_path: ../dispim_sim/data
+    split_enabled: false
+    image_transform:
+      normalize: "0-1"
+      channelwise: true
+      clip_percentile_low: 0.001
+      clip_percentile_high: 0.999
+    label_transform:
+      resolution: [30, 6, 6]
+      erosion: 1
+      targets:
+      - name: affinity
+        kwargs:
+          offsets:
+          - "0-0-1"
+          - "0-1-0"
+          - "1-0-0"
+          - "0-0-3"
+          - "0-3-0"
+          - "3-0-0"
+          - "0-0-9"
+          - "0-9-0"
+          - "9-0-0"
+          affinity_mode: deepem
+    dataloader:
+      profile: lazy
+      patch_size: [32, 128, 128]
+      batch_size: 1
+      pin_memory: false
+      persistent_workers: true
+      cached_sampling_foreground_threshold: 0.02
+      cached_sampling_max_attempts: 20
+      val_random_sampling: true
+    data_transform:
+      pad_size: [16, 64, 64]
+      pad_mode: reflect
+    augmentation:
+      profile: aug_light
+      # Drop exactly one complete optical view on 15% of patches.
+      view_dropout:
+        enabled: true
+        prob: 0.15
+        channels: [0, 1]
+        fill_value: 0.0
+  inference:
+    model:
+      select_channel: [0, 1, 2]
+      activation_profile: act_binary
+      crop_pad: [15, 16, 63, 64, 63, 64]
+    window:
+      window_size: [32, 128, 128]
+      sw_batch_size: 1
+      overlap: 0.5
+      blending: bump
+      keep_input_on_cpu: true
+    test_time_augmentation:
+      enabled: false
+    save_results: true
+    save_dtype: float32
+  decoding:
+    steps:
+    - template: decoding_waterz
+      kwargs:
+        thresholds: 0.5
+        merge_function: aff85_his256
+        aff_threshold: [0.1, 0.999]
+        dust_merge: true
+        dust_merge_size: 800
+        dust_merge_affinity: 0.3
+        dust_remove_size: 600
+    postprocessing:
+      enabled: true
+  evaluation:
+    enabled: true
+    metrics: [adapted_rand]
+
+train:
+  data:
+    train:
+      image: snemi_train_dispim_sim_matched.zarr/image_train
+      label: snemi_train_dispim_sim_matched.zarr/label_train
+      resolution: [30, 6, 6]
+    val:
+      image: snemi_train_dispim_sim_matched.zarr/image_val
+      label: snemi_train_dispim_sim_matched.zarr/label_val
+      resolution: [30, 6, 6]
+  optimization:
+    profile: warmup_cosine_lr
+    max_epochs: 120
+    # This field counts optimizer steps. With accumulation=4, each epoch reads
+    # 200 patches. The M5 Max benchmark is ~5.45 s/patch for the largest model.
+    n_steps_per_epoch: 50
+    val_steps_per_epoch: 64
+    accumulate_grad_batches: 4
+    precision: "32-true"
+    gradient_clip_val: 1.0
+    ema:
+      enabled: true
+      decay: 0.999
+      warmup_steps: 500
+      validate_with_ema: true
+  monitor:
+    early_stopping:
+      enabled: true
+      monitor: val_loss_total
+      mode: min
+      patience: 20
+      min_delta: 0.0001
+      threshold: null
+    logging:
+      scalar:
+        loss: [train_loss_total_epoch, val_loss_total]
+        loss_every_n_steps: 25
+      images:
+        log_every_n_epochs: 5
+        max_images: 4
+        num_slices: 2
+        channel_mode: all
+    checkpoint:
+      save_top_k: 2
+      monitor: val_loss_total
+      mode: min
+
+test:
+  data:
+    test:
+      image: snemi_test_dispim_sim_matched.zarr/image
+      resolution: [30, 6, 6]
+  evaluation:
+    enabled: false
+
+tune:
+  profile: tune_waterz
+  n_trials: 25
+  trial_timeout: 300
+  study_name: dispim_early_fusion_waterz
+  data:
+    val:
+      image: snemi_train_dispim_sim_matched.zarr/image_val
+      label: snemi_train_dispim_sim_matched.zarr/label_val
+      resolution: [30, 6, 6]
