@@ -1253,3 +1253,26 @@ def test_chunkmap_input_override_is_not_replaced_by_output(
 
     assert prepared.param_payload["CHUNKMAP_INPUT"] == input_chunkmap
     assert prepared.param_payload["CHUNKMAP_OUTPUT"] == output_chunkmap
+
+
+def test_precomputed_affinity_can_be_fingerprinted(tmp_path: Path) -> None:
+    """A precomputed AFF_PATH is what chunked inference writes.
+
+    `_affinity_fingerprint` used to accept only a file or an h5 chunk store with an
+    index.json, so a nucleus-aware run over a precomputed affinity died in provenance
+    before doing any work -- after the watershed had already been computed.
+    """
+    module = _load_script("nucleus_competition")
+    layer = tmp_path / "affinity"
+    (layer / "11_11_28").mkdir(parents=True)
+    (layer / "info").write_text('{"data_type": "float16", "num_channels": 3}')
+    (layer / "11_11_28" / "0-128_0-128_0-48.gz").write_bytes(b"not read")
+
+    fingerprint = module._affinity_fingerprint(str(layer))
+
+    assert fingerprint["kind"] == "precomputed"
+    assert fingerprint["voxels_hashed"] is False
+    assert len(fingerprint["info_sha256"]) == 64
+
+    (layer / "info").write_text('{"data_type": "float16", "num_channels": 4}')
+    assert module._affinity_fingerprint(str(layer))["info_sha256"] != fingerprint["info_sha256"]

@@ -24,9 +24,50 @@ params:
     # affinity ROI. These are the EVALUATION set and must not be fitted against.
     gt_skeletons: ${params.paths.dataset_root}/manual-neuron-reconstructions
 
-    # Prediction-only masks (Peng, frozen, no GT used), 4x8x8 downsampled.
+    # Prediction-only masks (Peng, frozen, no GT used), on the mip0_ds_z4y8x8 grid --
+    # same origin and frame as the affinity, ratio [4, 8, 8]. ABISS upsamples them at
+    # read time, so no full-resolution copy of a 158-Gvoxel volume is ever written.
+    mask_ratio: [4, 8, 8]
     blood_vessel: /projects/weilab/liupeng/runs/trisam-moritz-segem/blood_vessel_trisam_clean_r8.h5
-    nuclei: /projects/weilab/liupeng/runs/trisam-moritz-segem/nuclei_instances.h5
+    # keep = NOT(blood vessel) AND tissue, cropped to the affinity extent.
+    # Built by `python scripts/build_moritz_l4_keep_mask.py`; drops 5.05% of the volume
+    # (2.0% vessel, 3.05% the y<103 / x<103 zero-padding border).
+    keep_mask: ${params.paths.dataset_root}/em/keep_mask_z4y8x8.h5
+    # 101 nucleus instances (recall_v2 = 77 refined + 24 recovered). uint32 IDs, not a
+    # binary mask: ABISS grows each ID competitively and writes an identity manifest.
+    nuclei: /projects/weilab/liupeng/runs/trisam-moritz-segem/nuclei_instances_recall_v2.h5::main
+
+  # --------------------------------------------------------------- resources
+  # What `scripts/run_moritz_l4.py` asks Slurm for. ABISS's concurrency IS the cpu count
+  # (lib/abiss/scripts/init.sh:107), so cpus and memory move together: every running
+  # chunk mmaps its own `aff.raw` at float32, 3.39 GB for the [2816, 2944, 32] chunks,
+  # and the measured bound is <= 9.6 bytes per padded voxel per slot (~2.7 GB), so 64
+  # slots need ~173 GB. 200G on 64 cores fits the 113 nodes in `medium`/`long` that have
+  # 64 cores and 257 GB. Do not raise `cpus` without raising `memory`.
+  cluster:
+    partition: long
+    abiss:
+      cpus: 64
+      memory: 200G
+      time: "2-00:00:00"
+    # The pre-flight is 1.2% of the volume and its chunks are tiny; it fits anywhere.
+    smoke:
+      partition: short
+      cpus: 16
+      memory: 64G
+      time: "04:00:00"
+    # Scoring reads segment ids at 263938 skeleton nodes; it is I/O, not compute.
+    score:
+      partition: short
+      cpus: 8
+      memory: 64G
+      time: "02:00:00"
+    # The keep mask is one pass over a 4.9 MB array.
+    mask:
+      partition: short
+      cpus: 4
+      memory: 32G
+      time: "01:00:00"
 
   frame:
     # global_zyx = volume_zyx + (118, 0, 0). See FRAME.md.
