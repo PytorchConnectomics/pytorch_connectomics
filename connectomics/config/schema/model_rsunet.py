@@ -9,6 +9,9 @@ class RSUNetConfig:
     """RSUNet architecture-specific configuration."""
 
     width: List[int] = field(default_factory=lambda: [16, 32, 64, 128])
+    # Finest resolution to bottleneck; mirrored at matching decoder resolutions.
+    # None selects one two-convolution residual block between each stage's pre/post convs.
+    residual_blocks_per_stage: Optional[List[int]] = None
     norm: str = "batch"
     activation: str = "relu"
     num_groups: int = 8

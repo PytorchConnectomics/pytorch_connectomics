@@ -488,6 +488,10 @@ def format_checkpoint_dir_suffix(checkpoint_path: Optional[str | Path]) -> str:
     return safe_stem
 
 
+def _checkpoint_weights_tag(cfg: Config) -> str:
+    return "_weights-ema" if cfg.inference.checkpoint_weights == "ema" else ""
+
+
 def final_prediction_output_tag(
     cfg: Config,
     spatial_dims: int = 3,
@@ -512,7 +516,8 @@ def final_prediction_output_tag(
     dec = format_decode_tag(cfg)
     suffix = format_decoding_output_suffix_tag(cfg)
     label = "decoded" if dec else "prediction"
-    return f"{label}_x{n}{head}{ch}{dec}{suffix}.h5"
+    weights = _checkpoint_weights_tag(cfg)
+    return f"{label}_x{n}{head}{ch}{weights}{dec}{suffix}.h5"
 
 
 def intermediate_decode_step_output_tag(
@@ -539,7 +544,8 @@ def intermediate_decode_step_output_tag(
     # encodes type via the leading `decoded_` keyword.
     step_payload = step_tag_full.removeprefix("_decoding_")
     suffix = format_decoding_output_suffix_tag(cfg)
-    return f"decoded_x{n}{head}{ch}_{step_payload}{suffix}.h5"
+    weights = _checkpoint_weights_tag(cfg)
+    return f"decoded_x{n}{head}{ch}{weights}_{step_payload}{suffix}.h5"
 
 
 def raw_cache_suffix(
@@ -559,7 +565,8 @@ def raw_cache_suffix(
     n = compute_tta_passes(cfg, spatial_dims=spatial_dims)
     head = format_output_head_tag(cfg, output_head=output_head)
     ch = format_select_channel_tag(cfg)
-    return f"raw_x{n}{head}{ch}.h5"
+    weights = _checkpoint_weights_tag(cfg)
+    return f"raw_x{n}{head}{ch}{weights}.h5"
 
 
 def intermediate_prediction_cache_suffix(
@@ -670,7 +677,7 @@ def tuning_best_params_filename_candidates(
         )
     ]
     legacy_name = "best_params.yaml"
-    if legacy_name not in candidates:
+    if cfg.inference.checkpoint_weights == "raw" and legacy_name not in candidates:
         candidates.append(legacy_name)
     return candidates
 

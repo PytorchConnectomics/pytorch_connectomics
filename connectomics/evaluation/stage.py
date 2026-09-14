@@ -36,7 +36,8 @@ def run_evaluation_stage(
     """Run evaluation over decoded predictions."""
     evaluation_enabled = is_test_evaluation_enabled(context)
     gt_free_metric_requested = evaluation_enabled and any(
-        evaluation_metric_requested(context, metric_name) for metric_name in ("nerl", "tube")
+        evaluation_metric_requested(context, metric_name)
+        for metric_name in ("nerl", "tube", "morphology")
     )
     if not evaluation_enabled:
         return EvaluationStageResult(computed=False, reason="evaluation disabled")

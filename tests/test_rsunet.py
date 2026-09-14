@@ -22,10 +22,10 @@ def test_rsunet_basic():
         width=[16, 32, 64],
     )
 
-    x = torch.randn(2, 1, 32, 64, 64)
+    x = torch.randn(2, 1, 8, 16, 16)
     y = model(x)
 
-    assert y.shape == (2, 2, 32, 64, 64)
+    assert y.shape == (2, 2, 8, 16, 16)
     print("[OK] Basic RSUNet test passed")
 
 
@@ -40,10 +40,10 @@ def test_rsunet_isotropic():
         down_factors=[(2, 2, 2)] * 3,  # Isotropic
     )
 
-    x = torch.randn(1, 1, 64, 128, 128)
+    x = torch.randn(1, 1, 16, 16, 16)
     y = model(x)
 
-    assert y.shape == (1, 2, 64, 128, 128)
+    assert y.shape == (1, 2, 16, 16, 16)
     print("[OK] Isotropic RSUNet test passed")
 
 
@@ -59,10 +59,10 @@ def test_rsunet_group_norm():
         num_groups=8,
     )
 
-    x = torch.randn(2, 1, 32, 64, 64)
+    x = torch.randn(2, 1, 8, 16, 16)
     y = model(x)
 
-    assert y.shape == (2, 2, 32, 64, 64)
+    assert y.shape == (2, 2, 8, 16, 16)
     print("[OK] GroupNorm RSUNet test passed")
 
 
@@ -78,10 +78,10 @@ def test_rsunet_prelu():
         init=0.1,
     )
 
-    x = torch.randn(2, 1, 32, 64, 64)
+    x = torch.randn(2, 1, 8, 16, 16)
     y = model(x)
 
-    assert y.shape == (2, 2, 32, 64, 64)
+    assert y.shape == (2, 2, 8, 16, 16)
     print("[OK] PReLU RSUNet test passed")
 
 
@@ -97,10 +97,10 @@ def test_rsunet_2d3d_hybrid():
         kernel_2d=(1, 3, 3),
     )
 
-    x = torch.randn(1, 1, 32, 64, 64)
+    x = torch.randn(1, 1, 8, 16, 16)
     y = model(x)
 
-    assert y.shape == (1, 2, 32, 64, 64)
+    assert y.shape == (1, 2, 8, 16, 16)
     print("[OK] 2D/3D Hybrid RSUNet test passed")
 
 
@@ -115,12 +115,12 @@ def test_rsunet_deep_supervision():
         deep_supervision=True,
     )
 
-    x = torch.randn(1, 1, 32, 64, 64)
+    x = torch.randn(1, 1, 8, 16, 16)
     outputs = model(x)
 
     assert isinstance(outputs, dict)
     assert "output" in outputs
-    assert outputs["output"].shape == (1, 2, 32, 64, 64)
+    assert outputs["output"].shape == (1, 2, 8, 16, 16)
     # Should have deep supervision outputs
     assert "ds_0" in outputs or "ds_1" in outputs
     print("[OK] Deep supervision RSUNet test passed")

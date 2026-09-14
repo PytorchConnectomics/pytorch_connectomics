@@ -35,7 +35,7 @@ from pathlib import Path
 
 import numpy as np
 
-REPO = Path("/projects/weilab/weidf/lib/pytorch_connectomics")
+REPO = Path(__file__).resolve().parents[1]
 SKELETONS = Path("/projects/weilab/dataset/segEM/Moritz_l4_2019/manual-neuron-reconstructions")
 RESOLUTION_ZYX_NM = (28.0, 11.24, 11.24)
 VOLUME_SHAPE_ZYX = (3306, 8534, 5599)
@@ -58,7 +58,13 @@ def parse_nml(path: Path):
     return coords, edges
 
 
-def build_graph(skeleton_dir: Path):
+def build_graph(
+    skeleton_dir: Path,
+    *,
+    volume_shape_zyx=VOLUME_SHAPE_ZYX,
+    global_origin_zyx=GLOBAL_ORIGIN_ZYX,
+    resolution_zyx_nm=RESOLUTION_ZYX_NM,
+):
     """Flat ERLGraph arrays in the VOLUME frame, out-of-bounds nodes dropped."""
     files = sorted(skeleton_dir.glob("*.nml"), key=lambda p: int(re.findall(r"\d+", p.stem)[-1]))
     if not files:
@@ -67,15 +73,15 @@ def build_graph(skeleton_dir: Path):
     node_coords, node_skel, edge_u, edge_v, edge_len, edge_ptr = [], [], [], [], [], [0]
     skeleton_id, skeleton_len = [], []
     total_nodes = 0
-    res = np.asarray(RESOLUTION_ZYX_NM)
+    res = np.asarray(resolution_zyx_nm)
 
     for index, path in enumerate(files):
         coords, edges = parse_nml(path)
         total_nodes += len(coords)
         keep = {}
         for nid, (x, y, z) in coords.items():
-            zyx = (z - GLOBAL_ORIGIN_ZYX[0], y - GLOBAL_ORIGIN_ZYX[1], x - GLOBAL_ORIGIN_ZYX[2])
-            if all(0 <= zyx[a] < VOLUME_SHAPE_ZYX[a] for a in range(3)):
+            zyx = (z - global_origin_zyx[0], y - global_origin_zyx[1], x - global_origin_zyx[2])
+            if all(0 <= zyx[a] < volume_shape_zyx[a] for a in range(3)):
                 keep[nid] = len(node_coords)
                 node_coords.append(zyx)
                 node_skel.append(index)
@@ -83,7 +89,9 @@ def build_graph(skeleton_dir: Path):
         for source, target in edges:
             if source in keep and target in keep:
                 u, v = keep[source], keep[target]
-                d = float(np.sqrt((((np.asarray(node_coords[u]) - node_coords[v]) * res) ** 2).sum()))
+                d = float(
+                    np.sqrt((((np.asarray(node_coords[u]) - node_coords[v]) * res) ** 2).sum())
+                )
                 edge_u.append(u)
                 edge_v.append(v)
                 edge_len.append(d)
@@ -177,12 +185,29 @@ def main() -> int:
     ap.add_argument("--skeletons", default=str(SKELETONS))
     ap.add_argument("--out", default="")
     ap.add_argument("--workers", type=int, default=8)
+    ap.add_argument(
+        "--volume-shape-zyx", nargs=3, type=int, default=VOLUME_SHAPE_ZYX,
+        metavar=("Z", "Y", "X"), help="segmentation extent in volume voxels",
+    )
+    ap.add_argument(
+        "--global-origin-zyx", nargs=3, type=int, default=GLOBAL_ORIGIN_ZYX,
+        metavar=("Z", "Y", "X"), help="global voxel coordinate of the volume origin",
+    )
+    ap.add_argument(
+        "--resolution-xyz-nm", nargs=3, type=float, default=RESOLUTION_ZYX_NM[::-1],
+        metavar=("X", "Y", "Z"), help="voxel size in nanometers",
+    )
     a = ap.parse_args()
 
     sys.path.insert(0, str(REPO))
     from connectomics.metrics.nerl import skeleton_voi
 
-    graph = build_graph(Path(a.skeletons))
+    graph = build_graph(
+        Path(a.skeletons),
+        volume_shape_zyx=a.volume_shape_zyx,
+        global_origin_zyx=a.global_origin_zyx,
+        resolution_zyx_nm=a.resolution_xyz_nm[::-1],
+    )
     lut = read_node_segments(a.seg, np.asarray(graph.node_coords_zyx), a.workers)
 
     background = float((lut == 0).mean())

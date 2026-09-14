@@ -28,6 +28,23 @@ class TubeEvaluationConfig:
 
 
 @dataclass
+class MorphologyEvaluationConfig:
+    """Physical morphology estimates without ground truth, in micrometers."""
+
+    voxel_size_um: Optional[List[float]] = None  # Otherwise data.test.resolution / 1000.
+    min_voxels: int = 1000
+    min_axon_length_um: float = 2.0
+    max_axon_radius_um: float = 0.35
+    min_elongation: float = 3.0
+    border_margin_um: float = 0.08
+    component_min_voxels: int = 100
+    multi_component_min_area_um2: float = 0.005
+    multi_component_fraction: float = 0.2
+    profile_smoothing_um: float = 0.2
+    radius_bins_um: List[float] = field(default_factory=lambda: [0.0, 0.1, 0.2, 0.35, 0.5, 1.0])
+
+
+@dataclass
 class EvaluationConfig:
     """Evaluation configuration."""
 
@@ -45,3 +62,4 @@ class EvaluationConfig:
     nerl_skeleton_position_order: str = "xyz"
     nerl_prediction_position_order: Optional[str] = None
     tube: TubeEvaluationConfig = field(default_factory=TubeEvaluationConfig)
+    morphology: MorphologyEvaluationConfig = field(default_factory=MorphologyEvaluationConfig)

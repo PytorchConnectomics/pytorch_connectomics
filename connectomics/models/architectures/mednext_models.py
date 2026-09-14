@@ -316,6 +316,8 @@ def build_mednext(cfg) -> ConnectomicsModel:
         - model.out_channels: Number of output classes (required)
         - model.mednext.size: Model size 'S', 'B', 'M', or 'L' (default: 'S')
         - model.mednext.kernel_size: Kernel size 3, 5, or 7 (default: 3)
+        - model.mednext.checkpoint_style: None disables checkpointing for every size;
+          'outside_block' enables it (default: None)
         - model.loss.deep_supervision: Enable deep supervision (default: False, RECOMMENDED: True)
 
     Important notes:
@@ -370,6 +372,13 @@ def build_mednext(cfg) -> ConnectomicsModel:
             f"Recommended: Start with kernel_size=3"
         )
 
+    checkpoint_style = cfg.model.mednext.checkpoint_style
+    if checkpoint_style not in (None, "outside_block"):
+        raise ValueError(
+            "model.mednext.checkpoint_style must be None or 'outside_block', "
+            f"got: {checkpoint_style!r}"
+        )
+
     # Build model using factory function
     model = create_mednext_v1(
         num_input_channels=in_channels,
@@ -379,18 +388,8 @@ def build_mednext(cfg) -> ConnectomicsModel:
         deep_supervision=deep_supervision,
     )
 
-    # Optional activation checkpointing. The upstream create_mednext_v1 only
-    # hard-codes this for sizes M/L; expose it for S/B by setting the flag on
-    # the constructed module (the checkpoint paths are guarded by the same
-    # attribute the constructor would have set).
-    checkpoint_style = getattr(cfg.model.mednext, "checkpoint_style", None)
-    if checkpoint_style is not None:
-        if checkpoint_style != "outside_block":
-            raise ValueError(
-                "model.mednext.checkpoint_style must be None or 'outside_block', "
-                f"got: {checkpoint_style!r}"
-            )
-        model.outside_block_checkpointing = True
+    # Override the upstream M/L presets so the schema controls every model size.
+    model.outside_block_checkpointing = checkpoint_style == "outside_block"
 
     if head_cfg:
         return MedNeXtMultiHeadWrapper(model, head_cfg, primary_head=primary_head)
