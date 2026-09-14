@@ -4,6 +4,8 @@
 # Every workflow YAML here inherits it and uses ${params...} references.
 
 params:
+  pipeline: cube
+
   paths:
     repository: /projects/weilab/weidf/lib/pytorch_connectomics
     output_root: ${params.paths.repository}/outputs/neuron_moritz_l4
@@ -33,6 +35,14 @@ params:
     # Built by `python scripts/build_moritz_l4_keep_mask.py`; drops 5.05% of the volume
     # (2.0% vessel, 3.05% the y<103 / x<103 zero-padding border).
     keep_mask: ${params.paths.dataset_root}/em/keep_mask_z4y8x8.h5
+    masks:
+      strategy: downsampled_sources
+      sources:
+        - path: ${params.data.blood_vessel}
+          dataset: main
+          polarity: exclude
+      ratio_zyx: ${params.data.mask_ratio}
+      border_start_zyx: [0, 103, 103]
     # 101 nucleus instances (recall_v2 = 77 refined + 24 recovered). uint32 IDs, not a
     # binary mask: ABISS grows each ID competitively and writes an identity manifest.
     nuclei: /projects/weilab/liupeng/runs/trisam-moritz-segem/nuclei_instances_recall_v2.h5::main

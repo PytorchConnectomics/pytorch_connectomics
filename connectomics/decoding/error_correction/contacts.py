@@ -132,6 +132,8 @@ def face_rows(
     z_start: int,
     z_stop: int,
     axis: int,
+    *,
+    spacing_zyx_nm: np.ndarray = NATIVE_RESOLUTION_ZYX_NM,
 ) -> tuple[
     np.ndarray,
     np.ndarray,
@@ -144,6 +146,9 @@ def face_rows(
     np.ndarray,
 ]:
     """Reduce one axis/slab to contact geometry and source-indexed affinity evidence."""
+    spacing = np.asarray(spacing_zyx_nm, dtype=np.float64)
+    if spacing.shape != (3,) or not np.all(np.isfinite(spacing) & (spacing > 0)):
+        raise ValueError("spacing_zyx_nm must contain three finite positive values")
     limits = np.minimum(core_shape_zyx, np.asarray(dense_zyx.shape) - 1)
     starts = [z_start, 0, 0]
     stops = [z_stop, int(core_shape_zyx[1]), int(core_shape_zyx[2])]
@@ -195,9 +200,7 @@ def face_rows(
     for coordinate_axis in range(3):
         local = coordinates[coordinate_axis].astype(np.float64) + starts[coordinate_axis]
         local += 1.0 if coordinate_axis == axis else 0.5
-        absolute_nm = (local + core_lo_zyx[coordinate_axis]) * NATIVE_RESOLUTION_ZYX_NM[
-            coordinate_axis
-        ]
+        absolute_nm = (local + core_lo_zyx[coordinate_axis]) * spacing[coordinate_axis]
         coordinate_sum_nm[:, coordinate_axis] = np.bincount(
             inverse, weights=absolute_nm, minlength=len(unique_key)
         )
@@ -253,7 +256,12 @@ def consolidate_rows(
     affinity_maxima: list[np.ndarray],
     affinity_ge_counts: list[np.ndarray],
     present: np.ndarray,
+    *,
+    spacing_zyx_nm: np.ndarray = NATIVE_RESOLUTION_ZYX_NM,
 ) -> dict[str, np.ndarray]:
+    spacing = np.asarray(spacing_zyx_nm, dtype=np.float64)
+    if spacing.shape != (3,) or not np.all(np.isfinite(spacing) & (spacing > 0)):
+        raise ValueError("spacing_zyx_nm must contain three finite positive values")
     if not keys:
         return {
             "left": np.zeros(0, dtype=np.uint64),
@@ -321,9 +329,9 @@ def consolidate_rows(
     upper = unique_key % base
     face_area_nm2 = np.asarray(
         [
-            NATIVE_RESOLUTION_ZYX_NM[1] * NATIVE_RESOLUTION_ZYX_NM[2],
-            NATIVE_RESOLUTION_ZYX_NM[0] * NATIVE_RESOLUTION_ZYX_NM[2],
-            NATIVE_RESOLUTION_ZYX_NM[0] * NATIVE_RESOLUTION_ZYX_NM[1],
+            spacing[1] * spacing[2],
+            spacing[0] * spacing[2],
+            spacing[0] * spacing[1],
         ]
     )
     return {

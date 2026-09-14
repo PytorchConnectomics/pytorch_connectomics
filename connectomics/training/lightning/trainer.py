@@ -28,7 +28,12 @@ from pytorch_lightning.strategies import DDPStrategy
 from ...config import Config
 from ...config.hardware import get_accelerator_device_count, resolve_accelerator_type
 from ...runtime.torch_safe_globals import register_torch_safe_globals
-from .callbacks import EMAWeightsCallback, ValidationReseedingCallback, VisualizationCallback
+from .callbacks import (
+    EMAWeightsCallback,
+    OptimizerStepCheckpoint,
+    ValidationReseedingCallback,
+    VisualizationCallback,
+)
 
 _log = logging.getLogger(__name__)
 
@@ -44,6 +49,9 @@ def create_trainer(
 ) -> pl.Trainer:
     """
     Create PyTorch Lightning Trainer.
+
+    Step validation intervals count optimizer updates and are converted to
+    training batches using the configured gradient accumulation factor.
 
     Args:
         cfg: Hydra Config object
@@ -84,7 +92,7 @@ def create_trainer(
 
         save_every_n_steps = getattr(cfg.monitor.checkpoint, "save_every_n_steps", None)
         if save_every_n_steps is not None and int(save_every_n_steps) > 0:
-            step_checkpoint_callback = ModelCheckpoint(
+            step_checkpoint_callback = OptimizerStepCheckpoint(
                 dirpath=str(checkpoint_dir),
                 filename=getattr(
                     cfg.monitor.checkpoint,
@@ -200,9 +208,7 @@ def create_trainer(
 
     requested_devices = int(system_cfg.num_gpus)
     if requested_devices > 0:
-        accelerator_type = resolve_accelerator_type(
-            getattr(system_cfg, "accelerator", "auto")
-        )
+        accelerator_type = resolve_accelerator_type(getattr(system_cfg, "accelerator", "auto"))
         available_devices = get_accelerator_device_count(accelerator_type)
         if requested_devices > available_devices:
             raise RuntimeError(
@@ -296,8 +302,13 @@ def create_trainer(
         )
     if val_check_unit == "step":
         check_val_every_n_epoch = None
-        trainer_val_check_interval = val_check_interval
-        _log.info(f"  Validation: every {val_check_interval} train step(s)")
+        # Lightning counts training batches here; configured steps count optimizer updates.
+        trainer_val_check_interval = val_check_interval * cfg.optimization.accumulate_grad_batches
+        _log.info(
+            "  Validation: every %d optimizer step(s) (%d training batches)",
+            val_check_interval,
+            trainer_val_check_interval,
+        )
     else:
         check_val_every_n_epoch = val_check_interval
         trainer_val_check_interval = 1.0

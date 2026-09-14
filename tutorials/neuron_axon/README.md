@@ -73,6 +73,43 @@ the crop, and a smooth-looking predicted tube may still be a false end-to-end me
 decoders on the same crop and thresholds; do not interpret `complete` as proof that an axon
 identity is correct.
 
+## Physical morphology without ground truth
+
+For physical measurements in volumes with mixed orientations,
+**`morphology_analysis.yaml`** requests `evaluation.metrics: [morphology]`.
+It measures physical PCA angles, equivalent profile radius, section-centroid path
+length, crop-relative continuity, connected pieces, and persistent multiple
+sections. It writes a JSON summary and per-instance CSV next to the evaluation
+text report. Set `evaluation.morphology.voxel_size_um` in ZYX order, or omit it to
+use `data.test.resolution` in nm divided by 1000.
+
+The morphology screen estimates through-axon, interior-ended axon, suspicious
+axon, thick dendrite-like, branched process, and small interior fragment candidates.
+These are geometry categories, not semantic predictions or verified errors.
+Low global elongation with multiple cross-section components cannot distinguish
+glia from a curved or spiny dendritic arbor. For skeletons, the reusable
+`connectomics.metrics.arbor` measurements prune short, thin terminal twigs while
+preserving each component's longest path. Backbone caliber and length provide
+additional dendrite-candidate evidence without requiring global PCA elongation.
+Tree topology alone does not identify neurons; skeletonizers may enforce trees.
+Radius-binned observed length-weighted segment length and crop-relative
+continuity are **not NERL**. No ground-truth-free shape test rules out a smooth
+end-to-end false merge or identifies a broken spine with certainty.
+
+An existing segmentation can be measured without decoding again:
+
+```python
+import h5py
+from connectomics.metrics.morphology import MorphologyConfig, analyze_morphology
+from connectomics.evaluation.morphology import write_morphology_artifacts
+
+with h5py.File("segmentation.h5") as f:
+    analysis = analyze_morphology(
+        f["main"][:], MorphologyConfig(voxel_size_um=(0.024, 0.018, 0.018))
+    )
+write_morphology_artifacts(analysis, "outputs/morphology")
+```
+
 ## Interpreting NERL
 
 `nerl` measures the achieved error-free run length. `nerl_oracle_merge` relabels every

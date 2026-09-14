@@ -1,0 +1,203 @@
+{
+  "pending": [
+    {
+      "name": "mask",
+      "title": "0. keep mask: NOT(blood vessel) AND tissue, on the 4x8x8 grid",
+      "command": "python scripts/build_moritz_l4_keep_mask.py --out <ROOT>/keep.zarr",
+      "resources": "-p short -c 5 --mem 23G -t 03:04:05",
+      "array": 0,
+      "prepare": "",
+      "prepare_fn_present": false,
+      "inputs": [],
+      "skip": "",
+      "status.done": false,
+      "status.detail": "MISSING <ROOT>/keep.zarr"
+    },
+    {
+      "name": "smoke",
+      "title": "1. pre-flight: the same recipe on 1.2% of the volume",
+      "command": "python scripts/run_abiss_chunk.py --config tutorials/neuron_moritz_l4/2_abiss_smoke.yaml",
+      "resources": "-p medium -c 5 --mem 23G -t 03:04:05",
+      "array": 0,
+      "prepare": "",
+      "prepare_fn_present": false,
+      "inputs": [],
+      "skip": "",
+      "status.done": false,
+      "status.detail": "MISSING <ROOT>/smoke_seg"
+    },
+    {
+      "name": "abiss",
+      "title": "2. whole-volume decode: masked affinity -> watershed -> nuclei -> agglomeration",
+      "command": "python scripts/run_abiss_chunk.py --config tutorials/neuron_moritz_l4/2_abiss.yaml",
+      "resources": "-p medium -c 5 --mem 23G -t 03:04:05",
+      "array": 0,
+      "prepare": "",
+      "prepare_fn_present": false,
+      "inputs": [],
+      "skip": "",
+      "status.done": false,
+      "status.detail": "MISSING <ROOT>/seg"
+    },
+    {
+      "name": "guard",
+      "title": "3. percolation guard (GT-free): largest segment must be < 5% of the volume",
+      "command": "mkdir -p <ROOT>/out/reports && python scripts/seg_percolation_guard.py <ROOT>/seg --blocks 200 --out <ROOT>/out/reports/guard_seg.json",
+      "resources": "-p medium -c 5 --mem 23G -t 03:04:05",
+      "array": 0,
+      "prepare": "",
+      "prepare_fn_present": false,
+      "inputs": [],
+      "skip": "",
+      "status.done": false,
+      "status.detail": "MISSING <ROOT>/out/reports/guard_seg.json"
+    },
+    {
+      "name": "score",
+      "title": "4. NERL + skeleton VOI against the 96 manual reconstructions",
+      "command": "mkdir -p <ROOT>/out/reports && python scripts/score_moritz_l4_nerl.py <ROOT>/seg --skeletons <ROOT>/skeletons --out <ROOT>/out/reports/nerl.json",
+      "resources": "-p medium -c 5 --mem 23G -t 03:04:05",
+      "array": 0,
+      "prepare": "",
+      "prepare_fn_present": false,
+      "inputs": [],
+      "skip": "",
+      "status.done": false,
+      "status.detail": "MISSING <ROOT>/out/reports/nerl.json"
+    }
+  ],
+  "complete": [
+    {
+      "name": "mask",
+      "title": "0. keep mask: NOT(blood vessel) AND tissue, on the 4x8x8 grid",
+      "command": "python scripts/build_moritz_l4_keep_mask.py --out <ROOT>/keep.zarr",
+      "resources": "-p short -c 5 --mem 23G -t 03:04:05",
+      "array": 0,
+      "prepare": "",
+      "prepare_fn_present": false,
+      "inputs": [],
+      "skip": "",
+      "status.done": true,
+      "status.detail": "found <ROOT>/keep.zarr"
+    },
+    {
+      "name": "smoke",
+      "title": "1. pre-flight: the same recipe on 1.2% of the volume",
+      "command": "python scripts/run_abiss_chunk.py --config tutorials/neuron_moritz_l4/2_abiss_smoke.yaml",
+      "resources": "-p medium -c 5 --mem 23G -t 03:04:05",
+      "array": 0,
+      "prepare": "",
+      "prepare_fn_present": false,
+      "inputs": [],
+      "skip": "",
+      "status.done": true,
+      "status.detail": "3584/3584 chunks in <ROOT>/smoke_seg/128_128_32"
+    },
+    {
+      "name": "abiss",
+      "title": "2. whole-volume decode: masked affinity -> watershed -> nuclei -> agglomeration",
+      "command": "python scripts/run_abiss_chunk.py --config tutorials/neuron_moritz_l4/2_abiss.yaml",
+      "resources": "-p medium -c 5 --mem 23G -t 03:04:05",
+      "array": 0,
+      "prepare": "",
+      "prepare_fn_present": false,
+      "inputs": [],
+      "skip": "",
+      "status.done": true,
+      "status.detail": "2/2 chunks in <ROOT>/seg/128_128_32, 1 chunk markers"
+    },
+    {
+      "name": "guard",
+      "title": "3. percolation guard (GT-free): largest segment must be < 5% of the volume",
+      "command": "mkdir -p <ROOT>/out/reports && python scripts/seg_percolation_guard.py <ROOT>/seg --blocks 200 --out <ROOT>/out/reports/guard_seg.json",
+      "resources": "-p medium -c 5 --mem 23G -t 03:04:05",
+      "array": 0,
+      "prepare": "",
+      "prepare_fn_present": false,
+      "inputs": [],
+      "skip": "",
+      "status.done": true,
+      "status.detail": "found <ROOT>/out/reports/guard_seg.json"
+    },
+    {
+      "name": "score",
+      "title": "4. NERL + skeleton VOI against the 96 manual reconstructions",
+      "command": "mkdir -p <ROOT>/out/reports && python scripts/score_moritz_l4_nerl.py <ROOT>/seg --skeletons <ROOT>/skeletons --out <ROOT>/out/reports/nerl.json",
+      "resources": "-p medium -c 5 --mem 23G -t 03:04:05",
+      "array": 0,
+      "prepare": "",
+      "prepare_fn_present": false,
+      "inputs": [],
+      "skip": "",
+      "status.done": true,
+      "status.detail": "found <ROOT>/out/reports/nerl.json"
+    }
+  ],
+  "disabled": [
+    {
+      "name": "mask",
+      "title": "0. keep mask: NOT(blood vessel) AND tissue, on the 4x8x8 grid",
+      "command": "python scripts/build_moritz_l4_keep_mask.py --out <ROOT>/keep.zarr",
+      "resources": "-p short -c 5 --mem 23G -t 03:04:05",
+      "array": 0,
+      "prepare": "",
+      "prepare_fn_present": false,
+      "inputs": [],
+      "skip": "",
+      "status.done": false,
+      "status.detail": "MISSING <ROOT>/keep.zarr"
+    },
+    {
+      "name": "smoke",
+      "title": "1. pre-flight: the same recipe on 1.2% of the volume",
+      "command": "python scripts/run_abiss_chunk.py --config tutorials/neuron_moritz_l4/2_abiss_smoke.yaml",
+      "resources": "-p medium -c 5 --mem 23G -t 03:04:05",
+      "array": 0,
+      "prepare": "",
+      "prepare_fn_present": false,
+      "inputs": [],
+      "skip": "",
+      "status.done": false,
+      "status.detail": "MISSING <ROOT>/smoke_seg"
+    },
+    {
+      "name": "abiss",
+      "title": "2. whole-volume decode: masked affinity -> watershed -> nuclei -> agglomeration",
+      "command": "python scripts/run_abiss_chunk.py --config tutorials/neuron_moritz_l4/2_abiss.yaml",
+      "resources": "-p medium -c 5 --mem 23G -t 03:04:05",
+      "array": 0,
+      "prepare": "",
+      "prepare_fn_present": false,
+      "inputs": [],
+      "skip": "",
+      "status.done": false,
+      "status.detail": "MISSING <ROOT>/seg"
+    },
+    {
+      "name": "guard",
+      "title": "3. percolation guard (GT-free): largest segment must be < 5% of the volume",
+      "command": "mkdir -p <ROOT>/out/reports && python scripts/seg_percolation_guard.py <ROOT>/seg --blocks 200 --out <ROOT>/out/reports/guard_seg.json",
+      "resources": "-p medium -c 5 --mem 23G -t 03:04:05",
+      "array": 0,
+      "prepare": "",
+      "prepare_fn_present": false,
+      "inputs": [],
+      "skip": "",
+      "status.done": false,
+      "status.detail": "MISSING <ROOT>/out/reports/guard_seg.json"
+    },
+    {
+      "name": "score",
+      "title": "4. NERL + skeleton VOI against the 96 manual reconstructions",
+      "command": "mkdir -p <ROOT>/out/reports && python scripts/score_moritz_l4_nerl.py <ROOT>/seg --skeletons <ROOT>/skeletons --out <ROOT>/out/reports/nerl.json",
+      "resources": "-p medium -c 5 --mem 23G -t 03:04:05",
+      "array": 0,
+      "prepare": "",
+      "prepare_fn_present": false,
+      "inputs": [],
+      "skip": "",
+      "status.done": false,
+      "status.detail": "MISSING <ROOT>/out/reports/nerl.json"
+    }
+  ]
+}
