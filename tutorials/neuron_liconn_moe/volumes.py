@@ -84,6 +84,9 @@ def layer_url(layer: str) -> str:
 
 
 # name -> prep recipe. `factor` = exact block average; `target` = area resample.
+#
+# APPEND ONLY. The array index of every SLURM step is a position in PENDING, so
+# inserting anywhere but the end silently re-points a rerun at a different volume.
 VOLUMES: dict[str, dict] = {
     "ExPID96_2ndgel_S1_40XW001_18x": {"factor": (1, 2, 2), "published": True},
     "ExPID96_S1_40XW002_18x": {"factor": (1, 2, 2)},
@@ -93,6 +96,25 @@ VOLUMES: dict[str, dict] = {
     "ExPID96_2ndgel_S3_40XW_28x": {"target": TRAIN_GRID_ZYX},
     "ExPID96_2ndgel_S4_40XW002_32x": {"target": TRAIN_GRID_ZYX},
     "ExPID96_2ndgel_S4_40XW003_32x": {"target": TRAIN_GRID_ZYX},
+    # Added 2026-09-04, PENDING index 7. Same 32x grid as the S4 pair, so the
+    # same `target` resample -- but a DIFFERENT SAMPLE SERIES AND REGION
+    # (ExPID99, cerebellum) from the eight ExPID96 fields above. Everything the
+    # README says about this batch being out of domain applies here more, not
+    # less: the checkpoint saw IST cortical neuropil, and cerebellar cortex has
+    # its own morphology (granule-cell packing, parallel fibers). Read its
+    # affinity QC before trusting its segmentation at all.
+    "ExPID99_32x_2_cerebellum": {"target": TRAIN_GRID_ZYX},
+    # Added 2026-09-05, PENDING indices 8-10: the rest of the ExPID99 Cerebellum
+    # Drive folder. Same caveat as the row above and then some -- cerebellar
+    # cortex, and the checkpoint saw IST cortical neuropil.
+    #
+    # The two `_18x_2_` volumes are DIFFERENT acquisitions that share one Drive
+    # name (ExPID99_18x_2.nd2, 9.9 GB and 11.9 GB); the tail is the Drive file-id
+    # prefix, and which is which is unknown. They take the exact (1,2,2) block
+    # average like the ExPID96 18x pair -- no interpolation at all.
+    "ExPID99_18x_2_cerebellum_1Byqvupl": {"factor": (1, 2, 2)},
+    "ExPID99_18x_2_cerebellum_1m2f9z4J": {"factor": (1, 2, 2)},
+    "ExPID99_32x_1_cerebellum": {"target": TRAIN_GRID_ZYX},
 }
 
 # The volumes this batch runs: everything except the one already on GCS.

@@ -277,10 +277,79 @@ the reference.
 | `ExPID96_2ndgel_S3_40XW_28x` | 0.611 | percentile | 127.4 | 0.666 | 37,303 | 3,589 |
 | `ExPID96_2ndgel_S4_40XW002_32x` | 0.550 | chain-veto +1 | 55.9 | 0.556 | 30,561 | 5,177 |
 | `ExPID96_2ndgel_S4_40XW003_32x` | 0.550 | chain-veto +1 | 12.6 | 0.684 | 50,986 | 9,393 |
+| `ExPID99_32x_2_cerebellum` | 0.600 | chain-veto +2 | 61.1 | 0.633 | 74,392 | 11,560 |
+| `ExPID99_18x_2_cerebellum_1Byqvupl` | 0.590 | percentile | 206.3 | 0.713 | 290,341 | 35,090 |
+| `ExPID99_18x_2_cerebellum_1m2f9z4J` | 0.585 | percentile | 221.0 | 0.723 | 316,747 | 42,711 |
+| `ExPID99_32x_1_cerebellum` | 0.650 | chain-veto +2 | 44.8 | 0.550 | 90,371 | 9,281 |
+
+### ExPID99 cerebellum (one volume 2026-09-04, three more 2026-09-05)
+
+`ExPID99_32x_2_cerebellum` is a **different sample series and a different region**
+from the eight above, so it is the most out-of-domain volume here: the checkpoint
+saw IST cortical neuropil, and this is cerebellar cortex. Read its row with more
+caution than the 28×/32× rows, not less.
+
+What is reassuring: it lands on the training grid exactly — (550, 650, 650) at
+[24.0, 18.0, 18.0] nm, the only volume in the batch with no spacing drift — its
+mid-plane image std is 52.44 against the training volume's 53.7 (the ExPID96 32×
+pair manages only 40.0), and its affinity median is 0.460, above both ExPID96 32×
+volumes and closer to the in-domain 0.53 than its expansion factor would predict.
+The affinity map is clean and isotropic across ch0/ch1/ch2 (0.460 on all three).
+
+What is not: the chain test fires on **four of eight** thresholds (0.400 through
+0.550), the worst in the batch — at 0.400 a single segment holds 83.9 % of the
+field. The percentile target of 0.5352 was vetoed and stepped up two grid points
+to 0.600. At that operating point the top two segments still hold 3.38 % and
+2.58 % of the field, against 1.59 % / 0.43 % on the published reference volume,
+and coverage is 0.633 versus its 0.714. Meshes cover 0.855 of foreground, below
+the 0.92–0.95 the ExPID96 volumes reach.
+
+That pattern — agglomeration running away at low thresholds, a narrow usable
+window, lower coverage — is what a densely-packed parallel-fiber neuropil would
+look like to a model that never saw one. The shape test only rejects
+field-spanning chains; it cannot see the local false merges that are the likely
+failure mode here. Treat this layer as a first look at whether the transfer is
+worth pursuing, not as a result.
 
 Two independent 22× volumes landing on 87.6 and 60.7 µm³ at coverage 0.708/0.713
 — against the published volume's 89.2 µm³ at 0.714 — is the closest thing to a
 cross-check available without ground truth.
+
+### What the other three ExPID99 volumes changed (2026-09-05)
+
+The 2026-09-04 read above blamed `ExPID99_32x_2_cerebellum`'s difficulty on
+cerebellar morphology being out of domain. **The rest of the Drive folder does
+not support that.** Four ExPID99 cerebellum volumes now split cleanly by *grid
+recipe*, not by region:
+
+| volume | recipe | affinity p50 | mt | how | covered |
+|---|---|---|---|---|---|
+| `..._18x_2_cerebellum_1Byqvupl` | `--factor 1 2 2` | 0.503 | 0.590 | percentile | 0.713 |
+| `..._18x_2_cerebellum_1m2f9z4J` | `--factor 1 2 2` | 0.510 | 0.585 | percentile | 0.723 |
+| `ExPID99_32x_1_cerebellum` | `--target-spacing` | 0.454 | 0.650 | chain-veto +2 | 0.550 |
+| `ExPID99_32x_2_cerebellum` | `--target-spacing` | 0.460 | 0.600 | chain-veto +2 | 0.633 |
+
+Both 18× volumes take their percentile target with **no veto** and land at
+coverage 0.713/0.723 — bracketing the published cortical reference's 0.714 — on
+affinity medians (0.503/0.510) closer to the in-domain 0.53 than *any* ExPID96
+volume, the published one included. Both 32× volumes need a two-step veto and
+land at 0.550/0.633 on medians ~0.05 lower.
+
+Same sample series, same region, same checkpoint. The 18× pair gets an exact
+(1,2,2) block average; the 32× pair gets a fractional area resample with Z
+interpolated 1.92×. So what this batch's low-coverage rows measure is most
+likely the **resample**, not the biology — which also re-reads the ExPID96 32×
+pair (coverage 0.556/0.684) as a grid artifact rather than a contrast one, since
+`ExPID99_32x_1` has image std 52.8 against their 40.0 and still lands worst in
+the batch at 0.550.
+
+Two things this does *not* establish. There is still no ground truth, so
+"coverage near 0.714" means "resembles the reference operating point", not
+"correct" — and the chain test remains blind to false splits, which is exactly
+the error a too-high threshold produces. And the two `_18x_2_` volumes are
+different acquisitions that shared one Drive filename (9.9 GB and 11.9 GB); the
+`_1Byqvupl` / `_1m2f9z4J` tails are Drive file-id prefixes, and which physical
+acquisition each is remains unknown.
 
 **Read the 28× and 32× rows with more caution than the rest.** `S3_40XW004_28xx`
 keeps two ~8 %-of-field segments at every threshold below its plateau; the shape
