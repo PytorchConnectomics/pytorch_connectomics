@@ -1,0 +1,25 @@
+experiment_name: dispim_partial_gated_mednext_s
+description: >
+  Recommended design: view-specific MedNeXt-S stem/enc0/down0, shared deeper
+  encoder, fixed-angle FiLM conditioning, equal-initialized spatial/channel
+  reliability gates at every scale, and one fused decoder.
+
+_base_:
+- dispim_early_fusion_mednext_s.yaml
+
+save_path: outputs/dispim/partial_gated_mednext_s
+
+default:
+  model:
+    arch:
+      type: mednext_dual_view
+    dual_view:
+      design: partial_gated
+      # dispim_sim names these A=45 and B=135 degrees in its XY frame.
+      view_angles_deg: [45.0, 135.0]
+      angle_conditioning: true
+      gate_reduction: 4
+
+tune:
+  study_name: dispim_partial_gated_waterz
+
