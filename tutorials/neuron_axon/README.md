@@ -73,6 +73,16 @@ the crop, and a smooth-looking predicted tube may still be a false end-to-end me
 decoders on the same crop and thresholds; do not interpret `complete` as proof that an axon
 identity is correct.
 
+## Physical morphology and arbors
+
+For reusable physical measurements on arbitrary orientations and branched
+objects, see [the no-GT metric modules](../../connectomics/metrics/unsupervised/README.md).
+`morphology.analyze_morphology` measures label volumes, `arbor.analyze_arbor`
+measures skeleton backbones and prunes fine terminal twigs, and
+`classification.classify_segment` combines their candidates with a configurable
+crumbs threshold and optional reviewed class. These are direct Python APIs;
+the YAML workflow above continues to use the existing `tube` evaluation metric.
+
 ## Interpreting NERL
 
 `nerl` measures the achieved error-free run length. `nerl_oracle_merge` relabels every
