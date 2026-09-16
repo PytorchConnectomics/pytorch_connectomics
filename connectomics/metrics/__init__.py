@@ -7,6 +7,7 @@ This package provides comprehensive evaluation metrics:
 - nerl.py: NERL scoring helpers backed by em_erl
 - oracle.py: oracle-merge transform (attainable false-merge-free ceiling)
 - tube.py: GT-free completeness and geometric analysis for tube-like structures
+- unsupervised/: physical morphology, skeleton arbors and no-GT candidate classes
 
 Note: PyTorch Lightning handles training monitoring and logging.
 
