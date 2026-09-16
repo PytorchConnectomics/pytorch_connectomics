@@ -1,0 +1,103 @@
+# LICONN ExPID96 "moe" step 2 of 2: affinity -> instance segmentation with ABISS.
+#
+#   python scripts/main.py --config tutorials/neuron_liconn_moe/2_abiss.yaml \
+#     --mode test --checkpoint <params.artifacts.checkpoint>
+#
+# Input   ${params.artifacts.affinity_h5}     step 1's (3, 585, 1152, 1152) float16
+# Output  <ckpt_run>/test_step=00200000/${params.artifacts.volume_name}/
+#
+# The affinity is read from disk via `decoding.load_prediction_path`, so this step
+# re-decodes without re-running the model.
+#
+# WHY ABISS AND NOT AFFINITY-CC. Measured on MICrONS Pinky with each decoder at
+# its own leave-one-out best threshold: affinity CC 2.03 VOI vs ABISS 1.02, and
+# CC's oracle-merge ceiling (1.94) sat at its own base score -- its errors are
+# false merges baked into the fragments, which no agglomeration can undo. Same
+# failure mode is reported for this tissue.
+#
+# ############################################################################
+# THE MERGE THRESHOLD BELOW IS FOR THE FIRST VOLUME ONLY. IT IS NOT THE BATCH.
+# ############################################################################
+# `sweep_merge_threshold.py` owns the threshold for the other seven volumes and
+# decodes them directly through `scripts/run_abiss_volume.py` with exactly the
+# flags below, so this file stays the readable statement of the decode recipe
+# while the batch is driven from the sweep. See README.md for the full argument;
+# the short version is that the threshold does NOT transfer as an absolute value:
+#
+#   * IST's swept 0.47 applied here gave a largest segment of 975 um^3, 17.35%
+#     of the whole 5624 um^3 field, with a second at 6.58% -- two merge chains.
+#   * This file's 0.60 in turn does not transfer to the rest of the batch. On the
+#     28x and 32x volumes ABISS agglomeration STOPS at 0.68-0.72: every threshold
+#     above that returns the raw watershed unchanged.
+#
+# What transfers is the percentile. 0.60 is the 62.89th percentile of THIS
+# volume's affinity, and that percentile carried to the others gives 0.48-0.61.
+#
+# ws_high/ws_low are given as PERCENTILES, so they self-adapt to whatever range
+# the affinity actually occupies on this volume -- that part does transfer.
+# `ws_merge_function: max` is invariant under any monotone remap, so the sweep
+# family is unchanged by the compression; `mean` would NOT be.
+
+_base_:
+  - params.yaml
+  - 1_affinity.yaml
+
+experiment_name: liconn_moe_abiss
+description: >-
+  ExPID96 moe 18x volume (resampled to [24,18,18] nm) decoded with the ABISS
+  watershed and max-affinity agglomeration. GT-free: no metrics are computed.
+
+save_path: ${params.paths.output_root}/abiss
+
+default:
+  decoding:
+    # Consume the affinity already on disk instead of re-running the model.
+    load_prediction_path: ${params.artifacts.affinity_h5}
+    steps:
+      - name: decode_abiss
+        kwargs:
+          # Output-filename tag. WITHOUT THIS the namer slugifies every kwarg
+          # value into the filename -- including the full command string and the
+          # absolute scratch paths below -- producing a >255-char name and
+          # `OSError: [Errno 36] File name too long` AFTER the decode has run.
+          tag: abiss_max060
+          command: >-
+            {python_exe} scripts/run_abiss_volume.py
+            --input {input_h5}
+            --output {output_h5}
+            --abiss-home ${params.paths.repository}/lib/abiss
+            --abiss-workdir ${params.paths.output_root}/abiss/ws_scratch
+          input_dataset: main
+          output_dataset: main
+          # Both scratch paths must live on /projects. ABISS `ws` and the h5
+          # exchange default to tempfile.gettempdir() == node-local /tmp, which
+          # on this cluster is too small.
+          workdir: ${params.paths.output_root}/abiss/exchange
+          # This repo stores channel c as the edge along array axis c (z, y, x).
+          # ABISS `ws` reads an (X, Y, Z, C) volume whose channel 0 is the X
+          # edge, so the triplet is reversed.
+          channels: [2, 1, 0]
+          timeout_sec: 21600
+          cli_args:
+            # The `banis` affinity target stores edge (i, i+1) at voxel i; `ws`
+            # reads the value at i as edge (i-1, i). Without this the whole
+            # boundary map lands one voxel off along every axis.
+            edge_storage: source
+            # Percentiles, not absolutes -- these self-adapt to this volume.
+            ws_high_threshold: "94%"
+            ws_low_threshold: "20%"
+            # merge_segments only merges regions under this size, so the stock
+            # 400 would stop agglomeration dead. Raised out of the way so the
+            # affinity criterion is what decides.
+            ws_size_threshold: 10000000
+            ws_dust_threshold: 200
+            # `max` is monotone-invariant; see the header block.
+            ws_merge_function: max
+            # Re-fitted on THIS volume; see the header block. The IST value of
+            # 0.47 produces a 17%-of-volume merge chain here.
+            ws_merge_threshold: 0.60
+
+  # No ground truth for moe. Nothing to score.
+  evaluation:
+    enabled: false
+    metrics: []
