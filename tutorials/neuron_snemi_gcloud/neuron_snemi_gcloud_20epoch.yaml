@@ -1,0 +1,19 @@
+# Continuation of the September 3 smoke checkpoint after explicitly extending
+# its completed 3-epoch cosine schedule. See the run's resume-provenance.json.
+_base_: neuron_snemi_gcloud.yaml
+
+experiment_name: snemi_gcloud_abiss_20epoch
+description: >-
+  Twenty total SNEMI epochs with ABISS evaluation. The source smoke checkpoint
+  actually used a 3-epoch cosine horizon and one warmup epoch. A derived
+  checkpoint extends that horizon to 20 while preserving weights, AdamW
+  moments, epoch 2/global step 600, and the completed one-epoch warmup.
+
+train:
+  optimization:
+    max_epochs: 20
+    scheduler:
+      warmup_epochs: 1
+      params:
+        max_iter: 20
+        warmup_epochs: 1

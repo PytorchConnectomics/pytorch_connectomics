@@ -1,0 +1,193 @@
+experiment_name: mednext_s_dispim_dual_view_early_fusion
+description: >
+  Dual-view diSPIM neuron affinity learning from registered -45 degree and
+  +45 degree image volumes. The two views are stored as one channel-first
+  CZYX volume (channel 0: -45 degrees; channel 1: +45 degrees) and are fused
+  by a two-channel MedNeXt-S baseline. The model emits one nine-channel
+  affinity artifact with short-, medium-, and long-range edges on an
+  isotropic output grid.
+
+_base_:
+- ../../connectomics/config/all_profiles.yaml
+
+default:
+  system:
+    profile: all-gpu-cpu
+  model:
+    arch:
+      profile: mednext_s
+    # PyTC treats a list under data.*.image as multiple samples, not paired
+    # views. Pre-register/resample both views into the label coordinate system,
+    # normalize each view independently, and stack them as CZYX in one HDF5
+    # dataset named "main" (or one channel-first Zarr array).
+    in_channels: 2
+    out_channels: 9
+    input_size: [96, 96, 96]
+    output_size: [96, 96, 96]
+    mednext:
+      size: S
+      kernel_size: 3
+      dim: 3d
+      checkpoint_style: outside_block
+    loss:
+      profile: loss_per_channel
+      deep_supervision: true
+  data:
+    # A two-channel volume cannot use the current single-volume fractional
+    # splitter, whose split axis would be ambiguous for CZYX. Supply explicit
+    # train and validation volumes instead.
+    split_enabled: false
+    image_transform:
+      # Inputs are expected to be independently normalized per view before
+      # stacking. The built-in normalizer currently pools all input channels.
+      normalize: none
+      clip_percentile_low: 0.0
+      clip_percentile_high: 1.0
+    label_transform:
+      # diSPIM views should be resampled onto a common near-isotropic grid, so
+      # use symmetric affinity radii instead of SNEMI's anisotropic 12-edge set.
+      resolution: [1, 1, 1]
+      erosion: 1
+      targets:
+      - name: affinity
+        kwargs:
+          offsets:
+          - "0-0-1"
+          - "0-1-0"
+          - "1-0-0"
+          - "0-0-3"
+          - "0-3-0"
+          - "3-0-0"
+          - "0-0-9"
+          - "0-9-0"
+          - "9-0-0"
+          affinity_mode: deepem
+    dataloader:
+      profile: cached
+      patch_size: [96, 96, 96]
+      batch_size: 2
+    data_transform:
+      pad_size: [48, 48, 48]
+    # Keep geometric transforms synchronized across both registered views.
+    # Start with light augmentation; view-specific dropout/noise requires a
+    # dedicated paired-view transform and is not represented by this baseline.
+    augmentation:
+      profile: aug_light
+  inference:
+    model:
+      select_channel: [0, 1, 2]
+      activation_profile: act_binary
+      # crop_pad plus the selected deepem destination-index crop (1,0) on
+      # each axis equals data_transform.pad_size [48,48,48].
+      crop_pad: [47, 48, 47, 48, 47, 48]
+    window:
+      window_size: [96, 96, 96]
+      sw_batch_size: 2
+      overlap: 0.5
+      blending: bump
+      keep_input_on_cpu: false
+    test_time_augmentation:
+      enabled: true
+      patch_first_local: true
+      flip_axes: all
+      rotation90_axes: [[1, 2], [0, 1], [0, 2]]
+      ensemble_mode: min
+    save_results: true
+    save_dtype: float32
+  decoding:
+    steps:
+    - template: decoding_waterz
+      kwargs:
+        thresholds: 0.5
+        merge_function: aff85_his256
+        aff_threshold: [0.1, 0.999]
+        dust_merge: true
+        dust_merge_size: 800
+        dust_merge_affinity: 0.3
+        dust_remove_size: 600
+    postprocessing:
+      enabled: true
+  evaluation:
+    enabled: true
+    metrics: [adapted_rand]
+
+train:
+  data:
+    train:
+      # HDF5 "main" shape: [2, Z, Y, X], channels ordered [-45 deg, +45 deg].
+      image: datasets/diSPIM/train-views-czyx.h5
+      label: datasets/diSPIM/train-labels.h5
+      # Replace voxel-unit placeholders with calibrated [z,y,x] spacing in nm.
+      resolution: [1, 1, 1]
+    val:
+      image: datasets/diSPIM/val-views-czyx.h5
+      label: datasets/diSPIM/val-labels.h5
+      resolution: [1, 1, 1]
+  optimization:
+    profile: warmup_cosine_lr
+    max_epochs: 300
+    n_steps_per_epoch: 1000
+    accumulate_grad_batches: 4
+    precision: "bf16-mixed"
+    gradient_clip_val: 1.0
+    ema:
+      enabled: true
+      decay: 0.999
+      warmup_steps: 1000
+      validate_with_ema: true
+  monitor:
+    logging:
+      scalar:
+        loss: [train_loss_total_epoch, val_loss_total]
+        loss_every_n_steps: 50
+      images:
+        log_every_n_epochs: 10
+        max_images: 8
+        num_slices: 2
+        channel_mode: all
+    checkpoint:
+      save_top_k: 3
+      monitor: val_loss_total
+      mode: min
+
+test:
+  data:
+    test:
+      image: datasets/diSPIM/test-views-czyx.h5
+      label: datasets/diSPIM/test-labels.h5
+      resolution: [1, 1, 1]
+
+tune:
+  profile: tune_waterz
+  n_trials: 25
+  trial_timeout: 300
+  study_name: dispim_dual_view_waterz_tuning
+  data:
+    val:
+      image: datasets/diSPIM/val-views-czyx.h5
+      label: datasets/diSPIM/val-labels.h5
+      resolution: [1, 1, 1]
+  parameter_space:
+    decoding:
+      defaults:
+        thresholds: 0.5
+        merge_function: aff85_his256
+        aff_threshold: [0.1, 0.999]
+      parameters:
+        merge_function:
+          type: categorical
+          choices: [aff85_his256, aff75_his256, aff50_his256, aff25_his256,
+            aff15_his256]
+        thresholds:
+          range: [0.1, 0.9]
+          step: 0.1
+        aff_threshold_low:
+          range: [0, 0.5]
+          step: 0.1
+          param_group: aff_threshold
+          tuple_index: 0
+        aff_threshold_high:
+          range: [0.7, 1]
+          step: 0.1
+          param_group: aff_threshold
+          tuple_index: 1

@@ -321,22 +321,20 @@ Native Windows Installation
 Docker Installation
 -------------------
 
-We provide Docker images for easy deployment:
+Build the GPU image from the repository root so it contains the checked-out
+source:
 
 .. code-block:: bash
 
-    # Pull the latest image
-    docker pull pytorchconnectomics/pytc:latest
-
-    # Run container
-    docker run --gpus all -it pytorchconnectomics/pytc:latest
-
-    # Or build from Dockerfile
-    cd docker
-    docker build -t pytc .
+    docker build --file docker/Dockerfile --tag pytc:gpu \
+        --build-arg PYTC_UID="$(id -u)" \
+        --build-arg PYTC_GID="$(id -g)" .
+    docker run --rm --gpus all --ipc=host pytc:gpu \
+        python scripts/main.py --demo
 
 See `docker/README.md <https://github.com/zudi-lin/pytorch_connectomics/blob/master/docker/README.md>`_
-for detailed instructions.
+for NVIDIA Container Toolkit prerequisites, data mounts, and Google Cloud
+Storage workflows.
 
 Troubleshooting
 ---------------

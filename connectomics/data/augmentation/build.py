@@ -54,6 +54,7 @@ from .transforms import (
     RandSliceShiftd,
     RandSliceShiftZd,
     RandStriped,
+    RandViewDropoutd,
     ResizeByFactord,
     SmartNormalizeIntensityd,
 )
@@ -299,6 +300,7 @@ def build_train_transforms(
                 mode=cfg.data.image_transform.normalize,
                 clip_percentile_low=cfg.data.image_transform.clip_percentile_low,
                 clip_percentile_high=cfg.data.image_transform.clip_percentile_high,
+                channelwise=cfg.data.image_transform.channelwise,
             )
         )
 
@@ -647,6 +649,7 @@ def _build_eval_transforms_impl(
                 mode=image_transform.normalize,
                 clip_percentile_low=getattr(image_transform, "clip_percentile_low", 0.0),
                 clip_percentile_high=getattr(image_transform, "clip_percentile_high", 1.0),
+                channelwise=bool(getattr(image_transform, "channelwise", False)),
             )
         )
 
@@ -1053,6 +1056,18 @@ def _build_augmentations(aug_cfg: AugmentationConfig, keys: list[str], do_2d: bo
                 max_obj_ratio=aug_cfg.copy_paste.max_obj_ratio,
                 rotation_angles=aug_cfg.copy_paste.rotation_angles,
                 border=aug_cfg.copy_paste.border,
+            )
+        )
+
+    # Apply whole-view dropout last so later intensity/noise transforms cannot
+    # turn the intentionally absent view into a nonzero pseudo-measurement.
+    if aug_cfg.view_dropout.enabled:
+        transforms.append(
+            RandViewDropoutd(
+                keys=["image"],
+                prob=aug_cfg.view_dropout.prob,
+                channels=tuple(aug_cfg.view_dropout.channels),
+                fill_value=aug_cfg.view_dropout.fill_value,
             )
         )
 

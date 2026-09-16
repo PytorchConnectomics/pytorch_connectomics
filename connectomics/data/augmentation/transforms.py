@@ -1076,6 +1076,7 @@ class SmartNormalizeIntensityd(MapTransform):
         mode: str = "0-1",
         clip_percentile_low: float = 0.0,
         clip_percentile_high: float = 1.0,
+        channelwise: bool = False,
         allow_missing_keys: bool = False,
     ) -> None:
         super().__init__(keys, allow_missing_keys)
@@ -1099,6 +1100,7 @@ class SmartNormalizeIntensityd(MapTransform):
 
         self.clip_percentile_low = clip_percentile_low
         self.clip_percentile_high = clip_percentile_high
+        self.channelwise = bool(channelwise)
 
     def __call__(self, data: Dict[str, Any]) -> Dict[str, Any]:
         d = dict(data)
@@ -1111,8 +1113,53 @@ class SmartNormalizeIntensityd(MapTransform):
                     self.divide_value,
                     self.clip_percentile_low,
                     self.clip_percentile_high,
+                    self.channelwise,
                 )
                 d[key] = _from_numpy(result, was_tensor, device)
+        return d
+
+
+class RandViewDropoutd(RandomizableTransform, MapTransform):
+    """Set one complete CZYX view channel to a constant value."""
+
+    def __init__(
+        self,
+        keys: KeysCollection,
+        prob: float = 0.0,
+        channels: Tuple[int, int] = (0, 1),
+        fill_value: float = 0.0,
+        allow_missing_keys: bool = False,
+    ) -> None:
+        MapTransform.__init__(self, keys, allow_missing_keys)
+        RandomizableTransform.__init__(self, prob)
+        if len(channels) != 2 or channels[0] == channels[1]:
+            raise ValueError("view dropout requires two distinct channel indices")
+        self.channels = tuple(int(c) for c in channels)
+        self.fill_value = float(fill_value)
+        self.channel_to_drop = self.channels[0]
+
+    def randomize(self, _: Any = None) -> None:
+        self._do_transform = self.R.rand() < self.prob
+        self.channel_to_drop = int(self.channels[int(self.R.randint(0, 2))])
+
+    def __call__(self, data: Dict[str, Any]) -> Dict[str, Any]:
+        d = dict(data)
+        self.randomize(None)
+        if not self._do_transform:
+            return d
+        for key in self.key_iterator(d):
+            arr, was_tensor, device = _to_numpy(d[key])
+            if arr.ndim < 4:
+                raise ValueError(
+                    f"view dropout expects channel-first volumetric data, got {arr.shape}"
+                )
+            if self.channel_to_drop >= arr.shape[0]:
+                raise ValueError(
+                    f"view channel {self.channel_to_drop} is absent from shape {arr.shape}"
+                )
+            result = arr.copy()
+            result[self.channel_to_drop] = self.fill_value
+            d[key] = _from_numpy(result, was_tensor, device)
         return d
 
 

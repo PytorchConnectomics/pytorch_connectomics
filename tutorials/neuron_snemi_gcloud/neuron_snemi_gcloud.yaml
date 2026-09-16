@@ -1,0 +1,56 @@
+# SNEMI vEM: train -> raw XYZ affinities -> single-volume ABISS -> adapted Rand error.
+# The inherited recipe in turn loads connectomics/config/all_profiles.yaml.
+_base_: ../neuron_snemi/neuron_snemi_v1.yaml
+
+experiment_name: snemi_gcloud_abiss
+description: >-
+  Three-epoch SNEMI cloud smoke recipe with MedNeXt-S and ABISS single-volume
+  watershed/size-based merging. The benchmark runner reports the historical
+  SNEMI challenge-crop adapted Rand error. These are untuned decoder settings.
+
+default:
+  system:
+    num_workers: 4
+  inference:
+    test_time_augmentation:
+      # Cheap checkpoint screening. Enable for the inherited x16 mean TTA.
+      enabled: false
+  decoding:
+    steps:
+      # Explicit list replaces the inherited Waterz pipeline completely.
+      - name: decode_abiss
+        kwargs:
+          command:
+            - "{python_exe}"
+            - /workspace/scripts/run_abiss_volume.py
+            - --input
+            - "{input_h5}"
+            - --output
+            - "{output_h5}"
+          input_dataset: main
+          output_dataset: main
+          channels: [0, 1, 2]
+          timeout_sec: 7200
+          cli_args:
+            ws_binary: /opt/abiss/build/ws
+            # deepem targets store XYZ nearest-neighbor edges at destination.
+            edge_storage: destination
+            ws_high_threshold: 0.9
+            ws_low_threshold: 0.1
+            ws_size_threshold: 800
+            ws_dust_threshold: 600
+            ws_merge_threshold: 0.5
+            ws_merge_function: mean
+    postprocessing:
+      enabled: false
+  evaluation:
+    enabled: true
+    metrics: [adapted_rand]
+
+train:
+  optimization:
+    # Keep the inherited 100-epoch scheduler horizon for exact continuation.
+    max_epochs: 3
+
+# Remove inherited Waterz tuning; select ABISS parameters on validation only.
+tune: null

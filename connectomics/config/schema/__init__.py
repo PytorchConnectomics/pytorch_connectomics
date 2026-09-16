@@ -30,6 +30,7 @@ from .data import (
     SliceShiftConfig,
     SliceShiftZConfig,
     StripeConfig,
+    ViewDropoutConfig,
 )
 from .decoding import (
     BinaryPostprocessingConfig,
@@ -58,6 +59,7 @@ from .inference import (
     sync_inference_runtime_aliases,
 )
 from .model import LossConfig, ModelArchConfig, ModelConfig, ModelHeadConfig
+from .model_dual_view_mednext import DualViewMedNeXtConfig
 from .model_mednext import MedNeXtConfig
 from .model_monai import MonaiConfig, TransformerConfig
 from .model_nnunet import NNUNetConfig
@@ -100,6 +102,7 @@ __all__ = [
     "ModelHeadConfig",
     "MonaiConfig",
     "TransformerConfig",
+    "DualViewMedNeXtConfig",
     "MedNeXtConfig",
     "RSUNetConfig",
     "NNUNetConfig",
@@ -110,6 +113,7 @@ __all__ = [
     "DataloaderConfig",
     "DataTransformConfig",
     "ImageTransformConfig",
+    "ViewDropoutConfig",
     "NNUNetPreprocessingConfig",
     "LabelTransformConfig",
     "SkeletonDistanceConfig",
