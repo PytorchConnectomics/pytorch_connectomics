@@ -59,7 +59,7 @@ error_correction:
 
   # Kisuk-style inter-object cleanup, applied AFTER v7 unions. [0,0,0] reproduces v7
   # without cosmetic thinning; [1,1,1] is the reported 3x3x3 result.
-  erosion_radius_zyx: [1, 1, 1]
+  erosion_radius_zyx: [0, 0, 0]
 
   # Frozen engineering constants. Lengths are physical nm and the affinity floors come
   # from unlabeled contact-distribution quantiles, not evaluation skeletons.

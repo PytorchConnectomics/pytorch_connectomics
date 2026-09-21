@@ -52,15 +52,8 @@ abiss_chunk:
   param:
     NAME: j0126_abiss
 
-    # The virtual dataset over step 2's chunk store, built by `run_j0126.py`
-    # right before this step. It copies nothing -- the whole-volume affinity is
-    # ~4 TB -- but reads through h5py exactly like a stitched file, and the h5
-    # backend is one of the three that honour AFF_KEEP_MASK.
-    # Whole-value interpolation only: appending `::dataset` here leaves a nested
-    # `${params.paths.repository}` unresolved (the config loader resolves an
-    # embedded interpolation one level less deeply than a whole-value one). The
-    # virtual dataset holds exactly one dataset, `main`, which ABISS auto-detects.
     AFF_PATH: ${params.data.affinity_h5}
+    AFF_CHANNELS: [0, 1, 2]
     WS_PATH: file://${params.paths.output_root}/abiss/precomputed/ws
     SEG_PATH: file://${params.paths.output_root}/abiss/precomputed/seg
     SCRATCH_PATH: file://${params.paths.output_root}/abiss/scratch
