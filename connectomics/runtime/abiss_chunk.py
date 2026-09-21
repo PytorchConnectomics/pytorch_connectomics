@@ -60,7 +60,10 @@ def _aff_channels(configured: Any, source_num_channels: int) -> Optional[List[in
     if configured is None:
         configured = source_num_channels
     if isinstance(configured, (list, tuple)):
-        return [int(c) for c in configured]
+        indices = [int(c) for c in configured]
+        if indices != list(range(len(indices))):
+            raise ValueError("AFF_CHANNELS must be a contiguous 0..n-1 prefix")
+        return indices
     count = int(configured)
     return list(range(count)) if count > 0 else None
 
@@ -1011,25 +1014,11 @@ def _stage_plan(cfg: PreparedConfig, stage: str) -> StagePlan:
     return StagePlan(stage=stage, argv=tuple(cmd), env=env)
 
 
-def _affinity_channel_indices(value: Any) -> list[int]:
-    """AFF_CHANNELS as the channel index list volume_backends expects, not a count."""
-    if isinstance(value, (list, tuple)):
-        indices = [int(v) for v in value]
-        if indices != list(range(len(indices))):
-            raise ValueError(
-                f"AFF_CHANNELS {indices} is not a contiguous 0..n-1 prefix; ABISS reads "
-                "this key as an index list and as a count in different places."
-            )
-        return indices
-    return list(range(int(value)))
-
-
 def _write_param(param_path: Path, payload: Mapping[str, Any]) -> None:
     _ensure_parent(param_path)
     with param_path.open("w", encoding="utf-8") as f:
         payload = {
-            k: v for k, v in payload.items()
-            if not (k.startswith("NUC_") and v in ("", None, []))
+            k: v for k, v in payload.items() if not (k.startswith("NUC_") and v in ("", None, []))
         }
         json.dump(dict(payload), f, indent=2, sort_keys=True)
         f.write("\n")

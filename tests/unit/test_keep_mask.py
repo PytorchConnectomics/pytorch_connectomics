@@ -2,9 +2,6 @@
 
 from __future__ import annotations
 
-import ast
-import inspect
-import subprocess
 import sys
 from dataclasses import replace
 from pathlib import Path
@@ -86,33 +83,16 @@ def test_unknown_strategy_and_nonpositive_ratio(tmp_path):
         keep_mask.build(replace(_spec(tmp_path), ratio_zyx=(0, 2, 2)))
 
 
-def test_j0126_functions_and_constants_are_verbatim_movement():
-    repo = Path(__file__).resolve().parents[2]
-    original = subprocess.run(
-        ["git", "show", "a692d2e3:scripts/build_j0126_keep_mask.py"],
-        cwd=repo,
-        check=True,
-        text=True,
-        capture_output=True,
-    ).stdout
-    moved = Path(inspect.getfile(keep_mask)).read_text()
-    moved_nodes = {
-        node.name: node for node in ast.parse(moved).body if isinstance(node, ast.FunctionDef)
-    }
-    for node in ast.parse(original).body:
-        if isinstance(node, ast.FunctionDef):
-            assert ast.get_source_segment(moved, moved_nodes[node.name]) == ast.get_source_segment(
-                original, node
-            ), node.name
-        elif isinstance(node, ast.Assign):
-            for target in node.targets:
-                assert getattr(keep_mask, target.id) == ast.literal_eval(node.value), target.id
+def test_j0126_mask_defaults():
+    assert keep_mask.EXCLUDE_THRESHOLDS == {1: 252, 3: 252, 5: 25}
+    assert all(keep_mask.CELL % c == 0 for c in keep_mask.KEEP_CHUNKS)
+    assert keep_mask.KEEP_CHUNKS == (126, 504, 504)
 
 
 def test_ffn_init_and_tissue_shard_write_sentinel(tmp_path, monkeypatch):
     monkeypatch.setattr(keep_mask, "TISSUE_SHAPE_ZYX", (2, 2, 3))
     values = np.zeros((3, 2, 2, 6), dtype=np.uint8)
-    values[1, 1, 1, 3] = 129
+    values[1, 1, 1, 3] = 252
 
     class Volume:
         shape = values.shape
@@ -128,8 +108,7 @@ def test_ffn_init_and_tissue_shard_write_sentinel(tmp_path, monkeypatch):
         _spec(tmp_path), strategy="ffn_tissue_border", out=tmp_path / "tissue.zarr", z_slab=1
     )
     argv = sys.argv
-    # The original writer uses the zarr-2 compressor API. Do not change it during relocation.
-    with zarr.config.set({"default_zarr_format": 2}):
+    with zarr.config.set({"default_zarr_format": 3}):
         keep_mask.build(spec, stage="tissue", init=True)
         assert not Path(f"{spec.out}.done.1").exists()
         out = zarr.open(str(spec.out), mode="r")

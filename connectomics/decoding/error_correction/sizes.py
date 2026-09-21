@@ -74,7 +74,7 @@ def aggregate_size_files(
     report = {
         "schema": 1,
         "source_glob": pattern,
-        "source_files": sum(1 for p in paths if p.stat().st_size),
+        "source_files": len(paths),
         "empty_source_files": sum(1 for p in paths if not p.stat().st_size),
         "source_rows": len(rows),
         "segments": len(result),
