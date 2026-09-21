@@ -164,3 +164,7 @@ notebooks/
 .agent/
 slurm_jobs/
 .gcp-run/
+
+# Per-tutorial local config: bucket names, local paths, and pointers to source
+# drops. Kept out of a PUBLIC repo. The tracked `.example` documents the schema.
+tutorials/*/data.yaml
