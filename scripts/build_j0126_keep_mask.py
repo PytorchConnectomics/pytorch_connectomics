@@ -43,17 +43,54 @@ FFN_TISSUE = (
     "https://storage.googleapis.com/j0126-nature-methods-data/"
     "GgwKmcKgrcoNxJccKuGIzRnQqfit9hnfK1ctZzNbnuU/tissue_classification"
 )
-EXCLUDE_CHANNELS = (1, 3, 5)
+# FFN's published `tissue_mask` recipe, verbatim from the bucket README: a voxel
+# is EXCLUDED when channel 1 (blood vessel) is in [252, 255], OR channel 3
+# (myelin) is in [252, 255], OR channel 5 (out-of-bounds) is in [25, 255]. The
+# thresholds are per-channel and are not interchangeable -- a uniform 128 on all
+# three excludes 17.53% of the volume where the published recipe excludes 14.61%.
+EXCLUDE_MIN = {1: 252, 3: 252, 5: 25}
 TISSUE_SHAPE_ZYX = (5700, 5456, 5332)   # native 18 x 18 x 20 nm
 # True mip-0 EM extent, ZYX. Same origin as the tissue layer: Z is 1:1, Y and X
 # are half-resolution there, so the tissue mask upsamples 2x in Y/X only.
 KEEP_SHAPE_ZYX = (5700, 10912, 10664)
-KEEP_CHUNKS = (126, 252, 252)
 CELL = 1008                             # matches the affinity chunk grid
+# The keep stage writes CELL-sized cubes round-robin across concurrent array
+# tasks. A zarr write covering part of a chunk is a read-modify-write, so if a
+# chunk straddled two cells the two shards would race and one write would be
+# lost -- and since fill_value is 1 ("keep"), a lost write silently UNMASKS
+# tissue rather than erroring. Every axis must therefore divide CELL exactly.
+# It is also an inode budget: (126, 252, 252) is 87,032 files for this volume,
+# enough to exhaust a shared filesystem's file quota before its byte quota.
+KEEP_CHUNKS = (126, 504, 504)
+assert all(CELL % c == 0 for c in KEEP_CHUNKS), (
+    f"KEEP_CHUNKS={KEEP_CHUNKS} must tile CELL={CELL} on every axis; "
+    "a chunk spanning two cells loses concurrent writes and silently unmasks tissue."
+)
 
 
 def _sentinel(out: Path, shard_id: int) -> Path:
     return Path(f"{out}.done.{shard_id}")
+
+
+def _create(out: Path, shape, chunks) -> None:
+    """Create a zstd-compressed uint8 mask array under zarr 2 or zarr 3.
+
+    zarr >= 3 rejects the zarr-2 `compressor=` kwarg outright
+    (`ValueError: compressor cannot be used for arrays with zarr_format 3`),
+    which aborted `--init` -- and therefore the whole driver -- before a single
+    job was submitted.
+    """
+    try:
+        zarr.create_array(
+            store=str(out), shape=shape, chunks=chunks, dtype="uint8",
+            fill_value=1, compressors=zarr.codecs.ZstdCodec(level=5),
+        )
+    except AttributeError:  # zarr 2
+        zarr.open(
+            str(out), mode="w", shape=shape, chunks=chunks, dtype="uint8",
+            fill_value=1,
+            compressor=Blosc(cname="zstd", clevel=5, shuffle=Blosc.BITSHUFFLE),
+        )
 
 
 def _border_pad_slice(sl: np.ndarray, offset: int) -> np.ndarray:
@@ -138,7 +175,9 @@ def run_tissue(args) -> None:
     for i, (z0, z1) in enumerate(mine, 1):
         # cloud-volume is XYZC; channel selection has to be a post-fetch numpy index.
         arr = vol[:, :, z0:z1]
-        excluded = (arr[..., list(EXCLUDE_CHANNELS)] > args.threshold).any(axis=-1)
+        excluded = np.zeros(arr.shape[:3], bool)
+        for channel, minimum in EXCLUDE_MIN.items():
+            excluded |= arr[..., channel] >= minimum
         out[z0:z1, :, :] = np.transpose((~excluded).astype(np.uint8), (2, 1, 0))
         print(f"  [{i}/{len(mine)}] z={z0}:{z1} ({(time.time()-t0)/i:.1f}s/slab)", flush=True)
 
@@ -185,7 +224,6 @@ def main() -> int:
     ap.add_argument("--tissue", type=Path, help="tissue zarr (--stage keep)")
     ap.add_argument("--em", type=Path, help="mip-0 EM zarr array (--stage keep)")
     ap.add_argument("--init", action="store_true", help="create the zarr and exit")
-    ap.add_argument("--threshold", type=int, default=128, help="tissue channel threshold")
     ap.add_argument("--z-slab", type=int, default=128, help="Z per cloud-volume read")
     ap.add_argument("--border-offset", type=int, default=1)
     ap.add_argument("--shard-id", type=int, default=0)
@@ -199,16 +237,9 @@ def main() -> int:
             return 0
         # fill_value 1 = KEEP, so an unwritten region never silently deletes data.
         if args.stage == "tissue":
-            zarr.open(
-                str(args.out), mode="w", shape=TISSUE_SHAPE_ZYX, dtype="uint8",
-                chunks=(args.z_slab, 512, 512), fill_value=1,
-                compressor=Blosc(cname="zstd", clevel=5, shuffle=Blosc.BITSHUFFLE),
-            )
+            _create(args.out, TISSUE_SHAPE_ZYX, (args.z_slab, 512, 512))
         else:
-            zarr.open(
-                str(args.out), mode="w", shape=KEEP_SHAPE_ZYX, dtype="uint8",
-                chunks=KEEP_CHUNKS, fill_value=1,
-            )
+            _create(args.out, KEEP_SHAPE_ZYX, KEEP_CHUNKS)
         print(f"created {args.out}")
         return 0
 

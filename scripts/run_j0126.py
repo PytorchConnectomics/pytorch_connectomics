@@ -37,6 +37,12 @@ from typing import Callable
 from omegaconf import DictConfig, OmegaConf
 
 REPO = Path(__file__).resolve().parent.parent
+# Every step runs through `sbatch --wrap=...`, which does NOT guarantee the compute
+# node inherits the submitter's PATH -- a bare `python` there resolves to the system
+# interpreter and dies with `ModuleNotFoundError: No module named 'omegaconf'`. Some
+# sites also preset SBATCH_EXPORT, so the usual `--export=ALL` default does not save
+# it. Name the interpreter that is running this driver instead.
+PYTHON = shlex.quote(sys.executable)
 TUTORIAL = REPO / "tutorials" / "neuron_j0126"
 PARAMS = TUTORIAL / "params.yaml"
 
@@ -200,7 +206,11 @@ def build_steps(params) -> list[Step]:
 
     abiss = load_workflow_yaml(abiss_yaml).abiss_chunk
     seg_info = Path(str(abiss.param.SEG_PATH).replace("file://", "")) / "info"
-    affinity_h5 = Path(str(abiss.source_affinity_h5))
+    # `params.data.affinity_h5`, not `abiss_chunk.source_affinity_h5`: the decode
+    # reads the virtual dataset directly through AFF_PATH (setting
+    # `source_affinity_h5` would copy it into a precomputed layer, whose backend
+    # drops AFF_KEEP_MASK), so this is the one name both steps agree on.
+    affinity_h5 = Path(str(params.data.affinity_h5))
 
     ec = load_workflow_yaml(ec_yaml).error_correction
     ec_manifest = Path(ec.workdir) / "error_correction_manifest.json"
@@ -224,12 +234,12 @@ def build_steps(params) -> list[Step]:
     dl = params.download
     em_bbox = " ".join(str(int(v)) for v in dl.em_bbox)
     em_common = (
-        f"python scripts/download_precompute.py {shlex.quote(str(dl.em_source))}"
+        f"{PYTHON} scripts/download_precompute.py {shlex.quote(str(dl.em_source))}"
         f" --out {shlex.quote(str(em_store))} --dataset {em_dataset} --mip 0"
         f" --slab {dl.slab} --tile-xy {dl.tile_xy}"
         + (f" --bbox {em_bbox}" if em_bbox else "")
     )
-    mask_tool = "python scripts/build_j0126_keep_mask.py"
+    mask_tool = f"{PYTHON} scripts/build_j0126_keep_mask.py"
 
     fetch_parts = []
     if training:
@@ -302,7 +312,7 @@ def build_steps(params) -> list[Step]:
         Step(
             name="train",
             title="1. train the affinity model",
-            command=f"python scripts/main.py --config {train_yaml} --mode train",
+            command=f"{PYTHON} scripts/main.py --config {train_yaml} --mode train",
             status=lambda: check_checkpoint(train_save, None if training else checkpoint),
             resources=sbatch_resources(params, "train", gpus=int(params.train.num_gpus)),
             inputs=[
@@ -315,7 +325,7 @@ def build_steps(params) -> list[Step]:
             name="infer",
             title="2. predict affinity",
             command=(
-                f"python scripts/main.py --config {infer_yaml} --mode test"
+                f"{PYTHON} scripts/main.py --config {infer_yaml} --mode test"
                 f" --checkpoint {infer_ckpt}"
             ),
             status=lambda: check_affinity(infer_save, infer_suffix),
@@ -330,10 +340,10 @@ def build_steps(params) -> list[Step]:
             # The virtual dataset is what makes the chunk store readable as the single
             # h5 ABISS wants; it copies nothing, so it belongs to this step's setup.
             command=(
-                f"python scripts/stitch_chunked_prediction.py --vds"
+                f"{PYTHON} scripts/stitch_chunked_prediction.py --vds"
                 f" --discover {shlex.quote(str(infer_save))}"
                 f" --out {shlex.quote(str(affinity_h5))} --force"
-                f" && python scripts/run_abiss_chunk.py --config {abiss_yaml}"
+                f" && {PYTHON} scripts/run_abiss_chunk.py --config {abiss_yaml}"
             ),
             status=lambda: check_paths(seg_info),
             resources=sbatch_resources(params, "abiss"),
@@ -343,7 +353,7 @@ def build_steps(params) -> list[Step]:
             name="ec",
             title="4. morphology error correction",
             command=(
-                f"python scripts/run_error_correction.py --config {ec_yaml}"
+                f"{PYTHON} scripts/run_error_correction.py --config {ec_yaml}"
                 f" --stage all --num-tasks 1"
             ),
             status=lambda: check_paths(ec_manifest),

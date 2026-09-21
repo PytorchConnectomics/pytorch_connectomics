@@ -15,7 +15,7 @@ from .artifacts import reject_evaluation_path, sha256_file
 SIZE_DTYPE: np.dtype[Any] = np.dtype([("label", "<u8"), ("size", "<u8")])
 
 
-def load_size_inventory(path: str | Path, *, require_report: bool = True) -> np.memmap:
+def load_size_inventory(path: str | Path, *, require_report: bool = True) -> np.ndarray:
     path = Path(path)
     reject_evaluation_path(path)
     report_path = path.with_suffix(path.suffix + ".json")
@@ -25,7 +25,13 @@ def load_size_inventory(path: str | Path, *, require_report: bool = True) -> np.
         report = json.loads(report_path.read_text())
         if report.get("gt_free") is not True or report.get("sha256") != sha256_file(path):
             raise ValueError(f"size inventory provenance check failed: {path}")
-    sizes: np.memmap = np.memmap(path, dtype=SIZE_DTYPE, mode="r")
+    # An inventory with no segments is a legitimate empty file, and `np.memmap`
+    # cannot map one ("cannot mmap an empty file").
+    sizes: np.ndarray = (
+        np.memmap(path, dtype=SIZE_DTYPE, mode="r")
+        if path.stat().st_size
+        else np.empty(0, dtype=SIZE_DTYPE)
+    )
     if len(sizes) and not np.all(sizes["label"][:-1] < sizes["label"][1:]):
         raise ValueError("size inventory labels must be unique and sorted")
     return sizes
@@ -42,16 +48,27 @@ def aggregate_size_files(
         raise FileNotFoundError(f"size glob matched no files: {pattern}")
     if expected_files is not None and len(paths) != expected_files:
         raise RuntimeError(f"size glob matched {len(paths):,}/{expected_files:,} files")
-    parts = [np.asarray(np.memmap(path, dtype=SIZE_DTYPE, mode="r")) for path in paths]
-    rows = np.concatenate(parts)
+    # ABISS legitimately writes a zero-byte size table for a chunk with no
+    # segments, and `np.memmap` raises `cannot mmap an empty file` on those.
+    # They are still counted above: a missing file and an empty one mean
+    # different things, and only the first is a failure.
+    parts = [
+        np.asarray(np.memmap(path, dtype=SIZE_DTYPE, mode="r"))
+        for path in paths
+        if path.stat().st_size
+    ]
+    rows = np.concatenate(parts) if parts else np.empty(0, dtype=SIZE_DTYPE)
     rows = rows[rows["label"] != 0]
     order = np.argsort(rows["label"], kind="stable")
     labels = rows["label"][order]
     values = rows["size"][order]
-    starts = np.r_[0, np.flatnonzero(labels[1:] != labels[:-1]) + 1]
-    result: np.ndarray = np.empty(len(starts), dtype=SIZE_DTYPE)
-    result["label"] = labels[starts]
-    result["size"] = np.add.reduceat(values, starts)
+    if len(labels):
+        starts = np.r_[0, np.flatnonzero(labels[1:] != labels[:-1]) + 1]
+        result: np.ndarray = np.empty(len(starts), dtype=SIZE_DTYPE)
+        result["label"] = labels[starts]
+        result["size"] = np.add.reduceat(values, starts)
+    else:
+        result = np.empty(0, dtype=SIZE_DTYPE)
     output.parent.mkdir(parents=True, exist_ok=True)
     result.tofile(output)
     report = {
