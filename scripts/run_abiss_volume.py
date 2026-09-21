@@ -7,12 +7,13 @@ This script is ABISS-only and errors out when ABISS watershed is unavailable.
 from __future__ import annotations
 
 import argparse
+import gc
 import shutil
 import subprocess
 import sys
 import tempfile
 from pathlib import Path
-from typing import Iterable, Optional
+from typing import Callable, Iterable, Optional
 
 import numpy as np
 
@@ -305,6 +306,7 @@ def _run_abiss_ws(
     ws_merge_thresholds: Optional[list[float]] = None,
     ws_merge_function: Optional[str] = None,
     edge_storage: str = "destination",
+    on_batch_result: Optional["Callable[[int, float, np.ndarray], None]"] = None,
 ) -> "np.ndarray | dict[float, np.ndarray]":
     if ws_low_threshold > ws_high_threshold:
         raise ValueError(
@@ -330,6 +332,12 @@ def _run_abiss_ws(
 
         ws_xyz_shape = _write_affinity_with_halo(aff_raw, aff_xyzc, halo=1)
         _write_abiss_param_file(param_txt, ws_xyz_shape, boundary_flags, offset)
+
+        # ws reads the affinity from aff_raw, not from this process. Holding the
+        # float32 XYZC copy across the subprocess adds 64 GB to the peak at
+        # 5.3 Gvox for nothing; output_xyz_shape was already taken above.
+        del aff_xyzc
+        gc.collect()
 
         cmd = [
             str(ws_binary),
@@ -361,6 +369,14 @@ def _run_abiss_ws(
         subprocess.run(cmd, cwd=str(ws_dir), check=True)
 
         if use_batch:
+            # `on_batch_result` exists because accumulating the whole grid is
+            # what sets the memory ceiling on large volumes, not the watershed.
+            # uint64 at 5.3 Gvox is 42.8 GB PER THRESHOLD, so an 8-point grid
+            # held here is 341 GB -- more than ws64's own ~310 GB peak, and
+            # needed only to hand the caller a dict it writes out one entry at a
+            # time anyway. With a sink, each segmentation is consumed and freed
+            # before the next is read and the ceiling drops to one threshold.
+            # Default None keeps the dict for the callers that index it.
             results: dict[float, np.ndarray] = {}
             for i, mt in enumerate(ws_merge_thresholds):
                 seg_file = ws_dir / f"seg_{_ABISS_TAG}_{i}.data"
@@ -370,7 +386,14 @@ def _run_abiss_ws(
                         f"Ensure the ws binary at {ws_binary} supports multi-threshold mode."
                     )
                 seg_xyz = _read_segmentation_xyz(seg_file, output_xyz_shape, halo=1)
-                results[round(mt, 10)] = np.transpose(seg_xyz, (2, 1, 0))
+                seg_zyx = np.transpose(seg_xyz, (2, 1, 0))
+                del seg_xyz
+                if on_batch_result is not None:
+                    on_batch_result(i, mt, seg_zyx)
+                    del seg_zyx
+                    gc.collect()
+                else:
+                    results[round(mt, 10)] = seg_zyx
             return results
 
         if not seg_raw.exists():
@@ -551,13 +574,26 @@ def main() -> int:
     if args.ws_merge_threshold is not None:
         ws_merge = _resolve_threshold(args.ws_merge_threshold, aff_for_pct, "ws_merge_threshold")
 
+    # _run_abiss_ws builds its own float32 XYZC affinity, so holding this one
+    # past threshold resolution doubles that array for nothing: 3 x 5.3 Gvox x
+    # 4 B = 64 GB on a native-grid mip0 volume.
+    del aff_for_pct
+    gc.collect()
+
     output_path.parent.mkdir(parents=True, exist_ok=True)
 
     ws_merge_function = args.ws_merge_function
 
     if batch_merge_thresholds is not None and len(batch_merge_thresholds) > 1:
-        # Batch mode: run watershed once, merge with each threshold
-        result = _run_abiss_ws(
+        # Batch mode: run watershed once, merge with each threshold.
+        stem = output_path.stem
+        ext = output_path.suffix
+        parent = output_path.parent
+
+        def _write_one(i: int, mt: float, seg: np.ndarray) -> None:
+            _write_array(parent / f"{stem}_mt{i}{ext}", seg, dataset=args.output_dataset)
+
+        _run_abiss_ws(
             predictions_czyx=predictions,
             ws_binary=ws_binary,
             ws_high_threshold=ws_high,
@@ -572,13 +608,8 @@ def main() -> int:
             ws_merge_thresholds=batch_merge_thresholds,
             ws_merge_function=ws_merge_function,
             edge_storage=args.edge_storage,
+            on_batch_result=_write_one,
         )
-        stem = output_path.stem
-        ext = output_path.suffix
-        parent = output_path.parent
-        for i, mt in enumerate(batch_merge_thresholds):
-            mt_path = parent / f"{stem}_mt{i}{ext}"
-            _write_array(mt_path, result[round(mt, 10)], dataset=args.output_dataset)
         return 0
 
     segmentation = _run_abiss_ws(
