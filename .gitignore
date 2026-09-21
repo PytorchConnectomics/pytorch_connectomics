@@ -116,6 +116,7 @@ dmypy.json
 # data
 *.h5
 *.sh
+!tutorials/dispim_gcloud/vm_stage.sh
 ._*
 .DS_Store
 *.pth

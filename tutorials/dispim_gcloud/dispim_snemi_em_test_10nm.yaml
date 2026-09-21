@@ -1,0 +1,8 @@
+# Inference-only transfer test: existing mask-simulation-trained 20-epoch weights.
+# Input: gs://donglai/dispim/snemi/snemi-test-em-10nm.zarr (A/B EM intensities).
+_base_: dispim_snemi_10nm_20epoch.yaml
+experiment_name: dispim_snemi_em_test_10nm
+description: >-
+  Test the existing 10 nm mask-simulation checkpoint on paired EM-intensity
+  simulations. No retraining; fixed baseline ABISS; full-grid adapted Rand error.
+
