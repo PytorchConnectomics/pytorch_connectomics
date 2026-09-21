@@ -86,6 +86,36 @@ def test_size_inventory_aggregates_duplicate_labels(tmp_path: Path):
     np.testing.assert_array_equal(result["size"], [8, 4, 6])
 
 
+def test_size_inventory_skips_zero_byte_tables(tmp_path: Path):
+    """ABISS legitimately writes empty `seg_size_*.data` for empty chunks.
+
+    `np.memmap` raises `cannot mmap an empty file` on those, which killed the
+    whole-volume aggregation after every chunk had already been processed.
+    """
+    np.asarray([(1, 3), (2, 4)], dtype=SIZE_DTYPE).tofile(tmp_path / "seg_size_a.data")
+    (tmp_path / "seg_size_empty.data").write_bytes(b"")
+    output = tmp_path / "all.data"
+
+    report = aggregate_size_files(str(tmp_path / "seg_size_*.data"), output)
+    result = load_size_inventory(output)
+
+    assert report["source_files"] == 2
+    np.testing.assert_array_equal(result["label"], [1, 2])
+    np.testing.assert_array_equal(result["size"], [3, 4])
+
+
+def test_size_inventory_of_only_empty_tables_is_empty(tmp_path: Path):
+    (tmp_path / "seg_size_a.data").write_bytes(b"")
+    (tmp_path / "seg_size_b.data").write_bytes(b"")
+    output = tmp_path / "all.data"
+
+    report = aggregate_size_files(str(tmp_path / "seg_size_*.data"), output)
+
+    assert report["segments"] == 0
+    assert report["voxels"] == 0
+    assert len(load_size_inventory(output)) == 0
+
+
 def test_tutorial_config_has_exhaustive_gt_free_scope():
     config_path = Path("tutorials/neuron_j0126/4_error_correction.yaml")
     config = ErrorCorrectionConfig.load(config_path)
@@ -142,3 +172,26 @@ def test_config_rejects_unknown_and_evaluation_inputs(tmp_path: Path):
     path.write_text(yaml.safe_dump(original))
     with pytest.raises(ValueError, match="evaluation/GT path"):
         ErrorCorrectionConfig.load(path)
+
+
+def test_nucleus_firewall_is_empty_without_a_manifest(tmp_path: Path):
+    """No nucleus volume -> no manifest -> no identities to protect.
+
+    Raising here stopped step 4 after `skeletonize` had processed every chunk,
+    and there was no flag to disable it, so the shipped pipeline could not
+    complete on the data it ships with.
+    """
+    from connectomics.decoding.error_correction.morphology import load_nucleus_firewall
+
+    assert load_nucleus_firewall(tmp_path / "nucleus_competition" / "manifest.json") == {}
+
+
+def test_nucleus_firewall_still_rejects_a_contentless_manifest(tmp_path: Path):
+    """A manifest that exists but holds nothing means competition ran and failed."""
+    from connectomics.decoding.error_correction.morphology import load_nucleus_firewall
+
+    manifest = tmp_path / "manifest.json"
+    manifest.write_text(json.dumps({"schema": 1}))
+
+    with pytest.raises(ValueError, match="missing nucleus histograms"):
+        load_nucleus_firewall(manifest)

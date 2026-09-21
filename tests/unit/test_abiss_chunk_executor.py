@@ -483,3 +483,134 @@ def test_bbox_check_is_skipped_for_remote_layers() -> None:
     """A precomputed/gs:// layer keeps its extent in `info`; never guess or fail."""
     assert abiss_chunk._affinity_extent_xyz("gs://bucket/affinity") is None
     abiss_chunk._validate_bbox_against_affinity("gs://bucket/affinity", [0, 0, 0, 9, 9, 9])
+
+
+# --------------------------------------------------------------------------------
+# Param-file contract with ABISS (j0126 reproduction report).
+# --------------------------------------------------------------------------------
+
+
+def _abiss_yaml(tmp_path: Path, param: dict[str, Any], **abiss: Any) -> Path:
+    source_h5 = tmp_path / "affinity.h5"
+    with h5py.File(source_h5, "w") as handle:
+        handle.create_dataset("main", data=np.zeros((3, 4, 6, 8), dtype=np.uint8))
+    config_path = tmp_path / "abiss.yaml"
+    section: dict[str, Any] = {
+        "abiss_home": str(tmp_path / "abiss"),
+        "workdir": str(tmp_path / "work"),
+        "secrets_dir": str(tmp_path / "secrets"),
+        "source_affinity_h5": str(source_h5),
+        "source_dataset": "main",
+        "param": param,
+    }
+    section.update(abiss)
+    config_path.write_text(yaml.safe_dump({"abiss_chunk": section}), encoding="utf-8")
+    return config_path
+
+
+def test_aff_channels_is_written_as_an_index_list(tmp_path: Path) -> None:
+    """`volume_backends._channels_for` reads AFF_CHANNELS as INDICES, not a count.
+
+    Emitting the count `3` for a 3-channel volume asks for channel index 3 and the
+    h5/zarr backends raise `AFF_CHANNELS [3] out of range`. The precomputed backend
+    ignores the key, which is why this stayed invisible.
+    """
+    config_path = _abiss_yaml(
+        tmp_path, {"NAME": "chan", "BBOX": [0, 0, 0, 8, 6, 4], "CHUNK_SIZE": [8, 6, 4]}
+    )
+
+    payload = abiss_chunk.prepare_config(config_path).param_payload
+
+    assert payload["AFF_CHANNELS"] == [0, 1, 2]
+
+
+def test_empty_nucleus_keys_are_dropped_from_the_param_file(tmp_path: Path) -> None:
+    """ABISS tests `if "NUC_PATH" in global_param` -- presence, not truthiness.
+
+    Writing `NUC_PATH: ""` makes `cut_chunk_agg` open `""` and die with
+    `UnsupportedProtocolError` minutes into the decode.
+    """
+    config_path = _abiss_yaml(
+        tmp_path,
+        {
+            "NAME": "nonuc",
+            "BBOX": [0, 0, 0, 8, 6, 4],
+            "CHUNK_SIZE": [8, 6, 4],
+            "NUC_PATH": "",
+            "NUC_RATIO": [4, 8, 8],
+            "NUC_OFFSET": [0, 0, 0],
+            "NUC_MIN_SHARE": 0.02,
+        },
+    )
+
+    payload = abiss_chunk.prepare_config(config_path).param_payload
+
+    assert not [key for key in payload if key.startswith("NUC_")]
+
+
+def test_configured_nucleus_keys_survive(tmp_path: Path) -> None:
+    config_path = _abiss_yaml(
+        tmp_path,
+        {
+            "NAME": "nuc",
+            "BBOX": [0, 0, 0, 8, 6, 4],
+            "CHUNK_SIZE": [8, 6, 4],
+            "NUC_PATH": str(tmp_path / "nuclei.h5") + "::main",
+            "NUC_RATIO": [4, 8, 8],
+        },
+    )
+
+    payload = abiss_chunk.prepare_config(config_path).param_payload
+
+    assert payload["NUC_PATH"].endswith("nuclei.h5::main")
+    assert payload["NUC_RATIO"] == [4, 8, 8]
+
+
+def test_keep_mask_on_a_precomputed_affinity_is_rejected(tmp_path: Path) -> None:
+    """A precomputed AFF_PATH silently drops AFF_KEEP_MASK; fail instead."""
+    config_path = _abiss_yaml(
+        tmp_path,
+        {
+            "NAME": "masked",
+            "BBOX": [0, 0, 0, 8, 6, 4],
+            "CHUNK_SIZE": [8, 6, 4],
+            "AFF_PATH": f"file://{tmp_path}/precomputed/affinity",
+            "AFF_KEEP_MASK": f"{tmp_path}/keep.zarr",
+        },
+    )
+
+    with pytest.raises(ValueError, match="does not apply it"):
+        abiss_chunk.prepare_config(config_path)
+
+
+def test_keep_mask_on_an_h5_affinity_is_accepted(tmp_path: Path) -> None:
+    source_h5 = tmp_path / "affinity.h5"
+    config_path = _abiss_yaml(
+        tmp_path,
+        {
+            "NAME": "masked",
+            "BBOX": [0, 0, 0, 8, 6, 4],
+            "CHUNK_SIZE": [8, 6, 4],
+            "AFF_PATH": str(source_h5),
+            "AFF_KEEP_MASK": f"{tmp_path}/keep.zarr",
+        },
+    )
+
+    payload = abiss_chunk.prepare_config(config_path).param_payload
+
+    assert payload["AFF_KEEP_MASK"] == f"{tmp_path}/keep.zarr"
+
+
+def test_unmasked_precomputed_affinity_still_works(tmp_path: Path) -> None:
+    """No AFF_KEEP_MASK means decoding unmasked on purpose; the guard is silent."""
+    config_path = _abiss_yaml(
+        tmp_path,
+        {
+            "NAME": "plain",
+            "BBOX": [0, 0, 0, 8, 6, 4],
+            "CHUNK_SIZE": [8, 6, 4],
+            "AFF_PATH": f"file://{tmp_path}/precomputed/affinity",
+        },
+    )
+
+    assert "AFF_KEEP_MASK" not in abiss_chunk.prepare_config(config_path).param_payload
