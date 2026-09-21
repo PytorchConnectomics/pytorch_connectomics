@@ -86,8 +86,44 @@ default:
             # boundary map lands one voxel off along every axis.
             edge_storage: source
             # Percentiles, not absolutes -- see the header block.
+            #
+            # ws_high is INERT on this volume. MEASURED 2026-09-17 (jobs 3015924,
+            # 3015994, 6 interior val cubes, both checkpoints): every value from
+            # "79%" up to 1.0 -- including 1.0, which is above the data maximum
+            # of 0.823/0.885 -- returns bit-identical VOI, oracle, split, merge
+            # and adapted-Rand to four decimals. Reading
+            # lib/abiss/src/ws/basic_watershed.hpp:76-92, `high` is a
+            # FORCE-CONNECT threshold, not a seed threshold: the steepest
+            # neighbour is always followed and `>= high` only adds extra
+            # connections, which on this affinity never change the components.
+            # 94% is kept because it is what every recorded number here was
+            # produced at, not because it was chosen.
             ws_high_threshold: "94%"
-            ws_low_threshold: "20%"
+            # ws_low is a DISCARD threshold: a voxel whose best affinity is not
+            # above it gets no connection and is lost to dust removal, which is
+            # unrecoverable ceiling error. Lowered from "20%" to 0.0 (discard
+            # nothing -- ABISS's traditional setting) on 2026-09-17.
+            #
+            # CONFIRMED ON THE WHOLE VOLUME, job 3016173, both checkpoints, mt
+            # re-swept 0.44/0.47/0.50 at each seeding (the optimum stays 0.47):
+            #   eb2 @ mt 0.47   VOI 0.9130 -> 0.9099   oracle 0.3055 -> 0.3016
+            #   eb8 @ mt 0.47   VOI 0.9188 -> 0.9147   oracle 0.3041 -> 0.2988
+            # Every direction is favourable or neutral: adapted-Rand is
+            # identical, the split term is unchanged (+/-0.0001), and the whole
+            # VOI gain is in the merge term. The VOI gain is inside the ~0.01
+            # noise floor; the ~1.3-1.7% ceiling gain is the real effect.
+            #
+            # COSTS, both measured, neither blocking: ~30% more segments (they
+            # are tiny -- the unchanged split term is what proves they carry
+            # negligible volume) and ~14% more peak RSS (176 -> 201 GB at
+            # 2.08 Gvox). Watch both if this is ever taken to a larger volume.
+            #
+            # 0.0 is an absolute, not a percentile, and that does not violate the
+            # header block's rule: "discard nothing" is invariant under the
+            # scale_sigmoid compression exactly as a percentile is. On cubes
+            # "4%" tied 0.0, but only 0.0 was confirmed on the whole volume, so
+            # 0.0 is what is set here.
+            ws_low_threshold: 0.0
             # merge_segments only merges regions under this size, so the stock
             # 400 would stop agglomeration dead. Raised out of the way so the
             # affinity criterion is what decides.

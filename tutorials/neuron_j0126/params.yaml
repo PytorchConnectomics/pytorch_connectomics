@@ -58,6 +58,13 @@ params:
   # NOT(blood vessel | myelin | out-of-bounds), combined with the 0/255 border
   # ring of the aligned EM. Removes 15.64% of the volume. ABISS masks affinity
   # with it and error correction reuses it.
+  #
+  # Building it streams the whole tissue_classification layer. To skip that,
+  # download the prebuilt mask the reference runs used and set enabled: false:
+  #   huggingface.co/datasets/pytc/zebrafinch-j0126
+  #     -> j0126-tissue-border-keep-mask.tar
+  # It untars into dataset_root as tissue_border_keep_mask_full.zarr, the name
+  # data.keep_mask below already points at.
   mask:
     enabled: true
     num_shards: 16
@@ -130,6 +137,10 @@ params:
     # firewall (it never joins two different nucleus identities). Leave "" if
     # you have none: the run still completes, without that protection -- the
     # "+ nucleus instance certificate" rows in the README are what it buys.
+    # The reference runs used j0126-nucleus-instances-80nm.h5 (465 hand-
+    # proofread nuclei at 80 nm iso) from
+    #   huggingface.co/datasets/pytc/zebrafinch-j0126
+    # which nucleus_ratio below upsamples onto the mip-0 grid.
     nucleus_volume: ""
     nucleus_ratio: [4, 8, 8]
     # Affinity handed to ABISS: a virtual dataset over step 2's chunk store,
