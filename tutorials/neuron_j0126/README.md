@@ -76,9 +76,18 @@ the grid the reference runs used.
 
 The exclusion mask is FFN's own `tissue_classification` thresholded to
 `NOT(blood vessel | myelin | out-of-bounds)`, combined with the 0/255 border ring of the
-aligned EM. It removes 15.64% of the volume, and because it comes from FFN's CNN it weakens
-a "we beat FFN" comparison; `dev/zebrafinch/build_bv_border_mask.py` is the alternative
-built from a vessel volume we own (no myelin masked, 1.38% removed).
+aligned EM. Because it comes from FFN's CNN it weakens a "we beat FFN" comparison;
+`dev/zebrafinch/build_bv_border_mask.py` is the alternative built from a vessel volume we
+own (no myelin masked, 1.38% removed).
+
+The thresholds are FFN's published ones, per channel and not interchangeable: blood vessel
+≥ 252, myelin ≥ 252, out-of-bounds ≥ 25. Verified against FFN's own `tissue_mask` layer —
+voxel-exact agreement on a 12.6 M-voxel sample — and it excludes 14.61% of the volume.
+**The numbers in the results table below predate that check**: they were measured with a
+uniform threshold of 128 on all three channels, which over-excludes (17.53% of the
+`tissue_classification` grid, 15.64% after the border ring), and that is also what the
+prebuilt mask published below contains. Rebuilding with the corrected recipe gives the mask
+FFN actually used and will shift the table slightly.
 
 Training data is 33 densely labelled subvolumes, fetched only when `train.enabled` is true.
 Training reads the padded pair `im_raw_4-32-32/` + `seg_gt_4-32-32/`: the pad is real EM
