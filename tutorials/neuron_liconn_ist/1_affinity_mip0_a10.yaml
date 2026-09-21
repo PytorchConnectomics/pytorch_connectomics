@@ -1,0 +1,22 @@
+# 1_affinity_mip0.yaml on an A10 instead of an L40S.
+#
+# Every GPU in `short` was allocated and five GPU nodes were down on 2026-09-20,
+# so this run goes to the `weilab` partition (gdw001, 4x a10, MaxTime=UNLIMITED),
+# which had two free. The a10 has 24 GB of VRAM against the L40S's 48 GB.
+#
+# sw_batch_size is the ONLY change, and it changes no result: peak GPU memory is
+# linear in it (~3.46 GB/unit at a 144^3 window per neuron_j0126/2_infer.yaml,
+# so ~2.43 GB/unit at this file's 128^3), which puts 8 units at ~20 GB of 24 --
+# too close to the edge to spend a multi-hour GPU slot on. 6 units is ~15 GB.
+# The sliding-window grid, the blending and the accumulation are identical
+# either way; MedNeXt normalizes without running statistics, so the forward pass
+# does not depend on how many windows share a batch.
+_base_:
+  - 1_affinity_mip0.yaml
+
+experiment_name: liconn_ist_affinity_mip0_a10
+
+default:
+  inference:
+    window:
+      sw_batch_size: 6

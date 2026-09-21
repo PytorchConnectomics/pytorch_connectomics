@@ -379,7 +379,8 @@ else hard-codes them.
 **Three things follow from this bucket being a different one from the images.**
 
 1. **Image and segmentation now live in separate buckets.** The eight OME-Zarr
-   image groups stay at `gs://donglai/liconn/moe/clip_percentile_1_99/`, which is
+   image groups are in `gs://donglai_public/liconn/moe/clip_percentile_1_99/`
+   alongside the segmentation layers (moved there 2026-09-16), which is
    private and served through ngauth. A neuroglancer view that overlays the two
    spans both buckets and may need two credentials. Alignment is unaffected —
    both carry true physical resolution and the resample preserves the corners, so

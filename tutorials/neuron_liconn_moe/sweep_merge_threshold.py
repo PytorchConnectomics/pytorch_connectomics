@@ -76,6 +76,50 @@ DEFAULT_THRESHOLDS = "0.40,0.47,0.55,0.60,0.65,0.70,0.75"
 # as a percentile of that volume's own affinity. Everything else inherits it.
 PUBLISHED_PERCENTILE = 62.89
 
+# WHICH WATERSHED BINARY, and why this is decided by size and not by hand.
+# The stock lib/abiss/build/ws indexes the watershed with uint32
+# (watershed_traits<uint32_t>::high_bit), so ONE invocation cannot exceed
+# 2,147,483,648 voxels INCLUDING the 1-voxel halo ws adds on every axis. That is
+# a size limit, not an allocation failure -- no --mem can move it.
+#
+# It does not bite at MOE_GRID=train (mip1, 0.4-1.6 Gvox) but it bites hard at
+# MOE_GRID=mip0, where the native 18x volumes are 1.7-5.4 Gvox: job 3014241_2
+# (ExPID99_18x_2_cerebellum_1Byqvupl, 2306x2306x1006 with halo = 249% of the cap)
+# aborted on that assert with SIGABRT.
+#
+# lib/abiss/build64/ws64 is the same source built with WS_INTERNAL_SEG64; the
+# on-disk output format is identical. It was gated on reproducing the published
+# 18 nm IST numbers exactly before being trusted (job 3028181: VOI 0.934057 /
+# 0.913016 / 0.968032 and all three segment counts, zero difference).
+#
+# Pick it by measured size rather than by a flag, because the assert is compiled
+# out under -DNDEBUG and the uint32 index then overflows SILENTLY into a
+# plausible-looking wrong segmentation -- the same failure class as the all-zero
+# decode that `check_nonempty` exists for.
+WS_UINT32_CAP = 0x80000000
+WS_HALO = 1
+
+
+def resolve_ws_binary(aff: Path) -> Path:
+    """Return the ws build that can index this volume, or fail loudly."""
+    with h5py.File(aff, "r") as f:
+        _, z, y, x = f["main"].shape
+    nvox = (z + 2 * WS_HALO) * (y + 2 * WS_HALO) * (x + 2 * WS_HALO)
+    ws32 = V.REPO / "lib/abiss/build/ws"
+    ws64 = V.REPO / "lib/abiss/build64/ws64"
+    over = nvox >= WS_UINT32_CAP
+    ws = ws64 if over else ws32
+    print(f"ws chunk {nvox:,} voxels with halo "
+          f"({100.0 * nvox / WS_UINT32_CAP:.1f}% of the uint32 cap) -> {ws.name}",
+          flush=True)
+    if not ws.exists():
+        raise SystemExit(
+            f"ABISS watershed binary not found: {ws}\n"
+            + ("This volume is over the uint32 cap and REQUIRES ws64. Build it with "
+               "-DWS_INTERNAL_SEG64 into lib/abiss/build64/." if over else
+               "lib/abiss is a compiled artifact of the main checkout, not a worktree."))
+    return ws
+
 
 def run_sweep(aff: Path, out_dir: Path, thresholds: str, workdir: Path) -> None:
     out_dir.mkdir(parents=True, exist_ok=True)
@@ -88,6 +132,9 @@ def run_sweep(aff: Path, out_dir: Path, thresholds: str, workdir: Path) -> None:
         # The vendored ABISS build (build/ws) is a compiled artifact that lives
         # only in the main checkout, so this path is absolute on purpose.
         "--abiss-home", str(V.REPO / "lib/abiss"),
+        # Overrides the build/ws discovered from --abiss-home when this volume
+        # is over the uint32 watershed cap; see WS_UINT32_CAP above.
+        "--ws-binary", str(resolve_ws_binary(aff)),
         # NOTE: `workdir`/`timeout_sec` in 2_abiss.yaml are kwargs of the
         # `decode_abiss` decoder, not flags of this script.
         "--abiss-workdir", str(workdir / "ws_scratch"),

@@ -1,0 +1,101 @@
+# IST LICONN step 1, mip0 variant: EM -> voxel affinity on the SOURCE-resolution
+# val volume, from the 4-GPU mip0 checkpoint.
+#
+#   python scripts/main.py --config tutorials/neuron_liconn_ist/1_affinity_mip0.yaml \
+#     --mode test --checkpoint <params.artifacts.checkpoint>
+#
+# NO TRAINING HAPPENS HERE. The checkpoint is
+#   outputs/liconn_final_banis_plus_mip0/20260908_164220/checkpoints/step=00200000.ckpt
+# (200k steps, 4 GPUs, trained by tutorials/neuron_nisb/liconn_final_banis+_mip0.yaml
+# on final_proofread_mip0 at [12,9,9] nm ZYX with erosion=4). The `train:` block
+# below exists only because the strict schema wants the section populated.
+#
+# WHY THIS FILE EXISTS SEPARATELY FROM 1_affinity.yaml. Same recipe, three
+# differences, each load-bearing:
+#   1. data + resolution are the mip0 export, not the 18 nm one. Physically the
+#      identical region: crop [280,480,480]->[1110,9060,7170] is exactly 2x the
+#      18 nm crop on every axis, so val is (290, 8580, 6690) = 8x 2.08 Gvox.
+#   2. decoding is OFF. 1_affinity.yaml inherits decode_affinity_cc(0.75) from
+#      banis.yaml and runs it (95.5 s on the 18 nm val, job 3013750). This
+#      pipeline decodes with ABISS in step 2, so that CC pass is pure waste --
+#      and at 16.65 Gvox it also allocates a full label volume (~66 GB as
+#      uint32) on top of a ~100 GB affinity, for an artifact nothing reads.
+#   3. evaluation is OFF. The inherited metric is `nerl`, which needs skeletons
+#      this volume has none of; scoring happens in step 2 against the 18 nm GT.
+#
+# OUTPUT LOCATION is not set here. checkpoint_dispatch derives it from the
+# checkpoint path (nearest YYYYMMDD_HHMMSS ancestor), so this writes to
+#   outputs/liconn_final_banis_plus_mip0/20260908_164220/
+#     test_step=00200000/val/raw_x1_ch0-1-2.h5
+# alongside the four existing ExPID96/99 moe inference dirs, overwriting none.
+# The leaf is `val`, taken from the DATA PATH's last component, NOT from
+# test.data.test.name. Assuming the latter cost job 3013750 its exit status on
+# 2026-09-16 after the inference had already succeeded.
+#
+# OUTPUT CONVENTION, unchanged from the 18 nm sibling and depended on by step 2:
+#   * arrays are ZYX, so affinity channel c is the edge along array axis c:
+#     ch0 = Z, ch1 = Y, ch2 = X. (Channel c == axis c, NOT 2-ax.)
+#   * `channel_activations: scale_sigmoid` means the stored value is
+#     sigmoid(0.2 * logit), NOT a probability. The array never reaches 0 or 1.
+#     Any absolute threshold copied from another tutorial will be wrong here.
+
+_base_:
+  - params.yaml
+  - ../neuron_nisb/base_banis+.yaml
+
+experiment_name: liconn_ist_affinity_mip0
+
+description: >-
+  BANIS+ (MedNeXt-L/k3, 6-ch r1+r10 affinity, scale_sigmoid) trained from
+  scratch on the IST LICONN final-proofread volume at the SOURCE mip0 image
+  resolution, 9x9x12 nm XYZ = [12, 9, 9] nm ZYX, with the 18x18x24 nm proofread
+  FFN segmentation nearest-upsampled 2x as the GT. Applied here to the held-out
+  val region at that same native resolution.
+
+save_path: ${params.paths.output_root}/affinity_mip0
+
+params:
+  data:
+    train_mip0: ${params.paths.dataset_root}/final_proofread_mip0/train
+    val_mip0: ${params.paths.dataset_root}/final_proofread_mip0/val
+    # The mip0 export's own resolution, from its .zattrs resolution_nm_zyx.
+    resolution_zyx_mip0: [12, 9, 9]
+  artifacts:
+    checkpoint_mip0: ${params.paths.repository}/outputs/liconn_final_banis_plus_mip0/20260908_164220/checkpoints/step=00200000.ckpt
+    val_affinity_mip0_h5: ${params.paths.repository}/outputs/liconn_final_banis_plus_mip0/20260908_164220/test_step=00200000/val/raw_x1_ch0-1-2.h5
+
+default:
+  # See header note 3.
+  evaluation:
+    enabled: false
+    metrics: []
+  # See header note 2.
+  decoding:
+    load_prediction_path: ""
+    save_path: ""
+    steps: []
+
+test:
+  data:
+    test:
+      name: liconn_ist_mip0_val
+      path: ${params.data.val_mip0}
+      image: data.zarr/img
+      # GT is read by step 2's scoring, not by inference. It is also the 18 nm
+      # GT on the 18 nm grid there, not this volume's upsampled copy.
+      label: null
+      skeleton: null
+      resolution: ${params.data.resolution_zyx_mip0}
+
+train:
+  data:
+    train:
+      path: ${params.data.train_mip0}
+      image: data.zarr/img
+      label: data.zarr/seg
+      resolution: ${params.data.resolution_zyx_mip0}
+    val:
+      path: ${params.data.val_mip0}
+      image: data.zarr/img
+      label: data.zarr/seg
+      resolution: ${params.data.resolution_zyx_mip0}

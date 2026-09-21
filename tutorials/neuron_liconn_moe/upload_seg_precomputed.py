@@ -1,10 +1,14 @@
 #!/usr/bin/env python3
 """Publish a moe ABISS segmentation as a neuroglancer precomputed layer + meshes.
 
-Target `gs://donglai_public/liconn/moe/` (see `volumes.py::GCS_FOLDER`). This is
-NOT the bucket holding the eight OME-Zarr image groups -- those stay at
-`gs://donglai/liconn/moe/clip_percentile_1_99/` -- so overlaying image and
-segmentation now spans two buckets. Alignment is unaffected: both carry true
+Target `gs://donglai_public/liconn/moe/<family>/<kind>/` (see
+`volumes.py::gcs_folder`), which
+also holds the OME-Zarr image groups, so image and segmentation are in ONE
+bucket. (Until 2026-09-16 the images lived in the private `donglai` bucket and
+this file said overlaying spanned two buckets; the data was moved and
+`gs://donglai/liconn/` is now empty. Confirmed by Donglai 2026-09-16 and by
+listing: 12 .zarr image groups and 13 seg layers under the public prefix.)
+Alignment is unaffected either way: both carry true
 physical resolution and share an origin. The image group is at its native
 spacing, this layer is at the prepared volume's *effective* spacing (the
 `spacing_zyx` in `volumes.py::plan`, which is `native_shape * native / shape` --
@@ -68,7 +72,8 @@ class Target:
         self.seg_h5 = Path(seg)
         self.layer = layer
         self.staging = V.OUT_ROOT / "precomputed" / self.layer
-        self.gcs = f"{V.GCS_FOLDER}/{self.layer}"
+        # <family>/<kind>/<layer>; kind follows the scoped OUT_ROOT (eb2|eb8).
+        self.gcs = f"{V.gcs_folder(name)}/{self.layer}"
         # CloudVolume wants XYZ; `spacing_zyx` is the effective spacing.
         self.res_xyz = [float(v) for v in reversed(V.plan(name)["spacing_zyx"])]
 
@@ -210,7 +215,9 @@ def do_upload(t: Target) -> None:
     n, b = _tree_size(t.staging)
     print(f"uploading {n} objects / {b / 1e9:.2f} GB -> {t.gcs}", flush=True)
     subprocess.run([GCLOUD, "storage", "rsync", "-r", str(t.staging), t.gcs], check=True)
-    print(f"\n{V.layer_url(t.layer)}", flush=True)
+    # layer_url now needs the volume: the GCS path is <family>/<kind>/<layer>,
+    # and family is derived from the volume name, not the layer name.
+    print(f"\n{V.layer_url(t.layer, t.name)}", flush=True)
 
 
 def do_verify(t: Target) -> bool:
