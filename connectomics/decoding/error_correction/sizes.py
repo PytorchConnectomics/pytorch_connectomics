@@ -42,7 +42,13 @@ def aggregate_size_files(
         raise FileNotFoundError(f"size glob matched no files: {pattern}")
     if expected_files is not None and len(paths) != expected_files:
         raise RuntimeError(f"size glob matched {len(paths):,}/{expected_files:,} files")
-    parts = [np.asarray(np.memmap(path, dtype=SIZE_DTYPE, mode="r")) for path in paths]
+    parts = [
+        np.asarray(np.memmap(path, dtype=SIZE_DTYPE, mode="r"))
+        for path in paths
+        if path.stat().st_size
+    ]
+    if not parts:
+        parts = [np.empty(0, dtype=SIZE_DTYPE)]
     rows = np.concatenate(parts)
     rows = rows[rows["label"] != 0]
     order = np.argsort(rows["label"], kind="stable")
@@ -57,7 +63,8 @@ def aggregate_size_files(
     report = {
         "schema": 1,
         "source_glob": pattern,
-        "source_files": len(paths),
+        "source_files": sum(1 for p in paths if p.stat().st_size),
+        "empty_source_files": sum(1 for p in paths if not p.stat().st_size),
         "source_rows": len(rows),
         "segments": len(result),
         "voxels": int(result["size"].sum()),

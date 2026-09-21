@@ -44,12 +44,17 @@ FFN_TISSUE = (
     "GgwKmcKgrcoNxJccKuGIzRnQqfit9hnfK1ctZzNbnuU/tissue_classification"
 )
 EXCLUDE_CHANNELS = (1, 3, 5)
+EXCLUDE_THRESHOLDS = {1: 252, 3: 252, 5: 25}
 TISSUE_SHAPE_ZYX = (5700, 5456, 5332)   # native 18 x 18 x 20 nm
 # True mip-0 EM extent, ZYX. Same origin as the tissue layer: Z is 1:1, Y and X
 # are half-resolution there, so the tissue mask upsamples 2x in Y/X only.
 KEEP_SHAPE_ZYX = (5700, 10912, 10664)
-KEEP_CHUNKS = (126, 252, 252)
+KEEP_CHUNKS = (126, 504, 504)
 CELL = 1008                             # matches the affinity chunk grid
+assert all(CELL % c == 0 for c in KEEP_CHUNKS), (
+    f"KEEP_CHUNKS {KEEP_CHUNKS} must tile CELL {CELL} on every axis, or concurrent shards "
+    "read-modify-write the same zarr chunk and silently lose a write"
+)
 
 
 def _sentinel(out: Path, shard_id: int) -> Path:
@@ -138,7 +143,10 @@ def run_tissue(args) -> None:
     for i, (z0, z1) in enumerate(mine, 1):
         # cloud-volume is XYZC; channel selection has to be a post-fetch numpy index.
         arr = vol[:, :, z0:z1]
-        excluded = (arr[..., list(EXCLUDE_CHANNELS)] > args.threshold).any(axis=-1)
+        excluded = np.zeros(arr.shape[:-1], dtype=bool)
+        for channel in EXCLUDE_CHANNELS:
+            cutoff = EXCLUDE_THRESHOLDS[channel] if args.threshold is None else args.threshold
+            excluded |= arr[..., channel] >= cutoff
         out[z0:z1, :, :] = np.transpose((~excluded).astype(np.uint8), (2, 1, 0))
         print(f"  [{i}/{len(mine)}] z={z0}:{z1} ({(time.time()-t0)/i:.1f}s/slab)", flush=True)
 
@@ -185,7 +193,13 @@ def main() -> int:
     ap.add_argument("--tissue", type=Path, help="tissue zarr (--stage keep)")
     ap.add_argument("--em", type=Path, help="mip-0 EM zarr array (--stage keep)")
     ap.add_argument("--init", action="store_true", help="create the zarr and exit")
-    ap.add_argument("--threshold", type=int, default=128, help="tissue channel threshold")
+    ap.add_argument(
+        "--threshold",
+        type=int,
+        default=None,
+        help="override every channel with one cutoff; default uses FFN's published "
+             "per-channel thresholds (blood vessel 252, myelin 252, out-of-bounds 25)",
+    )
     ap.add_argument("--z-slab", type=int, default=128, help="Z per cloud-volume read")
     ap.add_argument("--border-offset", type=int, default=1)
     ap.add_argument("--shard-id", type=int, default=0)
@@ -198,16 +212,18 @@ def main() -> int:
             print(f"{args.out} already exists, leaving it alone")
             return 0
         # fill_value 1 = KEEP, so an unwritten region never silently deletes data.
-        if args.stage == "tissue":
-            zarr.open(
-                str(args.out), mode="w", shape=TISSUE_SHAPE_ZYX, dtype="uint8",
-                chunks=(args.z_slab, 512, 512), fill_value=1,
-                compressor=Blosc(cname="zstd", clevel=5, shuffle=Blosc.BITSHUFFLE),
+        shape = TISSUE_SHAPE_ZYX if args.stage == "tissue" else KEEP_SHAPE_ZYX
+        chunks = (args.z_slab, 512, 512) if args.stage == "tissue" else KEEP_CHUNKS
+        try:
+            zarr.create_array(
+                store=str(args.out), shape=shape, dtype="uint8",
+                chunks=chunks, fill_value=1, overwrite=True,
             )
-        else:
+        except AttributeError:  # zarr < 3
             zarr.open(
-                str(args.out), mode="w", shape=KEEP_SHAPE_ZYX, dtype="uint8",
-                chunks=KEEP_CHUNKS, fill_value=1,
+                str(args.out), mode="w", shape=shape, dtype="uint8",
+                chunks=chunks, fill_value=1,
+                compressor=Blosc(cname="zstd", clevel=5, shuffle=Blosc.BITSHUFFLE),
             )
         print(f"created {args.out}")
         return 0

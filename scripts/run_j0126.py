@@ -27,6 +27,7 @@ from __future__ import annotations
 import argparse
 import glob
 import json
+import re
 import shlex
 import subprocess
 import sys
@@ -37,10 +38,19 @@ from typing import Callable
 from omegaconf import DictConfig, OmegaConf
 
 REPO = Path(__file__).resolve().parent.parent
+PYTHON = shlex.quote(sys.executable or "python")
+BIN = shlex.quote(str(Path(sys.executable).parent))
 TUTORIAL = REPO / "tutorials" / "neuron_j0126"
 PARAMS = TUTORIAL / "params.yaml"
 
-ORDER = ("fetch", "em", "tissue", "keep", "train", "infer", "abiss", "ec")
+ORDER = ("fetch", "em", "tissue", "keep", "train", "infer", "abiss", "ec", "eval")
+
+EC_STAGES = (
+    "sizes", "skeletonize", "skeletons", "contacts", "contact_graph", "candidates",
+    "junction_scope", "junction_features", "boundary", "resolve", "prepare_output",
+    "postprocess", "verify",
+)
+EC_ARRAY_STAGES = frozenset({"skeletonize", "contacts", "postprocess"})
 
 
 # --------------------------------------------------------------------------- config
@@ -144,6 +154,24 @@ def check_affinity(save_path: Path, suffix: str = "") -> Status:
     return Status(written == len(chunks) and bool(chunks), f"{written}/{len(chunks)} chunks in {store}")
 
 
+def check_precomputed(layer: Path) -> Status:
+    """Complete only when a scale directory actually holds chunks.
+
+    ABISS writes `info` before it decodes anything, so an `info`-exists test calls a
+    crashed decode finished and every later run skips it -- the pipeline then evaluates a
+    segmentation that was never produced. Require data under a `<x>_<y>_<z>` scale dir.
+    """
+    info = layer / "info"
+    if not info.exists():
+        return Status(False, f"MISSING {info}")
+    for scale in sorted(layer.glob("*_*_*")):
+        if scale.is_dir() and re.fullmatch(r"\d+_\d+_\d+", scale.name):
+            chunks = sum(1 for f in scale.iterdir() if f.is_file())
+            if chunks:
+                return Status(True, f"{chunks} chunks in {scale}")
+    return Status(False, f"{info} exists but no scale directory holds data (decode unfinished)")
+
+
 def input_exists(path: Path) -> bool:
     """Existence test that also accepts a glob pattern (the EC size tables)."""
     text = str(path)
@@ -164,6 +192,7 @@ class Step:
     resources: str = ""
     inputs: list[tuple[str, Path]] = field(default_factory=list)
     array: int = 0            # >0 submits a Slurm array of this size (shard-id per task)
+    chain: list = field(default_factory=list)   # (suffix, command, array_size, resources)
     prepare: str = ""         # cheap, dependency-free command run locally before launch
     prepare_fn: Callable[[], None] | None = None   # same, in-process
     skip: str = ""            # non-empty = why this step is disabled in params.yaml
@@ -187,6 +216,7 @@ def sbatch_resources(params, block: str, gpus: int = 0) -> str:
 
 def build_steps(params) -> list[Step]:
     dataset_root = Path(params.paths.dataset_root)
+    output_root = Path(params.paths.output_root)
     train_yaml = TUTORIAL / "1_train.yaml"
     infer_yaml = TUTORIAL / "2_infer.yaml"
     abiss_yaml = TUTORIAL / "3_abiss.yaml"
@@ -199,10 +229,82 @@ def build_steps(params) -> list[Step]:
     infer_suffix = str(infer_cfg.decoding.save_suffix or "")
 
     abiss = load_workflow_yaml(abiss_yaml).abiss_chunk
+
+    if list(params.download.em_bbox):
+        z0, z1, y0, y1, x0, x1 = (int(v) for v in params.download.em_bbox)
+        shape_xyz = [x1 - x0, y1 - y0, z1 - z0]
+        cropped = OmegaConf.load(abiss_yaml)
+        cropped["_base_"] = str(PARAMS)
+        cropped.abiss_chunk.param.BBOX = [0, 0, 0, *shape_xyz]
+        chunk = list(cropped.abiss_chunk.param.CHUNK_SIZE)
+        cropped.abiss_chunk.param.CHUNK_SIZE = [
+            min(chunk[i], shape_xyz[i]) for i in range(3)
+        ]
+
+        keep_src = str(abiss.param.get("AFF_KEEP_MASK") or "")
+        if keep_src:
+            keep_dst = Path(str(output_root)) / "abiss" / "keep_mask_cropped.zarr"
+            if not any((keep_dst / n).exists() for n in ("zarr.json", ".zarray")):
+                import zarr
+                src = zarr.open(keep_src, mode="r")
+                if hasattr(src, "keys") and "main" in list(src.keys()):
+                    src = src["main"]
+                sub = src[z0:z1, y0:y1, x0:x1]
+                keep_dst.parent.mkdir(parents=True, exist_ok=True)
+                chunks = tuple(min(c, d) for c, d in zip((126, 504, 504), sub.shape))
+                try:
+                    out = zarr.create_array(
+                        store=str(keep_dst), shape=sub.shape, dtype=sub.dtype, chunks=chunks
+                    )
+                except AttributeError:
+                    out = zarr.open(
+                        str(keep_dst), mode="w", shape=sub.shape, dtype=sub.dtype, chunks=chunks
+                    )
+                out[:] = sub
+            cropped.abiss_chunk.param.AFF_KEEP_MASK = str(keep_dst)
+
+        abiss_yaml = Path(str(output_root)) / "abiss" / "3_abiss.resolved.yaml"
+        abiss_yaml.parent.mkdir(parents=True, exist_ok=True)
+        OmegaConf.save(cropped, abiss_yaml)
+        print(f"em_bbox is set: wrote {abiss_yaml} with BBOX {[0, 0, 0, *shape_xyz]}")
+
+        ec_cropped = OmegaConf.load(ec_yaml)
+        ec_cropped["_base_"] = str(PARAMS)
+        ec_cropped.error_correction.volume_shape_zyx = [z1 - z0, y1 - y0, x1 - x0]
+        core = list(ec_cropped.error_correction.core_xyz)
+        ec_cropped.error_correction.expected_chunks = (
+            -(-shape_xyz[0] // core[0]) * -(-shape_xyz[1] // core[1])
+            * -(-(z1 - z0) // core[2])
+        )
+        ec_yaml = Path(str(output_root)) / "error_correction_v7" / "4_ec.resolved.yaml"
+        ec_yaml.parent.mkdir(parents=True, exist_ok=True)
+        OmegaConf.save(ec_cropped, ec_yaml)
+        print(f"em_bbox is set: wrote {ec_yaml} with volume_shape_zyx "
+              f"{[z1 - z0, y1 - y0, x1 - x0]} and expected_chunks "
+              f"{ec_cropped.error_correction.expected_chunks}\n")
     seg_info = Path(str(abiss.param.SEG_PATH).replace("file://", "")) / "info"
-    affinity_h5 = Path(str(abiss.source_affinity_h5))
+    _bbox = [int(v) for v in abiss.param.BBOX]
+    _seg_chunk = [int(v) for v in abiss.seg_chunk_size_xyz]
+    seg_chunk_count = 1
+    for _i in range(3):
+        seg_chunk_count *= -(-(_bbox[_i + 3] - _bbox[_i]) // _seg_chunk[_i])
+
+    affinity_h5 = Path(
+        str(abiss.get("source_affinity_h5") or abiss.param.AFF_PATH).replace("file://", "")
+    )
 
     ec = load_workflow_yaml(ec_yaml).error_correction
+    ec_tasks = int(ec.get("task_count", 80))
+    ec_task_resources = shlex.join(
+        shlex.split(sbatch_resources(params, "error_correction"))[:2]  # keep -p <partition>
+        + ["-c", "8", "--mem", "64G", "-t", str(params.error_correction.time)]
+    )
+    _ec_seg = Path(str(ec.output_segmentation))
+    eval_seg = _ec_seg if (_ec_seg / "info").exists() else Path(
+        str(abiss.param.SEG_PATH).replace("file://", "")
+    )
+    eval_report = output_root / "eval" / "nerl.json"
+    skeletons = Path(str(params.data.skeletons))
     ec_manifest = Path(ec.workdir) / "error_correction_manifest.json"
     nucleus_manifest = Path(str(ec.nucleus_manifest))
 
@@ -211,7 +313,10 @@ def build_steps(params) -> list[Step]:
     em_dataset = Path(str(params.data.raw_em)).name
     tissue = Path(str(params.data.tissue_mask))
     keep = Path(str(params.data.keep_mask))
-    checkpoint = dataset_root / "ckpt" / params.download.checkpoint_url.rsplit("/", 1)[-1]
+    checkpoint = (
+        infer_save / "downloaded" / "checkpoints"
+        / params.download.checkpoint_url.rsplit("/", 1)[-1]
+    )
 
     # The trained checkpoint lands in a timestamped run directory, so it cannot be
     # named when the job is submitted; resolve it in the job's own shell instead.
@@ -224,12 +329,12 @@ def build_steps(params) -> list[Step]:
     dl = params.download
     em_bbox = " ".join(str(int(v)) for v in dl.em_bbox)
     em_common = (
-        f"python scripts/download_precompute.py {shlex.quote(str(dl.em_source))}"
+        f"{PYTHON} scripts/download_precompute.py {shlex.quote(str(dl.em_source))}"
         f" --out {shlex.quote(str(em_store))} --dataset {em_dataset} --mip 0"
         f" --slab {dl.slab} --tile-xy {dl.tile_xy}"
         + (f" --bbox {em_bbox}" if em_bbox else "")
     )
-    mask_tool = "python scripts/build_j0126_keep_mask.py"
+    mask_tool = f"{PYTHON} scripts/build_j0126_keep_mask.py"
 
     fetch_parts = []
     if training:
@@ -245,6 +350,16 @@ def build_steps(params) -> list[Step]:
             f"mkdir -p {shlex.quote(str(checkpoint.parent))}"
             f" && curl -fL {shlex.quote(str(dl.checkpoint_url))} -o {shlex.quote(str(checkpoint))}"
         )
+
+    for url, dest in (
+        (dl.get("skeletons_url"), Path(str(params.data.skeletons))),
+        (dl.get("ffn_node_lut_url"), Path(str(params.data.ffn_node_lut))),
+    ):
+        if url:
+            fetch_parts.append(
+                f"[ -s {shlex.quote(str(dest))} ] ||"
+                f" curl -fL {shlex.quote(str(url))} -o {shlex.quote(str(dest))}"
+            )
 
     download_off = "" if params.download.enabled else "download.enabled is false"
     mask_off = "" if params.mask.enabled else "mask.enabled is false"
@@ -302,7 +417,7 @@ def build_steps(params) -> list[Step]:
         Step(
             name="train",
             title="1. train the affinity model",
-            command=f"python scripts/main.py --config {train_yaml} --mode train",
+            command=f"{PYTHON} scripts/main.py --config {train_yaml} --mode train",
             status=lambda: check_checkpoint(train_save, None if training else checkpoint),
             resources=sbatch_resources(params, "train", gpus=int(params.train.num_gpus)),
             inputs=[
@@ -315,7 +430,7 @@ def build_steps(params) -> list[Step]:
             name="infer",
             title="2. predict affinity",
             command=(
-                f"python scripts/main.py --config {infer_yaml} --mode test"
+                f"{PYTHON} scripts/main.py --config {infer_yaml} --mode test"
                 f" --checkpoint {infer_ckpt}"
             ),
             status=lambda: check_affinity(infer_save, infer_suffix),
@@ -330,22 +445,31 @@ def build_steps(params) -> list[Step]:
             # The virtual dataset is what makes the chunk store readable as the single
             # h5 ABISS wants; it copies nothing, so it belongs to this step's setup.
             command=(
-                f"python scripts/stitch_chunked_prediction.py --vds"
-                f" --discover {shlex.quote(str(infer_save))}"
+                f"{PYTHON} scripts/stitch_chunked_prediction.py --vds"
+                f" --discover {shlex.quote(str(output_root))}"
                 f" --out {shlex.quote(str(affinity_h5))} --force"
-                f" && python scripts/run_abiss_chunk.py --config {abiss_yaml}"
+                f" && {PYTHON} scripts/run_abiss_chunk.py --config {abiss_yaml}"
             ),
-            status=lambda: check_paths(seg_info),
+            status=lambda: check_precomputed(seg_info.parent),
             resources=sbatch_resources(params, "abiss"),
             inputs=[("ABISS build", Path(str(abiss.abiss_home))), ("keep mask", keep)],
         ),
         Step(
             name="ec",
             title="4. morphology error correction",
-            command=(
-                f"python scripts/run_error_correction.py --config {ec_yaml}"
-                f" --stage all --num-tasks 1"
-            ),
+            command="",
+            chain=[
+                (
+                    stage,
+                    f"{PYTHON} scripts/run_error_correction.py --config {ec_yaml}"
+                    f" --stage {stage}"
+                    + ("" if stage in EC_ARRAY_STAGES else " --num-tasks 1 --task-id 0"),
+                    ec_tasks if stage in EC_ARRAY_STAGES else 0,
+                    ec_task_resources if stage in EC_ARRAY_STAGES
+                    else sbatch_resources(params, "error_correction"),
+                )
+                for stage in EC_STAGES
+            ],
             status=lambda: check_paths(ec_manifest),
             resources=sbatch_resources(params, "error_correction"),
             prepare_fn=lambda: stub_nucleus_manifest(params, nucleus_manifest),
@@ -356,6 +480,21 @@ def build_steps(params) -> list[Step]:
                 ("nucleus manifest", nucleus_manifest),
                 ("size table", Path(str(ec.size_glob))),
             ],
+        ),
+        Step(
+            name="eval",
+            title="5. NERL / VOI against the 50 test skeletons",
+            command=(
+                f"{PYTHON} scripts/evaluate_j0126.py"
+                f" --segmentation \"$([ -f {shlex.quote(str(_ec_seg / 'info'))} ]"
+                f" && echo {shlex.quote(str(_ec_seg))}"
+                f" || echo {shlex.quote(str(eval_seg))})\""
+                f" --skeletons {shlex.quote(str(skeletons))}"
+                f" --output {shlex.quote(str(eval_report))}"
+            ),
+            status=lambda: check_paths(eval_report),
+            resources=sbatch_resources(params, "error_correction"),
+            inputs=[("segmentation", eval_seg / "info"), ("test-50 skeletons", skeletons)],
         ),
     ]
 
@@ -395,15 +534,17 @@ def run_local(step: Step, dry_run: bool) -> None:
             subprocess.run(command, shell=True, cwd=REPO, check=True)
 
 
-def run_slurm(step: Step, dependency: str | None, dry_run: bool) -> str | None:
-    inner = step.command
-    sbatch = ["sbatch", "--parsable", f"--job-name=j0126-{step.name}"]
+def _sbatch(name, inner, dependency, array, resources, dry_run, array_flags=None):
+    sbatch = ["sbatch", "--parsable", f"--job-name=j0126-{name}"]
     if dependency:
         sbatch.append(f"--dependency=afterok:{dependency}")
-    if step.array > 1:
-        sbatch.append(f"--array=0-{step.array - 1}")
-        inner = f"{inner} --shard-id $SLURM_ARRAY_TASK_ID --num-shards {step.array}"
-    sbatch += shlex.split(step.resources) + [f"--wrap={inner}"]
+    if array > 1:
+        flags = array_flags or ("--shard-id", "--num-shards")
+        sbatch.append(f"--array=0-{array - 1}")
+        inner = f"{inner} {flags[0]} $SLURM_ARRAY_TASK_ID {flags[1]} {array}"
+    sbatch += shlex.split(resources) + [
+        f"--wrap=export PATH={BIN}:$PATH && {inner}"
+    ]
     print(f"  $ {shlex.join(sbatch)}", flush=True)
     if dry_run:
         return None
@@ -411,6 +552,18 @@ def run_slurm(step: Step, dependency: str | None, dry_run: bool) -> str | None:
     job_id = result.stdout.strip().split(";")[0]
     print(f"  submitted {job_id}", flush=True)
     return job_id
+
+
+def run_slurm(step: Step, dependency: str | None, dry_run: bool) -> str | None:
+    if step.chain:
+        for suffix, command, array, resources in step.chain:
+            dependency = _sbatch(
+                f"{step.name}-{suffix}", command, dependency, array, resources, dry_run,
+                array_flags=("--task-id", "--num-tasks") if array > 1 else None,
+            )
+        return dependency
+    inner = step.command
+    return _sbatch(step.name, inner, dependency, step.array, step.resources, dry_run)
 
 
 # --------------------------------------------------------------------------- cli
