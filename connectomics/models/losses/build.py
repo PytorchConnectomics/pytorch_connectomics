@@ -24,6 +24,7 @@ from monai.losses import (
 )
 
 # Import custom connectomics losses
+from .embedding import EmbeddingMeanLoss
 from .losses import (
     CrossEntropyLossWrapper,
     GANLoss,
@@ -78,6 +79,7 @@ def _get_loss_registry() -> Dict[str, type[nn.Module]]:
         "WeightedMSELoss": WeightedMSELoss,
         "WeightedMAELoss": WeightedMAELoss,
         "MalisLoss": MalisLoss,
+        "EmbeddingMeanLoss": EmbeddingMeanLoss,
         "GANLoss": GANLoss,
         # Regularization losses
         "BinaryRegularization": BinaryRegularization,
