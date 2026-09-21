@@ -368,36 +368,41 @@ ABISS object is ~320 voxels of dust and is deliberately not meshed.
 `gcloud storage rsync`; `publish_all.sh` loops it over the batch. Target:
 
 ```
-gs://donglai_public/liconn/moe/<layer>
-precomputed://gs://donglai_public/liconn/moe/<layer>
+gs://donglai_public/liconn/moe/clip_percentile_1_99/<layer>
+precomputed://gs://donglai_public/liconn/moe/clip_percentile_1_99/<layer>
 ```
 
 `python tutorials/neuron_liconn_moe/summarize_batch.py --urls` prints them all.
 The bucket and prefix live in `volumes.py::GCS_BUCKET` / `GCS_PREFIX`; nothing
 else hard-codes them.
 
-**Three things follow from this bucket being a different one from the images.**
+**Updated 2026-09-21.** Points 1 and 3 below described a split that no longer
+exists: on **2026-09-16** the OME-Zarr image groups moved to `donglai_public` under
+the same `liconn/moe/clip_percentile_1_99` prefix as the segmentation layers, and
+the clip component came back into the published path. `volumes.py::GCS_PREFIX` is
+the live value. The original text is replaced rather than annotated, because a
+reader following it would have looked in the wrong bucket.
 
-1. **Image and segmentation now live in separate buckets.** The eight OME-Zarr
-   image groups stay at `gs://donglai/liconn/moe/clip_percentile_1_99/`, which is
-   private and served through ngauth. A neuroglancer view that overlays the two
-   spans both buckets and may need two credentials. Alignment is unaffected —
+1. **Image and segmentation live in the same bucket and prefix**, as of
+   2026-09-16: `gs://donglai_public/liconn/moe/clip_percentile_1_99/` holds both
+   the twelve OME-Zarr image groups and the thirteen seg layers. A neuroglancer
+   view overlaying them needs one credential, not two. Alignment is unaffected —
    both carry true physical resolution and the resample preserves the corners, so
-   there is still no offset.
-2. **`donglai_public` is not (yet) anonymously readable**, despite the name. As of
-   2026-09-04 an unauthenticated
-   `https://storage.googleapis.com/storage/v1/b/donglai_public/o` returns **401**
-   — identical to the known-private `donglai` bucket, where a genuinely public
-   bucket answers 200. So the plain `precomputed://gs://...` URL above will not
-   load for an anonymous viewer until `allUsers:objectViewer` is granted on the
-   bucket. The alternative is the ngauth form (`volumes.py::NGAUTH`), but it has
-   not been established that the deployed ngauth server is authorised for this
-   bucket — it was set up for `donglai`.
-3. **The `clip_percentile_1_99` component is gone from the path.** In the source
-   tree that component is load-bearing: a second clip variant with *identical*
-   dataset names exists at `preprocessed/zarr/`. These segmentations all derive
-   from the percentile variant, so there is no collision today, but publishing the
-   fixed-window variant's segmentations later would need a prefix again.
+   there is no offset.
+2. **`donglai_public` is not anonymously readable**, despite the name. An
+   unauthenticated `https://storage.googleapis.com/storage/v1/b/donglai_public/o`
+   returns **401** — identical to the known-private `donglai` bucket, where a
+   genuinely public bucket answers 200. Verified 2026-09-04 and re-confirmed
+   2026-09-16; it has never been anonymously readable. So the plain
+   `precomputed://gs://...` URL above will not load for an anonymous viewer unless
+   `allUsers:objectViewer` is granted. The alternative is the ngauth form
+   (`volumes.py::NGAUTH`), but it has still not been established that the deployed
+   ngauth server is authorised for this bucket — it was set up for `donglai`.
+3. **The `clip_percentile_1_99` component is load-bearing and is in the path.** A
+   second clip variant with *identical* dataset names exists at
+   `preprocessed/zarr/`. These segmentations all derive from the percentile
+   variant; publishing the fixed-window variant alongside them would collide
+   without it.
 
 **Uploading needs an interactive login and cannot be done from a compute node.**
 `gcloud`'s refresh token for `donglai@mindspan.org` expires and can only be
@@ -446,6 +451,9 @@ concurrent jobs.
 
 - `tutorials/neuron_liconn_ist/` — the volume this checkpoint was trained on, and
   where the IST thresholds were fitted.
+- [`tutorials/liconn_ingest/`](../liconn_ingest/README.md) — the stage *before*
+  this one: ND2 → uint8 OME-Zarr at native resolution → GCS, which produces the
+  `preprocessed/<clip_variant>/zarr/` groups `prepare_volume.py` starts from.
 - `/projects/weilab/dataset/liconn/moe/preprocessed/README.md` — provenance of the
   eight ND2 → uint8 volumes, the two clip variants, and the voxel-size caveat
   (spacing is *inferred* from the expansion factor in the filename, not recorded
