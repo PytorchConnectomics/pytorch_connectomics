@@ -263,7 +263,7 @@ class KeepMaskSpec:
     global_offset_zyx: tuple[int, int, int] = (0, 0, 0)
     tissue: Path | None = None
     em: Path | None = None
-    threshold: int = 128
+    threshold: int | None = None
     z_slab: int = 128
     border_offset: int = 1
 
@@ -286,7 +286,7 @@ def spec_from_params(params: Mapping[str, Any]) -> KeepMaskSpec:
         global_offset_zyx=tuple(frame["volume_origin_global_zyx"]),
         tissue=Path(data["tissue_mask"]) if data.get("tissue_mask") else None,
         em=Path(data["raw_em"]) if data.get("raw_em") else None,
-        threshold=masks.get("threshold", 128),
+        threshold=masks.get("threshold"),
         z_slab=masks.get("z_slab", 128),
         border_offset=masks.get("border_offset", 1),
     )
@@ -384,20 +384,19 @@ def build(
         str(shard_id),
         "--num-shards",
         str(num_shards),
-        "--threshold",
-        str(spec.threshold),
         "--z-slab",
         str(spec.z_slab),
         "--border-offset",
         str(spec.border_offset),
     ]
+    if spec.threshold is not None:
+        args.extend(("--threshold", str(spec.threshold)))
     if init:
         args.append("--init")
     if spec.tissue is not None:
         args.extend(("--tissue", str(spec.tissue)))
     if spec.em is not None:
         args.extend(("--em", str(spec.em)))
-    # The original CLI body is kept verbatim as a movement regression contract.
     previous_argv = sys.argv
     try:
         sys.argv = args

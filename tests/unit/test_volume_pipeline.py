@@ -1,5 +1,7 @@
 """Contracts for shared local/Slurm execution and dataset-owned fitted values."""
 
+import shlex
+import sys
 from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import Mock
@@ -63,14 +65,14 @@ def test_slurm_arrays_and_afterok_chain(subprocess_run):
         "gpu",
         "-c",
         "8",
-        "--wrap=python infer.py --shard-id $SLURM_ARRAY_TASK_ID --num-shards 3",
+        f"--wrap=export PATH={shlex.quote(str(Path(sys.executable).parent))}:$PATH && python infer.py --shard-id $SLURM_ARRAY_TASK_ID --num-shards 3",
     ]
     assert second == [
         "sbatch",
         "--parsable",
         "--job-name=third-abiss",
         "--dependency=afterok:101",
-        "--wrap=python abiss.py",
+        f"--wrap=export PATH={shlex.quote(str(Path(sys.executable).parent))}:$PATH && python abiss.py",
     ]
 
 
@@ -81,11 +83,31 @@ def test_local_arrays_are_sequential_shards(subprocess_run):
     ]
 
 
+@pytest.mark.parametrize("launcher", ["local", "slurm"])
+def test_error_correction_chain_keeps_task_flags_and_order(launcher, subprocess_run):
+    step = make_step(
+        chain=[
+            ("skeletonize", "python skeletonize.py", 1, ""),
+            ("resolve", "python resolve.py --num-tasks 1 --task-id 0", 0, ""),
+        ]
+    )
+    assert pipeline.execute_steps([step], launcher=launcher) == 0
+    calls = subprocess_run.call_args_list
+    assert len(calls) == 2
+    assert "python skeletonize.py --task-id 0 --num-tasks 1" in str(calls[0])
+    assert "python resolve.py" in str(calls[1])
+    if launcher == "slurm":
+        assert "--dependency=afterok:123" in calls[1].args[0]
+
+
 @pytest.mark.parametrize("array", [0, 1])
 def test_unsharded_slurm_keeps_original_command(array, subprocess_run):
     assert pipeline.execute_steps([make_step(array=array)], launcher="slurm") == 0
     args = subprocess_run.call_args.args[0]
-    assert args[-1] == "--wrap=python mask.py"
+    assert (
+        args[-1]
+        == f"--wrap=export PATH={shlex.quote(str(Path(sys.executable).parent))}:$PATH && python mask.py"
+    )
     assert not any(arg.startswith("--array") for arg in args)
 
 

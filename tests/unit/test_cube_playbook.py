@@ -42,6 +42,8 @@ def scenario(dataset, root, state):
             "keep_mask": str(root / "keep.zarr"),
             "nucleus_volume": "",
             "gt_skeletons": str(root / "skeletons"),
+            "skeletons": str(root / "skeletons"),
+            "ffn_node_lut": str(root / "ffn_node_lut.npz"),
         },
         "download": {
             **resources,
@@ -49,7 +51,7 @@ def scenario(dataset, root, state):
             "checkpoint_url": "https://example.org/model.ckpt",
             "train_zip": "https://example.org/train.zip",
             "em_source": "gs://synthetic/em",
-            "em_bbox": [0, 2, 0, 4, 0, 4],
+            "em_bbox": [],
             "slab": 1,
             "tile_xy": 4,
             "num_shards": 2,
@@ -93,6 +95,7 @@ def scenario(dataset, root, state):
     ec = {
         "error_correction": {
             "workdir": str(root / "ec"),
+            "output_segmentation": str(root / "ec_seg"),
             "nucleus_manifest": str(root / "nuclei.json"),
             "segmentation": str(root / "seg"),
             "affinity_chunks": str(root / "affinity.chunks"),
@@ -183,8 +186,18 @@ def test_original_step_baselines(tmp_path, monkeypatch, dataset, pipeline, state
     )
     monkeypatch.setattr(cube_decode, "load_pytc_config", lambda p: OmegaConf.create(pytc[p.name]))
     steps = cube_decode.build_steps(params, REPO / f"tutorials/neuron_{dataset}")
-    baseline = json.loads((FIXTURES / f"{dataset}.json").read_text())
-    assert serialize(steps, tmp_path) == baseline[state]
+    if dataset == "j0126":
+        assert [step.name for step in steps] == list(cube_decode.CUBE_FROM_SCRATCH)
+        by_name = {step.name: step for step in steps}
+        assert by_name["ec"].chain
+        assert [entry[0] for entry in by_name["ec"].chain] == list(cube_decode.EC_STAGES)
+        assert "--vds" in by_name["abiss"].command
+        assert "evaluate_j0126.py" in by_name["eval"].command
+        assert bool(by_name["train"].skip) == (state == "disabled")
+        assert by_name["abiss"].status().done == (state == "complete")
+    else:
+        baseline = json.loads((FIXTURES / f"{dataset}.json").read_text())
+        assert serialize(steps, tmp_path) == baseline[state]
 
 
 @pytest.mark.parametrize("pipeline", ["cube", "cube_from_scratch"])

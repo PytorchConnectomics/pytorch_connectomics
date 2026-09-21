@@ -249,7 +249,9 @@ def run_local(step: Step, dry_run: bool) -> None:
             subprocess.run(command, shell=True, cwd=REPO, check=True)
 
 
-def _sbatch(name, inner, dependency, array, resources, dry_run, array_flags=None, job_prefix="cube"):
+def _sbatch(
+    name, inner, dependency, array, resources, dry_run, array_flags=None, job_prefix="cube"
+):
     sbatch = ["sbatch", "--parsable", f"--job-name={job_prefix}-{name}"]
     if dependency:
         sbatch.append(f"--dependency=afterok:{dependency}")
@@ -257,6 +259,8 @@ def _sbatch(name, inner, dependency, array, resources, dry_run, array_flags=None
         flags = array_flags or ("--shard-id", "--num-shards")
         sbatch.append(f"--array=0-{array - 1}")
         inner = f"{inner} {flags[0]} $SLURM_ARRAY_TASK_ID {flags[1]} {array}"
+    elif array == 1 and array_flags:
+        inner = f"{inner} {array_flags[0]} 0 {array_flags[1]} 1"
     sbatch += shlex.split(resources) + [
         f"--wrap=export PATH={shlex.quote(str(Path(sys.executable).parent))}:$PATH && {inner}"
     ]
@@ -269,16 +273,26 @@ def _sbatch(name, inner, dependency, array, resources, dry_run, array_flags=None
     return job_id
 
 
-def run_slurm(step: Step, dependency: str | None, dry_run: bool, *, job_prefix: str = "cube") -> str | None:
+def run_slurm(
+    step: Step, dependency: str | None, dry_run: bool, *, job_prefix: str = "cube"
+) -> str | None:
     if step.chain:
         for suffix, command, array, resources in step.chain:
             dependency = _sbatch(
-                f"{step.name}-{suffix}", command, dependency, array, resources, dry_run,
-                array_flags=("--task-id", "--num-tasks") if array > 1 else None, job_prefix=job_prefix,
+                f"{step.name}-{suffix}",
+                command,
+                dependency,
+                array,
+                resources,
+                dry_run,
+                array_flags=("--task-id", "--num-tasks") if array else None,
+                job_prefix=job_prefix,
             )
         return dependency
     inner = step.command
-    return _sbatch(step.name, inner, dependency, step.array, step.resources, dry_run, job_prefix=job_prefix)
+    return _sbatch(
+        step.name, inner, dependency, step.array, step.resources, dry_run, job_prefix=job_prefix
+    )
 
 
 def execute_steps(

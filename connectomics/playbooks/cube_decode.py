@@ -31,9 +31,19 @@ REPO = Path(__file__).resolve().parents[2]
 PYTHON = shlex.quote(sys.executable)
 
 EC_STAGES = (
-    "sizes", "skeletonize", "skeletons", "contacts", "contact_graph", "candidates",
-    "junction_scope", "junction_features", "boundary", "resolve", "prepare_output",
-    "postprocess", "verify",
+    "sizes",
+    "skeletonize",
+    "skeletons",
+    "contacts",
+    "contact_graph",
+    "candidates",
+    "junction_scope",
+    "junction_features",
+    "boundary",
+    "resolve",
+    "prepare_output",
+    "postprocess",
+    "verify",
 )
 EC_ARRAY_STAGES = frozenset({"skeletonize", "contacts", "postprocess"})
 
@@ -223,15 +233,14 @@ def _from_scratch_steps(params, tutorial: Path) -> list[Step]:
         cropped["_base_"] = str(tutorial / "params.yaml")
         cropped.abiss_chunk.param.BBOX = [0, 0, 0, *shape_xyz]
         chunk = list(cropped.abiss_chunk.param.CHUNK_SIZE)
-        cropped.abiss_chunk.param.CHUNK_SIZE = [
-            min(chunk[i], shape_xyz[i]) for i in range(3)
-        ]
+        cropped.abiss_chunk.param.CHUNK_SIZE = [min(chunk[i], shape_xyz[i]) for i in range(3)]
 
         keep_src = str(abiss.param.get("AFF_KEEP_MASK") or "")
         if keep_src:
             keep_dst = Path(str(output_root)) / "abiss" / "keep_mask_cropped.zarr"
             if not any((keep_dst / n).exists() for n in ("zarr.json", ".zarray")):
                 import zarr
+
                 src = zarr.open(keep_src, mode="r")
                 if hasattr(src, "keys") and "main" in list(src.keys()):
                     src = src["main"]
@@ -252,6 +261,7 @@ def _from_scratch_steps(params, tutorial: Path) -> list[Step]:
         abiss_yaml = Path(str(output_root)) / "abiss" / "3_abiss.resolved.yaml"
         abiss_yaml.parent.mkdir(parents=True, exist_ok=True)
         OmegaConf.save(cropped, abiss_yaml)
+        abiss = load_workflow_yaml(abiss_yaml).abiss_chunk
         print(f"em_bbox is set: wrote {abiss_yaml} with BBOX {[0, 0, 0, *shape_xyz]}")
 
         ec_cropped = OmegaConf.load(ec_yaml)
@@ -259,15 +269,16 @@ def _from_scratch_steps(params, tutorial: Path) -> list[Step]:
         ec_cropped.error_correction.volume_shape_zyx = [z1 - z0, y1 - y0, x1 - x0]
         core = list(ec_cropped.error_correction.core_xyz)
         ec_cropped.error_correction.expected_chunks = (
-            -(-shape_xyz[0] // core[0]) * -(-shape_xyz[1] // core[1])
-            * -(-(z1 - z0) // core[2])
+            -(-shape_xyz[0] // core[0]) * -(-shape_xyz[1] // core[1]) * -(-(z1 - z0) // core[2])
         )
         ec_yaml = Path(str(output_root)) / "error_correction_v7" / "4_ec.resolved.yaml"
         ec_yaml.parent.mkdir(parents=True, exist_ok=True)
         OmegaConf.save(ec_cropped, ec_yaml)
-        print(f"em_bbox is set: wrote {ec_yaml} with volume_shape_zyx "
-              f"{[z1 - z0, y1 - y0, x1 - x0]} and expected_chunks "
-              f"{ec_cropped.error_correction.expected_chunks}\n")
+        print(
+            f"em_bbox is set: wrote {ec_yaml} with volume_shape_zyx "
+            f"{[z1 - z0, y1 - y0, x1 - x0]} and expected_chunks "
+            f"{ec_cropped.error_correction.expected_chunks}\n"
+        )
     seg_info = Path(str(abiss.param.SEG_PATH).replace("file://", "")) / "info"
     _bbox = [int(v) for v in abiss.param.BBOX]
     _seg_chunk = [int(v) for v in abiss.seg_chunk_size_xyz]
@@ -286,8 +297,10 @@ def _from_scratch_steps(params, tutorial: Path) -> list[Step]:
         + ["-c", "8", "--mem", "64G", "-t", str(params.error_correction.time)]
     )
     _ec_seg = Path(str(ec.output_segmentation))
-    eval_seg = _ec_seg if (_ec_seg / "info").exists() else Path(
-        str(abiss.param.SEG_PATH).replace("file://", "")
+    eval_seg = (
+        _ec_seg
+        if (_ec_seg / "info").exists()
+        else Path(str(abiss.param.SEG_PATH).replace("file://", ""))
     )
     eval_report = output_root / "eval" / "nerl.json"
     skeletons = Path(str(params.data.skeletons))
@@ -300,7 +313,9 @@ def _from_scratch_steps(params, tutorial: Path) -> list[Step]:
     tissue = Path(str(params.data.tissue_mask))
     keep = Path(str(params.data.keep_mask))
     checkpoint = (
-        infer_save / "downloaded" / "checkpoints"
+        infer_save
+        / "downloaded"
+        / "checkpoints"
         / params.download.checkpoint_url.rsplit("/", 1)[-1]
     )
 
@@ -317,8 +332,7 @@ def _from_scratch_steps(params, tutorial: Path) -> list[Step]:
     em_common = (
         f"{PYTHON} scripts/download_precompute.py {shlex.quote(str(dl.em_source))}"
         f" --out {shlex.quote(str(em_store))} --dataset {em_dataset} --mip 0"
-        f" --slab {dl.slab} --tile-xy {dl.tile_xy}"
-        + (f" --bbox {em_bbox}" if em_bbox else "")
+        f" --slab {dl.slab} --tile-xy {dl.tile_xy}" + (f" --bbox {em_bbox}" if em_bbox else "")
     )
     mask_tool = f"{PYTHON} scripts/build_j0126_keep_mask.py"
 
@@ -353,7 +367,9 @@ def _from_scratch_steps(params, tutorial: Path) -> list[Step]:
     return [
         Step(
             name="fetch",
-            title="0a. download the training cubes" if training else "0a. download the affinity model",
+            title=(
+                "0a. download the training cubes" if training else "0a. download the affinity model"
+            ),
             command=" && ".join(fetch_parts),
             status=lambda: check_paths(
                 *(
@@ -436,7 +452,7 @@ def _from_scratch_steps(params, tutorial: Path) -> list[Step]:
                 f" --out {shlex.quote(str(affinity_h5))} --force"
                 f" && {PYTHON} scripts/run_abiss_chunk.py --config {abiss_yaml}"
             ),
-            status=lambda: check_layer(seg_info.parent),
+            status=lambda: check_layer(seg_info.parent, seg_chunk_count),
             resources=sbatch_resources(params, "abiss"),
             inputs=[("ABISS build", Path(str(abiss.abiss_home))), ("keep mask", keep)],
         ),
@@ -451,8 +467,11 @@ def _from_scratch_steps(params, tutorial: Path) -> list[Step]:
                     f" --stage {stage}"
                     + ("" if stage in EC_ARRAY_STAGES else " --num-tasks 1 --task-id 0"),
                     ec_tasks if stage in EC_ARRAY_STAGES else 0,
-                    ec_task_resources if stage in EC_ARRAY_STAGES
-                    else sbatch_resources(params, "error_correction"),
+                    (
+                        ec_task_resources
+                        if stage in EC_ARRAY_STAGES
+                        else sbatch_resources(params, "error_correction")
+                    ),
                 )
                 for stage in EC_STAGES
             ],
@@ -474,7 +493,7 @@ def _from_scratch_steps(params, tutorial: Path) -> list[Step]:
                 f"{PYTHON} scripts/evaluate_j0126.py"
                 f" --segmentation \"$([ -f {shlex.quote(str(_ec_seg / 'info'))} ]"
                 f" && echo {shlex.quote(str(_ec_seg))}"
-                f" || echo {shlex.quote(str(eval_seg))})\""
+                f' || echo {shlex.quote(str(eval_seg))})"'
                 f" --skeletons {shlex.quote(str(skeletons))}"
                 f" --output {shlex.quote(str(eval_report))}"
             ),
