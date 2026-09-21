@@ -80,6 +80,12 @@ aligned EM. It removes 15.64% of the volume, and because it comes from FFN's CNN
 a "we beat FFN" comparison; `dev/zebrafinch/build_bv_border_mask.py` is the alternative
 built from a vessel volume we own (no myelin masked, 1.38% removed).
 
+Building it streams the whole `tissue_classification` layer, so the mask the reference runs
+used is published instead: `j0126-tissue-border-keep-mask.tar` on
+[huggingface.co/datasets/pytc/zebrafinch-j0126](https://huggingface.co/datasets/pytc/zebrafinch-j0126/tree/main).
+Untar it into `dataset_root` — it unpacks as `tissue_border_keep_mask_full.zarr`, the name
+`data.keep_mask` already points at — and set `mask.enabled: false` to skip steps 0c and 0d.
+
 Training data is 33 densely labelled subvolumes, fetched only when `train.enabled` is true.
 Training reads the padded pair `im_raw_4-32-32/` + `seg_gt_4-32-32/`: the pad is real EM
 context on the image and `-1` on the label, so the loss ignores the border.
@@ -127,9 +133,13 @@ step 4, whose grow round is provably merge-safe: it only ever assigns a fragment
 never welds two segments. Every ambiguous decision is better deferred than taken here.
 
 Setting `data.nucleus_volume` turns on competitive nucleus growth and writes the identity
-manifest step 4 uses as a firewall. Left empty — the default, because no nucleus volume
-ships with this tutorial — the run completes without that protection, and the driver says
-so. That is the difference between the second and third rows of the table below.
+manifest step 4 uses as a firewall. The volume the reference runs used is
+`j0126-nucleus-instances-80nm.h5` on
+[huggingface.co/datasets/pytc/zebrafinch-j0126](https://huggingface.co/datasets/pytc/zebrafinch-j0126/tree/main):
+465 hand-proofread nucleus instances at 80 nm isotropic, which `nucleus_ratio: [4, 8, 8]`
+upsamples onto the mip-0 grid. Left empty — the default — the run completes without that
+protection, and the driver says so. That is the difference between the second and third
+rows of the table below.
 
 ### Step 4 — morphology error correction
 
