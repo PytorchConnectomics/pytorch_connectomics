@@ -54,7 +54,7 @@ def _single_file(paths: list[Path], description: str) -> Path:
     return paths[0]
 
 
-def _read_score(path: Path) -> dict:
+def _read_score(path: Path, *, crop: str = "challenge") -> dict:
     with path.open(newline="") as handle:
         rows = list(csv.DictReader(handle, delimiter="\t"))
     if len(rows) != 1 or rows[0]["status"] != "ok":
@@ -67,7 +67,7 @@ def _read_score(path: Path) -> dict:
         "metric": "adapted_rand_error",
         "value": value,
         "lower_is_better": True,
-        "evaluation_support": "snemi3d_gc_challenge_crop",
+        "evaluation_support": "snemi3d_gc_challenge_crop" if crop == "challenge" else "full_volume",
         "crop": row["crop"],
         "crop_shape": row["crop_shape"],
         "precision": float(row["precision"]),
@@ -75,7 +75,9 @@ def _read_score(path: Path) -> dict:
     }
 
 
-def run_benchmark(args: argparse.Namespace) -> float:
+def run_benchmark(args: argparse.Namespace, *, crop: str = "challenge") -> float:
+    if crop not in {"challenge", "full"}:
+        raise ValueError("crop must be challenge or full")
     config_path = args.config.resolve()
     output = args.output.resolve()
     if args.resume_to is not None and (args.checkpoint is None or args.resume_to < 1):
@@ -140,7 +142,9 @@ def run_benchmark(args: argparse.Namespace) -> float:
         checkpoint = None
         if args.checkpoint is not None:
             stamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
-            checkpoint = output / "training" / stamp / "checkpoints" / "last.ckpt"
+            # Keep the resume input separate: Lightning otherwise versions its
+            # output as last-v1.ckpt and leaves the old last.ckpt untouched.
+            checkpoint = output / "training" / stamp / "checkpoints" / "resume.ckpt"
             checkpoint.parent.mkdir(parents=True)
             shutil.copy2(args.checkpoint, checkpoint)
             manifest["checkpoint_source_sha256"] = _sha256(checkpoint)
@@ -154,6 +158,17 @@ def run_benchmark(args: argparse.Namespace) -> float:
             checkpoint = _single_file(
                 list((output / "training").glob("*/checkpoints/last.ckpt")), "last checkpoint"
             )
+            if args.resume_to is not None:
+                import torch
+
+                state = torch.load(checkpoint, map_location="cpu", weights_only=False)
+                if state["epoch"] != args.resume_to - 1:
+                    raise RuntimeError(
+                        f"Expected completed epoch {args.resume_to - 1}, got {state['epoch']}"
+                    )
+                manifest["completed_epochs"] = state["epoch"] + 1
+                manifest["global_step"] = state["global_step"]
+                del state
         if args.prediction is not None:
             raw_path = args.prediction.resolve()
         else:
@@ -204,7 +219,7 @@ def run_benchmark(args: argparse.Namespace) -> float:
                 "--ground-truth",
                 str(label_path),
                 "--crop",
-                "challenge",
+                crop,
                 "--fail-on-skip",
                 "--output",
                 str(output / "metrics.tsv"),
@@ -212,11 +227,11 @@ def run_benchmark(args: argparse.Namespace) -> float:
             output / "evaluate.log",
             manifest,
         )
-        score = _read_score(output / "metrics.tsv")
+        score = _read_score(output / "metrics.tsv", crop=crop)
         (output / "metrics.json").write_text(json.dumps(score, indent=2) + "\n")
         (output / "metric.txt").write_text(f"{score['value']:.12g}\n")
         manifest["status"] = "complete"
-        print(f"adapted_rand_error (SNEMI challenge crop) = {score['value']:.12g}", flush=True)
+        print(f"adapted_rand_error ({crop}) = {score['value']:.12g}", flush=True)
         return float(score["value"])
     except BaseException as exc:
         manifest["status"] = "failed"
@@ -237,6 +252,7 @@ def main() -> None:
     )
     source.add_argument("--prediction", type=Path, help="Decode saved XYZ/CZYX affinities on CPU")
     parser.add_argument("--resume-to", type=int, help="With --checkpoint, resume to N total epochs")
+    parser.add_argument("--crop", choices=("challenge", "full"), default="challenge")
     args = parser.parse_args()
     # Local relative dataset paths have the same meaning as in Docker /workspace.
     args.config = args.config.resolve()
@@ -246,7 +262,7 @@ def main() -> None:
     if args.prediction is not None:
         args.prediction = args.prediction.resolve()
     os.chdir(REPO_ROOT)
-    run_benchmark(args)
+    run_benchmark(args, crop=args.crop)
 
 
 if __name__ == "__main__":
