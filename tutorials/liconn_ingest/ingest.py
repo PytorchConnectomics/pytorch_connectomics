@@ -42,8 +42,31 @@ sys.path.insert(0, str(Path(__file__).parent))
 import naming  # noqa: E402
 
 REPO = Path(__file__).resolve().parents[2]
-DEFAULT_BUCKET = "donglai_public"
-DEFAULT_PREFIX = "liconn/moe"
+CONFIG = Path(__file__).parent / "data.yaml"
+
+
+def load_config(path: Path = CONFIG) -> dict:
+    """Local config, gitignored. `data.yaml.example` documents the schema.
+
+    Absent is fine -- every key has a CLI equivalent. A `FILL` value is NOT
+    fine and is treated as absent, so it surfaces as the "set it" error rather
+    than propagating the literal string into a GCS path.
+    """
+    if not path.exists():
+        return {}
+    try:
+        import yaml
+    except ImportError:
+        print(f"[warn] pyyaml missing; ignoring {path}", file=sys.stderr)
+        return {}
+    cfg = yaml.safe_load(path.read_text()) or {}
+    return {k: v for k, v in cfg.items() if v != "FILL"}
+
+
+def _default(args, name: str, cfg: dict, key: str, fallback=None):
+    """CLI wins, then data.yaml, then the fallback."""
+    if getattr(args, name, None) in (None, []):
+        setattr(args, name, cfg.get(key, fallback))
 
 
 def _load(path: Path, name: str):
@@ -265,29 +288,30 @@ def cmd_prune(a):
 def main():
     p = argparse.ArgumentParser(description=__doc__,
                                 formatter_class=argparse.RawDescriptionHelpFormatter)
-    p.add_argument("--work", default="./liconn_ingest_work")
-    p.add_argument("--inbox", default="./inbox")
+    p.add_argument("--work", default=None, help="default: data.yaml:work")
+    p.add_argument("--inbox", default=None, help="default: data.yaml:inbox")
     sub = p.add_subparsers(dest="cmd", required=True)
 
     f = sub.add_parser("fetch", help="Drive folder -> local inbox (rclone)")
-    f.add_argument("--remote", default="gdrive")
+    f.add_argument("--remote", default=None, help="default: data.yaml:rclone_remote")
     f.add_argument("--folder", required=True)
     f.add_argument("--dry-run", action="store_true")
     f.set_defaults(func=cmd_fetch)
 
     q = sub.add_parser("preprocess", help="ND2 -> uint8 OME-Zarr at native resolution")
     q.add_argument("nd2")
-    q.add_argument("--clip-variant", required=True,
+    q.add_argument("--clip-variant", default=None,
                    help="Load-bearing path component, e.g. clip_percentile_1_99 "
-                        "or clip_fixed_120_350. No default on purpose.")
+                        "or clip_fixed_120_350. No default on purpose; set it "
+                        "here or in data.yaml.")
     q.add_argument("--optics-spacing-nm", type=float, nargs=3, required=True,
                    metavar=("Z", "Y", "X"), help="As acquired, from the ND2.")
     q.add_argument("--fold", type=float, default=None, help="Overrides the filename.")
     q.add_argument("--exposure-ms", type=int, default=None,
                    help="From ND2 metadata, NEVER the filename (I7).")
-    q.add_argument("--channel", type=int, default=0)
-    q.add_argument("--clip-intensity-range", type=float, nargs=2, default=[120.0, 350.0])
-    q.add_argument("--clip-limit", type=float, default=0.03)
+    q.add_argument("--channel", type=int, default=None)
+    q.add_argument("--clip-intensity-range", type=float, nargs=2, default=None)
+    q.add_argument("--clip-limit", type=float, default=None)
     q.add_argument("--force", action="store_true")
     q.set_defaults(func=cmd_preprocess)
 
@@ -297,13 +321,31 @@ def main():
         s = sub.add_parser(name, help=doc)
         s.add_argument("cube_id")
         if name == "publish":
-            s.add_argument("--bucket", default=DEFAULT_BUCKET)
-            s.add_argument("--prefix", default=DEFAULT_PREFIX)
+            s.add_argument("--bucket", default=None, help="default: data.yaml:publish_bucket")
+            s.add_argument("--prefix", default=None, help="default: data.yaml:publish_prefix")
         if name == "prune":
             s.add_argument("--dry-run", action="store_true")
         s.set_defaults(func=fn)
 
     a = p.parse_args()
+    cfg = load_config()
+
+    _default(a, "work", cfg, "work", "./liconn_ingest_work")
+    _default(a, "inbox", cfg, "inbox", "./inbox")
+    _default(a, "remote", cfg, "rclone_remote", "gdrive")
+    _default(a, "bucket", cfg, "publish_bucket", "donglai_public")
+    _default(a, "prefix", cfg, "publish_prefix", "liconn/moe")
+    _default(a, "clip_variant", cfg, "clip_variant")
+    _default(a, "clip_intensity_range", cfg, "clip_intensity_range", [120.0, 350.0])
+    _default(a, "clip_limit", cfg, "clip_limit", 0.03)
+    _default(a, "channel", cfg, "channel", 0)
+
+    if a.cmd == "preprocess" and not a.clip_variant:
+        sys.exit(
+            "clip_variant is unset. It is a load-bearing path component -- two "
+            "variants with identical dataset names exist -- so there is no default.\n"
+            f"Set it in {CONFIG} or pass --clip-variant.")
+
     a.func(a)
 
 

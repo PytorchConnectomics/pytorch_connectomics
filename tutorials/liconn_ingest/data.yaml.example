@@ -1,0 +1,47 @@
+# Copy to `data.yaml` and fill in. `data.yaml` is gitignored -- see the repo
+# .gitignore rule `tutorials/*/data.yaml`. This file documents the schema.
+#
+# SOURCE LINKS DO NOT BELONG HERE. Google Drive share URLs are bearer
+# credentials and this is a PUBLIC repository, where one mistaken `git add -f`
+# publishes them irreversibly. They live in the private research repo's own
+# gitignored config:
+#
+#     dw-os/research/projects/msi_liconn_deploy/data.yaml   ->  sources:
+#
+# Reference a drop by its `id` there. Do not copy the URL across: a second copy
+# is both a second place to leak from and a second place to drift.
+
+# --- rclone / local paths --------------------------------------------------
+rclone_remote: gdrive           # `rclone config` remote name
+inbox: ./inbox                  # local landing zone; pruned after a passed verify
+work: ./liconn_ingest_work      # per-cube state, provenance.json, COMPLETE markers
+
+# --- Google Cloud ----------------------------------------------------------
+gcp_project: sunny-catalyst-506019-a2
+publish_bucket: donglai_public  # NOT anonymously readable despite the name (401)
+publish_prefix: liconn/moe
+
+# --- Preprocessing ---------------------------------------------------------
+# clip_variant is a LOAD-BEARING PATH COMPONENT: two variants with identical
+# dataset names exist, so dropping it collides them. See
+# tutorials/neuron_liconn_moe/volumes.py::GCS_PREFIX. `ingest.py` has no default
+# for it on purpose, and this file is the only place to set one.
+clip_variant: FILL              # clip_percentile_1_99 | clip_fixed_120_350
+clip_intensity_range: [120.0, 350.0]
+clip_limit: 0.03
+channel: 0                      # index of the structural/membrane channel
+
+# --- Drops to ingest -------------------------------------------------------
+# `source_id` keys into the research repo's `sources:` block above.
+#
+# optics_spacing_nm is ZYX **as acquired**, before the expansion fold is divided
+# out. The fold is NOT recorded in the ND2 -- it comes from the drop folder or
+# the filename -- which is why the two are separate fields and why
+# `spacing_assumed` exists: mark true when the optics values are inherited from
+# a sibling acquisition rather than read from this drop's own metadata.
+drops:
+  - source_id: FILL
+    fold: FILL                  # 18 | 22 | 28 | 32 canonical; 14.5 also seen
+    optics_spacing_nm: [FILL, FILL, FILL]
+    spacing_assumed: true
+    region: null                # cortex_l1 | hippocampus | ... , or null
