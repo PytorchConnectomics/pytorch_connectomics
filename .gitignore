@@ -116,6 +116,7 @@ dmypy.json
 # data
 *.h5
 *.sh
+!tutorials/**/run_everything.sh
 ._*
 .DS_Store
 *.pth
@@ -163,4 +164,3 @@ notebooks/
 .claude
 .agent/
 slurm_jobs/
-.gcp-run/

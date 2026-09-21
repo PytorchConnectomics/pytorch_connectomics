@@ -748,7 +748,9 @@ def prepare_config(config_path: Path) -> ChunkWorkflowConfig:
             "UPLOAD_CMD": upload_cmd,
             "DOWNLOAD_CMD": download_cmd,
             "AFF_RESOLUTION": int(param.get("AFF_RESOLUTION", 0)),
-            "AFF_CHANNELS": int(param.get("AFF_CHANNELS", source_num_channels)),
+            "AFF_CHANNELS": _affinity_channel_indices(
+                param.get("AFF_CHANNELS", source_num_channels)
+            ),
             "BBOX": bbox_xyz,
             "CHUNK_SIZE": chunk_size_xyz,
         }
@@ -929,9 +931,26 @@ def _stage_plan(cfg: PreparedConfig, stage: str) -> StagePlan:
     return StagePlan(stage=stage, argv=tuple(cmd), env=env)
 
 
+def _affinity_channel_indices(value: Any) -> list[int]:
+    """AFF_CHANNELS as the channel index list volume_backends expects, not a count."""
+    if isinstance(value, (list, tuple)):
+        indices = [int(v) for v in value]
+        if indices != list(range(len(indices))):
+            raise ValueError(
+                f"AFF_CHANNELS {indices} is not a contiguous 0..n-1 prefix; ABISS reads "
+                "this key as an index list and as a count in different places."
+            )
+        return indices
+    return list(range(int(value)))
+
+
 def _write_param(param_path: Path, payload: Mapping[str, Any]) -> None:
     _ensure_parent(param_path)
     with param_path.open("w", encoding="utf-8") as f:
+        payload = {
+            k: v for k, v in payload.items()
+            if not (k.startswith("NUC_") and v in ("", None, []))
+        }
         json.dump(dict(payload), f, indent=2, sort_keys=True)
         f.write("\n")
     if param_path.name == "param":
