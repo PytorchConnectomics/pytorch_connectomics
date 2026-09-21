@@ -107,6 +107,14 @@ def _create_runtime_model(
     saved_prediction_path: str,
     tta_cached: bool,
 ) -> tuple[ConnectomicsModule, str | None]:
+    if (
+        args.mode != "train"
+        and cfg.inference.checkpoint_weights == "ema"
+        and not has_saved_prediction
+        and not tta_cached
+        and not args.checkpoint
+    ):
+        raise ValueError("inference.checkpoint_weights=ema requires a Lightning --checkpoint")
     if has_saved_prediction:
         print(f"  Decode-only mode: loading predictions from {saved_prediction_path}")
         print("  Skipping model build entirely.")
@@ -268,6 +276,15 @@ def _run_test(
 
 def dispatch_runtime(args: Any, cfg: Config) -> None:
     """Dispatch the configured runtime mode."""
+    if (
+        args.mode != "train"
+        and cfg.inference.checkpoint_weights == "ema"
+        and (args.external_prefix or cfg.model.external_weights_path)
+    ):
+        raise ValueError(
+            "inference.checkpoint_weights=ema requires a Lightning --checkpoint; "
+            "external-prefix/external_weights_path loading does not select EMA state."
+        )
     configure_matmul_precision(cfg)
 
     if args.mode in ["test", "tune", "tune-test"]:

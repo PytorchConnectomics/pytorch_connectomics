@@ -508,6 +508,9 @@ def validate_config(cfg: Config) -> None:
     """
     sync_inference_runtime_aliases(cfg)
 
+    if cfg.inference.checkpoint_weights not in {"raw", "ema"}:
+        raise ValueError("inference.checkpoint_weights must be 'raw' or 'ema'")
+
     # Model validation
     if cfg.model.in_channels <= 0:
         raise ValueError("model.in_channels must be positive")

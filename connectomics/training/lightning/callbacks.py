@@ -13,6 +13,8 @@ import pytorch_lightning as pl
 import torch
 import torchvision.utils as vutils
 from pytorch_lightning import Callback
+from pytorch_lightning.callbacks import ModelCheckpoint
+from pytorch_lightning.trainer.states import TrainerFn
 from torch.utils.data import ConcatDataset, DataLoader, Dataset, Subset
 
 try:
@@ -38,9 +40,38 @@ __all__ = [
     "VisualizationCallback",
     "NaNDetectionCallback",
     "EMAWeightsCallback",
+    "OptimizerStepCheckpoint",
     "ValidationReseedingCallback",
     "load_ema_state_dict",
 ]
+
+
+class OptimizerStepCheckpoint(ModelCheckpoint):
+    """Run periodic batch-end checkpointing only when ``global_step`` advances.
+
+    Lightning does not restore its last-saved-step guard. Without this guard,
+    the first resumed accumulation microbatch can overwrite the checkpoint
+    from which training resumed, before the next optimizer step completes.
+    """
+
+    def on_train_start(self, trainer: pl.Trainer, pl_module: pl.LightningModule) -> None:
+        super().on_train_start(trainer, pl_module)
+        # Loop progress is restored after on_fit_start and before this hook.
+        self._last_observed_step = int(trainer.global_step)
+
+    def on_train_batch_end(
+        self,
+        trainer: pl.Trainer,
+        pl_module: pl.LightningModule,
+        outputs: Any,
+        batch: Any,
+        batch_idx: int,
+    ) -> None:
+        step = int(trainer.global_step)
+        if step <= self._last_observed_step:
+            return
+        self._last_observed_step = step
+        super().on_train_batch_end(trainer, pl_module, outputs, batch, batch_idx)
 
 
 def load_ema_state_dict(checkpoint: Dict[str, Any]) -> Optional[Dict[str, torch.Tensor]]:
@@ -731,11 +762,11 @@ class NaNDetectionCallback(Callback):
 
 class EMAWeightsCallback(Callback):
     """
-    Maintain exponential moving average (EMA) weights and swap them in for evaluation.
+    Update EMA weights after optimizer steps and use them for validation during fitting.
 
     The EMA tensors are checkpointed under this callback's state, for two reasons:
 
-    * **Resume.** ``on_fit_start`` seeds the EMA from the live weights, so without
+    * **Resume.** ``on_train_start`` seeds the EMA from the live weights, so without
       persisted state every resume silently restarts the average from scratch and
       the configured ``decay`` horizon is a fiction.
     * **Reproducing the logged metric.** With ``validate_with_ema=True`` the
@@ -744,6 +775,9 @@ class EMAWeightsCallback(Callback):
       training weights (the swap is undone in ``on_validation_epoch_end``, before
       the checkpoint is written). Persisting the EMA keeps those weights loadable;
       see :func:`load_ema_state_dict`.
+
+    Standalone validation and testing use the checkpoint weights selected by the
+    model loader; this callback must not overwrite them with a previous fit's EMA.
 
     Cost: one extra fp32 copy of the model per checkpoint file.
     """
@@ -770,6 +804,7 @@ class EMAWeightsCallback(Callback):
         self._backup_state: Optional[Dict[str, torch.Tensor]] = None
         self._ema_device: Optional[torch.device] = None
         self._updates: int = 0
+        self._last_global_step: int = 0
         self._using_ema: bool = False
         self._restored_state: Optional[Dict[str, torch.Tensor]] = None
         self._restored_updates: Optional[int] = None
@@ -785,10 +820,10 @@ class EMAWeightsCallback(Callback):
         }
 
     def load_state_dict(self, state_dict: Dict[str, Any]) -> None:
-        """Stash the checkpointed EMA; ``on_fit_start`` adopts it instead of reseeding.
+        """Stash the checkpointed EMA; ``on_train_start`` adopts it instead of reseeding.
 
-        Lightning restores callback state before ``on_fit_start`` runs, so the
-        seeding path has to defer to what was loaded rather than overwrite it.
+        Training starts after Lightning restores both callback state and loop
+        progress, including strategies that restore after ``on_fit_start``.
         """
         ema = state_dict.get(self.EMA_STATE_KEY)
         if not ema:
@@ -796,8 +831,9 @@ class EMAWeightsCallback(Callback):
         self._restored_state = {k: v.clone() for k, v in ema.items()}
         self._restored_updates = int(state_dict.get("updates", 0))
 
-    def on_fit_start(self, trainer, pl_module):
+    def on_train_start(self, trainer, pl_module):
         self._initialize_ema(pl_module)
+        self._last_global_step = trainer.global_step
 
     def on_train_batch_end(
         self,
@@ -807,31 +843,26 @@ class EMAWeightsCallback(Callback):
         batch: Dict[str, torch.Tensor],
         batch_idx: int,
     ):
-        if self._ema_state is None:
-            self._initialize_ema(pl_module)
-        if self._ema_state is None:
+        if trainer.global_step <= self._last_global_step or self._ema_state is None:
             return
 
+        self._last_global_step = trainer.global_step
         self._updates += 1
         decay = 0.0 if self._updates <= self.warmup_steps else self.decay
         self._update_ema(pl_module, decay)
 
     def on_validation_epoch_start(self, trainer, pl_module):
-        if trainer.sanity_checking or not self.validate_with_ema:
+        if (
+            trainer.state.fn != TrainerFn.FITTING
+            or trainer.sanity_checking
+            or not self.validate_with_ema
+        ):
             return
         self._apply_ema_weights(pl_module)
 
     def on_validation_epoch_end(self, trainer, pl_module):
-        if trainer.sanity_checking:
+        if trainer.state.fn != TrainerFn.FITTING or trainer.sanity_checking:
             return
-        self._restore_original_weights(pl_module)
-
-    def on_test_epoch_start(self, trainer, pl_module):
-        if not self.validate_with_ema:
-            return
-        self._apply_ema_weights(pl_module)
-
-    def on_test_epoch_end(self, trainer, pl_module):
         self._restore_original_weights(pl_module)
 
     def on_fit_end(self, trainer, pl_module):
@@ -865,6 +896,7 @@ class EMAWeightsCallback(Callback):
                 name: tensor.detach().clone().to(device)
                 for name, tensor in pl_module.model.state_dict().items()
             }
+        self._updates = 0
 
     def _update_ema(self, pl_module, decay: float):
         """Update EMA weights using the current model parameters."""

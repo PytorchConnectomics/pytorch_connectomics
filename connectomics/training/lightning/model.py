@@ -28,6 +28,7 @@ import torch
 import torch.nn as nn
 import torchmetrics
 from omegaconf import DictConfig, OmegaConf
+from pytorch_lightning.trainer.states import TrainerFn
 from pytorch_lightning.utilities.types import STEP_OUTPUT
 
 # Import existing components
@@ -66,6 +67,7 @@ from ..debugging import DebugManager
 from ..losses import LossOrchestrator, build_loss_weighter, infer_num_loss_tasks_from_config
 from ..model_weights import load_external_weights
 from ..optimization import build_lr_scheduler, build_optimizer
+from .callbacks import load_ema_state_dict
 from .test_pipeline import run_test_step
 
 logger = logging.getLogger(__name__)
@@ -249,6 +251,41 @@ class ConnectomicsModule(pl.LightningModule):
             hyper_parameters.pop("model", None)
 
         checkpoint["pytc_metadata"] = self._checkpoint_metadata()
+
+    def on_load_checkpoint(self, checkpoint: Dict[str, Any]) -> None:
+        """Select inference weights before Lightning restores the model state."""
+        source = self.cfg.inference.checkpoint_weights
+        if source not in {"raw", "ema"}:
+            raise ValueError("inference.checkpoint_weights must be 'raw' or 'ema'")
+        if self._trainer is not None and self._trainer.state.fn == TrainerFn.FITTING:
+            source = "raw"
+        self._loaded_checkpoint_weights = source
+        if source == "raw":
+            logger.info("Loading raw checkpoint weights")
+            return
+
+        ema_state = load_ema_state_dict(checkpoint)
+        if ema_state is None:
+            raise ValueError(
+                "inference.checkpoint_weights=ema requested, but the checkpoint has no "
+                "saved EMA state. Select raw explicitly to evaluate its training weights."
+            )
+        expected = self.model.state_dict()
+        if set(ema_state) != set(expected):
+            raise RuntimeError(
+                "Checkpoint EMA state does not match the model: "
+                f"missing={sorted(set(expected) - set(ema_state))}, "
+                f"unexpected={sorted(set(ema_state) - set(expected))}"
+            )
+        for name, tensor in ema_state.items():
+            if not isinstance(tensor, torch.Tensor) or tensor.shape != expected[name].shape:
+                raise RuntimeError(f"Checkpoint EMA tensor {name!r} does not match the model shape")
+
+        checkpoint["state_dict"] = {
+            **{k: v for k, v in checkpoint["state_dict"].items() if not k.startswith("model.")},
+            **{f"model.{name}": tensor for name, tensor in ema_state.items()},
+        }
+        logger.info("Loading saved EMA checkpoint weights (%d tensors)", len(ema_state))
 
     def _checkpoint_metadata(self) -> Dict[str, Any]:
         metadata = {

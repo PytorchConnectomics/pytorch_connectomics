@@ -467,7 +467,8 @@ def _try_cache_only_intermediate_eval(
     test_cfg = getattr(getattr(cfg, "data", None), "test", None)
     label_value = getattr(test_cfg, "label", None)
     gt_free_only = label_value is None and any(
-        _evaluation_metric_requested(cfg, metric_name) for metric_name in ("nerl", "tube")
+        _evaluation_metric_requested(cfg, metric_name)
+        for metric_name in ("nerl", "tube", "morphology")
     )
     if label_value is None and not gt_free_only:
         return False

@@ -98,6 +98,9 @@ def test_create_trainer_adds_periodic_step_checkpoint_callback(tmp_path: Path, m
         def __init__(self, **kwargs):
             checkpoint_kwargs.append(kwargs)
 
+    class _FakeOptimizerStepCheckpoint(_FakeModelCheckpoint):
+        pass
+
     class _FakeTrainer:
         def __init__(self, **kwargs):
             trainer_kwargs.update(kwargs)
@@ -106,6 +109,10 @@ def test_create_trainer_adds_periodic_step_checkpoint_callback(tmp_path: Path, m
     monkeypatch.setattr(
         "connectomics.training.lightning.trainer.ModelCheckpoint",
         _FakeModelCheckpoint,
+    )
+    monkeypatch.setattr(
+        "connectomics.training.lightning.trainer.OptimizerStepCheckpoint",
+        _FakeOptimizerStepCheckpoint,
     )
     monkeypatch.setattr("connectomics.training.lightning.trainer.pl.Trainer", _FakeTrainer)
 
@@ -121,3 +128,31 @@ def test_create_trainer_adds_periodic_step_checkpoint_callback(tmp_path: Path, m
     assert checkpoint_kwargs[1]["every_n_train_steps"] == 50000
     assert checkpoint_kwargs[1]["every_n_epochs"] == 0
     assert sum(isinstance(cb, _FakeModelCheckpoint) for cb in trainer_kwargs["callbacks"]) == 2
+    checkpoints = [cb for cb in trainer_kwargs["callbacks"] if isinstance(cb, _FakeModelCheckpoint)]
+    assert type(checkpoints[0]) is _FakeModelCheckpoint
+    assert type(checkpoints[1]) is _FakeOptimizerStepCheckpoint
+
+
+@pytest.mark.parametrize("accumulation", [1, 4])
+@pytest.mark.parametrize("unit", ["epoch", "step"])
+def test_validation_interval_counts_optimizer_steps(tmp_path: Path, accumulation, unit):
+    cfg = from_dict(
+        {
+            "system": {"num_gpus": 0},
+            "optimization": {
+                "max_epochs": 1,
+                "val_check_interval": 3,
+                "val_check_interval_unit": unit,
+                "accumulate_grad_batches": accumulation,
+            },
+        }
+    )
+
+    trainer = create_trainer(cfg, run_dir=tmp_path, mode="test")
+
+    if unit == "step":
+        assert trainer.check_val_every_n_epoch is None
+        assert trainer.val_check_interval == 3 * accumulation
+    else:
+        assert trainer.check_val_every_n_epoch == 3
+        assert trainer.val_check_interval == 1.0

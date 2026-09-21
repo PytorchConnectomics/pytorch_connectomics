@@ -13,6 +13,7 @@ import torch
 import torchmetrics
 
 from ..decoding.experiment_log import log_decode_experiment
+from ..metrics.unsupervised.morphology import MorphologyAnalysis
 from ..metrics.tube import TubeAnalysis
 from ..runtime.output_naming import final_prediction_output_tag
 from .context import EvaluationContext
@@ -21,6 +22,7 @@ from .metric_execution import (
     compute_binary_metrics,
     compute_instance_metrics,
 )
+from .morphology import compute_morphology_metrics, write_morphology_artifacts
 from .nerl import compute_nerl_metrics
 from .tube import compute_tube_metrics
 
@@ -167,6 +169,14 @@ def save_metrics_to_file(context: EvaluationContext, metrics_dict: Dict[str, Any
         except Exception as exc:
             logger.warning("Failed to save per-instance tube analysis: %s", exc)
 
+    morphology_analysis = metrics_dict.get("_morphology_analysis")
+    if isinstance(morphology_analysis, MorphologyAnalysis):
+        paths = write_morphology_artifacts(
+            morphology_analysis, output_dir, stem=f"eval_{tag}_morphology"
+        )
+        metrics_dict["morphology_summary_file"] = str(paths["summary"])
+        metrics_dict["morphology_instances_file"] = str(paths["instances"])
+
     try:
         with open(metrics_file, "w") as f:
             f.write("=" * 80 + "\n")
@@ -269,6 +279,16 @@ def save_metrics_to_file(context: EvaluationContext, metrics_dict: Dict[str, Any
                     )
                 f.write("\n")
 
+            if "morphology_report" in metrics_dict:
+                f.write("Ground-Truth-Free Morphology Analysis:\n")
+                f.write("-" * 80 + "\n")
+                f.write(str(metrics_dict["morphology_report"]) + "\n")
+                if "morphology_summary_file" in metrics_dict:
+                    f.write(f"  Summary File: {metrics_dict['morphology_summary_file']}\n")
+                if "morphology_instances_file" in metrics_dict:
+                    f.write(f"  Per-Instance File: {metrics_dict['morphology_instances_file']}\n")
+                f.write("\n")
+
             f.write("=" * 80 + "\n")
 
         logger.info("Metrics saved to: %s", metrics_file)
@@ -313,6 +333,9 @@ def compute_test_metrics(
             volume_prefix,
             metrics_dict,
         )
+
+    if "morphology" in requested_metrics:
+        compute_morphology_metrics(context, decoded_predictions, volume_prefix, metrics_dict)
 
     if requested_metrics & {"nerl", "nerl_oracle_merge"}:
         compute_nerl_metrics(

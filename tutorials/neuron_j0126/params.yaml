@@ -8,6 +8,7 @@
 # from one artifact. No environment variables, no shell expansion.
 
 params:
+  pipeline: cube_from_scratch
 
   # --------------------------------------------------------------- where
   paths:
@@ -136,6 +137,11 @@ params:
     # Built by the mask step.
     tissue_mask: ${params.paths.dataset_root}/ffn_tissue_mask_18-18-20.zarr
     keep_mask: ${params.paths.dataset_root}/tissue_border_keep_mask_full.zarr
+    masks:
+      strategy: ffn_tissue_border
+      sources: []
+      ratio_zyx: [1, 2, 2]
+      border_start_zyx: [0, 0, 0]
     # Optional external nucleus segmentation. When set, ABISS runs competitive
     # nucleus growth and writes the identity manifest that step 4 uses as a
     # firewall (it never joins two different nucleus identities). Leave "" if
@@ -150,3 +156,10 @@ params:
     # Affinity handed to ABISS: a virtual dataset over step 2's chunk store,
     # built by the vds step. No data is copied.
     affinity_h5: ${params.paths.output_root}/affinity/affinity.h5
+
+  # Fixed geometry of the published FFN tissue/border builder. Its keep mask
+  # covers 10912 rows; the ABISS extent includes one additional far-face row.
+  frame:
+    volume_shape_zyx: [5700, 10912, 10664]
+    volume_origin_global_zyx: [0, 0, 0]
+    resolution_xyz_nm: [9, 9, 20]
