@@ -183,7 +183,11 @@ def _run_test(
     print("RUNNING TEST")
     print("=" * 60)
 
-    cfg = resolve_test_stage_runtime(cfg)
+    # Plain test mode is already resolved by CLI setup, including its explicit
+    # overrides. Re-merging here would discard those overrides and join
+    # relative data paths twice. Only tune-test needs a stage transition.
+    if args.mode == "tune-test":
+        cfg = resolve_test_stage_runtime(cfg)
     cfg.inference.save_cache_suffix = resolve_prediction_cache_suffix(
         cfg,
         args.mode,
