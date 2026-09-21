@@ -1,0 +1,91 @@
+{
+  "status": "verified",
+  "metric": "adapted_rand_error",
+  "value": 0.7708514238507227,
+  "precision": 0.9807139895083065,
+  "recall": 0.12973035061983956,
+  "lower_is_better": true,
+  "evaluation_support": "full_volume",
+  "shape": [
+    300,
+    614,
+    614
+  ],
+  "completed_epochs": 20,
+  "global_step": 4000,
+  "checkpoint_sha256": "c9cc023bc9530ddc233f21a255a08901727a7e60f52eca36ef34d2913cdf0884",
+  "parameters": {
+    "ws_high_threshold": 1.0,
+    "ws_low_threshold": 0.1,
+    "ws_size_threshold": 6400,
+    "ws_dust_threshold": 4800,
+    "ws_merge_function": "mean",
+    "ws_merge_threshold": 0.5
+  },
+  "selection_split": "validation",
+  "validation_baseline_arand": 0.960835420294192,
+  "validation_selected_arand": 0.2096493943212161,
+  "validation_trials": 56,
+  "baseline_test_arand": 0.895048196298,
+  "test_used_for_selection": false,
+  "test_prediction_sha256": "c45ccd2f9008ddfcb0b40b93433e580334ed8fdebbb800ad345233420675dffb",
+  "test_labels_sha256": "43d401bda69f6103ddd3e83b60f82a5ed2481cd54ec1b998efd2213f6927aefb",
+  "segmentation_sha256": "bb9dad4b43b954fb0012309f53d6884e6a41476ed94835d920197ed502b47367",
+  "selection_sha256": "e4a7c7a5e77dd3d60880f985226cd5733f4d6a8f45ab499d71631514bece1236",
+  "abiss_binary_sha256": "c41bfa2fc6744c6bd76da1c143db3e2de7014617103f9aef9a5ef794090bde53",
+  "elapsed_seconds": 326.1995325088501,
+  "gcs_run_prefix": "gs://donglai/dispim/snemi/cloud-runs/dispim-snemi10-20260910/abiss-validation-tune-20260910",
+  "effective_spacing_nm": 10,
+  "architecture": "mednext_dual_view/partial_gated",
+  "training_erosion_voxels": 1,
+  "training_erosion_axes": "XY only",
+  "training_changed": false,
+  "all_tuning_resources_deleted": true,
+  "selected_segmentation_statistics": {
+    "predicted_segments_on_gt": 1070,
+    "foreground_background_fraction": 0.028806192017950996,
+    "largest_segment_fraction": 0.025335021268788695
+  },
+  "erosion_diagnostic": [
+    {
+      "spacing_nm": 20,
+      "xy_radius_voxels": 1,
+      "xy_radius_nm": 20,
+      "foreground_voxels": 2288876,
+      "removed_voxels": 200550,
+      "removed_fraction": 0.08761942542977426
+    },
+    {
+      "spacing_nm": 10,
+      "xy_radius_voxels": 1,
+      "xy_radius_nm": 10,
+      "foreground_voxels": 18310614,
+      "removed_voxels": 544383,
+      "removed_fraction": 0.029730461250507493
+    },
+    {
+      "spacing_nm": 10,
+      "xy_radius_voxels": 2,
+      "xy_radius_nm": 20,
+      "foreground_voxels": 18310614,
+      "removed_voxels": 1609620,
+      "removed_fraction": 0.08790639134220185
+    },
+    {
+      "spacing_nm": 5,
+      "xy_radius_voxels": 1,
+      "xy_radius_nm": 5,
+      "foreground_voxels": 146716584,
+      "removed_voxels": 1694892,
+      "removed_fraction": 0.01155215009640628
+    },
+    {
+      "spacing_nm": 5,
+      "xy_radius_voxels": 4,
+      "xy_radius_nm": 20,
+      "foreground_voxels": 146716584,
+      "removed_voxels": 12875964,
+      "removed_fraction": 0.08776079464881761
+    }
+  ]
+}

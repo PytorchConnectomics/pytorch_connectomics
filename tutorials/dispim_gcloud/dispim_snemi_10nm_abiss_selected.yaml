@@ -1,0 +1,31 @@
+# Selected by 56-candidate validation sweep, with the original 20-epoch weights.
+# Test arand 0.770851423851: improves baseline but remains poor.
+_base_: dispim_snemi_10nm_20epoch.yaml
+default:
+  decoding:
+    steps:
+    - name: decode_abiss
+      kwargs:
+        command:
+        - '{python_exe}'
+        - /workspace/scripts/run_abiss_volume.py
+        - --input
+        - '{input_h5}'
+        - --output
+        - '{output_h5}'
+        input_dataset: main
+        output_dataset: main
+        channels:
+        - 0
+        - 1
+        - 2
+        timeout_sec: 7200
+        cli_args:
+          ws_binary: /opt/abiss/build/ws
+          edge_storage: destination
+          ws_high_threshold: 1.0
+          ws_low_threshold: 0.1
+          ws_size_threshold: 6400
+          ws_dust_threshold: 4800
+          ws_merge_function: mean
+          ws_merge_threshold: 0.5

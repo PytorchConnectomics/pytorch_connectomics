@@ -1,0 +1,30 @@
+{
+  "metric": "adapted_rand_error",
+  "value": 0.895048196298,
+  "lower_is_better": true,
+  "evaluation_support": "full_volume",
+  "crop": "z=0:300,y=0:614,x=0:614",
+  "crop_shape": "300x614x614",
+  "precision": 0.0557092680451,
+  "recall": 0.904133310809,
+  "status": "verified",
+  "completed_epochs": 20,
+  "global_step": 4000,
+  "shape": [
+    300,
+    614,
+    614
+  ],
+  "checkpoint_sha256": "c9cc023bc9530ddc233f21a255a08901727a7e60f52eca36ef34d2913cdf0884",
+  "run_id": "dispim-snemi10-20260910",
+  "gcs_run_prefix": "gs://donglai/dispim/snemi/cloud-runs/dispim-snemi10-20260910",
+  "effective_spacing_nm": 10,
+  "architecture": "mednext_dual_view/partial_gated",
+  "training_gpus": "4 x NVIDIA L4",
+  "scoring_machine": "e2-standard-16, CPU only",
+  "resumed_final_epochs": 0,
+  "raw_prediction_sha256": "c45ccd2f9008ddfcb0b40b93433e580334ed8fdebbb800ad345233420675dffb",
+  "segmentation_sha256": "0bdaa7f1aafbb476d33ee3de106a428b44e7b9784205bb9e1645c769d579a7ee",
+  "image_archive_sha256": "5c47fccff29ac3075ce53f5f412df296ebc4815b6aa60fc5c9d3ae162111cba2",
+  "all_run_resources_deleted": true
+}

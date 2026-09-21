@@ -1,0 +1,127 @@
+# Registered A/B simulation -> nine affinities -> CPU ABISS -> full-grid arand.
+_base_: ../dispim/dispim_partial_gated_mednext_s.yaml
+
+experiment_name: dispim_snemi_partial_gated_20epoch
+description: >-
+  Twenty epochs from scratch on registered whole-volume diSPIM SNEMI A/B
+  simulations. Separate shallow encoders, shared deeper MedNeXt-S blocks,
+  angle FiLM, reliability gates at five scales, one decoder. Four L4s for
+  training, one L4 for x1 inference, separate CPU-only ABISS evaluation.
+save_path: outputs/dispim_gcloud/training
+
+default:
+  system:
+    profile: all-gpu-cpu
+    accelerator: cuda
+    num_gpus: 4
+    num_workers: 4
+    seed: 42
+  model:
+    input_size: [64, 64, 64]
+    output_size: [64, 64, 64]
+    dual_view:
+      # Simulator rotates the B PSF 90 degrees from A; views share one grid.
+      view_angles_deg: [0.0, 90.0]
+  data:
+    root_path: datasets/diSPIM_SNEMI
+    label_transform:
+      resolution: [20, 20, 20]
+    dataloader:
+      profile: cached
+      patch_size: [64, 64, 64]
+      batch_size: 2
+      pin_memory: true
+      # No test labels are used for training or validation.
+      val_random_sampling: true
+    data_transform:
+      pad_size: [32, 32, 32]
+  inference:
+    model:
+      crop_pad: [31, 32, 31, 32, 31, 32]
+    window:
+      window_size: [64, 64, 64]
+      sw_batch_size: 4
+      keep_input_on_cpu: true
+    test_time_augmentation:
+      enabled: false
+  decoding:
+    enabled: true
+    steps:
+      - name: decode_abiss
+        kwargs:
+          command:
+            - "{python_exe}"
+            - /workspace/scripts/run_abiss_volume.py
+            - --input
+            - "{input_h5}"
+            - --output
+            - "{output_h5}"
+          input_dataset: main
+          output_dataset: main
+          channels: [0, 1, 2]
+          timeout_sec: 7200
+          cli_args:
+            ws_binary: /opt/abiss/build/ws
+            edge_storage: destination
+            ws_high_threshold: 0.9
+            ws_low_threshold: 0.1
+            ws_size_threshold: 800
+            ws_dust_threshold: 600
+            ws_merge_threshold: 0.5
+            ws_merge_function: mean
+    postprocessing:
+      enabled: false
+  evaluation:
+    enabled: true
+    metrics: [adapted_rand]
+
+train:
+  data:
+    train:
+      image: train-views.h5
+      label: train-labels.h5
+      resolution: [20, 20, 20]
+    val:
+      image: val-views.h5
+      label: val-labels.h5
+      resolution: [20, 20, 20]
+  optimization:
+    max_epochs: 20
+    n_steps_per_epoch: 200
+    val_steps_per_epoch: 16
+    accumulate_grad_batches: 1
+    precision: bf16-mixed
+    scheduler:
+      warmup_epochs: 1
+      params:
+        max_iter: 20
+        warmup_epochs: 1
+    ema:
+      enabled: false
+  monitor:
+    early_stopping:
+      enabled: false
+    checkpoint:
+      save_last: true
+      # Lightning 2.6.5 only refreshes last when a ranked checkpoint is saved.
+      # Retain every epoch so final weights cannot silently lag the run.
+      save_top_k: -1
+      monitor: val_loss_total
+      mode: min
+    logging:
+      images:
+        enabled: false
+
+test:
+  system:
+    num_gpus: 1
+    num_workers: 0
+  data:
+    test:
+      image: test-views.h5
+      label: test-labels.h5
+      resolution: [20, 20, 20]
+  evaluation:
+    enabled: true
+
+tune: null

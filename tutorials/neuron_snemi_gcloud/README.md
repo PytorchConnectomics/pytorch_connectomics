@@ -254,15 +254,33 @@ reports one fixed-decoder result rather than searching test-label scores.
 Cloud execution started on September 9, 2026 under run
 `snemi-abiss20-20260909`. The Docker build passed the real ABISS synthetic
 end-to-end test with adapted Rand error 0. CUDA passthrough showed four L4s;
-training resumed at epoch index 3 and logged finite loss 2.9455762 at global
-step 624. The 20-epoch model score is still pending. The CPU builder was
-deleted; the training VM has a twelve-hour auto-delete backstop and an active
-completion/cleanup monitor. See the cloud handoff for current execution state.
+training completed 20 total epochs with final checkpoint epoch 19 / step 4000
+and displayed validation loss 1.15. The measured ABISS adapted Rand error is
+**0.10523654536** (lower is better), with precision 0.969089798092 and recall
+0.831026185118. Scoring used x1 inference (no TTA) on the historical challenge
+crop `z=25:75,y=97:928,x=97:928`, shape `50x831x831`.
+The initial inference attempt lost CUDA access and selected the old resume
+input because Lightning wrote `last-v1.ckpt`. It was stopped; inference and
+ABISS scoring were relaunched from the verified final checkpoint in a fresh
+container. The runner now names its resume input `resume.ckpt` and checks the
+completed epoch before scoring a resumed training run. Recovery artifacts use
+the cloud run's `result-recovery/recovery/benchmark/` prefix. Execution finished
+at 11:03:38 UTC with a complete manifest and exit code 0. The downloaded final
+checkpoint was verified as epoch 19 / step 4000 and matched the manifest's
+SHA-256. All artifacts were uploaded before compute cleanup.
+The builder and training VMs and their disks were deleted; project-wide VM
+and disk inventories were empty after cleanup. The completion monitor is paused.
 
 Local validation covers structured config/profile resolution, the benchmark's
 artifact/failure/resume contracts, ABISS wrapper and edge-storage tests, and
 the real SNEMI challenge evaluator on synthetic labels. These checks establish
-workflow correctness, not the pending model's segmentation accuracy.
+workflow correctness; the model score above was measured in the cloud.
+
+The checkpoint-selection recovery fix passed all 14 tests in
+`tests/unit/test_snemi_benchmark.py`, including rejection of an incomplete
+resumed checkpoint. The earlier roughly 0.8788 seeded-watershed smoke score
+used a different decoder and inference setup, so it is not a directly
+comparable ABISS baseline.
 
 Verified locally in conda environment `pytc`:
 

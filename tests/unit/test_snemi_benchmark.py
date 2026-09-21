@@ -79,6 +79,14 @@ def test_saved_affinities_reach_real_challenge_metric_without_cuda(case):
         benchmark.run_benchmark(args)
 
 
+def test_full_grid_score_records_actual_support(case):
+    args, _ = case
+    assert benchmark.run_benchmark(args, crop="full") == 0.0
+    score = json.loads((args.output / "metrics.json").read_text())
+    assert score["evaluation_support"] == "full_volume"
+    assert score["crop_shape"] == "12x24x24"
+
+
 @pytest.mark.parametrize("bad", ["shape", "nan", "logits"])
 def test_bad_affinities_fail_without_publishing_a_metric(case, bad):
     args, labels = case
@@ -129,9 +137,11 @@ def test_resume_copies_checkpoint_and_preserves_state_flags(case, monkeypatch):
         assert checkpoint != args.checkpoint
         if log.stem == "train":
             assert checkpoint.read_bytes() == args.checkpoint.read_bytes()
-            checkpoint.write_bytes(b"resumed state")
+            assert checkpoint.name == "resume.ckpt"
+            torch.save({"epoch": 19, "global_step": 4000}, checkpoint.with_name("last.ckpt"))
         else:
-            assert checkpoint.read_bytes() == b"resumed state"
+            assert checkpoint.name == "last.ckpt"
+            assert torch.load(checkpoint, weights_only=False)["epoch"] == 19
             prediction_dir = get_checkpoint_test_output_dir(checkpoint) / "test-input"
             prediction_dir.mkdir(parents=True)
             write_hdf5(
@@ -147,6 +157,30 @@ def test_resume_copies_checkpoint_and_preserves_state_flags(case, monkeypatch):
     assert [arg for arg in train if arg.startswith("--reset-")] == ["--reset-max-epochs"]
     assert "decoding.enabled=false" in infer
     assert "evaluation.enabled=false" in infer
+    manifest = json.loads((args.output / "manifest.json").read_text())
+    assert manifest["completed_epochs"] == 20
+    assert manifest["global_step"] == 4000
+
+
+def test_resume_rejects_checkpoint_before_requested_final_epoch(case, monkeypatch):
+    import torch
+
+    args, _ = case
+    args.prediction = None
+    args.checkpoint = args.output.parent / "source.ckpt"
+    torch.save({"epoch": 2, "global_step": 600}, args.checkpoint)
+    args.resume_to = 20
+    monkeypatch.setattr(torch.cuda, "is_available", lambda: True)
+
+    def incomplete_training(command, log, manifest):
+        assert log.stem == "train"
+        checkpoint = Path(command[command.index("--checkpoint") + 1])
+        torch.save({"epoch": 2, "global_step": 600}, checkpoint.with_name("last.ckpt"))
+
+    monkeypatch.setattr(benchmark, "_run", incomplete_training)
+    with pytest.raises(RuntimeError, match="Expected completed epoch 19, got 2"):
+        benchmark.run_benchmark(args)
+    assert not (args.output / "metric.txt").exists()
 
 
 @pytest.mark.parametrize("use_checkpoint", [False, True])
