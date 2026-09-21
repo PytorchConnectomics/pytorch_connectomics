@@ -25,6 +25,21 @@ Published output is **level 0 only**, at the finest (native) resolution. No pyra
 a Neuroglancer slice view of a 2200³ cube is ~4.8 MB and fine; zoomed-out 3D will be
 slow. Two levels is a cheap retrofit.
 
+## Configuration
+
+`data.yaml` is **gitignored** (`tutorials/*/data.yaml`); `data.yaml.example` documents
+the schema. Copy and fill. Precedence is CLI flag → `data.yaml` → built-in default.
+
+**Source links do not go in it.** Drive share URLs are bearer credentials and this is a
+public repository, where one mistaken `git add -f` publishes them irreversibly. They live
+in the private research repo's own gitignored config,
+`msi_liconn_deploy/data.yaml` under `sources:`; `data.yaml` here references a drop by its
+`source_id` instead. A second copy would be both a second place to leak from and a second
+place to drift.
+
+A value of `FILL` is treated as absent, so it surfaces as the "set it" error rather than
+propagating the literal string into a GCS path.
+
 ## Usage
 
 ```bash
@@ -36,11 +51,11 @@ python tutorials/liconn_ingest/ingest.py --inbox ./inbox \
     fetch --folder "<drive folder name>" --dry-run
 
 # 2. one ND2 -> uint8 OME-Zarr at native resolution
-python tutorials/liconn_ingest/ingest.py --work ./work \
+python tutorials/liconn_ingest/ingest.py \
     preprocess ./inbox/ExPID71_120ms-30ms_600nm_40XW02.nd2 \
-    --clip-variant clip_percentile_1_99 \
     --optics-spacing-nm 600 162.5 162.5 \
     --fold 32 --exposure-ms 30
+# clip variant, paths and bucket come from data.yaml; any flag still overrides
 
 # 3-5. publish, verify, then delete the raw
 python tutorials/liconn_ingest/ingest.py --work ./work publish <cube_id>
@@ -96,6 +111,10 @@ the image.
   including that anisotropy is invariant to expansion fold, that `0.1625 µm / 32`
   reproduces the recorded `5.078125` nm, and that `_28xx` (a real typo in the ExPID96
   set) and fractional `_14p5x` both parse.
-- `ingest.py` — CLI parses; **the ND2, zarr and GCS paths have not been executed.**
-  Neither Docker nor rclone is installed on the machine this was written on, and no
-  drop has been fetched.
+- `ingest.py` — CLI parses; config precedence, the `FILL`-is-absent rule and the
+  clip-variant refusal are exercised; and `_ome_multiscales` round-trips to
+  `scale: [12.5, 5.078125, 5.078125]` ZYX with axes `z,y,x`, matching the recorded
+  ExPID96 32× physical spacing.
+- **Not executed: the ND2, zarr-write and GCS paths.** Neither Docker nor rclone is
+  installed on the machine this was written on, no drop has been fetched, and the local
+  `pytc` conda env has no `zarr` (only `dispim` does). The image installs it.
