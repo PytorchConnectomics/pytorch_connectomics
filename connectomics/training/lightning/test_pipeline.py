@@ -376,7 +376,7 @@ def _evaluate_decoded_predictions(
     evaluation_enabled = evaluation_context.is_enabled
     gt_free_metric_requested = evaluation_enabled and any(
         evaluation_metric_requested(evaluation_context, metric_name)
-        for metric_name in ("nerl", "tube")
+        for metric_name in ("nerl", "tube", "morphology")
     )
 
     if evaluation_enabled and (labels is not None or gt_free_metric_requested):

@@ -20,7 +20,7 @@ Key design principles from EMVision:
 from __future__ import annotations
 
 import math
-from typing import Dict, List, Optional, Tuple, Union
+from typing import Any, Dict, List, Optional, Tuple, Union
 
 import torch
 import torch.nn as nn
@@ -32,10 +32,11 @@ from .registry import register_architecture
 
 class BilinearUp3d(nn.Module):
     """
-    Caffe-style bilinear upsampling for 3D data.
+    Fixed, separable linear interpolation along all three spatial axes.
 
-    Learnable upsampling with fixed bilinear interpolation weights.
-    More stable than transposed convolution for small feature maps.
+    The grouped transposed convolution uses zero extension outside the input,
+    so constants are preserved in the interior and attenuated at the boundary.
+    Factor 1 leaves an axis unchanged; output sizes equal input sizes times factor.
     """
 
     def __init__(
@@ -44,6 +45,8 @@ class BilinearUp3d(nn.Module):
         super().__init__()
         if in_channels != out_channels:
             raise ValueError("BilinearUp3d requires in_channels == out_channels")
+        if len(factor) != 3 or any(type(f) is not int or f < 1 for f in factor):
+            raise ValueError("factor must contain three positive integers")
         self.groups = in_channels
         self.factor = factor
         self.kernel_size = [(2 * f) - (f % 2) for f in self.factor]
@@ -56,17 +59,13 @@ class BilinearUp3d(nn.Module):
         )
 
     def init_weights(self):
-        """Initialize bilinear interpolation weights."""
-        weight = torch.Tensor(self.groups, 1, *self.kernel_size)
-        width = weight.size(-1)
-        height = weight.size(-2)
-        if width != height:
-            raise ValueError("Bilinear weight assumes square kernel in HW")
-        f = float(math.ceil(width / 2.0))
-        c = float(width - 1) / (2.0 * f)
-        for w in range(width):
-            for h in range(height):
-                weight[..., h, w] = (1 - abs(w / f - c)) * (1 - abs(h / f - c))
+        """Initialize the tensor product of three one-dimensional linear kernels."""
+        kernels = [
+            1 - (torch.arange(size, dtype=torch.float32) - (size - 1) / 2).abs() / factor
+            for size, factor in zip(self.kernel_size, self.factor)
+        ]
+        weight = kernels[0][:, None, None] * kernels[1][None, :, None] * kernels[2][None, None, :]
+        weight = weight[None, None].repeat(self.groups, 1, 1, 1, 1)
         self.register_buffer("weight", weight)
 
 
@@ -156,7 +155,7 @@ class ResBlock(nn.Module):
 
 class ConvBlock(nn.Module):
     """
-    Convolution block: Pre→Residual→Post
+    Convolution block: Pre→Residual(s)→Post
 
     Pattern from EMVision: provides richer features than single ResBlock.
     """
@@ -169,6 +168,7 @@ class ConvBlock(nn.Module):
         norm: str = "batch",
         activation: str = "relu",
         num_groups: int = 8,
+        residual_blocks: int = 1,
         **act_kwargs,
     ):
         super().__init__()
@@ -185,6 +185,12 @@ class ConvBlock(nn.Module):
 
         # Residual block
         self.res = ResBlock(out_channels, kernel_size, norm, activation, num_groups, **act_kwargs)
+        self.extra_res = nn.Sequential(
+            *[
+                ResBlock(out_channels, kernel_size, norm, activation, num_groups, **act_kwargs)
+                for _ in range(residual_blocks - 1)
+            ]
+        )
 
         # Post-convolution
         self.post = nn.Sequential(
@@ -195,6 +201,7 @@ class ConvBlock(nn.Module):
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         x = self.pre(x)
         x = self.res(x)
+        x = self.extra_res(x)
         return self.post(x)
 
 
@@ -210,12 +217,20 @@ class DownBlock(nn.Module):
         norm: str = "batch",
         activation: str = "relu",
         num_groups: int = 8,
+        residual_blocks: int = 1,
         **act_kwargs,
     ):
         super().__init__()
         self.pool = nn.MaxPool3d(down_factor)
         self.conv = ConvBlock(
-            in_channels, out_channels, kernel_size, norm, activation, num_groups, **act_kwargs
+            in_channels,
+            out_channels,
+            kernel_size,
+            norm,
+            activation,
+            num_groups,
+            residual_blocks,
+            **act_kwargs,
         )
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
@@ -238,6 +253,7 @@ class UpBlock(nn.Module):
         norm: str = "batch",
         activation: str = "relu",
         num_groups: int = 8,
+        residual_blocks: int = 1,
         **act_kwargs,
     ):
         super().__init__()
@@ -250,7 +266,14 @@ class UpBlock(nn.Module):
 
         # Convolution after skip addition
         self.conv = ConvBlock(
-            out_channels, out_channels, kernel_size, norm, activation, num_groups, **act_kwargs
+            out_channels,
+            out_channels,
+            kernel_size,
+            norm,
+            activation,
+            num_groups,
+            residual_blocks,
+            **act_kwargs,
         )
 
     def forward(self, x: torch.Tensor, skip: torch.Tensor) -> torch.Tensor:
@@ -276,6 +299,10 @@ class RSUNet(ConnectomicsModel):
         in_channels: Number of input channels
         out_channels: Number of output classes
         width: Channel width at each level (e.g., [16, 32, 64, 128])
+        residual_blocks_per_stage: Positive residual-block counts, one per width,
+            ordered finest resolution to bottleneck. Decoder stages use the count
+            at their matching encoder resolution. None means one block everywhere;
+            each block contains two convolutions, between the stage's pre/post convolutions.
         kernel_sizes: Kernel size per level (int or list of tuples)
         down_factors: Downsampling factors per level (anisotropic/isotropic)
         norm: Normalization type ('batch', 'group', 'instance', 'none')
@@ -313,6 +340,7 @@ class RSUNet(ConnectomicsModel):
         deep_supervision: bool = False,
         depth_2d: int = 0,
         kernel_2d: Tuple[int, int, int] = (1, 3, 3),
+        residual_blocks_per_stage: Optional[List[int]] = None,
         **act_kwargs,
     ):
         super().__init__()
@@ -321,6 +349,13 @@ class RSUNet(ConnectomicsModel):
             width = [16, 32, 64, 128, 256]
         if len(width) <= 1:
             raise ValueError("Need at least 2 levels")
+        if residual_blocks_per_stage is None:
+            residual_blocks_per_stage = [1] * len(width)
+        if len(residual_blocks_per_stage) != len(width):
+            raise ValueError("residual_blocks_per_stage must contain one count per width")
+        if any(type(count) is not int or count < 1 for count in residual_blocks_per_stage):
+            raise ValueError("residual_blocks_per_stage counts must be positive integers")
+        self.residual_blocks_per_stage = list(residual_blocks_per_stage)
         self.depth = len(width) - 1
         self.width = width
         self.supports_deep_supervision = deep_supervision
@@ -349,7 +384,14 @@ class RSUNet(ConnectomicsModel):
 
         # Initial convolution
         self.input_conv = ConvBlock(
-            in_channels, width[0], kernel_sizes[0], norm, activation, num_groups, **act_kwargs
+            in_channels,
+            width[0],
+            kernel_sizes[0],
+            norm,
+            activation,
+            num_groups,
+            residual_blocks_per_stage[0],
+            **act_kwargs,
         )
 
         # Encoder (downsampling path)
@@ -364,6 +406,7 @@ class RSUNet(ConnectomicsModel):
                     norm,
                     activation,
                     num_groups,
+                    residual_blocks_per_stage[d + 1],
                     **act_kwargs,
                 )
             )
@@ -380,6 +423,7 @@ class RSUNet(ConnectomicsModel):
                     norm,
                     activation,
                     num_groups,
+                    residual_blocks_per_stage[d],
                     **act_kwargs,
                 )
             )
@@ -500,7 +544,7 @@ def build_rsunet(cfg) -> RSUNet:
         kernel_2d = tuple(cfg.model.rsunet.kernel_2d)
 
     # Activation kwargs
-    act_kwargs = {}
+    act_kwargs: Dict[str, Any] = {}
     act_kwargs["negative_slope"] = getattr(cfg.model.rsunet, "act_negative_slope", 0.01)
     act_kwargs["init"] = getattr(cfg.model.rsunet, "act_init", 0.25)
 
@@ -508,6 +552,7 @@ def build_rsunet(cfg) -> RSUNet:
         in_channels=cfg.model.in_channels,
         out_channels=cfg.model.out_channels,
         width=width,
+        residual_blocks_per_stage=cfg.model.rsunet.residual_blocks_per_stage,
         norm=getattr(cfg.model.rsunet, "norm", "batch"),
         activation=getattr(cfg.model.rsunet, "activation", "relu"),
         num_groups=getattr(cfg.model.rsunet, "num_groups", 8),
@@ -533,6 +578,7 @@ def build_rsunet_iso(cfg) -> RSUNet:
         in_channels=cfg.model.in_channels,
         out_channels=cfg.model.out_channels,
         width=width,
+        residual_blocks_per_stage=cfg.model.rsunet.residual_blocks_per_stage,
         down_factors=[(2, 2, 2)] * depth,  # Isotropic
         norm=getattr(cfg.model.rsunet, "norm", "batch"),
         activation=getattr(cfg.model.rsunet, "activation", "relu"),

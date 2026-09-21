@@ -1,0 +1,479 @@
+{
+  "pending": [
+    {
+      "name": "fetch",
+      "title": "0a. download the training cubes",
+      "command": "mkdir -p <ROOT>/data/train && curl -fL https://example.org/train.zip -o <ROOT>/data/j0126-train-33vol.zip && unzip -q -o <ROOT>/data/j0126-train-33vol.zip -d <ROOT>/data/train && rm -f <ROOT>/data/j0126-train-33vol.zip",
+      "resources": "-p cpu -c 3 --mem 17G -t 02:03:04 -A lab --qos=normal",
+      "array": 0,
+      "prepare": "",
+      "prepare_fn_present": false,
+      "inputs": [],
+      "skip": "",
+      "status.done": false,
+      "status.detail": "MISSING <ROOT>/images, <ROOT>/labels"
+    },
+    {
+      "name": "em",
+      "title": "0b. download the EM volume",
+      "command": "python scripts/download_precompute.py gs://synthetic/em --out <ROOT>/em.zarr --dataset main --mip 0 --slab 1 --tile-xy 4 --bbox 0 2 0 4 0 4",
+      "resources": "-p cpu -c 3 --mem 17G -t 02:03:04 -A lab --qos=normal",
+      "array": 2,
+      "prepare": "python scripts/download_precompute.py gs://synthetic/em --out <ROOT>/em.zarr --dataset main --mip 0 --slab 1 --tile-xy 4 --bbox 0 2 0 4 0 4 --init-only",
+      "prepare_fn_present": false,
+      "inputs": [],
+      "skip": "",
+      "status.done": false,
+      "status.detail": "MISSING <ROOT>/em.zarr/main"
+    },
+    {
+      "name": "tissue",
+      "title": "0c. FFN tissue mask",
+      "command": "python scripts/build_j0126_keep_mask.py --stage tissue --out <ROOT>/tissue.zarr",
+      "resources": "-p cpu -c 3 --mem 17G -t 02:03:04 -A lab --qos=normal",
+      "array": 2,
+      "prepare": "python scripts/build_j0126_keep_mask.py --stage tissue --init --out <ROOT>/tissue.zarr",
+      "prepare_fn_present": false,
+      "inputs": [],
+      "skip": "",
+      "status.done": false,
+      "status.detail": "MISSING <ROOT>/tissue.zarr"
+    },
+    {
+      "name": "keep",
+      "title": "0d. tissue + border keep-mask",
+      "command": "python scripts/build_j0126_keep_mask.py --stage keep --out <ROOT>/keep.zarr --tissue <ROOT>/tissue.zarr --em <ROOT>/em.zarr/main",
+      "resources": "-p cpu -c 3 --mem 17G -t 02:03:04 -A lab --qos=normal",
+      "array": 2,
+      "prepare": "python scripts/build_j0126_keep_mask.py --stage keep --init --out <ROOT>/keep.zarr",
+      "prepare_fn_present": false,
+      "inputs": [
+        [
+          "tissue mask",
+          "<ROOT>/tissue.zarr"
+        ],
+        [
+          "EM volume",
+          "<ROOT>/em.zarr/main"
+        ]
+      ],
+      "skip": "",
+      "status.done": false,
+      "status.detail": "MISSING <ROOT>/keep.zarr"
+    },
+    {
+      "name": "train",
+      "title": "1. train the affinity model",
+      "command": "python scripts/main.py --config <REPO>/tutorials/neuron_j0126/1_train.yaml --mode train",
+      "resources": "-p cpu --gres=gpu:2 -c 3 --mem 17G -t 02:03:04 -A lab --qos=normal",
+      "array": 0,
+      "prepare": "",
+      "prepare_fn_present": false,
+      "inputs": [
+        [
+          "dense images",
+          "<ROOT>/images"
+        ],
+        [
+          "dense labels",
+          "<ROOT>/labels"
+        ]
+      ],
+      "skip": "",
+      "status.done": false,
+      "status.detail": "no *.ckpt under <ROOT>/train/*/checkpoints/"
+    },
+    {
+      "name": "infer",
+      "title": "2. predict affinity",
+      "command": "python scripts/main.py --config <REPO>/tutorials/neuron_j0126/2_infer.yaml --mode test --checkpoint \"$(ls -t <ROOT>/train/*/checkpoints/*.ckpt | head -1)\"",
+      "resources": "-p cpu --gres=gpu:1 -c 3 --mem 17G -t 02:03:04 -A lab --qos=normal",
+      "array": 3,
+      "prepare": "",
+      "prepare_fn_present": false,
+      "inputs": [
+        [
+          "EM volume",
+          "<ROOT>/em.zarr/main"
+        ]
+      ],
+      "skip": "",
+      "status.done": false,
+      "status.detail": "no *.h5.index.json under <ROOT>/infer"
+    },
+    {
+      "name": "abiss",
+      "title": "3. ABISS decode",
+      "command": "python scripts/stitch_chunked_prediction.py --vds --discover <ROOT>/infer --out <ROOT>/affinity.h5 --force && python scripts/run_abiss_chunk.py --config <REPO>/tutorials/neuron_j0126/3_abiss.yaml",
+      "resources": "-p cpu -c 3 --mem 17G -t 02:03:04 -A lab --qos=normal",
+      "array": 0,
+      "prepare": "",
+      "prepare_fn_present": false,
+      "inputs": [
+        [
+          "ABISS build",
+          "<ROOT>/abiss_home"
+        ],
+        [
+          "keep mask",
+          "<ROOT>/keep.zarr"
+        ]
+      ],
+      "skip": "",
+      "status.done": false,
+      "status.detail": "MISSING <ROOT>/seg/info"
+    },
+    {
+      "name": "ec",
+      "title": "4. morphology error correction",
+      "command": "python scripts/run_error_correction.py --config <REPO>/tutorials/neuron_j0126/4_error_correction.yaml --stage all --num-tasks 1",
+      "resources": "-p cpu -c 3 --mem 17G -t 02:03:04 -A lab --qos=normal",
+      "array": 0,
+      "prepare": "",
+      "prepare_fn_present": true,
+      "inputs": [
+        [
+          "segmentation",
+          "<ROOT>/seg"
+        ],
+        [
+          "affinity chunks",
+          "<ROOT>/affinity.chunks"
+        ],
+        [
+          "keep mask",
+          "<ROOT>/keep.zarr"
+        ],
+        [
+          "nucleus manifest",
+          "<ROOT>/nuclei.json"
+        ],
+        [
+          "size table",
+          "<ROOT>/sizes/*.txt"
+        ]
+      ],
+      "skip": "",
+      "status.done": false,
+      "status.detail": "MISSING <ROOT>/ec/error_correction_manifest.json"
+    }
+  ],
+  "complete": [
+    {
+      "name": "fetch",
+      "title": "0a. download the training cubes",
+      "command": "mkdir -p <ROOT>/data/train && curl -fL https://example.org/train.zip -o <ROOT>/data/j0126-train-33vol.zip && unzip -q -o <ROOT>/data/j0126-train-33vol.zip -d <ROOT>/data/train && rm -f <ROOT>/data/j0126-train-33vol.zip",
+      "resources": "-p cpu -c 3 --mem 17G -t 02:03:04 -A lab --qos=normal",
+      "array": 0,
+      "prepare": "",
+      "prepare_fn_present": false,
+      "inputs": [],
+      "skip": "",
+      "status.done": true,
+      "status.detail": "found <ROOT>/images, <ROOT>/labels"
+    },
+    {
+      "name": "em",
+      "title": "0b. download the EM volume",
+      "command": "python scripts/download_precompute.py gs://synthetic/em --out <ROOT>/em.zarr --dataset main --mip 0 --slab 1 --tile-xy 4 --bbox 0 2 0 4 0 4",
+      "resources": "-p cpu -c 3 --mem 17G -t 02:03:04 -A lab --qos=normal",
+      "array": 2,
+      "prepare": "python scripts/download_precompute.py gs://synthetic/em --out <ROOT>/em.zarr --dataset main --mip 0 --slab 1 --tile-xy 4 --bbox 0 2 0 4 0 4 --init-only",
+      "prepare_fn_present": false,
+      "inputs": [],
+      "skip": "",
+      "status.done": true,
+      "status.detail": "2/2 blocks in <ROOT>/em.zarr/main"
+    },
+    {
+      "name": "tissue",
+      "title": "0c. FFN tissue mask",
+      "command": "python scripts/build_j0126_keep_mask.py --stage tissue --out <ROOT>/tissue.zarr",
+      "resources": "-p cpu -c 3 --mem 17G -t 02:03:04 -A lab --qos=normal",
+      "array": 2,
+      "prepare": "python scripts/build_j0126_keep_mask.py --stage tissue --init --out <ROOT>/tissue.zarr",
+      "prepare_fn_present": false,
+      "inputs": [],
+      "skip": "",
+      "status.done": true,
+      "status.detail": "2/2 shards done, <ROOT>/tissue.zarr"
+    },
+    {
+      "name": "keep",
+      "title": "0d. tissue + border keep-mask",
+      "command": "python scripts/build_j0126_keep_mask.py --stage keep --out <ROOT>/keep.zarr --tissue <ROOT>/tissue.zarr --em <ROOT>/em.zarr/main",
+      "resources": "-p cpu -c 3 --mem 17G -t 02:03:04 -A lab --qos=normal",
+      "array": 2,
+      "prepare": "python scripts/build_j0126_keep_mask.py --stage keep --init --out <ROOT>/keep.zarr",
+      "prepare_fn_present": false,
+      "inputs": [
+        [
+          "tissue mask",
+          "<ROOT>/tissue.zarr"
+        ],
+        [
+          "EM volume",
+          "<ROOT>/em.zarr/main"
+        ]
+      ],
+      "skip": "",
+      "status.done": true,
+      "status.detail": "2/2 shards done, <ROOT>/keep.zarr"
+    },
+    {
+      "name": "train",
+      "title": "1. train the affinity model",
+      "command": "python scripts/main.py --config <REPO>/tutorials/neuron_j0126/1_train.yaml --mode train",
+      "resources": "-p cpu --gres=gpu:2 -c 3 --mem 17G -t 02:03:04 -A lab --qos=normal",
+      "array": 0,
+      "prepare": "",
+      "prepare_fn_present": false,
+      "inputs": [
+        [
+          "dense images",
+          "<ROOT>/images"
+        ],
+        [
+          "dense labels",
+          "<ROOT>/labels"
+        ]
+      ],
+      "skip": "",
+      "status.done": true,
+      "status.detail": "1 checkpoint(s), newest <ROOT>/train/run/checkpoints/model.ckpt"
+    },
+    {
+      "name": "infer",
+      "title": "2. predict affinity",
+      "command": "python scripts/main.py --config <REPO>/tutorials/neuron_j0126/2_infer.yaml --mode test --checkpoint \"$(ls -t <ROOT>/train/*/checkpoints/*.ckpt | head -1)\"",
+      "resources": "-p cpu --gres=gpu:1 -c 3 --mem 17G -t 02:03:04 -A lab --qos=normal",
+      "array": 3,
+      "prepare": "",
+      "prepare_fn_present": false,
+      "inputs": [
+        [
+          "EM volume",
+          "<ROOT>/em.zarr/main"
+        ]
+      ],
+      "skip": "",
+      "status.done": true,
+      "status.detail": "1/1 chunks in <ROOT>/infer/vol_aff.h5.chunks"
+    },
+    {
+      "name": "abiss",
+      "title": "3. ABISS decode",
+      "command": "python scripts/stitch_chunked_prediction.py --vds --discover <ROOT>/infer --out <ROOT>/affinity.h5 --force && python scripts/run_abiss_chunk.py --config <REPO>/tutorials/neuron_j0126/3_abiss.yaml",
+      "resources": "-p cpu -c 3 --mem 17G -t 02:03:04 -A lab --qos=normal",
+      "array": 0,
+      "prepare": "",
+      "prepare_fn_present": false,
+      "inputs": [
+        [
+          "ABISS build",
+          "<ROOT>/abiss_home"
+        ],
+        [
+          "keep mask",
+          "<ROOT>/keep.zarr"
+        ]
+      ],
+      "skip": "",
+      "status.done": true,
+      "status.detail": "found <ROOT>/seg/info"
+    },
+    {
+      "name": "ec",
+      "title": "4. morphology error correction",
+      "command": "python scripts/run_error_correction.py --config <REPO>/tutorials/neuron_j0126/4_error_correction.yaml --stage all --num-tasks 1",
+      "resources": "-p cpu -c 3 --mem 17G -t 02:03:04 -A lab --qos=normal",
+      "array": 0,
+      "prepare": "",
+      "prepare_fn_present": true,
+      "inputs": [
+        [
+          "segmentation",
+          "<ROOT>/seg"
+        ],
+        [
+          "affinity chunks",
+          "<ROOT>/affinity.chunks"
+        ],
+        [
+          "keep mask",
+          "<ROOT>/keep.zarr"
+        ],
+        [
+          "nucleus manifest",
+          "<ROOT>/nuclei.json"
+        ],
+        [
+          "size table",
+          "<ROOT>/sizes/*.txt"
+        ]
+      ],
+      "skip": "",
+      "status.done": true,
+      "status.detail": "found <ROOT>/ec/error_correction_manifest.json"
+    }
+  ],
+  "disabled": [
+    {
+      "name": "fetch",
+      "title": "0a. download the affinity model",
+      "command": "mkdir -p <ROOT>/data/ckpt && curl -fL https://example.org/model.ckpt -o <ROOT>/data/ckpt/model.ckpt",
+      "resources": "-p cpu -c 3 --mem 17G -t 02:03:04 -A lab --qos=normal",
+      "array": 0,
+      "prepare": "",
+      "prepare_fn_present": false,
+      "inputs": [],
+      "skip": "download.enabled is false",
+      "status.done": false,
+      "status.detail": "MISSING <ROOT>/data/ckpt/model.ckpt"
+    },
+    {
+      "name": "em",
+      "title": "0b. download the EM volume",
+      "command": "python scripts/download_precompute.py gs://synthetic/em --out <ROOT>/em.zarr --dataset main --mip 0 --slab 1 --tile-xy 4 --bbox 0 2 0 4 0 4",
+      "resources": "-p cpu -c 3 --mem 17G -t 02:03:04 -A lab --qos=normal",
+      "array": 2,
+      "prepare": "python scripts/download_precompute.py gs://synthetic/em --out <ROOT>/em.zarr --dataset main --mip 0 --slab 1 --tile-xy 4 --bbox 0 2 0 4 0 4 --init-only",
+      "prepare_fn_present": false,
+      "inputs": [],
+      "skip": "download.enabled is false",
+      "status.done": false,
+      "status.detail": "MISSING <ROOT>/em.zarr/main"
+    },
+    {
+      "name": "tissue",
+      "title": "0c. FFN tissue mask",
+      "command": "python scripts/build_j0126_keep_mask.py --stage tissue --out <ROOT>/tissue.zarr",
+      "resources": "-p cpu -c 3 --mem 17G -t 02:03:04 -A lab --qos=normal",
+      "array": 2,
+      "prepare": "python scripts/build_j0126_keep_mask.py --stage tissue --init --out <ROOT>/tissue.zarr",
+      "prepare_fn_present": false,
+      "inputs": [],
+      "skip": "mask.enabled is false",
+      "status.done": false,
+      "status.detail": "MISSING <ROOT>/tissue.zarr"
+    },
+    {
+      "name": "keep",
+      "title": "0d. tissue + border keep-mask",
+      "command": "python scripts/build_j0126_keep_mask.py --stage keep --out <ROOT>/keep.zarr --tissue <ROOT>/tissue.zarr --em <ROOT>/em.zarr/main",
+      "resources": "-p cpu -c 3 --mem 17G -t 02:03:04 -A lab --qos=normal",
+      "array": 2,
+      "prepare": "python scripts/build_j0126_keep_mask.py --stage keep --init --out <ROOT>/keep.zarr",
+      "prepare_fn_present": false,
+      "inputs": [
+        [
+          "tissue mask",
+          "<ROOT>/tissue.zarr"
+        ],
+        [
+          "EM volume",
+          "<ROOT>/em.zarr/main"
+        ]
+      ],
+      "skip": "mask.enabled is false",
+      "status.done": false,
+      "status.detail": "MISSING <ROOT>/keep.zarr"
+    },
+    {
+      "name": "train",
+      "title": "1. train the affinity model",
+      "command": "python scripts/main.py --config <REPO>/tutorials/neuron_j0126/1_train.yaml --mode train",
+      "resources": "-p cpu --gres=gpu:2 -c 3 --mem 17G -t 02:03:04 -A lab --qos=normal",
+      "array": 0,
+      "prepare": "",
+      "prepare_fn_present": false,
+      "inputs": [
+        [
+          "dense images",
+          "<ROOT>/images"
+        ],
+        [
+          "dense labels",
+          "<ROOT>/labels"
+        ]
+      ],
+      "skip": "train.enabled is false, using the downloaded checkpoint",
+      "status.done": false,
+      "status.detail": "MISSING <ROOT>/data/ckpt/model.ckpt"
+    },
+    {
+      "name": "infer",
+      "title": "2. predict affinity",
+      "command": "python scripts/main.py --config <REPO>/tutorials/neuron_j0126/2_infer.yaml --mode test --checkpoint <ROOT>/data/ckpt/model.ckpt",
+      "resources": "-p cpu --gres=gpu:1 -c 3 --mem 17G -t 02:03:04 -A lab --qos=normal",
+      "array": 3,
+      "prepare": "",
+      "prepare_fn_present": false,
+      "inputs": [
+        [
+          "EM volume",
+          "<ROOT>/em.zarr/main"
+        ]
+      ],
+      "skip": "",
+      "status.done": false,
+      "status.detail": "no *.h5.index.json under <ROOT>/infer"
+    },
+    {
+      "name": "abiss",
+      "title": "3. ABISS decode",
+      "command": "python scripts/stitch_chunked_prediction.py --vds --discover <ROOT>/infer --out <ROOT>/affinity.h5 --force && python scripts/run_abiss_chunk.py --config <REPO>/tutorials/neuron_j0126/3_abiss.yaml",
+      "resources": "-p cpu -c 3 --mem 17G -t 02:03:04 -A lab --qos=normal",
+      "array": 0,
+      "prepare": "",
+      "prepare_fn_present": false,
+      "inputs": [
+        [
+          "ABISS build",
+          "<ROOT>/abiss_home"
+        ],
+        [
+          "keep mask",
+          "<ROOT>/keep.zarr"
+        ]
+      ],
+      "skip": "",
+      "status.done": false,
+      "status.detail": "MISSING <ROOT>/seg/info"
+    },
+    {
+      "name": "ec",
+      "title": "4. morphology error correction",
+      "command": "python scripts/run_error_correction.py --config <REPO>/tutorials/neuron_j0126/4_error_correction.yaml --stage all --num-tasks 1",
+      "resources": "-p cpu -c 3 --mem 17G -t 02:03:04 -A lab --qos=normal",
+      "array": 0,
+      "prepare": "",
+      "prepare_fn_present": true,
+      "inputs": [
+        [
+          "segmentation",
+          "<ROOT>/seg"
+        ],
+        [
+          "affinity chunks",
+          "<ROOT>/affinity.chunks"
+        ],
+        [
+          "keep mask",
+          "<ROOT>/keep.zarr"
+        ],
+        [
+          "nucleus manifest",
+          "<ROOT>/nuclei.json"
+        ],
+        [
+          "size table",
+          "<ROOT>/sizes/*.txt"
+        ]
+      ],
+      "skip": "",
+      "status.done": false,
+      "status.detail": "MISSING <ROOT>/ec/error_correction_manifest.json"
+    }
+  ]
+}

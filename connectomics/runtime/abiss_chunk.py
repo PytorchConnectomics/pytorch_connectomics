@@ -14,6 +14,7 @@ chunks. The runner handles both cases by:
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import math
 import os
@@ -1112,7 +1113,72 @@ def _prepare_runtime_secrets_view(cfg: PreparedConfig) -> None:
         destination.symlink_to(source_resolved, target_is_directory=source.is_dir())
 
 
+def _abiss_build_identity(abiss_home: Path) -> str:
+    """ABISS build identity, from the replay driver's canonical helper.
+
+    Imported lazily by path so this module and lib/abiss/scripts agree byte for byte:
+    nucleus_competition.py fingerprints the build with the SAME function, and a second
+    implementation here would drift into a manifest that names the wrong binary.
+    """
+    scripts_dir = Path(__file__).resolve().parents[2] / "scripts"
+    added = str(scripts_dir) not in sys.path
+    if added:
+        sys.path.insert(0, str(scripts_dir))
+    try:
+        from run_seuron_provenance import _abiss_build_id
+
+        return _abiss_build_id(Path(abiss_home))
+    finally:
+        if added:
+            sys.path.remove(str(scripts_dir))
+
+
+def _write_watershed_manifest(cfg: PreparedConfig) -> Path:
+    """Name the watershed the nucleus stage is about to read.
+
+    `competitive_nucleus_growth` refuses to run against a watershed it cannot identify
+    (nucleus_competition.py:_watershed_manifest_path wants a manifest.json carrying
+    `abiss_build_id` and `provenance_sha`), and the only writer of that manifest was the
+    seuron replay driver -- so setting NUC_PATH in a chunk config produced a run that
+    completed the watershed and then died at the new stage. This driver's provenance IS
+    its param JSON, so that is what the manifest is keyed on.
+
+    Written just before the stage runs, i.e. after remap_watershed, so it can only ever
+    name a watershed that exists.
+    """
+    ws_cloudpath = str(cfg.param_payload.get("WS_PATH", ""))
+    if not _is_local_cloudpath(ws_cloudpath):
+        raise ValueError(
+            f"competitive nucleus growth needs a watershed manifest, and WS_PATH "
+            f"{ws_cloudpath!r} is not a local path. Set param.WS_MANIFEST to one."
+        )
+    manifest_path = _cloudpath_to_local_path(ws_cloudpath) / "manifest.json"
+    payload = {
+        "abiss_build_id": _abiss_build_identity(cfg.abiss_home),
+        "provenance_sha": _sha256_file(cfg.param_path),
+        "execution_bbox": [int(v) for v in cfg.param_payload.get("BBOX", [])],
+        "param_path": str(cfg.param_path),
+        "written_by": "connectomics.runtime.abiss_chunk",
+    }
+    _ensure_parent(manifest_path)
+    with manifest_path.open("w", encoding="utf-8") as handle:
+        json.dump(payload, handle, indent=2, sort_keys=True)
+        handle.write("\n")
+    print(f"Wrote watershed manifest: {manifest_path}")
+    return manifest_path
+
+
+def _sha256_file(path: Path) -> str:
+    digest = hashlib.sha256()
+    with Path(path).open("rb") as handle:
+        for block in iter(lambda: handle.read(1 << 20), b""):
+            digest.update(block)
+    return digest.hexdigest()
+
+
 def _execute_stage(cfg: PreparedConfig, plan: StagePlan) -> None:
+    if plan.stage == "competitive_nucleus_growth" and not cfg.param_payload.get("WS_MANIFEST"):
+        _write_watershed_manifest(cfg)
     airflow_tmp_dir = cfg.workdir / ".airflow"
     airflow_tmp_dir.mkdir(parents=True, exist_ok=True)
     for lock_file in airflow_tmp_dir.glob(".cpulock_*"):

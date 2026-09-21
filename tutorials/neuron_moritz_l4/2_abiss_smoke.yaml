@@ -1,0 +1,39 @@
+# Pre-flight for 2_abiss.yaml: the same recipe on 1.2% of the volume.
+#
+#   python scripts/run_abiss_chunk.py --config tutorials/neuron_moritz_l4/2_abiss_smoke.yaml --prepare-only
+#   python scripts/run_abiss_chunk.py --config tutorials/neuron_moritz_l4/2_abiss_smoke.yaml
+#
+# Everything is inherited from 2_abiss.yaml -- thresholds, masks, nucleus settings --
+# so this exercises the recipe that will run, not a copy of it that can drift. Only the
+# extent, the chunk grid and the output paths are overridden.
+#
+# WHY THIS BOX. It is the one place that contains all three things a whole-volume run
+# can fail on, at 0.27 Gvoxel instead of 158:
+#   * the x < 103 and y < 103 zero-padding walls, where the affinity is 0.90 with 96-99%
+#     of voxels above 0.8 -- the high-affinity slab that welded the unmasked run into one
+#     67%-of-the-volume segment. If AFF_KEEP_MASK is not reaching the reader, this box
+#     shows it.
+#   * a blood vessel (15.6% of the mask cells in z 1536-1792, same affinity pathology).
+#   * one nucleus instance (14.8%), so competitive_nucleus_growth actually has an
+#     identity to grow and writes a manifest.
+#
+# _compute_top_mip([0,0,0,1024,1024,1792], [1024,1024,32]) == 6  (dims 1,1,56 -> 6 halvings)
+
+_base_: 2_abiss.yaml
+
+abiss_chunk:
+  workdir: ${params.paths.output_root}/abiss_smoke/run
+  secrets_dir: ${params.paths.output_root}/abiss_smoke/secrets
+  param_path: ${params.paths.output_root}/abiss_smoke/secrets/param
+
+  root_tag: "6_0_0_0"
+  top_mip: 6
+
+  param:
+    NAME: moritz_l4_abiss_smoke
+    WS_PATH: file://${params.paths.output_root}/abiss_smoke/precomputed/ws
+    SEG_PATH: file://${params.paths.output_root}/abiss_smoke/precomputed/seg
+    SCRATCH_PATH: file://${params.paths.output_root}/abiss_smoke/scratch
+    CHUNKMAP_OUTPUT: file://${params.paths.output_root}/abiss_smoke/chunkmap
+    BBOX: [0, 0, 0, 1024, 1024, 1792]
+    CHUNK_SIZE: [1024, 1024, 32]

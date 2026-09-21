@@ -81,6 +81,19 @@ def _resolve_norm(cfg):
     return norm_type
 
 
+def _transformer_spatial_dims(cfg, divisor: int) -> int:
+    """Validate the configured crop against the transformer's downsampling factor."""
+    input_size = cfg.model.input_size
+    if len(input_size) not in (2, 3):
+        raise ValueError("model.input_size must contain two or three spatial dimensions")
+    if any(size <= 0 or size % divisor for size in input_size):
+        raise ValueError(
+            f"model.input_size dimensions must be positive multiples of {divisor}, "
+            f"got: {input_size}"
+        )
+    return len(input_size)
+
+
 class UpsampleModeUNet(UNet):
     """
     MONAI UNet with configurable upsampling mode.
@@ -261,12 +274,12 @@ def build_unetr(cfg) -> ConnectomicsModel:
     Config parameters:
         - model.in_channels: Number of input channels (default: 1)
         - model.out_channels: Number of output classes (default: 1)
-        - model.input_size: Input patch size [D, H, W] (required)
+        - model.input_size: Input patch size with 2 or 3 dimensions, divisible by 16
         - model.transformer.feature_size: Base feature size
         - model.transformer.hidden_size: Transformer hidden size
         - model.transformer.mlp_dim: MLP dimension in transformer
         - model.transformer.num_heads: Number of attention heads
-        - model.transformer.pos_embed: Position embedding type
+        - model.transformer.proj_type: Patch projection type, 'conv' or 'perceptron'
         - model.transformer.norm: Normalization type
         - model.transformer.dropout: Dropout rate
 
@@ -277,6 +290,7 @@ def build_unetr(cfg) -> ConnectomicsModel:
         MONAIModelWrapper containing UNETR
     """
     _check_monai_available()
+    spatial_dims = _transformer_spatial_dims(cfg, divisor=16)
 
     model = UNETR(
         in_channels=cfg.model.in_channels,
@@ -286,9 +300,10 @@ def build_unetr(cfg) -> ConnectomicsModel:
         hidden_size=getattr(cfg.model.transformer, "hidden_size", 768),
         mlp_dim=getattr(cfg.model.transformer, "mlp_dim", 3072),
         num_heads=getattr(cfg.model.transformer, "num_heads", 12),
-        pos_embed=getattr(cfg.model.transformer, "pos_embed", "perceptron"),
+        proj_type=cfg.model.transformer.proj_type,
         norm_name=getattr(cfg.model.transformer, "norm", "instance"),
         dropout_rate=getattr(cfg.model.transformer, "dropout", 0.0),
+        spatial_dims=spatial_dims,
     )
 
     return MONAIModelWrapper(model)
@@ -305,8 +320,9 @@ def build_swin_unetr(cfg) -> ConnectomicsModel:
     Config parameters:
         - model.in_channels: Number of input channels (default: 1)
         - model.out_channels: Number of output classes (default: 1)
-        - model.input_size: Input patch size [D, H, W] (required)
-        - model.transformer.feature_size: Base feature size
+        - model.input_size: Input patch size with 2 or 3 dimensions, divisible by 32
+        - model.transformer.feature_size: Base feature size, divisible by 12
+        - model.transformer.norm: Normalization type
         - model.transformer.use_checkpoint: Use gradient checkpointing
         - model.transformer.dropout: Dropout rate
         - model.transformer.attn_drop_rate: Attention dropout rate
@@ -319,16 +335,18 @@ def build_swin_unetr(cfg) -> ConnectomicsModel:
         MONAIModelWrapper containing SwinUNETR
     """
     _check_monai_available()
+    spatial_dims = _transformer_spatial_dims(cfg, divisor=32)
 
     model = SwinUNETR(
-        img_size=cfg.model.input_size,
         in_channels=cfg.model.in_channels,
         out_channels=cfg.model.out_channels,
         feature_size=getattr(cfg.model.transformer, "feature_size", 48),
+        norm_name=cfg.model.transformer.norm,
         use_checkpoint=getattr(cfg.model.transformer, "use_checkpoint", False),
         drop_rate=getattr(cfg.model.transformer, "dropout", 0.0),
         attn_drop_rate=getattr(cfg.model.transformer, "attn_drop_rate", 0.0),
         dropout_path_rate=getattr(cfg.model.transformer, "dropout_path_rate", 0.0),
+        spatial_dims=spatial_dims,
     )
 
     return MONAIModelWrapper(model)

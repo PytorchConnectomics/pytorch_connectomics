@@ -161,6 +161,60 @@ def test_nucleus_config_inserts_competition_between_remap_and_agglomeration(
     assert competition.env["PARAM_JSON"] == str(prepared.param_path)
 
 
+def test_competitive_growth_names_the_watershed_it_reads(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """nucleus_competition.py refuses a watershed it cannot identify.
+
+    It looks for a manifest.json under WS_PATH carrying `abiss_build_id` and
+    `provenance_sha`, and the only writer used to be the seuron replay driver -- so a
+    chunk config with NUC_PATH ran the watershed and then died at the new stage.
+    """
+    ws_dir = tmp_path / "precomputed" / "ws"
+    payload = {
+        **_prepared(tmp_path).param_payload,
+        "WS_PATH": "file://" + str(ws_dir),
+        "NUC_PATH": "/input/nuclei.h5::main",
+        "NUC_COMPETITION_MANIFEST": str(tmp_path / "competition" / "manifest.json"),
+    }
+    prepared = replace(_prepared(tmp_path), param_payload=payload)
+    prepared.param_path.parent.mkdir(parents=True, exist_ok=True)
+    prepared.param_path.write_text(json.dumps(payload), encoding="utf-8")
+    monkeypatch.setattr(abiss_chunk, "_abiss_build_identity", lambda home: "git:fixture")
+    monkeypatch.setattr(abiss_chunk.subprocess, "run", lambda *a, **k: None)
+
+    plan = abiss_chunk._stage_plan(prepared, "competitive_nucleus_growth")
+    abiss_chunk._execute_stage(prepared, plan)
+
+    manifest = json.loads((ws_dir / "manifest.json").read_text())
+    assert manifest["abiss_build_id"] == "git:fixture"
+    assert len(manifest["provenance_sha"]) == 64
+    assert manifest["execution_bbox"] == payload["BBOX"]
+
+
+def test_an_explicit_ws_manifest_is_not_overwritten(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    payload = {
+        **_prepared(tmp_path).param_payload,
+        "WS_PATH": "file://" + str(tmp_path / "ws"),
+        "NUC_PATH": "/input/nuclei.h5::main",
+        "NUC_COMPETITION_MANIFEST": str(tmp_path / "competition" / "manifest.json"),
+        "WS_MANIFEST": str(tmp_path / "elsewhere" / "manifest.json"),
+    }
+    prepared = replace(_prepared(tmp_path), param_payload=payload)
+    monkeypatch.setattr(abiss_chunk, "_write_watershed_manifest", _unexpected_manifest_write)
+    monkeypatch.setattr(abiss_chunk.subprocess, "run", lambda *a, **k: None)
+
+    abiss_chunk._execute_stage(
+        prepared, abiss_chunk._stage_plan(prepared, "competitive_nucleus_growth")
+    )
+
+
+def _unexpected_manifest_write(cfg: Any) -> None:
+    raise AssertionError("an explicit WS_MANIFEST must win")
+
+
 def test_nucleus_constraints_can_disable_competitive_growth(tmp_path: Path) -> None:
     payload = {
         **_prepared(tmp_path).param_payload,

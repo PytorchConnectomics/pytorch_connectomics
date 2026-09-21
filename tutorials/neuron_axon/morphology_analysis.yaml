@@ -1,0 +1,26 @@
+# Decode affinities and measure physical morphology without reference labels.
+# For an existing segmentation, call analyze_morphology directly; see README.md.
+_base_: tube_analysis.yaml
+
+experiment_name: neuron_axon_morphology_analysis
+description: Physical morphology and continuity estimates without ground truth.
+
+default:
+  decoding:
+    save_path: outputs/neuron_axon/morphology
+  evaluation:
+    metrics: [morphology]
+    morphology:
+      # Example ZYX spacing in um. Replace with your volume's calibrated grid.
+      voxel_size_um: [0.024, 0.018, 0.018]
+      min_voxels: 1000
+      min_axon_length_um: 2.0
+      max_axon_radius_um: 0.35
+      min_elongation: 3.0
+      border_margin_um: 0.08
+      component_min_voxels: 100
+      multi_component_min_area_um2: 0.005
+      multi_component_fraction: 0.2
+      profile_smoothing_um: 0.2
+      # Lower edges; the final bin is open-ended.
+      radius_bins_um: [0.0, 0.1, 0.2, 0.35, 0.5, 1.0]
