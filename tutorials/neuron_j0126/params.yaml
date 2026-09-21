@@ -47,6 +47,8 @@ params:
     # It has seen labelled j0126 tissue, so a run from it is NOT
     # ground-truth-free -- it is the supervised upper reference.
     checkpoint_url: https://huggingface.co/pytc/vEM/resolve/main/j0126/affinity_scratch_48x96x96.ckpt
+    skeletons_url: https://huggingface.co/datasets/pytc/zebrafinch-j0126/resolve/main/test_50_skeletons.h5
+    ffn_node_lut_url: https://huggingface.co/datasets/pytc/zebrafinch-j0126/resolve/main/ffn_node_lut_test_50.h5
     num_shards: 8
     slurm_partition: ""
     cpus: 8
@@ -99,7 +101,7 @@ params:
     slurm_partition: gpu
     cpus: 8
     memory: 64G
-    time: "8:00:00"
+    time: "24:00:00"   # 8 h timed out 14 of 40 shards
 
   # --------------------------------------------------------------- step 3
   # ABISS uses every CPU granted to the process, so this is ONE shared-memory
@@ -129,6 +131,8 @@ params:
     # context on the image and -1 on the label, so the loss ignores the border.
     dense_images: ${params.paths.dataset_root}/train/im_raw_4-32-32
     dense_labels: ${params.paths.dataset_root}/train/seg_gt_4-32-32
+    skeletons: ${params.paths.dataset_root}/test_50_skeletons.h5
+    ffn_node_lut: ${params.paths.dataset_root}/ffn_node_lut_test_50.h5
     # Built by the mask step.
     tissue_mask: ${params.paths.dataset_root}/ffn_tissue_mask_18-18-20.zarr
     keep_mask: ${params.paths.dataset_root}/tissue_border_keep_mask_full.zarr

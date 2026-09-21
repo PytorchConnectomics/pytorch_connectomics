@@ -43,12 +43,8 @@ FFN_TISSUE = (
     "https://storage.googleapis.com/j0126-nature-methods-data/"
     "GgwKmcKgrcoNxJccKuGIzRnQqfit9hnfK1ctZzNbnuU/tissue_classification"
 )
-# FFN's published `tissue_mask` recipe, verbatim from the bucket README: a voxel
-# is EXCLUDED when channel 1 (blood vessel) is in [252, 255], OR channel 3
-# (myelin) is in [252, 255], OR channel 5 (out-of-bounds) is in [25, 255]. The
-# thresholds are per-channel and are not interchangeable -- a uniform 128 on all
-# three excludes 17.53% of the volume where the published recipe excludes 14.61%.
-EXCLUDE_MIN = {1: 252, 3: 252, 5: 25}
+EXCLUDE_CHANNELS = (1, 3, 5)
+EXCLUDE_THRESHOLDS = {1: 252, 3: 252, 5: 25}
 TISSUE_SHAPE_ZYX = (5700, 5456, 5332)   # native 18 x 18 x 20 nm
 # True mip-0 EM extent, ZYX. Same origin as the tissue layer: Z is 1:1, Y and X
 # are half-resolution there, so the tissue mask upsamples 2x in Y/X only.
@@ -175,9 +171,10 @@ def run_tissue(args) -> None:
     for i, (z0, z1) in enumerate(mine, 1):
         # cloud-volume is XYZC; channel selection has to be a post-fetch numpy index.
         arr = vol[:, :, z0:z1]
-        excluded = np.zeros(arr.shape[:3], bool)
-        for channel, minimum in EXCLUDE_MIN.items():
-            excluded |= arr[..., channel] >= minimum
+        excluded = np.zeros(arr.shape[:-1], dtype=bool)
+        for channel in EXCLUDE_CHANNELS:
+            cutoff = EXCLUDE_THRESHOLDS[channel] if args.threshold is None else args.threshold
+            excluded |= arr[..., channel] >= cutoff
         out[z0:z1, :, :] = np.transpose((~excluded).astype(np.uint8), (2, 1, 0))
         print(f"  [{i}/{len(mine)}] z={z0}:{z1} ({(time.time()-t0)/i:.1f}s/slab)", flush=True)
 
@@ -224,6 +221,13 @@ def main() -> int:
     ap.add_argument("--tissue", type=Path, help="tissue zarr (--stage keep)")
     ap.add_argument("--em", type=Path, help="mip-0 EM zarr array (--stage keep)")
     ap.add_argument("--init", action="store_true", help="create the zarr and exit")
+    ap.add_argument(
+        "--threshold",
+        type=int,
+        default=None,
+        help="override every channel with one cutoff; default uses FFN's published "
+             "per-channel thresholds (blood vessel 252, myelin 252, out-of-bounds 25)",
+    )
     ap.add_argument("--z-slab", type=int, default=128, help="Z per cloud-volume read")
     ap.add_argument("--border-offset", type=int, default=1)
     ap.add_argument("--shard-id", type=int, default=0)
