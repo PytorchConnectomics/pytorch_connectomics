@@ -196,6 +196,7 @@ def propose_links(
     skeleton_radii: dict[int, np.ndarray] | None = None,
     label_semantic_types: dict[int, str] | None = None,
     affinity_probe: Callable[[np.ndarray, np.ndarray], dict[str, float] | None] | None = None,
+    keep_all: bool = False,
 ) -> list[LinkCandidate]:
     """Score every free end against nearby partners, keeping the best per end.
 
@@ -213,6 +214,10 @@ def propose_links(
 
     Returns one candidate per free end that had any partner within
     ``max_gap_um``, accepted or not, so the rejection reasons can be counted.
+
+    ``keep_all`` returns every scored candidate instead of the best per end.
+    That is what a caller needs to know whether an end had a *choice*: with one
+    row per end, an end with a single option and an end with six look identical.
     """
     if not sites:
         return []
@@ -353,6 +358,9 @@ def propose_links(
                     reject_reason=reason,
                 )
             )
+        if keep_all:
+            candidates.extend(scored)
+            continue
         passing = [candidate for candidate in scored if candidate.accepted]
         pool = passing or scored
         candidates.append(min(pool, key=lambda item: (not item.accepted, item.gap_um)))
