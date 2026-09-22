@@ -11,22 +11,28 @@ mip 0 grid.
 
 ## Run it
 
-Edit **[params.yaml](params.yaml)** — three paths, `train: true` or `false`, and the Slurm
+Read the [reproduction status](#reproduction-status) below before submitting. The current
+driver includes several fixes from the reproduction report, but is not yet a validated
+fresh-machine, crop-to-score workflow.
+
+Edit **[params.yaml](params.yaml)** — three paths, `train.enabled: true` or `false`, and the Slurm
 partition / CPUs / memory / walltime for each step. Then:
 
 ```bash
 python scripts/run_j0126.py
 ```
 
-That is the whole tutorial. It downloads the EM volume and the model, builds the exclusion
+The driver downloads the EM volume and the model, builds the exclusion
 mask, trains if you asked it to, predicts affinity, decodes with ABISS, and runs error
-correction. With `cluster.launcher: slurm` each step is one `sbatch`, chained with
+correction, then evaluates the result. With `cluster.launcher: slurm` jobs are chained with
 `--dependency=afterok`, so the command queues the pipeline and returns; with `local` the
 steps run in the foreground.
 
-Before committing a cluster to 660 GB, set `download.em_bbox: [2900, 3908, 5000, 6008,
-5000, 6008]` in params.yaml and run the same command: one 1008³ chunk, a few minutes, ~1 GB,
-every step exercised.
+Keep `download.em_bbox: []` for this workflow. The reported 1008³ crop
+`[2900, 3908, 5000, 6008, 5000, 6008]` is not currently a supported end-to-end smoke test:
+mask generation still uses the full-volume grid, and planning tries to crop a keep mask
+before the queued mask job creates it. Even `--check` and `--dry-run` enter that crop
+setup. A small download alone does not validate the remaining stages.
 
 ```bash
 python scripts/run_j0126.py --check              # what exists, what is missing
@@ -35,12 +41,18 @@ python scripts/run_j0126.py --steps infer,abiss  # run part of it
 python scripts/run_j0126.py --force abiss        # rerun a step that looks complete
 ```
 
-Each step declares the artifact that proves it finished, checks it before running, and
-skips the step when it is there, so the same command resumes a partial pipeline. Step 2
+Each step checks output artifacts and skips when its completion check passes. These are
+resume heuristics, not integrity checks; see the limitations below. Step 2
 resumes per chunk; the download and mask steps resume per shard.
 
-The one prerequisite `run_j0126.py` will not install for you is ABISS, a C++ dependency
-pinned to the commit the reference decode used:
+Install PyTC and its workflow dependencies before invoking the driver. ABISS also needs
+GNU `parallel`, `tinybrain`, and `chunkiterator` (from `seung-lab/chunk_iterator`, not a
+package named `chunkiterator` on PyPI). Its dependency recipe is in
+[`lib/abiss/docker/Dockerfile`](../../lib/abiss/docker/Dockerfile) after cloning.
+Use a separate environment for the C++ build dependencies to avoid changing the Python
+runtime's NumPy stack; make the required runtime libraries and GNU `parallel` available
+on compute nodes. The following commands build ABISS; they do not install dependencies.
+The reference decode used this commit:
 
 ```bash
 git clone https://github.com/PytorchConnectomics/ABISS.git lib/abiss
@@ -62,8 +74,9 @@ environment — legacy `libtbb.so.2` or Boost 1.85 fail in mean-edge agglomerati
 | 0 | download + exclusion mask | `params.yaml` | per-shard `.done.<id>` sentinels, progress sidecars |
 | 1 | train (optional) | `1_train.yaml` | a `.ckpt` under `<save_path>/*/checkpoints/` |
 | 2 | infer | `2_infer.yaml` | every chunk in `*.h5.index.json` is on disk |
-| 3 | abiss | `3_abiss.yaml` | `abiss/precomputed/seg/info` exists |
+| 3 | abiss | `3_abiss.yaml` | expected storage-chunk count is present under the segmentation scale |
 | 4 | ec | `4_error_correction.yaml` | `error_correction_manifest.json` exists |
+| 5 | eval | `scripts/evaluate_j0126.py` | `output_root/eval/nerl.json` exists |
 
 Keep the step YAMLs' thresholds unchanged to reproduce the reference recipe. Planning
 figures: [RESOURCE.md](RESOURCE.md). Disk cleanup mid-run: [CLEANUP.md](CLEANUP.md).
@@ -106,11 +119,16 @@ That checkpoint has seen labelled j0126 tissue, so a run from it is **not**
 ground-truth-free — it is the supervised upper reference. It also predates the held-out
 split (all 33 cubes in training, 3 of them reused as validation), and every number in the
 results table comes from it, so retraining gives an honest curve and a slightly different
-model.
+model. The reported from-scratch reproduction remains below the historical reference
+score; applying the operational fixes does not establish numerical reproduction.
 
 `train.enabled: true` trains MedNeXt-L/k3 from scratch for 200k steps on the dense GT
 cubes, 25 train / 8 held out, at roughly four GPU-days on 4 GPUs, and infers from whatever
-checkpoint that run produced.
+checkpoint has the newest modification time (`ls -t ... | head -1`). This is not a
+best-validation policy and can select an overfit final checkpoint. For a controlled
+comparison, run inference explicitly with `scripts/main.py --config
+tutorials/neuron_j0126/2_infer.yaml --mode test --checkpoint /absolute/path/to/model.ckpt`
+and verify its output location before resuming ABISS.
 
 ### Step 2 — predict affinity
 
@@ -133,22 +151,36 @@ is ~4 TB, and it reads through h5py exactly like a stitched file. `affinity.h5.c
 whose real path is timestamped and checkpoint-named.
 
 ABISS uses every CPU granted to the process, so this is **one shared-memory job**
-(`abiss.cpus: 64` is a good start), never a job array: independent copies race on the same
-hierarchy layers. The recorded 40-node run took 3.75 h.
+in the shipped driver. Do not launch independent copies against the same workdir:
+they can race on hierarchy layers. A fleet requires disjoint atomic task lists and
+barriers before composite layers; the reported fleet launcher is not shipped here.
+The historical 3.75 h figure belongs to a 40-node deployment, not one 64-core job.
 
-`AGG_THRESHOLD 0.20` with `WS_HIGH 0.9` / `WS_LOW 0.1` reproduces the reference
-segmentation. The pipeline deliberately under-agglomerates here and repairs the splits in
-step 4, whose grow round is provably merge-safe: it only ever assigns a fragment to a host,
-never welds two segments. Every ambiguous decision is better deferred than taken here.
+With `CHUNK_SIZE: [2048, 2048, 80]`, the reproduction measured about 7.8 GB per atomic
+task: 64 concurrent tasks need roughly 500 GB before additional overhead, exceeding
+the shipped 250G allocation. Lower `abiss.cpus` (8–16 is a starting point to benchmark)
+or increase memory according to measured peak usage. On GPFS, the report measured
+about 38 h for watershed alone; the default 24 h is not a whole-decode estimate.
+Resubmit interrupted runs with the same geometry to reuse per-chunk DONE flags.
+When changing `BBOX` or `CHUNK_SIZE`, use a new output root: existing chunk descriptors
+are not regenerated, and `--force abiss` does not invalidate them.
+
+`AGG_THRESHOLD 0.20` with `WS_HIGH 0.9` / `WS_LOW 0.1` is the historical reference
+recipe, not a guarantee of its scores with a retrained model or corrected mask.
+The pipeline deliberately under-agglomerates here and attempts to repair splits in
+step 4 using morphology and, when supplied, nucleus identities.
 
 Setting `data.nucleus_volume` turns on competitive nucleus growth and writes the identity
-manifest step 4 uses as a firewall. The volume the reference runs used is
+manifest step 4 uses as a firewall. The recipe names the reference volume as
 `j0126-nucleus-instances-80nm.h5` on
 [huggingface.co/datasets/pytc/zebrafinch-j0126](https://huggingface.co/datasets/pytc/zebrafinch-j0126/tree/main):
 465 hand-proofread nucleus instances at 80 nm isotropic, which `nucleus_ratio: [4, 8, 8]`
-upsamples onto the mip-0 grid. Left empty — the default — the run completes without that
-protection, and the driver says so. That is the difference between the second and third
-rows of the table below.
+upsamples onto the mip-0 grid. This filename is the reference asset named by the recipe;
+its availability and registration must be verified before attempting those results.
+The reproduction report could not find a published nucleus volume. Left empty — the
+default — the current driver creates an empty qualified-label manifest accepted by
+error correction, with a warning. This disables the nucleus firewall; it does not
+reproduce any nucleus-protected result in the table.
 
 ### Step 4 — morphology error correction
 
@@ -157,16 +189,75 @@ accepts only hard-gated branch continuations. It protects external nucleus ident
 never joins two different ones. `erosion_radius_zyx` is `[0, 0, 0]` for morphology linking
 alone and `[1, 1, 1]` for the strict-mt=0 cleanup.
 
-The driver runs all thirteen stages in one task. Whole-volume runs can instead shard
-`skeletonize`, `contacts` and `postprocess` as Slurm arrays at the config's `task_count`,
-with the serial stages in between:
+The driver chains thirteen stages. It shards `skeletonize`, `contacts` and `postprocess`
+as Slurm arrays at the config's `task_count` (80), with serial reductions between them.
+Array tasks request 8 CPUs and 64G each; reductions use `params.error_correction`.
+There is no need to submit an isolated skeletonization stage manually. To inspect the
+whole chain:
 
 ```bash
-python scripts/run_error_correction.py --config tutorials/neuron_j0126/4_error_correction.yaml \
-    --stage skeletonize --task-id $SLURM_ARRAY_TASK_ID --num-tasks 80
+python scripts/run_j0126.py --steps ec --dry-run
 ```
 
 Stages are restartable — completed chunk artifacts are reused.
+
+### Step 5 — evaluation
+
+The driver writes `output_root/eval/nerl.json` using the 50 test skeletons. The evaluator
+computes edge lengths in **native voxels**, not nm; `--resolution-xyz` selects the
+precomputed scale and does not rescale skeleton edges. Check the reference LUT separately:
+
+```bash
+python scripts/evaluate_j0126.py --node-lut /path/to/j0126/ffn_node_lut_test_50.h5 \
+    --skeletons /path/to/j0126/test_50_skeletons.h5 --output /path/to/ffn-reference.json
+```
+
+The report reproduced FFN NERL 0.5258 / 0.5380 and VOI 1.856 with this convention.
+The length convention for the historical PyTC rows still needs provenance confirmation.
+For explicit ABISS-only scoring, use `--segmentation /absolute/path/to/abiss/precomputed/seg`
+instead of `--node-lut`. The automatic evaluation chooses correction output by `info`
+existence, so after interrupted or selectively rerun correction, verify completion and
+score the intended layer explicitly.
+
+## Reproduction status
+
+Audited against the local report `.agent/issues/j0126/reproduction.md`
+and the current shared driver in `connectomics/playbooks/cube_decode.py`.
+Documentation corrections are not a new full-volume validation.
+
+Already implemented: direct masked HDF5 affinity reads, channel indices `[0, 1, 2]`,
+the per-channel tissue thresholds, Zarr-3-compatible mask creation, mask chunks that
+tile 1008, the submitting Python executable, omission of empty `NUC_*` parameters,
+specific `seg_size_*.data` matching, native output resolution, staged correction,
+an empty nucleus-manifest fallback, and an evaluation step.
+
+Remaining limitations and operational workarounds:
+
+- Download progress lives beside the store as `<store>.progress*`. If replacing a
+  partial store, remove its matching progress sidecars too; otherwise missing blocks
+  can be skipped. Mask `.done.*` sidecars likewise need invalidating when rebuilding.
+- Affinity completion still resolves index entries relative to the index directory;
+  indexes containing run-relative paths can be reported incomplete. Inspect paths
+  before relaunching inference. Single-file crop output is not covered by this check
+  or the driver's unconditional VDS discovery command.
+- Fetch completion checks the model or training directories, not the evaluation
+  skeletons/LUT. Confirm both evaluation files exist before submitting scoring.
+- Crop mask geometry, nucleus alignment, global skeleton coordinates, and shard
+  counts are not consistently propagated. Do not use `em_bbox` as the advertised
+  end-to-end smoke test until those contracts are fixed and tested.
+- ABISS completion counts files rather than validating chunk contents; the correction
+  manifest and evaluation report are also existence checks. Use a fresh output root
+  for changed inputs or recipes, and verify results before deleting intermediates.
+- The stock launcher does not implement the report's distributed atomic fleet or
+  its cold-start and cross-node locking fixes. Its timings cannot be promised here.
+
+[`run_everything.sh`](run_everything.sh) bootstraps dependencies, builds ABISS, rewrites
+this checkout's `params.yaml`, and invokes the driver. It defaults to training; use
+`--no-train` for the downloaded checkpoint. Its `--check` and `--dry-run` flags apply
+only to the final driver invocation: installation and configuration writes still occur.
+It shares the crop limitations above and installs build/runtime dependencies together.
+The nucleus asset and a full crop-to-score regression remain requirements before
+describing the bootstrap as a validated fresh-machine reproduction.
 
 ## Results
 
