@@ -449,6 +449,13 @@ concurrent jobs.
 
 ## Related
 
+- [`gcloud/`](gcloud/README.md) — **the same pipeline on Google Cloud**, for
+  volumes that are not on `/projects`. It runs these exact scripts in a
+  container; `volumes.py` reads its roots from the environment so there is no
+  second copy of the recipe to drift. First target is `ExPID108_32x_Cortex_L1_01`,
+  which arrived already published in GCS, and the checkpoint comes from
+  [`pytc/liconn`](https://huggingface.co/pytc/liconn) rather than the BC run
+  directory — same weights, same `[24,18,18]` nm grid.
 - `tutorials/neuron_liconn_ist/` — the volume this checkpoint was trained on, and
   where the IST thresholds were fitted.
 - [`tutorials/liconn_ingest/`](../liconn_ingest/README.md) — the stage *before*

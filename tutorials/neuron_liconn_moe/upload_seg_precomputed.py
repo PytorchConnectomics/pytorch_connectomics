@@ -39,6 +39,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import shutil
 import subprocess
 import sys
 from pathlib import Path
@@ -50,7 +51,13 @@ import volumes as V  # noqa: E402
 
 CHUNK = [128, 128, 64]
 MESH_DIR = "mesh_mip_0_err_40"
-GCLOUD = str(Path.home() / "google-cloud-sdk/bin/gcloud")
+# The interactive login lives in whichever gcloud the user actually runs, so
+# prefer the one on PATH and keep the BC install as the fallback. The container
+# has no gcloud at all -- it only ever runs the --create/--downsample/--mesh
+# stages, and the host uploads.
+GCLOUD = (shutil.which("gcloud")
+          or os.environ.get("GCLOUD")
+          or str(Path.home() / "google-cloud-sdk/bin/gcloud"))
 
 
 class Target:

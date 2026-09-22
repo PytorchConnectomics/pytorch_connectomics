@@ -1,0 +1,31 @@
+# Build context for `gcloud builds submit`. WITHOUT THIS FILE gcloud falls back
+# to `.gitignore`, and the working tree carries ~18 GB of untracked run
+# artifacts under `.gcp-run/` -- every build would upload them.
+#
+# Mirrors `.dockerignore` (which gcloud does NOT read) plus `.git`.
+.git
+.github
+.gcp-run
+.pytest_cache
+.mypy_cache
+.ruff_cache
+**/__pycache__
+**/*.py[cod]
+*.egg-info
+build
+dist
+docs/_build
+.venv
+venv
+.env
+data/**
+datasets/**
+outputs/**
+outputs-cloud/**
+**/*.ckpt
+**/*.pth
+**/*.pt
+**/*.h5
+**/*.zarr
+slurm_logs/**
+.DS_Store

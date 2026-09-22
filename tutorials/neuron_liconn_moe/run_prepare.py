@@ -14,11 +14,16 @@ import volumes as V  # noqa: E402
 
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__)
-    ap.add_argument("--index", type=int, required=True, help="index into volumes.PENDING")
+    # `--index` is how the SLURM array addresses a volume; `--volume` is how
+    # the cloud driver does, since it runs one named volume and never an array.
+    ap.add_argument("--index", type=int, help="index into volumes.PENDING")
+    ap.add_argument("--volume", help="volume name (see volumes.py)")
     ap.add_argument("--overwrite", action="store_true")
     a = ap.parse_args()
 
-    name = V.PENDING[a.index]
+    if (a.index is None) == (a.volume is None):
+        raise SystemExit("give exactly one of --index / --volume")
+    name = a.volume or V.PENDING[a.index]
     p = V.plan(name)
     print(f"{name}: {p['native_shape']} {p['native_spacing_zyx']} -> "
           f"{p['shape']} {p['spacing_zyx']}", flush=True)

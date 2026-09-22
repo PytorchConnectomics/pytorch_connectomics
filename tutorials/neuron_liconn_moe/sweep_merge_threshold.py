@@ -86,8 +86,10 @@ def run_sweep(aff: Path, out_dir: Path, thresholds: str, workdir: Path) -> None:
         "--input", str(aff),
         "--output", str(out_dir / "seg.h5"),
         # The vendored ABISS build (build/ws) is a compiled artifact that lives
-        # only in the main checkout, so this path is absolute on purpose.
-        "--abiss-home", str(V.REPO / "lib/abiss"),
+        # only in the main checkout, so this path is absolute on purpose. In the
+        # cloud image there is no vendored copy: ABISS is built into the image
+        # at /opt/abiss and `ABISS_HOME` points there (gcloud/Dockerfile).
+        "--abiss-home", os.environ.get("ABISS_HOME") or str(V.REPO / "lib/abiss"),
         # NOTE: `workdir`/`timeout_sec` in 2_abiss.yaml are kwargs of the
         # `decode_abiss` decoder, not flags of this script.
         "--abiss-workdir", str(workdir / "ws_scratch"),
