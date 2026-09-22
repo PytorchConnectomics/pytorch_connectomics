@@ -165,7 +165,8 @@ notebooks/
 .ccc/
 .codex
 .claude
-.agent/
+#.agent/
+.agent_archive/
 slurm_jobs/
 .gcp-run/
 
