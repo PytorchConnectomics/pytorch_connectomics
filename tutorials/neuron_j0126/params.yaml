@@ -16,7 +16,7 @@ params:
     repository: /path/to/pytorch_connectomics
     # Downloads land here: EM volume, training cubes, checkpoint, masks.
     dataset_root: /path/to/j0126
-    # Everything the pipeline produces. Budget ~5 TB for the whole volume.
+    # Everything the pipeline produces. See RESOURCE.md for peak disk/inode budgets.
     output_root: ${params.paths.repository}/outputs/neuron_j0126
 
   # --------------------------------------------------------------- how
@@ -36,8 +36,8 @@ params:
     # Public FFN mirror of the EM volume (Januszewski et al. 2018, Nat Methods).
     em_source: gs://j0126-nature-methods-data/GgwKmcKgrcoNxJccKuGIzRnQqfit9hnfK1ctZzNbnuU/rawdata_realigned
     # [] = the whole ~660 GB volume. [z0, z1, y0, y1, x0, x1] fetches one crop
-    # instead; [2900, 3908, 5000, 6008, 5000, 6008] is a single 1008^3 chunk,
-    # a few minutes and ~1 GB, and is the right way to smoke-test this file.
+    # instead. Crops are NOT supported end-to-end by the current mask/scoring
+    # workflow; see README.md reproduction status before setting this field.
     em_bbox: []
     # Download job granularity: one (z-slab x XY-tile) block per unit of work.
     slab: 64
@@ -59,7 +59,8 @@ params:
   # --------------------------------------------------------------- step 0b
   # Tissue AND border keep-mask: FFN's own tissue_classification thresholded to
   # NOT(blood vessel | myelin | out-of-bounds), combined with the 0/255 border
-  # ring of the aligned EM. Removes 15.64% of the volume. ABISS masks affinity
+  # ring of the aligned EM. The historical mask used different thresholds;
+  # see README.md before comparing exclusion fractions. ABISS masks affinity
   # with it and error correction reuses it.
   #
   # Building it streams the whole tissue_classification layer. To skip that,
@@ -107,7 +108,9 @@ params:
   # --------------------------------------------------------------- step 3
   # ABISS uses every CPU granted to the process, so this is ONE shared-memory
   # job, never an array: independent copies race on the same hierarchy layers.
-  # The recorded whole-volume run took 3.75 h on 64 cores.
+  # The historical 3.75 h used a separate 40-node fleet, not this launcher.
+  # At the configured chunk size, 64 atomic tasks need ~500 GB plus overhead:
+  # lower cpus or increase memory before running. 24 h may require resubmission.
   abiss:
     slurm_partition: ""
     cpus: 64
