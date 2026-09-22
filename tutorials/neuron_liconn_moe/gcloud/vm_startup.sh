@@ -27,6 +27,10 @@ PUBLISH_PREFIX=$(md publish-prefix)
 HF_REPO=$(md hf-repo)
 HF_CKPT=$(md hf-ckpt)
 SELF_DELETE=$(md self-delete || echo yes)
+# all | gpu | cpu -- see run_volume.sh. `gpu` stops after the affinity and
+# leaves it in the run prefix; `cpu` restores that affinity and decodes. The
+# handoff reuses the preemption-resume mirror, so it needed no new mechanism.
+STAGES=$(md stages || echo all)
 ZONE=$(curl -sf -H "Metadata-Flavor: Google" \
     http://metadata.google.internal/computeMetadata/v1/instance/zone | awk -F/ '{print $NF}')
 NAME=$(curl -sf -H "Metadata-Flavor: Google" \
@@ -86,12 +90,16 @@ finish() {
 }
 die() { echo "FAILED: $*"; finish 1; }
 
-echo "=== start $(date -Is) volume=$VOLUME image=$IMAGE_TAG ==="
-nvidia-smi || die "no GPU driver"
+echo "=== start $(date -Is) volume=$VOLUME image=$IMAGE_TAG stages=$STAGES ==="
+if [[ "$STAGES" != cpu ]]; then
+    nvidia-smi || die "no GPU driver"
+fi
 
 # --- docker + the image archive ---------------------------------------------
 command -v docker >/dev/null || { apt-get update && apt-get install -y docker.io; }
-nvidia-ctk runtime configure --runtime=docker || die "nvidia-ctk configure"
+if [[ "$STAGES" != cpu ]]; then
+    nvidia-ctk runtime configure --runtime=docker || die "nvidia-ctk configure"
+fi
 systemctl enable --now docker
 systemctl restart docker
 
@@ -219,8 +227,11 @@ chown -R 1000:1000 "$WORK/ckpt"
 # --- run --------------------------------------------------------------------
 # --ipc=host: DataLoader workers exhaust Docker's default 64 MB /dev/shm.
 echo "=== pipeline ==="
-docker run --rm --gpus all --ipc=host \
+GPUFLAG=(--gpus all)
+[[ "$STAGES" == cpu ]] && GPUFLAG=()
+docker run --rm "${GPUFLAG[@]+"${GPUFLAG[@]}"}" --ipc=host \
     -v "$WORK":/work \
+    -e STAGES="$STAGES" \
     "${TUTORIAL_MOUNT[@]+"${TUTORIAL_MOUNT[@]}"}" \
     -e LICONN_MOE_GCS_BUCKET="$(echo "$PUBLISH_PREFIX" | sed -E 's|gs://([^/]+)/.*|\1|')" \
     -e MOE_GCS_KIND=mip1_eb2 \
@@ -232,6 +243,18 @@ docker run --rm --gpus all --ipc=host \
 # (log, manifest, sweep table, image identity) goes to the private run prefix.
 echo "=== publish ==="
 TEST_OUT="$WORK/ckpt/$CKPT_RUN/test_${HF_CKPT%.ckpt}/$VOLUME"
+
+if [[ "$STAGES" == gpu ]]; then
+    # Hand the affinity to the CPU phase and stop. The mirror is the handoff;
+    # it must NOT be cleared here, and no segmentation exists yet to publish.
+    [[ -f "$TEST_DIR/$VOLUME/raw_x1_ch0-1-2.h5" ]] || die "affinity missing after the GPU stage"
+    gcloud storage rsync -r "$TEST_DIR" "$WIP/affinity" -q || die "hand off affinity"
+    gcloud storage rsync "$WORK/prepared" "$WIP/prepared" -q || true
+    echo "affinity handed off to $WIP/affinity"
+    echo "next: RUN_ID=${RUN_PREFIX##*/} STAGES=cpu MACHINE=<high-mem> launch.sh --run"
+    finish 0
+fi
+
 AFF="$TEST_OUT/raw_x1_ch0-1-2.h5"
 [[ -f "$AFF" ]] || die "affinity missing at $AFF"
 gcloud storage cp "$AFF" "$PUBLISH_PREFIX/affinity/${VOLUME}_affinity_x1_ch0-1-2.h5" -q \

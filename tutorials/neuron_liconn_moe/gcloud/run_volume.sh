@@ -49,7 +49,27 @@ T="$REPO/tutorials/neuron_liconn_moe"
 cd "$REPO"
 mkdir -p "$LICONN_MOE_PREPARED" "$MOE_OUT_ROOT"
 
+# STAGES selects which half of the pipeline this container runs, so GPU work and
+# the memory-hungry decode can sit on different machines.
+#
+# Why that is not a micro-optimisation: the decode peaks at ~71 GB per Gvoxel,
+# and the most RAM obtainable with ONE L4 is 128 GiB (g2-standard-32), because
+# L4s attach only to G2 shapes. A 2 Gvoxel volume therefore needs
+# g2-standard-48 -- four L4s bought to rent RAM -- and on 2026-09-22 spot
+# g2-standard-48 was ZONE_RESOURCE_POOL_EXHAUSTED in all three us-east1 zones
+# while g2-standard-16 spot was plentiful. Splitting buys one cheap GPU box and
+# one cheap high-memory CPU box instead, and is step one of the 100 um
+# architecture (card MSIDEPLOY-SCALE-001) rather than a workaround.
+#
+#   all   prepare + affinity + decode + precomputed  (default; small volumes)
+#   gpu   prepare + affinity, then stop
+#   cpu   decode + precomputed, from a restored affinity
+STAGES="${STAGES:-all}"
+case "$STAGES" in all|gpu|cpu) ;; *) echo "STAGES must be all|gpu|cpu"; exit 2 ;; esac
+runs() { case "$STAGES" in all) return 0 ;; gpu) [[ "$1" == gpu ]] ;; cpu) [[ "$1" == cpu ]] ;; esac }
+
 step() { echo; echo "=== $* === $(date -Is)"; }
+echo "STAGES=$STAGES"
 
 step "environment"
 python -c "import torch;print('torch',torch.__version__,'cuda',torch.cuda.is_available(),
@@ -62,6 +82,7 @@ python "$T/volumes.py" | sed -n "1p;/$VOL/p"
 # moe spacings are biological nm (the expansion factor is already divided out),
 # so matching nm matches neurite caliber in voxels. ExPID108 is 32x at
 # [12.5, 5.078125, 5.078125] nm -> factors [1.92, 3.545, 3.545].
+if runs gpu; then
 step "0 prepare"
 if [[ -f "$LICONN_MOE_PREPARED/$VOL.h5" ]]; then
     echo "prepared volume exists, skipping (delete it to redo)"
@@ -105,6 +126,7 @@ print(f"mid-plane affinity p25/p50/p75 = {q[0]:.3f}/{q[1]:.3f}/{q[2]:.3f}"
 if s.std() <= 0.01:
     raise SystemExit("affinity mid-plane is constant -- inference produced nothing")
 PY
+fi   # end GPU half
 
 # --- 2. ABISS watershed + GT-free merge-threshold sweep ---------------------
 # One watershed, several agglomerations. The merge threshold is carried as a
@@ -112,6 +134,7 @@ PY
 # distribution shifts with expansion factor, so a fixed value is a different
 # operating point on every volume. The chain test vetoes field-spanning merge
 # chains. Neither is a validation -- there is no ground truth here.
+if runs cpu; then
 step "2 abiss sweep"
 python "$T/sweep_merge_threshold.py" --volume "$VOL"
 
@@ -120,6 +143,7 @@ python "$T/sweep_merge_threshold.py" --volume "$VOL"
 step "3 precomputed"
 python "$T/upload_seg_precomputed.py" --volume "$VOL" \
     --create --downsample --mesh --parallel "$(nproc)"
+fi   # end CPU half
 
 step "done"
 find "$MOE_OUT_ROOT" -maxdepth 3 \( -name '*.json' -o -name '*.h5' \) -print | sort

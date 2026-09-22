@@ -78,6 +78,16 @@ BASE_ARCHIVE="${BASE_ARCHIVE:-$RUN_BUCKET/liconn/moe/images/pytc-gpu-base/build}
 #
 # Set PROVISIONING=STANDARD for on-demand when a run must not be interrupted.
 PROVISIONING="${PROVISIONING:-SPOT}"
+# all | gpu | cpu. The split exists because the decode peaks at ~71 GB/Gvoxel
+# while inference needs one GPU, and the most RAM available with ONE L4 is
+# 128 GiB -- so a 2 Gvoxel volume would otherwise need g2-standard-48, four L4s
+# bought to rent RAM, which was capacity-exhausted on spot across all us-east1
+# zones on 2026-09-22. Run `gpu` then `cpu` with the SAME RUN_ID; the affinity
+# hands off through the run prefix.
+STAGES="${STAGES:-all}"
+case "$STAGES" in all|gpu|cpu) ;; *) echo "STAGES must be all|gpu|cpu" >&2; exit 2 ;; esac
+# A CPU stage needs no accelerator, so default it to a high-memory N2 shape.
+if [[ "$STAGES" == cpu ]]; then MACHINE="${MACHINE:-n2-highmem-32}"; fi
 MACHINE="${MACHINE:-g2-standard-16}"
 # EMPTY ON PURPOSE. The accelerator-optimized families (g2, a2, a3) have their
 # GPUs predefined by the machine type -- g2-standard-16 is exactly one L4 -- and
@@ -222,6 +232,16 @@ sys.exit(0 if '$VOLUME' in V.VOLUMES else 1)" 2>/dev/null; then
         fi
     else
         bad "$SRC_ZARR not readable"
+    fi
+
+    if [[ "$STAGES" == cpu ]]; then
+        echo "handed-off affinity (STAGES=cpu)"
+        if g storage ls "$RUN_PREFIX/wip/affinity/**" >/dev/null 2>&1; then
+            ok "affinity present under $RUN_PREFIX/wip/affinity"
+        else
+            bad "no affinity at $RUN_PREFIX/wip/affinity"
+            fix "run the GPU stage first with the SAME RUN_ID: STAGES=gpu bash $0 --run"
+        fi
     fi
 
     echo "image archive"
@@ -445,12 +465,20 @@ PY
     # in bash 3.2, which is what macOS ships -- so the optional flag is carried
     # as a scalar and word-split, not as an array.
     local accel=""
-    [[ -n "$GPU" ]] && accel="--accelerator=$GPU"
+    [[ -n "$GPU" && "$STAGES" != cpu ]] && accel="--accelerator=$GPU"
+    # The CPU stage has no GPU, so the NVIDIA Deep Learning image buys nothing
+    # and costs boot time; Debian 12 already carries gcloud.
+    local IMAGE_FLAGS
+    if [[ "$STAGES" == cpu ]]; then
+        IMAGE_FLAGS=(--image-family=debian-12 --image-project=debian-cloud)
+    else
+        IMAGE_FLAGS=(--image-family=common-cu129-ubuntu-2204-nvidia-580
+                     --image-project=deeplearning-platform-release)
+    fi
     g compute instances create "$name" \
         --zone="$ZONE" --machine-type="$MACHINE" \
         ${accel} --maintenance-policy=TERMINATE \
-        --image-family=common-cu129-ubuntu-2204-nvidia-580 \
-        --image-project=deeplearning-platform-release \
+        "${IMAGE_FLAGS[@]}" \
         --boot-disk-size="${DISK_GB}GB" --boot-disk-type=pd-balanced \
         --boot-disk-auto-delete \
         --provisioning-model="$PROVISIONING" \
@@ -458,12 +486,12 @@ PY
         --max-run-duration="$MAX_RUN" --instance-termination-action=DELETE \
         --no-restart-on-failure \
         --metadata-from-file=startup-script="$tmp/startup.sh" \
-        --metadata="volume=$VOLUME,image-tag=$IMAGE_TAG,src-zarr=$SRC_ZARR,run-prefix=$RUN_PREFIX,build-prefix=$BUILD_PREFIX,publish-prefix=$PUBLISH_PREFIX,hf-repo=$HF_REPO,hf-ckpt=$HF_CKPT,self-delete=yes" \
+        --metadata="volume=$VOLUME,image-tag=$IMAGE_TAG,src-zarr=$SRC_ZARR,run-prefix=$RUN_PREFIX,build-prefix=$BUILD_PREFIX,publish-prefix=$PUBLISH_PREFIX,hf-repo=$HF_REPO,hf-ckpt=$HF_CKPT,stages=$STAGES,self-delete=yes" \
         --quiet
 
     cat <<EOF
 
-launched $name in $ZONE  [$PROVISIONING]
+launched $name in $ZONE  [$PROVISIONING, stage=$STAGES, $MACHINE]
   log      $RUN_PREFIX/run.log     (refreshed every 60s)
   status   $RUN_PREFIX/STATUS      (0 = success; absent = still running)
   marker   $RUN_PREFIX/COMPLETE    (written only after work AND upload succeed)
