@@ -1,0 +1,16 @@
+# Smoke test for 1_affinity_z600.yaml: same config, a 104x640x640 XY crop.
+# Exists to prove the pad_size/crop_pad path end to end -- the degraded volume is
+# 104 planes deep against a 128-deep inference window -- before spending a GPU
+# hour on the full 1.49 Gvox volume. Delete its output dir afterwards.
+_base_:
+  - 1_affinity_z600.yaml
+experiment_name: liconn_ist_affinity_z600_smoke
+test:
+  data:
+    test:
+      name: val_z600_smoke
+      path: /projects/weilab/weidf/scratch/liconn600/smoke/val_z600_smoke
+      image: data.zarr/img
+      label: null
+      skeleton: null
+      resolution: ${params.data.resolution_zyx_z600}

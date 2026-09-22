@@ -1,0 +1,82 @@
+# IST LICONN step 1, Z-degradation CONTROL: the same 18 nm checkpoint on a val
+# volume that has lost exactly the 600 nm Z information but is otherwise
+# identical to the baseline. Card MSIDEPLOY-MODEL-002, Stage 1.
+#
+#   python scripts/main.py --config tutorials/neuron_liconn_ist/1_affinity_z600rep.yaml \
+#     --mode test --checkpoint ${params.artifacts.checkpoint}
+#
+# WHY A CONTROL IS NEEDED. The primary degraded run (1_affinity_z600.yaml) moves
+# three things at once:
+#   (i)   Z information is lost to the area average;
+#   (ii)  the voxel grid leaves the training grid -- neurite caliber measured in
+#         voxels changes by 1.39x in Z, which is what a 36 nm-matched model would
+#         be trained to fix;
+#   (iii) the volume becomes 104 planes against a 128-deep inference window, so
+#         it gets ONE Z window position where the 145-plane baseline got four,
+#         and it has to be scored through a 145->104->145 round trip whose
+#         measured ORACLE FLOOR is VOI 0.6235.
+# A single number from that run cannot say which of the three it is measuring.
+#
+# THIS VOLUME ISOLATES (i). `val_z600rep` is the same 104 area-averaged planes
+# written back onto the original 145-plane grid by the nearest-upsample map, so
+# shape, resolution, window grid and scoring path are bit-for-bit the baseline's
+# and only the Z information content differs. Its VOI is therefore directly
+# comparable to 0.9130 with no oracle floor and no re-grid.
+#
+# Read the pair: primary loses a lot / control loses little => the cost is grid
+# mismatch, which retraining at 36 nm can recover, and H1 is actionable. Control
+# loses as much => the cost is information no model gets back.
+#
+# Everything else -- ROI 128^3, no pad_size, patch_size 128^3, decoding and
+# evaluation off -- is the baseline's own configuration, deliberately unchanged.
+
+_base_:
+  - params.yaml
+  - ../neuron_nisb/base_banis+.yaml
+
+experiment_name: liconn_ist_affinity_z600rep
+
+description: >-
+  The released 18 nm BANIS+ checkpoint applied to the IST LICONN held-out val
+  region after an exact area-average Z degradation to the 600 nm z-step followed
+  by a nearest upsample back onto the native 145-plane 18 nm grid. Isolates the
+  information cost of the coarser z-step from the grid mismatch.
+
+save_path: ${params.paths.output_root}/affinity_z600rep
+
+params:
+  data:
+    val_z600rep: ${params.paths.dataset_root}/final_proofread_z600/val_z600rep
+
+default:
+  evaluation:
+    enabled: false
+    metrics: []
+  decoding:
+    load_prediction_path: ""
+    save_path: ""
+    steps: []
+
+test:
+  data:
+    test:
+      name: val_z600rep
+      path: ${params.data.val_z600rep}
+      image: data.zarr/img
+      label: null
+      skeleton: null
+      # The grid is unchanged -- this volume is still 145 planes at 24 nm.
+      resolution: ${params.data.resolution_zyx}
+
+train:
+  data:
+    train:
+      path: ${params.data.train}
+      image: data.zarr/img
+      label: data.zarr/seg
+      resolution: ${params.data.resolution_zyx}
+    val:
+      path: ${params.data.val}
+      image: data.zarr/img
+      label: data.zarr/seg
+      resolution: ${params.data.resolution_zyx}
