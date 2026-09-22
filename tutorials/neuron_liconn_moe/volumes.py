@@ -373,6 +373,33 @@ VOLUMES: dict[str, dict] = {
     "ExPID71_120ms-30ms_600nm_40XW01_e120": {"auto": True},
     "ExPID71_120ms-30ms_600nm_40XW02_e030": {"auto": True},
     "ExPID71_120ms-30ms_600nm_40XW02_e120": {"auto": True},
+    # Added 2026-09-22, second wave. Two more ExPID71 600 nm exposures (note the
+    # underscore spelling `120ms_30ms`, a different acquisition from the
+    # hyphenated `120ms-30ms` pair above), and the ExPID107 14.5x group.
+    "ExPID71_120ms_30ms_600nm_40XW_e030": {"auto": True},
+    "ExPID71_120ms_30ms_600nm_40XW_e120": {"auto": True},
+    # ExPID107 is 14.5x: XY 11.034 nm resamples onto the 18 nm grid exactly, but
+    # Z is 27.586 nm against a 24 nm target, so `auto` refuses to upsample and
+    # leaves it native at **+14.9%**. Between the 400 nm/32x class (+4.2%) and
+    # the 600 nm/18x class (+38.9%).
+    #
+    # THESE ARE THE LARGEST PREPARED VOLUMES IN THE PROJECT, because XY only
+    # shrinks 1.63x and Z not at all: 1.7-2.3 Gvoxel against ExPID108's 0.26.
+    # That puts them near ABISS's uint32 watershed index cap of 2,147,483,648
+    # voxels, which is a hard limit in the `ws` binary, not a memory question:
+    #
+    #   _04  1,716,613,584   79.9% of cap   whole-volume decode fine
+    #   _02  1,931,937,936   90.0%          fine
+    #   _06  2,053,556,320   95.6%          tight; the IST val decode ran at 98.3%
+    #   _05  2,286,824,368  106.5%          EXCEEDS THE CAP
+    #
+    # `ExPID107_14.5x_05` is therefore deliberately NOT registered here. It needs
+    # `scripts/run_abiss_chunk.py`, which this pipeline does not yet wire up, and
+    # registering it would let a run spend GPU time on inference before failing
+    # at the decode. See msi_liconn_deploy/spec.md STOP CONDITIONS.
+    "ExPID107_14.5x_02": {"auto": True},
+    "ExPID107_14.5x_04": {"auto": True},
+    "ExPID107_14.5x_06": {"auto": True},
 }
 
 # The volumes this batch runs: everything except the one already on GCS.
