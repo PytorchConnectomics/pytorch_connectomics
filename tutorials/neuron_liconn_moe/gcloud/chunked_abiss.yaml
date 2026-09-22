@@ -1,0 +1,28 @@
+# Template for resolve_chunked.write_variant_config. All coordinates are XYZ.
+merge_criterion: mean
+abiss_chunk:
+  abiss_home: /opt/abiss
+  workdir: /tmp/pytc-s3/work
+  secrets_dir: /tmp/pytc-s3/secrets
+  param_path: /tmp/pytc-s3/secrets/param
+  source_affinity_h5: /tmp/pytc-s3/aff_canon.h5
+  source_dataset: main
+  seg_chunk_size_xyz: [128, 128, 128]
+  resolution_xyz: [18.0, 18.0, 23.9811]
+  param:
+    NAME: expid108_s3
+    AFF_PATH: file:///tmp/pytc-s3/aff_canon.h5
+    AFF_CHANNELS: [0, 1, 2]
+    WS_PATH: file:///tmp/pytc-s3/ws
+    SEG_PATH: file:///tmp/pytc-s3/seg
+    SCRATCH_PATH: file:///tmp/pytc-s3/scratch
+    CHUNKMAP_OUTPUT: file:///tmp/pytc-s3/chunkmap
+    BBOX: [0, 0, 0, 650, 650, 503]
+    CHUNK_SIZE: [256, 256, 128]
+    WS_HIGH_THRESHOLD: 0.9
+    WS_LOW_THRESHOLD: 0.1
+    WS_SIZE_THRESHOLD: 10000000
+    WS_DUST_THRESHOLD: 200
+    AGG_THRESHOLD: 0.1394546
+    PARANOID: false
+    CHUNKED_AGG_OUTPUT: false

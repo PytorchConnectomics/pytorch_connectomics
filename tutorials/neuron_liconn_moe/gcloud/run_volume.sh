@@ -44,6 +44,26 @@ export MOE_GCS_KIND="${MOE_GCS_KIND:-mip1_eb2}"
 export PYTHONPATH="$REPO${PYTHONPATH:+:$PYTHONPATH}"
 export HDF5_USE_FILE_LOCKING=FALSE
 export ABISS_HOME="${ABISS_HOME:-/opt/abiss}"
+export DECODE="${DECODE:-}"
+export MERGE_CRITERION="${MERGE_CRITERION:-mean}"
+export RUN_PREFIX="${RUN_PREFIX:-$MOE_OUT_ROOT/s3/$VOL}"
+if [[ -z "${S3_ACCEPT+x}" ]]; then
+    [[ "$VOL" == ExPID108* ]] && S3_ACCEPT=1 || S3_ACCEPT=0
+fi
+export S3_ACCEPT
+
+# This is deliberately before the GPU half. The criterion has one source of
+# truth and resolution must fail before a VM does any useful work.
+if [[ -n "$DECODE" ]]; then
+    [[ "$DECODE" == whole || "$DECODE" == chunked ]] || { echo "DECODE must be whole or chunked"; exit 2; }
+    python - "$MERGE_CRITERION" <<'PY'
+import sys
+from tutorials.neuron_liconn_moe.gcloud.resolve_chunked import resolve
+resolve({"merge_criterion": sys.argv[1], "CHUNK_SIZE": [256, 256, 128],
+         "seg_chunk_size_xyz": [128, 128, 128], "BBOX": [0, 0, 0, 512, 512, 256],
+         "AFF_CHANNELS": [0, 1, 2]})
+PY
+fi
 
 T="$REPO/tutorials/neuron_liconn_moe"
 cd "$REPO"
@@ -128,15 +148,139 @@ if s.std() <= 0.01:
 PY
 fi   # end GPU half
 
-# --- 2. ABISS watershed + GT-free merge-threshold sweep ---------------------
+# --- 2. Default sweep, or opt-in S3 ABISS decode ----------------------------
 # One watershed, several agglomerations. The merge threshold is carried as a
 # PERCENTILE of this volume's own affinity, not as an absolute: the affinity
 # distribution shifts with expansion factor, so a fixed value is a different
 # operating point on every volume. The chain test vetoes field-spanning merge
 # chains. Neither is a validation -- there is no ground truth here.
 if runs cpu; then
+if [[ -z "$DECODE" ]]; then
 step "2 abiss sweep"
 python "$T/sweep_merge_threshold.py" --volume "$VOL"
+else
+step "2 abiss decode ($DECODE)"
+AFF_H5=$(python -c "
+import os, sys
+sys.path.insert(0, os.path.join('$REPO', 'tutorials/neuron_liconn_moe'))
+import volumes as V
+print(V.affinity_h5('$VOL'))")
+SOURCE_DATASET=$(python - "$AFF_H5" <<'PY'
+import sys, h5py
+with h5py.File(sys.argv[1], "r") as handle:
+    names = [k for k, v in handle.items() if isinstance(v, h5py.Dataset)]
+if len(names) != 1:
+    raise SystemExit(f"source affinity must contain exactly one dataset, got {names}")
+print(names[0])
+PY
+)
+CANON="$RUN_PREFIX/aff_canon/aff_canon.h5"
+mkdir -p "$RUN_PREFIX"
+python "$T/make_prob_affinity.py" --source "$AFF_H5" --output "$CANON"
+read -r -a BBOX <<< "$(python - "$CANON" <<'PY'
+import sys
+from pathlib import Path
+from tutorials.neuron_liconn_moe.gcloud.resolve_chunked import artifact_bbox
+print(*artifact_bbox(Path(sys.argv[1])))
+PY
+ )"
+read -r -a CHUNK_A <<< "$(python - "${BBOX[@]:3:3}" <<'PY'
+import sys
+from tutorials.neuron_liconn_moe.gcloud.resolve_chunked import variant_specs
+print(*variant_specs([0, 0, 0, *map(int, sys.argv[1:])])["A"][0])
+PY
+ )"
+read -r -a CHUNK_B <<< "$(python - "${BBOX[@]:3:3}" <<'PY'
+import sys
+from tutorials.neuron_liconn_moe.gcloud.resolve_chunked import variant_specs
+print(*variant_specs([0, 0, 0, *map(int, sys.argv[1:])])["B"][0])
+PY
+ )"
+python - "$CANON" "$MERGE_CRITERION" "$RUN_PREFIX/affinity_diagnostic.json" "${BBOX[@]}" <<'PY'
+import sys
+from tutorials.neuron_liconn_moe.gcloud.resolve_chunked import preflight, resolve
+cfg = resolve({"merge_criterion": sys.argv[2], "affinity_h5": sys.argv[1],
+               "diagnostic_path": sys.argv[3], "BBOX": [int(v) for v in sys.argv[4:10]], "CHUNK_SIZE": [256, 256, 128],
+               "seg_chunk_size_xyz": [128, 128, 128], "AFF_CHANNELS": [0, 1, 2]})
+preflight(cfg)
+PY
+THRESHOLDS="$RUN_PREFIX/ws_thresholds.json"
+python "$T/resolve_thresholds.py" --source "$CANON" --output "$THRESHOLDS"
+WS_HIGH=$(python -c 'import json,sys; print(json.load(open(sys.argv[1]))["ws_high"])' "$THRESHOLDS")
+WS_LOW=$(python -c 'import json,sys; print(json.load(open(sys.argv[1]))["ws_low"])' "$THRESHOLDS")
+python - "$CANON" "$RUN_PREFIX/affinity_diagnostic.json" "$WS_HIGH" "$WS_LOW" <<'PY'
+import sys
+from pathlib import Path
+from tutorials.neuron_liconn_moe.gcloud.resolve_chunked import write_affinity_diagnostic
+write_affinity_diagnostic(Path(sys.argv[1]), Path(sys.argv[2]),
+                          ws_high=float(sys.argv[3]), ws_low=float(sys.argv[4]))
+PY
+
+if [[ "$DECODE" == whole || "$S3_ACCEPT" == 1 ]]; then
+python "$REPO/scripts/run_abiss_volume.py" --input "$AFF_H5" --input-dataset "$SOURCE_DATASET" \
+      --output "$RUN_PREFIX/ref_max_compressed/seg.h5" --channels 2,1,0 \
+      --edge-storage source --abiss-home "$ABISS_HOME" --ws-high-threshold 94% \
+      --ws-low-threshold 20% --ws-size-threshold 10000000 --ws-dust-threshold 200 \
+      --ws-merge-function max --ws-merge-threshold 0.47
+python "$REPO/scripts/run_abiss_volume.py" --input "$CANON" --input-dataset main \
+      --output "$RUN_PREFIX/ref_max_canon/seg.h5" --channels 0,1,2 \
+      --edge-storage destination --abiss-home "$ABISS_HOME" --ws-high-threshold "$WS_HIGH" \
+      --ws-low-threshold "$WS_LOW" --ws-size-threshold 10000000 --ws-dust-threshold 200 \
+      --ws-merge-function max --ws-merge-threshold 0.35417863
+python "$T/equivalence_test.py" --integrity --diagnostic "$RUN_PREFIX/affinity_diagnostic.json" \
+      --reference "$RUN_PREFIX/ref_max_compressed/seg.h5" \
+      --chunked "$RUN_PREFIX/ref_max_canon/seg.h5" --chunk-size 256 256 128
+fi
+if [[ "$DECODE" == whole || "$S3_ACCEPT" == 1 ]]; then
+python "$REPO/scripts/run_abiss_volume.py" --input "$CANON" --input-dataset main \
+      --output "$RUN_PREFIX/ref_mean/seg.h5" --channels 0,1,2 \
+      --edge-storage destination --abiss-home "$ABISS_HOME" --ws-high-threshold "$WS_HIGH" \
+      --ws-low-threshold "$WS_LOW" --ws-size-threshold 10000000 --ws-dust-threshold 200 \
+      --ws-merge-function "$MERGE_CRITERION" --ws-merge-threshold 0.1394546
+fi
+if [[ "$DECODE" == chunked ]]; then
+    CHUNKED_CONFIG="${CHUNKED_CONFIG:-$T/chunked_abiss.yaml}"
+    python - "$CHUNKED_CONFIG" "$RUN_PREFIX" "$CANON" "$WS_HIGH" "$WS_LOW" "$MERGE_CRITERION" "$S3_ACCEPT" "${BBOX[@]}" <<'PY'
+import sys
+from pathlib import Path
+from tutorials.neuron_liconn_moe.gcloud.resolve_chunked import preflight, resolve_variant, write_variant_config
+template, prefix, canon, high, low, criterion, accept = sys.argv[1:8]
+bbox = [int(v) for v in sys.argv[8:14]]
+names = ("one", "A", "B") if accept == "1" else ("A",)
+for name in names:
+    out = Path(prefix) / f"config_{name}.yaml"
+    write_variant_config(Path(template), out, run_prefix=Path(prefix), affinity_h5=Path(canon),
+                        variant=name, ws_high=float(high), ws_low=float(low), bbox=bbox,
+                        criterion=criterion)
+    cfg = {"merge_criterion": criterion, "affinity_h5": canon,
+           "BBOX": bbox, "AFF_CHANNELS": [0, 1, 2]}
+    resolved = resolve_variant(cfg, name)
+    if name != "one":
+        preflight(resolved)
+PY
+    STAGES_FOR_CRITERION=$(python - "$MERGE_CRITERION" <<'PY'
+import sys
+from tutorials.neuron_liconn_moe.gcloud.resolve_chunked import stages_for_criterion
+stages = stages_for_criterion(sys.argv[1])
+print(*stages)
+PY
+)
+    if [[ "$S3_ACCEPT" == 1 ]]; then
+      python "$REPO/scripts/run_abiss_chunk.py" --config "$RUN_PREFIX/config_one.yaml" --stages $STAGES_FOR_CRITERION
+    fi
+    python "$REPO/scripts/run_abiss_chunk.py" --config "$RUN_PREFIX/config_A.yaml" --stages $STAGES_FOR_CRITERION
+    if [[ "$S3_ACCEPT" == 1 ]]; then
+      python "$REPO/scripts/run_abiss_chunk.py" --config "$RUN_PREFIX/config_B.yaml" --stages $STAGES_FOR_CRITERION
+      python "$T/equivalence_test.py" --reference "$RUN_PREFIX/ref_mean/seg.h5" \
+        --chunked "$RUN_PREFIX/chunked_one/seg" --chunk-size "${BBOX[3]}" "${BBOX[4]}" "${BBOX[5]}" --plumbing
+      python "$T/equivalence_test.py" --reference "$RUN_PREFIX/ref_mean/seg.h5" \
+        --chunked "$RUN_PREFIX/chunked_A/seg" --chunk-size "${CHUNK_A[@]}" \
+        --chunked "$RUN_PREFIX/chunked_B/seg" --chunk-size "${CHUNK_B[@]}"
+    fi
+    exit 0
+fi
+exit 0
+fi
 
 # --- 3. precomputed layer + meshes ------------------------------------------
 # Built here, uploaded by the host: `gcloud` is not in this image.
