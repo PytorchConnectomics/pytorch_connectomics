@@ -96,7 +96,14 @@ if [[ "$STAGES" != cpu ]]; then
 fi
 
 # --- docker + the image archive ---------------------------------------------
-command -v docker >/dev/null || { apt-get update && apt-get install -y docker.io; }
+# WAIT FOR THE DPKG LOCK. The NVIDIA DLVM image ships no docker, and on first
+# boot unattended-upgrades can hold /var/lib/dpkg/lock-frontend for minutes. A
+# plain apt-get then fails at once, docker never installs, and the run dies at
+# `docker load` after paying for the image download -- measured 2026-09-22 on
+# ExPID107_14.5x_05 (us-east1-b). DPkg::Lock::Timeout makes apt wait instead.
+APT=(apt-get -o DPkg::Lock::Timeout=600)
+command -v docker >/dev/null || { "${APT[@]}" update && "${APT[@]}" install -y docker.io; } \
+    || die "install docker.io"
 if [[ "$STAGES" != cpu ]]; then
     nvidia-ctk runtime configure --runtime=docker || die "nvidia-ctk configure"
 fi
