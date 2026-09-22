@@ -25,9 +25,15 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass, field
 
-# `_18x`, `_28xx` (a real typo in the ExPID96 set), `_14p5x` for fractional folds.
-_FOLD = re.compile(r"_(\d+(?:p\d+)?)xx?(?:_|$|\.)")
-_EXPOSURE = re.compile(r"_(\d+)ms-(\d+)ms_")
+# `_18x`, `_28xx` (a real typo in the ExPID96 set), and fractional folds in both
+# spellings: `_14p5x` and the `_14.5x` that the ExPID107 drop actually uses. The
+# `p` form was the only one handled until 2026-09-21, when four real files named
+# `ExPID107_14.5x_*.nd2` arrived and silently parsed as fold=None.
+_FOLD = re.compile(r"_(\d+(?:[.p]\d+)?)xx?(?:_|$|\.)")
+# `_120ms-30ms_` and `_120ms_30ms_`. Both spellings are in the ExPID71 SNR set
+# (`..._120ms-30ms_600nm_40XW01` and `..._120ms_30ms_600nm_40XW`), so a
+# hyphen-only pattern drops the exposures of one real file without complaining.
+_EXPOSURE = re.compile(r"_(\d+)ms[-_](\d+)ms_")
 _ZSTEP = re.compile(r"_(\d+)nm_")
 _ACQUIRER = re.compile(r"\s+[A-Z][a-z]+\s+[A-Z][a-z]+$")
 
@@ -57,7 +63,7 @@ def parse_stem(filename: str) -> Parsed:
 
     fold = None
     if m := _FOLD.search(stem + "_"):
-        fold = float(m.group(1).replace("p", "."))
+        fold = float(m.group(1).replace("p", "."))   # `14p5` and `14.5` both land here
         derived["fold"] = "filename"
 
     z_step = None

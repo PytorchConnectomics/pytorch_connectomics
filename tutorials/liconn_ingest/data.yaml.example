@@ -27,7 +27,8 @@ publish_prefix: liconn/moe
 # tutorials/neuron_liconn_moe/volumes.py::GCS_PREFIX. `ingest.py` has no default
 # for it on purpose, and this file is the only place to set one.
 clip_variant: FILL              # clip_percentile_1_99 | clip_fixed_120_350
-clip_intensity_range: [120.0, 350.0]
+clip_mode: percentile          # percentile | fixed_intensity
+clip_values: [1.0, 99.0]       # percentiles, or raw intensities e.g. [120.0, 350.0]
 clip_limit: 0.03
 channel: 0                      # index of the structural/membrane channel
 

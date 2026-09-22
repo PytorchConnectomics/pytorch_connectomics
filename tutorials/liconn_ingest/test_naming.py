@@ -74,3 +74,38 @@ def test_fold_must_be_positive():
         except ValueError:
             continue
         raise AssertionError(f"expected ValueError for fold={bad!r}")
+
+
+def test_fold_accepts_the_dotted_spelling_the_expid107_drop_uses():
+    """`_14p5x` was the only fractional form handled until 2026-09-21, when four
+    real `ExPID107_14.5x_*.nd2` arrived and parsed as fold=None -- which would
+    have written the wrong physical spacing into four published groups."""
+    assert naming.parse_stem("ExPID107_14.5x_02.nd2").fold == 14.5
+    assert naming.parse_stem("ExPID107_14p5x_02.nd2").fold == 14.5
+    # The integer and typo forms must not regress.
+    assert naming.parse_stem("ExPID108_32x_Cortex_L1_01.nd2").fold == 32.0
+    assert naming.parse_stem("ExPID96_2ndgel_S3_40XW004_28xx.nd2").fold == 28.0
+
+
+def test_exposures_parse_with_either_separator():
+    """The ExPID71 SNR set spells the pair both ways, in the same folder."""
+    hyphen = naming.parse_stem("ExPID71_120ms-30ms_600nm_40XW01.nd2")
+    under = naming.parse_stem("ExPID71_120ms_30ms_600nm_40XW.nd2")
+    assert hyphen.exposures_ms == under.exposures_ms == frozenset({30, 120})
+    # Still unordered: the filename says 120 first, Moe says 30 was first.
+    assert isinstance(under.exposures_ms, frozenset)
+
+
+def test_zstep_parses_across_the_sweep():
+    for name, zstep in (("ExPID71_Hippocampus_300nm_40XW01.nd2", 300.0),
+                        ("ExPID71_2Hippocampus_500nm_40XW.nd2", 500.0),
+                        ("ExPID71_Hippocampus_600nm_40XW02.nd2", 600.0)):
+        assert naming.parse_stem(name).z_step_nm == zstep, name
+
+
+def test_expid71_fold_is_genuinely_absent_not_defaulted():
+    """Fold is not in the ExPID71 filenames and not in the ND2. It must come
+    back as None so `preprocess` refuses rather than inventing a spacing."""
+    for name in ("ExPID71_Hippocampus_300nm_40XW01.nd2",
+                 "ExPID71_120ms-30ms_600nm_40XW01.nd2"):
+        assert naming.parse_stem(name).fold is None, name
