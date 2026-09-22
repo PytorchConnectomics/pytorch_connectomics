@@ -30,7 +30,7 @@ class TransformerConfig:
     hidden_size: int = 768
     mlp_dim: int = 3072
     num_heads: int = 12
-    pos_embed: str = "perceptron"
+    proj_type: str = "perceptron"
     norm: str = "instance"
     dropout: float = 0.0
     use_checkpoint: bool = False

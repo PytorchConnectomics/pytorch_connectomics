@@ -23,9 +23,17 @@ decode-lever retraction) were measured here. Details:
 
 The source image has a finer 9×9×12 nm mip0, but the proofread segmentation's
 finest scale *is* 18×18×24, so 18 nm is the ceiling for paired image+GT. A
-higher-resolution variant exists (`tutorials/neuron_nisb/liconn_final_banis+_mip0.yaml`,
-image from mip0 + nearest-upsampled GT) but is not part of this pipeline and has
-not been trained.
+higher-resolution variant (`tutorials/neuron_nisb/liconn_final_banis+_mip0.yaml`,
+image from mip0 + nearest-upsampled GT) is **training as of 2026-09-08**
+(job 2982861, 4 GPU). It is not part of this pipeline.
+
+**Do not compare it directly to the 0.9129 below.** That baseline ran on 1 GPU
+(effective batch 2); the mip0 run uses the canonical 4 GPU × batch 2 = 8. The two
+differ in resolution *and* effective batch, so any gap is not a resolution
+measurement. A clean answer needs the 18 nm baseline retrained at 4 GPUs.
+Prior measurement also bounds the headroom: mip0 carries only ~4% of image power
+as genuine extra signal, and the GT is still 18 nm, so it cannot supervise sharper
+boundaries.
 
 ## Before running
 
@@ -49,6 +57,39 @@ python scripts/main.py --config tutorials/neuron_liconn_ist/1_affinity.yaml \
 clean 200k run (val_loss 1.2863 → 1.0601, 2026-07-30) and its val affinity —
 `(3, 145, 4290, 3345)` float16, verified non-degenerate — is what step 2 reads.
 You do not need to re-run step 1 to reproduce the decode.
+
+### The checkpoint is released
+
+```bash
+hf download pytc/liconn affinity_expid82_18nm_128x128x128.ckpt --local-dir ckpt/
+```
+
+[`pytc/liconn`](https://huggingface.co/pytc/liconn) carries the weights-only form
+of that run (247 MB vs the 742 MB local file — same weights, no optimizer state),
+the frozen `train_config.yaml`, and a model card. Verified 2026-09-08: bit-identical
+to the local checkpoint on a real 128³ forward pass with TF32 disabled.
+`params.yaml` exposes it as `params.artifacts.checkpoint_url`.
+
+**Inference must run at the training window `[128, 128, 128]`.** MedNeXt's
+`GroupNorm` has no running statistics, so normalization is computed over the
+sliding window and the forward pass is window-size dependent. The 0.9129 below was
+produced at ROI `[128, 128, 128]`.
+
+### ⚠️ The checkpoint holds raw weights; the logged val_loss is EMA
+
+EMA was on (`decay 0.999`, `validate_with_ema: true`), so the `val_loss_total`
+values in that run's TensorBoard (1.2863 → 1.0601, best 0.9840) were computed on
+**EMA weights**, while the checkpoint's `state_dict` holds the **raw training
+weights** — `EMAWeightsCallback` undoes the swap before the checkpoint is written.
+EMA-state persistence landed in `f998c014` (2026-08-20), three weeks *after* this
+run, so its EMA weights were never saved and cannot be recovered.
+
+This does **not** touch 0.9129: in `--mode test` Lightning never calls
+`on_fit_start`, so `_ema_state` stays `None`, `_apply_ema_weights` returns
+immediately, and inference ran on exactly the weights in the file. But do not
+quote that val_loss as the checkpoint's loss, and treat the
+`epoch=032-val_loss_total=0.9840.ckpt` ranking as advisory — it ranks EMA weights
+while containing raw ones.
 
 Two output conventions step 2 depends on:
 

@@ -1,0 +1,105 @@
+_base_:
+  - base_banis+.yaml
+  - liconn_dataset.yaml
+
+experiment_name: nisb_liconn_banis_v4_thinaff
+description: >-
+  banis+ erosion=2 on LICONN with a CALIBER-WEIGHTED affinity loss. Identical to
+  liconn_banis_v3_erosion2 in every other respect (MedNeXt-L/k3 61.78M, 6-ch
+  r1+r10 affinity, per-channel BCE + EMA, 200k cosine, erosion=2, cc3d ch0:3
+  decode), so the comparison against its 0.211 test / 0.228 tuned-val anchor is
+  controlled.
+
+  WHY. Measured at the GT medial axis on the published seed6 artifacts, the loss
+  of thin processes is near-total and the model's evidence there is genuinely
+  weak -- it is not merely being thresholded away:
+
+    caliber at node   dropped by cc3d@0.70   median max-incident affinity
+    < 27 nm                 100%                    0.459
+    27 - 45 nm               95.2%                  0.521
+    > 126 nm                  5.25%                 0.681
+
+  0.459 and 0.521 sit at or below the model's own 0.5 decision boundary and
+  inside the cross-instance null, so the model is actively saying "not
+  connected" on the thinnest processes. That is a training-side failure.
+
+  The objective is mismatched to the metric: class-balanced BCE counts VOXELS,
+  which thick trunks dominate, while NERL counts skeleton LENGTH, which thin
+  processes dominate. `thin_affinity_weight` re-weights each TRUE same-instance
+  edge by how thin its process is, leaving cross-instance edges at weight 1 so
+  the pressure is one-sided -- it raises confidence on genuine thin
+  continuations without teaching the model to connect across a membrane.
+
+  CALIBER MEANS CALIBER HERE. The weight keys off `local_caliber` (boundary EDT
+  read at the nearest medial point and propagated outward), NOT the raw boundary
+  EDT. This distinction is load-bearing and an earlier version of this config got
+  it wrong: on a liconn 256^3 crop, 76.8% of the voxels with EDT < 27 nm actually
+  live in processes wider than 72 nm (median true caliber 120 nm, corr(edt,
+  caliber) = 0.56). An EDT-keyed weight is a near-membrane weight -- it upweights
+  the skin of thick trunks, which is the opposite of the intent.
+  With radius_ref 72 nm on real liconn crops the weight covers 19.6% of
+  foreground, range [1.00, 3.62], mean 1.12 -- targeted, not a global rescale.
+
+  WHAT THE WEIGHT CAN AND CANNOT DO. Inference applies BANIS' `scale_sigmoid`,
+  i.e. sigmoid(0.2*logit), so the 0.70 decode threshold really demands
+  P(same) >= 0.986 per edge. A loss weight w shifts the Bayes-optimal logit by
+  only ln(w), so w=4 is worth ~1.4 logits and reaching that threshold by bias
+  alone would need w ~ 45. This is therefore NOT a calibration fix: a pure bias
+  shift is equivalent to lowering the threshold, which tuning already optimizes.
+  The mechanism that can pay is CAPACITY RE-ALLOCATION -- giving the thin band 4x
+  the gradient it gets today so its evidence improves, not just its offset.
+
+  GATE, on the VAL VOLUME (seed5) at a RE-TUNED threshold -- deliberately not on
+  the 512^3 crop harness. That harness re-cc3d's the GT inside the crop, which
+  chops long neurons into fragments and so under-penalises merges: its optimal
+  threshold is ~0.60 where the full volume scores 0.037 and peaks at 0.68. The
+  crop cannot rank any intervention that trades merges for coverage.
+    PASS  tuned-val NERL > 0.228 (anchor), and the fraction of GT skeleton nodes
+          with caliber < 45 nm that cc3d drops falls below the 95-100% above.
+    KILL  tuned-val NERL <= 0.228, or the thin-node drop rate is unchanged --
+          in which case the thin evidence is not recoverable by reweighting local
+          affinity supervision and the next move is object context, not a loss.
+
+save_path: outputs/nisb_liconn_banis_v4_thinaff
+
+default:
+  data:
+    label_transform:
+      # Global erosion stays 2 so the affinity target is bit-identical to the
+      # anchor. thin_affinity_weight reads the same eroded label, so its caliber
+      # and the affinity target agree edge for edge.
+      erosion: 2
+      targets:
+        # ch0:6 -- the anchor's affinity target, unchanged.
+        - name: affinity
+          kwargs:
+            offsets: ["1-0-0", "0-1-0", "0-0-1", "10-0-0", "0-10-0", "0-0-10"]
+            affinity_mode: banis
+        # ch6:12 -- per-edge loss weight, NOT a prediction target. The model
+        # still emits 6 channels; the loss reads this through mask_slice.
+        - name: thin_affinity_weight
+          kwargs:
+            offsets: ["1-0-0", "0-1-0", "0-0-1", "10-0-0", "0-10-0", "0-0-10"]
+            affinity_mode: banis
+            # TRUE voxel size in the (X, Y, Z) order the BANIS pipeline keeps on
+            # disk. Note this is NOT the [18,18,25] the data section declares --
+            # the GT itself was built at [9,9,12] (verified from the skeleton's
+            # nm_position / index_position ratio).
+            resolution: [9.0, 9.0, 12.0]
+            radius_ref: 72.0     # caliber at/above which the weight is 1
+            max_weight: 4.0      # weight at zero caliber (~1.4 logits)
+            include_negative: false
+            medial_window: 5
+  model:
+    loss:
+      deep_supervision: false
+      losses:
+        - function: PerChannelBCEWithLogitsLoss
+          weight: 1.0
+          target_slice: "0:6"
+          # The orchestrator multiplies this into the affinity valid mask, so
+          # invalid edges stay masked and valid ones get the caliber weight.
+          mask_slice: "6:12"
+          kwargs:
+            auto_pos_weight: true
+            max_pos_weight: 10.0

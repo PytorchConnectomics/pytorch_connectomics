@@ -1,0 +1,18 @@
+# Same voxel-scale architecture, patch budget and ABISS settings as the 20 nm run.
+_base_: dispim_snemi_20epoch.yaml
+experiment_name: dispim_snemi_partial_gated_5nm_20epoch
+save_path: outputs/dispim_gcloud/5nm/training
+default:
+  data:
+    label_transform:
+      resolution: [5, 5, 5]
+train:
+  data:
+    train:
+      resolution: [5, 5, 5]
+    val:
+      resolution: [5, 5, 5]
+test:
+  data:
+    test:
+      resolution: [5, 5, 5]

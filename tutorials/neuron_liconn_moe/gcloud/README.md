@@ -25,9 +25,9 @@ environment and defaults to the BC paths:
 | `LICONN_MOE_REPO` | `/projects/weilab/weidf/lib/pytorch_connectomics` | `/workspace` |
 | `LICONN_MOE_SRC_ZARR` | `…/preprocessed/clip_percentile_1_99/zarr` | `/work/src` |
 | `LICONN_MOE_PREPARED` | `…/prepared_train_grid` | `/work/prepared` |
-| `LICONN_MOE_OUT_ROOT` | `…/outputs/neuron_liconn_moe` | `/work/out` |
-| `LICONN_MOE_CKPT` | the BC 200k checkpoint | the HuggingFace copy |
-| `LICONN_MOE_GCS_PREFIX` | `liconn/moe/clip_percentile_1_99` | `liconn/moe/expid108` |
+| `MOE_OUT_ROOT` | `…/outputs/neuron_liconn_moe/eb2` | `/work/out` |
+| `MOE_CKPT` | the BC 200k checkpoint | the HuggingFace copy |
+| `MOE_GCS_KIND` | inferred from output tree (`mip1_eb2`) | `mip1_eb2` |
 
 So there is no second copy of the recipe table, the resample, the threshold rule
 or the uploader to drift out of sync, and a SLURM submission with a clean
@@ -44,7 +44,7 @@ pipeline is applying, including the fact that the stored affinity is
 `sigmoid(0.2 · logit)` and spans about `[0.01, 0.80]` — which is why every
 threshold here is a percentile.
 
-`LICONN_MOE_CKPT` must sit under a `YYYYmmdd_HHMMSS` directory.
+`MOE_CKPT` must sit under a `YYYYmmdd_HHMMSS` directory.
 `runtime/checkpoint_dispatch.py::get_output_base_from_checkpoint` walks the
 checkpoint's parents looking for exactly that pattern to decide where test
 outputs land; with no such ancestor it falls back to `<ckpt>/../../<stem>`,
@@ -170,7 +170,7 @@ the VM.
 | affinity, `(3,Z,Y,X)` float16 | `gs://donglai_public/liconn/moe/expid108/affinity/<vol>_affinity_x1_ch0-1-2.h5` |
 | segmentation h5, uint32 | `…/expid108/seg/<vol>_seg_abiss_mt###.h5` |
 | threshold sweep table | `…/expid108/seg/<vol>_mt_sweep.json` |
-| precomputed layer + meshes | `…/expid108/<vol>_seg_abiss_mt###/` |
+| precomputed layer + meshes | `…/expid108/mip1_eb2/<vol>_seg_abiss_mt###/` |
 | log, run manifest, image identity | `gs://donglai/liconn/moe/runs/<RUN_ID>/` — **private** |
 | the image archive (shared across runs) | `gs://donglai/liconn/moe/images/<IMAGE_ID>/build/` — **private** |
 

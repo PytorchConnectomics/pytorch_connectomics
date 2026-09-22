@@ -4,6 +4,7 @@ import numpy as np
 import pytest
 
 from connectomics.data.processing.affinity import (
+    local_caliber,
     seg_to_affinity,
     seg_to_thin_affinity_weight,
 )
@@ -14,14 +15,17 @@ OFFSETS = ["1-0-0", "0-1-0", "0-0-1"]
 
 
 def _two_bars():
-    """A thick bar and a thin bar of the same instance-free geometry.
+    """A thick bar and a thin bar, separated by background.
 
-    Instance 1 is 7 voxels wide in axis 1, instance 2 is 1 voxel wide, with a
-    background gap between them so the boundary EDT differs strongly.
+    Instance 1 is 16 voxels wide in axis 1 (caliber 8), instance 2 is 1 voxel
+    wide (caliber ~0.5). Wide enough that the thick bar's caliber clears a
+    radius_ref of 4 everywhere, including at its own membrane -- which is the
+    whole point: the weight must key off the PROCESS thickness, not off how
+    close a voxel sits to a boundary.
     """
-    seg = np.zeros((16, 16, 4), np.int32)
-    seg[:, 2:9, :] = 1  # thick
-    seg[:, 13:14, :] = 2  # thin
+    seg = np.zeros((40, 40, 4), np.int32)
+    seg[:, 2:18, :] = 1  # thick, 16 wide
+    seg[:, 30:31, :] = 2  # thin, 1 wide
     return seg
 
 
@@ -38,8 +42,13 @@ def test_weight_is_higher_on_the_thin_instance():
     assert thin_w.mean() > thick_w.mean()
     # the 1-voxel-wide bar has caliber ~0.5 voxel -> nearly the full weight
     assert thin_w.min() >= 4.0
-    # the core of the 7-wide bar is >= radius_ref away from the boundary
-    assert thick_w.min() == pytest.approx(1.0)
+    # REGRESSION GUARD: every voxel of the 16-wide bar has caliber 8 >= radius_ref,
+    # so the whole instance must sit at weight 1 -- INCLUDING the voxels touching
+    # its own membrane. Keying the weight off the raw boundary EDT instead of the
+    # caliber gives those membrane voxels the full thin weight, which is the bug
+    # this target had: on real liconn data 76.8% of the voxels an EDT rule calls
+    # "thin" live in processes wider than 72 nm.
+    assert thick_w.max() == pytest.approx(1.0)
 
 
 def test_cross_instance_and_background_edges_keep_weight_one():
@@ -56,12 +65,8 @@ def test_cross_instance_and_background_edges_keep_weight_one():
 def test_include_negative_weights_every_edge():
     seg = _two_bars()
     w = seg_to_thin_affinity_weight(
-        seg,
-        offsets=OFFSETS,
-        affinity_mode="banis",
-        radius_ref=4.0,
-        max_weight=5.0,
-        include_negative=True,
+        seg, offsets=OFFSETS, affinity_mode="banis", radius_ref=4.0,
+        max_weight=5.0, include_negative=True,
     )
     aff = seg_to_affinity(seg, offsets=OFFSETS, affinity_mode="banis")
     # boundary voxels of the thick bar are cross-instance/background edges but
@@ -73,20 +78,12 @@ def test_resolution_makes_an_anisotropic_axis_count_more():
     seg = np.zeros((16, 16, 16), np.int32)
     seg[:, 6:10, :] = 1  # 4 voxels wide along axis 1
     iso = seg_to_thin_affinity_weight(
-        seg,
-        offsets=OFFSETS,
-        affinity_mode="banis",
-        resolution=(1.0, 1.0, 1.0),
-        radius_ref=8.0,
-        max_weight=5.0,
+        seg, offsets=OFFSETS, affinity_mode="banis",
+        resolution=(1.0, 1.0, 1.0), radius_ref=8.0, max_weight=5.0,
     )
     aniso = seg_to_thin_affinity_weight(
-        seg,
-        offsets=OFFSETS,
-        affinity_mode="banis",
-        resolution=(1.0, 4.0, 1.0),
-        radius_ref=8.0,
-        max_weight=5.0,
+        seg, offsets=OFFSETS, affinity_mode="banis",
+        resolution=(1.0, 4.0, 1.0), radius_ref=8.0, max_weight=5.0,
     )
     # with axis 1 stretched 4x the bar is physically thicker, so it is weighted less
     assert aniso.mean() < iso.mean()
@@ -98,7 +95,8 @@ def test_shape_matches_the_paired_affinity_target():
         w = seg_to_thin_affinity_weight(
             seg, offsets=offsets, long_range=long_range, affinity_mode="banis"
         )
-        aff = seg_to_affinity(seg, offsets=offsets, long_range=long_range, affinity_mode="banis")
+        aff = seg_to_affinity(seg, offsets=offsets, long_range=long_range,
+                              affinity_mode="banis")
         assert w.shape == aff.values.shape
         assert w.dtype == np.float32
 
@@ -131,12 +129,8 @@ def test_registered_in_the_label_transform_and_channel_count():
         {"name": "affinity", "kwargs": {"offsets": OFFSETS, "affinity_mode": "banis"}},
         {
             "name": "thin_affinity_weight",
-            "kwargs": {
-                "offsets": OFFSETS,
-                "affinity_mode": "banis",
-                "radius_ref": 4.0,
-                "max_weight": 5.0,
-            },
+            "kwargs": {"offsets": OFFSETS, "affinity_mode": "banis",
+                       "radius_ref": 4.0, "max_weight": 5.0},
         },
     ]
     assert count_stacked_label_transform_channels({"targets": tasks}) == 6
@@ -144,8 +138,43 @@ def test_registered_in_the_label_transform_and_channel_count():
     transform = MultiTaskLabelTransformd(keys=["label"], tasks=tasks)
     out = transform({"label": _two_bars()[None]})
     stacked = out["label"]
-    assert tuple(stacked.shape) == (6, 16, 16, 4)
+    assert tuple(stacked.shape) == (6, 40, 40, 4)
     weights = stacked[3:6].numpy()
     assert weights.min() >= 1.0 and weights.max() > 1.0
     # the affinity valid mask still covers the affinity channels only
-    assert tuple(out["label_mask"].shape) == (6, 16, 16, 4)
+    assert tuple(out["label_mask"].shape) == (6, 40, 40, 4)
+
+
+def test_local_caliber_is_process_thickness_not_depth_below_membrane():
+    """The distinction the whole target rests on."""
+    seg = np.zeros((40, 40, 4), np.int32)
+    seg[:, 2:18, :] = 1  # 16 wide -> caliber 8
+    seg[:, 30:31, :] = 2  # 1 wide  -> caliber ~0.5
+
+    from scipy import ndimage as ndi
+    edt = ndi.distance_transform_edt(seg > 0)
+    cal = local_caliber(seg)
+
+    # the raw EDT cannot tell the thick bar's skin from the thin bar
+    assert edt[:, 2, :].max() == pytest.approx(edt[:, 30, :].max())
+    # caliber can: the thick bar reports its half-width everywhere it is defined
+    assert cal[:, 2:18, :].max() == pytest.approx(8.0)
+    assert cal[:, 30, :].max() < 2.0
+    # and it is constant across the thick bar rather than falling off at the edge
+    assert cal[:, 3:17, :].min() >= 7.0
+    assert (cal[seg == 0] == 0).all()
+
+
+def test_local_caliber_respects_anisotropic_resolution():
+    seg = np.zeros((24, 24, 24), np.int32)
+    seg[:, 8:16, :] = 1  # 8 voxels wide along axis 1
+    iso = local_caliber(seg, resolution=(1.0, 1.0, 1.0))
+    stretched = local_caliber(seg, resolution=(1.0, 4.0, 1.0))
+    assert stretched[seg > 0].max() > iso[seg > 0].max()
+
+
+def test_local_caliber_handles_empty_and_full_volumes():
+    empty = np.zeros((8, 8, 8), np.int32)
+    assert local_caliber(empty).max() == 0.0
+    full = np.ones((8, 8, 8), np.int32)
+    assert local_caliber(full).max() > 0.0

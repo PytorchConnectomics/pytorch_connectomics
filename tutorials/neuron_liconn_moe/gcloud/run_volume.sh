@@ -36,10 +36,10 @@ CKPT_FILE="${CKPT_FILE:-affinity_expid82_18nm_128x128x128.ckpt}"
 export LICONN_MOE_REPO="$REPO"
 export LICONN_MOE_SRC_ZARR="$WORK/src"
 export LICONN_MOE_PREPARED="$WORK/prepared"
-export LICONN_MOE_OUT_ROOT="$WORK/out"
-export LICONN_MOE_CKPT="$WORK/ckpt/$CKPT_RUN/checkpoints/$CKPT_FILE"
+export MOE_OUT_ROOT="$WORK/out"
+export MOE_CKPT="$WORK/ckpt/$CKPT_RUN/checkpoints/$CKPT_FILE"
 export LICONN_MOE_GCS_BUCKET="${LICONN_MOE_GCS_BUCKET:-donglai_public}"
-export LICONN_MOE_GCS_PREFIX="${LICONN_MOE_GCS_PREFIX:-liconn/moe/expid108}"
+export MOE_GCS_KIND="${MOE_GCS_KIND:-mip1_eb2}"
 
 export PYTHONPATH="$REPO${PYTHONPATH:+:$PYTHONPATH}"
 export HDF5_USE_FILE_LOCKING=FALSE
@@ -47,7 +47,7 @@ export ABISS_HOME="${ABISS_HOME:-/opt/abiss}"
 
 T="$REPO/tutorials/neuron_liconn_moe"
 cd "$REPO"
-mkdir -p "$LICONN_MOE_PREPARED" "$LICONN_MOE_OUT_ROOT"
+mkdir -p "$LICONN_MOE_PREPARED" "$MOE_OUT_ROOT"
 
 step() { echo; echo "=== $* === $(date -Is)"; }
 
@@ -84,7 +84,7 @@ if [[ -s "$AFF_H5" ]]; then
 else
     CFG=$(python "$T/make_volume_config.py" --volume "$VOL" | tail -1)
     echo "config $CFG"
-    python scripts/main.py --config "$CFG" --mode test --checkpoint "$LICONN_MOE_CKPT"
+    python scripts/main.py --config "$CFG" --mode test --checkpoint "$MOE_CKPT"
 fi
 
 # The only GT-free readout there is at this stage: if the affinity mid-plane is
@@ -122,5 +122,5 @@ python "$T/upload_seg_precomputed.py" --volume "$VOL" \
     --create --downsample --mesh --parallel "$(nproc)"
 
 step "done"
-find "$LICONN_MOE_OUT_ROOT" -maxdepth 3 \( -name '*.json' -o -name '*.h5' \) -print | sort
-du -sh "$LICONN_MOE_OUT_ROOT"/precomputed/* 2>/dev/null || true
+find "$MOE_OUT_ROOT" -maxdepth 3 \( -name '*.json' -o -name '*.h5' \) -print | sort
+du -sh "$MOE_OUT_ROOT"/precomputed/* 2>/dev/null || true

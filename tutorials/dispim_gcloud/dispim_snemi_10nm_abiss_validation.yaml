@@ -1,0 +1,15 @@
+# Infer the held-out training-volume slab with the saved 10 nm checkpoint.
+# Select decoder settings here before evaluating the independent test volume.
+_base_: dispim_snemi_10nm_20epoch.yaml
+experiment_name: dispim_snemi10_abiss_validation
+save_path: outputs/dispim_gcloud/10nm/abiss_validation
+test:
+  inference:
+    model:
+      # The 60-slice slab is first symmetrically padded to the 64-voxel
+      # minimum patch size. Remove those extra two slices at each Z end.
+      crop_pad: [33, 34, 31, 32, 31, 32]
+  data:
+    test:
+      image: val-views.h5
+      label: val-labels.h5

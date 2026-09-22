@@ -1,0 +1,3456 @@
+experiment_name: liconn_final_banis_plus_tube
+description: BANIS+ (MedNeXt-L/k3, per-channel BCE, EMA, erosion=2) trained from scratch
+  on the final-proofread LICONN volume at 18x18x24 nm. The held-out 145-slice validation
+  region is inferred as ZYX affinity and decoded with the staged tube graph from tutorials/neuron_axon.
+save_path: outputs/liconn_final_banis_plus_tube/20260728_032436/checkpoints
+system:
+  profile: null
+  num_gpus: 1
+  num_workers: 16
+  seed: 42
+model:
+  arch:
+    profile: null
+    type: mednext
+    variant: null
+    params: {}
+  input_size:
+  - 128
+  - 128
+  - 128
+  output_size:
+  - 128
+  - 128
+  - 128
+  in_channels: 1
+  out_channels: 6
+  primary_head: null
+  heads: {}
+  monai:
+    filters:
+    - 32
+    - 64
+    - 128
+    - 256
+    - 512
+    dropout: 0.0
+    norm: batch
+    num_groups: 8
+    activation: relu
+    spatial_dims: 3
+    num_res_units: 2
+    kernel_size: 3
+    strides: null
+    upsample_mode: deconv
+    upsample_interp_mode: linear
+    upsample_align_corners: true
+  transformer:
+    feature_size: 16
+    hidden_size: 768
+    mlp_dim: 3072
+    num_heads: 12
+    pos_embed: perceptron
+    norm: instance
+    dropout: 0.0
+    use_checkpoint: false
+    attn_drop_rate: 0.0
+    dropout_path_rate: 0.0
+  mednext:
+    size: L
+    base_channels: 32
+    exp_r: 4
+    kernel_size: 3
+    do_res: true
+    do_res_up_down: true
+    block_counts:
+    - 2
+    - 2
+    - 2
+    - 2
+    - 2
+    - 2
+    - 2
+    - 2
+    - 2
+    checkpoint_style: outside_block
+    norm: group
+    dim: 3d
+    grn: false
+  rsunet:
+    width:
+    - 16
+    - 32
+    - 64
+    - 128
+    norm: batch
+    activation: relu
+    num_groups: 8
+    down_factors: null
+    depth_2d: 0
+    kernel_2d:
+    - 1
+    - 3
+    - 3
+    act_negative_slope: 0.01
+    act_init: 0.25
+  nnunet:
+    checkpoint: null
+    plans: null
+    dataset: null
+    device: cuda
+    spatial_dims: null
+  loss:
+    deep_supervision: false
+    deep_supervision_weights: null
+    deep_supervision_clamp_min: -20.0
+    deep_supervision_clamp_max: 20.0
+    losses:
+    - function: PerChannelBCEWithLogitsLoss
+      weight: 1.0
+      kwargs:
+        auto_pos_weight: true
+        max_pos_weight: 10.0
+    loss_balancing:
+      strategy: null
+      gradnorm_alpha: 0.5
+      gradnorm_lambda: 1.0
+      gradnorm_parameter_strategy: last
+  external_weights_path: null
+  external_weights_key_prefix: model.
+default:
+  system:
+    profile: null
+    num_gpus: -1
+    num_workers: -1
+    seed: 42
+  model:
+    arch:
+      profile: null
+      type: mednext
+      variant: null
+      params: {}
+    input_size:
+    - 128
+    - 128
+    - 128
+    output_size:
+    - 128
+    - 128
+    - 128
+    in_channels: 1
+    out_channels: 6
+    primary_head: null
+    heads: {}
+    monai:
+      filters:
+      - 32
+      - 64
+      - 128
+      - 256
+      - 512
+      dropout: 0.0
+      norm: batch
+      num_groups: 8
+      activation: relu
+      spatial_dims: 3
+      num_res_units: 2
+      kernel_size: 3
+      strides: null
+      upsample_mode: deconv
+      upsample_interp_mode: linear
+      upsample_align_corners: true
+    transformer:
+      feature_size: 16
+      hidden_size: 768
+      mlp_dim: 3072
+      num_heads: 12
+      pos_embed: perceptron
+      norm: instance
+      dropout: 0.0
+      use_checkpoint: false
+      attn_drop_rate: 0.0
+      dropout_path_rate: 0.0
+    mednext:
+      size: L
+      base_channels: 32
+      exp_r: 4
+      kernel_size: 3
+      do_res: true
+      do_res_up_down: true
+      block_counts:
+      - 2
+      - 2
+      - 2
+      - 2
+      - 2
+      - 2
+      - 2
+      - 2
+      - 2
+      checkpoint_style: outside_block
+      norm: group
+      dim: 3d
+      grn: false
+    rsunet:
+      width:
+      - 16
+      - 32
+      - 64
+      - 128
+      norm: batch
+      activation: relu
+      num_groups: 8
+      down_factors: null
+      depth_2d: 0
+      kernel_2d:
+      - 1
+      - 3
+      - 3
+      act_negative_slope: 0.01
+      act_init: 0.25
+    nnunet:
+      checkpoint: null
+      plans: null
+      dataset: null
+      device: cuda
+      spatial_dims: null
+    loss:
+      deep_supervision: false
+      deep_supervision_weights: null
+      deep_supervision_clamp_min: -20.0
+      deep_supervision_clamp_max: 20.0
+      losses:
+      - function: PerChannelBCEWithLogitsLoss
+        weight: 1.0
+        kwargs:
+          auto_pos_weight: true
+          max_pos_weight: 10.0
+      loss_balancing:
+        strategy: null
+        gradnorm_alpha: 0.5
+        gradnorm_lambda: 1.0
+        gradnorm_parameter_strategy: last
+    external_weights_path: null
+    external_weights_key_prefix: model.
+  data:
+    root_path: ''
+    split_enabled: false
+    split_train_range:
+    - 0.0
+    - 0.8
+    split_val_range:
+    - 0.8
+    - 1.0
+    split_axis: 0
+    split_pad_val: true
+    split_pad_mode: reflect
+    train:
+      dataset_type: null
+      do_2d: false
+      path: ''
+      image: null
+      label: null
+      label_aux: null
+      label_aux_type: skeleton
+      mask: null
+      json: null
+      image_key: images
+      label_key: masks
+      split_ratio: null
+      resolution: null
+      skeleton: null
+      skeleton_mask: null
+      name: null
+    val:
+      dataset_type: null
+      do_2d: false
+      path: ''
+      image: null
+      label: null
+      label_aux: null
+      label_aux_type: skeleton
+      mask: null
+      json: null
+      image_key: images
+      label_key: masks
+      split_ratio: null
+      resolution: null
+      skeleton: null
+      skeleton_mask: null
+      name: null
+    test:
+      dataset_type: null
+      do_2d: false
+      path: ''
+      image: null
+      label: null
+      label_aux: null
+      label_aux_type: skeleton
+      mask: null
+      json: null
+      image_key: images
+      label_key: masks
+      split_ratio: null
+      resolution: null
+      skeleton: null
+      skeleton_mask: null
+      name: null
+    dataloader:
+      batch_size: 2
+      patch_size:
+      - 128
+      - 128
+      - 128
+      target_context:
+      - 0
+      - 0
+      - 0
+      - 10
+      - 10
+      - 10
+      read_downscale: 1.0
+      pin_memory: true
+      use_preloaded_cache_train: false
+      use_preloaded_cache_val: false
+      persistent_workers: true
+      use_cache: false
+      cache_rate: 1.0
+      use_lazy_zarr: true
+      use_lazy_h5: false
+      cached_sampling_max_attempts: 10
+      cached_sampling_foreground_threshold: 0.0
+      cached_sampling_crop_to_nonzero_mask: false
+      cached_sampling_sample_nonzero_mask: false
+      reject_sampling: null
+      val_random_sampling: true
+    data_transform:
+      resize: null
+      align_to_image: false
+      binarize: false
+      threshold: 0.0
+      pad_size:
+      - 0
+      - 0
+      - 0
+      pad_mode: reflect
+      stride:
+      - 1
+      - 1
+      - 1
+      train_transpose: []
+      val_transpose: []
+      target_spacing: null
+      median_shape: null
+    image_transform:
+      transform_profile: null
+      normalize: divide-255
+      clip_percentile_low: 0.0
+      clip_percentile_high: 1.0
+    nnunet_preprocessing:
+      enabled: false
+      crop_to_nonzero: true
+      target_spacing: null
+      source_spacing: null
+      normalization: zscore
+      normalization_use_nonzero_mask: true
+      clip_percentile_low: 0.0
+      clip_percentile_high: 1.0
+      force_separate_z: null
+      anisotropy_threshold: 3.0
+      image_order: 3
+      label_order: 0
+      order_z: 0
+      restore_to_input_space: true
+    mask_transform: null
+    label_transform:
+      normalize: true
+      erosion: 2
+      emit_gt_seg: false
+      skeleton_distance:
+        enabled: false
+        resolution:
+        - 1.0
+        - 1.0
+        - 1.0
+        alpha: 0.8
+        smooth: true
+        bg_value: -1.0
+      edge_mode:
+        mode: all
+        thickness: 1
+        processing_mode: 2d
+      keys:
+      - label
+      stack_outputs: true
+      retain_original: false
+      output_dtype: float32
+      output_key_format: '{key}_{task}'
+      allow_missing_keys: false
+      relabel_connected_components: false
+      relabel_connectivity: 6
+      segment_id: null
+      boundary_thickness: 1
+      resolution: null
+      cache_dir: ''
+      targets:
+      - name: affinity
+        kwargs:
+          offsets:
+          - 1-0-0
+          - 0-1-0
+          - 0-0-1
+          - 10-0-0
+          - 0-10-0
+          - 0-0-10
+          affinity_mode: banis
+    augmentation:
+      defect_mutex: false
+      flip:
+        enabled: true
+        prob: 0.5
+        spatial_axis:
+        - 0
+        - 1
+        - 2
+      axis_permute:
+        enabled: true
+        prob: 1.0
+        include_identity: true
+      rotate90_all:
+        enabled: true
+        prob: 1.0
+        include_identity: true
+      affine:
+        enabled: true
+        prob: 0.5
+        rotate_range:
+        - 3.141592653589793
+        - 3.141592653589793
+        - 3.141592653589793
+        scale_range:
+        - 0.2
+        - 0.2
+        - 0.2
+        shear_range:
+        - 0.5
+        - 0.5
+        - 0.5
+      rotate:
+        enabled: false
+        prob: 0.5
+        spatial_axes:
+        - 1
+        - 2
+      elastic:
+        enabled: false
+        prob: 0.0
+        sigma_range:
+        - 3.0
+        - 6.0
+        magnitude_range:
+        - 10.0
+        - 20.0
+      intensity:
+        enabled: true
+        gaussian_noise_prob: 0.5
+        gaussian_noise_std: 0.5
+        banis_style: true
+        mul_add_prob: 0.5
+        mul_range:
+        - 0.9
+        - 1.1
+        add_range:
+        - -0.1
+        - 0.1
+        shift_intensity_prob: 0.5
+        shift_intensity_offset: 0.1
+        contrast_prob: 0.5
+        contrast_range:
+        - 0.9
+        - 1.1
+      slice_shift:
+        enabled: true
+        prob: 0.5
+        slice_prob: 0.05
+        shift_magnitude: 10
+        spatial_axis:
+        - 0
+        - 1
+        - 2
+        wrap: true
+      slice_drop:
+        enabled: true
+        prob: 0.5
+        slice_prob: 0.05
+        spatial_axis:
+        - 0
+        - 1
+        - 2
+        fill_value: 0.0
+        preserve_boundaries: false
+      slice_shift_z:
+        enabled: false
+        prob: 0.0
+        displacement: 16
+        rotate_ratio: 0.0
+      slice_drop_z:
+        enabled: false
+        prob: 0.0
+        num_sections: 2
+        full_section_prob: 0.5
+        partial_ratio_range:
+        - 0.25
+        - 0.75
+        fill_value_range:
+        - 0.0
+        - 1.0
+      misalignment:
+        enabled: false
+        prob: 0.0
+        displacement: 16
+        rotate_ratio: 0.0
+      missing_section:
+        enabled: false
+        prob: 0.0
+        num_sections: 2
+        full_section_prob: 0.5
+        partial_ratio_range:
+        - 0.25
+        - 0.75
+        fill_value_range:
+        - 0.0
+        - 1.0
+      lost_section:
+        enabled: false
+        prob: 0.0
+        num_sections: 1
+        mode: random_neighbor
+      motion_blur:
+        enabled: false
+        prob: 0.0
+        sections:
+        - 1
+        - 3
+        kernel_size: 9
+        sigma_range:
+        - 1.0
+        - 3.0
+        full_section_prob: 0.5
+        partial_ratio_range:
+        - 0.25
+        - 0.75
+      cut_noise:
+        enabled: false
+        prob: 0.0
+        length_ratio:
+        - 0.1
+        - 0.4
+        noise_scale:
+        - 0.05
+        - 0.15
+      cut_blur:
+        enabled: false
+        prob: 0.0
+        length_ratio:
+        - 0.1
+        - 0.4
+        down_ratio_range:
+        - 2.0
+        - 8.0
+        downsample_z: false
+      missing_parts:
+        enabled: false
+        prob: 0.0
+        hole_range:
+        - 8.0
+        - 32.0
+      stripe:
+        enabled: false
+        prob: 0.0
+        num_stripes_range:
+        - 1
+        - 5
+        thickness_range:
+        - 1
+        - 3
+        intensity_range:
+        - 0.7
+        - 1.3
+        angle_range:
+        - -10.0
+        - 10.0
+        orientation: random
+        mode: multiply
+      mixup:
+        enabled: false
+        alpha: 0.2
+        prob: 0.0
+        alpha_range:
+        - 0.1
+        - 0.4
+      copy_paste:
+        enabled: false
+        prob: 0.0
+        max_obj_ratio: 0.05
+        rotation_angles:
+        - 0
+        - 90
+        - 180
+        border: 8
+  optimization:
+    optimizer:
+      name: AdamW
+      lr: 0.001
+      weight_decay: 0.01
+      momentum: 0.9
+      betas:
+      - 0.9
+      - 0.999
+      eps: 1.0e-08
+    scheduler:
+      profile: null
+      name: CosineAnnealingLR
+      params: {}
+      monitor: null
+      mode: min
+      factor: 0.1
+      patience: 10
+      threshold: 0.0001
+      cooldown: 0
+      eps: 1.0e-08
+      warmup_epochs: 10
+      warmup_start_lr: 0.0001
+      min_lr: 1.0e-05
+      interval: epoch
+      frequency: 1
+    ema:
+      enabled: false
+      decay: 0.999
+      warmup_steps: 0
+      validate_with_ema: true
+      device: null
+      copy_buffers: true
+    max_epochs: 200
+    max_steps: null
+    n_steps_per_epoch: -1
+    val_steps_per_epoch: null
+    gradient_clip_val: 1.0
+    accumulate_grad_batches: 1
+    precision: 16-mixed
+    val_check_interval: 1.0
+    val_check_interval_unit: epoch
+    log_every_n_steps: 100
+    num_sanity_val_steps: 2
+    deterministic: null
+    benchmark: null
+  monitor:
+    checkpoint:
+      monitor: val_loss
+      mode: min
+      save_top_k: 3
+      save_last: true
+      filename: null
+      checkpoint_filename: '{epoch:03d}-{train_loss_total_epoch:.4f}'
+      save_every_n_epochs: 1
+      save_every_n_steps: null
+      step_checkpoint_filename: '{step:08d}'
+      save_on_train_epoch_end: true
+    early_stopping:
+      enabled: false
+      monitor: val_loss
+      mode: min
+      patience: 100
+      min_delta: 0.0001
+      check_finite: true
+      threshold: 0.02
+      divergence_threshold: 2.0
+    logging:
+      scalar:
+        enabled: true
+        interval: step
+        loss: null
+        loss_every_n_steps: 100
+        benchmark: null
+      images:
+        enabled: true
+        interval: epoch
+        max_images: 4
+        num_slices: 4
+        slice_sampling: uniform
+        log_every_n_epochs: 1
+        max_channels: 12
+        channels: null
+        channel_mode: all
+        selected_channels: null
+        head: null
+      prediction_saving:
+        enabled: false
+        interval: epoch
+        max_samples: 2
+        output_subdir: val_predictions
+    nan_detection:
+      enabled: true
+      debug_on_nan: true
+    wandb:
+      use_wandb: false
+      project: connectomics
+      entity: null
+      tags: null
+      name: null
+    detect_anomaly: false
+  inference:
+    model:
+      head: null
+      select_channel:
+      - 0
+      - 1
+      - 2
+      output_dtype: float16
+      activation_profile: null
+      channel_activations:
+      - channels: ':'
+        activation: scale_sigmoid
+      crop_pad: null
+    execution:
+      strategy: whole_volume
+      do_eval: true
+    window:
+      enabled: false
+      window_size:
+      - 128
+      - 128
+      - 128
+      sw_batch_size: 8
+      overlap: 0.5
+      blending: distance_transform
+      padding_mode: reflect
+      cval: 0.0
+      keep_input_on_cpu: true
+      distributed_sharding: false
+      distributed_reduce_chunk_mb: 128
+      sw_device: cuda
+      output_device: cpu
+      snap_to_edge: true
+      target_context: []
+      border_mask: []
+    chunking:
+      enabled: false
+      output_mode: decoded
+      chunk_size: null
+      halo:
+      - 0
+      - 0
+      - 0
+      axes: all
+      roi: null
+      shard_id: null
+      num_shards: null
+      temp_dir: ''
+      save_intermediate: false
+      stitching:
+        method: affinity_cc_boundary_union
+        threshold: null
+        edge_offset: null
+        min_contact: 1
+    save_results: true
+    save_path: ''
+    save_cache_suffix: _x1_prediction.h5
+    save_all_heads: false
+    save_dtype: null
+    save_backend: h5
+    save_compression: gzip
+    test_time_augmentation:
+      enabled: false
+      distributed_sharding: true
+      distributed_reduce_chunk_mb: 128
+      flip_axes: all
+      flip_combinations: null
+      rotation90_axes: null
+      rotate90_k: null
+      patch_first_local: true
+      apply_mask: true
+      transforms: null
+      ensemble_mode: mean
+      empty_cache_interval: 4
+    load_tta_path: ''
+    prediction_transform:
+      enabled: false
+      intensity_scale: -1.0
+      intensity_dtype: null
+    memory_cleanup:
+      enabled: true
+      gc_collect: true
+      empty_cuda_cache: true
+      release_model_after_inference: false
+    system:
+      profile: null
+      num_gpus: -1
+      num_workers: -1
+      seed: 42
+  decoding:
+    enabled: true
+    save_intermediate: false
+    save_results: true
+    save_path: ''
+    save_suffix: ''
+    graph:
+      nodes:
+      - enabled: true
+        name: sections
+        op: seg_2d
+        inputs:
+        - raw
+        kwargs:
+          thr: 0.3
+          aff_bg: 0.66
+          aff_low: 0.01
+          small: 0
+          num_workers: 8
+      - enabled: true
+        name: tracklets
+        op: branch_link
+        inputs:
+        - raw
+        - sections
+        kwargs:
+          link_iou: 0.2
+          bb_iou: 0.3
+      - enabled: true
+        name: split
+        op: branch_split
+        inputs:
+        - raw
+        - tracklets
+        kwargs:
+          drop_thr: 0.25
+          w: 4
+          min_size: 10000
+          min_frag: 6
+          recover: 1.1
+          host_both: false
+      - enabled: true
+        name: merged
+        op: branch_merge
+        inputs:
+        - raw
+        - split
+        kwargs:
+          merge_iou: 0.45
+          margin: 0.15
+          aff_lo: 0.4
+          min_ov: 30
+          min_size: 2000
+          rounds: 4
+          weak_max_gap: 15
+          weak_min_iou: 0.35
+          weak_lo: 0.3
+          weak_cal_ratio: 1.6
+          weak_margin: 0.15
+          weak_min_size: 2000
+          weak_rounds: 3
+          weak_dim_tol: 3
+          prefer_length: false
+      output: merged
+    steps: []
+    postprocessing:
+      enabled: false
+      binary: {}
+      instance_cc3d: null
+      output_transpose: []
+    load_prediction_path: ''
+    affinity_mask_path: ''
+    affinity_qc:
+      enabled: false
+      mode: post_save
+      image_path: ''
+      mask_path: ''
+      report_path: ''
+      z_stride: 10
+      k_edge: 20
+      refine_window: 30
+      drift_thresh: 0.05
+      border_width: 32
+      bg_thresh: 30
+      n_z_border: 8
+    tuning: null
+  evaluation:
+    enabled: true
+    metrics:
+    - tube
+    prediction_threshold: 0.5
+    instance_iou_threshold: 0.5
+    nerl_resolution: null
+    nerl_merge_threshold: 10
+    nerl_chunk_num: 1
+    nerl_num_workers: 1
+    nerl_skeleton_id_attribute: id
+    nerl_skeleton_position_attribute: index_position
+    nerl_skeleton_edge_length_attribute: edge_length
+    nerl_skeleton_position_order: xyz
+    nerl_prediction_position_order: null
+    tube:
+      substantial_min_z_slices: 21
+      substantial_min_voxels: 10000
+      long_span_fraction: 0.25
+      decent_min_voxels: 20000
+      border_margin: 2
+      border_patch_min_voxels: 10
+      multi_component_min_voxels: 50
+      multi_component_slice_step: 3
+      parallel_min_slices: 15
+      parallel_fraction_threshold: 0.3
+      disconnected_component_min_voxels: 1000
+      bump_min_slices: 40
+      bump_relative_excess: 0.2
+      bump_absolute_excess: 200
+      bump_max_slices: 30
+      bump_median_window: 31
+      top_incomplete: 8
+train:
+  system:
+    profile: null
+    num_gpus: 1
+    num_workers: 8
+    seed: 42
+  model:
+    arch:
+      profile: null
+      type: monai_basic_unet3d
+      variant: null
+      params: {}
+    input_size:
+    - 128
+    - 128
+    - 128
+    output_size:
+    - 128
+    - 128
+    - 128
+    in_channels: 1
+    out_channels: 1
+    primary_head: null
+    heads: {}
+    monai:
+      filters:
+      - 32
+      - 64
+      - 128
+      - 256
+      - 512
+      dropout: 0.0
+      norm: batch
+      num_groups: 8
+      activation: relu
+      spatial_dims: 3
+      num_res_units: 2
+      kernel_size: 3
+      strides: null
+      upsample_mode: deconv
+      upsample_interp_mode: linear
+      upsample_align_corners: true
+    transformer:
+      feature_size: 16
+      hidden_size: 768
+      mlp_dim: 3072
+      num_heads: 12
+      pos_embed: perceptron
+      norm: instance
+      dropout: 0.0
+      use_checkpoint: false
+      attn_drop_rate: 0.0
+      dropout_path_rate: 0.0
+    mednext:
+      size: S
+      base_channels: 32
+      exp_r: 4
+      kernel_size: 3
+      do_res: true
+      do_res_up_down: true
+      block_counts:
+      - 2
+      - 2
+      - 2
+      - 2
+      - 2
+      - 2
+      - 2
+      - 2
+      - 2
+      checkpoint_style: null
+      norm: group
+      dim: 3d
+      grn: false
+    rsunet:
+      width:
+      - 16
+      - 32
+      - 64
+      - 128
+      norm: batch
+      activation: relu
+      num_groups: 8
+      down_factors: null
+      depth_2d: 0
+      kernel_2d:
+      - 1
+      - 3
+      - 3
+      act_negative_slope: 0.01
+      act_init: 0.25
+    nnunet:
+      checkpoint: null
+      plans: null
+      dataset: null
+      device: cuda
+      spatial_dims: null
+    loss:
+      deep_supervision: false
+      deep_supervision_weights: null
+      deep_supervision_clamp_min: -20.0
+      deep_supervision_clamp_max: 20.0
+      losses: null
+      loss_balancing:
+        strategy: null
+        gradnorm_alpha: 0.5
+        gradnorm_lambda: 1.0
+        gradnorm_parameter_strategy: last
+    external_weights_path: null
+    external_weights_key_prefix: model.
+  data:
+    root_path: ''
+    split_enabled: false
+    split_train_range:
+    - 0.0
+    - 0.8
+    split_val_range:
+    - 0.8
+    - 1.0
+    split_axis: 0
+    split_pad_val: true
+    split_pad_mode: reflect
+    train:
+      dataset_type: null
+      do_2d: false
+      path: /projects/weilab/dataset/liconn/pytc/final_proofread/train
+      image: data.zarr/img
+      label: data.zarr/seg
+      label_aux: null
+      label_aux_type: skeleton
+      mask: null
+      json: null
+      image_key: images
+      label_key: masks
+      split_ratio: null
+      resolution:
+      - 24.0
+      - 18.0
+      - 18.0
+      skeleton: null
+      skeleton_mask: null
+      name: null
+    val:
+      dataset_type: null
+      do_2d: false
+      path: /projects/weilab/dataset/liconn/pytc/final_proofread/val
+      image: data.zarr/img
+      label: data.zarr/seg
+      label_aux: null
+      label_aux_type: skeleton
+      mask: null
+      json: null
+      image_key: images
+      label_key: masks
+      split_ratio: null
+      resolution:
+      - 24.0
+      - 18.0
+      - 18.0
+      skeleton: null
+      skeleton_mask: null
+      name: null
+    test:
+      dataset_type: null
+      do_2d: false
+      path: ''
+      image: null
+      label: null
+      label_aux: null
+      label_aux_type: skeleton
+      mask: null
+      json: null
+      image_key: images
+      label_key: masks
+      split_ratio: null
+      resolution: null
+      skeleton: null
+      skeleton_mask: null
+      name: null
+    dataloader:
+      batch_size: 4
+      patch_size:
+      - 128
+      - 128
+      - 128
+      target_context:
+      - 0
+      - 0
+      - 0
+      - 0
+      - 0
+      - 0
+      read_downscale: 1.0
+      pin_memory: true
+      use_preloaded_cache_train: true
+      use_preloaded_cache_val: true
+      persistent_workers: true
+      use_cache: false
+      cache_rate: 1.0
+      use_lazy_zarr: false
+      use_lazy_h5: false
+      cached_sampling_max_attempts: 10
+      cached_sampling_foreground_threshold: 0.0
+      cached_sampling_crop_to_nonzero_mask: false
+      cached_sampling_sample_nonzero_mask: false
+      reject_sampling: null
+      val_random_sampling: false
+    data_transform:
+      resize: null
+      align_to_image: false
+      binarize: false
+      threshold: 0.0
+      pad_size:
+      - 0
+      - 0
+      - 0
+      pad_mode: reflect
+      stride:
+      - 1
+      - 1
+      - 1
+      train_transpose: []
+      val_transpose: []
+      target_spacing: null
+      median_shape: null
+    image_transform:
+      transform_profile: null
+      normalize: 0-1
+      clip_percentile_low: 0.0
+      clip_percentile_high: 1.0
+    nnunet_preprocessing:
+      enabled: false
+      crop_to_nonzero: true
+      target_spacing: null
+      source_spacing: null
+      normalization: zscore
+      normalization_use_nonzero_mask: true
+      clip_percentile_low: 0.0
+      clip_percentile_high: 1.0
+      force_separate_z: null
+      anisotropy_threshold: 3.0
+      image_order: 3
+      label_order: 0
+      order_z: 0
+      restore_to_input_space: true
+    mask_transform: null
+    label_transform:
+      normalize: true
+      erosion: 0
+      emit_gt_seg: false
+      skeleton_distance:
+        enabled: false
+        resolution:
+        - 1.0
+        - 1.0
+        - 1.0
+        alpha: 0.8
+        smooth: true
+        bg_value: -1.0
+      edge_mode:
+        mode: all
+        thickness: 1
+        processing_mode: 2d
+      keys:
+      - label
+      stack_outputs: true
+      retain_original: false
+      output_dtype: float32
+      output_key_format: '{key}_{task}'
+      allow_missing_keys: false
+      relabel_connected_components: false
+      relabel_connectivity: 6
+      segment_id: null
+      boundary_thickness: 1
+      resolution: null
+      cache_dir: ''
+      targets: []
+    augmentation:
+      defect_mutex: false
+      flip:
+        enabled: false
+        prob: 0.5
+        spatial_axis:
+        - 0
+        - 1
+        - 2
+      axis_permute:
+        enabled: false
+        prob: 1.0
+        include_identity: true
+      rotate90_all:
+        enabled: false
+        prob: 1.0
+        include_identity: true
+      affine:
+        enabled: false
+        prob: 0.0
+        rotate_range:
+        - 0.0
+        - 0.0
+        - 0.0
+        scale_range:
+        - 0.0
+        - 0.0
+        - 0.0
+        shear_range:
+        - 0.0
+        - 0.0
+        - 0.0
+      rotate:
+        enabled: false
+        prob: 0.5
+        spatial_axes:
+        - 1
+        - 2
+      elastic:
+        enabled: false
+        prob: 0.0
+        sigma_range:
+        - 3.0
+        - 6.0
+        magnitude_range:
+        - 10.0
+        - 20.0
+      intensity:
+        enabled: false
+        gaussian_noise_prob: 0.5
+        gaussian_noise_std: 0.1
+        banis_style: false
+        mul_add_prob: 0.0
+        mul_range:
+        - 0.9
+        - 1.1
+        add_range:
+        - -0.1
+        - 0.1
+        shift_intensity_prob: 0.5
+        shift_intensity_offset: 0.1
+        contrast_prob: 0.5
+        contrast_range:
+        - 0.9
+        - 1.1
+      slice_shift:
+        enabled: false
+        prob: 0.0
+        slice_prob: 0.05
+        shift_magnitude: 10
+        spatial_axis:
+        - 0
+        - 1
+        - 2
+        wrap: true
+      slice_drop:
+        enabled: false
+        prob: 0.0
+        slice_prob: 0.05
+        spatial_axis:
+        - 0
+        - 1
+        - 2
+        fill_value: 0.0
+        preserve_boundaries: false
+      slice_shift_z:
+        enabled: false
+        prob: 0.0
+        displacement: 16
+        rotate_ratio: 0.0
+      slice_drop_z:
+        enabled: false
+        prob: 0.0
+        num_sections: 2
+        full_section_prob: 0.5
+        partial_ratio_range:
+        - 0.25
+        - 0.75
+        fill_value_range:
+        - 0.0
+        - 1.0
+      misalignment:
+        enabled: false
+        prob: 0.0
+        displacement: 16
+        rotate_ratio: 0.0
+      missing_section:
+        enabled: false
+        prob: 0.0
+        num_sections: 2
+        full_section_prob: 0.5
+        partial_ratio_range:
+        - 0.25
+        - 0.75
+        fill_value_range:
+        - 0.0
+        - 1.0
+      lost_section:
+        enabled: false
+        prob: 0.0
+        num_sections: 1
+        mode: random_neighbor
+      motion_blur:
+        enabled: false
+        prob: 0.0
+        sections:
+        - 1
+        - 3
+        kernel_size: 9
+        sigma_range:
+        - 1.0
+        - 3.0
+        full_section_prob: 0.5
+        partial_ratio_range:
+        - 0.25
+        - 0.75
+      cut_noise:
+        enabled: false
+        prob: 0.0
+        length_ratio:
+        - 0.1
+        - 0.4
+        noise_scale:
+        - 0.05
+        - 0.15
+      cut_blur:
+        enabled: false
+        prob: 0.0
+        length_ratio:
+        - 0.1
+        - 0.4
+        down_ratio_range:
+        - 2.0
+        - 8.0
+        downsample_z: false
+      missing_parts:
+        enabled: false
+        prob: 0.0
+        hole_range:
+        - 8.0
+        - 32.0
+      stripe:
+        enabled: false
+        prob: 0.0
+        num_stripes_range:
+        - 1
+        - 5
+        thickness_range:
+        - 1
+        - 3
+        intensity_range:
+        - 0.7
+        - 1.3
+        angle_range:
+        - -10.0
+        - 10.0
+        orientation: random
+        mode: multiply
+      mixup:
+        enabled: false
+        alpha: 0.2
+        prob: 0.0
+        alpha_range:
+        - 0.1
+        - 0.4
+      copy_paste:
+        enabled: false
+        prob: 0.0
+        max_obj_ratio: 0.05
+        rotation_angles:
+        - 0
+        - 90
+        - 180
+        border: 8
+  optimization:
+    optimizer:
+      name: AdamW
+      lr: 0.001
+      weight_decay: 0.01
+      momentum: 0.9
+      betas:
+      - 0.9
+      - 0.999
+      eps: 1.0e-08
+    scheduler:
+      profile: null
+      name: CosineAnnealingLR
+      params:
+        t_max: 200000
+      monitor: null
+      mode: min
+      factor: 0.1
+      patience: 10
+      threshold: 0.0001
+      cooldown: 0
+      eps: 1.0e-08
+      warmup_epochs: 10
+      warmup_start_lr: 0.0001
+      min_lr: 0.0
+      interval: step
+      frequency: 1
+    ema:
+      enabled: true
+      decay: 0.999
+      warmup_steps: 500
+      validate_with_ema: true
+      device: null
+      copy_buffers: true
+    max_epochs: 1000
+    max_steps: 200000
+    n_steps_per_epoch: 5000
+    val_steps_per_epoch: 100
+    gradient_clip_val: 1.0
+    accumulate_grad_batches: 1
+    precision: 16-mixed
+    val_check_interval: 5000
+    val_check_interval_unit: step
+    log_every_n_steps: 100
+    num_sanity_val_steps: 0
+    deterministic: null
+    benchmark: null
+  monitor:
+    checkpoint:
+      monitor: val_loss_total
+      mode: min
+      save_top_k: 3
+      save_last: true
+      filename: null
+      checkpoint_filename: '{epoch:03d}-{val_loss_total:.4f}'
+      save_every_n_epochs: 1
+      save_every_n_steps: 50000
+      step_checkpoint_filename: '{step:08d}'
+      save_on_train_epoch_end: false
+    early_stopping:
+      enabled: false
+      monitor: val_loss
+      mode: min
+      patience: 100
+      min_delta: 0.0001
+      check_finite: true
+      threshold: 0.02
+      divergence_threshold: 2.0
+    logging:
+      scalar:
+        enabled: true
+        interval: step
+        loss:
+        - train_loss_total_epoch
+        - val_loss_total
+        loss_every_n_steps: 100
+        benchmark: null
+      images:
+        enabled: true
+        interval: epoch
+        max_images: 8
+        num_slices: 2
+        slice_sampling: uniform
+        log_every_n_epochs: 1
+        max_channels: 12
+        channels: null
+        channel_mode: all
+        selected_channels: null
+        head: null
+      prediction_saving:
+        enabled: false
+        interval: epoch
+        max_samples: 2
+        output_subdir: val_predictions
+    nan_detection:
+      enabled: true
+      debug_on_nan: true
+    wandb:
+      use_wandb: false
+      project: connectomics
+      entity: null
+      tags: null
+      name: null
+    detect_anomaly: false
+data:
+  root_path: ''
+  split_enabled: false
+  split_train_range:
+  - 0.0
+  - 0.8
+  split_val_range:
+  - 0.8
+  - 1.0
+  split_axis: 0
+  split_pad_val: true
+  split_pad_mode: reflect
+  train:
+    dataset_type: null
+    do_2d: false
+    path: /projects/weilab/dataset/liconn/pytc/final_proofread/train
+    image: /projects/weilab/dataset/liconn/pytc/final_proofread/train/data.zarr/img
+    label: /projects/weilab/dataset/liconn/pytc/final_proofread/train/data.zarr/seg
+    label_aux: null
+    label_aux_type: skeleton
+    mask: null
+    json: null
+    image_key: images
+    label_key: masks
+    split_ratio: null
+    resolution:
+    - 24.0
+    - 18.0
+    - 18.0
+    skeleton: null
+    skeleton_mask: null
+    name: null
+  val:
+    dataset_type: null
+    do_2d: false
+    path: /projects/weilab/dataset/liconn/pytc/final_proofread/val
+    image: /projects/weilab/dataset/liconn/pytc/final_proofread/val/data.zarr/img
+    label: /projects/weilab/dataset/liconn/pytc/final_proofread/val/data.zarr/seg
+    label_aux: null
+    label_aux_type: skeleton
+    mask: null
+    json: null
+    image_key: images
+    label_key: masks
+    split_ratio: null
+    resolution:
+    - 24.0
+    - 18.0
+    - 18.0
+    skeleton: null
+    skeleton_mask: null
+    name: null
+  test:
+    dataset_type: null
+    do_2d: false
+    path: ''
+    image: null
+    label: null
+    label_aux: null
+    label_aux_type: skeleton
+    mask: null
+    json: null
+    image_key: images
+    label_key: masks
+    split_ratio: null
+    resolution: null
+    skeleton: null
+    skeleton_mask: null
+    name: null
+  dataloader:
+    batch_size: 2
+    patch_size:
+    - 128
+    - 128
+    - 128
+    target_context:
+    - 0
+    - 0
+    - 0
+    - 10
+    - 10
+    - 10
+    read_downscale: 1.0
+    pin_memory: true
+    use_preloaded_cache_train: false
+    use_preloaded_cache_val: false
+    persistent_workers: true
+    use_cache: false
+    cache_rate: 1.0
+    use_lazy_zarr: true
+    use_lazy_h5: false
+    cached_sampling_max_attempts: 10
+    cached_sampling_foreground_threshold: 0.0
+    cached_sampling_crop_to_nonzero_mask: false
+    cached_sampling_sample_nonzero_mask: false
+    reject_sampling: null
+    val_random_sampling: true
+  data_transform:
+    resize: null
+    align_to_image: false
+    binarize: false
+    threshold: 0.0
+    pad_size:
+    - 0
+    - 0
+    - 0
+    pad_mode: reflect
+    stride:
+    - 1
+    - 1
+    - 1
+    train_transpose: []
+    val_transpose: []
+    target_spacing: null
+    median_shape: null
+  image_transform:
+    transform_profile: null
+    normalize: divide-255
+    clip_percentile_low: 0.0
+    clip_percentile_high: 1.0
+  nnunet_preprocessing:
+    enabled: false
+    crop_to_nonzero: true
+    target_spacing: null
+    source_spacing: null
+    normalization: zscore
+    normalization_use_nonzero_mask: true
+    clip_percentile_low: 0.0
+    clip_percentile_high: 1.0
+    force_separate_z: null
+    anisotropy_threshold: 3.0
+    image_order: 3
+    label_order: 0
+    order_z: 0
+    restore_to_input_space: true
+  mask_transform: null
+  label_transform:
+    normalize: true
+    erosion: 2
+    emit_gt_seg: false
+    skeleton_distance:
+      enabled: false
+      resolution:
+      - 1.0
+      - 1.0
+      - 1.0
+      alpha: 0.8
+      smooth: true
+      bg_value: -1.0
+    edge_mode:
+      mode: all
+      thickness: 1
+      processing_mode: 2d
+    keys:
+    - label
+    stack_outputs: true
+    retain_original: false
+    output_dtype: float32
+    output_key_format: '{key}_{task}'
+    allow_missing_keys: false
+    relabel_connected_components: false
+    relabel_connectivity: 6
+    segment_id: null
+    boundary_thickness: 1
+    resolution: null
+    cache_dir: ''
+    targets:
+    - name: affinity
+      kwargs:
+        offsets:
+        - 1-0-0
+        - 0-1-0
+        - 0-0-1
+        - 10-0-0
+        - 0-10-0
+        - 0-0-10
+        affinity_mode: banis
+  augmentation:
+    defect_mutex: false
+    flip:
+      enabled: true
+      prob: 0.5
+      spatial_axis:
+      - 0
+      - 1
+      - 2
+    axis_permute:
+      enabled: true
+      prob: 1.0
+      include_identity: true
+    rotate90_all:
+      enabled: true
+      prob: 1.0
+      include_identity: true
+    affine:
+      enabled: true
+      prob: 0.5
+      rotate_range:
+      - 3.141592653589793
+      - 3.141592653589793
+      - 3.141592653589793
+      scale_range:
+      - 0.2
+      - 0.2
+      - 0.2
+      shear_range:
+      - 0.5
+      - 0.5
+      - 0.5
+    rotate:
+      enabled: false
+      prob: 0.5
+      spatial_axes:
+      - 1
+      - 2
+    elastic:
+      enabled: false
+      prob: 0.0
+      sigma_range:
+      - 3.0
+      - 6.0
+      magnitude_range:
+      - 10.0
+      - 20.0
+    intensity:
+      enabled: true
+      gaussian_noise_prob: 0.5
+      gaussian_noise_std: 0.5
+      banis_style: true
+      mul_add_prob: 0.5
+      mul_range:
+      - 0.9
+      - 1.1
+      add_range:
+      - -0.1
+      - 0.1
+      shift_intensity_prob: 0.5
+      shift_intensity_offset: 0.1
+      contrast_prob: 0.5
+      contrast_range:
+      - 0.9
+      - 1.1
+    slice_shift:
+      enabled: true
+      prob: 0.5
+      slice_prob: 0.05
+      shift_magnitude: 10
+      spatial_axis:
+      - 0
+      - 1
+      - 2
+      wrap: true
+    slice_drop:
+      enabled: true
+      prob: 0.5
+      slice_prob: 0.05
+      spatial_axis:
+      - 0
+      - 1
+      - 2
+      fill_value: 0.0
+      preserve_boundaries: false
+    slice_shift_z:
+      enabled: false
+      prob: 0.0
+      displacement: 16
+      rotate_ratio: 0.0
+    slice_drop_z:
+      enabled: false
+      prob: 0.0
+      num_sections: 2
+      full_section_prob: 0.5
+      partial_ratio_range:
+      - 0.25
+      - 0.75
+      fill_value_range:
+      - 0.0
+      - 1.0
+    misalignment:
+      enabled: false
+      prob: 0.0
+      displacement: 16
+      rotate_ratio: 0.0
+    missing_section:
+      enabled: false
+      prob: 0.0
+      num_sections: 2
+      full_section_prob: 0.5
+      partial_ratio_range:
+      - 0.25
+      - 0.75
+      fill_value_range:
+      - 0.0
+      - 1.0
+    lost_section:
+      enabled: false
+      prob: 0.0
+      num_sections: 1
+      mode: random_neighbor
+    motion_blur:
+      enabled: false
+      prob: 0.0
+      sections:
+      - 1
+      - 3
+      kernel_size: 9
+      sigma_range:
+      - 1.0
+      - 3.0
+      full_section_prob: 0.5
+      partial_ratio_range:
+      - 0.25
+      - 0.75
+    cut_noise:
+      enabled: false
+      prob: 0.0
+      length_ratio:
+      - 0.1
+      - 0.4
+      noise_scale:
+      - 0.05
+      - 0.15
+    cut_blur:
+      enabled: false
+      prob: 0.0
+      length_ratio:
+      - 0.1
+      - 0.4
+      down_ratio_range:
+      - 2.0
+      - 8.0
+      downsample_z: false
+    missing_parts:
+      enabled: false
+      prob: 0.0
+      hole_range:
+      - 8.0
+      - 32.0
+    stripe:
+      enabled: false
+      prob: 0.0
+      num_stripes_range:
+      - 1
+      - 5
+      thickness_range:
+      - 1
+      - 3
+      intensity_range:
+      - 0.7
+      - 1.3
+      angle_range:
+      - -10.0
+      - 10.0
+      orientation: random
+      mode: multiply
+    mixup:
+      enabled: false
+      alpha: 0.2
+      prob: 0.0
+      alpha_range:
+      - 0.1
+      - 0.4
+    copy_paste:
+      enabled: false
+      prob: 0.0
+      max_obj_ratio: 0.05
+      rotation_angles:
+      - 0
+      - 90
+      - 180
+      border: 8
+optimization:
+  optimizer:
+    name: AdamW
+    lr: 0.001
+    weight_decay: 0.01
+    momentum: 0.9
+    betas:
+    - 0.9
+    - 0.999
+    eps: 1.0e-08
+  scheduler:
+    profile: null
+    name: CosineAnnealingLR
+    params:
+      t_max: 200000
+    monitor: null
+    mode: min
+    factor: 0.1
+    patience: 10
+    threshold: 0.0001
+    cooldown: 0
+    eps: 1.0e-08
+    warmup_epochs: 10
+    warmup_start_lr: 0.0001
+    min_lr: 0.0
+    interval: step
+    frequency: 1
+  ema:
+    enabled: true
+    decay: 0.999
+    warmup_steps: 500
+    validate_with_ema: true
+    device: null
+    copy_buffers: true
+  max_epochs: 1000
+  max_steps: 200000
+  n_steps_per_epoch: 5000
+  val_steps_per_epoch: 100
+  gradient_clip_val: 1.0
+  accumulate_grad_batches: 1
+  precision: 16-mixed
+  val_check_interval: 5000
+  val_check_interval_unit: step
+  log_every_n_steps: 100
+  num_sanity_val_steps: 0
+  deterministic: null
+  benchmark: null
+monitor:
+  checkpoint:
+    monitor: val_loss_total
+    mode: min
+    save_top_k: 3
+    save_last: true
+    filename: null
+    checkpoint_filename: '{epoch:03d}-{val_loss_total:.4f}'
+    save_every_n_epochs: 1
+    save_every_n_steps: 50000
+    step_checkpoint_filename: '{step:08d}'
+    save_on_train_epoch_end: false
+  early_stopping:
+    enabled: false
+    monitor: val_loss
+    mode: min
+    patience: 100
+    min_delta: 0.0001
+    check_finite: true
+    threshold: 0.02
+    divergence_threshold: 2.0
+  logging:
+    scalar:
+      enabled: true
+      interval: step
+      loss:
+      - train_loss_total_epoch
+      - val_loss_total
+      loss_every_n_steps: 100
+      benchmark: null
+    images:
+      enabled: true
+      interval: epoch
+      max_images: 8
+      num_slices: 2
+      slice_sampling: uniform
+      log_every_n_epochs: 1
+      max_channels: 12
+      channels: null
+      channel_mode: all
+      selected_channels: null
+      head: null
+    prediction_saving:
+      enabled: false
+      interval: epoch
+      max_samples: 2
+      output_subdir: val_predictions
+  nan_detection:
+    enabled: true
+    debug_on_nan: true
+  wandb:
+    use_wandb: false
+    project: connectomics
+    entity: null
+    tags: null
+    name: null
+  detect_anomaly: false
+inference:
+  model:
+    head: null
+    select_channel:
+    - 0
+    - 1
+    - 2
+    output_dtype: float16
+    activation_profile: null
+    channel_activations:
+    - channels: ':'
+      activation: scale_sigmoid
+    crop_pad: null
+  execution:
+    strategy: whole_volume
+    do_eval: true
+  window:
+    enabled: false
+    window_size:
+    - 128
+    - 128
+    - 128
+    sw_batch_size: 8
+    overlap: 0.5
+    blending: distance_transform
+    padding_mode: reflect
+    cval: 0.0
+    keep_input_on_cpu: true
+    distributed_sharding: false
+    distributed_reduce_chunk_mb: 128
+    sw_device: cuda
+    output_device: cpu
+    snap_to_edge: true
+    target_context: []
+    border_mask: []
+  chunking:
+    enabled: false
+    output_mode: decoded
+    chunk_size: null
+    halo:
+    - 0
+    - 0
+    - 0
+    axes: all
+    roi: null
+    shard_id: null
+    num_shards: null
+    temp_dir: ''
+    save_intermediate: false
+    stitching:
+      method: affinity_cc_boundary_union
+      threshold: null
+      edge_offset: null
+      min_contact: 1
+  save_results: true
+  save_path: ''
+  save_cache_suffix: _x1_prediction.h5
+  save_all_heads: false
+  save_dtype: null
+  save_backend: h5
+  save_compression: gzip
+  test_time_augmentation:
+    enabled: false
+    distributed_sharding: true
+    distributed_reduce_chunk_mb: 128
+    flip_axes: all
+    flip_combinations: null
+    rotation90_axes: null
+    rotate90_k: null
+    patch_first_local: true
+    apply_mask: true
+    transforms: null
+    ensemble_mode: mean
+    empty_cache_interval: 4
+  load_tta_path: ''
+  prediction_transform:
+    enabled: false
+    intensity_scale: -1.0
+    intensity_dtype: null
+  memory_cleanup:
+    enabled: true
+    gc_collect: true
+    empty_cuda_cache: true
+    release_model_after_inference: false
+  system:
+    profile: null
+    num_gpus: -1
+    num_workers: -1
+    seed: 42
+decoding:
+  enabled: true
+  save_intermediate: false
+  save_results: true
+  save_path: ''
+  save_suffix: ''
+  graph:
+    nodes:
+    - enabled: true
+      name: sections
+      op: seg_2d
+      inputs:
+      - raw
+      kwargs:
+        thr: 0.3
+        aff_bg: 0.66
+        aff_low: 0.01
+        small: 0
+        num_workers: 8
+    - enabled: true
+      name: tracklets
+      op: branch_link
+      inputs:
+      - raw
+      - sections
+      kwargs:
+        link_iou: 0.2
+        bb_iou: 0.3
+    - enabled: true
+      name: split
+      op: branch_split
+      inputs:
+      - raw
+      - tracklets
+      kwargs:
+        drop_thr: 0.25
+        w: 4
+        min_size: 10000
+        min_frag: 6
+        recover: 1.1
+        host_both: false
+    - enabled: true
+      name: merged
+      op: branch_merge
+      inputs:
+      - raw
+      - split
+      kwargs:
+        merge_iou: 0.45
+        margin: 0.15
+        aff_lo: 0.4
+        min_ov: 30
+        min_size: 2000
+        rounds: 4
+        weak_max_gap: 15
+        weak_min_iou: 0.35
+        weak_lo: 0.3
+        weak_cal_ratio: 1.6
+        weak_margin: 0.15
+        weak_min_size: 2000
+        weak_rounds: 3
+        weak_dim_tol: 3
+        prefer_length: false
+    output: merged
+  steps: []
+  postprocessing:
+    enabled: false
+    binary: {}
+    instance_cc3d: null
+    output_transpose: []
+  load_prediction_path: ''
+  affinity_mask_path: ''
+  affinity_qc:
+    enabled: false
+    mode: post_save
+    image_path: ''
+    mask_path: ''
+    report_path: ''
+    z_stride: 10
+    k_edge: 20
+    refine_window: 30
+    drift_thresh: 0.05
+    border_width: 32
+    bg_thresh: 30
+    n_z_border: 8
+  tuning: null
+evaluation:
+  enabled: true
+  metrics:
+  - tube
+  prediction_threshold: 0.5
+  instance_iou_threshold: 0.5
+  nerl_resolution: null
+  nerl_merge_threshold: 10
+  nerl_chunk_num: 1
+  nerl_num_workers: 1
+  nerl_skeleton_id_attribute: id
+  nerl_skeleton_position_attribute: index_position
+  nerl_skeleton_edge_length_attribute: edge_length
+  nerl_skeleton_position_order: xyz
+  nerl_prediction_position_order: null
+  tube:
+    substantial_min_z_slices: 21
+    substantial_min_voxels: 10000
+    long_span_fraction: 0.25
+    decent_min_voxels: 20000
+    border_margin: 2
+    border_patch_min_voxels: 10
+    multi_component_min_voxels: 50
+    multi_component_slice_step: 3
+    parallel_min_slices: 15
+    parallel_fraction_threshold: 0.3
+    disconnected_component_min_voxels: 1000
+    bump_min_slices: 40
+    bump_relative_excess: 0.2
+    bump_absolute_excess: 200
+    bump_max_slices: 30
+    bump_median_window: 31
+    top_incomplete: 8
+test:
+  system:
+    profile: null
+    num_gpus: 1
+    num_workers: 8
+    seed: 42
+  model:
+    arch:
+      profile: null
+      type: monai_basic_unet3d
+      variant: null
+      params: {}
+    input_size:
+    - 128
+    - 128
+    - 128
+    output_size:
+    - 128
+    - 128
+    - 128
+    in_channels: 1
+    out_channels: 1
+    primary_head: null
+    heads: {}
+    monai:
+      filters:
+      - 32
+      - 64
+      - 128
+      - 256
+      - 512
+      dropout: 0.0
+      norm: batch
+      num_groups: 8
+      activation: relu
+      spatial_dims: 3
+      num_res_units: 2
+      kernel_size: 3
+      strides: null
+      upsample_mode: deconv
+      upsample_interp_mode: linear
+      upsample_align_corners: true
+    transformer:
+      feature_size: 16
+      hidden_size: 768
+      mlp_dim: 3072
+      num_heads: 12
+      pos_embed: perceptron
+      norm: instance
+      dropout: 0.0
+      use_checkpoint: false
+      attn_drop_rate: 0.0
+      dropout_path_rate: 0.0
+    mednext:
+      size: S
+      base_channels: 32
+      exp_r: 4
+      kernel_size: 3
+      do_res: true
+      do_res_up_down: true
+      block_counts:
+      - 2
+      - 2
+      - 2
+      - 2
+      - 2
+      - 2
+      - 2
+      - 2
+      - 2
+      checkpoint_style: null
+      norm: group
+      dim: 3d
+      grn: false
+    rsunet:
+      width:
+      - 16
+      - 32
+      - 64
+      - 128
+      norm: batch
+      activation: relu
+      num_groups: 8
+      down_factors: null
+      depth_2d: 0
+      kernel_2d:
+      - 1
+      - 3
+      - 3
+      act_negative_slope: 0.01
+      act_init: 0.25
+    nnunet:
+      checkpoint: null
+      plans: null
+      dataset: null
+      device: cuda
+      spatial_dims: null
+    loss:
+      deep_supervision: false
+      deep_supervision_weights: null
+      deep_supervision_clamp_min: -20.0
+      deep_supervision_clamp_max: 20.0
+      losses: null
+      loss_balancing:
+        strategy: null
+        gradnorm_alpha: 0.5
+        gradnorm_lambda: 1.0
+        gradnorm_parameter_strategy: last
+    external_weights_path: null
+    external_weights_key_prefix: model.
+  data:
+    root_path: ''
+    split_enabled: false
+    split_train_range:
+    - 0.0
+    - 0.8
+    split_val_range:
+    - 0.8
+    - 1.0
+    split_axis: 0
+    split_pad_val: true
+    split_pad_mode: reflect
+    train:
+      dataset_type: null
+      do_2d: false
+      path: ''
+      image: null
+      label: null
+      label_aux: null
+      label_aux_type: skeleton
+      mask: null
+      json: null
+      image_key: images
+      label_key: masks
+      split_ratio: null
+      resolution: null
+      skeleton: null
+      skeleton_mask: null
+      name: null
+    val:
+      dataset_type: null
+      do_2d: false
+      path: ''
+      image: null
+      label: null
+      label_aux: null
+      label_aux_type: skeleton
+      mask: null
+      json: null
+      image_key: images
+      label_key: masks
+      split_ratio: null
+      resolution: null
+      skeleton: null
+      skeleton_mask: null
+      name: null
+    test:
+      dataset_type: null
+      do_2d: false
+      path: /projects/weilab/dataset/liconn/pytc/final_proofread/val
+      image: data.zarr/img
+      label: null
+      label_aux: null
+      label_aux_type: skeleton
+      mask: null
+      json: null
+      image_key: images
+      label_key: masks
+      split_ratio: null
+      resolution:
+      - 24.0
+      - 18.0
+      - 18.0
+      skeleton: null
+      skeleton_mask: null
+      name: liconn_final_val
+    dataloader:
+      batch_size: 4
+      patch_size:
+      - 128
+      - 128
+      - 128
+      target_context:
+      - 0
+      - 0
+      - 0
+      - 0
+      - 0
+      - 0
+      read_downscale: 1.0
+      pin_memory: true
+      use_preloaded_cache_train: true
+      use_preloaded_cache_val: true
+      persistent_workers: true
+      use_cache: false
+      cache_rate: 1.0
+      use_lazy_zarr: false
+      use_lazy_h5: false
+      cached_sampling_max_attempts: 10
+      cached_sampling_foreground_threshold: 0.0
+      cached_sampling_crop_to_nonzero_mask: false
+      cached_sampling_sample_nonzero_mask: false
+      reject_sampling: null
+      val_random_sampling: false
+    data_transform:
+      resize: null
+      align_to_image: false
+      binarize: false
+      threshold: 0.0
+      pad_size:
+      - 0
+      - 0
+      - 0
+      pad_mode: reflect
+      stride:
+      - 1
+      - 1
+      - 1
+      train_transpose: []
+      val_transpose: []
+      target_spacing: null
+      median_shape: null
+    image_transform:
+      transform_profile: null
+      normalize: 0-1
+      clip_percentile_low: 0.0
+      clip_percentile_high: 1.0
+    nnunet_preprocessing:
+      enabled: false
+      crop_to_nonzero: true
+      target_spacing: null
+      source_spacing: null
+      normalization: zscore
+      normalization_use_nonzero_mask: true
+      clip_percentile_low: 0.0
+      clip_percentile_high: 1.0
+      force_separate_z: null
+      anisotropy_threshold: 3.0
+      image_order: 3
+      label_order: 0
+      order_z: 0
+      restore_to_input_space: true
+    mask_transform: null
+    label_transform:
+      normalize: true
+      erosion: 0
+      emit_gt_seg: false
+      skeleton_distance:
+        enabled: false
+        resolution:
+        - 1.0
+        - 1.0
+        - 1.0
+        alpha: 0.8
+        smooth: true
+        bg_value: -1.0
+      edge_mode:
+        mode: all
+        thickness: 1
+        processing_mode: 2d
+      keys:
+      - label
+      stack_outputs: true
+      retain_original: false
+      output_dtype: float32
+      output_key_format: '{key}_{task}'
+      allow_missing_keys: false
+      relabel_connected_components: false
+      relabel_connectivity: 6
+      segment_id: null
+      boundary_thickness: 1
+      resolution: null
+      cache_dir: ''
+      targets: []
+    augmentation:
+      defect_mutex: false
+      flip:
+        enabled: false
+        prob: 0.5
+        spatial_axis:
+        - 0
+        - 1
+        - 2
+      axis_permute:
+        enabled: false
+        prob: 1.0
+        include_identity: true
+      rotate90_all:
+        enabled: false
+        prob: 1.0
+        include_identity: true
+      affine:
+        enabled: false
+        prob: 0.0
+        rotate_range:
+        - 0.0
+        - 0.0
+        - 0.0
+        scale_range:
+        - 0.0
+        - 0.0
+        - 0.0
+        shear_range:
+        - 0.0
+        - 0.0
+        - 0.0
+      rotate:
+        enabled: false
+        prob: 0.5
+        spatial_axes:
+        - 1
+        - 2
+      elastic:
+        enabled: false
+        prob: 0.0
+        sigma_range:
+        - 3.0
+        - 6.0
+        magnitude_range:
+        - 10.0
+        - 20.0
+      intensity:
+        enabled: false
+        gaussian_noise_prob: 0.5
+        gaussian_noise_std: 0.1
+        banis_style: false
+        mul_add_prob: 0.0
+        mul_range:
+        - 0.9
+        - 1.1
+        add_range:
+        - -0.1
+        - 0.1
+        shift_intensity_prob: 0.5
+        shift_intensity_offset: 0.1
+        contrast_prob: 0.5
+        contrast_range:
+        - 0.9
+        - 1.1
+      slice_shift:
+        enabled: false
+        prob: 0.0
+        slice_prob: 0.05
+        shift_magnitude: 10
+        spatial_axis:
+        - 0
+        - 1
+        - 2
+        wrap: true
+      slice_drop:
+        enabled: false
+        prob: 0.0
+        slice_prob: 0.05
+        spatial_axis:
+        - 0
+        - 1
+        - 2
+        fill_value: 0.0
+        preserve_boundaries: false
+      slice_shift_z:
+        enabled: false
+        prob: 0.0
+        displacement: 16
+        rotate_ratio: 0.0
+      slice_drop_z:
+        enabled: false
+        prob: 0.0
+        num_sections: 2
+        full_section_prob: 0.5
+        partial_ratio_range:
+        - 0.25
+        - 0.75
+        fill_value_range:
+        - 0.0
+        - 1.0
+      misalignment:
+        enabled: false
+        prob: 0.0
+        displacement: 16
+        rotate_ratio: 0.0
+      missing_section:
+        enabled: false
+        prob: 0.0
+        num_sections: 2
+        full_section_prob: 0.5
+        partial_ratio_range:
+        - 0.25
+        - 0.75
+        fill_value_range:
+        - 0.0
+        - 1.0
+      lost_section:
+        enabled: false
+        prob: 0.0
+        num_sections: 1
+        mode: random_neighbor
+      motion_blur:
+        enabled: false
+        prob: 0.0
+        sections:
+        - 1
+        - 3
+        kernel_size: 9
+        sigma_range:
+        - 1.0
+        - 3.0
+        full_section_prob: 0.5
+        partial_ratio_range:
+        - 0.25
+        - 0.75
+      cut_noise:
+        enabled: false
+        prob: 0.0
+        length_ratio:
+        - 0.1
+        - 0.4
+        noise_scale:
+        - 0.05
+        - 0.15
+      cut_blur:
+        enabled: false
+        prob: 0.0
+        length_ratio:
+        - 0.1
+        - 0.4
+        down_ratio_range:
+        - 2.0
+        - 8.0
+        downsample_z: false
+      missing_parts:
+        enabled: false
+        prob: 0.0
+        hole_range:
+        - 8.0
+        - 32.0
+      stripe:
+        enabled: false
+        prob: 0.0
+        num_stripes_range:
+        - 1
+        - 5
+        thickness_range:
+        - 1
+        - 3
+        intensity_range:
+        - 0.7
+        - 1.3
+        angle_range:
+        - -10.0
+        - 10.0
+        orientation: random
+        mode: multiply
+      mixup:
+        enabled: false
+        alpha: 0.2
+        prob: 0.0
+        alpha_range:
+        - 0.1
+        - 0.4
+      copy_paste:
+        enabled: false
+        prob: 0.0
+        max_obj_ratio: 0.05
+        rotation_angles:
+        - 0
+        - 90
+        - 180
+        border: 8
+  inference:
+    model:
+      head: null
+      select_channel: null
+      output_dtype: null
+      activation_profile: null
+      channel_activations: []
+      crop_pad: null
+    execution:
+      strategy: whole_volume
+      do_eval: true
+    window:
+      enabled: false
+      window_size: null
+      sw_batch_size: null
+      overlap: 0.5
+      blending: bump
+      padding_mode: reflect
+      cval: 0.0
+      keep_input_on_cpu: false
+      distributed_sharding: false
+      distributed_reduce_chunk_mb: 128
+      sw_device: null
+      output_device: null
+      snap_to_edge: false
+      target_context: []
+      border_mask: []
+    chunking:
+      enabled: false
+      output_mode: decoded
+      chunk_size: null
+      halo:
+      - 0
+      - 0
+      - 0
+      axes: all
+      roi: null
+      shard_id: null
+      num_shards: null
+      temp_dir: ''
+      save_intermediate: false
+      stitching:
+        method: affinity_cc_boundary_union
+        threshold: null
+        edge_offset: null
+        min_contact: 1
+    save_results: false
+    save_path: ''
+    save_cache_suffix: _x1_prediction.h5
+    save_all_heads: false
+    save_dtype: null
+    save_backend: h5
+    save_compression: gzip
+    test_time_augmentation:
+      enabled: false
+      distributed_sharding: true
+      distributed_reduce_chunk_mb: 128
+      flip_axes: all
+      flip_combinations: null
+      rotation90_axes: null
+      rotate90_k: null
+      patch_first_local: true
+      apply_mask: true
+      transforms: null
+      ensemble_mode: mean
+      empty_cache_interval: 4
+    load_tta_path: ''
+    prediction_transform:
+      enabled: false
+      intensity_scale: -1.0
+      intensity_dtype: null
+    memory_cleanup:
+      enabled: true
+      gc_collect: true
+      empty_cuda_cache: true
+      release_model_after_inference: false
+    system:
+      profile: null
+      num_gpus: -1
+      num_workers: -1
+      seed: 42
+  decoding:
+    enabled: true
+    save_intermediate: false
+    save_results: true
+    save_path: ''
+    save_suffix: ''
+    graph: null
+    steps: []
+    postprocessing:
+      enabled: false
+      binary: {}
+      instance_cc3d: null
+      output_transpose: []
+    load_prediction_path: ''
+    affinity_mask_path: ''
+    affinity_qc:
+      enabled: false
+      mode: post_save
+      image_path: ''
+      mask_path: ''
+      report_path: ''
+      z_stride: 10
+      k_edge: 20
+      refine_window: 30
+      drift_thresh: 0.05
+      border_width: 32
+      bg_thresh: 30
+      n_z_border: 8
+    tuning: null
+  evaluation:
+    enabled: false
+    metrics: null
+    prediction_threshold: 0.5
+    instance_iou_threshold: 0.5
+    nerl_resolution: null
+    nerl_merge_threshold: 1
+    nerl_chunk_num: 1
+    nerl_num_workers: 1
+    nerl_skeleton_id_attribute: id
+    nerl_skeleton_position_attribute: index_position
+    nerl_skeleton_edge_length_attribute: edge_length
+    nerl_skeleton_position_order: xyz
+    nerl_prediction_position_order: null
+    tube:
+      substantial_min_z_slices: 21
+      substantial_min_voxels: 10000
+      long_span_fraction: 0.25
+      decent_min_voxels: 20000
+      border_margin: 2
+      border_patch_min_voxels: 10
+      multi_component_min_voxels: 50
+      multi_component_slice_step: 3
+      parallel_min_slices: 15
+      parallel_fraction_threshold: 0.3
+      disconnected_component_min_voxels: 1000
+      bump_min_slices: 40
+      bump_relative_excess: 0.2
+      bump_absolute_excess: 200
+      bump_max_slices: 30
+      bump_median_window: 31
+      top_incomplete: 8
+tune:
+  enabled: false
+  system:
+    profile: null
+    num_gpus: 1
+    num_workers: 8
+    seed: 42
+  model:
+    arch:
+      profile: null
+      type: monai_basic_unet3d
+      variant: null
+      params: {}
+    input_size:
+    - 128
+    - 128
+    - 128
+    output_size:
+    - 128
+    - 128
+    - 128
+    in_channels: 1
+    out_channels: 1
+    primary_head: null
+    heads: {}
+    monai:
+      filters:
+      - 32
+      - 64
+      - 128
+      - 256
+      - 512
+      dropout: 0.0
+      norm: batch
+      num_groups: 8
+      activation: relu
+      spatial_dims: 3
+      num_res_units: 2
+      kernel_size: 3
+      strides: null
+      upsample_mode: deconv
+      upsample_interp_mode: linear
+      upsample_align_corners: true
+    transformer:
+      feature_size: 16
+      hidden_size: 768
+      mlp_dim: 3072
+      num_heads: 12
+      pos_embed: perceptron
+      norm: instance
+      dropout: 0.0
+      use_checkpoint: false
+      attn_drop_rate: 0.0
+      dropout_path_rate: 0.0
+    mednext:
+      size: S
+      base_channels: 32
+      exp_r: 4
+      kernel_size: 3
+      do_res: true
+      do_res_up_down: true
+      block_counts:
+      - 2
+      - 2
+      - 2
+      - 2
+      - 2
+      - 2
+      - 2
+      - 2
+      - 2
+      checkpoint_style: null
+      norm: group
+      dim: 3d
+      grn: false
+    rsunet:
+      width:
+      - 16
+      - 32
+      - 64
+      - 128
+      norm: batch
+      activation: relu
+      num_groups: 8
+      down_factors: null
+      depth_2d: 0
+      kernel_2d:
+      - 1
+      - 3
+      - 3
+      act_negative_slope: 0.01
+      act_init: 0.25
+    nnunet:
+      checkpoint: null
+      plans: null
+      dataset: null
+      device: cuda
+      spatial_dims: null
+    loss:
+      deep_supervision: false
+      deep_supervision_weights: null
+      deep_supervision_clamp_min: -20.0
+      deep_supervision_clamp_max: 20.0
+      losses: null
+      loss_balancing:
+        strategy: null
+        gradnorm_alpha: 0.5
+        gradnorm_lambda: 1.0
+        gradnorm_parameter_strategy: last
+    external_weights_path: null
+    external_weights_key_prefix: model.
+  data:
+    root_path: ''
+    split_enabled: false
+    split_train_range:
+    - 0.0
+    - 0.8
+    split_val_range:
+    - 0.8
+    - 1.0
+    split_axis: 0
+    split_pad_val: true
+    split_pad_mode: reflect
+    train:
+      dataset_type: null
+      do_2d: false
+      path: ''
+      image: null
+      label: null
+      label_aux: null
+      label_aux_type: skeleton
+      mask: null
+      json: null
+      image_key: images
+      label_key: masks
+      split_ratio: null
+      resolution: null
+      skeleton: null
+      skeleton_mask: null
+      name: null
+    val:
+      dataset_type: null
+      do_2d: false
+      path: /projects/weilab/dataset/liconn/pytc/final_proofread/val
+      image: data.zarr/img
+      label: data.zarr/seg
+      label_aux: null
+      label_aux_type: skeleton
+      mask: null
+      json: null
+      image_key: images
+      label_key: masks
+      split_ratio: null
+      resolution:
+      - 24.0
+      - 18.0
+      - 18.0
+      skeleton: /projects/weilab/dataset/nisb/base/val/seed100/skeleton.pkl
+      skeleton_mask: null
+      name: null
+    test:
+      dataset_type: null
+      do_2d: false
+      path: ''
+      image: null
+      label: null
+      label_aux: null
+      label_aux_type: skeleton
+      mask: null
+      json: null
+      image_key: images
+      label_key: masks
+      split_ratio: null
+      resolution: null
+      skeleton: null
+      skeleton_mask: null
+      name: null
+    dataloader:
+      batch_size: 4
+      patch_size:
+      - 128
+      - 128
+      - 128
+      target_context:
+      - 0
+      - 0
+      - 0
+      - 0
+      - 0
+      - 0
+      read_downscale: 1.0
+      pin_memory: true
+      use_preloaded_cache_train: true
+      use_preloaded_cache_val: true
+      persistent_workers: true
+      use_cache: false
+      cache_rate: 1.0
+      use_lazy_zarr: false
+      use_lazy_h5: false
+      cached_sampling_max_attempts: 10
+      cached_sampling_foreground_threshold: 0.0
+      cached_sampling_crop_to_nonzero_mask: false
+      cached_sampling_sample_nonzero_mask: false
+      reject_sampling: null
+      val_random_sampling: false
+    data_transform:
+      resize: null
+      align_to_image: false
+      binarize: false
+      threshold: 0.0
+      pad_size:
+      - 0
+      - 0
+      - 0
+      pad_mode: reflect
+      stride:
+      - 1
+      - 1
+      - 1
+      train_transpose: []
+      val_transpose: []
+      target_spacing: null
+      median_shape: null
+    image_transform:
+      transform_profile: null
+      normalize: 0-1
+      clip_percentile_low: 0.0
+      clip_percentile_high: 1.0
+    nnunet_preprocessing:
+      enabled: false
+      crop_to_nonzero: true
+      target_spacing: null
+      source_spacing: null
+      normalization: zscore
+      normalization_use_nonzero_mask: true
+      clip_percentile_low: 0.0
+      clip_percentile_high: 1.0
+      force_separate_z: null
+      anisotropy_threshold: 3.0
+      image_order: 3
+      label_order: 0
+      order_z: 0
+      restore_to_input_space: true
+    mask_transform: null
+    label_transform:
+      normalize: true
+      erosion: 0
+      emit_gt_seg: false
+      skeleton_distance:
+        enabled: false
+        resolution:
+        - 1.0
+        - 1.0
+        - 1.0
+        alpha: 0.8
+        smooth: true
+        bg_value: -1.0
+      edge_mode:
+        mode: all
+        thickness: 1
+        processing_mode: 2d
+      keys:
+      - label
+      stack_outputs: true
+      retain_original: false
+      output_dtype: float32
+      output_key_format: '{key}_{task}'
+      allow_missing_keys: false
+      relabel_connected_components: false
+      relabel_connectivity: 6
+      segment_id: null
+      boundary_thickness: 1
+      resolution: null
+      cache_dir: ''
+      targets: []
+    augmentation:
+      defect_mutex: false
+      flip:
+        enabled: false
+        prob: 0.5
+        spatial_axis:
+        - 0
+        - 1
+        - 2
+      axis_permute:
+        enabled: false
+        prob: 1.0
+        include_identity: true
+      rotate90_all:
+        enabled: false
+        prob: 1.0
+        include_identity: true
+      affine:
+        enabled: false
+        prob: 0.0
+        rotate_range:
+        - 0.0
+        - 0.0
+        - 0.0
+        scale_range:
+        - 0.0
+        - 0.0
+        - 0.0
+        shear_range:
+        - 0.0
+        - 0.0
+        - 0.0
+      rotate:
+        enabled: false
+        prob: 0.5
+        spatial_axes:
+        - 1
+        - 2
+      elastic:
+        enabled: false
+        prob: 0.0
+        sigma_range:
+        - 3.0
+        - 6.0
+        magnitude_range:
+        - 10.0
+        - 20.0
+      intensity:
+        enabled: false
+        gaussian_noise_prob: 0.5
+        gaussian_noise_std: 0.1
+        banis_style: false
+        mul_add_prob: 0.0
+        mul_range:
+        - 0.9
+        - 1.1
+        add_range:
+        - -0.1
+        - 0.1
+        shift_intensity_prob: 0.5
+        shift_intensity_offset: 0.1
+        contrast_prob: 0.5
+        contrast_range:
+        - 0.9
+        - 1.1
+      slice_shift:
+        enabled: false
+        prob: 0.0
+        slice_prob: 0.05
+        shift_magnitude: 10
+        spatial_axis:
+        - 0
+        - 1
+        - 2
+        wrap: true
+      slice_drop:
+        enabled: false
+        prob: 0.0
+        slice_prob: 0.05
+        spatial_axis:
+        - 0
+        - 1
+        - 2
+        fill_value: 0.0
+        preserve_boundaries: false
+      slice_shift_z:
+        enabled: false
+        prob: 0.0
+        displacement: 16
+        rotate_ratio: 0.0
+      slice_drop_z:
+        enabled: false
+        prob: 0.0
+        num_sections: 2
+        full_section_prob: 0.5
+        partial_ratio_range:
+        - 0.25
+        - 0.75
+        fill_value_range:
+        - 0.0
+        - 1.0
+      misalignment:
+        enabled: false
+        prob: 0.0
+        displacement: 16
+        rotate_ratio: 0.0
+      missing_section:
+        enabled: false
+        prob: 0.0
+        num_sections: 2
+        full_section_prob: 0.5
+        partial_ratio_range:
+        - 0.25
+        - 0.75
+        fill_value_range:
+        - 0.0
+        - 1.0
+      lost_section:
+        enabled: false
+        prob: 0.0
+        num_sections: 1
+        mode: random_neighbor
+      motion_blur:
+        enabled: false
+        prob: 0.0
+        sections:
+        - 1
+        - 3
+        kernel_size: 9
+        sigma_range:
+        - 1.0
+        - 3.0
+        full_section_prob: 0.5
+        partial_ratio_range:
+        - 0.25
+        - 0.75
+      cut_noise:
+        enabled: false
+        prob: 0.0
+        length_ratio:
+        - 0.1
+        - 0.4
+        noise_scale:
+        - 0.05
+        - 0.15
+      cut_blur:
+        enabled: false
+        prob: 0.0
+        length_ratio:
+        - 0.1
+        - 0.4
+        down_ratio_range:
+        - 2.0
+        - 8.0
+        downsample_z: false
+      missing_parts:
+        enabled: false
+        prob: 0.0
+        hole_range:
+        - 8.0
+        - 32.0
+      stripe:
+        enabled: false
+        prob: 0.0
+        num_stripes_range:
+        - 1
+        - 5
+        thickness_range:
+        - 1
+        - 3
+        intensity_range:
+        - 0.7
+        - 1.3
+        angle_range:
+        - -10.0
+        - 10.0
+        orientation: random
+        mode: multiply
+      mixup:
+        enabled: false
+        alpha: 0.2
+        prob: 0.0
+        alpha_range:
+        - 0.1
+        - 0.4
+      copy_paste:
+        enabled: false
+        prob: 0.0
+        max_obj_ratio: 0.05
+        rotation_angles:
+        - 0
+        - 90
+        - 180
+        border: 8
+  inference:
+    model:
+      head: null
+      select_channel: null
+      output_dtype: null
+      activation_profile: null
+      channel_activations: []
+      crop_pad: null
+    execution:
+      strategy: whole_volume
+      do_eval: true
+    window:
+      enabled: false
+      window_size: null
+      sw_batch_size: null
+      overlap: 0.5
+      blending: bump
+      padding_mode: reflect
+      cval: 0.0
+      keep_input_on_cpu: false
+      distributed_sharding: false
+      distributed_reduce_chunk_mb: 128
+      sw_device: null
+      output_device: null
+      snap_to_edge: false
+      target_context: []
+      border_mask: []
+    chunking:
+      enabled: false
+      output_mode: decoded
+      chunk_size: null
+      halo:
+      - 0
+      - 0
+      - 0
+      axes: all
+      roi: null
+      shard_id: null
+      num_shards: null
+      temp_dir: ''
+      save_intermediate: false
+      stitching:
+        method: affinity_cc_boundary_union
+        threshold: null
+        edge_offset: null
+        min_contact: 1
+    save_results: false
+    save_path: ''
+    save_cache_suffix: _x1_prediction.h5
+    save_all_heads: false
+    save_dtype: null
+    save_backend: h5
+    save_compression: gzip
+    test_time_augmentation:
+      enabled: false
+      distributed_sharding: true
+      distributed_reduce_chunk_mb: 128
+      flip_axes: all
+      flip_combinations: null
+      rotation90_axes: null
+      rotate90_k: null
+      patch_first_local: true
+      apply_mask: true
+      transforms: null
+      ensemble_mode: mean
+      empty_cache_interval: 4
+    load_tta_path: ''
+    prediction_transform:
+      enabled: false
+      intensity_scale: -1.0
+      intensity_dtype: null
+    memory_cleanup:
+      enabled: true
+      gc_collect: true
+      empty_cuda_cache: true
+      release_model_after_inference: false
+    system:
+      profile: null
+      num_gpus: -1
+      num_workers: -1
+      seed: 42
+  decoding:
+    enabled: true
+    save_intermediate: false
+    save_results: true
+    save_path: ''
+    save_suffix: ''
+    graph: null
+    steps: []
+    postprocessing:
+      enabled: false
+      binary: {}
+      instance_cc3d: null
+      output_transpose: []
+    load_prediction_path: ''
+    affinity_mask_path: ''
+    affinity_qc:
+      enabled: false
+      mode: post_save
+      image_path: ''
+      mask_path: ''
+      report_path: ''
+      z_stride: 10
+      k_edge: 20
+      refine_window: 30
+      drift_thresh: 0.05
+      border_width: 32
+      bg_thresh: 30
+      n_z_border: 8
+    tuning: null
+  evaluation:
+    enabled: false
+    metrics: null
+    prediction_threshold: 0.5
+    instance_iou_threshold: 0.5
+    nerl_resolution: null
+    nerl_merge_threshold: 1
+    nerl_chunk_num: 1
+    nerl_num_workers: 1
+    nerl_skeleton_id_attribute: id
+    nerl_skeleton_position_attribute: index_position
+    nerl_skeleton_edge_length_attribute: edge_length
+    nerl_skeleton_position_order: xyz
+    nerl_prediction_position_order: null
+    tube:
+      substantial_min_z_slices: 21
+      substantial_min_voxels: 10000
+      long_span_fraction: 0.25
+      decent_min_voxels: 20000
+      border_margin: 2
+      border_patch_min_voxels: 10
+      multi_component_min_voxels: 50
+      multi_component_slice_step: 3
+      parallel_min_slices: 15
+      parallel_fraction_threshold: 0.3
+      disconnected_component_min_voxels: 1000
+      bump_min_slices: 40
+      bump_relative_excess: 0.2
+      bump_absolute_excess: 200
+      bump_max_slices: 30
+      bump_median_window: 31
+      top_incomplete: 8
+  logging:
+    verbose: true
+    show_progress_bar: true
+  parameter_space:
+    decoding:
+      enabled: false
+      function_name: decode_affinity_cc
+      defaults:
+        backend: numba
+        edge_offset: 0
+      parameters:
+        threshold:
+          type: float
+          range:
+          - 0.5
+          - 0.9
+          step: 0.02
+          description: Affinity binarization threshold for connected components
+    postprocessing:
+      enabled: false
+      function_name: remove_small_instances
+      defaults: {}
+      parameters: {}
+  save_path: null
+  save_predictions_path: null
+  save_cache_suffix: _tta_x1_prediction.h5
+  save_all_trials: false
+  save_best_segmentation: true
+  save_study: true
+  save_visualizations: null
+  save_report: null
+  n_trials: 21
+  timeout: null
+  trial_timeout: null
+  study_name: nisb_base_banis_cc_tuning
+  storage: null
+  load_if_exists: true
+  sampler:
+    name: Grid
+    kwargs:
+      search_space:
+        threshold:
+        - 0.5
+        - 0.52
+        - 0.54
+        - 0.56
+        - 0.58
+        - 0.6
+        - 0.62
+        - 0.64
+        - 0.66
+        - 0.68
+        - 0.7
+        - 0.72
+        - 0.74
+        - 0.76
+        - 0.78
+        - 0.8
+        - 0.82
+        - 0.84
+        - 0.86
+        - 0.88
+        - 0.9
+  pruner: null
+  optimization:
+    mode: single
+    single_objective:
+      metric: nerl
+      direction: maximize

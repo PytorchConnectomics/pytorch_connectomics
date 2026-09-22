@@ -8,6 +8,7 @@
 # from one artifact. No environment variables, no shell expansion.
 
 params:
+  pipeline: cube_from_scratch
 
   # --------------------------------------------------------------- where
   paths:
@@ -15,7 +16,7 @@ params:
     repository: /path/to/pytorch_connectomics
     # Downloads land here: EM volume, training cubes, checkpoint, masks.
     dataset_root: /path/to/j0126
-    # Everything the pipeline produces. Budget ~5 TB for the whole volume.
+    # Everything the pipeline produces. See RESOURCE.md for peak disk/inode budgets.
     output_root: ${params.paths.repository}/outputs/neuron_j0126
 
   # --------------------------------------------------------------- how
@@ -35,8 +36,8 @@ params:
     # Public FFN mirror of the EM volume (Januszewski et al. 2018, Nat Methods).
     em_source: gs://j0126-nature-methods-data/GgwKmcKgrcoNxJccKuGIzRnQqfit9hnfK1ctZzNbnuU/rawdata_realigned
     # [] = the whole ~660 GB volume. [z0, z1, y0, y1, x0, x1] fetches one crop
-    # instead; [2900, 3908, 5000, 6008, 5000, 6008] is a single 1008^3 chunk,
-    # a few minutes and ~1 GB, and is the right way to smoke-test this file.
+    # instead. Crops are NOT supported end-to-end by the current mask/scoring
+    # workflow; see README.md reproduction status before setting this field.
     em_bbox: []
     # Download job granularity: one (z-slab x XY-tile) block per unit of work.
     slab: 64
@@ -47,6 +48,8 @@ params:
     # It has seen labelled j0126 tissue, so a run from it is NOT
     # ground-truth-free -- it is the supervised upper reference.
     checkpoint_url: https://huggingface.co/pytc/vEM/resolve/main/j0126/affinity_scratch_48x96x96.ckpt
+    skeletons_url: https://huggingface.co/datasets/pytc/zebrafinch-j0126/resolve/main/test_50_skeletons.h5
+    ffn_node_lut_url: https://huggingface.co/datasets/pytc/zebrafinch-j0126/resolve/main/ffn_node_lut_test_50.h5
     num_shards: 8
     slurm_partition: ""
     cpus: 8
@@ -56,8 +59,16 @@ params:
   # --------------------------------------------------------------- step 0b
   # Tissue AND border keep-mask: FFN's own tissue_classification thresholded to
   # NOT(blood vessel | myelin | out-of-bounds), combined with the 0/255 border
-  # ring of the aligned EM. Removes 15.64% of the volume. ABISS masks affinity
+  # ring of the aligned EM. The historical mask used different thresholds;
+  # see README.md before comparing exclusion fractions. ABISS masks affinity
   # with it and error correction reuses it.
+  #
+  # Building it streams the whole tissue_classification layer. To skip that,
+  # download the prebuilt mask the reference runs used and set enabled: false:
+  #   huggingface.co/datasets/pytc/zebrafinch-j0126
+  #     -> j0126-tissue-border-keep-mask.tar
+  # It untars into dataset_root as tissue_border_keep_mask_full.zarr, the name
+  # data.keep_mask below already points at.
   mask:
     enabled: true
     num_shards: 16
@@ -92,12 +103,14 @@ params:
     slurm_partition: gpu
     cpus: 8
     memory: 64G
-    time: "8:00:00"
+    time: "24:00:00"   # 8 h timed out 14 of 40 shards
 
   # --------------------------------------------------------------- step 3
   # ABISS uses every CPU granted to the process, so this is ONE shared-memory
   # job, never an array: independent copies race on the same hierarchy layers.
-  # The recorded whole-volume run took 3.75 h on 64 cores.
+  # The historical 3.75 h used a separate 40-node fleet, not this launcher.
+  # At the configured chunk size, 64 atomic tasks need ~500 GB plus overhead:
+  # lower cpus or increase memory before running. 24 h may require resubmission.
   abiss:
     slurm_partition: ""
     cpus: 64
@@ -122,16 +135,34 @@ params:
     # context on the image and -1 on the label, so the loss ignores the border.
     dense_images: ${params.paths.dataset_root}/train/im_raw_4-32-32
     dense_labels: ${params.paths.dataset_root}/train/seg_gt_4-32-32
+    skeletons: ${params.paths.dataset_root}/test_50_skeletons.h5
+    ffn_node_lut: ${params.paths.dataset_root}/ffn_node_lut_test_50.h5
     # Built by the mask step.
     tissue_mask: ${params.paths.dataset_root}/ffn_tissue_mask_18-18-20.zarr
     keep_mask: ${params.paths.dataset_root}/tissue_border_keep_mask_full.zarr
+    masks:
+      strategy: ffn_tissue_border
+      sources: []
+      ratio_zyx: [1, 2, 2]
+      border_start_zyx: [0, 0, 0]
     # Optional external nucleus segmentation. When set, ABISS runs competitive
     # nucleus growth and writes the identity manifest that step 4 uses as a
     # firewall (it never joins two different nucleus identities). Leave "" if
     # you have none: the run still completes, without that protection -- the
     # "+ nucleus instance certificate" rows in the README are what it buys.
+    # The reference runs used j0126-nucleus-instances-80nm.h5 (465 hand-
+    # proofread nuclei at 80 nm iso) from
+    #   huggingface.co/datasets/pytc/zebrafinch-j0126
+    # which nucleus_ratio below upsamples onto the mip-0 grid.
     nucleus_volume: ""
     nucleus_ratio: [4, 8, 8]
     # Affinity handed to ABISS: a virtual dataset over step 2's chunk store,
     # built by the vds step. No data is copied.
     affinity_h5: ${params.paths.output_root}/affinity/affinity.h5
+
+  # Fixed geometry of the published FFN tissue/border builder. Its keep mask
+  # covers 10912 rows; the ABISS extent includes one additional far-face row.
+  frame:
+    volume_shape_zyx: [5700, 10912, 10664]
+    volume_origin_global_zyx: [0, 0, 0]
+    resolution_xyz_nm: [9, 9, 20]

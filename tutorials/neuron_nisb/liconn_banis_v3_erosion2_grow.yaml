@@ -1,0 +1,92 @@
+_base_:
+  - base_banis+.yaml
+  - liconn_dataset.yaml
+
+experiment_name: nisb_liconn_banis_v3_erosion2_grow
+description: >-
+  The erosion2 anchor checkpoint (test NERL 0.211 @ cc3d 0.70) decoded with
+  MERGE-SAFE SEEDS + BOUNDED GROWTH instead of a single global threshold.
+  Training is untouched -- this is a decode-only change, so it applies to the
+  existing 200k checkpoint with no retraining.
+
+  WHY (dev/nisb/liconn/{coverage_probe,affinity_separability}.py, 2026-07-27):
+  the 25-27% of GT skeleton nodes that cc3d@0.70 leaves on background are not
+  unseen -- their median max incident affinity is 0.628, and 79% of them are
+  above 0.5. The reason the threshold cannot simply be lowered is that the
+  affinity is caliber-miscalibrated: on TRUE same-instance edges the median
+  runs 0.52 (<27 nm) / 0.62 / 0.67 / 0.74 (>72 nm), while CROSS-instance edges
+  sit flat at median 0.36, p95 0.51 at every caliber. One global threshold
+  cannot both cover the thin processes and hold the touching ones apart, and
+  cc3d's transitive closure means a single leaked edge welds two neurons.
+
+  Splitting the two jobs fixes it. cc3d at 0.70 supplies merge-safe seeds;
+  `segmentation_grow` then floods those seeds through the 0.60-0.70 band with a
+  marker watershed bounded to 16 geodesic steps. Growth can never union two
+  seeds, so it is structurally merge-safe -- the residual risk is a grown
+  segment swallowing a neighbour's skeleton (ownership, not topology), which is
+  what bounds foreground_threshold from below.
+
+  MEASURED on the 512^3 seed6 centre crop with the local-GT harness
+  (dev/nisb/liconn/grow_sweep.py; self-NERL gate exactly 1.000000), reading the
+  published affinity so the numbers are decode-only:
+
+    decode                          NERL     node cov   labels owning >=2 GT
+    cc3d@0.70 (anchor)              0.3893   0.749      1
+    + grow fg0.65 steps4            0.4250   0.806      1     <- merges unchanged
+    + grow fg0.60 steps8            0.4382   0.846      6
+    + grow fg0.60 steps16           0.4442   0.874      8     <- best, +14.1%
+    + grow fg0.55 steps16           0.3377   0.891      15    <- merges take over
+
+  This file ships the fg0.60/steps16 peak. For the conservative point that
+  leaves the merge count untouched, use foreground_threshold 0.65 /
+  max_fill_steps 4 (+9.2% instead of +14.1%).
+
+  CAVEAT: those are LOCAL crop NERL (the local GT is re-cc3d'd inside the crop,
+  which removes the cross-crop split penalty), so they are comparable to each
+  other and NOT to the 0.211 full-volume figure. The full-volume number needs
+  a --mode test run with this config.
+
+save_path: outputs/nisb_liconn_banis_v3_erosion2_grow
+
+test:
+  decoding:
+    enabled: true
+    # The base config decodes through the linear `steps` path, and the schema
+    # rejects graph + steps together, so clear it. The linear path also cannot
+    # feed the raw affinity to a later decoder -- only the graph path supports
+    # `use_original_input` -- which is why this is a 2-node graph.
+    steps: []
+    graph:
+      output: grown
+      nodes:
+        # ---- merge-safe seeds at the tuned operating point ------------------
+        - name: seeds
+          op: decode_affinity_cc
+          inputs: [raw]
+          kwargs:
+            threshold: 0.70   # the tuned anchor threshold. Do NOT raise it to
+                              #   "make seeds safer": the affinity is packed
+                              #   just above 0.7, so cc3d@0.85 keeps only 29%
+                              #   of skeleton nodes and scores 0.023 locally
+            backend: numba
+            edge_offset: 0
+
+        # ---- grow the seeds down through the sub-threshold band -------------
+        - name: grown
+          op: segmentation_grow
+          inputs: [seeds]
+          kwargs:
+            use_original_input: true    # inject the raw affinity as `affinities`
+            foreground_threshold: 0.60  # bottom of the band growth may enter.
+                                        #   0.55 and below trades more coverage
+                                        #   for ownership merges and loses
+            channel_reduction: max      # a voxel is reachable if ANY of its
+                                        #   short-range affinities clears the
+                                        #   threshold
+            max_fill_steps: 16          # geodesic bound on how far a seed may
+                                        #   travel. This is the merge guard that
+                                        #   matters: unbounded growth lets one
+                                        #   seed claim a whole neighbouring
+                                        #   process that has no seed of its own
+            connectivity: 1             # face neighbours only
+            fill_only_zero: true        # never relabel a seeded voxel

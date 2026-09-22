@@ -161,6 +161,60 @@ def test_nucleus_config_inserts_competition_between_remap_and_agglomeration(
     assert competition.env["PARAM_JSON"] == str(prepared.param_path)
 
 
+def test_competitive_growth_names_the_watershed_it_reads(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """nucleus_competition.py refuses a watershed it cannot identify.
+
+    It looks for a manifest.json under WS_PATH carrying `abiss_build_id` and
+    `provenance_sha`, and the only writer used to be the seuron replay driver -- so a
+    chunk config with NUC_PATH ran the watershed and then died at the new stage.
+    """
+    ws_dir = tmp_path / "precomputed" / "ws"
+    payload = {
+        **_prepared(tmp_path).param_payload,
+        "WS_PATH": "file://" + str(ws_dir),
+        "NUC_PATH": "/input/nuclei.h5::main",
+        "NUC_COMPETITION_MANIFEST": str(tmp_path / "competition" / "manifest.json"),
+    }
+    prepared = replace(_prepared(tmp_path), param_payload=payload)
+    prepared.param_path.parent.mkdir(parents=True, exist_ok=True)
+    prepared.param_path.write_text(json.dumps(payload), encoding="utf-8")
+    monkeypatch.setattr(abiss_chunk, "_abiss_build_identity", lambda home: "git:fixture")
+    monkeypatch.setattr(abiss_chunk.subprocess, "run", lambda *a, **k: None)
+
+    plan = abiss_chunk._stage_plan(prepared, "competitive_nucleus_growth")
+    abiss_chunk._execute_stage(prepared, plan)
+
+    manifest = json.loads((ws_dir / "manifest.json").read_text())
+    assert manifest["abiss_build_id"] == "git:fixture"
+    assert len(manifest["provenance_sha"]) == 64
+    assert manifest["execution_bbox"] == payload["BBOX"]
+
+
+def test_an_explicit_ws_manifest_is_not_overwritten(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    payload = {
+        **_prepared(tmp_path).param_payload,
+        "WS_PATH": "file://" + str(tmp_path / "ws"),
+        "NUC_PATH": "/input/nuclei.h5::main",
+        "NUC_COMPETITION_MANIFEST": str(tmp_path / "competition" / "manifest.json"),
+        "WS_MANIFEST": str(tmp_path / "elsewhere" / "manifest.json"),
+    }
+    prepared = replace(_prepared(tmp_path), param_payload=payload)
+    monkeypatch.setattr(abiss_chunk, "_write_watershed_manifest", _unexpected_manifest_write)
+    monkeypatch.setattr(abiss_chunk.subprocess, "run", lambda *a, **k: None)
+
+    abiss_chunk._execute_stage(
+        prepared, abiss_chunk._stage_plan(prepared, "competitive_nucleus_growth")
+    )
+
+
+def _unexpected_manifest_write(cfg: Any) -> None:
+    raise AssertionError("an explicit WS_MANIFEST must win")
+
+
 def test_nucleus_constraints_can_disable_competitive_growth(tmp_path: Path) -> None:
     payload = {
         **_prepared(tmp_path).param_payload,
@@ -483,3 +537,134 @@ def test_bbox_check_is_skipped_for_remote_layers() -> None:
     """A precomputed/gs:// layer keeps its extent in `info`; never guess or fail."""
     assert abiss_chunk._affinity_extent_xyz("gs://bucket/affinity") is None
     abiss_chunk._validate_bbox_against_affinity("gs://bucket/affinity", [0, 0, 0, 9, 9, 9])
+
+
+# --------------------------------------------------------------------------------
+# Param-file contract with ABISS (j0126 reproduction report).
+# --------------------------------------------------------------------------------
+
+
+def _abiss_yaml(tmp_path: Path, param: dict[str, Any], **abiss: Any) -> Path:
+    source_h5 = tmp_path / "affinity.h5"
+    with h5py.File(source_h5, "w") as handle:
+        handle.create_dataset("main", data=np.zeros((3, 4, 6, 8), dtype=np.uint8))
+    config_path = tmp_path / "abiss.yaml"
+    section: dict[str, Any] = {
+        "abiss_home": str(tmp_path / "abiss"),
+        "workdir": str(tmp_path / "work"),
+        "secrets_dir": str(tmp_path / "secrets"),
+        "source_affinity_h5": str(source_h5),
+        "source_dataset": "main",
+        "param": param,
+    }
+    section.update(abiss)
+    config_path.write_text(yaml.safe_dump({"abiss_chunk": section}), encoding="utf-8")
+    return config_path
+
+
+def test_aff_channels_is_written_as_an_index_list(tmp_path: Path) -> None:
+    """`volume_backends._channels_for` reads AFF_CHANNELS as INDICES, not a count.
+
+    Emitting the count `3` for a 3-channel volume asks for channel index 3 and the
+    h5/zarr backends raise `AFF_CHANNELS [3] out of range`. The precomputed backend
+    ignores the key, which is why this stayed invisible.
+    """
+    config_path = _abiss_yaml(
+        tmp_path, {"NAME": "chan", "BBOX": [0, 0, 0, 8, 6, 4], "CHUNK_SIZE": [8, 6, 4]}
+    )
+
+    payload = abiss_chunk.prepare_config(config_path).param_payload
+
+    assert payload["AFF_CHANNELS"] == [0, 1, 2]
+
+
+def test_empty_nucleus_keys_are_dropped_from_the_param_file(tmp_path: Path) -> None:
+    """ABISS tests `if "NUC_PATH" in global_param` -- presence, not truthiness.
+
+    Writing `NUC_PATH: ""` makes `cut_chunk_agg` open `""` and die with
+    `UnsupportedProtocolError` minutes into the decode.
+    """
+    config_path = _abiss_yaml(
+        tmp_path,
+        {
+            "NAME": "nonuc",
+            "BBOX": [0, 0, 0, 8, 6, 4],
+            "CHUNK_SIZE": [8, 6, 4],
+            "NUC_PATH": "",
+            "NUC_RATIO": [4, 8, 8],
+            "NUC_OFFSET": [0, 0, 0],
+            "NUC_MIN_SHARE": 0.02,
+        },
+    )
+
+    payload = abiss_chunk.prepare_config(config_path).param_payload
+
+    assert not [key for key in payload if key.startswith("NUC_")]
+
+
+def test_configured_nucleus_keys_survive(tmp_path: Path) -> None:
+    config_path = _abiss_yaml(
+        tmp_path,
+        {
+            "NAME": "nuc",
+            "BBOX": [0, 0, 0, 8, 6, 4],
+            "CHUNK_SIZE": [8, 6, 4],
+            "NUC_PATH": str(tmp_path / "nuclei.h5") + "::main",
+            "NUC_RATIO": [4, 8, 8],
+        },
+    )
+
+    payload = abiss_chunk.prepare_config(config_path).param_payload
+
+    assert payload["NUC_PATH"].endswith("nuclei.h5::main")
+    assert payload["NUC_RATIO"] == [4, 8, 8]
+
+
+def test_keep_mask_on_a_precomputed_affinity_is_rejected(tmp_path: Path) -> None:
+    """A precomputed AFF_PATH silently drops AFF_KEEP_MASK; fail instead."""
+    config_path = _abiss_yaml(
+        tmp_path,
+        {
+            "NAME": "masked",
+            "BBOX": [0, 0, 0, 8, 6, 4],
+            "CHUNK_SIZE": [8, 6, 4],
+            "AFF_PATH": f"file://{tmp_path}/precomputed/affinity",
+            "AFF_KEEP_MASK": f"{tmp_path}/keep.zarr",
+        },
+    )
+
+    with pytest.raises(ValueError, match="does not apply it"):
+        abiss_chunk.prepare_config(config_path)
+
+
+def test_keep_mask_on_an_h5_affinity_is_accepted(tmp_path: Path) -> None:
+    source_h5 = tmp_path / "affinity.h5"
+    config_path = _abiss_yaml(
+        tmp_path,
+        {
+            "NAME": "masked",
+            "BBOX": [0, 0, 0, 8, 6, 4],
+            "CHUNK_SIZE": [8, 6, 4],
+            "AFF_PATH": str(source_h5),
+            "AFF_KEEP_MASK": f"{tmp_path}/keep.zarr",
+        },
+    )
+
+    payload = abiss_chunk.prepare_config(config_path).param_payload
+
+    assert payload["AFF_KEEP_MASK"] == f"{tmp_path}/keep.zarr"
+
+
+def test_unmasked_precomputed_affinity_still_works(tmp_path: Path) -> None:
+    """No AFF_KEEP_MASK means decoding unmasked on purpose; the guard is silent."""
+    config_path = _abiss_yaml(
+        tmp_path,
+        {
+            "NAME": "plain",
+            "BBOX": [0, 0, 0, 8, 6, 4],
+            "CHUNK_SIZE": [8, 6, 4],
+            "AFF_PATH": f"file://{tmp_path}/precomputed/affinity",
+        },
+    )
+
+    assert "AFF_KEEP_MASK" not in abiss_chunk.prepare_config(config_path).param_payload

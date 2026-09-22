@@ -14,6 +14,7 @@ chunks. The runner handles both cases by:
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import math
 import os
@@ -21,7 +22,7 @@ import subprocess
 import sys
 from dataclasses import dataclass, replace
 from pathlib import Path
-from typing import Any, Dict, Mapping, Sequence
+from typing import Any, Dict, List, Mapping, Optional, Sequence
 from urllib.parse import urlparse
 from urllib.request import url2pathname
 
@@ -43,6 +44,84 @@ STAGES_WITH_NUCLEUS = (
     "remap_agglomeration",
 )
 STAGE_CHOICES = tuple(dict.fromkeys(STAGES_ALL + STAGES_WITH_NUCLEUS))
+
+
+def _aff_channels(configured: Any, source_num_channels: int) -> Optional[List[int]]:
+    """Channel INDICES for ABISS' ``AFF_CHANNELS``, or None to leave the key out.
+
+    `volume_backends._channels_for` reads this key as a list of channel indices;
+    `cut_chunk_common.cut_data` reads it as a count in one fallback branch. A
+    contiguous ``0..n-1`` prefix is the only value that satisfies both. Emitting
+    the bare count `3` asks the h5/zarr backends -- the only ones that apply
+    AFF_KEEP_MASK -- for channel index 3 of a 3-channel volume, which raises
+    `AFF_CHANNELS [3] out of range`. The precomputed backend ignores the key, so
+    the mistake is invisible until you point AFF_PATH at the affinity itself.
+    """
+    if configured is None:
+        configured = source_num_channels
+    if isinstance(configured, (list, tuple)):
+        indices = [int(c) for c in configured]
+        if indices != list(range(len(indices))):
+            raise ValueError("AFF_CHANNELS must be a contiguous 0..n-1 prefix")
+        return indices
+    count = int(configured)
+    return list(range(count)) if count > 0 else None
+
+
+def _applies_keep_mask(aff_cloudpath: str) -> bool:
+    """Whether ABISS' backend for ``aff_cloudpath`` honours ``AFF_KEEP_MASK``.
+
+    `volume_backends.open_volume` selects a backend by path shape, and only the
+    HDF5, zarr and h5-chunkstore branches wrap the volume in `_with_keep_mask`.
+    Anything else -- a precomputed layer, `gs://` -- falls through to a bare
+    CloudVolume, which has no `attach_keep_mask`, so a configured mask is found,
+    loaded and then dropped without a word.
+    """
+    text = str(aff_cloudpath)
+    if text.startswith(("h5://", "hdf5://", "zarr://")):
+        return True
+    local = _cloudpath_to_local_path(text)
+    stem = str(local).split("::", 1)[0].rstrip("/")
+    if stem.endswith((".h5", ".hdf5", ".zarr")):
+        return True
+    # h5 chunkstore: a directory of chunk_z*_y*_x*.h5 written by chunked inference.
+    return bool(Path(stem).is_dir() and next(Path(stem).glob("chunk_z*_y*_x*.h5"), None))
+
+
+def _validate_keep_mask_is_reachable(payload: Mapping[str, Any]) -> None:
+    """Refuse to decode when a configured keep-mask would be silently discarded.
+
+    Losing the mask does not fail: the decode runs, segments grow through blood
+    vessel and myelin, and only the score shows it. Measured on j0126, same
+    affinity: VOI merge 0.248 -> 0.811 and NERL mt5 0.261 -> 0.153.
+    """
+    keep_mask = str(payload.get("AFF_KEEP_MASK") or "").strip()
+    if not keep_mask:
+        return
+    aff_path = str(payload.get("AFF_PATH") or "")
+    if _applies_keep_mask(aff_path):
+        return
+    raise ValueError(
+        f"AFF_KEEP_MASK={keep_mask} is configured but AFF_PATH={aff_path} resolves to a "
+        "backend that does not apply it (only HDF5, zarr and h5-chunkstore paths do). "
+        "Point AFF_PATH at the affinity h5/zarr itself -- which also removes the "
+        "affinity -> precomputed copy -- or clear AFF_KEEP_MASK to decode unmasked "
+        "on purpose."
+    )
+
+
+def _drop_disabled_nucleus_keys(payload: Dict[str, Any]) -> None:
+    """Remove every ``NUC_*`` key when no nucleus volume is configured.
+
+    ABISS gates on key PRESENCE, not truthiness (`cut_chunk_agg.py`:
+    ``if "NUC_PATH" in global_param``), so a config that sets ``NUC_PATH: ""`` to
+    mean "off" instead makes ABISS open ``""`` and die with
+    `UnsupportedProtocolError` minutes into the decode.
+    """
+    if str(payload.get("NUC_PATH") or "").strip():
+        return
+    for key in [key for key in payload if key.startswith("NUC_")]:
+        del payload[key]
 
 
 def _nucleus_competition_enabled(payload: Mapping[str, Any]) -> bool:
@@ -748,11 +827,15 @@ def prepare_config(config_path: Path) -> ChunkWorkflowConfig:
             "UPLOAD_CMD": upload_cmd,
             "DOWNLOAD_CMD": download_cmd,
             "AFF_RESOLUTION": int(param.get("AFF_RESOLUTION", 0)),
-            "AFF_CHANNELS": int(param.get("AFF_CHANNELS", source_num_channels)),
             "BBOX": bbox_xyz,
             "CHUNK_SIZE": chunk_size_xyz,
         }
     )
+    aff_channels = _aff_channels(param.get("AFF_CHANNELS"), source_num_channels)
+    if aff_channels is None:
+        payload.pop("AFF_CHANNELS", None)
+    else:
+        payload["AFF_CHANNELS"] = aff_channels
     payload.setdefault("WS_HIGH_THRESHOLD", 0.9)
     payload.setdefault("WS_LOW_THRESHOLD", 0.1)
     payload.setdefault("WS_SIZE_THRESHOLD", 400)
@@ -769,6 +852,8 @@ def prepare_config(config_path: Path) -> ChunkWorkflowConfig:
             "NUC_VOXEL_SIZE_ZYX_NM",
             list(reversed(resolution_xyz)),
         )
+    _drop_disabled_nucleus_keys(payload)
+    _validate_keep_mask_is_reachable(payload)
 
     return ChunkWorkflowConfig(
         workdir=workdir,
@@ -932,6 +1017,9 @@ def _stage_plan(cfg: PreparedConfig, stage: str) -> StagePlan:
 def _write_param(param_path: Path, payload: Mapping[str, Any]) -> None:
     _ensure_parent(param_path)
     with param_path.open("w", encoding="utf-8") as f:
+        payload = {
+            k: v for k, v in payload.items() if not (k.startswith("NUC_") and v in ("", None, []))
+        }
         json.dump(dict(payload), f, indent=2, sort_keys=True)
         f.write("\n")
     if param_path.name == "param":
@@ -1014,7 +1102,72 @@ def _prepare_runtime_secrets_view(cfg: PreparedConfig) -> None:
         destination.symlink_to(source_resolved, target_is_directory=source.is_dir())
 
 
+def _abiss_build_identity(abiss_home: Path) -> str:
+    """ABISS build identity, from the replay driver's canonical helper.
+
+    Imported lazily by path so this module and lib/abiss/scripts agree byte for byte:
+    nucleus_competition.py fingerprints the build with the SAME function, and a second
+    implementation here would drift into a manifest that names the wrong binary.
+    """
+    scripts_dir = Path(__file__).resolve().parents[2] / "scripts"
+    added = str(scripts_dir) not in sys.path
+    if added:
+        sys.path.insert(0, str(scripts_dir))
+    try:
+        from run_seuron_provenance import _abiss_build_id
+
+        return _abiss_build_id(Path(abiss_home))
+    finally:
+        if added:
+            sys.path.remove(str(scripts_dir))
+
+
+def _write_watershed_manifest(cfg: PreparedConfig) -> Path:
+    """Name the watershed the nucleus stage is about to read.
+
+    `competitive_nucleus_growth` refuses to run against a watershed it cannot identify
+    (nucleus_competition.py:_watershed_manifest_path wants a manifest.json carrying
+    `abiss_build_id` and `provenance_sha`), and the only writer of that manifest was the
+    seuron replay driver -- so setting NUC_PATH in a chunk config produced a run that
+    completed the watershed and then died at the new stage. This driver's provenance IS
+    its param JSON, so that is what the manifest is keyed on.
+
+    Written just before the stage runs, i.e. after remap_watershed, so it can only ever
+    name a watershed that exists.
+    """
+    ws_cloudpath = str(cfg.param_payload.get("WS_PATH", ""))
+    if not _is_local_cloudpath(ws_cloudpath):
+        raise ValueError(
+            f"competitive nucleus growth needs a watershed manifest, and WS_PATH "
+            f"{ws_cloudpath!r} is not a local path. Set param.WS_MANIFEST to one."
+        )
+    manifest_path = _cloudpath_to_local_path(ws_cloudpath) / "manifest.json"
+    payload = {
+        "abiss_build_id": _abiss_build_identity(cfg.abiss_home),
+        "provenance_sha": _sha256_file(cfg.param_path),
+        "execution_bbox": [int(v) for v in cfg.param_payload.get("BBOX", [])],
+        "param_path": str(cfg.param_path),
+        "written_by": "connectomics.runtime.abiss_chunk",
+    }
+    _ensure_parent(manifest_path)
+    with manifest_path.open("w", encoding="utf-8") as handle:
+        json.dump(payload, handle, indent=2, sort_keys=True)
+        handle.write("\n")
+    print(f"Wrote watershed manifest: {manifest_path}")
+    return manifest_path
+
+
+def _sha256_file(path: Path) -> str:
+    digest = hashlib.sha256()
+    with Path(path).open("rb") as handle:
+        for block in iter(lambda: handle.read(1 << 20), b""):
+            digest.update(block)
+    return digest.hexdigest()
+
+
 def _execute_stage(cfg: PreparedConfig, plan: StagePlan) -> None:
+    if plan.stage == "competitive_nucleus_growth" and not cfg.param_payload.get("WS_MANIFEST"):
+        _write_watershed_manifest(cfg)
     airflow_tmp_dir = cfg.workdir / ".airflow"
     airflow_tmp_dir.mkdir(parents=True, exist_ok=True)
     for lock_file in airflow_tmp_dir.glob(".cpulock_*"):

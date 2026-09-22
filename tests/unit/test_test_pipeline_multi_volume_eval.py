@@ -181,10 +181,11 @@ def test_run_evaluation_stage_accepts_plain_context_and_arrays():
     assert saved_metrics[0]["accuracy"] == 1.0
 
 
-def test_test_pipeline_dispatches_tube_evaluation_without_labels(monkeypatch):
+@pytest.mark.parametrize("metric", ["tube", "morphology"])
+def test_test_pipeline_dispatches_gt_free_evaluation_without_labels(monkeypatch, metric):
     module = _DummyModule()
     module.cfg.evaluation.enabled = True
-    module.cfg.evaluation.metrics = ["tube"]
+    module.cfg.evaluation.metrics = [metric]
     module._get_test_evaluation_config = lambda: module.cfg.evaluation
     captured = {}
 
@@ -217,7 +218,7 @@ def test_test_pipeline_dispatches_tube_evaluation_without_labels(monkeypatch):
     )
 
     assert captured == {
-        "metrics": {"tube"},
+        "metrics": {metric},
         "shape": (4, 4, 4),
         "labels": None,
         "filenames": ["vol0"],

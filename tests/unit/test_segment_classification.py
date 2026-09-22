@@ -33,6 +33,7 @@ def test_explicit_public_api_and_json_safe_decision(thick_backbone):
         "SegmentClassificationConfig",
         "SegmentClassification",
         "classify_segment",
+        "classify_semantic_candidate",
     }
     result = classify_segment("branched_process_candidate", 2000, arbor=thick_backbone)
     assert isinstance(result, SegmentClassification)

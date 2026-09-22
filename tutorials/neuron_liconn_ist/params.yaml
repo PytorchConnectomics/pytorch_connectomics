@@ -27,7 +27,14 @@ params:
     resolution_zyx: [24, 18, 18]
 
   artifacts:
-    # Existing 200k banis+ checkpoint trained on this volume at 18 nm.
+    # Released 200k banis+ checkpoint trained on this volume at 18 nm.
+    # Portable source -- weights-only (247 MB), bit-identical to the local file
+    # below on a real 128^3 forward pass (verified 2026-09-08, TF32 disabled).
+    # Model card documents the mandatory 128^3 inference window, the
+    # scale_sigmoid contract, and the EMA caveat (see README).
+    checkpoint_url: https://huggingface.co/pytc/liconn/resolve/main/affinity_expid82_18nm_128x128x128.ckpt
+    # Local training artifact. Same weights, plus optimizer state (742 MB).
+    # Only exists on this cluster; prefer checkpoint_url elsewhere.
     checkpoint: ${params.paths.repository}/outputs/liconn_final_banis_plus_tube/20260728_032436/checkpoints/step=00200000.ckpt
     # Its val affinity, already computed: (3, 145, 4290, 3345) float16, ZYX
     # channel order, scale_sigmoid-compressed (see 2_abiss.yaml).

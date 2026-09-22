@@ -55,9 +55,31 @@ def _root(env: str, default) -> Path:
 MOE_ROOT = _root("LICONN_MOE_ROOT",
                  "/projects/weilab/dataset/liconn/moe/preprocessed/clip_percentile_1_99")
 SRC_ZARR = _root("LICONN_MOE_SRC_ZARR", MOE_ROOT / "zarr")
-PREPARED = _root("LICONN_MOE_PREPARED", MOE_ROOT / "prepared_train_grid")
-
-TRAIN_GRID_ZYX = (24.0, 18.0, 18.0)
+# GRID SCOPING. Which model scale the volumes are prepared for. `train` is the
+# mip1 banis+ grid; `mip0` is the finer grid of the mip0 checkpoints.
+#
+#   MOE_GRID=mip0 MOE_CKPT=<mip0 ckpt> MOE_OUT_ROOT=<...>/mip0_eb8 MOE_GCS_KIND=mip0_eb8
+#
+# THE 18x VOLUMES ARE THE ONLY ONES WHERE mip0 IS INTERESTING, and for one
+# specific reason: their native spacing is [22.22, 9.03, 9.03] nm, so their XY is
+# ALREADY at the mip0 model's 9 nm to within 0.3%. The mip1 recipe throws that
+# away with a (1,2,2) block average. At mip0 the model sees real, un-averaged XY.
+#
+# The cost is Z: 22.22 -> 12 nm is a 1.852x INTERPOLATION, i.e. invented planes.
+# The closest precedent in this batch is the ExPID99 32x pair, which interpolates
+# Z by 1.92x and lands worst on coverage (0.550/0.633) -- the README attributes
+# that to the resample rather than the biology. So mip0-on-18x runs a real XY
+# gain against a known-bad Z interpolation, and the two are confounded. Read any
+# result accordingly; it is not a clean "is mip0 better" test.
+_GRIDS = {
+    "train": ("prepared_train_grid", (24.0, 18.0, 18.0)),
+    "mip0": ("prepared_mip0_grid", (12.0, 9.0, 9.0)),
+}
+MOE_GRID = os.environ.get("MOE_GRID", "train")
+if MOE_GRID not in _GRIDS:
+    raise ValueError(f"MOE_GRID must be one of {tuple(_GRIDS)}")
+_dirname, TRAIN_GRID_ZYX = _GRIDS[MOE_GRID]
+PREPARED = _root("LICONN_MOE_PREPARED", MOE_ROOT / _dirname)
 
 # How far an EXACT integer block average may sit from the training grid before
 # the interpolated area resample is preferred instead. 8% is not arbitrary: the
@@ -133,48 +155,95 @@ def auto_recipe(shape, native, target=TRAIN_GRID_ZYX) -> dict:
             "upsample_refused": [ax for ax, a in zip("ZYX", axes) if a["mode"] == "native"]}
 
 # The IST-LICONN banis+ 200k checkpoint applied cross-sample to every moe volume.
-#
-# On GCP the same weights are pulled from `pytc/liconn` on HuggingFace as
-# `affinity_expid82_18nm_128x128x128.ckpt` -- same specimen (ExPID82_1), same
-# [24,18,18] nm grid, same 200k steps. `LICONN_MOE_CKPT` must still point at a
-# path with a `YYYYmmdd_HHMMSS` ancestor directory, because
-# `runtime/checkpoint_dispatch.py::get_output_base_from_checkpoint` looks for
-# exactly that to decide where test outputs land; without one it falls back to
-# `<ckpt>/../../<stem>`, which for a checkpoint in a top-level directory is a
-# path at the filesystem root. `gcloud/run_volume.sh` stages it accordingly.
 REPO = _root("LICONN_MOE_REPO", "/projects/weilab/weidf/lib/pytorch_connectomics")
-CKPT = _root("LICONN_MOE_CKPT",
-             REPO / "outputs/liconn_final_banis_plus_tube/20260728_032436/checkpoints/step=00200000.ckpt")
+#
+# MODEL SCOPING. Both of the following are env-overridable so a SECOND checkpoint
+# can be decoded without touching the first one's artifacts. They must move
+# together:
+#
+#   MOE_CKPT=<other ckpt> MOE_OUT_ROOT=<other tree> python sweep_merge_threshold.py ...
+#
+# Changing MOE_CKPT alone is a data-loss bug, not a shortcut. sweep_merge_threshold.py
+# writes <work_dir>/mt_sweep.json at a FIXED name and does final.unlink() before
+# hard-linking the chosen segmentation -- and for the LEGACY volume layer_name()
+# returns a fixed string. So a second model decoded into the default OUT_ROOT
+# would delete the first model's published segmentation and keep its filename,
+# leaving an artifact whose name says one model and whose contents are another.
+CKPT = Path(os.environ.get(
+    "MOE_CKPT",
+    REPO / "outputs/liconn_final_banis_plus_tube/20260728_032436/checkpoints/step=00200000.ckpt"))
 # In --mode test `runtime/checkpoint_dispatch.py` overwrites `inference.save_path`
 # with <ckpt run dir>/test_<ckpt stem>/, so this is where results actually land --
 # the `save_path:` in the step YAMLs is ignored. The per-volume leaf is the stem
 # of the image path, which is why `prepare_volume.py` writes `<vol>.h5` and not
 # `<vol>.zarr/0` (every zarr volume would share the leaf "0" and overwrite).
 TEST_OUT = CKPT.parent.parent / f"test_{CKPT.stem}"
-OUT_ROOT = _root("LICONN_MOE_OUT_ROOT", REPO / "outputs/neuron_liconn_moe")
+# Default is the eb2 subtree: artifacts were reorganised 2026-09-16 so each
+# model owns a sibling directory under outputs/neuron_liconn_moe/ rather than
+# sharing one namespace. Everything derived from OUT_ROOT (work_dir, the
+# precomputed staging tree, the qc output) moves with it.
+DEFAULT_OUT_ROOT = REPO / "outputs/neuron_liconn_moe/eb2"
+OUT_ROOT = Path(os.environ.get("MOE_OUT_ROOT", DEFAULT_OUT_ROOT))
 
-# Publication target: the PUBLIC bucket, which already mirrors all eight OME-Zarr
-# image groups (and the first segmentation) under the same prefix, so layers land
-# next to the images they overlay.
-#
-# The `clip_percentile_1_99` component is load-bearing and must not be dropped: a
-# second clip variant with IDENTICAL dataset names exists at
-# `preprocessed/zarr/`, so a flat `liconn/moe/` would collide the moment the
-# other variant is published. See [liconn_expid96_moe_preprocessed].
-# `GCS_PREFIX` is overridable because the layout moved on: ExPID96/99 were
-# published under the clip-variant prefix, while ExPID108 arrived already
-# published at `liconn/moe/expid108/image/`, and a segmentation belongs beside
-# the image it overlays rather than under another volume's clip name.
+# Publication target: the PUBLIC bucket (not anonymously readable -- reads and
+# writes need the donglai@mindspan.org account), which holds both the OME-Zarr
+# image groups and the segmentation layers, so layers sit next to the images
+# they overlay.
 GCS_BUCKET = os.environ.get("LICONN_MOE_GCS_BUCKET") or "donglai_public"
-GCS_PREFIX = os.environ.get("LICONN_MOE_GCS_PREFIX") or "liconn/moe/clip_percentile_1_99"
-GCS_FOLDER = f"gs://{GCS_BUCKET}/{GCS_PREFIX}"
+GCS_ROOT = f"gs://{GCS_BUCKET}/liconn/moe"
+
+# LAYOUT (2026-09-16). Objects are grouped by sample series, then by what they
+# are: gs://donglai_public/liconn/moe/<family>/<kind>/<name>
+#   family  expid96 | expid99
+#   kind    image | mip1_eb2 | mip1_eb8 | mip0_eb8
+# `mip1` is the model scale: every moe volume is resampled onto the checkpoint's
+# [24,18,18] nm training grid, so a mip1 model is what produced these layers.
+#
+# THIS DROPPED THE `clip_percentile_1_99` PATH COMPONENT, which the previous
+# layout carried deliberately: a second clip variant with IDENTICAL dataset
+# names exists at preprocessed/zarr/, and nothing in the new path records which
+# variant an image came from. If that variant is ever published it collides in
+# <family>/image/. Record the clip variant in the image group's own metadata, or
+# reintroduce it as a suffix -- do not rely on the path to disambiguate it.
+GCS_KINDS = ("image", "mip1_eb2", "mip1_eb8", "mip0_eb8")
+
+
+def family(name: str) -> str:
+    """Sample series a volume belongs to -- the first path component on GCS."""
+    if name.startswith("ExPID96"):
+        return "expid96"
+    if name.startswith("ExPID99"):
+        return "expid99"
+    if name.startswith("ExPID108"):
+        return "expid108"
+    if name.startswith("ExPID71"):
+        return "expid71"
+    raise ValueError(f"unknown sample series for {name!r}")
+
+
+def gcs_kind() -> str:
+    """Which model tree is being published, derived from the scoped OUT_ROOT."""
+    explicit = os.environ.get("MOE_GCS_KIND")
+    if explicit:
+        if explicit not in GCS_KINDS:
+            raise ValueError(f"MOE_GCS_KIND must be one of {GCS_KINDS}")
+        return explicit
+    model = OUT_ROOT.name                      # eb2 | eb8, see MODEL SCOPING above
+    if model not in ("eb2", "eb8"):
+        raise ValueError(
+            f"cannot infer the GCS kind from OUT_ROOT {OUT_ROOT}; set MOE_GCS_KIND")
+    return f"mip1_{model}"
+
+
+def gcs_folder(name: str, kind: str | None = None) -> str:
+    return f"{GCS_ROOT}/{family(name)}/{kind or gcs_kind()}"
 
 # ngauth server for the private `donglai` bucket, kept for reference. Whether it
 # is authorised for `donglai_public` has not been established.
 NGAUTH = f"gs+ngauth+https://sunny-catalyst-506019-a2.ue.r.appspot.com/{GCS_BUCKET}"
 
 
-def layer_url(layer: str) -> str:
+def layer_url(layer: str, volume: str, kind: str | None = None) -> str:
     """Neuroglancer source for a published layer.
 
     Plain `gs://` assumes the bucket is anonymously readable. As of 2026-09-04 it
@@ -184,7 +253,7 @@ def layer_url(layer: str) -> str:
     200. Until `allUsers:objectViewer` is granted, use the `NGAUTH` form instead
     (and confirm that server is authorised for this bucket).
     """
-    return f"precomputed://gs://{GCS_BUCKET}/{GCS_PREFIX}/{layer}"
+    return f"precomputed://{gcs_folder(volume, kind)}/{layer}"
 
 
 # name -> prep recipe. `factor` = exact block average; `target` = area resample.
@@ -334,16 +403,35 @@ def prepared_h5(name: str) -> Path:
 
 
 def prepared_image(name: str) -> Path:
-    """The path handed to the model as `data.test.image`."""
-    if name in LEGACY:
+    """The path handed to the model as `data.test.image`.
+
+    The LEGACY pin is a mip1 artifact: it points at the `zarr_ds1-2-2` copy that
+    predates `prepare_volume.py` writing `<vol>.h5`. It is the (1,2,2) block
+    average, i.e. the TRAIN grid, so honouring it on any other grid would feed
+    the model a downsampled volume while the config says otherwise.
+    """
+    if name in LEGACY and MOE_GRID == "train":
         return LEGACY[name]["image"]
     return prepared_h5(name)
 
 
 
 def affinity_h5(name: str) -> Path:
-    """Step 1 output for `name` (3, Z, Y, X) float16."""
-    if name in LEGACY:
+    """Step 1 output for `name` (3, Z, Y, X) float16.
+
+    The `0/` leaf is NOT a property of the volume, it is a property of the image
+    path it was run from: `inference/output.py::resolve_output_filenames` names
+    the leaf from the last path component, and the LEGACY pin above ends in
+    `.zarr/0` ("0" is not in `_UNINFORMATIVE_STEMS`, so the walk-up-to-parent
+    rule never fires). Both mip1 runs of this volume therefore wrote to `0/`.
+    `make_volume_config.py` does not consult `prepared_image()` at all -- it
+    writes `image: {name}.h5` from `plan()` -- so on any other grid the leaf is
+    the volume's own name, and redirecting to `0/` raises FileNotFoundError on a
+    path that only ever existed under the mip1 checkpoints. Observed 2026-09-21
+    on MOE_GRID=mip0, whose affinity is (3, 585, 2304, 2304) under the NAMED
+    leaf. Scope the redirect to the grid that produced it.
+    """
+    if name in LEGACY and MOE_GRID == "train":
         return TEST_OUT / "0/raw_x1_ch0-1-2.h5"
     return TEST_OUT / name / "raw_x1_ch0-1-2.h5"
 
@@ -364,7 +452,13 @@ def layer_name(name: str, merge_threshold: float) -> str:
     """Published layer name. Three decimals, because the threshold is no longer a
     round number -- it is the percentile-matched value for this volume, and two
     digits would round 0.5714 and 0.5749 onto the same layer."""
-    if name in LEGACY and "layer" in LEGACY[name]:
+    # The pinned LEGACY name exists ONLY to keep the already-published eb2 layer
+    # reachable on GCS. It is a two-decimal name from before this convention, and
+    # it hardcodes a threshold. Applying it to any other model produces a file
+    # whose name states a threshold that model did not choose -- observed
+    # 2026-09-16, when eb8 picked 0.6079 and still got a file called `mt060`.
+    # So honour the pin only in the default (eb2) tree.
+    if name in LEGACY and "layer" in LEGACY[name] and OUT_ROOT == DEFAULT_OUT_ROOT:
         return LEGACY[name]["layer"]
     return f"{name}_seg_abiss_mt{merge_threshold:.3f}".replace(".", "")
 
@@ -379,7 +473,24 @@ def plan(name: str) -> dict:
     shape = tuple(int(v) for v in g["0"].shape)
     native = np.asarray(g.attrs["spacing_nm_zyx"], dtype=np.float64)
 
-    if rec.get("auto"):
+    # The `factor` entries are hand-picked for the TRAIN grid only -- (1,2,2) on
+    # an 18x volume lands on [22.22, 18.06, 18.06], which is meaningless for any
+    # other target. On a non-train grid every volume resamples to that grid.
+    use_factor = "factor" in rec and MOE_GRID == "train"
+
+    # mip0: feed the 18x volumes NATIVE. Their XY is already 9.03 nm, within
+    # 0.3% of the mip0 model's 9 nm, so there is nothing to gain by resampling
+    # XY and the mip1 (1,2,2) average would throw the detail away. Z is left at
+    # its native 22.22 nm rather than interpolated up to 12: a 1.852x Z
+    # interpolation invents planes, and the closest precedent in this batch (the
+    # 32x pair, Z interpolated 1.92x) lands worst on coverage. So the model gets
+    # real XY at its trained scale and a Z step ~1.85x coarser than it saw in
+    # training -- an honest mismatch instead of manufactured data.
+    if MOE_GRID == "mip0":
+        use_factor = True
+        rec = dict(rec, factor=(1, 1, 1))
+
+    if rec.get("auto") and MOE_GRID == "train":
         # Per-axis choice against the training grid; see choose_axis.
         auto = auto_recipe(shape, tuple(native))
         achieved = np.asarray(auto["achieved"], dtype=np.float64)
@@ -396,13 +507,14 @@ def plan(name: str) -> dict:
             # corners coincident and what the neuroglancer layer must declare.
             spacing = native * np.asarray(shape, dtype=np.float64) / np.asarray(out_shape)
         args = auto["prepare_args"]
-    elif "factor" in rec:
+    elif use_factor:
         factor = tuple(rec["factor"])
         out_shape = tuple(s // f for s, f in zip(shape, factor))
         spacing = native * np.asarray(factor, dtype=np.float64)
         args = ["--factor", *[str(f) for f in factor]]
     else:
-        target = np.asarray(rec["target"], dtype=np.float64)
+        target = np.asarray(rec.get("target", TRAIN_GRID_ZYX) if MOE_GRID == "train"
+                            else TRAIN_GRID_ZYX, dtype=np.float64)
         out_shape = tuple(max(1, int(round(n / (t / s))))
                           for n, t, s in zip(shape, target, native))
         spacing = native * np.asarray(shape, dtype=np.float64) / np.asarray(out_shape)
@@ -430,7 +542,7 @@ def plan(name: str) -> dict:
 
 
 if __name__ == "__main__":
-    print(f"target grid {TRAIN_GRID_ZYX} nm ZYX (= [18,18,24] XYZ); "
+    print(f"target grid {TRAIN_GRID_ZYX} nm ZYX (= {TRAIN_GRID_ZYX[::-1]} XYZ); "
           f"integer-factor tolerance {INTEGER_TOL:.0%}\n")
     print(f"{'volume':34s} {'-> prepared':>20s} "
           f"{'spacing ZYX nm':>26s} {'dev vs grid %':>22s}  {'Mvox':>6s}  recipe")

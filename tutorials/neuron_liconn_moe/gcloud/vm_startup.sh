@@ -223,7 +223,7 @@ docker run --rm --gpus all --ipc=host \
     -v "$WORK":/work \
     "${TUTORIAL_MOUNT[@]+"${TUTORIAL_MOUNT[@]}"}" \
     -e LICONN_MOE_GCS_BUCKET="$(echo "$PUBLISH_PREFIX" | sed -E 's|gs://([^/]+)/.*|\1|')" \
-    -e LICONN_MOE_GCS_PREFIX="${PUBLISH_PREFIX#gs://*/}" \
+    -e MOE_GCS_KIND=mip1_eb2 \
     "$IMAGE_TAG" \
     bash tutorials/neuron_liconn_moe/gcloud/run_volume.sh "$VOLUME" || die "pipeline"
 
@@ -247,9 +247,9 @@ gcloud storage cp "$SEG" "$PUBLISH_PREFIX/seg/$(basename "$SEG")" -q || die "pub
 # arrive as gzip bytes that neuroglancer reads as raw and fails on.
 for layer in "$WORK/out/precomputed"/*; do
     [[ -d "$layer" ]] || continue
-    gcloud storage rsync -r "$layer" "$PUBLISH_PREFIX/$(basename "$layer")" -q \
+    gcloud storage rsync -r "$layer" "$PUBLISH_PREFIX/mip1_eb2/$(basename "$layer")" -q \
         || die "publish layer $(basename "$layer")"
-    echo "layer -> $PUBLISH_PREFIX/$(basename "$layer")"
+    echo "layer -> $PUBLISH_PREFIX/mip1_eb2/$(basename "$layer")"
 done
 
 gcloud storage cp "$WORK/out/$VOLUME/mt_sweep.json" "$RUN_PREFIX/mt_sweep.json" -q 2>/dev/null

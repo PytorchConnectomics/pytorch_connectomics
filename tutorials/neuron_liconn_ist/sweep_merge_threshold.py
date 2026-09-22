@@ -24,7 +24,12 @@ REPO = Path(__file__).resolve().parents[2]  # repo root (tutorials/<name>/<file>
 MAIN_REPO = Path("/projects/weilab/weidf/lib/pytorch_connectomics")
 sys.path.insert(0, str(REPO))
 
-AFF = MAIN_REPO / "outputs/liconn_final_banis_plus_tube/20260728_032436/test_step=00200000/val/raw_x1_ch0-1-2.h5"
+# Default is the eb2 affinity. Pass --affinity to sweep another model on the
+# SAME slabs -- slab tuning is biased high (whole-val VOI is 0.176 worse, almost
+# all of it the split term), but the bias applies equally to both models, so a
+# like-for-like slab sweep is a valid way to locate each model's own optimum.
+# Confirm the chosen value on the whole volume before quoting it as a score.
+AFF_EB2 = MAIN_REPO / "outputs/liconn_final_banis_plus_tube/20260728_032436/test_step=00200000/val/raw_x1_ch0-1-2.h5"
 GT = "/projects/weilab/dataset/liconn/pytc/final_proofread/val/data.zarr/seg"
 WS = MAIN_REPO / "lib/abiss/build/ws"
 
@@ -39,6 +44,10 @@ def _load_runner():
 def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--slabs", type=int, default=3)
+    ap.add_argument("--affinity", type=Path, default=AFF_EB2,
+                    help="affinity h5 to sweep (default: the eb2 val affinity)")
+    ap.add_argument("--json", type=Path, help="also write the per-slab rows here")
+    ap.add_argument("--label", default="", help="tag for the printed header")
     ap.add_argument("--size", type=int, default=1024)
     ap.add_argument("--ws-high", default="94%")
     ap.add_argument("--ws-low", default="20%")
@@ -53,6 +62,10 @@ def main() -> None:
     from connectomics.metrics.segmentation_numpy import adapted_rand, voi
 
     rav = _load_runner()
+    AFF = args.affinity
+    if not AFF.is_file():
+        raise SystemExit(f"affinity not found: {AFF}")
+    print(f"sweeping {args.label or AFF.parent.parent.parent.name}: {AFF}", flush=True)
     mts = [float(v) for v in args.merge_thresholds.split(",")]
     S = args.size
 
@@ -111,6 +124,21 @@ def main() -> None:
         if best is None or v < best[1]:
             best = (mt, v)
     print(f"\nbest mean VOI: mt={best[0]:.2f} -> {best[1]:.4f}")
+    if best[0] in (mts[0], mts[-1]):
+        print("WARNING: the optimum is at an END of the swept range -- widen it; "
+              "the true optimum is outside what was tested.")
+    if args.json:
+        import json
+        args.json.parent.mkdir(parents=True, exist_ok=True)
+        args.json.write_text(json.dumps({
+            "affinity": str(AFF), "label": args.label, "slabs": origins,
+            "size": S, "ws_high": args.ws_high, "ws_low": args.ws_low,
+            "rows": [{"slab": r[0], "mt": r[1], "voi_split": r[2], "voi_merge": r[3],
+                      "voi": r[4], "adapted_rand_error": r[5], "nseg": r[6]} for r in rows],
+            "best_mt_by_mean_voi": best[0], "best_mean_voi": best[1],
+            "caveat": "slab VOI is biased high on splits; confirm on the whole volume",
+        }, indent=2))
+        print(f"wrote {args.json}")
 
 
 if __name__ == "__main__":

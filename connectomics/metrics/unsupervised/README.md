@@ -121,3 +121,14 @@ webapp payloads to preserve values beyond JavaScript's safe integer range.
 The dataset-specific workflow in `dev/astra_nogt_eval/glia_revision/` imports
 these modules. Its legacy-class migration, frozen catalog/schema, review records,
 file paths and GCS publication stay outside the metric package.
+
+`classification.classify_semantic_candidate` combines local caliber, semantic
+type and shaft length into a coarse axon/dendrite/unclassified candidate and
+evidence basis. Callers supply calibrated caliber thresholds explicitly. Thin
+shafts with branches or swellings can remain axon candidates; branching alone
+does not establish dendrite identity. This function accepts measurements only.
+
+`connectomics.evaluation.semantic` owns file-backed catalog generation, full
+foreground accounting, large-object review queues, and JSON/chart writing.
+`tutorials/neuron_liconn_moe/build_semantic_catalog.py` supplies dataset paths and
+the chart title. Cloud publication stays outside both metrics and evaluation.

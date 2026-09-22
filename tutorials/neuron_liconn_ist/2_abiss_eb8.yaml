@@ -1,0 +1,35 @@
+# IST LICONN step 2, pointed at the 4-GPU (eb8) checkpoint instead of the 1-GPU (eb2) one.
+#
+# Everything scientific is inherited from 2_abiss.yaml. This file changes only
+# WHICH affinity is decoded and WHERE the artifacts land, so the two models are
+# scored by an identical procedure. Do not tune anything here: the point of the
+# comparison is that the decode is held fixed.
+#
+# NOTE ON ws_merge_threshold. The inherited value 0.47 was measured on the eb2
+# affinity and is biased HIGH (slab-tuned; whole-val split term is understated).
+# It is kept here so the first eb8 number is directly comparable to eb2s 0.9129.
+# A per-model sweep reaching <= 0.45 is still required before declaring a winner.
+
+_base_:
+  - 2_abiss.yaml
+
+experiment_name: liconn_ist_abiss_eb8
+description: >-
+  IST LICONN held-out val decoded with ABISS from the eb8 (4-GPU, effective
+  batch 8) 200k checkpoint, scored against the proofread FFN segmentation with
+  the same settings used for the eb2 baseline.
+
+params:
+  paths:
+    output_root: ${params.paths.repository}/outputs/neuron_liconn_ist_eb8
+  artifacts:
+    checkpoint: ${params.paths.repository}/outputs/liconn_final_banis_plus_tube_4gpu/20260910_060545/checkpoints/step=00200000.ckpt
+    val_affinity_h5: ${params.paths.repository}/outputs/liconn_final_banis_plus_tube_4gpu/20260910_060545/test_step=00200000/val/raw_x1_ch0-1-2.h5
+
+save_path: ${params.paths.output_root}/abiss
+
+# The decode step (command, channels, cli_args, thresholds, tag) is inherited
+# verbatim from 2_abiss.yaml. It is deliberately NOT overridden here: these
+# configs merge lists by replacement, so redefining `steps` to change one key
+# would silently drop the command and cli_args. Artifacts are separated by
+# output_root instead.

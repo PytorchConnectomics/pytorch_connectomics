@@ -733,7 +733,26 @@ def reference_percentile_rank(values: np.ndarray, reference: np.ndarray) -> np.n
 
 
 def load_nucleus_firewall(path: Path) -> dict[int, int]:
-    """Return final-segment -> external nuclei count; never supplies merge identities."""
+    """Return final-segment -> external nuclei count; never supplies merge identities.
+
+    An unset or absent manifest means ABISS never ran competitive nucleus growth,
+    so there are no external identities to protect and the firewall is empty. It
+    is purely restrictive -- callers only ever read it as `.get(label, 0)` to
+    veto merges -- so an empty one degrades to "no nucleus protection", which is
+    the documented behaviour of a run without a nucleus volume. Raising here
+    instead stopped step 4 outright, after `skeletonize` had already processed
+    every chunk, and there was no flag to turn it off.
+
+    A manifest that EXISTS but carries no nucleus content still raises: that
+    means competition ran and produced nothing, which is a real inconsistency.
+    """
+    if not path or not Path(path).is_file():
+        print(
+            f"nucleus firewall: no manifest at {path or '<unset>'}; "
+            "continuing without external nucleus protection",
+            flush=True,
+        )
+        return {}
     reject_evaluation_path(path)
     payload = json.loads(path.read_text())
     histograms = payload.get("hist")

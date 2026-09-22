@@ -8,13 +8,54 @@ is a display override; it never changes the independently computed geometry clas
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from math import isfinite
 from numbers import Integral
 from typing import Literal
 
 from .arbor import ArborMetrics, BackboneConfig, is_dendrite_backbone_candidate
 from .morphology import MORPHOLOGY_CLASSES
 
-__all__ = ["SegmentClassificationConfig", "SegmentClassification", "classify_segment"]
+__all__ = [
+    "SegmentClassificationConfig",
+    "SegmentClassification",
+    "classify_segment",
+    "classify_semantic_candidate",
+]
+
+
+def classify_semantic_candidate(
+    semantic_type: str | None,
+    caliber_radius_um: float | None,
+    shaft_length_um: float,
+    *,
+    axon_max_radius_um: float,
+    dendrite_min_radius_um: float,
+) -> tuple[str, str]:
+    """Return a coarse semantic candidate and its geometric evidence basis.
+
+    Caliber gates must be calibrated by the caller. Thin shaft evidence retains
+    branched/swollen axon candidates without requiring whole-object elongation.
+    Dense branching alone does not establish dendrite identity. These rules do
+    not identify vessels or glia/soma, or certify segmentation correctness.
+    Inputs are measurements, independent of catalog schemas and segment IDs.
+    """
+    if not (
+        isfinite(axon_max_radius_um)
+        and isfinite(dendrite_min_radius_um)
+        and 0 < axon_max_radius_um <= dendrite_min_radius_um
+    ):
+        raise ValueError("Caliber gates must be finite, positive and ordered")
+    if caliber_radius_um is None:
+        return "unclassified", "no_local_caliber"
+    if semantic_type == "axon_like":
+        return "axon", "local_axon_caliber"
+    if caliber_radius_um <= axon_max_radius_um and shaft_length_um > 0:
+        return "axon", "thin_shaft_with_branches_or_swellings"
+    if caliber_radius_um >= dendrite_min_radius_um:
+        return "dendrite", "thick_backbone_candidate"
+    if semantic_type == "dendrite_like":
+        return "unclassified", "branch_density_without_thick_backbone"
+    return "unclassified", "ambiguous_caliber"
 
 
 def _positive_integer(value: int, name: str) -> int:

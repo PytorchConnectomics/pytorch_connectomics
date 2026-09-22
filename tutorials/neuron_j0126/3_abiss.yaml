@@ -29,17 +29,20 @@ abiss_chunk:
   secrets_dir: ${params.paths.output_root}/abiss/secrets
   param_path: ${params.paths.output_root}/abiss/secrets/param
 
-  # A virtual dataset over step 2's chunk store, built by `run_j0126.py` right
-  # before this step. It copies nothing -- the whole-volume affinity is ~4 TB --
-  # but reads through h5py exactly like a stitched file.
-  source_affinity_h5: ${params.data.affinity_h5}
-  source_dataset: main
+  # `source_affinity_h5` is deliberately UNSET: setting it copies the affinity
+  # into a precomputed layer first (~3.7 TB, ~28 h), and ABISS then reads that
+  # copy through CloudVolume -- the one backend that does NOT apply
+  # AFF_KEEP_MASK, so the exclusion mask below would be loaded and silently
+  # dropped. AFF_PATH points straight at the virtual dataset instead; no voxel
+  # is copied and the h5 backend masks correctly. param.BBOX is then required,
+  # since there is no source h5 to read the volume shape from.
 
   # On-disk precomputed storage chunks (NOT the ABISS logical chunk grid).
-  copy_block_shape_xyz: [512, 512, 64]
-  aff_chunk_size_xyz: [512, 512, 64]
   seg_chunk_size_xyz: [512, 512, 80]
-  resolution_xyz: [10, 10, 10]
+  # Mip-0 voxel size in nm, XYZ. The whole tutorial is 9 x 9 x 20 nm; a wrong
+  # value here writes a layer whose scale the evaluator cannot find
+  # (`ScaleUnavailableError: Scale <9,9,20> not found`).
+  resolution_xyz: [9, 9, 20]
 
   # top_mip and root_tag are derived from BBOX / CHUNK_SIZE below; pinning them
   # here only creates a second place to get the chunk hierarchy wrong.
@@ -49,7 +52,8 @@ abiss_chunk:
   param:
     NAME: j0126_abiss
 
-    AFF_PATH: file://${params.paths.output_root}/abiss/precomputed/affinity
+    AFF_PATH: ${params.data.affinity_h5}
+    AFF_CHANNELS: [0, 1, 2]
     WS_PATH: file://${params.paths.output_root}/abiss/precomputed/ws
     SEG_PATH: file://${params.paths.output_root}/abiss/precomputed/seg
     SCRATCH_PATH: file://${params.paths.output_root}/abiss/scratch
@@ -61,10 +65,13 @@ abiss_chunk:
     # affinity is zeroed outside it before the watershed sees it.
     AFF_KEEP_MASK: ${params.data.keep_mask}
 
-    # External nucleus identities. Empty NUC_PATH disables competitive nucleus
-    # growth entirely, which is the default because no nucleus volume ships with
-    # this tutorial; point it at one to get the "+ nucleus instance certificate"
-    # rows. NUC_RATIO expands one source voxel to mip-0 tags, so ABISS_NUC_MIN_TAGGED
+    # External nucleus identities. An empty NUC_PATH drops the whole NUC_* group
+    # from the param file and disables competitive nucleus growth; ABISS gates on
+    # KEY PRESENCE, so an empty-but-present NUC_PATH would make it open "" and
+    # die. Set `params.data.nucleus_volume` to the published
+    # `j0126-nucleus-instances-80nm.h5` to get the "+ nucleus instance
+    # certificate" rows -- step 4 also requires it.
+    # NUC_RATIO expands one source voxel to mip-0 tags, so ABISS_NUC_MIN_TAGGED
     # of 1024 is four source voxels -- enough that a resampling-edge speck cannot
     # become an identity.
     NUC_PATH: ${params.data.nucleus_volume}
@@ -81,8 +88,19 @@ abiss_chunk:
     # in ABISS's XYZ order that is [0, 0, 0, 10664, 10913, 5700].
     BBOX: [0, 0, 0, 10664, 10913, 5700]
 
-    # Large in XY to minimise cross-face stitching, chunked in Z for memory.
-    CHUNK_SIZE: [10664, 10913, 80]
+    # ABISS' logical chunk grid. Every layer-0 task holds one chunk of affinity
+    # as float32, and `run_layer.sh` runs `parallel -j $ncpus` of them at once,
+    # so this is the term that sets peak memory. The full-XY chunk this file
+    # used to ship (10664 x 10913 x 80 = 9.3 Gvoxel) is 104 GiB per task and was
+    # OOM-killed at 250 GB and again at 900 GB. [2048, 2048, 80] measures 7.8 GB
+    # per chunk (~500 GB across 64 concurrent tasks) and leaves top_mip at 7, so
+    # the merge depth is unchanged.
+    #
+    # NOTE: `chunk_volume.py` writes `<workdir>/<mip>_<x>_<y>_<z>.json` only when
+    # it is absent, so a descriptor written by an earlier run OUTLIVES the
+    # CHUNK_SIZE that produced it and changing this value is silently ignored.
+    # Clear the workdir when you change it.
+    CHUNK_SIZE: [2048, 2048, 80]
 
     # Conservative watershed: seeds only where affinity is unambiguous.
     WS_HIGH_THRESHOLD: 0.9

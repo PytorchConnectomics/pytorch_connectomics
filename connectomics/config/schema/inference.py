@@ -226,6 +226,8 @@ class InferenceConfig:
     execution: InferenceExecutionConfig = field(default_factory=InferenceExecutionConfig)
     window: SlidingWindowConfig = field(default_factory=SlidingWindowConfig)
     chunking: ChunkingConfig = field(default_factory=ChunkingConfig)
+    # Checkpoint tensors used for inference. Training resumption always restores raw weights.
+    checkpoint_weights: str = "raw"  # "raw" or "ema"; EMA must exist in the checkpoint.
 
     # Physical storage for raw prediction artifacts. Off by default because
     # raw probability/affinity volumes are large; opt in for cached decode flows.
