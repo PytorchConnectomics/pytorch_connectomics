@@ -400,6 +400,20 @@ VOLUMES: dict[str, dict] = {
     "ExPID107_14.5x_02": {"auto": True},
     "ExPID107_14.5x_04": {"auto": True},
     "ExPID107_14.5x_06": {"auto": True},
+    # Added 2026-09-22, third wave: the rest of the ExPID108 drop at
+    # `gs://donglai_public/liconn/moe/expid108/image/`. Same 32x acquisition
+    # grid as L1_01/L1_02 ([12.5, 5.078125, 5.078125] nm, XY 2304), so `auto`
+    # lands on [25, 18, 18] -- Z +4.2%, exact x2 block average, no upsample:
+    #
+    #   L3_00          (1182, 2304, 2304) -> (591, 650, 650) = 250 Mvoxel  11.6% of cap
+    #   L3_01          (1008, 2304, 2304) -> (504, 650, 650) = 213 Mvoxel   9.9%
+    #   Hippocampus_01 (1137, 2304, 2304) -> (569, 650, 650) = 240 Mvoxel  11.2%
+    #
+    # L1_02 (255 Mvoxel) ran STAGES=all on g2-standard-16, so these do too.
+    # Hippocampus is out of domain on region as well as sample, like ExPID71.
+    "ExPID108_32x_Cortex_L3_00": {"auto": True},
+    "ExPID108_32x_Cortex_L3_01": {"auto": True},
+    "ExPID108_32x_Hippocampus_01": {"auto": True},
 }
 
 # The volumes this batch runs: everything except the one already on GCS.

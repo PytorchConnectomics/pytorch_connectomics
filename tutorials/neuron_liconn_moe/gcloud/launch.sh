@@ -42,6 +42,13 @@ PROJECT="${PROJECT:-sunny-catalyst-506019-a2}"
 # `preflight` fails if this drifts from where the data actually lives.
 REGION="${REGION:-us-east1}"
 ZONE="${ZONE:-us-east1-c}"
+# SPOT CAPACITY IS PER ZONE, the bucket region is not. On 2026-09-22 all six
+# ExPID107 inserts (g2-standard-16 spot, us-east1-c) died at create with
+# ZONE_RESOURCE_POOL_EXHAUSTED and no VM ever booted. `--run` therefore tries
+# ZONE first and then the rest of ZONES -- all inside REGION, so every byte
+# stays same-region and free. Only a capacity refusal falls through; any other
+# create error stops the launch. Set ZONES="$ZONE" to pin one zone.
+ZONES="${ZONES:-us-east1-c us-east1-b us-east1-d}"
 BUILD_ZONE="${BUILD_ZONE:-$ZONE}"
 
 VOLUME="${VOLUME:-ExPID108_32x_Cortex_L1_01}"
@@ -429,6 +436,55 @@ run() {
         neuron_liconn_moe
     g storage cp "$tmp/tutorial.tar.gz" "$RUN_PREFIX/tutorial.tar.gz"
 
+
+    # `${arr[@]}` on an EMPTY array is an unbound-variable error under `set -u`
+    # in bash 3.2, which is what macOS ships -- so the optional flag is carried
+    # as a scalar and word-split, not as an array.
+    local accel=""
+    [[ -n "$GPU" && "$STAGES" != cpu ]] && accel="--accelerator=$GPU"
+    # The CPU stage has no GPU, so the NVIDIA Deep Learning image buys nothing
+    # and costs boot time; Debian 12 already carries gcloud.
+    local IMAGE_FLAGS
+    if [[ "$STAGES" == cpu ]]; then
+        IMAGE_FLAGS=(--image-family=debian-12 --image-project=debian-cloud)
+    else
+        IMAGE_FLAGS=(--image-family=common-cu129-ubuntu-2204-nvidia-580
+                     --image-project=deeplearning-platform-release)
+    fi
+    # Try ZONE first, then the rest of ZONES (same region). A capacity refusal
+    # falls through to the next zone; anything else is a real error and stops.
+    local z tried="" created="" err="$tmp/create.err"
+    for z in $ZONE $ZONES; do
+        case " $tried " in *" $z "*) continue ;; esac
+        tried="$tried $z"
+        [[ "$z" == "$REGION"-* ]] || { echo "zone $z is outside REGION $REGION" >&2; return 1; }
+        echo "creating $name in $z ..."
+        g compute instances create "$name" \
+            --zone="$z" --machine-type="$MACHINE" \
+            ${accel} --maintenance-policy=TERMINATE \
+            "${IMAGE_FLAGS[@]}" \
+            --boot-disk-size="${DISK_GB}GB" --boot-disk-type=pd-balanced \
+            --boot-disk-auto-delete \
+            --provisioning-model="$PROVISIONING" \
+            --service-account="$SA" --scopes=cloud-platform \
+            --max-run-duration="$MAX_RUN" --instance-termination-action=DELETE \
+            --no-restart-on-failure \
+            --metadata-from-file=startup-script="$tmp/startup.sh" \
+            --metadata="volume=$VOLUME,image-tag=$IMAGE_TAG,src-zarr=$SRC_ZARR,run-prefix=$RUN_PREFIX,build-prefix=$BUILD_PREFIX,publish-prefix=$PUBLISH_PREFIX,hf-repo=$HF_REPO,hf-ckpt=$HF_CKPT,stages=$STAGES,self-delete=yes" \
+            --quiet 2>"$err" && { created=$z; break; }
+        if grep -qE 'ZONE_RESOURCE_POOL_EXHAUSTED|does not have enough resources|STOCKOUT' "$err"; then
+            echo "  $z: no $PROVISIONING capacity for $MACHINE -- trying the next zone"
+        else
+            cat "$err" >&2; return 1
+        fi
+    done
+    if [[ -z "$created" ]]; then
+        echo "no $PROVISIONING capacity for $MACHINE in any of:$tried" >&2
+        echo "nothing is running; retry later, or PROVISIONING=STANDARD for on-demand" >&2
+        return 1
+    fi
+    ZONE=$created
+
     python3 - "$RUN_PREFIX" "$digest" <<PY > "$tmp/manifest.json"
 import json, subprocess, sys, datetime
 print(json.dumps({
@@ -460,34 +516,6 @@ print(json.dumps({
 PY
     g storage cp "$tmp/manifest.json" "$RUN_PREFIX/manifest.json" -q
     echo "manifest -> $RUN_PREFIX/manifest.json"
-
-    # `${arr[@]}` on an EMPTY array is an unbound-variable error under `set -u`
-    # in bash 3.2, which is what macOS ships -- so the optional flag is carried
-    # as a scalar and word-split, not as an array.
-    local accel=""
-    [[ -n "$GPU" && "$STAGES" != cpu ]] && accel="--accelerator=$GPU"
-    # The CPU stage has no GPU, so the NVIDIA Deep Learning image buys nothing
-    # and costs boot time; Debian 12 already carries gcloud.
-    local IMAGE_FLAGS
-    if [[ "$STAGES" == cpu ]]; then
-        IMAGE_FLAGS=(--image-family=debian-12 --image-project=debian-cloud)
-    else
-        IMAGE_FLAGS=(--image-family=common-cu129-ubuntu-2204-nvidia-580
-                     --image-project=deeplearning-platform-release)
-    fi
-    g compute instances create "$name" \
-        --zone="$ZONE" --machine-type="$MACHINE" \
-        ${accel} --maintenance-policy=TERMINATE \
-        "${IMAGE_FLAGS[@]}" \
-        --boot-disk-size="${DISK_GB}GB" --boot-disk-type=pd-balanced \
-        --boot-disk-auto-delete \
-        --provisioning-model="$PROVISIONING" \
-        --service-account="$SA" --scopes=cloud-platform \
-        --max-run-duration="$MAX_RUN" --instance-termination-action=DELETE \
-        --no-restart-on-failure \
-        --metadata-from-file=startup-script="$tmp/startup.sh" \
-        --metadata="volume=$VOLUME,image-tag=$IMAGE_TAG,src-zarr=$SRC_ZARR,run-prefix=$RUN_PREFIX,build-prefix=$BUILD_PREFIX,publish-prefix=$PUBLISH_PREFIX,hf-repo=$HF_REPO,hf-ckpt=$HF_CKPT,stages=$STAGES,self-delete=yes" \
-        --quiet
 
     cat <<EOF
 
