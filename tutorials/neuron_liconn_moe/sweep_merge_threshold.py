@@ -93,25 +93,45 @@ PUBLISHED_PERCENTILE = 62.89
 # 0.913016 / 0.968032 and all three segment counts, zero difference).
 #
 # Pick it by measured size rather than by a flag, because the assert is compiled
-# out under -DNDEBUG and the uint32 index then overflows SILENTLY into a
-# plausible-looking wrong segmentation -- the same failure class as the all-zero
-# decode that `check_nonempty` exists for.
+# out under -DNDEBUG, and a build without it would run past the cap unchecked.
+#
+# THE uint32 LIMIT IS ON SEGMENTS, NOT VOXELS (2026-09-22). Reading the source:
+# `watershed()` indexes voxels with ptrdiff_t, BFS queue included, and
+# internal_seg_t only holds direction flags and then `high_bit | segment id`.
+# The 2^31-voxel cap was a conservative assert in atomic_chunk.cpp. ABISS
+# commit f6881cd (branch ws-uint32-segment-cap, on main 92abc91) removes it and aborts instead
+# when segment ids run out, at uint32's memory -- where uint64 labels add 8
+# bytes per voxel. The cloud image applies that patch and drops a marker,
+# WS_SEGMENT_CAP_MARKER, next to build/ws. Where the marker exists, an over-cap
+# volume stays on the uint32 binary. Until one such decode has been shown
+# identical to ws64 on the same volume, `crosscheck_ws64` re-decodes the pick
+# with ws64 and refuses to publish on any difference.
 WS_UINT32_CAP = 0x80000000
 WS_HALO = 1
+WS_SEGMENT_CAP_MARKER = "WS_SEGMENT_CAP"
+
+
+def ws_chunk_voxels(aff: Path) -> int:
+    with h5py.File(aff, "r") as f:
+        _, z, y, x = f["main"].shape
+    return (z + 2 * WS_HALO) * (y + 2 * WS_HALO) * (x + 2 * WS_HALO)
+
+
+def ws_builds() -> tuple[Path, Path]:
+    abiss_home = Path(os.environ.get("ABISS_HOME") or V.REPO / "lib/abiss")
+    return abiss_home / "build/ws", abiss_home / "build64/ws64"
 
 
 def resolve_ws_binary(aff: Path) -> Path:
     """Return the ws build that can index this volume, or fail loudly."""
-    with h5py.File(aff, "r") as f:
-        _, z, y, x = f["main"].shape
-    nvox = (z + 2 * WS_HALO) * (y + 2 * WS_HALO) * (x + 2 * WS_HALO)
-    abiss_home = Path(os.environ.get("ABISS_HOME") or V.REPO / "lib/abiss")
-    ws32 = abiss_home / "build/ws"
-    ws64 = abiss_home / "build64/ws64"
+    nvox = ws_chunk_voxels(aff)
+    ws32, ws64 = ws_builds()
     over = nvox >= WS_UINT32_CAP
-    ws = ws64 if over else ws32
+    segment_capped = (ws32.parent / WS_SEGMENT_CAP_MARKER).exists()
+    ws = ws64 if over and not segment_capped else ws32
     print(f"ws chunk {nvox:,} voxels with halo "
-          f"({100.0 * nvox / WS_UINT32_CAP:.1f}% of the uint32 cap) -> {ws.name}",
+          f"({100.0 * nvox / WS_UINT32_CAP:.1f}% of the uint32 cap) -> {ws.name}"
+          + (" (uint32, bounded by segment count)" if over and segment_capped else ""),
           flush=True)
     if not ws.exists():
         raise SystemExit(
@@ -122,8 +142,47 @@ def resolve_ws_binary(aff: Path) -> Path:
     return ws
 
 
+def crosscheck_ws64(aff: Path, out_dir: Path, chosen: dict, grid: list[float],
+                    ws_high: str, ws_low: str) -> dict | None:
+    """Re-decode the pick with ws64 and require identical labels.
+
+    Runs only for an over-cap volume decoded by the segment-capped uint32 build,
+    and only while ws64 exists beside it. The ws64 run uses multi-threshold mode,
+    like the sweep (the pick plus the top of the grid), so the two decodes
+    differ in label width and nothing else. Compared slab by slab, so peak
+    memory stays one Z-slab of each.
+    """
+    ws32, ws64 = ws_builds()
+    if (ws_chunk_voxels(aff) < WS_UINT32_CAP
+            or not (ws32.parent / WS_SEGMENT_CAP_MARKER).exists()
+            or not ws64.exists() or os.environ.get("WS_CROSSCHECK", "1") == "0"):
+        return None
+    check_dir = out_dir / "ws64_check"
+    extra = max(grid) if max(grid) != chosen["mt"] else min(grid)
+    run_sweep(aff, check_dir, f"{chosen['mt']:g},{extra:g}", check_dir,
+              ws_high=ws_high, ws_low=ws_low, ws_binary=ws64)
+    a_path, b_path = Path(chosen["path"]), check_dir / "seg_mt0.h5"
+    with h5py.File(a_path, "r") as fa, h5py.File(b_path, "r") as fb:
+        da, db = fa["main"], fb["main"]
+        if da.shape != db.shape:
+            raise SystemExit(f"ws64 crosscheck: shape {da.shape} != {db.shape}")
+        differ = 0
+        for z0 in range(0, da.shape[0], 32):
+            differ += int(np.count_nonzero(
+                np.asarray(da[z0:z0 + 32]) != np.asarray(db[z0:z0 + 32])))
+    result = {"ws32": str(a_path), "ws64": str(b_path), "mt": chosen["mt"],
+              "voxels_differing": differ, "identical": differ == 0}
+    print(f"ws64 crosscheck at mt {chosen['mt']:g}: {differ} voxels differ", flush=True)
+    if differ:
+        raise SystemExit(
+            "ws64 crosscheck FAILED: the segment-capped uint32 decode differs from "
+            f"ws64 on {differ} voxels. Not publishing. See {check_dir}.")
+    return result
+
+
 def run_sweep(aff: Path, out_dir: Path, thresholds: str, workdir: Path,
-              ws_high: str = "94%", ws_low: str = "20%") -> None:
+              ws_high: str = "94%", ws_low: str = "20%",
+              ws_binary: Path | None = None) -> None:
     out_dir.mkdir(parents=True, exist_ok=True)
     workdir.mkdir(parents=True, exist_ok=True)
     here = Path(__file__).resolve().parents[2]
@@ -138,7 +197,7 @@ def run_sweep(aff: Path, out_dir: Path, thresholds: str, workdir: Path,
         "--abiss-home", os.environ.get("ABISS_HOME") or str(V.REPO / "lib/abiss"),
         # Overrides the build/ws discovered from --abiss-home when this volume
         # is over the uint32 watershed cap; see WS_UINT32_CAP above.
-        "--ws-binary", str(resolve_ws_binary(aff)),
+        "--ws-binary", str(ws_binary or resolve_ws_binary(aff)),
         # NOTE: `workdir`/`timeout_sec` in 2_abiss.yaml are kwargs of the
         # `decode_abiss` decoder, not flags of this script.
         "--abiss-workdir", str(workdir / "ws_scratch"),
@@ -377,6 +436,8 @@ def main() -> int:
     mark_plateau(rows)
     chosen = pick(rows, matched)
     report(rows, chosen)
+    crosscheck = None if a.report_only else crosscheck_ws64(
+        aff, out_dir, chosen, grid, a.ws_high, a.ws_low)
 
     final = V.work_dir(name) / f"{V.layer_name(name, chosen['mt'])}.h5"
     final.parent.mkdir(parents=True, exist_ok=True)
@@ -385,7 +446,8 @@ def main() -> int:
     os.link(chosen["path"], final)
     summary = {"volume": name, "affinity": str(aff), "chosen": chosen,
                "percentile": a.percentile, "segmentation": str(final), "rows": rows,
-               "spacing_zyx_nm": V.plan(name)["spacing_zyx"]}
+               "spacing_zyx_nm": V.plan(name)["spacing_zyx"],
+               "ws64_crosscheck": crosscheck}
     (V.work_dir(name) / "mt_sweep.json").write_text(json.dumps(summary, indent=2))
     print(f"\nchosen mt {chosen['mt']:.2f} -> {final}", flush=True)
     return 0

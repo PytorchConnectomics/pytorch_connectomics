@@ -393,10 +393,9 @@ VOLUMES: dict[str, dict] = {
     #   _06  2,053,556,320   95.6%          tight; the IST val decode ran at 98.3%
     #   _05  2,286,824,368  106.5%          EXCEEDS THE CAP
     #
-    # `ExPID107_14.5x_05` is therefore deliberately NOT registered here. It needs
-    # `scripts/run_abiss_chunk.py`, which this pipeline does not yet wire up, and
-    # registering it would let a run spend GPU time on inference before failing
-    # at the decode. See msi_liconn_deploy/spec.md STOP CONDITIONS.
+    # `ExPID107_14.5x_05` was held back here until 2026-09-22, when the cap turned
+    # out to be an assert rather than a property of uint32 -- it is registered at
+    # the end of this table; see the note there.
     "ExPID107_14.5x_02": {"auto": True},
     "ExPID107_14.5x_04": {"auto": True},
     "ExPID107_14.5x_06": {"auto": True},
@@ -414,6 +413,18 @@ VOLUMES: dict[str, dict] = {
     "ExPID108_32x_Cortex_L3_00": {"auto": True},
     "ExPID108_32x_Cortex_L3_01": {"auto": True},
     "ExPID108_32x_Hippocampus_01": {"auto": True},
+    # Added 2026-09-22. The fourth ExPID107 14.5x volume, (1147, 1412, 1412) =
+    # 2,286,824,368 voxels -- 106.5% of the old uint32 cap, which is why it was
+    # held back above. That cap was an assert on the VOXEL count. uint32 only
+    # bounds the watershed's SEGMENT count; voxels are indexed with ptrdiff_t.
+    # ABISS f6881cd (applied by gcloud/Dockerfile from image liconn-moe-v2)
+    # replaces the assert with a segment-count check, so this volume gets ONE
+    # full whole-volume decode with the same ws / max / percentile pick as its
+    # three siblings, at uint32 memory (~165 GB at 71 GB/Gvoxel: run its CPU
+    # stage on n2-highmem-32). On the first such decode the sweep re-decodes
+    # the pick with ws64 and refuses to publish unless the labels are identical
+    # (sweep_merge_threshold.py::crosscheck_ws64).
+    "ExPID107_14.5x_05": {"auto": True},
 }
 
 # The volumes this batch runs: everything except the one already on GCS.
