@@ -123,6 +123,28 @@ fi
 image_matches || die "loaded image does not match its published identity"
 docker image inspect "$IMAGE_TAG" > "$WORK/out/image.json"
 
+# --- current tutorial source over the baked one -----------------------------
+# The image is a snapshot from build time; this is the working tree as of the
+# launch. Mounting it keeps the recipe table and the tutorial scripts current
+# without a rebuild, and leaves the framework (connectomics/, scripts/) exactly
+# as built and smoke-tested. Read-only: the pipeline writes to /work, never here.
+TUTORIAL_MOUNT=()
+if gcloud storage ls "$RUN_PREFIX/tutorial.tar.gz" >/dev/null 2>&1; then
+    mkdir -p "$WORK/code"
+    gcloud storage cp "$RUN_PREFIX/tutorial.tar.gz" "$WORK/code/tutorial.tar.gz" \
+        || die "fetch tutorial overlay"
+    tar -xzf "$WORK/code/tutorial.tar.gz" -C "$WORK/code" || die "extract tutorial overlay"
+    chown -R 1000:1000 "$WORK/code"
+    TUTORIAL_MOUNT=(-v "$WORK/code/neuron_liconn_moe":/workspace/tutorials/neuron_liconn_moe:ro)
+    echo "tutorial overlay mounted from $RUN_PREFIX/tutorial.tar.gz"
+    # Fail here rather than inside the pipeline if the volume is not in the
+    # table the container will actually read.
+    grep -q "\"$VOLUME\"" "$WORK/code/neuron_liconn_moe/volumes.py" \
+        || die "$VOLUME is not in the shipped volumes.py"
+else
+    echo "no tutorial overlay published; using the image's baked copy"
+fi
+
 # --- resume from a preempted run --------------------------------------------
 # Spot VMs are preempted and deleted with their disk, so the two expensive
 # intermediates are mirrored to the run prefix while the pipeline runs and
@@ -199,6 +221,7 @@ chown -R 1000:1000 "$WORK/ckpt"
 echo "=== pipeline ==="
 docker run --rm --gpus all --ipc=host \
     -v "$WORK":/work \
+    "${TUTORIAL_MOUNT[@]+"${TUTORIAL_MOUNT[@]}"}" \
     -e LICONN_MOE_GCS_BUCKET="$(echo "$PUBLISH_PREFIX" | sed -E 's|gs://([^/]+)/.*|\1|')" \
     -e LICONN_MOE_GCS_PREFIX="${PUBLISH_PREFIX#gs://*/}" \
     "$IMAGE_TAG" \

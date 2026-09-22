@@ -274,6 +274,36 @@ VOLUMES: dict[str, dict] = {
     # 18.056 nm, 0.31% off. Hand-picking one mode for all three axes would give
     # up one or the other.
     "ExPID71_Hippocampus_300nm_40XW01": {"auto": True},
+    # Added 2026-09-22, PENDING indices 13-18. The rest of the ingested set.
+    # All `auto`, so each axis is chosen against the training grid on its own.
+    #
+    # READ THE GRID DEVIATION BEFORE READING ANY RESULT FROM THESE. Six of the
+    # seven are Z OFF-GRID, and `auto` does not hide it -- it refuses to
+    # upsample, leaves Z native, and reports how far off that leaves the volume:
+    #
+    #   ExPID108_32x_Cortex_L1_02        Z  +4.2%   on-grid, exact x2 block avg
+    #   ExPID71_2Hippocampus_500nm       Z +15.7%   Z native, 500 nm step
+    #   ExPID71_*_600nm_* (four of them) Z +38.9%   Z native, 600 nm step
+    #
+    # +38.9% is further from the checkpoint's geometry than ANY volume in the
+    # published ExPID96/99 batch, whose worst was the 32x pair at a fractional
+    # Z resample. A poor result on a 600 nm volume is therefore a statement
+    # about sampling, not about the tissue, and must not be read as one about
+    # the tissue. The alternative -- interpolating Z up onto [24,18,18] -- would
+    # invent planes and produce a cleaner-looking number that means less; see
+    # `msi_liconn_deploy/spec.md` task 2, whose FILL is still open.
+    #
+    # The `_e030` / `_e120` pairs are the SAME plane at two exposures, so they
+    # are two conditions rather than two channels, and differ only in SNR.
+    # Comparing them is the point of the sweep and belongs to MSIDEPLOY-EVAL-002,
+    # not to this pipeline: running them here yields layers to look at.
+    "ExPID108_32x_Cortex_L1_02": {"auto": True},
+    "ExPID71_2Hippocampus_500nm_40XW": {"auto": True},
+    "ExPID71_Hippocampus_600nm_40XW02": {"auto": True},
+    "ExPID71_120ms-30ms_600nm_40XW01_e030": {"auto": True},
+    "ExPID71_120ms-30ms_600nm_40XW01_e120": {"auto": True},
+    "ExPID71_120ms-30ms_600nm_40XW02_e030": {"auto": True},
+    "ExPID71_120ms-30ms_600nm_40XW02_e120": {"auto": True},
 }
 
 # The volumes this batch runs: everything except the one already on GCS.

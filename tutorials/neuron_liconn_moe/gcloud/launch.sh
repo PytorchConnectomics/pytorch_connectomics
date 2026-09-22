@@ -190,6 +190,23 @@ preflight() {
         return 1
     fi
 
+    # The recipe table is the first thing the container touches and the last
+    # thing anyone checks. A volume missing from it fails with a bare KeyError
+    # *inside* the pipeline -- after the image load, the source stage and the
+    # checkpoint download, on paid GPU time. Measured: that is exactly how
+    # ExPID71_Hippocampus_300nm_40XW01 burned a VM on 2026-09-22.
+    echo "volume registered in volumes.py"
+    if python3 -c "
+import sys
+sys.path.insert(0, '$HERE/..')
+import volumes as V
+sys.exit(0 if '$VOLUME' in V.VOLUMES else 1)" 2>/dev/null; then
+        ok "$VOLUME is in the recipe table"
+    else
+        bad "$VOLUME is NOT in tutorials/neuron_liconn_moe/volumes.py::VOLUMES"
+        fix "add an entry (usually {\"auto\": True}) before launching"
+    fi
+
     echo "source volume"
     if g storage ls "$SRC_ZARR/.zattrs" >/dev/null 2>&1; then
         ok "$SRC_ZARR"
@@ -376,6 +393,21 @@ run() {
 
     g storage cp "$HERE/vm_startup.sh" "$RUN_PREFIX/vm_startup.sh"
     bootstrap "$RUN_PREFIX/vm_startup.sh" "$tmp/startup.sh"
+
+    # SHIP THE CURRENT TUTORIAL DIRECTORY WITH THE RUN. The image carries a
+    # build-time snapshot of the repo, so a volume added to volumes.py after the
+    # image was built does not exist as far as the container is concerned --
+    # which is precisely how a run died on `KeyError: ExPID71_...` in 2026-09-22
+    # after paying for the image load, a 3.8 GB stage and the checkpoint.
+    # Rebuilding the image for every recipe-table edit is the wrong answer: it
+    # is ~8 minutes and trivially forgotten. vm_startup.sh bind-mounts this over
+    # /workspace/tutorials/neuron_liconn_moe instead, so the recipe table, the
+    # prep, the sweep and the uploader are always the working-tree versions
+    # while the framework stays exactly as built and tested.
+    tar czf "$tmp/tutorial.tar.gz" -C "$HERE/../.." \
+        --exclude='__pycache__' --exclude='*.pyc' --exclude='.DS_Store' \
+        neuron_liconn_moe
+    g storage cp "$tmp/tutorial.tar.gz" "$RUN_PREFIX/tutorial.tar.gz"
 
     python3 - "$RUN_PREFIX" "$digest" <<PY > "$tmp/manifest.json"
 import json, subprocess, sys, datetime
