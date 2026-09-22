@@ -121,7 +121,8 @@ def resolve_ws_binary(aff: Path) -> Path:
     return ws
 
 
-def run_sweep(aff: Path, out_dir: Path, thresholds: str, workdir: Path) -> None:
+def run_sweep(aff: Path, out_dir: Path, thresholds: str, workdir: Path,
+              ws_high: str = "94%", ws_low: str = "20%") -> None:
     out_dir.mkdir(parents=True, exist_ok=True)
     workdir.mkdir(parents=True, exist_ok=True)
     here = Path(__file__).resolve().parents[2]
@@ -145,8 +146,8 @@ def run_sweep(aff: Path, out_dir: Path, thresholds: str, workdir: Path) -> None:
         # `banis` stores edge (i, i+1) at voxel i; `ws` reads it as (i-1, i).
         "--edge-storage", "source",
         # Percentiles: self-adapting, unaffected by the scale_sigmoid compression.
-        "--ws-high-threshold", "94%",
-        "--ws-low-threshold", "20%",
+        "--ws-high-threshold", ws_high,
+        "--ws-low-threshold", ws_low,
         "--ws-size-threshold", "10000000",
         "--ws-dust-threshold", "200",
         "--ws-merge-function", "max",
@@ -330,6 +331,16 @@ def main() -> int:
     ap.add_argument("--chain-min-span", type=float, default=0.90,
                     help="...and its bbox must cover at least this much of it")
     ap.add_argument("--out-dir", type=Path)
+    # Seeding is a percentile by default (self-adapting, and invariant to the
+    # scale_sigmoid compression). Passing the ALREADY-RESOLVED absolute instead
+    # is not a change of settings, it is a shortcut: `run_abiss_volume.py` only
+    # materialises the float32 XYZC affinity when some threshold is a
+    # percentile, and at mip0 sizes that copy costs ~30 min of single-threaded
+    # transpose. On a retry of a volume whose log already records the resolved
+    # value for the same affinity file, pass it here and skip that work --
+    # the seeding is bit-identical because the input is.
+    ap.add_argument("--ws-high", default="94%", help="ws_high, percentile or absolute")
+    ap.add_argument("--ws-low", default="20%", help="ws_low, percentile or absolute")
     ap.add_argument("--report-only", action="store_true")
     a = ap.parse_args()
 
@@ -352,7 +363,8 @@ def main() -> int:
           f"grid {grid}", flush=True)
 
     if not a.report_only:
-        run_sweep(aff, out_dir, ",".join(f"{t:g}" for t in grid), out_dir)
+        run_sweep(aff, out_dir, ",".join(f"{t:g}" for t in grid), out_dir,
+                  ws_high=a.ws_high, ws_low=a.ws_low)
 
     check_nonempty(out_dir, len(grid))
     rows = measure(out_dir, [f"{t:g}" for t in grid], vox_nm3,
