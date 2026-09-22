@@ -85,6 +85,14 @@ BASE_ARCHIVE="${BASE_ARCHIVE:-$RUN_BUCKET/liconn/moe/images/pytc-gpu-base/build}
 #
 # Set PROVISIONING=STANDARD for on-demand when a run must not be interrupted.
 PROVISIONING="${PROVISIONING:-SPOT}"
+# ON-DEMAND FALLBACK. When SPOT is refused in EVERY zone of ZONES, retry the same
+# zones on-demand rather than leave the volume unlaunched. On-demand capacity
+# held while spot did not on 2026-09-22 (g2-standard-48, and g2-standard-16 for
+# ExPID108_32x_Hippocampus_01). The price is ~$0.46/h more for g2-standard-16
+# ($1.1472 vs $0.6882), ~$0.25 on a 32-minute run -- far cheaper than moving the
+# data to reach another region's spot pool. The manifest records which model
+# was actually used. Set ONDEMAND_FALLBACK=no to wait for spot instead.
+ONDEMAND_FALLBACK="${ONDEMAND_FALLBACK:-yes}"
 # all | gpu | cpu. The split exists because the decode peaks at ~71 GB/Gvoxel
 # while inference needs one GPU, and the most RAM available with ONE L4 is
 # 128 GiB -- so a 2 Gvoxel volume would otherwise need g2-standard-48, four L4s
@@ -451,9 +459,13 @@ run() {
         IMAGE_FLAGS=(--image-family=common-cu129-ubuntu-2204-nvidia-580
                      --image-project=deeplearning-platform-release)
     fi
-    # Try ZONE first, then the rest of ZONES (same region). A capacity refusal
-    # falls through to the next zone; anything else is a real error and stops.
-    local z tried="" created="" err="$tmp/create.err"
+    # Try ZONE first, then the rest of ZONES (same region), on spot; if every zone
+    # refuses, the same zones on-demand (ONDEMAND_FALLBACK). A capacity refusal
+    # falls through; anything else is a real error and stops.
+    local z tried created="" err="$tmp/create.err" prov models="$PROVISIONING"
+    [[ "$PROVISIONING" == SPOT && "$ONDEMAND_FALLBACK" == yes ]] && models="SPOT STANDARD"
+    for prov in $models; do
+    tried=""
     for z in $ZONE $ZONES; do
         case " $tried " in *" $z "*) continue ;; esac
         tried="$tried $z"
@@ -465,25 +477,29 @@ run() {
             "${IMAGE_FLAGS[@]}" \
             --boot-disk-size="${DISK_GB}GB" --boot-disk-type=pd-balanced \
             --boot-disk-auto-delete \
-            --provisioning-model="$PROVISIONING" \
+            --provisioning-model="$prov" \
             --service-account="$SA" --scopes=cloud-platform \
             --max-run-duration="$MAX_RUN" --instance-termination-action=DELETE \
             --no-restart-on-failure \
             --metadata-from-file=startup-script="$tmp/startup.sh" \
             --metadata="volume=$VOLUME,image-tag=$IMAGE_TAG,src-zarr=$SRC_ZARR,run-prefix=$RUN_PREFIX,build-prefix=$BUILD_PREFIX,publish-prefix=$PUBLISH_PREFIX,hf-repo=$HF_REPO,hf-ckpt=$HF_CKPT,stages=$STAGES,self-delete=yes" \
-            --quiet 2>"$err" && { created=$z; break; }
+            --quiet 2>"$err" && { created=$z; break 2; }
         if grep -qE 'ZONE_RESOURCE_POOL_EXHAUSTED|does not have enough resources|STOCKOUT' "$err"; then
-            echo "  $z: no $PROVISIONING capacity for $MACHINE -- trying the next zone"
+            echo "  $z: no $prov capacity for $MACHINE -- trying the next zone"
         else
             cat "$err" >&2; return 1
         fi
     done
+    [[ "$prov" == SPOT && "$models" == *STANDARD* ]] \
+        && echo "no SPOT capacity in any zone of $REGION -- falling back to on-demand (~1.7x the spot price)"
+    done
     if [[ -z "$created" ]]; then
-        echo "no $PROVISIONING capacity for $MACHINE in any of:$tried" >&2
-        echo "nothing is running; retry later, or PROVISIONING=STANDARD for on-demand" >&2
+        echo "no capacity ($models) for $MACHINE in any of:$tried" >&2
+        echo "nothing is running; retry later" >&2
         return 1
     fi
     ZONE=$created
+    PROVISIONING=$prov
 
     python3 - "$RUN_PREFIX" "$digest" <<PY > "$tmp/manifest.json"
 import json, subprocess, sys, datetime
@@ -501,6 +517,7 @@ print(json.dumps({
                    "held_out_val_voi": 0.9129,
                    "inference_roi_zyx": [128, 128, 128]},
     "vm": {"name": "$name", "zone": "$ZONE", "machine": "$MACHINE",
+           "provisioning": "$PROVISIONING",
            "gpu": "$GPU" or "predefined by machine type"},
     "source_commit": subprocess.run(["git","-C","$REPO_ROOT","rev-parse","HEAD"],
                                     capture_output=True, text=True).stdout.strip(),
