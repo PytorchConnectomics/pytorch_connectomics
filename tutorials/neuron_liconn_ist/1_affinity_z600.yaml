@@ -1,0 +1,144 @@
+# IST LICONN step 1, Z-degraded variant: EM -> voxel affinity on the val volume
+# degraded in Z to the 600 nm z-step, from the SAME 18 nm checkpoint the 0.9130
+# baseline used. Card MSIDEPLOY-MODEL-002, Stage 1 step 2.
+#
+#   python scripts/main.py --config tutorials/neuron_liconn_ist/1_affinity_z600.yaml \
+#     --mode test --checkpoint ${params.artifacts.checkpoint}
+#
+# NO TRAINING HAPPENS HERE and no new model exists. The weights are the released
+# 200k banis+ checkpoint; the only thing that changes is the input. The `train:`
+# block below exists because the strict schema wants the section populated.
+#
+# WHY THIS FILE EXISTS SEPARATELY FROM 1_affinity.yaml -- four differences, each
+# forced:
+#
+#   1. DATA. `final_proofread_z600/val_z600` is `final_proofread/val` area-averaged
+#      along Z from 145 planes at 24 nm to 104 at 33.3333 nm, XY untouched (built
+#      by z600_build_degraded.py; see its provenance.json). `resolution` records
+#      the truth, [33.3333, 18, 18]; it is metadata for evaluation/NERL and does
+#      not resample anything at test time.
+#
+#   2. THE VOLUME IS NOW SHALLOWER THAN THE INFERENCE WINDOW. 104 < 128, and
+#      lazy.py refuses to run a 128-deep ROI on a 104-deep volume. The ROI is NOT
+#      the thing to change -- MedNeXt's GroupNorm has no running statistics, so
+#      the forward pass is window-size dependent and none of the published
+#      numbers transfer to another window. So the VOLUME is padded instead:
+#      `pad_size: [12, 0, 0]` with the default `reflect` gives 104 + 24 = 128,
+#      and `crop_pad: [12, 0, 0]` takes the 12 reflected planes back off each end
+#      of the prediction, so the saved affinity is (3, 104, 4290, 3345).
+#      Reflect-padded window reads are already part of the baseline's operating
+#      point (its snap_to_edge grid has Z offsets -64 and 81, both out of range),
+#      so this is the same mechanism, not a new one.
+#
+#      What it does change, and it must be reported with the number: the degraded
+#      volume gets ONE Z window position where the 145-plane baseline got four, so
+#      every output voxel here comes from a single window in Z. That is forced by
+#      the geometry -- a real 104-plane 600 nm acquisition of this slab would hit
+#      exactly the same thing -- but it is not a condition the 0.9130 baseline ran
+#      under.
+#
+#   3. `patch_size` AND `model.input_size` drop to [104, 128, 128]. Neither sets
+#      the inference ROI -- `inference.window.window_size` does, and stays 128^3.
+#      `patch_size` is the floor `get_lazy_image_reference_shape` checks the
+#      UNPADDED volume against, which 104 would otherwise fail;
+#      `model.input_size` has to follow it only because `validate_runtime_coherence`
+#      requires the two to be equal. `model.input_size` is inert for MedNeXt --
+#      it is read by `monai_models.py` (UNETR/SwinUNETR `img_size`) and by that
+#      preflight check, and by nothing in `mednext_models.py`, which is fully
+#      convolutional. The forward pass is still 128^3, which is the thing that
+#      must not change.
+#
+#   4. decoding and evaluation are OFF. 1_affinity.yaml inherits
+#      decode_affinity_cc(0.75) from banis.yaml and would run it for an artifact
+#      nothing reads; the inherited metric is `nerl`, which needs skeletons this
+#      volume has none of. Decoding and scoring both happen in
+#      z600_wholeval_sweep.py, against the 18 nm GT on the 18 nm grid.
+#
+# OUTPUT LOCATION is not set here. checkpoint_dispatch derives it from the
+# checkpoint path, and the per-volume leaf comes from the DATA PATH's last
+# component. That is why the degraded volume is `val_z600` and not `val`: a `val`
+# leaf under this checkpoint would overwrite
+#   outputs/liconn_final_banis_plus_tube/20260728_032436/test_step=00200000/val/
+#     raw_x1_ch0-1-2.h5
+# which is the published 18 nm affinity behind the baseline. Output lands at
+#   .../test_step=00200000/val_z600/raw_x1_ch0-1-2.h5
+#
+# OUTPUT CONVENTION, unchanged and depended on by the sweep:
+#   * arrays are ZYX, so affinity channel c is the edge along array axis c:
+#     ch0 = Z, ch1 = Y, ch2 = X.
+#   * `channel_activations: scale_sigmoid` means the stored value is
+#     sigmoid(0.2 * logit), NOT a probability. Any absolute threshold copied from
+#     another tutorial is wrong here, and 0.47 is not inherited -- it is re-swept.
+
+_base_:
+  - params.yaml
+  - ../neuron_nisb/base_banis+.yaml
+
+experiment_name: liconn_ist_affinity_z600
+
+description: >-
+  The released 18 nm BANIS+ checkpoint (MedNeXt-L/k3, 6-ch r1+r10 affinity,
+  scale_sigmoid) applied to the IST LICONN held-out val region after an exact
+  area-average Z degradation to the 600 nm z-step, [33.3333, 18, 18] nm ZYX.
+  Measures what a 1.3889x Z coarsening costs the existing model.
+
+save_path: ${params.paths.output_root}/affinity_z600
+
+params:
+  data:
+    val_z600: ${params.paths.dataset_root}/final_proofread_z600/val_z600
+    # The degraded volume's own resolution, from its data.zarr/.zattrs.
+    resolution_zyx_z600: [33.3333, 18.0, 18.0]
+  artifacts:
+    val_z600_affinity_h5: ${params.paths.repository}/outputs/liconn_final_banis_plus_tube/20260728_032436/test_step=00200000/val_z600/raw_x1_ch0-1-2.h5
+
+default:
+  model:
+    # See header note 3. Must equal data.dataloader.patch_size; inert for MedNeXt.
+    input_size: [104, 128, 128]
+  data:
+    dataloader:
+      # See header note 3. NOT the inference ROI.
+      patch_size: [104, 128, 128]
+    data_transform:
+      # See header note 2. 104 + 2*12 = 128 = the inference window in Z.
+      pad_size: [12, 0, 0]
+      pad_mode: reflect
+  inference:
+    model:
+      # Undo pad_size on the prediction, so the saved affinity is on the
+      # degraded volume's own 104-plane grid.
+      crop_pad: [12, 0, 0]
+  # See header note 4.
+  evaluation:
+    enabled: false
+    metrics: []
+  decoding:
+    load_prediction_path: ""
+    save_path: ""
+    steps: []
+
+test:
+  data:
+    test:
+      name: val_z600
+      path: ${params.data.val_z600}
+      image: data.zarr/img
+      # GT is read by the sweep, not by inference -- and it is the UNDEGRADED
+      # 18 nm seg on the 18 nm grid there, never a degraded copy.
+      label: null
+      skeleton: null
+      resolution: ${params.data.resolution_zyx_z600}
+
+train:
+  data:
+    train:
+      path: ${params.data.train}
+      image: data.zarr/img
+      label: data.zarr/seg
+      resolution: ${params.data.resolution_zyx}
+    val:
+      path: ${params.data.val}
+      image: data.zarr/img
+      label: data.zarr/seg
+      resolution: ${params.data.resolution_zyx}

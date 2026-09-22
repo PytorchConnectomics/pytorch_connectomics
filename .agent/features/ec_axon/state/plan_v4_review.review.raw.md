@@ -1,0 +1,9 @@
+[major] The axon v2 composition is not equivalent to the validated algorithm. Full `branch_merge(...)` also runs stage-1 IoU and stage-3 one-sided merges, which can bypass or extend the margin-qualified mutual-best-buddy stage. Define an explicit axon stage sequence within the canonical module while preserving the legacy three-stage default; R2’s unspecified “dedicated code path” is not sufficient.
+
+[major] Backward-compatible defaults are contradictory. C1 gives `margin=0.15`, while “off” is later defined as `margin=0.0`. Existing callers omitting the argument could change behavior, and the proposed explicit-`0.0` regression would miss that. The shared default must remain `0.0`, with only the axon adapter passing `0.15`; regression must exercise the old signature with all new arguments omitted.
+
+[major] The YAML graph boundary is incomplete. Only `axon_merge` and `axon_weak` are explicitly registered as graph ops. The plan does not establish that `register_decoder` makes `axon_v0`, `axon_split`, and `axon_complete` graph-resolvable. Specify graph adapters for every stage or document and test the automatic decoder-to-graph bridge.
+
+[major] Verification is not executable or sufficient as stated. C7 relies on absent plan_v3 sections, and the shared-code checks do not define pre-refactor oracles, performance/stat-reuse criteria, or coverage of existing `branch_merge`/`branch_split` callers and tests after the `seg_stats` migration. Add omitted-default golden regressions, existing decoder/unit integration coverage, full-DAG execution, and concrete parity/performance inputs and pass criteria.
+
+READY: no
