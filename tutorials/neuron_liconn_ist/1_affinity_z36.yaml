@@ -1,0 +1,84 @@
+# IST LICONN step 1, 36 nm variant: val affinity on val_z36 ([36,18,18] nm, mip0
+# val Z-decimated x3 at offset 0, 97 planes; z36_build.py). Card MSIDEPLOY-MODEL-002
+# Stage 2; brief_36nm.md. Used for BOTH the baseline and the finetune -- only the
+# checkpoint changes:
+#
+#   baseline : --checkpoint outputs/liconn_final_banis_plus_tube/20260728_032436/checkpoints/step=00200000.ckpt
+#   finetune : --checkpoint outputs/liconn_z36_eb2_finetune/<ts>/checkpoints/step=00100000.ckpt
+#
+#   python scripts/main.py --config tutorials/neuron_liconn_ist/1_affinity_z36.yaml \
+#     --mode test --checkpoint <ckpt>
+#
+# Same four forced differences as 1_affinity_z600.yaml (read its header):
+#   1. data = val_z36, resolution [36,18,18] (metadata only).
+#   2. 97 planes < the 128 window. The ROI stays 128^3 (GroupNorm makes the
+#      forward pass window-size dependent), so the VOLUME is reflect-padded
+#      16+16 -> 129 and the prediction cropped back to 97 planes.
+#   3. patch_size / model.input_size = [97,128,128]: the unpadded-volume floor and
+#      the coherence check. Inert for MedNeXt; the forward pass is still 128^3.
+#   4. decoding/evaluation off; wholeval_sweep.py --gt val_z36/seg decodes and
+#      scores on the volume's own 36 nm grid (oracle floor 0 by construction).
+#
+# OUTPUT LEAF is `val_z36` (from the data path), never `val` -- a `val` leaf under
+# the eb2 checkpoint would overwrite the published 18 nm val affinity. Lands at
+#   <ckpt run>/test_step=<step>/val_z36/raw_x1_ch0-1-2.h5
+
+_base_:
+  - params.yaml
+  - ../neuron_nisb/base_banis+.yaml
+
+experiment_name: liconn_ist_affinity_z36
+
+description: >-
+  BANIS+ affinity (eb2 or its 36 nm finetune) on the IST LICONN val region at
+  [36, 18, 18] nm ZYX, mip0 Z-decimated x3.
+
+save_path: ${params.paths.output_root}/affinity_z36
+
+params:
+  data:
+    val_z36: ${params.paths.dataset_root}/final_proofread_z36/val_z36
+    resolution_zyx_z36: [36.0, 18.0, 18.0]
+
+default:
+  model:
+    input_size: [97, 128, 128]
+  data:
+    dataloader:
+      patch_size: [97, 128, 128]
+    data_transform:
+      pad_size: [16, 0, 0]
+      pad_mode: reflect
+  inference:
+    model:
+      crop_pad: [16, 0, 0]
+  evaluation:
+    enabled: false
+    metrics: []
+  decoding:
+    load_prediction_path: ""
+    save_path: ""
+    steps: []
+
+test:
+  data:
+    test:
+      name: val_z36
+      path: ${params.data.val_z36}
+      image: data.zarr/img
+      label: null
+      skeleton: null
+      resolution: ${params.data.resolution_zyx_z36}
+
+train:
+  data:
+    train:
+      path: ${params.data.train}
+      image: data.zarr/img
+      label: data.zarr/seg
+      resolution: ${params.data.resolution_zyx}
+    val:
+      path: ${params.data.val}
+      image: data.zarr/img
+      label: data.zarr/seg
+      resolution: ${params.data.resolution_zyx}

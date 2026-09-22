@@ -37,6 +37,8 @@ def main() -> None:
     ap.add_argument("--ws-high", default="94%")
     ap.add_argument("--ws-low", default="20%")
     ap.add_argument("--json", type=Path)
+    ap.add_argument("--gt", default=GT,
+                    help="GT seg zarr on the affinity's own grid (default: 18 nm val)")
     ap.add_argument("--merge-function", default="max",
                     help="ABISS edge score: max, mean, or pNN. `max` is monotone-"
                          "invariant; mean/pNN are NOT, so they require --uncompress.")
@@ -89,7 +91,9 @@ def main() -> None:
         edge_storage="source")
     del aff
 
-    gt = np.asarray(zarr.open(GT, mode="r")[:])
+    gt = np.asarray(zarr.open(a.gt, mode="r")[:])
+    if gt.shape != tuple(segs[round(mts[0], 10)].shape):
+        raise SystemExit(f"GT {gt.shape} does not match segmentation {segs[round(mts[0], 10)].shape}")
     rows = []
     for mt in mts:
         key = round(mt, 10)
@@ -119,7 +123,7 @@ def main() -> None:
         print(f"[{a.label}] WARNING: optimum at an END of the range -- widen it.", flush=True)
     if a.json:
         a.json.parent.mkdir(parents=True, exist_ok=True)
-        a.json.write_text(json.dumps({"label": a.label, "affinity": str(a.affinity),
+        a.json.write_text(json.dumps({"label": a.label, "affinity": str(a.affinity), "gt": a.gt,
                                       "ws_high": a.ws_high, "ws_low": a.ws_low,
                                       "merge_function": a.merge_function,
                                       "space": "probability" if a.uncompress else "compressed",

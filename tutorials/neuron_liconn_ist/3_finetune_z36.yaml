@@ -1,0 +1,82 @@
+# eb2 finetuned for the 600 nm z-step regime at [36, 18, 18] nm ZYX.
+# Card MSIDEPLOY-MODEL-002 Stage 2 route B; brief_36nm.md.
+#
+#   python scripts/main.py --config tutorials/neuron_liconn_ist/3_finetune_z36.yaml
+#
+# Recipe = the eb2 run (outputs/liconn_final_banis_plus_tube/20260728_032436), via
+# the same tutorial it was launched from. Changed, and nothing else:
+#
+#   1. DATA. final_proofread_z36 (z36_build.py): train = mip0 Z-decimated x3 at
+#      offsets 0/1/2 (three 180-plane volumes, disjoint image planes), val =
+#      val_z36 (offset 0, 97 planes). resolution [36, 18, 18].
+#   2. INIT. Weights-only load of the eb2 200k checkpoint (raw weights -- the ckpt
+#      has no EMA shadow, and these are the weights behind 0.9129). In-framework
+#      ckpt keys are `model.model.<mednext>`, so the prefix is "model.model.";
+#      the default "model." silently trains from random init. Check the log for
+#      0 missing / 0 unexpected keys.
+#   3. SCHEDULE. AdamW lr 1e-4 (base 1e-3), cosine to 0 over 100k steps -- the
+#      repo's canonical finetune (neuron_nisb/base_banis+_malis_ft.yaml). 10x
+#      lower because the network already segments this tissue; the shift is a
+#      1.5x Z voxel-size change, inside what the base affine scale jitter
+#      (+-20%) nearly covers, so we want re-calibration, not relearning. 100k =
+#      half the base schedule, ~26 h at the base run's 50k/13 h.
+#   4. Step checkpoints every 25k so the curve can be read at 25/50/75/100k.
+#
+# PATCH STAYS 128^3. Same GroupNorm window contract as the base, and
+# RandAxisPermuted / RandRotate90Alld silently no-op on non-cubic patches, so
+# 96x128x128 would also quietly drop two augmentations eb2 trained with. 180-plane
+# train volumes fit it; the 97-plane val is zero-padded to 128 by SpatialPadd.
+
+_base_:
+  - params.yaml
+  - ../neuron_nisb/liconn_final_banis+_tube.yaml
+
+experiment_name: liconn_z36_eb2_finetune
+description: >-
+  eb2 (BANIS+ MedNeXt-L/k3, 6-ch r1+r10 affinity, erosion=2) finetuned from its
+  200k [24,18,18] checkpoint on ExPID82 at [36,18,18] nm (mip0 Z-decimated x3,
+  three offsets), lr 1e-4 cosine over 100k steps.
+
+save_path: outputs/liconn_z36_eb2_finetune
+
+params:
+  data:
+    z36_root: ${params.paths.dataset_root}/final_proofread_z36
+    resolution_zyx_z36: [36.0, 18.0, 18.0]
+
+default:
+  model:
+    external_weights_path: ${params.artifacts.checkpoint}
+    external_weights_key_prefix: "model.model."
+
+train:
+  optimization:
+    optimizer:
+      lr: 0.0001
+    max_steps: 100000
+    scheduler:
+      params:
+        t_max: 100000
+  monitor:
+    checkpoint:
+      save_every_n_steps: 25000
+  data:
+    train:
+      path: ""
+      image: ${params.data.z36_root}/train_o*/data.zarr/img
+      label: ${params.data.z36_root}/train_o*/data.zarr/seg
+      resolution: ${params.data.resolution_zyx_z36}
+    val:
+      path: ""
+      image: ${params.data.z36_root}/val_z36/data.zarr/img
+      label: ${params.data.z36_root}/val_z36/data.zarr/seg
+      resolution: ${params.data.resolution_zyx_z36}
+
+tune:
+  enabled: false
+  data:
+    val:
+      path: ""
+      image: ${params.data.z36_root}/val_z36/data.zarr/img
+      label: ${params.data.z36_root}/val_z36/data.zarr/seg
+      resolution: ${params.data.resolution_zyx_z36}
