@@ -105,8 +105,9 @@ def resolve_ws_binary(aff: Path) -> Path:
     with h5py.File(aff, "r") as f:
         _, z, y, x = f["main"].shape
     nvox = (z + 2 * WS_HALO) * (y + 2 * WS_HALO) * (x + 2 * WS_HALO)
-    ws32 = V.REPO / "lib/abiss/build/ws"
-    ws64 = V.REPO / "lib/abiss/build64/ws64"
+    abiss_home = Path(os.environ.get("ABISS_HOME") or V.REPO / "lib/abiss")
+    ws32 = abiss_home / "build/ws"
+    ws64 = abiss_home / "build64/ws64"
     over = nvox >= WS_UINT32_CAP
     ws = ws64 if over else ws32
     print(f"ws chunk {nvox:,} voxels with halo "
@@ -131,8 +132,10 @@ def run_sweep(aff: Path, out_dir: Path, thresholds: str, workdir: Path,
         "--input", str(aff),
         "--output", str(out_dir / "seg.h5"),
         # The vendored ABISS build (build/ws) is a compiled artifact that lives
-        # only in the main checkout, so this path is absolute on purpose.
-        "--abiss-home", str(V.REPO / "lib/abiss"),
+        # only in the main checkout, so this path is absolute on purpose. In the
+        # cloud image there is no vendored copy: ABISS is built into the image
+        # at /opt/abiss and `ABISS_HOME` points there (gcloud/Dockerfile).
+        "--abiss-home", os.environ.get("ABISS_HOME") or str(V.REPO / "lib/abiss"),
         # Overrides the build/ws discovered from --abiss-home when this volume
         # is over the uint32 watershed cap; see WS_UINT32_CAP above.
         "--ws-binary", str(resolve_ws_binary(aff)),
