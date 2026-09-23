@@ -425,6 +425,22 @@ VOLUMES: dict[str, dict] = {
     # the pick with ws64 and refuses to publish unless the labels are identical
     # (sweep_merge_threshold.py::crosscheck_ws64).
     "ExPID107_14.5x_05": {"auto": True},
+    # Added 2026-09-22, fourth wave: the next ExPID108 drop (upload still in
+    # progress when these were added; each was registered only once its image
+    # group was complete). Same 32x grid as every ExPID108 row, so `auto` lands
+    # on [25, 18, 18] -- Z +4.2%, exact x2 block average:
+    #
+    #   Hippocampus_03  (1220, 2304, 2304) -> (610, 650, 650) = 258 Mvoxel  12.0% of cap
+    #   Hypothalamus_00 (1103, 2304, 2304) -> (552, 650, 650) = 233 Mvoxel  10.9%
+    #   Hypothalamus_02 (1067, 2304, 2304) -> (534, 650, 650) = 225 Mvoxel  10.5%
+    #   Piriform_03     (1218, 2304, 2304) -> (609, 650, 650) = 257 Mvoxel  12.0%
+    #
+    # Hippocampus, hypothalamus and piriform cortex are all out of domain on
+    # region (the checkpoint saw IST cortical neuropil). Read accordingly.
+    "ExPID108_32x_Hippocampus_03": {"auto": True},
+    "ExPID108_32x_Hypothalamus_00": {"auto": True},
+    "ExPID108_32x_Hypothalamus_02": {"auto": True},
+    "ExPID108_32x_Piriform_03": {"auto": True},
 }
 
 # The volumes this batch runs: everything except the one already on GCS.
