@@ -218,6 +218,8 @@ def family(name: str) -> str:
         return "expid108"
     if name.startswith("ExPID71"):
         return "expid71"
+    if name.startswith("ExPID107"):
+        return "expid107"
     raise ValueError(f"unknown sample series for {name!r}")
 
 
@@ -446,6 +448,11 @@ VOLUMES: dict[str, dict] = {
     # ExPID108 10). (1220, 2304, 2304) -> (610, 650, 650) = 258 Mvoxel, 12.0% of
     # the cap; same 32x recipe as every ExPID108 row. Piriform: out of domain.
     "ExPID108_32x_Piriform_05": {"auto": True},
+    # Added 2026-09-23: the 28x volume after per-slice XY drift correction
+    # (consecutive phase correlation, integer cumulative shift; crop 2267x2269).
+    # Same spacing as ExPID96_2ndgel_S3_40XW_28x. On GCS as `_aligned`; the BC
+    # copy is `zarr/ExPID96_2ndgel_S3_40XW_28x_zalign.zarr`.
+    "ExPID96_2ndgel_S3_40XW_28x_aligned": {"auto": True},
 }
 
 # The volumes this batch runs: everything except the one already on GCS.
