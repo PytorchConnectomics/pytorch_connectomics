@@ -559,11 +559,21 @@ def plan(name: str) -> dict:
     # 32x pair, Z interpolated 1.92x) lands worst on coverage. So the model gets
     # real XY at its trained scale and a Z step ~1.85x coarser than it saw in
     # training -- an honest mismatch instead of manufactured data.
+    #
+    # Every OTHER volume gets, per axis, the INTEGER block average whose spacing
+    # is closest to [12,9,9] (never below 1, so a coarser axis stays native).
+    # Integer only, by choice: no fractional resample, so e.g. 32x XY 5.08 nm
+    # lands at 10.16 (x2), not exactly 9. Forcing (1,1,1) on all volumes would
+    # feed a 32x volume to the 9 nm model at native ~5 nm.
     if MOE_GRID == "mip0":
+        factor = []
+        for n, t in zip(native, TRAIN_GRID_ZYX):
+            cands = {max(1, math.floor(t / n)), max(1, math.ceil(t / n))}
+            factor.append(min(cands, key=lambda f: abs(n * f - t)))
         use_factor = True
-        rec = dict(rec, factor=(1, 1, 1))
+        rec = dict(rec, factor=tuple(factor))
 
-    if rec.get("auto") and MOE_GRID == "train":
+    if rec.get("auto") and not use_factor:
         # Per-axis choice against the training grid; see choose_axis.
         auto = auto_recipe(shape, tuple(native))
         achieved = np.asarray(auto["achieved"], dtype=np.float64)
