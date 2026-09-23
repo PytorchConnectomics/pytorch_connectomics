@@ -275,6 +275,20 @@ chown -R 1000:1000 "$WORK/ckpt"
 echo "=== pipeline ==="
 GPUFLAG=(--gpus all)
 [[ "$STAGES" == cpu ]] && GPUFLAG=()
+# PROBE THE GPU FROM INSIDE THE CONTAINER FIRST. On 2026-09-23 one of twelve
+# identical VMs had host nvidia-smi fine but "Can't initialize NVML" in the
+# container; the framework then silently resolved accelerator=cpu and died on
+# the first window ~15 minutes in. Restarting docker and retrying clears it.
+if [[ "$STAGES" != cpu ]]; then
+    for attempt in 1 2 3 4; do
+        docker run --rm --gpus all "$IMAGE_TAG" python -c \
+            "import torch; assert torch.cuda.is_available(); torch.zeros(1).cuda(); print('container gpu ok:', torch.cuda.get_device_name(0))" \
+            && break
+        echo "container cannot see the GPU (attempt $attempt); restarting docker"
+        (( attempt == 4 )) && die "container never saw the GPU"
+        sleep 20; systemctl restart docker; sleep 10
+    done
+fi
 docker run --rm "${GPUFLAG[@]+"${GPUFLAG[@]}"}" --ipc=host \
     -v "$WORK":/work \
     -e STAGES="$STAGES" \
