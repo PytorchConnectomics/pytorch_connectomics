@@ -101,7 +101,7 @@ PUBLISHED_PERCENTILE = 62.89
 # The 2^31-voxel cap was a conservative assert in atomic_chunk.cpp. ABISS
 # commit f6881cd (branch ws-uint32-segment-cap, on main 92abc91) removes it and aborts instead
 # when segment ids run out, at uint32's memory -- where uint64 labels add 8
-# bytes per voxel. The cloud image applies that patch and drops a marker,
+# bytes per voxel. The cloud image (liconn-moe-v2 and later) carries it and drops a marker,
 # WS_SEGMENT_CAP_MARKER, next to build/ws. Where the marker exists, an over-cap
 # volume stays on the uint32 binary. Until one such decode has been shown
 # identical to ws64 on the same volume, `crosscheck_ws64` re-decodes the pick
