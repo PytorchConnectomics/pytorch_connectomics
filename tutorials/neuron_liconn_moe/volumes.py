@@ -393,13 +393,59 @@ VOLUMES: dict[str, dict] = {
     #   _06  2,053,556,320   95.6%          tight; the IST val decode ran at 98.3%
     #   _05  2,286,824,368  106.5%          EXCEEDS THE CAP
     #
-    # `ExPID107_14.5x_05` is therefore deliberately NOT registered here. It needs
-    # `scripts/run_abiss_chunk.py`, which this pipeline does not yet wire up, and
-    # registering it would let a run spend GPU time on inference before failing
-    # at the decode. See msi_liconn_deploy/spec.md STOP CONDITIONS.
+    # `ExPID107_14.5x_05` was held back here until 2026-09-22, when the cap turned
+    # out to be an assert rather than a property of uint32 -- it is registered at
+    # the end of this table; see the note there.
     "ExPID107_14.5x_02": {"auto": True},
     "ExPID107_14.5x_04": {"auto": True},
     "ExPID107_14.5x_06": {"auto": True},
+    # Added 2026-09-22, third wave: the rest of the ExPID108 drop at
+    # `gs://donglai_public/liconn/moe/expid108/image/`. Same 32x acquisition
+    # grid as L1_01/L1_02 ([12.5, 5.078125, 5.078125] nm, XY 2304), so `auto`
+    # lands on [25, 18, 18] -- Z +4.2%, exact x2 block average, no upsample:
+    #
+    #   L3_00          (1182, 2304, 2304) -> (591, 650, 650) = 250 Mvoxel  11.6% of cap
+    #   L3_01          (1008, 2304, 2304) -> (504, 650, 650) = 213 Mvoxel   9.9%
+    #   Hippocampus_01 (1137, 2304, 2304) -> (569, 650, 650) = 240 Mvoxel  11.2%
+    #
+    # L1_02 (255 Mvoxel) ran STAGES=all on g2-standard-16, so these do too.
+    # Hippocampus is out of domain on region as well as sample, like ExPID71.
+    "ExPID108_32x_Cortex_L3_00": {"auto": True},
+    "ExPID108_32x_Cortex_L3_01": {"auto": True},
+    "ExPID108_32x_Hippocampus_01": {"auto": True},
+    # Added 2026-09-22. The fourth ExPID107 14.5x volume, (1147, 1412, 1412) =
+    # 2,286,824,368 voxels -- 106.5% of the old uint32 cap, which is why it was
+    # held back above. That cap was an assert on the VOXEL count. uint32 only
+    # bounds the watershed's SEGMENT count; voxels are indexed with ptrdiff_t.
+    # ABISS f6881cd (applied by gcloud/Dockerfile from image liconn-moe-v2)
+    # replaces the assert with a segment-count check, so this volume gets ONE
+    # full whole-volume decode with the same ws / max / percentile pick as its
+    # three siblings, at uint32 memory (~165 GB at 71 GB/Gvoxel: run its CPU
+    # stage on n2-highmem-32). On the first such decode the sweep re-decodes
+    # the pick with ws64 and refuses to publish unless the labels are identical
+    # (sweep_merge_threshold.py::crosscheck_ws64).
+    "ExPID107_14.5x_05": {"auto": True},
+    # Added 2026-09-22, fourth wave: the next ExPID108 drop (upload still in
+    # progress when these were added; each was registered only once its image
+    # group was complete). Same 32x grid as every ExPID108 row, so `auto` lands
+    # on [25, 18, 18] -- Z +4.2%, exact x2 block average:
+    #
+    #   Hippocampus_03  (1220, 2304, 2304) -> (610, 650, 650) = 258 Mvoxel  12.0% of cap
+    #   Hypothalamus_00 (1103, 2304, 2304) -> (552, 650, 650) = 233 Mvoxel  10.9%
+    #   Hypothalamus_02 (1067, 2304, 2304) -> (534, 650, 650) = 225 Mvoxel  10.5%
+    #   Piriform_03     (1218, 2304, 2304) -> (609, 650, 650) = 257 Mvoxel  12.0%
+    #
+    # Hippocampus, hypothalamus and piriform cortex are all out of domain on
+    # region (the checkpoint saw IST cortical neuropil). Read accordingly.
+    "ExPID108_32x_Hippocampus_03": {"auto": True},
+    "ExPID108_32x_Hypothalamus_00": {"auto": True},
+    "ExPID108_32x_Hypothalamus_02": {"auto": True},
+    "ExPID108_32x_Piriform_03": {"auto": True},
+    # Added 2026-09-23 once its upload completed (3240/3240 level-0 chunks, all 5
+    # levels) -- the last of the 23 cloud-era cubes (ExPID71 9 + ExPID107 4 +
+    # ExPID108 10). (1220, 2304, 2304) -> (610, 650, 650) = 258 Mvoxel, 12.0% of
+    # the cap; same 32x recipe as every ExPID108 row. Piriform: out of domain.
+    "ExPID108_32x_Piriform_05": {"auto": True},
 }
 
 # The volumes this batch runs: everything except the one already on GCS.

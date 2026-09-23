@@ -42,6 +42,13 @@ PROJECT="${PROJECT:-sunny-catalyst-506019-a2}"
 # `preflight` fails if this drifts from where the data actually lives.
 REGION="${REGION:-us-east1}"
 ZONE="${ZONE:-us-east1-c}"
+# SPOT CAPACITY IS PER ZONE, the bucket region is not. On 2026-09-22 all six
+# ExPID107 inserts (g2-standard-16 spot, us-east1-c) died at create with
+# ZONE_RESOURCE_POOL_EXHAUSTED and no VM ever booted. `--run` therefore tries
+# ZONE first and then the rest of ZONES -- all inside REGION, so every byte
+# stays same-region and free. Only a capacity refusal falls through; any other
+# create error stops the launch. Set ZONES="$ZONE" to pin one zone.
+ZONES="${ZONES:-us-east1-c us-east1-b us-east1-d}"
 BUILD_ZONE="${BUILD_ZONE:-$ZONE}"
 
 VOLUME="${VOLUME:-ExPID108_32x_Cortex_L1_01}"
@@ -78,6 +85,14 @@ BASE_ARCHIVE="${BASE_ARCHIVE:-$RUN_BUCKET/liconn/moe/images/pytc-gpu-base/build}
 #
 # Set PROVISIONING=STANDARD for on-demand when a run must not be interrupted.
 PROVISIONING="${PROVISIONING:-SPOT}"
+# ON-DEMAND FALLBACK. When SPOT is refused in EVERY zone of ZONES, retry the same
+# zones on-demand rather than leave the volume unlaunched. On-demand capacity
+# held while spot did not on 2026-09-22 (g2-standard-48, and g2-standard-16 for
+# ExPID108_32x_Hippocampus_01). The price is ~$0.46/h more for g2-standard-16
+# ($1.1472 vs $0.6882), ~$0.25 on a 32-minute run -- far cheaper than moving the
+# data to reach another region's spot pool. The manifest records which model
+# was actually used. Set ONDEMAND_FALLBACK=no to wait for spot instead.
+ONDEMAND_FALLBACK="${ONDEMAND_FALLBACK:-yes}"
 # all | gpu | cpu. The split exists because the decode peaks at ~71 GB/Gvoxel
 # while inference needs one GPU, and the most RAM available with ONE L4 is
 # 128 GiB -- so a 2 Gvoxel volume would otherwise need g2-standard-48, four L4s
@@ -236,10 +251,12 @@ sys.exit(0 if '$VOLUME' in V.VOLUMES else 1)" 2>/dev/null; then
 
     if [[ "$STAGES" == cpu ]]; then
         echo "handed-off affinity (STAGES=cpu)"
-        if g storage ls "$RUN_PREFIX/wip/affinity/**" >/dev/null 2>&1; then
-            ok "affinity present under $RUN_PREFIX/wip/affinity"
+        # The marker, not the file: an affinity mirrored mid-inference is a
+        # truncated h5 that a CPU stage would decode silently (vm_startup.sh).
+        if g storage ls "$RUN_PREFIX/wip/affinity/AFFINITY_COMPLETE" >/dev/null 2>&1; then
+            ok "completed affinity under $RUN_PREFIX/wip/affinity"
         else
-            bad "no affinity at $RUN_PREFIX/wip/affinity"
+            bad "no COMPLETED affinity at $RUN_PREFIX/wip/affinity (no AFFINITY_COMPLETE marker)"
             fix "run the GPU stage first with the SAME RUN_ID: STAGES=gpu bash $0 --run"
         fi
     fi
@@ -429,6 +446,63 @@ run() {
         neuron_liconn_moe
     g storage cp "$tmp/tutorial.tar.gz" "$RUN_PREFIX/tutorial.tar.gz"
 
+
+    # `${arr[@]}` on an EMPTY array is an unbound-variable error under `set -u`
+    # in bash 3.2, which is what macOS ships -- so the optional flag is carried
+    # as a scalar and word-split, not as an array.
+    local accel=""
+    [[ -n "$GPU" && "$STAGES" != cpu ]] && accel="--accelerator=$GPU"
+    # The CPU stage has no GPU, so the NVIDIA Deep Learning image buys nothing
+    # and costs boot time; Debian 12 already carries gcloud.
+    local IMAGE_FLAGS
+    if [[ "$STAGES" == cpu ]]; then
+        IMAGE_FLAGS=(--image-family=debian-12 --image-project=debian-cloud)
+    else
+        IMAGE_FLAGS=(--image-family=common-cu129-ubuntu-2204-nvidia-580
+                     --image-project=deeplearning-platform-release)
+    fi
+    # Try ZONE first, then the rest of ZONES (same region), on spot; if every zone
+    # refuses, the same zones on-demand (ONDEMAND_FALLBACK). A capacity refusal
+    # falls through; anything else is a real error and stops.
+    local z tried created="" err="$tmp/create.err" prov models="$PROVISIONING"
+    [[ "$PROVISIONING" == SPOT && "$ONDEMAND_FALLBACK" == yes ]] && models="SPOT STANDARD"
+    for prov in $models; do
+    tried=""
+    for z in $ZONE $ZONES; do
+        case " $tried " in *" $z "*) continue ;; esac
+        tried="$tried $z"
+        [[ "$z" == "$REGION"-* ]] || { echo "zone $z is outside REGION $REGION" >&2; return 1; }
+        echo "creating $name in $z ..."
+        g compute instances create "$name" \
+            --zone="$z" --machine-type="$MACHINE" \
+            ${accel} --maintenance-policy=TERMINATE \
+            "${IMAGE_FLAGS[@]}" \
+            --boot-disk-size="${DISK_GB}GB" --boot-disk-type=pd-balanced \
+            --boot-disk-auto-delete \
+            --provisioning-model="$prov" \
+            --service-account="$SA" --scopes=cloud-platform \
+            --max-run-duration="$MAX_RUN" --instance-termination-action=DELETE \
+            --no-restart-on-failure \
+            --metadata-from-file=startup-script="$tmp/startup.sh" \
+            --metadata="volume=$VOLUME,image-tag=$IMAGE_TAG,src-zarr=$SRC_ZARR,run-prefix=$RUN_PREFIX,build-prefix=$BUILD_PREFIX,publish-prefix=$PUBLISH_PREFIX,hf-repo=$HF_REPO,hf-ckpt=$HF_CKPT,stages=$STAGES,self-delete=yes" \
+            --quiet 2>"$err" && { created=$z; break 2; }
+        if grep -qE 'ZONE_RESOURCE_POOL_EXHAUSTED|does not have enough resources|STOCKOUT' "$err"; then
+            echo "  $z: no $prov capacity for $MACHINE -- trying the next zone"
+        else
+            cat "$err" >&2; return 1
+        fi
+    done
+    [[ "$prov" == SPOT && "$models" == *STANDARD* ]] \
+        && echo "no SPOT capacity in any zone of $REGION -- falling back to on-demand (~1.7x the spot price)"
+    done
+    if [[ -z "$created" ]]; then
+        echo "no capacity ($models) for $MACHINE in any of:$tried" >&2
+        echo "nothing is running; retry later" >&2
+        return 1
+    fi
+    ZONE=$created
+    PROVISIONING=$prov
+
     python3 - "$RUN_PREFIX" "$digest" <<PY > "$tmp/manifest.json"
 import json, subprocess, sys, datetime
 print(json.dumps({
@@ -445,6 +519,7 @@ print(json.dumps({
                    "held_out_val_voi": 0.9129,
                    "inference_roi_zyx": [128, 128, 128]},
     "vm": {"name": "$name", "zone": "$ZONE", "machine": "$MACHINE",
+           "provisioning": "$PROVISIONING",
            "gpu": "$GPU" or "predefined by machine type"},
     "source_commit": subprocess.run(["git","-C","$REPO_ROOT","rev-parse","HEAD"],
                                     capture_output=True, text=True).stdout.strip(),
@@ -460,34 +535,6 @@ print(json.dumps({
 PY
     g storage cp "$tmp/manifest.json" "$RUN_PREFIX/manifest.json" -q
     echo "manifest -> $RUN_PREFIX/manifest.json"
-
-    # `${arr[@]}` on an EMPTY array is an unbound-variable error under `set -u`
-    # in bash 3.2, which is what macOS ships -- so the optional flag is carried
-    # as a scalar and word-split, not as an array.
-    local accel=""
-    [[ -n "$GPU" && "$STAGES" != cpu ]] && accel="--accelerator=$GPU"
-    # The CPU stage has no GPU, so the NVIDIA Deep Learning image buys nothing
-    # and costs boot time; Debian 12 already carries gcloud.
-    local IMAGE_FLAGS
-    if [[ "$STAGES" == cpu ]]; then
-        IMAGE_FLAGS=(--image-family=debian-12 --image-project=debian-cloud)
-    else
-        IMAGE_FLAGS=(--image-family=common-cu129-ubuntu-2204-nvidia-580
-                     --image-project=deeplearning-platform-release)
-    fi
-    g compute instances create "$name" \
-        --zone="$ZONE" --machine-type="$MACHINE" \
-        ${accel} --maintenance-policy=TERMINATE \
-        "${IMAGE_FLAGS[@]}" \
-        --boot-disk-size="${DISK_GB}GB" --boot-disk-type=pd-balanced \
-        --boot-disk-auto-delete \
-        --provisioning-model="$PROVISIONING" \
-        --service-account="$SA" --scopes=cloud-platform \
-        --max-run-duration="$MAX_RUN" --instance-termination-action=DELETE \
-        --no-restart-on-failure \
-        --metadata-from-file=startup-script="$tmp/startup.sh" \
-        --metadata="volume=$VOLUME,image-tag=$IMAGE_TAG,src-zarr=$SRC_ZARR,run-prefix=$RUN_PREFIX,build-prefix=$BUILD_PREFIX,publish-prefix=$PUBLISH_PREFIX,hf-repo=$HF_REPO,hf-ckpt=$HF_CKPT,stages=$STAGES,self-delete=yes" \
-        --quiet
 
     cat <<EOF
 
