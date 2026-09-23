@@ -441,6 +441,11 @@ VOLUMES: dict[str, dict] = {
     "ExPID108_32x_Hypothalamus_00": {"auto": True},
     "ExPID108_32x_Hypothalamus_02": {"auto": True},
     "ExPID108_32x_Piriform_03": {"auto": True},
+    # Added 2026-09-23 once its upload completed (3240/3240 level-0 chunks, all 5
+    # levels) -- the last of the 23 cloud-era cubes (ExPID71 9 + ExPID107 4 +
+    # ExPID108 10). (1220, 2304, 2304) -> (610, 650, 650) = 258 Mvoxel, 12.0% of
+    # the cap; same 32x recipe as every ExPID108 row. Piriform: out of domain.
+    "ExPID108_32x_Piriform_05": {"auto": True},
 }
 
 # The volumes this batch runs: everything except the one already on GCS.
