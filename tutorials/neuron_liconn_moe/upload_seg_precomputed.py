@@ -89,19 +89,24 @@ def _read_seg(t: Target) -> np.ndarray:
     import h5py
 
     os.environ.setdefault("HDF5_USE_FILE_LOCKING", "FALSE")
+    # `run_abiss_volume.py` writes uint64 in sweep mode (the in-pipeline decoder
+    # would have cast it); precomputed segmentation layers are uint32. Cast per
+    # z slab so a mip0 volume (5-6 Gvox) never holds the uint64 copy too.
     with h5py.File(t.seg_h5, "r") as f:
-        seg = np.asarray(f["main"])
-    if seg.max() == 0:
+        d = f["main"]
+        seg = np.empty(d.shape, dtype=np.uint32)
+        top = 0
+        for z0 in range(0, d.shape[0], 64):
+            slab = d[z0:z0 + 64]
+            top = max(top, int(slab.max()))
+            if top >= 2**32:
+                raise RuntimeError(f"{t.seg_h5} max id {top} does not fit uint32")
+            seg[z0:z0 + 64] = slab
+    if top == 0:
         raise RuntimeError(
             f"{t.seg_h5} has no foreground. A decode that writes an all-zero volume "
             "still exits [OK]; see tutorials/neuron_liconn_moe/README.md."
         )
-    # `run_abiss_volume.py` writes uint64 in sweep mode (the in-pipeline decoder
-    # would have cast it); precomputed segmentation layers are uint32.
-    if seg.dtype != np.uint32:
-        if int(seg.max()) >= 2**32:
-            raise RuntimeError(f"{t.seg_h5} max id {int(seg.max())} does not fit uint32")
-        seg = seg.astype(np.uint32)
     return seg
 
 
