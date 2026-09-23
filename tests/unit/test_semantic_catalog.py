@@ -35,6 +35,49 @@ def test_semantic_candidates_from_measurements(kind, radius, shaft, expected):
     )
 
 
+@pytest.mark.parametrize(
+    "kind,length,expected",
+    [
+        # A short thick blob may be a detached axon terminal: not called dendrite.
+        ("dendrite_like", 1.5, ("unclassified", "thick_short_blob_terminal_or_dendrite")),
+        ("dendrite_like", 8.0, ("dendrite", "thick_backbone_candidate")),
+        # An axon with its terminal blob attached stays axon.
+        ("axon_like", 3.0, ("axon", "local_axon_caliber")),
+    ],
+)
+def test_thick_short_blob_is_not_dendrite(kind, length, expected):
+    assert (
+        classify_semantic_candidate(
+            kind, 0.3, 0, axon_max_radius_um=0.15, dendrite_min_radius_um=0.2,
+            skeleton_length_um=length,
+        )
+        == expected
+    )
+
+
+@pytest.mark.parametrize(
+    "kind,radius,shaft,length,volume,expected",
+    [
+        # Both short AND small: a fragment, often a false split -> unclassified.
+        ("axon_like", 0.08, 0, 1.5, 0.02, ("unclassified", "short_and_small_fragment")),
+        ("dendrite_like", 0.1, 4, 1.0, 0.05, ("unclassified", "short_and_small_fragment")),
+        # Long but thin (small volume) is still an axon: some processes are thin.
+        ("axon_like", 0.08, 0, 5.0, 0.02, ("axon", "local_axon_caliber")),
+        # Short but voluminous is still an axon.
+        ("axon_like", 0.08, 0, 1.5, 0.2, ("axon", "local_axon_caliber")),
+        ("dendrite_like", 0.1, 4, 3.0, 0.2, ("axon", "thin_shaft_with_branches_or_swellings")),
+    ],
+)
+def test_short_and_small_axon_calls_are_unclassified(kind, radius, shaft, length, volume, expected):
+    assert (
+        classify_semantic_candidate(
+            kind, radius, shaft, axon_max_radius_um=0.15, dendrite_min_radius_um=0.2,
+            skeleton_length_um=length, volume_um3=volume,
+        )
+        == expected
+    )
+
+
 @pytest.mark.parametrize("gates", [(0, 0.2), (0.3, 0.2), (0.15, float("nan"))])
 def test_invalid_caliber_gates_rejected(gates):
     with pytest.raises(ValueError, match="Caliber gates"):
@@ -57,6 +100,15 @@ def test_volume_denominators_include_unclassified_and_background():
     assert categories["axon"]["percent_roi"] == 60
     assert categories["blood_vessel"]["assessment_status"] == "not_assessed"
     assert sum(r["percent_foreground"] for r in categories.values()) == pytest.approx(100)
+
+
+def test_five_classes_glia_is_its_own_class_and_somata_are_dendrite():
+    summary = summarize_semantic_records([{"semantic_class": "axon", "voxel_count": 1}], (1,), 1)
+    categories = {r["class"]: r for r in summary["categories"]}
+    assert list(categories) == ["blood_vessel", "glia", "dendrite", "axon", "unclassified"]
+    assert categories["glia"]["assessment_status"] == "not_assessed"
+    assert "soma" not in categories["glia"]["label"].lower()
+    assert "soma" in categories["dendrite"]["label"].lower()
 
 
 @pytest.fixture
