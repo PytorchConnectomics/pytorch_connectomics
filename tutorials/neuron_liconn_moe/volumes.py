@@ -452,7 +452,11 @@ VOLUMES: dict[str, dict] = {
     # (consecutive phase correlation, integer cumulative shift; crop 2267x2269).
     # Same spacing as ExPID96_2ndgel_S3_40XW_28x. On GCS as `_aligned`; the BC
     # copy is `zarr/ExPID96_2ndgel_S3_40XW_28x_zalign.zarr`.
-    "ExPID96_2ndgel_S3_40XW_28x_aligned": {"auto": True},
+    # `target`, not `auto`: `auto` would take an exact x3 XY block average to
+    # 17.41 nm, while the unaligned original was published off `target` at 18 nm.
+    # Matching recipes keeps the pair different only in the alignment. (MOE_GRID
+    # =mip0 ignores this entry; plan() picks its own per-axis factor there.)
+    "ExPID96_2ndgel_S3_40XW_28x_aligned": {"target": TRAIN_GRID_ZYX},
 }
 
 # The volumes this batch runs: everything except the one already on GCS.
@@ -540,7 +544,9 @@ def layer_name(name: str, merge_threshold: float) -> str:
     # So honour the pin only in the default (eb2) tree.
     if name in LEGACY and "layer" in LEGACY[name] and OUT_ROOT == DEFAULT_OUT_ROOT:
         return LEGACY[name]["layer"]
-    return f"{name}_seg_abiss_mt{merge_threshold:.3f}".replace(".", "")
+    # Strip the dot from the threshold only: ExPID107 names carry one
+    # ("14.5x"), which the old whole-string replace turned into "145x".
+    return f"{name}_seg_abiss_mt{f'{merge_threshold:.3f}'.replace('.', '')}"
 
 
 def plan(name: str) -> dict:

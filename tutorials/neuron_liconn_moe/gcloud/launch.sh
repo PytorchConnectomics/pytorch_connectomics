@@ -237,6 +237,22 @@ sys.exit(0 if '$VOLUME' in V.VOLUMES else 1)" 2>/dev/null; then
         bad "$VOLUME is NOT in tutorials/neuron_liconn_moe/volumes.py::VOLUMES"
         fix "add an entry (usually {\"auto\": True}) before launching"
     fi
+    # Step 3 resolves the publish folder through volumes.family(), which raises
+    # on an unknown sample series. On 2026-09-23 all four ExPID107 runs decoded
+    # for ~50 min each and then died there, losing the decode. Resolve it here.
+    local folder
+    if folder=$(python3 -c "
+import sys
+sys.path.insert(0, '$HERE/..')
+import volumes as V
+print(V.gcs_folder('$VOLUME', '$GCS_KIND'))" 2>/dev/null); then
+        ok "publishes to $folder"
+        [[ "$folder" == "$PUBLISH_PREFIX/$GCS_KIND" ]] \
+            || warn "volumes.py publishes to $folder, but PUBLISH_PREFIX is $PUBLISH_PREFIX"
+    else
+        bad "volumes.py::family() does not know the sample series of $VOLUME"
+        fix "add its ExPIDnnn prefix to family() before launching"
+    fi
 
     echo "source volume"
     if g storage ls "$SRC_ZARR/.zattrs" >/dev/null 2>&1; then
