@@ -149,4 +149,5 @@ def main() -> None:
         print(f"wrote {a.json}")
 
 
-main()
+if __name__ == "__main__":
+    main()
