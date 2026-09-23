@@ -251,10 +251,12 @@ sys.exit(0 if '$VOLUME' in V.VOLUMES else 1)" 2>/dev/null; then
 
     if [[ "$STAGES" == cpu ]]; then
         echo "handed-off affinity (STAGES=cpu)"
-        if g storage ls "$RUN_PREFIX/wip/affinity/**" >/dev/null 2>&1; then
-            ok "affinity present under $RUN_PREFIX/wip/affinity"
+        # The marker, not the file: an affinity mirrored mid-inference is a
+        # truncated h5 that a CPU stage would decode silently (vm_startup.sh).
+        if g storage ls "$RUN_PREFIX/wip/affinity/AFFINITY_COMPLETE" >/dev/null 2>&1; then
+            ok "completed affinity under $RUN_PREFIX/wip/affinity"
         else
-            bad "no affinity at $RUN_PREFIX/wip/affinity"
+            bad "no COMPLETED affinity at $RUN_PREFIX/wip/affinity (no AFFINITY_COMPLETE marker)"
             fix "run the GPU stage first with the SAME RUN_ID: STAGES=gpu bash $0 --run"
         fi
     fi

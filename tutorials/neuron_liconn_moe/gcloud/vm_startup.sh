@@ -46,6 +46,17 @@ exec > >(tee -a "$LOG") 2>&1
 ( while sleep 60; do gcloud storage cp "$LOG" "$RUN_PREFIX/run.log" -q 2>/dev/null; done ) &
 LOGGER_PID=$!
 
+# HOST MEMORY, once a minute, into the same log. On 2026-09-22 all four ExPID107
+# 14.5x GPU stages (g2-standard-16, 64 GB) stopped printing at sliding-window
+# batch 815-824 -- the same batch count on volumes of 1080-1368 batches -- and
+# then sat silent until the 3 h max-run backstop deleted them. No trace said why.
+# The mem line and any kernel OOM-killer message make the next stall
+# diagnosable from run.log alone.
+( while sleep 60; do
+    echo "[mem $(date -u +%H:%M)] $(free -m | awk '/^Mem:/ {printf "used %d MB / %d MB, avail %d MB", $3, $2, $7}')"
+    dmesg 2>/dev/null | grep -iE "out of memory|oom-kill|killed process" | tail -2
+  done ) &
+
 # SELF-DELETE IS BEST-EFFORT AND USUALLY FAILS. The VM's service account holds
 # only bucket-level bindings -- it has no project role, so no
 # `compute.instances.delete`. Measured: three builder VMs "self-deleted"
@@ -170,23 +181,43 @@ fi
 WIP="$RUN_PREFIX/wip"
 TEST_DIR="$WORK/ckpt/$CKPT_RUN/test_${HF_CKPT%.ckpt}"
 echo "=== resume check $WIP ==="
-if gcloud storage ls "$WIP/prepared/$VOLUME.h5" >/dev/null 2>&1; then
+# ONLY COMPLETED INTERMEDIATES ARE RESUMABLE. Each is restored only when its
+# COMPLETE marker exists, and the mirror writes a marker only after the step that
+# produces the file has finished. Before 2026-09-22 the mirror copied the
+# affinity every 2 minutes WHILE inference was still writing it, and a resume
+# trusted whatever it found. A preemption mid-inference therefore left a
+# truncated affinity that the next attempt skipped step 1 on and decoded
+# silently. All four ExPID107 14.5x GPU stages left 60-77%-complete copies.
+if gcloud storage ls "$WIP/prepared/PREPARED_COMPLETE" >/dev/null 2>&1; then
     gcloud storage cp "$WIP/prepared/$VOLUME.h5" "$WORK/prepared/$VOLUME.h5" \
         && echo "restored prepared volume -- step 0 will be skipped"
+elif gcloud storage ls "$WIP/prepared/$VOLUME.h5" >/dev/null 2>&1; then
+    echo "ignoring $WIP/prepared/$VOLUME.h5: no PREPARED_COMPLETE marker"
 fi
-if gcloud storage ls "$WIP/affinity/$VOLUME/raw_x1_ch0-1-2.h5" >/dev/null 2>&1; then
+if gcloud storage ls "$WIP/affinity/AFFINITY_COMPLETE" >/dev/null 2>&1; then
     mkdir -p "$TEST_DIR/$VOLUME"
     gcloud storage cp "$WIP/affinity/$VOLUME/raw_x1_ch0-1-2.h5" \
         "$TEST_DIR/$VOLUME/raw_x1_ch0-1-2.h5" \
         && echo "restored affinity -- step 1 will be skipped"
+elif gcloud storage ls "$WIP/affinity/$VOLUME/raw_x1_ch0-1-2.h5" >/dev/null 2>&1; then
+    echo "ignoring $WIP/affinity/$VOLUME: no AFFINITY_COMPLETE marker (partial)"
 fi
 
-# Mirror both back every 2 minutes for the benefit of the NEXT attempt.
+# Mirror each intermediate once its step has FINISHED, then mark it complete.
+# run_volume.sh prints "=== <n> <name> ===" at the start of each step, so the
+# header of step n+1 in the log means step n is done.
+mark() { echo complete | gcloud storage cp - "$1" -q 2>/dev/null; }
 ( while sleep 120; do
-    [[ -f "$WORK/prepared/$VOLUME.h5" ]] && \
-        gcloud storage rsync "$WORK/prepared" "$WIP/prepared" -q 2>/dev/null
-    [[ -f "$TEST_DIR/$VOLUME/raw_x1_ch0-1-2.h5" ]] && \
-        gcloud storage rsync -r "$TEST_DIR" "$WIP/affinity" -q 2>/dev/null
+    if [[ -f "$WORK/prepared/$VOLUME.h5" ]] && grep -q "^=== 1 affinity" "$LOG" \
+       && ! gcloud storage ls "$WIP/prepared/PREPARED_COMPLETE" >/dev/null 2>&1; then
+        gcloud storage rsync "$WORK/prepared" "$WIP/prepared" -q 2>/dev/null \
+            && mark "$WIP/prepared/PREPARED_COMPLETE"
+    fi
+    if [[ -f "$TEST_DIR/$VOLUME/raw_x1_ch0-1-2.h5" ]] && grep -q "^=== 2 " "$LOG" \
+       && ! gcloud storage ls "$WIP/affinity/AFFINITY_COMPLETE" >/dev/null 2>&1; then
+        gcloud storage rsync -r "$TEST_DIR" "$WIP/affinity" -q 2>/dev/null \
+            && mark "$WIP/affinity/AFFINITY_COMPLETE"
+    fi
   done ) &
 WIP_PID=$!
 
@@ -256,7 +287,10 @@ if [[ "$STAGES" == gpu ]]; then
     # it must NOT be cleared here, and no segmentation exists yet to publish.
     [[ -f "$TEST_DIR/$VOLUME/raw_x1_ch0-1-2.h5" ]] || die "affinity missing after the GPU stage"
     gcloud storage rsync -r "$TEST_DIR" "$WIP/affinity" -q || die "hand off affinity"
-    gcloud storage rsync "$WORK/prepared" "$WIP/prepared" -q || true
+    echo complete | gcloud storage cp - "$WIP/affinity/AFFINITY_COMPLETE" -q \
+        || die "mark affinity complete"
+    gcloud storage rsync "$WORK/prepared" "$WIP/prepared" -q \
+        && echo complete | gcloud storage cp - "$WIP/prepared/PREPARED_COMPLETE" -q || true
     echo "affinity handed off to $WIP/affinity"
     echo "next: RUN_ID=${RUN_PREFIX##*/} STAGES=cpu MACHINE=<high-mem> launch.sh --run"
     finish 0
