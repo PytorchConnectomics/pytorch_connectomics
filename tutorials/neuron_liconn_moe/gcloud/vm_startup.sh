@@ -31,6 +31,14 @@ SELF_DELETE=$(md self-delete || echo yes)
 # leaves it in the run prefix; `cpu` restores that affinity and decodes. The
 # handoff reuses the preemption-resume mirror, so it needed no new mechanism.
 STAGES=$(md stages || echo all)
+# Which model grid and which GCS kind folder this run is. Defaults reproduce the
+# original mip1_eb2 runs exactly; a mip0 run sets moe-grid=mip0, gcs-kind=mip0_eb8.
+MOE_GRID=$(md moe-grid || echo train)
+GCS_KIND=$(md gcs-kind || echo mip1_eb2)
+# mip1_eb2 keeps its original affinity/ and seg/ folders; any other kind nests
+# them under its own folder so two models never write the same object.
+if [[ "$GCS_KIND" == mip1_eb2 ]]; then OUT_PREFIX="$PUBLISH_PREFIX"
+else OUT_PREFIX="$PUBLISH_PREFIX/$GCS_KIND"; fi
 ZONE=$(curl -sf -H "Metadata-Flavor: Google" \
     http://metadata.google.internal/computeMetadata/v1/instance/zone | awk -F/ '{print $NF}')
 NAME=$(curl -sf -H "Metadata-Flavor: Google" \
@@ -101,7 +109,7 @@ finish() {
 }
 die() { echo "FAILED: $*"; finish 1; }
 
-echo "=== start $(date -Is) volume=$VOLUME image=$IMAGE_TAG stages=$STAGES ==="
+echo "=== start $(date -Is) volume=$VOLUME image=$IMAGE_TAG stages=$STAGES grid=$MOE_GRID kind=$GCS_KIND ckpt=$HF_CKPT ==="
 if [[ "$STAGES" != cpu ]]; then
     nvidia-smi || die "no GPU driver"
 fi
@@ -272,7 +280,9 @@ docker run --rm "${GPUFLAG[@]+"${GPUFLAG[@]}"}" --ipc=host \
     -e STAGES="$STAGES" \
     "${TUTORIAL_MOUNT[@]+"${TUTORIAL_MOUNT[@]}"}" \
     -e LICONN_MOE_GCS_BUCKET="$(echo "$PUBLISH_PREFIX" | sed -E 's|gs://([^/]+)/.*|\1|')" \
-    -e MOE_GCS_KIND=mip1_eb2 \
+    -e MOE_GCS_KIND="$GCS_KIND" \
+    -e MOE_GRID="$MOE_GRID" \
+    -e CKPT_FILE="$HF_CKPT" \
     "$IMAGE_TAG" \
     bash tutorials/neuron_liconn_moe/gcloud/run_volume.sh "$VOLUME" || die "pipeline"
 
@@ -298,12 +308,12 @@ fi
 
 AFF="$TEST_OUT/raw_x1_ch0-1-2.h5"
 [[ -f "$AFF" ]] || die "affinity missing at $AFF"
-gcloud storage cp "$AFF" "$PUBLISH_PREFIX/affinity/${VOLUME}_affinity_x1_ch0-1-2.h5" -q \
+gcloud storage cp "$AFF" "$OUT_PREFIX/affinity/${VOLUME}_affinity_x1_ch0-1-2.h5" -q \
     || die "publish affinity"
 
 SEG=$(ls "$WORK/out/$VOLUME"/*_seg_abiss_mt*.h5 2>/dev/null | head -1)
 [[ -n "$SEG" ]] || die "segmentation missing under $WORK/out/$VOLUME"
-gcloud storage cp "$SEG" "$PUBLISH_PREFIX/seg/$(basename "$SEG")" -q || die "publish seg"
+gcloud storage cp "$SEG" "$OUT_PREFIX/seg/$(basename "$SEG")" -q || die "publish seg"
 
 # The precomputed layer, built by the container under out/precomputed/<layer>.
 # Everything in it is written with gzip off; `gcloud storage rsync` uploads
@@ -311,14 +321,14 @@ gcloud storage cp "$SEG" "$PUBLISH_PREFIX/seg/$(basename "$SEG")" -q || die "pub
 # arrive as gzip bytes that neuroglancer reads as raw and fails on.
 for layer in "$WORK/out/precomputed"/*; do
     [[ -d "$layer" ]] || continue
-    gcloud storage rsync -r "$layer" "$PUBLISH_PREFIX/mip1_eb2/$(basename "$layer")" -q \
+    gcloud storage rsync -r "$layer" "$PUBLISH_PREFIX/$GCS_KIND/$(basename "$layer")" -q \
         || die "publish layer $(basename "$layer")"
-    echo "layer -> $PUBLISH_PREFIX/mip1_eb2/$(basename "$layer")"
+    echo "layer -> $PUBLISH_PREFIX/$GCS_KIND/$(basename "$layer")"
 done
 
 gcloud storage cp "$WORK/out/$VOLUME/mt_sweep.json" "$RUN_PREFIX/mt_sweep.json" -q 2>/dev/null
 gcloud storage cp "$WORK/out/$VOLUME/mt_sweep.json" \
-    "$PUBLISH_PREFIX/seg/${VOLUME}_mt_sweep.json" -q 2>/dev/null
+    "$OUT_PREFIX/seg/${VOLUME}_mt_sweep.json" -q 2>/dev/null
 gcloud storage cp "$WORK/out/image.json" "$RUN_PREFIX/image.json" -q 2>/dev/null
 
 # The published artifacts supersede the resume copies; keeping them would leave

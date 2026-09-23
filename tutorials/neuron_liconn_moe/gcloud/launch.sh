@@ -57,6 +57,12 @@ PUBLISH_PREFIX="${PUBLISH_PREFIX:-gs://donglai_public/liconn/moe/expid108}"
 RUN_BUCKET="${RUN_BUCKET:-gs://donglai}"          # private: image, logs, manifests
 HF_REPO="${HF_REPO:-pytc/liconn}"
 HF_CKPT="${HF_CKPT:-affinity_expid82_18nm_128x128x128.ckpt}"
+# Model grid (volumes.py::MOE_GRID) and GCS kind folder. The 9 nm checkpoint is
+#   MOE_GRID=mip0 GCS_KIND=mip0_eb8 HF_CKPT=affinity_expid82_9nm_128x128x128.ckpt
+MOE_GRID="${MOE_GRID:-train}"
+GCS_KIND="${GCS_KIND:-mip1_eb2}"
+case "$MOE_GRID" in train) TRAIN_GRID="[24, 18, 18]" ;; mip0) TRAIN_GRID="[12, 9, 9]" ;;
+    *) echo "MOE_GRID must be train|mip0" >&2; exit 2 ;; esac
 
 IMAGE_TAG="${IMAGE_TAG:-pytc:liconn-moe}"
 # The image lives at a STABLE prefix, not under a run, so a second volume reuses
@@ -484,7 +490,7 @@ run() {
             --max-run-duration="$MAX_RUN" --instance-termination-action=DELETE \
             --no-restart-on-failure \
             --metadata-from-file=startup-script="$tmp/startup.sh" \
-            --metadata="volume=$VOLUME,image-tag=$IMAGE_TAG,src-zarr=$SRC_ZARR,run-prefix=$RUN_PREFIX,build-prefix=$BUILD_PREFIX,publish-prefix=$PUBLISH_PREFIX,hf-repo=$HF_REPO,hf-ckpt=$HF_CKPT,stages=$STAGES,self-delete=yes" \
+            --metadata="volume=$VOLUME,image-tag=$IMAGE_TAG,src-zarr=$SRC_ZARR,run-prefix=$RUN_PREFIX,build-prefix=$BUILD_PREFIX,publish-prefix=$PUBLISH_PREFIX,hf-repo=$HF_REPO,hf-ckpt=$HF_CKPT,stages=$STAGES,moe-grid=$MOE_GRID,gcs-kind=$GCS_KIND,self-delete=yes" \
             --quiet 2>"$err" && { created=$z; break 2; }
         if grep -qE 'ZONE_RESOURCE_POOL_EXHAUSTED|does not have enough resources|STOCKOUT' "$err"; then
             echo "  $z: no $prov capacity for $MACHINE -- trying the next zone"
@@ -514,7 +520,8 @@ print(json.dumps({
               "archive_sha256": sys.argv[2],
               "distribution": "GCS archive, not a registry -- see launch.sh"},
     "checkpoint": {"hf_repo": "$HF_REPO", "file": "$HF_CKPT",
-                   "train_grid_nm_zyx": [24, 18, 18],
+                   "train_grid_nm_zyx": $TRAIN_GRID, "moe_grid": "$MOE_GRID",
+                   "gcs_kind": "$GCS_KIND",
                    "trained_on": "LICONN ExPID82_1 final_proofread (FFN-proofread GT)",
                    "held_out_val_voi": 0.9129,
                    "inference_roi_zyx": [128, 128, 128]},
