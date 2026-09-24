@@ -25,12 +25,14 @@ def main() -> None:
     args = parser.parse_args()
     source = args.volume_dir / "error_analysis/error_analysis.json"
     metadata = json.loads(source.read_text())["metadata"]
+    evidence = args.volume_dir / "error_analysis/end_evidence.json"
     catalog = build_semantic_catalog(
         source,
         args.volume_dir / Path(metadata["segmentation"]).name,
         args.volume_dir / "label_sizes.npz",
         layer_uri=args.layer_uri,
         large_volume_um3=args.large_volume_um3,
+        end_evidence_path=evidence if evidence.exists() else None,
     )
     write_semantic_artifacts(catalog, args.output, title=args.title)
     print(json.dumps(catalog["summary"], indent=2))
