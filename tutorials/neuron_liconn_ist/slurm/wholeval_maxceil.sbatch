@@ -31,10 +31,13 @@
 #SBATCH --cpus-per-task=16
 #SBATCH --mem=480G
 #SBATCH --time=10:00:00
-#SBATCH --output=/projects/weilab/weidf/lib/pytorch_connectomics/slurm_logs/neuron_liconn_ist/%A_%a_wval_maxceil.out
+#SBATCH --output=slurm_logs/neuron_liconn_ist/%A_%a_wval_maxceil.out
+# Submit from the repo root: --output above and REPO below are both
+# relative to the submit directory.
 set -eo pipefail
 REPO="${SLURM_SUBMIT_DIR:-$PWD}"
-source /projects/weilab/weidf/lib/miniconda3/bin/activate pytc
+: "${PYTC_CONDA:?export PYTC_CONDA to your miniconda prefix (no conda shell hook on the login node)}"
+source "$PYTC_CONDA/bin/activate" "${PYTC_ENV:-pytc}"
 export PYTHONPATH="$REPO${PYTHONPATH:+:$PYTHONPATH}"
 export HDF5_USE_FILE_LOCKING=FALSE
 cd "$REPO"
