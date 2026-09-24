@@ -235,10 +235,11 @@ def _write_affinity_with_halo(
 
 
 def _read_segmentation_xyz(
-    path: Path, xyz_shape: tuple[int, int, int], halo: int = 1
+    path: Path, xyz_shape: tuple[int, int, int], halo: int = 1, dtype=np.uint64
 ) -> np.ndarray:
     """Read ABISS segmentation mmap, supporting cropped and uncropped writer variants."""
-    itemsize = np.dtype(np.uint64).itemsize
+    dtype = np.dtype(dtype)
+    itemsize = dtype.itemsize
     n_expected = int(np.prod(xyz_shape, dtype=np.int64))
     bytes_expected = n_expected * itemsize
     file_size = path.stat().st_size
@@ -247,7 +248,7 @@ def _read_segmentation_xyz(
 
     if file_size == bytes_expected:
         return np.array(
-            np.memmap(path, dtype=np.uint64, mode="r", shape=xyz_shape, order="F"),
+            np.memmap(path, dtype=dtype, mode="r", shape=xyz_shape, order="F"),
             copy=True,
         )
 
@@ -258,7 +259,7 @@ def _read_segmentation_xyz(
         if file_size == bytes_with_halo:
             seg_with_halo = np.memmap(
                 path,
-                dtype=np.uint64,
+                dtype=dtype,
                 mode="r",
                 shape=xyz_with_halo,
                 order="F",
@@ -290,8 +291,17 @@ def _write_abiss_param_file(
     path.write_text(f"{xdim} {ydim} {zdim}\n{flags}\n{int(offset)}\n", encoding="utf-8")
 
 
+def _resolve_seg_dtype(seg_dtype: str, offset: int, xyz_shape: tuple[int, int, int]) -> np.dtype:
+    if seg_dtype not in ("uint64", "uint32", "auto"):
+        raise ValueError(f"Unknown segmentation dtype: {seg_dtype!r}")
+    if seg_dtype == "auto":
+        interior = int(xyz_shape[0]) * int(xyz_shape[1]) * int(xyz_shape[2])
+        seg_dtype = "uint32" if 0 <= offset and offset + interior <= 2**32 - 1 else "uint64"
+    return np.dtype(seg_dtype)
+
+
 def _run_abiss_ws(
-    predictions_czyx: np.ndarray,
+    predictions_czyx: np.ndarray | list[np.ndarray],
     ws_binary: Path,
     ws_high_threshold: float,
     ws_low_threshold: float,
@@ -307,15 +317,29 @@ def _run_abiss_ws(
     ws_merge_function: Optional[str] = None,
     edge_storage: str = "destination",
     on_batch_result: Optional["Callable[[int, float, np.ndarray], None]"] = None,
+    seg_dtype: str = "uint64",
 ) -> "np.ndarray | dict[float, np.ndarray]":
+    """Run ws with the selected main-volume dtype (boundary artifacts stay uint64).
+
+    A uint32 overflow raises CalledProcessError before any batch callbacks run.
+    Earlier complete thresholds may remain in a persistent workdir on failure.
+    A one-element list transfers input ownership; it is consumed before conversion.
+    """
     if ws_low_threshold > ws_high_threshold:
         raise ValueError(
             "Expected ws_low_threshold <= ws_high_threshold, got "
             f"{ws_low_threshold} > {ws_high_threshold}."
         )
 
+    # Pop here: popping at the call site leaves the ndarray on CPython's call stack.
+    if isinstance(predictions_czyx, list):
+        if len(predictions_czyx) != 1:
+            raise ValueError("Expected a one-element predictions ownership holder.")
+        predictions_czyx = predictions_czyx.pop()
     aff_xyzc = _to_abiss_affinity(predictions_czyx, channels=channels, edge_storage=edge_storage)
-    output_xyz_shape = tuple(int(v) for v in aff_xyzc.shape[:3])
+    del predictions_czyx
+    output_xyz_shape = (int(aff_xyzc.shape[0]), int(aff_xyzc.shape[1]), int(aff_xyzc.shape[2]))
+    output_dtype = _resolve_seg_dtype(seg_dtype, offset, output_xyz_shape)
 
     if workdir is not None:
         ws_dir = workdir.resolve()
@@ -357,7 +381,7 @@ def _run_abiss_ws(
 
         # Batch mode: pass multiple merge thresholds as trailing argv.
         # The C++ binary computes watershed + region graph once, then
-        # deep-copies and repeats the merge step for each threshold,
+        # repeats the merge step for each threshold,
         # writing indexed output files (seg_{TAG}_{i}.data).
         use_batch = ws_merge_thresholds is not None and len(ws_merge_thresholds) > 1
         if use_batch:
@@ -366,6 +390,8 @@ def _run_abiss_ws(
         elif ws_merge_threshold is not None:
             cmd.append(str(ws_merge_threshold))
 
+        if output_dtype == np.dtype(np.uint32):
+            cmd.append("--seg-dtype=uint32")
         subprocess.run(cmd, cwd=str(ws_dir), check=True)
 
         if use_batch:
@@ -385,7 +411,9 @@ def _run_abiss_ws(
                         f"ABISS batch mode did not produce expected output: {seg_file}. "
                         f"Ensure the ws binary at {ws_binary} supports multi-threshold mode."
                     )
-                seg_xyz = _read_segmentation_xyz(seg_file, output_xyz_shape, halo=1)
+                seg_xyz = _read_segmentation_xyz(
+                    seg_file, output_xyz_shape, halo=1, dtype=output_dtype
+                )
                 seg_zyx = np.transpose(seg_xyz, (2, 1, 0))
                 del seg_xyz
                 if on_batch_result is not None:
@@ -399,7 +427,7 @@ def _run_abiss_ws(
         if not seg_raw.exists():
             raise FileNotFoundError(f"ABISS watershed did not produce expected output: {seg_raw}")
 
-        seg_xyz = _read_segmentation_xyz(seg_raw, output_xyz_shape, halo=1)
+        seg_xyz = _read_segmentation_xyz(seg_raw, output_xyz_shape, halo=1, dtype=output_dtype)
         # ABISS stores X,Y,Z. Convert back to Z,Y,X expected by this repository.
         return np.transpose(seg_xyz, (2, 1, 0))
     finally:
@@ -413,6 +441,12 @@ def _parse_args() -> argparse.Namespace:
     parser.add_argument("--output", required=True, help="Output segmentation file (.h5/.hdf5/.npy)")
     parser.add_argument("--input-dataset", default="main", help="Dataset key for HDF5 input")
     parser.add_argument("--output-dataset", default="main", help="Dataset key for HDF5 output")
+    parser.add_argument(
+        "--seg-dtype",
+        choices=("uint64", "uint32", "auto"),
+        default="uint64",
+        help="Main segmentation dtype; auto uses uint32 when offset + interior voxels fits.",
+    )
 
     parser.add_argument(
         "--abiss-home",
@@ -583,6 +617,8 @@ def main() -> int:
     output_path.parent.mkdir(parents=True, exist_ok=True)
 
     ws_merge_function = args.ws_merge_function
+    holder = [predictions]
+    del predictions
 
     if batch_merge_thresholds is not None and len(batch_merge_thresholds) > 1:
         # Batch mode: run watershed once, merge with each threshold.
@@ -594,7 +630,7 @@ def main() -> int:
             _write_array(parent / f"{stem}_mt{i}{ext}", seg, dataset=args.output_dataset)
 
         _run_abiss_ws(
-            predictions_czyx=predictions,
+            predictions_czyx=holder,
             ws_binary=ws_binary,
             ws_high_threshold=ws_high,
             ws_low_threshold=ws_low,
@@ -609,11 +645,12 @@ def main() -> int:
             ws_merge_function=ws_merge_function,
             edge_storage=args.edge_storage,
             on_batch_result=_write_one,
+            seg_dtype=args.seg_dtype,
         )
         return 0
 
     segmentation = _run_abiss_ws(
-        predictions_czyx=predictions,
+        predictions_czyx=holder,
         ws_binary=ws_binary,
         ws_high_threshold=ws_high,
         ws_low_threshold=ws_low,
@@ -627,6 +664,7 @@ def main() -> int:
         ws_merge_threshold=ws_merge,
         ws_merge_function=ws_merge_function,
         edge_storage=args.edge_storage,
+        seg_dtype=args.seg_dtype,
     )
 
     _write_array(output_path, segmentation, dataset=args.output_dataset)
