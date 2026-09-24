@@ -218,6 +218,8 @@ def family(name: str) -> str:
         return "expid108"
     if name.startswith("ExPID71"):
         return "expid71"
+    if name.startswith("ExPID107"):
+        return "expid107"
     raise ValueError(f"unknown sample series for {name!r}")
 
 
@@ -393,13 +395,68 @@ VOLUMES: dict[str, dict] = {
     #   _06  2,053,556,320   95.6%          tight; the IST val decode ran at 98.3%
     #   _05  2,286,824,368  106.5%          EXCEEDS THE CAP
     #
-    # `ExPID107_14.5x_05` is therefore deliberately NOT registered here. It needs
-    # `scripts/run_abiss_chunk.py`, which this pipeline does not yet wire up, and
-    # registering it would let a run spend GPU time on inference before failing
-    # at the decode. See msi_liconn_deploy/spec.md STOP CONDITIONS.
+    # `ExPID107_14.5x_05` was held back here until 2026-09-22, when the cap turned
+    # out to be an assert rather than a property of uint32 -- it is registered at
+    # the end of this table; see the note there.
     "ExPID107_14.5x_02": {"auto": True},
     "ExPID107_14.5x_04": {"auto": True},
     "ExPID107_14.5x_06": {"auto": True},
+    # Added 2026-09-22, third wave: the rest of the ExPID108 drop at
+    # `gs://donglai_public/liconn/moe/expid108/image/`. Same 32x acquisition
+    # grid as L1_01/L1_02 ([12.5, 5.078125, 5.078125] nm, XY 2304), so `auto`
+    # lands on [25, 18, 18] -- Z +4.2%, exact x2 block average, no upsample:
+    #
+    #   L3_00          (1182, 2304, 2304) -> (591, 650, 650) = 250 Mvoxel  11.6% of cap
+    #   L3_01          (1008, 2304, 2304) -> (504, 650, 650) = 213 Mvoxel   9.9%
+    #   Hippocampus_01 (1137, 2304, 2304) -> (569, 650, 650) = 240 Mvoxel  11.2%
+    #
+    # L1_02 (255 Mvoxel) ran STAGES=all on g2-standard-16, so these do too.
+    # Hippocampus is out of domain on region as well as sample, like ExPID71.
+    "ExPID108_32x_Cortex_L3_00": {"auto": True},
+    "ExPID108_32x_Cortex_L3_01": {"auto": True},
+    "ExPID108_32x_Hippocampus_01": {"auto": True},
+    # Added 2026-09-22. The fourth ExPID107 14.5x volume, (1147, 1412, 1412) =
+    # 2,286,824,368 voxels -- 106.5% of the old uint32 cap, which is why it was
+    # held back above. That cap was an assert on the VOXEL count. uint32 only
+    # bounds the watershed's SEGMENT count; voxels are indexed with ptrdiff_t.
+    # ABISS f6881cd (applied by gcloud/Dockerfile from image liconn-moe-v2)
+    # replaces the assert with a segment-count check, so this volume gets ONE
+    # full whole-volume decode with the same ws / max / percentile pick as its
+    # three siblings, at uint32 memory (~165 GB at 71 GB/Gvoxel: run its CPU
+    # stage on n2-highmem-32). On the first such decode the sweep re-decodes
+    # the pick with ws64 and refuses to publish unless the labels are identical
+    # (sweep_merge_threshold.py::crosscheck_ws64).
+    "ExPID107_14.5x_05": {"auto": True},
+    # Added 2026-09-22, fourth wave: the next ExPID108 drop (upload still in
+    # progress when these were added; each was registered only once its image
+    # group was complete). Same 32x grid as every ExPID108 row, so `auto` lands
+    # on [25, 18, 18] -- Z +4.2%, exact x2 block average:
+    #
+    #   Hippocampus_03  (1220, 2304, 2304) -> (610, 650, 650) = 258 Mvoxel  12.0% of cap
+    #   Hypothalamus_00 (1103, 2304, 2304) -> (552, 650, 650) = 233 Mvoxel  10.9%
+    #   Hypothalamus_02 (1067, 2304, 2304) -> (534, 650, 650) = 225 Mvoxel  10.5%
+    #   Piriform_03     (1218, 2304, 2304) -> (609, 650, 650) = 257 Mvoxel  12.0%
+    #
+    # Hippocampus, hypothalamus and piriform cortex are all out of domain on
+    # region (the checkpoint saw IST cortical neuropil). Read accordingly.
+    "ExPID108_32x_Hippocampus_03": {"auto": True},
+    "ExPID108_32x_Hypothalamus_00": {"auto": True},
+    "ExPID108_32x_Hypothalamus_02": {"auto": True},
+    "ExPID108_32x_Piriform_03": {"auto": True},
+    # Added 2026-09-23 once its upload completed (3240/3240 level-0 chunks, all 5
+    # levels) -- the last of the 23 cloud-era cubes (ExPID71 9 + ExPID107 4 +
+    # ExPID108 10). (1220, 2304, 2304) -> (610, 650, 650) = 258 Mvoxel, 12.0% of
+    # the cap; same 32x recipe as every ExPID108 row. Piriform: out of domain.
+    "ExPID108_32x_Piriform_05": {"auto": True},
+    # Added 2026-09-23: the 28x volume after per-slice XY drift correction
+    # (consecutive phase correlation, integer cumulative shift; crop 2267x2269).
+    # Same spacing as ExPID96_2ndgel_S3_40XW_28x. On GCS as `_aligned`; the BC
+    # copy is `zarr/ExPID96_2ndgel_S3_40XW_28x_zalign.zarr`.
+    # `target`, not `auto`: `auto` would take an exact x3 XY block average to
+    # 17.41 nm, while the unaligned original was published off `target` at 18 nm.
+    # Matching recipes keeps the pair different only in the alignment. (MOE_GRID
+    # =mip0 ignores this entry; plan() picks its own per-axis factor there.)
+    "ExPID96_2ndgel_S3_40XW_28x_aligned": {"target": TRAIN_GRID_ZYX},
 }
 
 # The volumes this batch runs: everything except the one already on GCS.
@@ -487,7 +544,9 @@ def layer_name(name: str, merge_threshold: float) -> str:
     # So honour the pin only in the default (eb2) tree.
     if name in LEGACY and "layer" in LEGACY[name] and OUT_ROOT == DEFAULT_OUT_ROOT:
         return LEGACY[name]["layer"]
-    return f"{name}_seg_abiss_mt{merge_threshold:.3f}".replace(".", "")
+    # Strip the dot from the threshold only: ExPID107 names carry one
+    # ("14.5x"), which the old whole-string replace turned into "145x".
+    return f"{name}_seg_abiss_mt{f'{merge_threshold:.3f}'.replace('.', '')}"
 
 
 def plan(name: str) -> dict:
@@ -513,11 +572,21 @@ def plan(name: str) -> dict:
     # 32x pair, Z interpolated 1.92x) lands worst on coverage. So the model gets
     # real XY at its trained scale and a Z step ~1.85x coarser than it saw in
     # training -- an honest mismatch instead of manufactured data.
+    #
+    # Every OTHER volume gets, per axis, the INTEGER block average whose spacing
+    # is closest to [12,9,9] (never below 1, so a coarser axis stays native).
+    # Integer only, by choice: no fractional resample, so e.g. 32x XY 5.08 nm
+    # lands at 10.16 (x2), not exactly 9. Forcing (1,1,1) on all volumes would
+    # feed a 32x volume to the 9 nm model at native ~5 nm.
     if MOE_GRID == "mip0":
+        factor = []
+        for n, t in zip(native, TRAIN_GRID_ZYX):
+            cands = {max(1, math.floor(t / n)), max(1, math.ceil(t / n))}
+            factor.append(min(cands, key=lambda f: abs(n * f - t)))
         use_factor = True
-        rec = dict(rec, factor=(1, 1, 1))
+        rec = dict(rec, factor=tuple(factor))
 
-    if rec.get("auto") and MOE_GRID == "train":
+    if rec.get("auto") and not use_factor:
         # Per-axis choice against the training grid; see choose_axis.
         auto = auto_recipe(shape, tuple(native))
         achieved = np.asarray(auto["achieved"], dtype=np.float64)

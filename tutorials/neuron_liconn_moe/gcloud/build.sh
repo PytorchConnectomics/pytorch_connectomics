@@ -74,8 +74,9 @@ finish() {
 trap finish EXIT
 
 echo "=== start $(date -Is) tag=$IMAGE_TAG ==="
-apt-get update
-apt-get install -y docker.io
+# Wait for the dpkg lock rather than fail on it (see vm_startup.sh).
+apt-get -o DPkg::Lock::Timeout=600 update
+apt-get -o DPkg::Lock::Timeout=600 install -y docker.io
 systemctl enable --now docker
 
 cd /work/build

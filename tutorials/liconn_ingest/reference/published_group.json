@@ -1,0 +1,257 @@
+{
+  "recorded": "2026-09-21",
+  "source": "gs://donglai_public/liconn/moe/expid96/image/ExPID96_2ndgel_S1_40XW001_18x.zarr",
+  "zarray": {
+    "0": {
+      "chunks": [
+        128,
+        128,
+        128
+      ],
+      "compressor": {
+        "blocksize": 0,
+        "clevel": 5,
+        "cname": "zstd",
+        "id": "blosc",
+        "shuffle": 1
+      },
+      "dimension_separator": ".",
+      "dtype": "|u1",
+      "fill_value": 0,
+      "filters": null,
+      "order": "C",
+      "shape": [
+        585,
+        2304,
+        2304
+      ],
+      "zarr_format": 2
+    },
+    "1": {
+      "chunks": [
+        128,
+        128,
+        128
+      ],
+      "compressor": {
+        "blocksize": 0,
+        "clevel": 5,
+        "cname": "zstd",
+        "id": "blosc",
+        "shuffle": 1
+      },
+      "dimension_separator": ".",
+      "dtype": "|u1",
+      "fill_value": 0,
+      "filters": null,
+      "order": "C",
+      "shape": [
+        292,
+        1152,
+        1152
+      ],
+      "zarr_format": 2
+    },
+    "2": {
+      "chunks": [
+        128,
+        128,
+        128
+      ],
+      "compressor": {
+        "blocksize": 0,
+        "clevel": 5,
+        "cname": "zstd",
+        "id": "blosc",
+        "shuffle": 1
+      },
+      "dimension_separator": ".",
+      "dtype": "|u1",
+      "fill_value": 0,
+      "filters": null,
+      "order": "C",
+      "shape": [
+        146,
+        576,
+        576
+      ],
+      "zarr_format": 2
+    },
+    "3": {
+      "chunks": [
+        73,
+        128,
+        128
+      ],
+      "compressor": {
+        "blocksize": 0,
+        "clevel": 5,
+        "cname": "zstd",
+        "id": "blosc",
+        "shuffle": 1
+      },
+      "dimension_separator": ".",
+      "dtype": "|u1",
+      "fill_value": 0,
+      "filters": null,
+      "order": "C",
+      "shape": [
+        73,
+        288,
+        288
+      ],
+      "zarr_format": 2
+    },
+    "4": {
+      "chunks": [
+        36,
+        128,
+        128
+      ],
+      "compressor": {
+        "blocksize": 0,
+        "clevel": 5,
+        "cname": "zstd",
+        "id": "blosc",
+        "shuffle": 1
+      },
+      "dimension_separator": ".",
+      "dtype": "|u1",
+      "fill_value": 0,
+      "filters": null,
+      "order": "C",
+      "shape": [
+        36,
+        144,
+        144
+      ],
+      "zarr_format": 2
+    }
+  },
+  "zattrs": {
+    "axes": "ZYX",
+    "clahe_clip_limit": 0.03,
+    "clip_mode": "percentile",
+    "clip_percentiles": [
+      1.0,
+      99.0
+    ],
+    "downsample_factor_zyx": [
+      1,
+      1,
+      1
+    ],
+    "downsample_method": "aligned_arithmetic_volume_average",
+    "downsample_rounding": "nearest_even",
+    "input_spacing_nm_zyx": [
+      22.22222222222222,
+      9.027777777777779,
+      9.027777777777779
+    ],
+    "multiscales": [
+      {
+        "axes": [
+          {
+            "name": "z",
+            "type": "space",
+            "unit": "nanometer"
+          },
+          {
+            "name": "y",
+            "type": "space",
+            "unit": "nanometer"
+          },
+          {
+            "name": "x",
+            "type": "space",
+            "unit": "nanometer"
+          }
+        ],
+        "datasets": [
+          {
+            "coordinateTransformations": [
+              {
+                "scale": [
+                  22.22222222222222,
+                  9.027777777777779,
+                  9.027777777777779
+                ],
+                "type": "scale"
+              }
+            ],
+            "path": "0"
+          },
+          {
+            "coordinateTransformations": [
+              {
+                "scale": [
+                  44.44444444444444,
+                  18.055555555555557,
+                  18.055555555555557
+                ],
+                "type": "scale"
+              }
+            ],
+            "path": "1"
+          },
+          {
+            "coordinateTransformations": [
+              {
+                "scale": [
+                  88.88888888888889,
+                  36.111111111111114,
+                  36.111111111111114
+                ],
+                "type": "scale"
+              }
+            ],
+            "path": "2"
+          },
+          {
+            "coordinateTransformations": [
+              {
+                "scale": [
+                  177.77777777777777,
+                  72.22222222222223,
+                  72.22222222222223
+                ],
+                "type": "scale"
+              }
+            ],
+            "path": "3"
+          },
+          {
+            "coordinateTransformations": [
+              {
+                "scale": [
+                  355.55555555555554,
+                  144.44444444444446,
+                  144.44444444444446
+                ],
+                "type": "scale"
+              }
+            ],
+            "path": "4"
+          }
+        ],
+        "name": ".ExPID96_2ndgel_S1_40XW001_18x.zarr.3836739",
+        "version": "0.4"
+      }
+    ],
+    "source": "/projects/weilab/dataset/liconn/moe/ExPID96_2ndgel_S1_40XW001_18x Mojtaba Tavakoli.nd2",
+    "source_channel": 0,
+    "source_shape_zyx": [
+      585,
+      2304,
+      2304
+    ],
+    "spacing_nm_zyx": [
+      22.22222222222222,
+      9.027777777777779,
+      9.027777777777779
+    ]
+  },
+  "zgroup": {
+    "zarr_format": 2
+  }
+}

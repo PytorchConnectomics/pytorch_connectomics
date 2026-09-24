@@ -31,6 +31,14 @@ SELF_DELETE=$(md self-delete || echo yes)
 # leaves it in the run prefix; `cpu` restores that affinity and decodes. The
 # handoff reuses the preemption-resume mirror, so it needed no new mechanism.
 STAGES=$(md stages || echo all)
+# Which model grid and which GCS kind folder this run is. Defaults reproduce the
+# original mip1_eb2 runs exactly; a mip0 run sets moe-grid=mip0, gcs-kind=mip0_eb8.
+MOE_GRID=$(md moe-grid || echo train)
+GCS_KIND=$(md gcs-kind || echo mip1_eb2)
+# mip1_eb2 keeps its original affinity/ and seg/ folders; any other kind nests
+# them under its own folder so two models never write the same object.
+if [[ "$GCS_KIND" == mip1_eb2 ]]; then OUT_PREFIX="$PUBLISH_PREFIX"
+else OUT_PREFIX="$PUBLISH_PREFIX/$GCS_KIND"; fi
 ZONE=$(curl -sf -H "Metadata-Flavor: Google" \
     http://metadata.google.internal/computeMetadata/v1/instance/zone | awk -F/ '{print $NF}')
 NAME=$(curl -sf -H "Metadata-Flavor: Google" \
@@ -45,6 +53,17 @@ exec > >(tee -a "$LOG") 2>&1
 
 ( while sleep 60; do gcloud storage cp "$LOG" "$RUN_PREFIX/run.log" -q 2>/dev/null; done ) &
 LOGGER_PID=$!
+
+# HOST MEMORY, once a minute, into the same log. On 2026-09-22 all four ExPID107
+# 14.5x GPU stages (g2-standard-16, 64 GB) stopped printing at sliding-window
+# batch 815-824 -- the same batch count on volumes of 1080-1368 batches -- and
+# then sat silent until the 3 h max-run backstop deleted them. No trace said why.
+# The mem line and any kernel OOM-killer message make the next stall
+# diagnosable from run.log alone.
+( while sleep 60; do
+    echo "[mem $(date -u +%H:%M)] $(free -m | awk '/^Mem:/ {printf "used %d MB / %d MB, avail %d MB", $3, $2, $7}')"
+    dmesg 2>/dev/null | grep -iE "out of memory|oom-kill|killed process" | tail -2
+  done ) &
 
 # SELF-DELETE IS BEST-EFFORT AND USUALLY FAILS. The VM's service account holds
 # only bucket-level bindings -- it has no project role, so no
@@ -90,13 +109,20 @@ finish() {
 }
 die() { echo "FAILED: $*"; finish 1; }
 
-echo "=== start $(date -Is) volume=$VOLUME image=$IMAGE_TAG stages=$STAGES ==="
+echo "=== start $(date -Is) volume=$VOLUME image=$IMAGE_TAG stages=$STAGES grid=$MOE_GRID kind=$GCS_KIND ckpt=$HF_CKPT ==="
 if [[ "$STAGES" != cpu ]]; then
     nvidia-smi || die "no GPU driver"
 fi
 
 # --- docker + the image archive ---------------------------------------------
-command -v docker >/dev/null || { apt-get update && apt-get install -y docker.io; }
+# WAIT FOR THE DPKG LOCK. The NVIDIA DLVM image ships no docker, and on first
+# boot unattended-upgrades can hold /var/lib/dpkg/lock-frontend for minutes. A
+# plain apt-get then fails at once, docker never installs, and the run dies at
+# `docker load` after paying for the image download -- measured 2026-09-22 on
+# ExPID107_14.5x_05 (us-east1-b). DPkg::Lock::Timeout makes apt wait instead.
+APT=(apt-get -o DPkg::Lock::Timeout=600)
+command -v docker >/dev/null || { "${APT[@]}" update && "${APT[@]}" install -y docker.io; } \
+    || die "install docker.io"
 if [[ "$STAGES" != cpu ]]; then
     nvidia-ctk runtime configure --runtime=docker || die "nvidia-ctk configure"
 fi
@@ -163,23 +189,43 @@ fi
 WIP="$RUN_PREFIX/wip"
 TEST_DIR="$WORK/ckpt/$CKPT_RUN/test_${HF_CKPT%.ckpt}"
 echo "=== resume check $WIP ==="
-if gcloud storage ls "$WIP/prepared/$VOLUME.h5" >/dev/null 2>&1; then
+# ONLY COMPLETED INTERMEDIATES ARE RESUMABLE. Each is restored only when its
+# COMPLETE marker exists, and the mirror writes a marker only after the step that
+# produces the file has finished. Before 2026-09-22 the mirror copied the
+# affinity every 2 minutes WHILE inference was still writing it, and a resume
+# trusted whatever it found. A preemption mid-inference therefore left a
+# truncated affinity that the next attempt skipped step 1 on and decoded
+# silently. All four ExPID107 14.5x GPU stages left 60-77%-complete copies.
+if gcloud storage ls "$WIP/prepared/PREPARED_COMPLETE" >/dev/null 2>&1; then
     gcloud storage cp "$WIP/prepared/$VOLUME.h5" "$WORK/prepared/$VOLUME.h5" \
         && echo "restored prepared volume -- step 0 will be skipped"
+elif gcloud storage ls "$WIP/prepared/$VOLUME.h5" >/dev/null 2>&1; then
+    echo "ignoring $WIP/prepared/$VOLUME.h5: no PREPARED_COMPLETE marker"
 fi
-if gcloud storage ls "$WIP/affinity/$VOLUME/raw_x1_ch0-1-2.h5" >/dev/null 2>&1; then
+if gcloud storage ls "$WIP/affinity/AFFINITY_COMPLETE" >/dev/null 2>&1; then
     mkdir -p "$TEST_DIR/$VOLUME"
     gcloud storage cp "$WIP/affinity/$VOLUME/raw_x1_ch0-1-2.h5" \
         "$TEST_DIR/$VOLUME/raw_x1_ch0-1-2.h5" \
         && echo "restored affinity -- step 1 will be skipped"
+elif gcloud storage ls "$WIP/affinity/$VOLUME/raw_x1_ch0-1-2.h5" >/dev/null 2>&1; then
+    echo "ignoring $WIP/affinity/$VOLUME: no AFFINITY_COMPLETE marker (partial)"
 fi
 
-# Mirror both back every 2 minutes for the benefit of the NEXT attempt.
+# Mirror each intermediate once its step has FINISHED, then mark it complete.
+# run_volume.sh prints "=== <n> <name> ===" at the start of each step, so the
+# header of step n+1 in the log means step n is done.
+mark() { echo complete | gcloud storage cp - "$1" -q 2>/dev/null; }
 ( while sleep 120; do
-    [[ -f "$WORK/prepared/$VOLUME.h5" ]] && \
-        gcloud storage rsync "$WORK/prepared" "$WIP/prepared" -q 2>/dev/null
-    [[ -f "$TEST_DIR/$VOLUME/raw_x1_ch0-1-2.h5" ]] && \
-        gcloud storage rsync -r "$TEST_DIR" "$WIP/affinity" -q 2>/dev/null
+    if [[ -f "$WORK/prepared/$VOLUME.h5" ]] && grep -q "^=== 1 affinity" "$LOG" \
+       && ! gcloud storage ls "$WIP/prepared/PREPARED_COMPLETE" >/dev/null 2>&1; then
+        gcloud storage rsync "$WORK/prepared" "$WIP/prepared" -q 2>/dev/null \
+            && mark "$WIP/prepared/PREPARED_COMPLETE"
+    fi
+    if [[ -f "$TEST_DIR/$VOLUME/raw_x1_ch0-1-2.h5" ]] && grep -q "^=== 2 " "$LOG" \
+       && ! gcloud storage ls "$WIP/affinity/AFFINITY_COMPLETE" >/dev/null 2>&1; then
+        gcloud storage rsync -r "$TEST_DIR" "$WIP/affinity" -q 2>/dev/null \
+            && mark "$WIP/affinity/AFFINITY_COMPLETE"
+    fi
   done ) &
 WIP_PID=$!
 
@@ -229,12 +275,28 @@ chown -R 1000:1000 "$WORK/ckpt"
 echo "=== pipeline ==="
 GPUFLAG=(--gpus all)
 [[ "$STAGES" == cpu ]] && GPUFLAG=()
+# PROBE THE GPU FROM INSIDE THE CONTAINER FIRST. On 2026-09-23 one of twelve
+# identical VMs had host nvidia-smi fine but "Can't initialize NVML" in the
+# container; the framework then silently resolved accelerator=cpu and died on
+# the first window ~15 minutes in. Restarting docker and retrying clears it.
+if [[ "$STAGES" != cpu ]]; then
+    for attempt in 1 2 3 4; do
+        docker run --rm --gpus all "$IMAGE_TAG" python -c \
+            "import torch; assert torch.cuda.is_available(); torch.zeros(1).cuda(); print('container gpu ok:', torch.cuda.get_device_name(0))" \
+            && break
+        echo "container cannot see the GPU (attempt $attempt); restarting docker"
+        (( attempt == 4 )) && die "container never saw the GPU"
+        sleep 20; systemctl restart docker; sleep 10
+    done
+fi
 docker run --rm "${GPUFLAG[@]+"${GPUFLAG[@]}"}" --ipc=host \
     -v "$WORK":/work \
     -e STAGES="$STAGES" \
     "${TUTORIAL_MOUNT[@]+"${TUTORIAL_MOUNT[@]}"}" \
     -e LICONN_MOE_GCS_BUCKET="$(echo "$PUBLISH_PREFIX" | sed -E 's|gs://([^/]+)/.*|\1|')" \
-    -e MOE_GCS_KIND=mip1_eb2 \
+    -e MOE_GCS_KIND="$GCS_KIND" \
+    -e MOE_GRID="$MOE_GRID" \
+    -e CKPT_FILE="$HF_CKPT" \
     "$IMAGE_TAG" \
     bash tutorials/neuron_liconn_moe/gcloud/run_volume.sh "$VOLUME" || die "pipeline"
 
@@ -249,7 +311,10 @@ if [[ "$STAGES" == gpu ]]; then
     # it must NOT be cleared here, and no segmentation exists yet to publish.
     [[ -f "$TEST_DIR/$VOLUME/raw_x1_ch0-1-2.h5" ]] || die "affinity missing after the GPU stage"
     gcloud storage rsync -r "$TEST_DIR" "$WIP/affinity" -q || die "hand off affinity"
-    gcloud storage rsync "$WORK/prepared" "$WIP/prepared" -q || true
+    echo complete | gcloud storage cp - "$WIP/affinity/AFFINITY_COMPLETE" -q \
+        || die "mark affinity complete"
+    gcloud storage rsync "$WORK/prepared" "$WIP/prepared" -q \
+        && echo complete | gcloud storage cp - "$WIP/prepared/PREPARED_COMPLETE" -q || true
     echo "affinity handed off to $WIP/affinity"
     echo "next: RUN_ID=${RUN_PREFIX##*/} STAGES=cpu MACHINE=<high-mem> launch.sh --run"
     finish 0
@@ -257,12 +322,12 @@ fi
 
 AFF="$TEST_OUT/raw_x1_ch0-1-2.h5"
 [[ -f "$AFF" ]] || die "affinity missing at $AFF"
-gcloud storage cp "$AFF" "$PUBLISH_PREFIX/affinity/${VOLUME}_affinity_x1_ch0-1-2.h5" -q \
+gcloud storage cp "$AFF" "$OUT_PREFIX/affinity/${VOLUME}_affinity_x1_ch0-1-2.h5" -q \
     || die "publish affinity"
 
 SEG=$(ls "$WORK/out/$VOLUME"/*_seg_abiss_mt*.h5 2>/dev/null | head -1)
 [[ -n "$SEG" ]] || die "segmentation missing under $WORK/out/$VOLUME"
-gcloud storage cp "$SEG" "$PUBLISH_PREFIX/seg/$(basename "$SEG")" -q || die "publish seg"
+gcloud storage cp "$SEG" "$OUT_PREFIX/seg/$(basename "$SEG")" -q || die "publish seg"
 
 # The precomputed layer, built by the container under out/precomputed/<layer>.
 # Everything in it is written with gzip off; `gcloud storage rsync` uploads
@@ -270,14 +335,14 @@ gcloud storage cp "$SEG" "$PUBLISH_PREFIX/seg/$(basename "$SEG")" -q || die "pub
 # arrive as gzip bytes that neuroglancer reads as raw and fails on.
 for layer in "$WORK/out/precomputed"/*; do
     [[ -d "$layer" ]] || continue
-    gcloud storage rsync -r "$layer" "$PUBLISH_PREFIX/mip1_eb2/$(basename "$layer")" -q \
+    gcloud storage rsync -r "$layer" "$PUBLISH_PREFIX/$GCS_KIND/$(basename "$layer")" -q \
         || die "publish layer $(basename "$layer")"
-    echo "layer -> $PUBLISH_PREFIX/mip1_eb2/$(basename "$layer")"
+    echo "layer -> $PUBLISH_PREFIX/$GCS_KIND/$(basename "$layer")"
 done
 
 gcloud storage cp "$WORK/out/$VOLUME/mt_sweep.json" "$RUN_PREFIX/mt_sweep.json" -q 2>/dev/null
 gcloud storage cp "$WORK/out/$VOLUME/mt_sweep.json" \
-    "$PUBLISH_PREFIX/seg/${VOLUME}_mt_sweep.json" -q 2>/dev/null
+    "$OUT_PREFIX/seg/${VOLUME}_mt_sweep.json" -q 2>/dev/null
 gcloud storage cp "$WORK/out/image.json" "$RUN_PREFIX/image.json" -q 2>/dev/null
 
 # The published artifacts supersede the resume copies; keeping them would leave

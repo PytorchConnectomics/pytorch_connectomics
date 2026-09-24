@@ -160,7 +160,8 @@ def _write_zarr_pyramid(path: Path, a0_src, out_shape, factor, spacing, levels, 
     slab = z_slab - (z_slab % fz)
     for z0 in range(0, nz - nz % fz, slab):
         z1 = min(z0 + slab, out_shape[0] * fz)
-        a0[z0 // fz : z1 // fz] = block_average_uint8(np.asarray(a0_src[z0:z1]), factor)
+        a0[z0 // fz : z1 // fz] = block_average_uint8(
+            np.asarray(a0_src[z0:z1, : out_shape[1] * factor[1], : out_shape[2] * factor[2]]), factor)
         print(f"  source planes {z1}/{nz}", flush=True)
 
     shapes = [out_shape]
@@ -242,8 +243,11 @@ def main() -> None:
             slab = args.z_slab - (args.z_slab % fz)
             for z0 in range(0, lvl0.shape[0] - lvl0.shape[0] % fz, slab):
                 z1 = min(z0 + slab, out_shape[0] * fz)
+                # Drop a trailing partial block in XY, as Z already does: an
+                # odd-sized crop (e.g. the z-aligned 28x, 2267x2269) at factor 2.
                 vol[z0 // fz : z1 // fz] = block_average_uint8(
-                    np.asarray(lvl0[z0:z1]), tuple(args.factor))
+                    np.asarray(lvl0[z0:z1, : out_shape[1] * args.factor[1],
+                                    : out_shape[2] * args.factor[2]]), tuple(args.factor))
                 print(f"  source planes {z1}/{lvl0.shape[0]}", flush=True)
         else:
             vol = resample_area_uint8(lvl0, out_shape, z_slab=args.z_slab)
