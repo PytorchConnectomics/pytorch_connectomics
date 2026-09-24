@@ -15,17 +15,32 @@ from typing import Any
 import h5py
 import numpy as np
 
-from ..metrics.unsupervised.classification import classify_semantic_candidate
+from ..metrics.unsupervised.classification import (
+    classify_end_quality,
+    classify_semantic_candidate,
+)
 
 __all__ = ["build_semantic_catalog", "summarize_semantic_records", "write_semantic_artifacts"]
 
 _CATEGORIES = {
     "blood_vessel": "Blood vessel (review required)",
-    "glia_or_soma": "Glia / neuron with soma (review required)",
-    "dendrite": "Dendrite candidate",
-    "axon": "Axon candidate",
+    "glia": "Glia (review required)",
+    "dendrite": "Dendrite candidate (neurons with soma included)",
+    "axon": "Axon candidate (terminals included)",
     "unclassified": "Unclassified",
 }
+
+
+# Below this skeleton length a thick object is a blob: a detached axon terminal
+# as easily as a dendrite piece. On ExPID96 S1 this is 18 of 128 thick calls,
+# 1.3% of their volume, each ~0.2 um3 -- bouton-sized, far below a soma.
+_MIN_DENDRITE_LENGTH_UM = 2.0
+# An axon call needs 3 um of skeleton OR 0.1 um3 (a thin process can be long with
+# little volume). Short AND small pieces -- often false splits -- are penalized as
+# unclassified, so what reads as `axon` is a substantial piece. Pooled over the 12
+# eb2 volumes the median axon call was 0.037 um3 and 1.66 um long.
+_MIN_AXON_LENGTH_UM = 3.0
+_MIN_AXON_VOLUME_UM3 = 0.1
 
 
 def _digest(path: str | Path) -> str:
@@ -56,7 +71,7 @@ def summarize_semantic_records(
                 "percent_roi": 100 * count / total,
                 "assessment_status": (
                     "not_assessed"
-                    if key in ("blood_vessel", "glia_or_soma")
+                    if key in ("blood_vessel", "glia")
                     else "provisional_geometry"
                 ),
             }
@@ -87,6 +102,7 @@ def build_semantic_catalog(
     *,
     layer_uri: str,
     large_volume_um3: float = 1.0,
+    end_evidence_path: str | Path | None = None,
 ) -> dict[str, Any]:
     """Verify an analyzed segmentation and build an initial all-label catalog.
 
@@ -104,6 +120,18 @@ def build_semantic_catalog(
     spacing = np.asarray(metadata["spacing_nm_zyx"]) / 1000
     voxel_volume = float(np.prod(spacing))
     measured = {r["id"]: r for r in analysis["segments"]}
+    # Segmentation-based spur / border / terminal flags per free end, when present.
+    evidence: dict[str, dict[int, dict]] = {}
+    evidence_meta = None
+    if end_evidence_path is not None:
+        document = json.loads(Path(end_evidence_path).read_text())
+        evidence_meta = document["metadata"]
+        if evidence_meta["segmentation_sha256"] != metadata["segmentation_sha256"]:
+            raise ValueError("End evidence was computed on a different segmentation")
+        evidence = {
+            sid: {row["vertex_index"]: row for row in rows}
+            for sid, rows in document["ends"].items()
+        }
     with np.load(label_sizes_path) as sizes:
         counts = {str(int(i)): int(n) for i, n in zip(sizes["ids"], sizes["counts"])}
     # Independently verify the cached histogram and include background explicitly.
@@ -138,7 +166,20 @@ def build_semantic_catalog(
                 pieces.get("shaft_length_um", 0),
                 axon_max_radius_um=metadata["continuity_config"]["axon_max_radius_um"],
                 dendrite_min_radius_um=metadata["continuity_config"]["dendrite_min_radius_um"],
+                skeleton_length_um=continuity.get("retained_length_um"),
+                min_dendrite_length_um=_MIN_DENDRITE_LENGTH_UM,
+                volume_um3=count * voxel_volume,
+                min_axon_length_um=_MIN_AXON_LENGTH_UM,
+                min_axon_volume_um3=_MIN_AXON_VOLUME_UM3,
             )
+        flags = evidence.get(label, {})
+        free_ends = [
+            {**end, **flags.get(end.get("vertex_index"), {})}
+            for end in (source_record or {}).get("free_ends") or []
+        ]
+        quality, quality_basis, end_sites = classify_end_quality(
+            category, free_ends, measured=bool(continuity.get("measured"))
+        )
         large = count * voxel_volume >= large_volume_um3
         records.append(
             {
@@ -151,6 +192,12 @@ def build_semantic_catalog(
                 "status": "unreviewed_candidate",
                 "review": None,
                 "correctness": None,
+                # Starting completeness call from skeleton ends, not a verified
+                # correctness: complete = every end at the border or an axon
+                # terminal; false_split = an unexplained end site inside.
+                "quality": quality,
+                "quality_basis": quality_basis,
+                "unexplained_end_sites": end_sites,
                 "large_object": large,
                 "below_analysis_cutoff": source_record is None,
                 "review_priority": "high" if large else "normal",
@@ -197,6 +244,14 @@ def build_semantic_catalog(
                 "axon_max": metadata["continuity_config"]["axon_max_radius_um"],
                 "dendrite_min": metadata["continuity_config"]["dendrite_min_radius_um"],
             },
+            "min_dendrite_skeleton_length_um": _MIN_DENDRITE_LENGTH_UM,
+            "min_axon_skeleton_length_um": _MIN_AXON_LENGTH_UM,
+            "min_axon_volume_um3": _MIN_AXON_VOLUME_UM3,
+            "end_evidence": (
+                {k: evidence_meta[k] for k in ("spur_factor", "border_um", "ball_um",
+                                               "terminal_ratio", "terminal_ratio_source")}
+                if evidence_meta else None
+            ),
             "validation": {
                 "segmentation_sha256_matches_analysis": True,
                 "all_positive_label_counts_verified_against_hdf5": True,
@@ -205,11 +260,20 @@ def build_semantic_catalog(
         },
         "limitations": [
             "Initial geometry-based candidates, not measured biological tissue fractions.",
-            "Vessel and glia/soma classes are not assessed; zero assignments do not mean absent.",
+            "Vessel and glia classes are not assessed; zero assignments do not mean absent.",
+            "Neuronal somata belong to dendrite, but no soma rule exists: a soma is "
+            "dendrite only if its caliber clears the dendrite gate, else unclassified.",
             "All foreground labels are included; sub-cutoff labels remain unclassified.",
             "Dense branching alone does not distinguish dendrites, glia, axons or false merges.",
+            "Axon terminals are big blobs: a thick object with a skeleton under "
+            f"{_MIN_DENDRITE_LENGTH_UM} um stays unclassified, not dendrite.",
+            f"Axon calls need >= {_MIN_AXON_LENGTH_UM} um of skeleton or >= "
+            f"{_MIN_AXON_VOLUME_UM3} um3; short-and-small fragments stay unclassified.",
             "Foreground percentage is occupancy of the full crop, not of a tissue mask.",
             "No human review, correctness score or ERL is inferred.",
+            "quality is a starting call from skeleton ends: complete if every end is at "
+            "the border or (axon) a terminal swelling, false_split if an end site is "
+            "inside; ends within 1 um are one site. Merges are never called.",
         ],
         "summary": summary,
         "segments": records,
@@ -259,7 +323,7 @@ def write_semantic_artifacts(
     fig.text(
         0.5,
         0.04,
-        "Slices = foreground volume. Vessel / glia / soma: not assessed.\n"
+        "Slices = foreground volume. Vessel / glia: not assessed.\n"
         f"{len(queue)} large objects queued for review; "
         f"{summary['large_object_review']['percent_foreground']:.1f}% of foreground.",
         ha="center",
