@@ -12,12 +12,54 @@ One watershed, N merge thresholds (ABISS batch mode), each scored. Cost is
     python wholeval_sweep.py --affinity <h5> --label eb8 --thresholds 0.41,0.44,0.47
 """
 from __future__ import annotations
-import argparse, importlib.util, json, sys
+import argparse, importlib.util, json, os, sys
 from pathlib import Path
 import numpy as np
 
-REPO = Path("/projects/weilab/weidf/lib/pytorch_connectomics")
-GT = "/projects/weilab/dataset/liconn/pytc/final_proofread/val/data.zarr/seg"
+# Site paths are resolved, never hardcoded: PYTC_REPO / LICONN_IST_GT env,
+# then params.yaml, then this file's location. See _repo_root below.
+
+
+def _repo_root() -> Path:
+    """Checkout holding this tutorial AND the vendored ABISS build (lib/abiss/build/ws).
+
+    params.yaml is the documented single place site paths live, so prefer it.
+    Worktrees do not carry lib/, which is why the __file__ fallback is last:
+    it is right for a normal checkout and wrong inside a worktree, and
+    params.yaml says so explicitly.
+    """
+    env = os.environ.get("PYTC_REPO")
+    if env:
+        return Path(env).resolve()
+    declared = _params().get("paths", {}).get("repository")
+    if declared and not str(declared).startswith("${"):
+        return Path(declared).resolve()
+    return Path(__file__).resolve().parents[2]
+
+
+def _val_gt() -> str:
+    """Proofread FFN segmentation for the held-out val volume."""
+    env = os.environ.get("LICONN_IST_GT")
+    if env:
+        return env
+    root = _params().get("paths", {}).get("dataset_root")
+    if not root or str(root).startswith("${"):
+        raise SystemExit(
+            "Ground truth path unknown. Set LICONN_IST_GT, or give "
+            "params.paths.dataset_root in params.yaml, or pass --gt."
+        )
+    return f"{root}/final_proofread/val/data.zarr/seg"
+
+
+def _params() -> dict:
+    path = Path(__file__).resolve().parent / "params.yaml"
+    if not path.is_file():
+        return {}
+    import yaml
+    return (yaml.safe_load(path.read_text()) or {}).get("params", {}) or {}
+
+
+REPO = _repo_root()
 WS = REPO / "lib/abiss/build/ws"
 sys.path.insert(0, str(REPO))
 
@@ -36,6 +78,9 @@ def main() -> None:
     ap.add_argument("--thresholds", default="0.41,0.44,0.47")
     ap.add_argument("--ws-high", default="94%")
     ap.add_argument("--ws-low", default="20%")
+    ap.add_argument("--gt", default=None,
+                    help="Proofread val segmentation. Defaults to LICONN_IST_GT, "
+                         "else params.paths.dataset_root in params.yaml.")
     ap.add_argument("--json", type=Path)
     ap.add_argument("--merge-function", default="max",
                     help="ABISS edge score: max, mean, or pNN. `max` is monotone-"
@@ -49,6 +94,7 @@ def main() -> None:
                          "(an int64 key array over 2.08 Gvox plus its sort), so the "
                          "sweep frees each segmentation as it is scored.")
     a = ap.parse_args()
+    gt_path = a.gt or _val_gt()
 
     import h5py, zarr
     from connectomics.metrics.segmentation_numpy import adapted_rand, voi
@@ -89,7 +135,7 @@ def main() -> None:
         edge_storage="source")
     del aff
 
-    gt = np.asarray(zarr.open(GT, mode="r")[:])
+    gt = np.asarray(zarr.open(gt_path, mode="r")[:])
     rows = []
     for mt in mts:
         key = round(mt, 10)
