@@ -34,6 +34,7 @@ def test_explicit_public_api_and_json_safe_decision(thick_backbone):
         "SegmentClassification",
         "classify_segment",
         "classify_semantic_candidate",
+        "classify_end_quality",
     }
     result = classify_segment("branched_process_candidate", 2000, arbor=thick_backbone)
     assert isinstance(result, SegmentClassification)

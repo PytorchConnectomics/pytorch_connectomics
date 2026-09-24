@@ -20,6 +20,7 @@ __all__ = [
     "SegmentClassification",
     "classify_segment",
     "classify_semantic_candidate",
+    "classify_end_quality",
 ]
 
 
@@ -76,6 +77,55 @@ def classify_semantic_candidate(
     if semantic_type == "dendrite_like":
         return "unclassified", "branch_density_without_thick_backbone"
     return "unclassified", "ambiguous_caliber"
+
+
+def classify_end_quality(
+    semantic_class: str,
+    free_ends: list[dict],
+    *,
+    measured: bool,
+    site_radius_um: float = 1.0,
+) -> tuple[str, str, int | None]:
+    """Starting completeness call from skeleton ends: (quality, basis, end sites).
+
+    Complete means every end is explained, however branched the object: an end
+    at the volume border (censored out of `free_ends`, or flagged `at_border` by
+    segmentation evidence), a surface `spur`, or, for an axon, an axon terminal
+    (flagged `terminal`, or a `bouton_head` tip). Unexplained ends within
+    `site_radius_um` of each other are one end site -- skeletonization leaves
+    hair-thin spurs in clusters, so twenty tips around one spot are one place
+    the object stops. Any unexplained site is a false split candidate. Merges
+    are never called here. Only axon and dendrite are judged by their ends.
+    """
+    if semantic_class not in ("axon", "dendrite"):
+        return "unknown", "not_judged_by_ends", None
+    if not measured:
+        return "unknown", "no_skeleton", None
+    def explained(end: dict) -> bool:
+        if end.get("spur") or end.get("at_border"):
+            return True
+        return semantic_class == "axon" and (
+            bool(end.get("terminal")) or end.get("shape") == "bouton_head"
+        )
+
+    positions = [e["position_um_zyx"] for e in free_ends if not explained(e)]
+    parent = list(range(len(positions)))
+
+    def root(i: int) -> int:
+        while parent[i] != i:
+            parent[i] = parent[parent[i]]
+            i = parent[i]
+        return i
+
+    limit = site_radius_um**2
+    for i in range(len(positions)):
+        for j in range(i + 1, len(positions)):
+            if sum((a - b) ** 2 for a, b in zip(positions[i], positions[j])) <= limit:
+                parent[root(i)] = root(j)
+    sites = len({root(i) for i in range(len(positions))})
+    if sites == 0:
+        return "complete", "all_ends_at_border_or_axon_terminal", 0
+    return "false_split", "unexplained_end_inside_volume", sites
 
 
 def _positive_integer(value: int, name: str) -> int:

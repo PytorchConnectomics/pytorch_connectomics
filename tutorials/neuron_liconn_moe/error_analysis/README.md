@@ -62,5 +62,12 @@ docker run --rm -v /data/<name>:/data/<name> -v /data/aff:/aff \
   liconn-ea all 16
 ```
 
+Skeletonize on a ~20 nm grid, not the finest one: it is faster and leaves fewer
+surface artifacts. The eb2 runs are mip1 (22 x 18 x 18 nm); for a mip0 model's
+segmentation, downsample the labels to mip1 first. (`--simplification-nm 10` is the
+vertex spacing kept along the skeleton, not the voxel grid.) Skeletons are
+published per layer at `skeletons_npz/` by `publish.py --only
+skeletons_npz/skeletons_fine.npz skeletons_npz/skeletons_fine_metadata.json`.
+
 Memory: about 64 GB per Gvoxel for skeletonization and 100 GB per Gvoxel for
 `finish` (S1, 0.78 Gvoxel: 32 GB and < 80 GB peaks).

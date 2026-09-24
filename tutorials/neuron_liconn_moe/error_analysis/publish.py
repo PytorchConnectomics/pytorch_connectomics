@@ -48,6 +48,14 @@ FILES = [
     ("error_analysis/segment_properties/info", "segment_properties/info", "application/json", False),
     (f"reports/{V.NAME.lower()}/report.json", "report.json", "application/json", True),
     (f"reports/{V.NAME.lower()}/report.md", "report.md", "text/markdown", False),
+    # The 10 nm skeletons every analysis is computed from, so a later pass (or an
+    # agent) can reuse them instead of re-skeletonizing. Not named `skeletons/`:
+    # that is the directory a Neuroglancer skeleton source would claim.
+    ("error_analysis/skeletons_fine.npz", "skeletons_npz/skeletons_fine.npz",
+     "application/octet-stream", True),
+    ("error_analysis/skeletons_fine_metadata.json", "skeletons_npz/skeletons_fine_metadata.json",
+     "application/json", False),
+    ("error_analysis/end_evidence.json", "end_evidence.json", "application/json", True),
 ]
 
 
@@ -63,30 +71,42 @@ def anonymous_listing_status() -> int:
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--dry-run", action="store_true")
+    parser.add_argument("--only", nargs="+", metavar="REMOTE_NAME",
+                        help="publish just these objects, e.g. skeletons_npz/skeletons_fine.npz; "
+                             "skips the class-tag check and the layer-info patch")
     parser.add_argument("--keep-previous", action="store_true",
                         help="save each replaced remote object under <run>/publish/previous")
     args = parser.parse_args()
 
     prefix = V.GCS_ANALYSIS_PREFIX
-    plan = [(V.RUN / local, f"{prefix}/{remote}", kind, gz) for local, remote, kind, gz in FILES]
+    files = [f for f in FILES if not args.only or f[1] in args.only]
+    if args.only and len(files) != len(args.only):
+        raise SystemExit(f"unknown --only names; known: {[f[1] for f in FILES]}")
+    plan = [(V.RUN / local, f"{prefix}/{remote}", kind, gz) for local, remote, kind, gz in files]
     missing = [str(path) for path, _, _, _ in plan if not path.exists()]
     properties = json.loads((V.RUN / "error_analysis/segment_properties/info").read_text())
-    if not any(p["id"] == "tags" and any(t.startswith("class:") for t in p["tags"])
+    if not args.only and not any(p["id"] == "tags" and any(t.startswith("class:") for t in p["tags"])
                for p in properties["inline"]["properties"]):
         raise ValueError("segment_properties/info has no class: tags; rerun make_segment_properties")
     if missing:
         raise FileNotFoundError(f"missing: {missing}")
     # The sidecars must describe the segmentation the layer was built from.
-    analysis = json.loads(plan[0][0].read_text())["metadata"]
+    analysis = json.loads(V.ANALYSIS.read_text())["metadata"]
     if Path(analysis["segmentation"]).name != V.SEG.name:
         raise ValueError(f"analysis is of {analysis['segmentation']}, not {V.SEG}")
+    skeleton_meta = V.OUT / "skeletons_fine_metadata.json"
+    if any("skeletons_npz/" in name for _, name, _, _ in plan) and (
+        json.loads(skeleton_meta.read_text())["segmentation_sha256"] != analysis["segmentation_sha256"]
+    ):
+        raise ValueError("skeletons were computed on a different segmentation than the analysis")
     status = anonymous_listing_status()
     print(f"anonymous listing -> HTTP {status}")
     if status == 200:
         raise SystemExit("Refusing: bucket is anonymously listable; check IAM first.")
     for path, name, _, _ in plan:
         print(f"  {path.stat().st_size / 1e6:8.2f} MB  gs://{V.GCS_BUCKET}/{name}")
-    print(f"  layer info gets \"segment_properties\" if missing: gs://{V.GCS_BUCKET}/{prefix}/info")
+    if not args.only:
+        print(f"  layer info gets \"segment_properties\" if missing: gs://{V.GCS_BUCKET}/{prefix}/info")
     if args.dry_run:
         print("dry run; nothing uploaded")
         return 0
@@ -164,6 +184,8 @@ def main() -> int:
         })
         print(f"verified {name} generation {uploaded['generation']}", flush=True)
     # The layer's own info must name the sidecar or Neuroglancer never reads it.
+    if args.only:
+        return finish(out, manifest)
     name = f"{prefix}/info"
     api = f"https://storage.googleapis.com/storage/v1/b/{V.GCS_BUCKET}/o/{quote(name, safe='')}"
     live = json.loads(request(api))
@@ -195,10 +217,21 @@ def main() -> int:
         manifest["layer_info"] = {"replaced_generation": live["generation"],
                                   "generation": uploaded["generation"]}
         print(f"patched layer info generation {uploaded['generation']}")
+    return finish(out, manifest)
+
+
+def finish(out: Path, manifest: dict) -> int:
     manifest["verified_at_utc"] = datetime.now(timezone.utc).isoformat()
     out.mkdir(parents=True, exist_ok=True)
-    (out / "gcs_manifest.json").write_text(json.dumps(manifest, indent=2) + "\n")
-    print(f"wrote {out / 'gcs_manifest.json'}")
+    # One manifest per publish; merge by object so a partial --only run keeps the rest.
+    path = out / "gcs_manifest.json"
+    if path.exists():
+        previous = json.loads(path.read_text())
+        kept = {o["gcs_uri"]: o for o in previous.get("objects", [])}
+        kept.update({o["gcs_uri"]: o for o in manifest["objects"]})
+        manifest["objects"] = list(kept.values())
+    path.write_text(json.dumps(manifest, indent=2) + "\n")
+    print(f"wrote {path}")
     return 0
 
 

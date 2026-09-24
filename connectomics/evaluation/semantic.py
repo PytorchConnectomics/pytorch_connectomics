@@ -15,7 +15,10 @@ from typing import Any
 import h5py
 import numpy as np
 
-from ..metrics.unsupervised.classification import classify_semantic_candidate
+from ..metrics.unsupervised.classification import (
+    classify_end_quality,
+    classify_semantic_candidate,
+)
 
 __all__ = ["build_semantic_catalog", "summarize_semantic_records", "write_semantic_artifacts"]
 
@@ -99,6 +102,7 @@ def build_semantic_catalog(
     *,
     layer_uri: str,
     large_volume_um3: float = 1.0,
+    end_evidence_path: str | Path | None = None,
 ) -> dict[str, Any]:
     """Verify an analyzed segmentation and build an initial all-label catalog.
 
@@ -116,6 +120,18 @@ def build_semantic_catalog(
     spacing = np.asarray(metadata["spacing_nm_zyx"]) / 1000
     voxel_volume = float(np.prod(spacing))
     measured = {r["id"]: r for r in analysis["segments"]}
+    # Segmentation-based spur / border / terminal flags per free end, when present.
+    evidence: dict[str, dict[int, dict]] = {}
+    evidence_meta = None
+    if end_evidence_path is not None:
+        document = json.loads(Path(end_evidence_path).read_text())
+        evidence_meta = document["metadata"]
+        if evidence_meta["segmentation_sha256"] != metadata["segmentation_sha256"]:
+            raise ValueError("End evidence was computed on a different segmentation")
+        evidence = {
+            sid: {row["vertex_index"]: row for row in rows}
+            for sid, rows in document["ends"].items()
+        }
     with np.load(label_sizes_path) as sizes:
         counts = {str(int(i)): int(n) for i, n in zip(sizes["ids"], sizes["counts"])}
     # Independently verify the cached histogram and include background explicitly.
@@ -156,6 +172,14 @@ def build_semantic_catalog(
                 min_axon_length_um=_MIN_AXON_LENGTH_UM,
                 min_axon_volume_um3=_MIN_AXON_VOLUME_UM3,
             )
+        flags = evidence.get(label, {})
+        free_ends = [
+            {**end, **flags.get(end.get("vertex_index"), {})}
+            for end in (source_record or {}).get("free_ends") or []
+        ]
+        quality, quality_basis, end_sites = classify_end_quality(
+            category, free_ends, measured=bool(continuity.get("measured"))
+        )
         large = count * voxel_volume >= large_volume_um3
         records.append(
             {
@@ -168,6 +192,12 @@ def build_semantic_catalog(
                 "status": "unreviewed_candidate",
                 "review": None,
                 "correctness": None,
+                # Starting completeness call from skeleton ends, not a verified
+                # correctness: complete = every end at the border or an axon
+                # terminal; false_split = an unexplained end site inside.
+                "quality": quality,
+                "quality_basis": quality_basis,
+                "unexplained_end_sites": end_sites,
                 "large_object": large,
                 "below_analysis_cutoff": source_record is None,
                 "review_priority": "high" if large else "normal",
@@ -217,6 +247,11 @@ def build_semantic_catalog(
             "min_dendrite_skeleton_length_um": _MIN_DENDRITE_LENGTH_UM,
             "min_axon_skeleton_length_um": _MIN_AXON_LENGTH_UM,
             "min_axon_volume_um3": _MIN_AXON_VOLUME_UM3,
+            "end_evidence": (
+                {k: evidence_meta[k] for k in ("spur_factor", "border_um", "ball_um",
+                                               "terminal_ratio", "terminal_ratio_source")}
+                if evidence_meta else None
+            ),
             "validation": {
                 "segmentation_sha256_matches_analysis": True,
                 "all_positive_label_counts_verified_against_hdf5": True,
@@ -236,6 +271,9 @@ def build_semantic_catalog(
             f"{_MIN_AXON_VOLUME_UM3} um3; short-and-small fragments stay unclassified.",
             "Foreground percentage is occupancy of the full crop, not of a tissue mask.",
             "No human review, correctness score or ERL is inferred.",
+            "quality is a starting call from skeleton ends: complete if every end is at "
+            "the border or (axon) a terminal swelling, false_split if an end site is "
+            "inside; ends within 1 um are one site. Merges are never called.",
         ],
         "summary": summary,
         "segments": records,

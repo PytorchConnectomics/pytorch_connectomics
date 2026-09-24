@@ -56,6 +56,7 @@ finish() {
 # Everything downstream of error_analysis.json: the five-class catalog, the
 # Neuroglancer sidecar that shows it, and the GT-free report. Safe to rerun.
 reports() {
+    python "$HERE/end_evidence.py"
     semantic
     python "$HERE/make_segment_properties.py"
     python "$HERE/make_report.py"

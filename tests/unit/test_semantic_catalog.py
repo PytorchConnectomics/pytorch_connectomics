@@ -12,7 +12,10 @@ from connectomics.evaluation.semantic import (
     summarize_semantic_records,
     write_semantic_artifacts,
 )
-from connectomics.metrics.unsupervised.classification import classify_semantic_candidate
+from connectomics.metrics.unsupervised.classification import (
+    classify_end_quality,
+    classify_semantic_candidate,
+)
 
 
 @pytest.mark.parametrize(
@@ -76,6 +79,41 @@ def test_short_and_small_axon_calls_are_unclassified(kind, radius, shaft, length
         )
         == expected
     )
+
+
+def _end(z, y, x, shape="tapered"):
+    return {"position_um_zyx": [z, y, x], "shape": shape}
+
+
+@pytest.mark.parametrize(
+    "category,ends,expected",
+    [
+        # Branched but every end at the border (none free) or an axon terminal: complete.
+        ("axon", [], ("complete", 0)),
+        ("axon", [_end(5, 5, 5, "bouton_head"), _end(9, 9, 9, "bouton_head")], ("complete", 0)),
+        # One free end inside the volume: a false split.
+        ("axon", [_end(5, 5, 5)], ("false_split", 1)),
+        # Spur hairs within 1 um are one end site, not twenty.
+        ("axon", [_end(5, 5, 5 + 0.05 * i) for i in range(20)], ("false_split", 1)),
+        ("axon", [_end(5, 5, 5), _end(5, 5, 8)], ("false_split", 2)),
+        # A swollen tip only explains an AXON end.
+        ("dendrite", [_end(5, 5, 5, "bouton_head")], ("false_split", 1)),
+        ("unclassified", [_end(5, 5, 5)], ("unknown", None)),
+        # Segmentation evidence: a spur or a border end is explained for any class;
+        # a swollen tip (terminal) only for an axon.
+        ("axon", [{**_end(5, 5, 5), "spur": True}, {**_end(9, 9, 9), "at_border": True}], ("complete", 0)),
+        ("axon", [{**_end(5, 5, 5), "terminal": True}], ("complete", 0)),
+        ("dendrite", [{**_end(5, 5, 5), "at_border": True}], ("complete", 0)),
+        ("dendrite", [{**_end(5, 5, 5), "terminal": True}], ("false_split", 1)),
+    ],
+)
+def test_end_quality(category, ends, expected):
+    quality, _, sites = classify_end_quality(category, ends, measured=True)
+    assert (quality, sites) == expected
+
+
+def test_end_quality_unmeasured_is_unknown():
+    assert classify_end_quality("axon", [], measured=False)[0] == "unknown"
 
 
 @pytest.mark.parametrize("gates", [(0, 0.2), (0.3, 0.2), (0.15, float("nan"))])

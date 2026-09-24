@@ -56,11 +56,14 @@ def main() -> int:
     args = parser.parse_args()
 
     classes: dict[str, str] = {}
+    qualities: dict[str, str | None] = {}
     class_tags: list[str] = []
     if args.semantic.exists():
         catalog = json.loads(args.semantic.read_text())
         classes = {r["id"]: r["semantic_class"] for r in catalog["segments"]}
+        qualities = {r["id"]: r.get("quality") for r in catalog["segments"]}
         class_tags = [f"class:{c['class']}" for c in catalog["summary"]["categories"]]
+        class_tags += ["quality:complete", "quality:false_split"]
 
     payload = json.loads(args.analysis.read_text())
     segments = sorted(payload["segments"], key=lambda s: int(s["id"]))
@@ -102,6 +105,8 @@ def main() -> int:
         ]
         if segment["id"] in classes:
             current.append(tag_index[f"class:{classes[segment['id']]}"])
+        if f"quality:{qualities.get(segment['id'])}" in tag_index:
+            current.append(tag_index[f"quality:{qualities[segment['id']]}"])
         key = f"proxy:{segment['completeness_class']}"
         if key in tag_index:
             current.append(tag_index[key])
