@@ -5,6 +5,7 @@ This package provides:
 - Data augmentation (augmentation/)
 - Data processing transforms (processing/)
 - I/O utilities (io/)
+- Image intensity normalization (normalization/)
 - DataModules for PyTorch Lightning (see training/lightning/data.py)
 
 Recommended imports:
@@ -13,11 +14,12 @@ Recommended imports:
     from connectomics.data.processing import MultiTaskLabelTransformd, create_label_transform_pipeline
 """
 
-from . import augmentation, datasets, io, processing
+from . import augmentation, datasets, io, normalization, processing
 
 __all__ = [
     "augmentation",
     "datasets",
     "io",
+    "normalization",
     "processing",
 ]
