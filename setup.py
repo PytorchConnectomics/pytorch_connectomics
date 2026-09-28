@@ -21,8 +21,9 @@ requirements = [
     "scikit-learn>=0.23.1",
     "scikit-image>=0.17.2",
     # Image processing & I/O
-    "opencv-python>=4.3.0",
+    "opencv-python-headless>=4.3.0",  # headless: no libGL needed on servers
     "h5py>=2.10.0",
+    "zarr>=2.10.0",
     "imageio>=2.9.0",
     # Visualization & logging
     "matplotlib>=3.3.0",

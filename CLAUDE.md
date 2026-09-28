@@ -60,12 +60,16 @@ The codebase enforces an explicit contract from the v2/v3 refactor:
 
 ## Installation
 
-Requires Python 3.8+, PyTorch 1.8+. Install PyTorch separately for your CUDA version, then:
+Use `python install.py` (creates/reuses conda env `pytc`, maps the NVIDIA
+driver to the right PyTorch wheel, ends with `scripts/check_install.py`). See
+[INSTALLATION.md](INSTALLATION.md) for flags and fixes; agents driving an
+install follow [prompts/INSTALL.md](prompts/INSTALL.md).
 
 ```bash
-pip install -e .              # core
-pip install -e .[full]        # +tifffile/wandb/jupyter/gputil
-# extras: [optim] [wandb] [tiff] [viz] [metrics] [dev] [docs]
+pip install -e .              # core (after installing a matching PyTorch)
+pip install -e ".[full]"      # + wandb, optuna, tifffile, neuroglancer, nd2, gputil
+pip install -e ".[dev]"       # + pytest, linters
+python scripts/check_install.py   # verify env (exit 0 = usable)
 pip install git+https://github.com/PytorchConnectomics/MedNeXt.git   # optional MedNeXt
 ```
 
@@ -831,8 +835,8 @@ python scripts/validate_tutorial_configs.py
 
 Authoritative list lives in `setup.py`/`pyproject.toml`. Highlights:
 
-- **Core (auto-installed)**: torch≥1.8, pytorch-lightning≥2.0, monai≥0.9.1, torchmetrics, omegaconf≥2.1, numpy≥1.23, scipy, scikit-image, h5py, opencv-python, einops, cc3d, kimimaro, mahotas, fastremap, tensorboard, tqdm.
-- **Extras**: `[full]` (tifffile, wandb, jupyter, gputil), `[optim]` (optuna), `[wandb]`, `[tiff]`, `[viz]` (neuroglancer), `[metrics]` (funlib.evaluate, manual: `pip install git+https://github.com/funkelab/funlib.evaluate.git`), `[dev]` (pytest, pytest-benchmark), `[docs]` (sphinx).
+- **Core (auto-installed)**: torch≥1.8, pytorch-lightning≥2.0, monai≥0.9.1, torchmetrics, omegaconf≥2.1, numpy≥1.23, scipy, scikit-image, h5py, zarr, opencv-python-headless, einops, cc3d, kimimaro, mahotas, fastremap, tensorboard, tqdm.
+- **Extras**: `[full]` (gputil, nd2, tifffile, wandb, optuna, neuroglancer), `[metrics]` (funlib.evaluate, manual: `pip install git+https://github.com/funkelab/funlib.evaluate.git`), `[dev]` (pytest, pytest-benchmark), `[docs]` (sphinx).
 - **External**: MedNeXt (`pip install git+https://github.com/PytorchConnectomics/MedNeXt.git`, exposes `from nnunet_mednext import create_mednext_v1`); graceful fallback if missing.
 
 ## Common Issues

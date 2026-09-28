@@ -89,7 +89,8 @@ See **[INSTALLATION.md](INSTALLATION.md)** for CUDA versions, extras, and troubl
 ### Verify
 
 ```bash
-python scripts/main.py --demo
+python scripts/check_install.py   # imports + GPU kernel check; must print PASS
+python scripts/main.py --demo     # ~30 s training on synthetic data
 ```
 
 ---

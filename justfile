@@ -42,6 +42,12 @@ setup-slurm:
 install env_name="pytc":
     python install.py --install-type basic --python 3.11 --env-name "{{env_name}}"
 
+# Check the active env: imports, GPU kernel support, one tiny CUDA op.
+#   just verify               # human-readable; exits non-zero on failure
+#   just verify --json        # machine-readable
+verify *args:
+    python scripts/check_install.py {{args}}
+
 # Drive the install through a local Claude Code session (interactive).
 # Prerequisite: claude CLI installed and authenticated.
 install-claude:

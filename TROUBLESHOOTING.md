@@ -321,12 +321,12 @@ cat slurm-123456.out
 
 **Solution:**
 ```bash
-# Initialize conda
-source ~/miniconda3/bin/activate
+# Initialize an existing install (adjust the path)
+source ~/miniforge3/bin/activate
 
-# Or install miniconda
-wget https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh
-bash Miniconda3-latest-Linux-x86_64.sh
+# Or install Miniforge (conda-forge defaults, no Terms-of-Service prompt)
+curl -fsSLO "https://github.com/conda-forge/miniforge/releases/latest/download/Miniforge3-$(uname)-$(uname -m).sh"
+bash "Miniforge3-$(uname)-$(uname -m).sh"
 ```
 
 ---
