@@ -7,9 +7,8 @@ turns that into ~unit noise at every brightness, so dim neuropil and bright
 synaptic puncta are weighted alike by pixel losses. A per-volume affine stretch
 then maps the transformed intensities to the full uint8 range.
 
-Legacy: kept only for ``tutorials/exm_ingest/janelia_n5.py`` (``gat`` mode)
-until that path is ported to the aligned codec (``alignment`` / ``codec``),
-which is the default for ND2 ingest and ``scripts/preprocess_exm.py``.
+Legacy: retained for ``gat`` mode; the aligned codec (``alignment`` / ``codec``) is
+the default.
 """
 
 from __future__ import annotations

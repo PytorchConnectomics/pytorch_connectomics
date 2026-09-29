@@ -14,6 +14,3 @@ This section covers three benchmarks:
   benchmark evaluated with the **NERL** skeleton metric. Reproduction
   targets in ``tutorials/neuron_nisb/`` mirror the upstream BANIS
   pipeline.
-- :doc:`ExM <exm>` — the ExM volume variant of the NISB
-  benchmark; reuses the BANIS-style affinity pipeline and adds an
-  affinity-mask QC step for the ExM-specific border artifacts.

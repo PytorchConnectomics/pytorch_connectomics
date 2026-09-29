@@ -221,7 +221,7 @@ score the intended layer explicitly.
 
 ## Reproduction status
 
-Audited against the local report `.agent/issues/j0126/reproduction.md`
+Audited against the local reproduction report
 and the current shared driver in `connectomics/playbooks/cube_decode.py`.
 Documentation corrections are not a new full-volume validation.
 

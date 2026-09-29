@@ -21,9 +21,8 @@
 |-----------------|-----------------|---------------------------------------------|------------------------------------------------------------------|
 | Tissue-scale    | Blood vessel    | —                                           | (coming)                                                         |
 | Tissue-scale    | Nuclei          | NucMM-Z                                     | `nuc_nucmm-z`                                                    |
-| Cell-scale      | Neurons         | SNEMI3D, BANIS, ExM-MIT                  | `neuron_snemi/*`, `neuron_nisb/*`, `neuron_exm_mit`           |
+| Cell-scale      | Neurons         | SNEMI3D, BANIS                  | `neuron_snemi/*`, `neuron_nisb/*`           |
 | Cell-scale      | Synapses        | CREMI                                       | `syn_cremi`                                                      |
-| Cell-scale      | Fibers          | Linghu26                                    | `fiber_linghu26`                                                 |
 | Organelle-scale | Mitochondria    | Lucchi++, MitoEM, MitoLab, BetaSeg          | `mito_lucchi++/mito_lucchi++`, `mitoEM/*`, `mito_mitolab`, `mito_betaseg` |
 | Organelle-scale | Vesicles        | XM                                          | `vesicle_xm`                                                     |
 

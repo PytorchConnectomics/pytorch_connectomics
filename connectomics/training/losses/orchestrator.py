@@ -825,8 +825,7 @@ class LossOrchestrator:
     ) -> Tuple[torch.Tensor, Dict[str, float]]:
         # Deep supervision heads use the legacy CC-recompute path: per-head
         # gt_seg cannot be downsampled label-correctly alongside DS targets,
-        # so we force the legacy fallback uniformly. See
-        # `.agent/features/malis_gt_passthrough/artifacts/plan_v1.md` §3.
+        # so we force the legacy fallback uniformly.
         gt_seg = None
         main_output = outputs["output"]
         ds_outputs = [outputs[f"ds_{i}"] for i in range(1, 5) if f"ds_{i}" in outputs]

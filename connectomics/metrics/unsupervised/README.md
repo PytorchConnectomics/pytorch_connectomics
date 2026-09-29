@@ -130,5 +130,5 @@ does not establish dendrite identity. This function accepts measurements only.
 
 `connectomics.evaluation.semantic` owns file-backed catalog generation, full
 foreground accounting, large-object review queues, and JSON/chart writing.
-`tutorials/neuron_exm_moe/build_semantic_catalog.py` supplies dataset paths and
+A dataset-specific catalog builder supplies dataset paths and
 the chart title. Cloud publication stays outside both metrics and evaluation.

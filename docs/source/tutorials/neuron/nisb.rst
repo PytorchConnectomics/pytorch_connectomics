@@ -150,10 +150,6 @@ mask is optional and the decoder will treat all voxels as valid:
         --mode test --checkpoint <ckpt> \
         decoding.affinity_mask_path=null
 
-For the mask format, QC parameters, and the spec fast path used to avoid
-loading a full ``(X, Y, Z)`` mask volume, see the ExM
-:ref:`affinity QC mask workflow <exm-affinity-qc-mask>`.
-
 4 - Tune the decoder threshold
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 

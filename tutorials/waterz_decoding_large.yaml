@@ -26,7 +26,7 @@ large_decode:
   affinity_path: "/projects/weilab/dataset/exm/<user>/DL288B_251222S_cond5_40x_12tiles_round1_fused_488_crop512x1024x1024_ffn_sharp_tta_x8_prediction_uint8.h5"       # SET THIS
 
   # Workflow directory (shared filesystem for parallel workers)
-  workflow_root: "/projects/weilab/weidf/lib/pytorch_connectomics/outputs/neuron_exm_mit/DL228B/"       # SET THIS
+  workflow_root: "/projects/weilab/weidf/lib/pytorch_connectomics/outputs/neuron_large/DL228B/"       # SET THIS
 
   # Chunk layout
   chunk_shape: [40, 2066, 2066]   # voxels per chunk (Z, Y, X)
