@@ -295,3 +295,40 @@ def test_lazy_sliding_window_matches_eager_with_x2_resize(tmp_path):
 
     assert lazy.shape == eager.shape
     assert torch.allclose(lazy, eager, atol=1.0e-5)
+
+
+def test_aligned_u8_decodes_before_resize_in_train_eager_and_lazy_paths(tmp_path):
+    """Interpolation must run on decoded aligned intensity, not on sqrt codes."""
+    from connectomics.data.augmentation.build import build_train_transforms
+    from connectomics.data.normalization import decode_aligned
+
+    cfg = _make_cfg()
+    cfg.data.image_transform.normalize = "aligned-u8"
+    cfg.data.dataloader.patch_size = [2, 2, 2]
+    cfg.data.data_transform.resize = [4, 4, 4]
+    cfg.model.output_size = [4, 4, 4]
+    cfg.inference.sliding_window.window_size = [4, 4, 4]
+    cfg.inference.sliding_window.overlap = 0.5
+    cfg.inference.sliding_window.blending = "bump"
+
+    image_path = tmp_path / "aligned_codes.h5"
+    codes = np.array([0, 255, 40, 200], dtype=np.uint8)[np.indices((4, 4, 4)).sum(0) % 4]
+    write_hdf5(str(image_path), codes, dataset="main")
+
+    # Reference: decode first, then the same trilinear resize as the pipeline.
+    decoded = torch.from_numpy(decode_aligned(codes))[None, None]
+    expected = torch.nn.functional.interpolate(
+        decoded, size=(8, 8, 8), mode="trilinear", align_corners=True
+    )[0]
+
+    eager = build_test_transforms(cfg, keys=["image"], mode="test")({"image": str(image_path)})
+    assert torch.allclose(torch.as_tensor(eager["image"]), expected, atol=1e-4)
+
+    lazy = lazy_predict_volume(cfg, _identity_forward, str(image_path), device="cpu")
+    assert torch.allclose(lazy, _run_eager_prediction(cfg, str(image_path)), atol=1.0e-4)
+
+    cfg.data.data_transform.resize = [8, 8, 8]
+    train = build_train_transforms(cfg, keys=["image"])
+    names = [type(t).__name__ for t in train.transforms]
+    assert names.index("SmartNormalizeIntensityd") < names.index("Resized")
+    assert names.count("SmartNormalizeIntensityd") == 1

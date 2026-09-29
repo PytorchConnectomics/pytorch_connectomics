@@ -159,6 +159,32 @@ def _append_target_context_crop(transforms: list, cfg: Config) -> None:
     )
 
 
+def _decodes_before_resample(image_transform, nnunet_pre_enabled: bool) -> bool:
+    """Whether image normalization must run before resizing, padding and cropping.
+
+    'aligned-u8' stores square-root codes: interpolating codes and decoding
+    afterwards biases intensities, so the codes are decoded right after loading.
+    """
+    if image_transform.normalize != "aligned-u8":
+        return False
+    if nnunet_pre_enabled:
+        raise ValueError(
+            "normalize 'aligned-u8' cannot be combined with nnunet_preprocessing, "
+            "which applies its own normalization and resampling."
+        )
+    return True
+
+
+def _build_normalize_transform(image_transform) -> SmartNormalizeIntensityd:
+    return SmartNormalizeIntensityd(
+        keys=["image"],
+        mode=image_transform.normalize,
+        clip_percentile_low=getattr(image_transform, "clip_percentile_low", 0.0),
+        clip_percentile_high=getattr(image_transform, "clip_percentile_high", 1.0),
+        channelwise=bool(getattr(image_transform, "channelwise", False)),
+    )
+
+
 def _build_nnunet_preprocess_transform(keys, nnunet_pre_cfg, source_spacing):
     """Build NNUNetPreprocessd transform from config."""
     source_spacing = getattr(nnunet_pre_cfg, "source_spacing", None) or source_spacing
@@ -244,6 +270,10 @@ def build_train_transforms(
 
         transforms.append(ApplyVolumetricSplitd(keys=keys))
 
+    decode_first = _decodes_before_resample(cfg.data.image_transform, nnunet_pre_enabled)
+    if decode_first:
+        transforms.append(_build_normalize_transform(cfg.data.image_transform))
+
     # Apply resize if configured (before cropping)
     resize_size = cfg.data.data_transform.resize
 
@@ -293,16 +323,12 @@ def build_train_transforms(
             )
 
     # Normalization - use smart normalization
-    if (not nnunet_pre_enabled) and cfg.data.image_transform.normalize != "none":
-        transforms.append(
-            SmartNormalizeIntensityd(
-                keys=["image"],
-                mode=cfg.data.image_transform.normalize,
-                clip_percentile_low=cfg.data.image_transform.clip_percentile_low,
-                clip_percentile_high=cfg.data.image_transform.clip_percentile_high,
-                channelwise=cfg.data.image_transform.channelwise,
-            )
-        )
+    if (
+        (not nnunet_pre_enabled)
+        and (not decode_first)
+        and cfg.data.image_transform.normalize != "none"
+    ):
+        transforms.append(_build_normalize_transform(cfg.data.image_transform))
 
     label_cfg = getattr(cfg.data, "label_transform", None)
     if "label" in keys and label_cfg is not None:
@@ -460,6 +486,11 @@ def _build_eval_transforms_impl(
         from connectomics.data.datasets.split import ApplyVolumetricSplitd
 
         transforms.append(ApplyVolumetricSplitd(keys=keys))
+
+    image_transform = data_cfg.image_transform
+    decode_first = _decodes_before_resample(image_transform, nnunet_pre_enabled)
+    if decode_first:
+        transforms.append(_build_normalize_transform(image_transform))
 
     # Apply resize if configured (before cropping).
     # Validation uses target spatial size so patch-based val can mirror train-time
@@ -641,17 +672,8 @@ def _build_eval_transforms_impl(
     # else: mode == "test" -> no cropping for sliding window inference
 
     # Normalization - use smart normalization
-    image_transform = data_cfg.image_transform
-    if (not nnunet_pre_enabled) and image_transform.normalize != "none":
-        transforms.append(
-            SmartNormalizeIntensityd(
-                keys=["image"],
-                mode=image_transform.normalize,
-                clip_percentile_low=getattr(image_transform, "clip_percentile_low", 0.0),
-                clip_percentile_high=getattr(image_transform, "clip_percentile_high", 1.0),
-                channelwise=bool(getattr(image_transform, "channelwise", False)),
-            )
-        )
+    if (not nnunet_pre_enabled) and (not decode_first) and image_transform.normalize != "none":
+        transforms.append(_build_normalize_transform(image_transform))
 
     label_cfg = getattr(data_cfg, "label_transform", None)
     if mode == "val" and "label" in keys and label_cfg is not None:

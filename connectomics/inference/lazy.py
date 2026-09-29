@@ -19,8 +19,9 @@ try:
 except Exception:  # pragma: no cover - optional dependency fallback
     tqdm = None
 
-from ..data.augmentation.augment_ops import smart_normalize
+from ..data.augmentation.augment_ops import check_normalize_clipping, smart_normalize
 from ..data.io.io import _detect_format, _get_tiff_volume_shape, _tiff_series_are_stackable
+from ..data.normalization.codec import decode_aligned
 from ..data.processing.misc import get_padsize
 from .lazy_distributed import distributed_context as _distributed_context
 from .lazy_distributed import distributed_reduction_device as _distributed_reduction_device
@@ -488,6 +489,12 @@ class LazyVolumeAccessor:
         self.clip_percentile_low = float(clip_percentile_low)
         self.clip_percentile_high = float(clip_percentile_high)
         self.normalize_channelwise = bool(normalize_channelwise)
+        check_normalize_clipping(
+            self.normalize_mode, self.clip_percentile_low, self.clip_percentile_high
+        )
+        # Aligned uint8 codes are decoded as they are read, before any resampling
+        # or padding, matching the training transform order.
+        self.decode_on_read = kind == "image" and self.normalize_mode == "aligned-u8"
         self.binarize = bool(binarize)
         self.threshold = float(threshold)
 
@@ -737,6 +744,12 @@ class LazyVolumeAccessor:
             data = np.transpose(data, [0, *[axis + 1 for axis in self.transpose_axes]])
         return data
 
+    def _read_decoded_crop(self, start: Sequence[int], end: Sequence[int]) -> np.ndarray:
+        crop = self._read_raw_crop(start, end)
+        if self.decode_on_read:
+            return decode_aligned(crop)
+        return crop.astype(np.float32, copy=False)
+
     def _read_transformed_bbox(
         self, start: Sequence[int], end: Sequence[int], *, mode: str, align_corners: Optional[bool]
     ) -> np.ndarray:
@@ -745,7 +758,7 @@ class LazyVolumeAccessor:
             return np.zeros((self.channel_count, *bbox_shape), dtype=np.float32)
 
         if not self.scale_factors:
-            return self._read_raw_crop(start, end).astype(np.float32, copy=False)
+            return self._read_decoded_crop(start, end)
 
         output_coords = [
             _output_indices_to_input_coords(
@@ -766,7 +779,7 @@ class LazyVolumeAccessor:
             )
             for idx in range(3)
         )
-        raw_crop = self._read_raw_crop(raw_start, raw_end).astype(np.float32, copy=False)
+        raw_crop = self._read_decoded_crop(raw_start, raw_end)
         local_coords = [output_coords[idx] - float(raw_start[idx]) for idx in range(3)]
 
         if mode == "nearest":
@@ -894,7 +907,7 @@ class LazyVolumeAccessor:
         if self.binarize:
             patch = (patch > self.threshold).astype(np.float32, copy=False)
 
-        if self.kind == "image" and self.normalize_mode != "none":
+        if self.kind == "image" and self.normalize_mode != "none" and not self.decode_on_read:
             patch = smart_normalize(
                 patch,
                 self.normalize_mode,

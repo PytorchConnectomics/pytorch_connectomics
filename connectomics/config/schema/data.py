@@ -126,7 +126,10 @@ class ImageTransformConfig:
     """Image transformation configuration (applied to image only)."""
 
     transform_profile: Optional[str] = None
-    normalize: str = "0-1"  # "none", "normal" (z-score), or "0-1" (min-max)
+    # "none", "normal" (z-score), "0-1" (min-max), "divide-K", or "aligned-u8"
+    # (decode the fixed aligned-intensity uint8 codes of connectomics.data.normalization;
+    # use it for ExM aligned volumes so every volume stays on the shared profile).
+    normalize: str = "0-1"
     clip_percentile_low: float = (
         0.0  # Lower percentile for clipping (0.0 = no clip, 0.05 = 5th percentile)
     )

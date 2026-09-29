@@ -28,6 +28,7 @@ that point back at it.
 | Change augmentation | `connectomics/data/augmentation/build.py`; profile YAMLs in `config/profiles/augmentation_*.yaml` | `data/augmentation/transforms.py` |
 | Change postprocess | `connectomics/decoding/postprocess.py`; templates in `config/templates/decoding_*.yaml` | `decoding/streamed_chunked.py` |
 | Add a tutorial config | `tutorials/<name>.yaml`; validate with `python scripts/validate_tutorial_configs.py --glob 'tutorials/<name>.yaml'` (note: `--glob` is additive over the default `tutorials/*.yaml`; filter output for the new path before fixing anything) | `tutorials/mito_lucchi++/mito_lucchi++.yaml` |
+| Preprocess ExM fluorescence (align → uint8 codec → decode) | `connectomics/data/normalization/`; walkthrough `tutorials/exm_preprocess/README.md`; train with `image_transform.normalize: aligned-u8` | `python scripts/preprocess_exm.py raw.nd2 out.h5` |
 | Debug a failing tutorial | `prompts/DEBUG_TUTORIAL.md`; reproduce with `python scripts/main.py --config <yaml> --fast-dev-run` | `python scripts/main.py --config <yaml> --fast-dev-run` |
 
 When a new intent class shows up, add a row here rather than scattering

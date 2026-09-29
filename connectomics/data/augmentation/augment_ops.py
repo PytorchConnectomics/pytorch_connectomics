@@ -13,6 +13,8 @@ from typing import List, Optional, Tuple
 import cv2
 import numpy as np
 
+from ..normalization.codec import decode_aligned
+
 # ---------------------------------------------------------------------------
 # Misalignment operations
 # ---------------------------------------------------------------------------
@@ -549,6 +551,21 @@ def apply_stripes(
 # ---------------------------------------------------------------------------
 
 
+def check_normalize_clipping(
+    mode: str, clip_percentile_low: float, clip_percentile_high: float
+) -> None:
+    """Reject per-patch percentile clipping for 'aligned-u8'.
+
+    Aligned codes are already on the shared profile; clipping each patch at its
+    own percentiles before decoding would put every patch back on its own scale.
+    """
+    if mode == "aligned-u8" and (clip_percentile_low > 0.0 or clip_percentile_high < 1.0):
+        raise ValueError(
+            "normalize 'aligned-u8' requires clip_percentile_low=0.0 and "
+            f"clip_percentile_high=1.0; got {clip_percentile_low} and {clip_percentile_high}."
+        )
+
+
 def smart_normalize(
     volume: np.ndarray,
     mode: str,
@@ -562,12 +579,15 @@ def smart_normalize(
     Args:
         volume: numpy array to normalize
         mode: 'none', 'normal' (z-score), '0-1' (min-max), 'divide',
-            or 'divide-K' (e.g. 'divide-255')
+            'divide-K' (e.g. 'divide-255'), or 'aligned-u8' (decode the fixed
+            aligned-intensity uint8 code table; no per-patch statistics, so
+            volumes stay on the shared profile)
         divide_value: divisor when mode='divide'. Ignored when mode is 'divide-K' form.
         clip_percentile_low: lower percentile for clipping (0.0 = no clip)
         clip_percentile_high: upper percentile for clipping (1.0 = no clip)
         channelwise: normalize each channel of a CZYX array independently
     """
+    check_normalize_clipping(mode, clip_percentile_low, clip_percentile_high)
     if channelwise and volume.ndim >= 4:
         return np.stack(
             [
@@ -603,6 +623,8 @@ def smart_normalize(
 
     if mode == "none":
         pass
+    elif mode == "aligned-u8":
+        volume = decode_aligned(volume)
     elif mode == "normal":
         data_mean = volume.mean()
         data_std = volume.std()
@@ -623,7 +645,7 @@ def smart_normalize(
     else:
         raise ValueError(
             f"Unknown smart_normalize mode '{mode}'. "
-            "Expected 'none', 'normal', '0-1', 'divide', or 'divide-K'."
+            "Expected 'none', 'normal', '0-1', 'divide', 'divide-K', or 'aligned-u8'."
         )
 
     return volume

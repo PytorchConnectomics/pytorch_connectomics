@@ -1067,7 +1067,8 @@ class NormalizeLabelsd(MapTransform):
 class SmartNormalizeIntensityd(MapTransform):
     """Smart intensity normalization with multiple modes and percentile clipping.
 
-    Modes: "none", "normal" (z-score), "0-1" (min-max), "divide-K" (divide by K).
+    Modes: "none", "normal" (z-score), "0-1" (min-max), "divide-K" (divide by K),
+    "aligned-u8" (decode the fixed aligned-intensity uint8 code table).
     """
 
     def __init__(
@@ -1091,13 +1092,15 @@ class SmartNormalizeIntensityd(MapTransform):
                     f"Invalid divide mode '{mode}'. Format should be 'divide-K' "
                     f"where K is a number (e.g., 'divide-255')"
                 )
-        elif mode not in ["none", "normal", "0-1"]:
+        elif mode not in ["none", "normal", "0-1", "aligned-u8"]:
             raise ValueError(
-                f"Invalid mode '{mode}'. Must be 'none', 'normal', '0-1', or 'divide-K'"
+                f"Invalid mode '{mode}'. Must be 'none', 'normal', '0-1', 'divide-K', "
+                "or 'aligned-u8'"
             )
         else:
             self.mode = mode
 
+        augment_ops.check_normalize_clipping(mode, clip_percentile_low, clip_percentile_high)
         self.clip_percentile_low = clip_percentile_low
         self.clip_percentile_high = clip_percentile_high
         self.channelwise = bool(channelwise)
