@@ -62,7 +62,7 @@ def test_roi_crops_border_chunks_to_volume_geometry():
     """Border chunks must be cropped to the ROI, not written at full chunk size.
 
     A chunk straddling the real-volume boundary otherwise emits pure padding past
-    the true geometry (5.3% of a whole zebrafinch run, ~37e9 voxels).
+    the true geometry, potentially writing large amounts of padding.
     """
     chunks = build_chunk_grid((30, 30, 30), (10, 10, 10))
     roi = ((0, 0, 0), (30, 25, 30))

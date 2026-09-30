@@ -1,6 +1,5 @@
 """ABISS output width, argv compatibility, and subprocess failure contracts."""
 
-import importlib.util
 import subprocess
 import weakref
 from pathlib import Path
@@ -8,14 +7,12 @@ from pathlib import Path
 import numpy as np
 import pytest
 
+from connectomics.decoding import abiss_runner
+
 
 @pytest.fixture
 def script():
-    path = Path(__file__).resolve().parents[2] / "scripts/run_abiss_volume.py"
-    spec = importlib.util.spec_from_file_location("run_abiss_volume", path)
-    module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
-    return module
+    return abiss_runner
 
 
 @pytest.mark.parametrize("dtype", [np.uint32, np.uint64])
@@ -43,7 +40,7 @@ def test_auto_bound(script):
 
 
 def run_kwargs(tmp_path):
-    return dict(
+    return dict(  # noqa: C408 - preserve the restored test fixture.
         predictions_czyx=np.ones((3, 5, 4, 3), dtype=np.float32),
         ws_binary=Path("/fake/ws"),
         ws_high_threshold=0.9,

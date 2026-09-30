@@ -20,3 +20,11 @@ outputs-cloud/**
 **/*.ckpt
 **/*.pth
 **/*.pt
+dev/
+lib/
+.agent/
+.claude
+.codex
+.ccc
+slurm_outputs/
+notebooks/

@@ -32,8 +32,7 @@ If any required input is missing, stop and ask.
 
 4. Validate:
    `python scripts/validate_tutorial_configs.py --glob 'tutorials/<new>.yaml'`
-   (`--glob` is additive over default `tutorials/*.yaml`; only treat
-   errors that mention the new path as yours; otherwise stop).
+   (`--glob` selects only the supplied pattern).
 
 5. Smoke-train one batch:
    `python scripts/main.py --config tutorials/<new>.yaml --fast-dev-run`.

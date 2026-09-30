@@ -13,7 +13,7 @@ Get PyTorch Connectomics running in **5 minutes**! 🚀
 ## Step 1: Install
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/zudi-lin/pytorch_connectomics/master/quickstart.sh | bash
+curl -fsSL https://raw.githubusercontent.com/PytorchConnectomics/pytorch_connectomics/master/quickstart.sh | bash
 cd pytorch_connectomics
 conda activate pytc
 ```
@@ -33,7 +33,7 @@ conda activate pytc
 python scripts/main.py --demo
 ```
 
-This creates synthetic data and trains a small model for 5 epochs. If this works, your installation is successful! ✅
+`--demo` creates synthetic data and runs one training batch and one validation batch on CPU. Run `python scripts/check_install.py` for GPU checks.
 
 **Expected output:**
 ```
@@ -52,30 +52,26 @@ Your installation is working correctly! 🎉
 The Lucchi++ dataset contains mitochondria segmentation data from EM images.
 
 ```bash
-# Download from HuggingFace (recommended)
-mkdir -p datasets/
-wget https://huggingface.co/datasets/pytc/tutorial/resolve/main/lucchi%2B%2B.zip
-unzip lucchi++.zip -d datasets/
-rm lucchi++.zip
+python scripts/download_data.py lucchi++
 ```
 
-**Size:** ~100 MB
+**Size:** ~211 MiB
 
 ### Run Training
 
 ```bash
 # Quick test (1 batch, ~30 seconds)
-python scripts/main.py --config tutorials/monai_lucchi++.yaml --fast-dev-run
+python scripts/main.py --config tutorials/mito_lucchi++/mito_lucchi++.yaml --fast-dev-run
 
 # Full training (~2 hours on GPU)
-python scripts/main.py --config tutorials/monai_lucchi++.yaml
+python scripts/main.py --config tutorials/mito_lucchi++/mito_lucchi++.yaml
 ```
 
 ### Monitor Progress
 
 ```bash
 # Launch TensorBoard (in a separate terminal)
-tensorboard --logdir outputs/lucchi++_monai_unet
+tensorboard --logdir outputs/mito_lucchi++
 
 # Open browser to http://localhost:6006
 ```
@@ -91,7 +87,7 @@ For installation problems, see
 
 **Solution:** Reduce batch size in config:
 ```bash
-python scripts/main.py --config tutorials/lucchi.yaml data.dataloader.batch_size=1
+python scripts/main.py --config tutorials/mito_lucchi++/mito_lucchi++.yaml train.data.dataloader.batch_size=1
 ```
 
 ---
@@ -105,7 +101,7 @@ python scripts/main.py --config tutorials/lucchi.yaml data.dataloader.batch_size
 
 ### Get Help
 - 💬 **Slack Community:** [Join here](https://join.slack.com/t/pytorchconnectomics/shared_invite/zt-obufj5d1-v5_NndNS5yog8vhxy4L12w)
-- 🐛 **Report Issues:** [GitHub Issues](https://github.com/zudi-lin/pytorch_connectomics/issues)
+- 🐛 **Report Issues:** [GitHub Issues](https://github.com/PytorchConnectomics/pytorch_connectomics/issues)
 - 📧 **Email:** See README for contact info
 
 ### Customize Your Workflow
@@ -121,16 +117,20 @@ python scripts/main.py --config my_config.yaml
 **Use different models:**
 ```yaml
 # In your config file:
-model:
-  architecture: mednext  # Try MedNeXt (state-of-the-art)
-  mednext_size: S        # S, B, M, or L
-  deep_supervision: true
+train:
+  model:
+    arch:
+      type: mednext
+    mednext:
+      size: S  # S, B, M, or L
+    loss:
+      deep_supervision: true
 ```
 
 **Distributed training:**
 ```yaml
-system:
-  training:
+train:
+  system:
     num_gpus: 4  # Automatically uses DDP
 ```
 

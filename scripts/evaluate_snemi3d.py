@@ -14,9 +14,10 @@ import csv
 import glob
 import math
 import sys
+from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Iterable, Sequence
+from typing import cast
 
 import h5py
 import numpy as np
@@ -73,7 +74,7 @@ class CropBounds:
 
 
 def snemi3d_gc_crop(shape: Sequence[int]) -> CropBounds:
-    """Return the exact crop used by ``lib/snemi3d-gc/evaluation.py``.
+    """Return the exact crop used by the reference SNEMI3D evaluator.
 
     The original implementation deliberately uses floating-point division and
     truncates all six bounds to integers at the end. Preserve that behavior so
@@ -240,7 +241,7 @@ def evaluate_candidate(
 def _sort_results(rows: list[dict[str, object]]) -> list[dict[str, object]]:
     def key(row: dict[str, object]) -> tuple[int, float, str]:
         if row["status"] == "ok":
-            return (0, float(row["adapted_rand_error"]), str(row["path"]))
+            return (0, float(cast(str, row["adapted_rand_error"])), str(row["path"]))
         return (1, math.inf, str(row["path"]))
 
     return sorted(rows, key=key)
@@ -322,7 +323,7 @@ def main() -> int:
             )
         rows.append(row)
         if row["status"] == "ok":
-            print(f"{float(row['adapted_rand_error']):.6f}\t{path}")
+            print(f"{float(cast(str, row['adapted_rand_error'])):.6f}\t{path}")
         else:
             print(f"SKIP\t{path}\t{row['reason']}")
 

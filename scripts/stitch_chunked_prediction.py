@@ -6,10 +6,9 @@ can be rebuilt from the intact ``<base>.h5.chunks/`` directory and
 ``<base>.h5.index.json``.
 
 ``--vds`` writes an HDF5 *virtual* dataset over the same chunk files instead of
-copying them. It is the only usable mode at whole-volume scale -- j0126's
-affinity is ~4 TB, so a real stitch has nowhere to go -- and it costs seconds
+copying them. This avoids duplicating multi-terabyte arrays and costs seconds
 because no voxel is read. The result opens through h5py exactly like a stitched
-file, which is what `run_abiss_chunk.py` expects of `source_affinity_h5`.
+file and can be passed to a decoder that accepts HDF5 predictions.
 
 ``--discover DIR`` finds the store under DIR instead of naming it, so a job
 submitted before inference has run can still resolve the timestamped output.
@@ -201,7 +200,10 @@ def virtual_stitch(base: Path, out: Path, *, force: bool = False) -> Path:
     # directory and index as `<base>.chunks` / `<base>.index.json`, and `base` is
     # a timestamped, checkpoint-named path nobody can write down in advance.
     if out.resolve() != base.resolve():
-        for suffix, target in ((".chunks", chunks_dir), (".index.json", Path(str(base) + ".index.json"))):
+        for suffix, target in (
+            (".chunks", chunks_dir),
+            (".index.json", Path(str(base) + ".index.json")),
+        ):
             link = Path(str(out) + suffix)
             if link.is_symlink() or link.exists():
                 link.unlink()

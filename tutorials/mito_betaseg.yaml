@@ -148,7 +148,7 @@ train:
       monitor: val_loss_total
       mode: min
   data:
-    root_path: /projects/weilab/liupeng/data/raw/mito/betaSeg
+    root_path: /path/to/betaseg
     train:
       image: [high_c3_im.tiff, low_c1_im.tiff, low_c2_im.tiff]
       label: [high_c3_mito.tiff, low_c1_mito.tiff, low_c2_mito.tiff]
@@ -160,7 +160,7 @@ train:
 
 test:
   data:
-    root_path: /projects/weilab/liupeng/data/raw/mito/betaSeg
+    root_path: /path/to/betaseg
     test:
       path: ""
       image: high_c2_im.tiff

@@ -21,14 +21,7 @@ Two rounds, in this order:
            side-graze), and ``max_hub_size`` refuses any union that would put two backbone-scale
            segments in one component.
 
-Measured on the zebrafinch/j0126 ABISS segmentation against 50 held-out skeletons (NERL,
-merge_threshold 50), starting from a published GT-free skeleton join at 0.4629:
-
-    round 1 alone (anchor 40k, 8 hops)      0.5452   0 neurons regressed
-    + round 2                               see tutorials/neuron_j0126/README.md
-
-``anchor_size`` is the one parameter worth tuning and it trades recall against safety: on that
-volume 40,000 vox was the largest drop-free value (80k gained +0.007 but regressed one neuron).
+``anchor_size`` trades fragment recall against the risk of absorbing another object.
 
 The contact graph is computed from the label volume alone. For volumes too large to hold in memory,
 build the graph in chunks with ``scripts/build_contact_graph.py`` and pass it as ``contact_path``.
@@ -38,7 +31,8 @@ from __future__ import annotations
 
 import logging
 from collections import Counter, defaultdict
-from typing import Dict, Iterable, Tuple
+from collections.abc import Iterable
+from typing import Any, cast
 
 import h5py
 import numpy as np
@@ -59,18 +53,16 @@ def contact_graph(
     seg: np.ndarray,
     *,
     min_size: int = 0,
-    sizes: Dict[int, int] | None = None,
+    sizes: dict[int, int] | None = None,
     affinity: np.ndarray | None = None,
-) -> Dict[Tuple[int, int], int] | Tuple[Dict[Tuple[int, int], int], Dict[Tuple[int, int], float]]:
+) -> dict[tuple[int, int], int] | tuple[dict[tuple[int, int], int], dict[tuple[int, int], float]]:
     """Face-adjacency between labels, as ``{(lo, hi): n_faces}``.
 
     Only pairs where both labels are non-zero and at least ``min_size`` voxels are kept.
 
     With ``affinity`` (a CZYX array whose channels are in **XYZ** order, as emitted by the
     affinity models here), also returns ``{(lo, hi): mean_affinity}`` over the shared faces.
-    Note the channel mapping: array axis ``ax`` is ZYX, so it reads channel ``2 - ax``. Getting
-    this backwards still "works" -- it scored 84% against 86% for the correct mapping -- so it
-    will not announce itself as a failure; see dev/zebrafinch/lessons.md L89.
+    Note the channel mapping: array axis ``ax`` is ZYX, so it reads channel ``2 - ax``. The channel mapping must match the spatial axes to preserve the intended contact affinities.
     """
     if seg.ndim != 3:
         raise ValueError(f"contact_graph expects a 3D label volume, got shape {seg.shape}")
@@ -97,7 +89,7 @@ def contact_graph(
         else:
             w = np.moveaxis(affinity[2 - axis], axis, 0)[1:][m]
             uq, inv, cnt = np.unique(pair, axis=0, return_inverse=True, return_counts=True)
-            tot = np.zeros(len(uq), float)
+            tot: np.ndarray = np.zeros(len(uq), float)
             np.add.at(tot, inv.ravel(), w.astype(float))
             for (p, q), n, t in zip(uq.tolist(), cnt.tolist(), tot.tolist()):
                 if min_size and (sizes.get(p, 0) < min_size or sizes.get(q, 0) < min_size):
@@ -109,7 +101,7 @@ def contact_graph(
     return dict(acc), {k: aff_sum[k] / max(acc[k], 1) for k in acc}
 
 
-def segment_sizes(seg: np.ndarray) -> Dict[int, int]:
+def segment_sizes(seg: np.ndarray) -> dict[int, int]:
     """Voxel count per label, excluding 0."""
     lab, cnt = np.unique(seg, return_counts=True)
     return {
@@ -117,8 +109,8 @@ def segment_sizes(seg: np.ndarray) -> Dict[int, int]:
     }
 
 
-def _neighbours(contacts: Dict[Tuple[int, int], int]) -> Dict[int, Dict[int, int]]:
-    nb: Dict[int, Dict[int, int]] = defaultdict(dict)
+def _neighbours(contacts: dict[tuple[int, int], int]) -> dict[int, dict[int, int]]:
+    nb: dict[int, dict[int, int]] = defaultdict(dict)
     for (a, b), n in contacts.items():
         nb[a][b] = n
         nb[b][a] = n
@@ -128,9 +120,9 @@ def _neighbours(contacts: Dict[Tuple[int, int], int]) -> Dict[int, Dict[int, int
 class _UnionFind:
     """Union-find that refuses to put two backbone-scale members in one component."""
 
-    def __init__(self, sizes: Dict[int, int], max_hub_size: float) -> None:
-        self._parent: Dict[int, int] = {}
-        self._hubs: Dict[int, int] = {}
+    def __init__(self, sizes: dict[int, int], max_hub_size: float) -> None:
+        self._parent: dict[int, int] = {}
+        self._hubs: dict[int, int] = {}
         self._sizes = sizes
         self._max_hub = max_hub_size
 
@@ -158,8 +150,8 @@ class _UnionFind:
 
 
 def link_through_fragments(
-    neighbours: Dict[int, Dict[int, int]],
-    sizes: Dict[int, int],
+    neighbours: dict[int, dict[int, int]],
+    sizes: dict[int, int],
     uf: _UnionFind,
     anchors: Iterable[int],
     *,
@@ -190,9 +182,9 @@ def link_through_fragments(
 
 
 def grow_fragments(
-    neighbours: Dict[int, Dict[int, int]],
-    sizes: Dict[int, int],
-    labels: Dict[int, int],
+    neighbours: dict[int, dict[int, int]],
+    sizes: dict[int, int],
+    labels: dict[int, int],
     *,
     anchor_size: int,
     hops: int,
@@ -200,7 +192,7 @@ def grow_fragments(
     min_contact: int = 0,
     margin: float | None = None,
     dominance: float | None = None,
-    affinity_of: Dict[Tuple[int, int], float] | None = None,
+    affinity_of: dict[tuple[int, int], float] | None = None,
     min_affinity: float = 0.0,
 ) -> int:
     """Round 1: absorb each sub-anchor fragment into its best-scoring neighbouring component.
@@ -216,14 +208,15 @@ def grow_fragments(
     total_contact = {f: sum(nb.values()) for f, nb in neighbours.items()}
     absorbed = 0
     for _hop in range(hops):
-        fresh: Dict[int, int] = {}
+        fresh: dict[int, int] = {}
         for frag, nb in neighbours.items():
             if frag in labels or sizes.get(frag, 0) >= anchor_size:
                 continue
             if sizes.get(frag, 0) < min_size:
                 continue
             votes: Counter = Counter()
-            weights: Counter = Counter()
+            # Counter supports floating weights; its stubs assume integer counts.
+            weights: Any = Counter()
             for other, area in nb.items():
                 if other in labels and area >= min_contact:
                     votes[labels[other]] += area
@@ -236,15 +229,12 @@ def grow_fragments(
             if not votes:
                 continue
             if affinity_of is not None:
-                # rank hosts by affinity, not area: area is BELOW the random-guess baseline on
-                # fragments with many candidates (16.2% vs 24.2%), while affinity is ~87% and
-                # flat in difficulty. Measured 0.5036 vs 0.4510 NERL. See lessons.md L89/L90.
+                # Rank candidate hosts by their strongest qualifying affinity.
                 top = weights.most_common(2)
             else:
                 top = votes.most_common(2)
             if not top:
-                # every candidate fell below min_affinity -- leave the fragment alone rather than
-                # falling back to contact area, which is below chance here (lessons.md L89).
+                # Leave fragments unchanged when no candidate meets min_affinity.
                 continue
             win_label, win_area = top[0]
             if margin is not None and len(top) > 1 and top[1][1] > margin * win_area:
@@ -259,7 +249,7 @@ def grow_fragments(
     return absorbed
 
 
-def _apply(seg: np.ndarray, labels: Dict[int, int]) -> np.ndarray:
+def _apply(seg: np.ndarray, labels: dict[int, int]) -> np.ndarray:
     if not labels:
         return seg.copy()
     keys = np.array(sorted(labels), dtype=seg.dtype)
@@ -314,9 +304,11 @@ def segmentation_merge(
     if use_affinity and affinity is None:
         logger.warning(
             "segmentation_merge: use_affinity is set but no affinity was given; falling back to "
-            "contact area, which measured 0.4510 vs 0.5036 with affinity (lessons L89/L90)."
+            "contact area. Provide affinity data to rank candidate hosts by affinity."
         )
     sizes = segment_sizes(seg)
+    contacts: dict[tuple[int, int], int]
+    aff_of: dict[tuple[int, int], float] | None
     if contact_path:
         loaded = np.load(contact_path)
         contacts = {
@@ -325,9 +317,14 @@ def segmentation_merge(
         }
         aff_of = None
     elif affinity is not None and use_affinity:
-        contacts, aff_of = contact_graph(seg, min_size=min_size, sizes=sizes, affinity=affinity)
+        contacts, aff_of = cast(
+            tuple[dict[tuple[int, int], int], dict[tuple[int, int], float]],
+            contact_graph(seg, min_size=min_size, sizes=sizes, affinity=affinity),
+        )
     else:
-        contacts = contact_graph(seg, min_size=min_size, sizes=sizes)
+        contacts = cast(
+            dict[tuple[int, int], int], contact_graph(seg, min_size=min_size, sizes=sizes)
+        )
         aff_of = None
     neighbours = _neighbours(contacts)
     anchors = {s for s, v in sizes.items() if v >= anchor_size}

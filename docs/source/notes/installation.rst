@@ -39,7 +39,7 @@ For users who want to get started quickly:
     pip install torch torchvision --index-url https://download.pytorch.org/whl/cu118
 
     # Clone and install PyTorch Connectomics
-    git clone https://github.com/zudi-lin/pytorch_connectomics.git
+    git clone https://github.com/PytorchConnectomics/pytorch_connectomics.git
     cd pytorch_connectomics
     pip install -e .[full]
 
@@ -101,7 +101,7 @@ Includes all optional features (Weights & Biases, TIFF support, hyperparameter o
 
 .. code-block:: bash
 
-    git clone https://github.com/zudi-lin/pytorch_connectomics.git
+    git clone https://github.com/PytorchConnectomics/pytorch_connectomics.git
     cd pytorch_connectomics
     pip install -e .[full]
 
@@ -111,7 +111,7 @@ Core dependencies only:
 
 .. code-block:: bash
 
-    git clone https://github.com/zudi-lin/pytorch_connectomics.git
+    git clone https://github.com/PytorchConnectomics/pytorch_connectomics.git
     cd pytorch_connectomics
     pip install -e .
 
@@ -142,7 +142,7 @@ If you only want the library without cloning the repository:
 
 .. code-block:: bash
 
-    pip install git+https://github.com/zudi-lin/pytorch_connectomics.git
+    pip install git+https://github.com/PytorchConnectomics/pytorch_connectomics.git
 
 .. note::
    We use editable mode (``-e``) by default so there's no need to re-install when making changes to the code.
@@ -252,7 +252,7 @@ Install via ``pip install -e .[extra_name]``:
 - ``[dev]``: Development tools (pytest)
 - ``[docs]``: Documentation building (Sphinx)
 
-See `setup.py <https://github.com/zudi-lin/pytorch_connectomics/blob/master/setup.py>`_ for complete list.
+See `setup.py <https://github.com/PytorchConnectomics/pytorch_connectomics/blob/master/setup.py>`_ for complete list.
 
 Cluster Installation (FASRC)
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -273,7 +273,7 @@ For Harvard FASRC cluster users:
     pip install torch torchvision --index-url https://download.pytorch.org/whl/cu118
 
     # Install PyTorch Connectomics
-    git clone https://github.com/zudi-lin/pytorch_connectomics.git
+    git clone https://github.com/PytorchConnectomics/pytorch_connectomics.git
     cd pytorch_connectomics
     pip install -e .[full]
 
@@ -314,7 +314,7 @@ Native Windows Installation
 
 .. code-block:: bat
 
-    git clone https://github.com/zudi-lin/pytorch_connectomics.git
+    git clone https://github.com/PytorchConnectomics/pytorch_connectomics.git
     cd pytorch_connectomics
     pip install -e .[full]
 
@@ -332,7 +332,7 @@ source:
     docker run --rm --gpus all --ipc=host pytc:gpu \
         python scripts/main.py --demo
 
-See `docker/README.md <https://github.com/zudi-lin/pytorch_connectomics/blob/master/docker/README.md>`_
+See `docker/README.md <https://github.com/PytorchConnectomics/pytorch_connectomics/blob/master/docker/README.md>`_
 for NVIDIA Container Toolkit prerequisites, data mounts, and Google Cloud
 Storage workflows.
 
@@ -407,7 +407,7 @@ Getting Help
 If you encounter issues:
 
 1. Check the `FAQ <faq.html>`_
-2. Search `GitHub Issues <https://github.com/zudi-lin/pytorch_connectomics/issues>`_
+2. Search `GitHub Issues <https://github.com/PytorchConnectomics/pytorch_connectomics/issues>`_
 3. Ask on `Slack <https://join.slack.com/t/pytorchconnectomics/shared_invite/zt-obufj5d1-v5_NndNS5yog8vhxy4L12w>`_
 4. Open a new issue on GitHub
 

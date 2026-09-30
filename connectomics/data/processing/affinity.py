@@ -2,8 +2,9 @@
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from dataclasses import dataclass
-from typing import Any, List, Optional, Sequence, Tuple
+from typing import Any, Optional
 
 import numpy as np
 import torch
@@ -66,7 +67,7 @@ class AffinityTarget:
             )
 
     @property
-    def shape(self) -> Tuple[int, ...]:
+    def shape(self) -> tuple[int, ...]:
         return self.values.shape
 
     @property
@@ -125,7 +126,7 @@ def _task_kwargs(task: Any) -> dict[str, Any]:
     if isinstance(raw, dict):
         return dict(raw)
     if hasattr(raw, "items"):
-        return {key: value for key, value in raw.items()}
+        return dict(raw.items())
     return dict(raw)
 
 
@@ -296,7 +297,7 @@ def compute_affinity_crop_pad(
 ) -> tuple[tuple[int, int], ...]:
     """Return asymmetric valid-region crop pads for the given offsets."""
     if not offsets:
-        return tuple()
+        return ()
 
     mode = normalize_affinity_mode(affinity_mode)
     ndim = len(offsets[0])
@@ -424,16 +425,16 @@ def compute_affinity_valid_mask(
 
 def seg_to_affinity(
     seg: np.ndarray,
-    offsets: Optional[List[str]] = None,
+    offsets: Optional[list[str]] = None,
     long_range: Optional[int] = None,
     affinity_mode: str = "deepem",
     semantic: bool = False,
-) -> "AffinityTarget":
+) -> AffinityTarget:
     """
     Compute affinity maps from segmentation.
 
     ``deepem`` stores each edge at the destination voxel. ``banis`` stores
-    each edge at the source voxel and follows ``lib/banis`` target semantics.
+    each edge at the source voxel and follows BANIS target semantics.
     Edges outside the valid source/destination region, or touching ``seg == -1``
     unlabeled voxels, are marked invalid in the returned mask.
 
@@ -441,7 +442,7 @@ def seg_to_affinity(
     spatial dimensions — offset ``(a, b, c)`` shifts along ``seg`` axes 0, 1, 2
     in that order, regardless of whether callers label them ZYX or XYZ. The
     user is responsible for keeping the disk layout, label-target generation,
-    and decoder expectations on the same axis convention. Your ``lib/banis``
+    and decoder expectations on the same axis convention. Your BANIS
     setup stores zarr volumes XYZ and reads them without a spatial transpose,
     so axis 0 = X here, matching BANIS's ``comp_affinities``.
 
@@ -476,7 +477,7 @@ def seg_to_affinity(
         :class:`AffinityTarget` carrying ``values`` (bool) and ``mask`` (bool),
         each of shape ``(num_channels, A0, A1, A2)``. The two ``affinity_mode``s
         differ only in the edge-storage convention; the masking machinery is
-        identical, mirroring ``lib/banis``'s ``loss_mask`` and ``lib/DeepEM``'s
+        identical, mirroring BANIS's ``loss_mask`` and DeepEM's
         ``affinity_mask`` / valid-crop semantics.
     """
     mode = normalize_affinity_mode(affinity_mode)
@@ -561,7 +562,7 @@ def local_caliber(
 
 def seg_to_thin_affinity_weight(
     seg: np.ndarray,
-    offsets: Optional[List[str]] = None,
+    offsets: Optional[list[str]] = None,
     long_range: Optional[int] = None,
     affinity_mode: str = "banis",
     resolution: Sequence[float] = (1.0, 1.0, 1.0),
@@ -572,7 +573,7 @@ def seg_to_thin_affinity_weight(
 ) -> np.ndarray:
     """Per-edge affinity loss weight that upweights TRUE edges on thin processes.
 
-    Motivation (measured on ExM seed6, ``dev/nisb/exm/affinity_separability.py``):
+    Motivation from affinity separability measurements:
     the predicted affinity on genuine same-instance edges falls with the local
     caliber of the process -- median 0.52 below 27 nm, then 0.62, 0.67, 0.74 above
     72 nm -- while the affinity on cross-instance edges is flat at 0.36 (p95 0.51)
@@ -620,7 +621,6 @@ def seg_to_thin_affinity_weight(
         ``float32`` array of shape ``(num_channels, A0, A1, A2)`` with values in
         ``[1, max_weight]``.
     """
-    from scipy import ndimage as ndi
 
     if max_weight < 1.0:
         raise ValueError(f"max_weight must be >= 1, got {max_weight}.")

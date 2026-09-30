@@ -28,7 +28,7 @@ def test_graph_decode_is_recorded_with_pruned_operation_chain(tmp_path):
     )
     cfg = SimpleNamespace(
         decoding=SimpleNamespace(steps=[], graph=graph),
-        inference=SimpleNamespace(),
+        inference=SimpleNamespace(checkpoint_weights="raw"),
     )
 
     log_decode_experiment(

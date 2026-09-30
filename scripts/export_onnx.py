@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Export a trained checkpoint to ONNX.
 
-    python scripts/export_onnx.py --config tutorials/neuron_j0126/1_train.yaml \
+    python scripts/export_onnx.py --config tutorials/neuron_snemi/neuron_snemi.yaml \
         --checkpoint outputs/.../checkpoints/step=00200000.ckpt --output model.onnx
 
 The graph is the MAIN head only. Deep supervision is switched off before tracing, so the
@@ -52,7 +52,9 @@ from connectomics.models import build_model  # noqa: E402
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__.split("\n")[0])
-    parser.add_argument("--config", required=True, help="config YAML the checkpoint was trained with")
+    parser.add_argument(
+        "--config", required=True, help="config YAML the checkpoint was trained with"
+    )
     parser.add_argument("--checkpoint", required=True, help="Lightning .ckpt to export")
     parser.add_argument("--output", required=True, help="destination .onnx path")
     parser.add_argument(

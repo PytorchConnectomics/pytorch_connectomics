@@ -14,8 +14,9 @@ import shlex
 import subprocess
 import sys
 import tempfile
+from collections.abc import Mapping, Sequence
 from pathlib import Path
-from typing import Any, Dict, List, Mapping, Optional, Sequence
+from typing import Any, Optional, cast
 
 import numpy as np
 
@@ -29,7 +30,7 @@ __all__ = ["decode_abiss"]
 def _format_command(
     command: str | Sequence[str],
     mapping: Mapping[str, str],
-) -> tuple[str | List[str], bool]:
+) -> tuple[str | list[str], bool]:
     """Format command placeholders for shell/list execution."""
     if isinstance(command, str):
         return command.format_map(_SafeFormatMapping(mapping)), True
@@ -49,13 +50,13 @@ class _SafeFormatMapping(dict):
         return "{" + key + "}"
 
 
-def _build_cli_suffix(cli_args: Dict[str, Any]) -> List[str]:
+def _build_cli_suffix(cli_args: dict[str, Any]) -> list[str]:
     """Convert a dict of parameters into CLI ``--key value`` tokens.
 
     Underscores in keys are converted to hyphens (``ws_high_threshold`` →
     ``--ws-high-threshold``).  List/tuple values are joined with commas.
     """
-    tokens: List[str] = []
+    tokens: list[str] = []
     for key, value in cli_args.items():
         flag = "--" + key.replace("_", "-")
         if isinstance(value, bool):
@@ -71,27 +72,26 @@ def _build_cli_suffix(cli_args: Dict[str, Any]) -> List[str]:
 
 
 def _append_cli_args(
-    cmd: str | List[str],
-    cli_tokens: List[str],
+    cmd: str | list[str],
+    cli_tokens: list[str],
     use_shell: bool,
-) -> str | List[str]:
+) -> str | list[str]:
     """Append CLI argument tokens to an already-formatted command."""
     if not cli_tokens:
         return cmd
     if use_shell:
         suffix = " " + " ".join(shlex.quote(t) for t in cli_tokens)
-        return cmd + suffix
+        return cast(str, cmd) + suffix
     return list(cmd) + cli_tokens
 
 
 def _resolve_python_script_path(
-    cmd: str | List[str],
-    launch_cwd: Path,
+    cmd: str | list[str],
     search_roots: Sequence[Path],
-) -> str | List[str]:
+) -> str | list[str]:
     """Resolve relative Python script path to absolute path when possible."""
 
-    def _patch_tokens(tokens: List[str]) -> bool:
+    def _patch_tokens(tokens: list[str]) -> bool:
         for idx in range(len(tokens) - 1):
             interpreter = Path(tokens[idx]).name.lower()
             if not interpreter.startswith("python"):
@@ -134,8 +134,7 @@ def _load_output(output_h5: Path, output_npy: Path, output_dataset: str) -> np.n
         seg = np.load(output_npy)
     else:
         raise FileNotFoundError(
-            "decode_abiss did not produce output file. "
-            f"Expected one of: {output_h5}, {output_npy}"
+            f"decode_abiss did not produce output file. Expected one of: {output_h5}, {output_npy}"
         )
 
     seg = np.asarray(seg)
@@ -157,16 +156,17 @@ def decode_abiss(
     predictions: np.ndarray,
     command: str | Sequence[str],
     *,
+    abiss_home: Optional[str] = None,
     input_dataset: str = "main",
     output_dataset: str = "main",
     channels: Optional[Sequence[int]] = None,
     workdir: Optional[str] = None,
     keep_workspace: bool = False,
     timeout_sec: Optional[int] = None,
-    env: Optional[Dict[str, Any]] = None,
+    env: Optional[dict[str, Any]] = None,
     check: bool = True,
-    cli_args: Optional[Dict[str, Any]] = None,
-) -> "np.ndarray | Dict[float, np.ndarray]":
+    cli_args: Optional[dict[str, Any]] = None,
+) -> np.ndarray | dict[float, np.ndarray]:
     """Decode instance segmentation with an external ABISS command.
 
     Args:
@@ -177,7 +177,10 @@ def decode_abiss(
             - ``{output_h5}``, ``{output_npy}``: expected output file paths
             - ``{input_dataset}``, ``{output_dataset}``: HDF5 dataset names
             - ``{python_exe}``: current Python interpreter path
+            - ``{abiss_home}``: configured external ABISS installation directory
             - Any key from *cli_args* (e.g. ``{ws_high_threshold}``)
+        abiss_home: External ABISS checkout containing the ``build/ws`` binary.
+            Defaults to the ``PYTC_ABISS_HOME`` environment variable.
         input_dataset: Dataset name when writing input HDF5.
         output_dataset: Dataset name when reading output HDF5.
         channels: Optional channel indices to select before saving input.
@@ -201,6 +204,11 @@ def decode_abiss(
         3D instance label volume ``(Z, Y, X)`` — or a dict mapping each
         merge threshold to its label volume when batch mode is active.
     """
+    home = abiss_home or os.environ.get("PYTC_ABISS_HOME")
+    if not home:
+        raise RuntimeError("Set decoder abiss_home or PYTC_ABISS_HOME to the ABISS installation.")
+    abiss_path = Path(home).expanduser().resolve()
+
     pred = np.asarray(predictions)
     if pred.ndim not in (3, 4):
         raise ValueError(f"decode_abiss expects 3D/4D predictions, got shape {pred.shape}.")
@@ -222,24 +230,7 @@ def decode_abiss(
     else:
         temp_ctx = tempfile.TemporaryDirectory(prefix="decode_abiss_", dir=tempfile.gettempdir())
         workspace_path = Path(temp_ctx.name).resolve()
-    launch_cwd = Path.cwd().resolve()
-    repo_root = Path(__file__).resolve().parents[3]
-
-    search_roots: List[Path] = []
-    for root in (
-        launch_cwd,
-        Path(os.environ["HYDRA_ORIG_CWD"]).resolve() if "HYDRA_ORIG_CWD" in os.environ else None,
-        (
-            Path(os.environ["HYDRA_ORIGINAL_CWD"]).resolve()
-            if "HYDRA_ORIGINAL_CWD" in os.environ
-            else None
-        ),
-        repo_root,
-    ):
-        if root is None:
-            continue
-        if root not in search_roots:
-            search_roots.append(root)
+    search_roots = [Path.cwd().resolve(), abiss_path]
 
     try:
         input_h5 = workspace_path / "predictions.h5"
@@ -255,8 +246,9 @@ def decode_abiss(
         # command embeds them in a Python `-c` string literal (a backslash
         # Windows path like C:\x becomes an invalid \x escape). Forward slashes
         # are accepted by Python and Windows tools alike; no-op on POSIX.
-        mapping: Dict[str, str] = {
+        mapping: dict[str, str] = {
             "workspace": workspace_path.as_posix(),
+            "abiss_home": abiss_path.as_posix(),
             "input_h5": input_h5.as_posix(),
             "input_npy": input_npy.as_posix(),
             "output_h5": output_h5.as_posix(),
@@ -272,7 +264,7 @@ def decode_abiss(
             )
 
         cmd, use_shell = _format_command(command, mapping)
-        cmd = _resolve_python_script_path(cmd, launch_cwd, search_roots)
+        cmd = _resolve_python_script_path(cmd, search_roots)
 
         # Auto-append cli_args as --key value flags to the command.
         if cli_args:
@@ -292,11 +284,11 @@ def decode_abiss(
             timeout=timeout_sec,
         )
 
-        # Batch mode: read multiple output files written by run_abiss_volume.
+        # Batch mode: read multiple output files written by the external command.
         if batch_mt:
             stem = output_h5.stem  # "segmentation"
             ext = output_h5.suffix  # ".h5"
-            results: Dict[float, np.ndarray] = {}
+            results: dict[float, np.ndarray] = {}
             for i, mt in enumerate(batch_mt):
                 mt_h5 = workspace_path / f"{stem}_mt{i}{ext}"
                 mt_npy = workspace_path / f"{stem}_mt{i}.npy"

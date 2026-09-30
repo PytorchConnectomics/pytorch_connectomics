@@ -28,7 +28,7 @@ To reproduce the checkpoint from scratch, download the full benchmark dataset
 configuration:
 
 ```bash
-DATA=/local/benchmark/dir/base
+DATA=/path/to/nisb/base
 python scripts/main.py --config tutorials/neuron_nisb/base_banis+.yaml \
     --mode train \
     train.data.train.path=$DATA/train/ \
@@ -44,7 +44,7 @@ Inference needs only `val/seed100` (decode-threshold tuning) and
 fetch just those two subfolders:
 
 ```bash
-DATA=/local/benchmark/dir/base
+DATA=/path/to/nisb/base
 EP=https://s3.nexus.mpcdf.mpg.de:443
 aws s3 sync --endpoint-url $EP --no-sign-request s3://nisb/base/val/  $DATA/val/
 aws s3 sync --endpoint-url $EP --no-sign-request s3://nisb/base/test/ $DATA/test/
@@ -80,9 +80,7 @@ several hours on one GPU + a high-memory node: `tune-test` runs a full-volume
 val inference, a 21-point threshold sweep on val, then a test inference + decode.
 
 **Notes**
-- On the lab cluster the data already lives at `/projects/weilab/dataset/nisb/base`,
-  so you can drop the four path overrides and just run
-  `--mode tune-test --checkpoint <ckpt>`.
+- Replace `/path/to/nisb/base` in the config or use the path overrides above.
 - `--mode tune` alone stops after the val sweep (prints the best threshold);
   `--mode test` alone decodes at the config default (`0.75`). Use `tune-test`
   to chain val-selection into the test decode — the per-step decode threshold is

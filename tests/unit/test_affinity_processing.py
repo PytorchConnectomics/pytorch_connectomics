@@ -13,7 +13,7 @@ from connectomics.data.processing.build import count_stacked_label_transform_cha
 
 
 def _banis_comp_affinities_reference(seg: np.ndarray, long_range: int = 10):
-    """Reference copied from lib/banis/data.py::comp_affinities semantics.
+    """Reference copied from BANIS comp_affinities semantics.
 
     Returns ``(values, mask)`` both bool, mirroring the new explicit-mask
     contract emitted by ``seg_to_affinity``.
@@ -189,7 +189,9 @@ def test_semantic_affinity_equals_instance_affinity_for_unit_offsets():
 
     offsets = ["1-0-0", "0-1-0", "0-0-1"]
     for mode in ("banis", "deepem"):
-        from_semantic = seg_to_affinity(semantic, offsets=offsets, affinity_mode=mode, semantic=True)
+        from_semantic = seg_to_affinity(
+            semantic, offsets=offsets, affinity_mode=mode, semantic=True
+        )
         from_instances = seg_to_affinity(instances, offsets=offsets, affinity_mode=mode)
         np.testing.assert_array_equal(from_semantic.mask, from_instances.mask)
         np.testing.assert_array_equal(

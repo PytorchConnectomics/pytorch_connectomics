@@ -1,0 +1,667 @@
+#!/usr/bin/env python3
+"""Single-volume ABISS runner invoked by ``decode_abiss``.
+
+This script is ABISS-only and errors out when ABISS watershed is unavailable.
+"""
+
+from __future__ import annotations
+
+import argparse
+import gc
+import shutil
+import subprocess
+import tempfile
+from collections.abc import Iterable
+from pathlib import Path
+from typing import Callable, Optional, cast
+
+import numpy as np
+
+from connectomics.data.io import read_hdf5, write_hdf5
+
+_ABISS_TAG = "0_0_0_0"
+
+# Which of an edge's two endpoint voxels holds the affinity value. ABISS reads
+# "destination"; this repo's `banis` affinity target writes "source".
+EDGE_STORAGE_CHOICES = ("destination", "source")
+
+
+def _parse_threshold(value: str | float) -> tuple[float, bool]:
+    """Parse a threshold value that may be absolute or percentile.
+
+    Accepted formats:
+      - ``0.8`` or ``"0.8"``  → absolute value 0.8
+      - ``"80%"``              → 80th percentile
+
+    Returns:
+        (numeric_value, is_percentile) tuple.
+    """
+    if isinstance(value, (int, float)):
+        return float(value), False
+
+    s = str(value).strip()
+
+    # "80%" style → 80th percentile
+    if s.endswith("%"):
+        try:
+            return float(s[:-1]), True
+        except ValueError:
+            raise ValueError(  # noqa: B904 - preserve the original exception chain.
+                f"Invalid percentile threshold: '{value}'. Use e.g. '80%' or '95.5%'."
+            )
+
+    # Plain numeric string
+    return float(s), False
+
+
+def _resolve_threshold(
+    value: str | float,
+    affinities: np.ndarray,
+    name: str,
+) -> float:
+    """Resolve a threshold to an absolute value, computing percentile if needed.
+
+    Args:
+        value: Threshold — absolute float or percentile string (e.g. ``"p80"``).
+        affinities: Affinity array to compute percentiles from (any shape).
+        name: Parameter name for error messages.
+
+    Returns:
+        Absolute threshold value.
+    """
+    numeric, is_pct = _parse_threshold(value)
+    if not is_pct:
+        return numeric
+
+    if not (0 <= numeric <= 100):
+        raise ValueError(f"`{name}` percentile must be in [0, 100], got {numeric}.")
+
+    absolute = float(np.percentile(affinities, numeric))
+    print(f"  {name}: percentile {numeric}% → absolute {absolute:.6f}")
+    return absolute
+
+
+def _read_array(path: Path, dataset: str) -> np.ndarray:
+    suffix = path.suffix.lower()
+    if suffix in {".h5", ".hdf5"}:
+        return np.asarray(read_hdf5(str(path), dataset=dataset))
+    if suffix == ".npy":
+        return np.asarray(np.load(path))
+    raise ValueError(f"Unsupported input format '{path.suffix}'. Use .h5/.hdf5 or .npy.")
+
+
+def _write_array(path: Path, array: np.ndarray, dataset: str) -> None:
+    suffix = path.suffix.lower()
+    if suffix in {".h5", ".hdf5"}:
+        write_hdf5(str(path), np.asarray(array), dataset=dataset)
+        return
+    if suffix == ".npy":
+        np.save(path, np.asarray(array))
+        return
+    raise ValueError(f"Unsupported output format '{path.suffix}'. Use .h5/.hdf5 or .npy.")
+
+
+def _parse_int_list(value: str, *, expected_len: Optional[int] = None, name: str) -> list[int]:
+    out = [int(x.strip()) for x in value.split(",") if x.strip()]
+    if expected_len is not None and len(out) != expected_len:
+        raise ValueError(
+            f"`{name}` expects exactly {expected_len} comma-separated integers, got {len(out)}."
+        )
+    return out
+
+
+def _resolve_ws_binary(abiss_home: Optional[Path], ws_binary: Optional[str]) -> Optional[Path]:
+    candidates: list[Path] = []
+
+    if ws_binary:
+        candidates.append(Path(ws_binary).expanduser())
+
+    # Try explicit ABISS home first.
+    if abiss_home is not None:
+        candidates.append(abiss_home / "build" / "ws")
+
+    # Also try PATH.
+    path_ws = shutil.which("ws")
+    if path_ws:
+        candidates.append(Path(path_ws))
+
+    for candidate in candidates:
+        if candidate.exists() and candidate.is_file():
+            return candidate.resolve()
+    return None
+
+
+def _select_affinity_channels(
+    predictions: np.ndarray, channels: Optional[Iterable[int]]
+) -> np.ndarray:
+    if channels is None:
+        if predictions.shape[0] >= 3:
+            return predictions[:3]
+        return predictions[:1]
+
+    idx = list(int(c) for c in channels)  # noqa: C400 - preserve the restored algorithm.
+    if len(idx) == 0:
+        raise ValueError("`--channels` must contain at least one channel index.")
+    return predictions[np.asarray(idx, dtype=np.int64)]
+
+
+def _shift_to_destination_storage(aff_xyzc: np.ndarray) -> np.ndarray:
+    """Move source-stored edges to the destination storage ``ws`` expects.
+
+    ``ws`` reads ``aff[x][y][z][0]`` as the edge between ``x-1`` and ``x``
+    (``basic_watershed.hpp``: ``negx = aff[x][y][z][0]``, ``posx =
+    aff[x+1][y][z][0]``). This repo's ``banis`` affinity target stores each edge
+    at its *source* voxel instead, i.e. edge ``(i, i+1)`` at ``i``, so every
+    boundary decision would land one voxel off without this shift.
+
+    Channel ``k`` of the ABISS layout is the edge along spatial dim ``k``, so
+    each channel shifts by one along its own dim. The exposed face is not a real
+    edge, so it is zeroed rather than wrapped.
+    """
+    shifted = np.empty_like(aff_xyzc)
+    for k in range(3):
+        shifted[..., k] = np.roll(aff_xyzc[..., k], shift=1, axis=k)
+        face: list[slice | int] = [slice(None)] * 3
+        face[k] = 0
+        shifted[(*face, k)] = 0.0
+    return shifted
+
+
+def _to_abiss_affinity(
+    predictions_czyx: np.ndarray,
+    channels: Optional[Iterable[int]],
+    edge_storage: str = "destination",
+) -> np.ndarray:
+    if edge_storage not in EDGE_STORAGE_CHOICES:
+        raise ValueError(
+            f"`edge_storage` must be one of {EDGE_STORAGE_CHOICES}, got {edge_storage!r}."
+        )
+    selected = np.asarray(_select_affinity_channels(predictions_czyx, channels), dtype=np.float32)
+    if selected.ndim != 4:
+        raise ValueError(f"Expected selected affinity predictions to be 4D, got {selected.shape}.")
+
+    n_channels = selected.shape[0]
+
+    if n_channels == 1:
+        # Match ABISS cutout conversion for a single probability map.
+        pmap_xyz = np.transpose(selected[0], (2, 1, 0))
+        affinities = [np.minimum(np.roll(pmap_xyz, shift=1, axis=ax), pmap_xyz) for ax in range(3)]
+        aff_xyzc = np.stack(affinities, axis=-1)
+    else:
+        if n_channels < 3:
+            raise ValueError(
+                "ABISS watershed requires 1 channel (probability) or "
+                f">=3 affinity channels; got {n_channels}."
+            )
+        aff_xyzc = np.transpose(selected[:3], (3, 2, 1, 0))
+        if edge_storage == "source":
+            aff_xyzc = _shift_to_destination_storage(aff_xyzc)
+
+    # The single-channel branch builds edges as min(p[i-1], p[i]), which is
+    # already destination-stored, so `edge_storage` does not apply there.
+    return np.asfortranarray(aff_xyzc.astype(np.float32, copy=False))
+
+
+def _write_affinity_with_halo(
+    path: Path, aff_xyzc: np.ndarray, halo: int = 1
+) -> tuple[int, int, int]:
+    """Write ABISS affinity mmap with symmetric XYZ halo and return written XYZ shape."""
+    if halo < 0:
+        raise ValueError(f"`halo` must be >= 0, got {halo}.")
+
+    if aff_xyzc.ndim != 4:
+        raise ValueError(f"Expected affinity volume (X, Y, Z, C), got shape {aff_xyzc.shape}.")
+
+    xdim, ydim, zdim, n_channels = aff_xyzc.shape
+    if n_channels != 3:
+        raise ValueError(f"ABISS ws expects 3 affinity channels, got {n_channels}.")
+
+    x_out = xdim + 2 * halo
+    y_out = ydim + 2 * halo
+    z_out = zdim + 2 * halo
+    mmap_shape = (x_out, y_out, z_out, n_channels)
+
+    # ABISS ws writes seg_* from interior voxels, so we provide a 1-voxel halo.
+    mm: np.memmap = np.memmap(path, dtype=np.float32, mode="w+", shape=mmap_shape, order="F")
+    mm[...] = 0
+    if halo == 0:
+        mm[...] = aff_xyzc
+    else:
+        mm[halo : halo + xdim, halo : halo + ydim, halo : halo + zdim, :] = aff_xyzc
+    mm.flush()
+    del mm
+
+    return (x_out, y_out, z_out)
+
+
+def _read_segmentation_xyz(
+    path: Path, xyz_shape: tuple[int, int, int], halo: int = 1, dtype=np.uint64
+) -> np.ndarray:
+    """Read ABISS segmentation mmap, supporting cropped and uncropped writer variants."""
+    dtype = np.dtype(dtype)
+    itemsize = dtype.itemsize
+    n_expected = int(np.prod(xyz_shape, dtype=np.int64))
+    bytes_expected = n_expected * itemsize
+    file_size = path.stat().st_size
+    bytes_with_halo: Optional[int] = None
+    xyz_with_halo: Optional[tuple[int, ...]] = None
+
+    if file_size == bytes_expected:
+        return np.array(
+            np.memmap(path, dtype=dtype, mode="r", shape=xyz_shape, order="F"),
+            copy=True,
+        )
+
+    if halo > 0:
+        xyz_with_halo = tuple(int(v + 2 * halo) for v in xyz_shape)
+        n_with_halo = int(np.prod(xyz_with_halo, dtype=np.int64))
+        bytes_with_halo = n_with_halo * itemsize
+        if file_size == bytes_with_halo:
+            seg_with_halo = np.memmap(
+                path,
+                dtype=dtype,
+                mode="r",
+                shape=xyz_with_halo,
+                order="F",
+            )
+            return np.array(
+                seg_with_halo[halo:-halo, halo:-halo, halo:-halo],
+                copy=True,
+            )
+
+    if bytes_with_halo is None or xyz_with_halo is None:
+        raise ValueError(
+            "Unexpected ABISS segmentation file size. "
+            f"Expected {bytes_expected} bytes for shape {xyz_shape}, "
+            f"got {file_size} bytes at {path}."
+        )
+    raise ValueError(
+        "Unexpected ABISS segmentation file size. "
+        f"Expected {bytes_expected} bytes for shape {xyz_shape} "
+        f"(or {bytes_with_halo} bytes for shape {xyz_with_halo} with halo), "
+        f"got {file_size} bytes at {path}."
+    )
+
+
+def _write_abiss_param_file(
+    path: Path, xyz_shape: tuple[int, int, int], boundary_flags: list[int], offset: int
+) -> None:
+    xdim, ydim, zdim = xyz_shape
+    flags = " ".join(str(int(v)) for v in boundary_flags)
+    path.write_text(f"{xdim} {ydim} {zdim}\n{flags}\n{int(offset)}\n", encoding="utf-8")
+
+
+def _resolve_seg_dtype(seg_dtype: str, offset: int, xyz_shape: tuple[int, int, int]) -> np.dtype:
+    if seg_dtype not in ("uint64", "uint32", "auto"):
+        raise ValueError(f"Unknown segmentation dtype: {seg_dtype!r}")
+    if seg_dtype == "auto":
+        interior = int(xyz_shape[0]) * int(xyz_shape[1]) * int(xyz_shape[2])
+        seg_dtype = "uint32" if 0 <= offset and offset + interior <= 2**32 - 1 else "uint64"
+    return np.dtype(seg_dtype)
+
+
+def _run_abiss_ws(
+    predictions_czyx: np.ndarray | list[np.ndarray],
+    ws_binary: Path,
+    ws_high_threshold: float,
+    ws_low_threshold: float,
+    ws_size_threshold: int,
+    ws_dust_threshold: int,
+    boundary_flags: list[int],
+    offset: int,
+    channels: Optional[list[int]] = None,
+    workdir: Optional[Path] = None,
+    keep_workdir: bool = False,
+    ws_merge_threshold: Optional[float] = None,
+    ws_merge_thresholds: Optional[list[float]] = None,
+    ws_merge_function: Optional[str] = None,
+    edge_storage: str = "destination",
+    on_batch_result: Optional[Callable[[int, float, np.ndarray], None]] = None,
+    seg_dtype: str = "uint64",
+) -> np.ndarray | dict[float, np.ndarray]:
+    """Run ws with the selected main-volume dtype (boundary artifacts stay uint64).
+
+    A uint32 overflow raises CalledProcessError before any batch callbacks run.
+    Earlier complete thresholds may remain in a persistent workdir on failure.
+    A one-element list transfers input ownership; it is consumed before conversion.
+    """
+    if ws_low_threshold > ws_high_threshold:
+        raise ValueError(
+            "Expected ws_low_threshold <= ws_high_threshold, got "
+            f"{ws_low_threshold} > {ws_high_threshold}."
+        )
+
+    # Pop here: popping at the call site leaves the ndarray on CPython's call stack.
+    if isinstance(predictions_czyx, list):
+        if len(predictions_czyx) != 1:
+            raise ValueError("Expected a one-element predictions ownership holder.")
+        predictions_czyx = predictions_czyx.pop()
+    aff_xyzc = _to_abiss_affinity(predictions_czyx, channels=channels, edge_storage=edge_storage)
+    del predictions_czyx
+    output_xyz_shape = (int(aff_xyzc.shape[0]), int(aff_xyzc.shape[1]), int(aff_xyzc.shape[2]))
+    output_dtype = _resolve_seg_dtype(seg_dtype, offset, output_xyz_shape)
+
+    if workdir is not None:
+        ws_dir = workdir.resolve()
+        ws_dir.mkdir(parents=True, exist_ok=True)
+        temp_ctx = None
+    else:
+        temp_ctx = tempfile.TemporaryDirectory(prefix="abiss_volume_", dir=tempfile.gettempdir())
+        ws_dir = Path(temp_ctx.name).resolve()
+
+    try:
+        aff_raw = ws_dir / "aff.raw"
+        param_txt = ws_dir / "param.txt"
+        seg_raw = ws_dir / f"seg_{_ABISS_TAG}.data"
+
+        ws_xyz_shape = _write_affinity_with_halo(aff_raw, aff_xyzc, halo=1)
+        _write_abiss_param_file(param_txt, ws_xyz_shape, boundary_flags, offset)
+
+        # ws reads the affinity from aff_raw, so release the in-memory XYZC
+        # copy before starting the subprocess. Its output shape is saved above.
+        del aff_xyzc
+        gc.collect()
+
+        cmd = [
+            str(ws_binary),
+            str(param_txt),
+            str(aff_raw),
+            str(ws_high_threshold),
+            str(ws_low_threshold),
+            str(int(ws_size_threshold)),
+            str(int(ws_dust_threshold)),
+            _ABISS_TAG,
+        ]
+
+        # Optional merge function (e.g. "max", "mean", "p75") must appear
+        # before any merge thresholds in the argv list.
+        if ws_merge_function is not None:
+            cmd.append(str(ws_merge_function))
+
+        # Batch mode: pass multiple merge thresholds as trailing argv.
+        # The C++ binary computes watershed + region graph once, then
+        # repeats the merge step for each threshold,
+        # writing indexed output files (seg_{TAG}_{i}.data).
+        use_batch = ws_merge_thresholds is not None and len(ws_merge_thresholds) > 1
+        if use_batch:
+            for mt in cast(list[float], ws_merge_thresholds):
+                cmd.append(str(mt))
+        elif ws_merge_threshold is not None:
+            cmd.append(str(ws_merge_threshold))
+
+        if output_dtype == np.dtype(np.uint32):
+            cmd.append("--seg-dtype=uint32")
+        subprocess.run(cmd, cwd=str(ws_dir), check=True)
+
+        if use_batch:
+            # A callback consumes and releases each segmentation before the
+            # next threshold is read, limiting memory to one output volume.
+            # Default None keeps the dict for callers that index it.
+            results: dict[float, np.ndarray] = {}
+            for i, mt in enumerate(cast(list[float], ws_merge_thresholds)):
+                seg_file = ws_dir / f"seg_{_ABISS_TAG}_{i}.data"
+                if not seg_file.exists():
+                    raise FileNotFoundError(
+                        f"ABISS batch mode did not produce expected output: {seg_file}. "
+                        f"Ensure the ws binary at {ws_binary} supports multi-threshold mode."
+                    )
+                seg_xyz = _read_segmentation_xyz(
+                    seg_file, output_xyz_shape, halo=1, dtype=output_dtype
+                )
+                seg_zyx = np.transpose(seg_xyz, (2, 1, 0))
+                del seg_xyz
+                if on_batch_result is not None:
+                    on_batch_result(i, mt, seg_zyx)
+                    del seg_zyx
+                    gc.collect()
+                else:
+                    results[round(mt, 10)] = seg_zyx
+            return results
+
+        if not seg_raw.exists():
+            raise FileNotFoundError(f"ABISS watershed did not produce expected output: {seg_raw}")
+
+        seg_xyz = _read_segmentation_xyz(seg_raw, output_xyz_shape, halo=1, dtype=output_dtype)
+        # ABISS stores X,Y,Z. Convert back to Z,Y,X expected by this repository.
+        return np.transpose(seg_xyz, (2, 1, 0))
+    finally:
+        if temp_ctx is not None and not keep_workdir:
+            temp_ctx.cleanup()
+
+
+def _parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--input", required=True, help="Input predictions file (.h5/.hdf5/.npy)")
+    parser.add_argument("--output", required=True, help="Output segmentation file (.h5/.hdf5/.npy)")
+    parser.add_argument("--input-dataset", default="main", help="Dataset key for HDF5 input")
+    parser.add_argument("--output-dataset", default="main", help="Dataset key for HDF5 output")
+    parser.add_argument(
+        "--seg-dtype",
+        choices=("uint64", "uint32", "auto"),
+        default="uint64",
+        help="Main segmentation dtype; auto uses uint32 when offset + interior voxels fits.",
+    )
+
+    parser.add_argument(
+        "--abiss-home",
+        default=None,
+        help="Path to ABISS checkout containing build/ws.",
+    )
+    parser.add_argument(
+        "--channels",
+        default=None,
+        help="Optional comma-separated channel indices to pass into ABISS affinity conversion.",
+    )
+    parser.add_argument(
+        "--edge-storage",
+        choices=EDGE_STORAGE_CHOICES,
+        default="destination",
+        help=(
+            "Which endpoint voxel holds each affinity value in the input. "
+            "ABISS reads 'destination' (value at i is the edge i-1 -> i); this "
+            "repo's `banis` affinity target writes 'source' (value at i is the "
+            "edge i -> i+1) and needs a one-voxel shift. Default: destination."
+        ),
+    )
+    parser.add_argument(
+        "--ws-binary",
+        default=None,
+        help="Optional path to ABISS ws binary. Overrides --abiss-home discovery.",
+    )
+    parser.add_argument(
+        "--ws-high-threshold",
+        type=str,
+        default="0.5",
+        help=(
+            "ABISS watershed high threshold. Absolute (e.g. 0.8) or percentile (e.g. p80 or 80%%)."
+        ),
+    )
+    parser.add_argument(
+        "--ws-low-threshold",
+        type=str,
+        default="0.5",
+        help="ABISS watershed low threshold. Absolute (e.g. 0.01) or percentile (e.g. p1 or 1%%).",
+    )
+    parser.add_argument(
+        "--ws-size-threshold",
+        type=int,
+        default=0,
+        help="ABISS watershed size threshold.",
+    )
+    parser.add_argument(
+        "--ws-dust-threshold",
+        type=int,
+        default=None,
+        help="ABISS watershed dust threshold. Default: --ws-size-threshold.",
+    )
+    parser.add_argument(
+        "--ws-merge-threshold",
+        type=str,
+        default=None,
+        help=(
+            "Affinity threshold for size-based merging. Absolute or "
+            "percentile. Default: --ws-low-threshold."
+        ),
+    )
+    parser.add_argument(
+        "--ws-merge-thresholds",
+        type=str,
+        default=None,
+        help="Comma-separated merge thresholds for batch mode. Runs watershed once, "
+        "merges with each threshold. Writes {output}_mt{i}.{ext} per threshold.",
+    )
+    parser.add_argument(
+        "--ws-merge-function",
+        type=str,
+        default=None,
+        help=(
+            "Edge scoring function for region graph construction. "
+            "'max' (default), 'mean', or 'pNN' for Nth percentile "
+            "(e.g. 'p75', 'p90'). Percentile scoring is more robust "
+            "than max against noisy boundary voxels."
+        ),
+    )
+    parser.add_argument(
+        "--abiss-boundary-flags",
+        default="1,1,1,1,1,1",
+        help="Six boundary flags for ABISS param.txt as comma-separated ints.",
+    )
+    parser.add_argument(
+        "--abiss-offset",
+        type=int,
+        default=0,
+        help="Segment id offset written to ABISS param.txt.",
+    )
+    parser.add_argument(
+        "--abiss-workdir",
+        default=None,
+        help="Optional persistent workspace path for ABISS intermediate files.",
+    )
+    parser.add_argument(
+        "--keep-abiss-workdir",
+        action="store_true",
+        help="Keep temporary ABISS workdir for debugging.",
+    )
+    return parser.parse_args()
+
+
+def main() -> int:
+    args = _parse_args()
+    input_path = Path(args.input).resolve()
+    output_path = Path(args.output).resolve()
+
+    predictions = _read_array(input_path, dataset=args.input_dataset)
+    if predictions.ndim == 5 and predictions.shape[0] == 1:
+        predictions = predictions[0]
+    if predictions.ndim != 4:
+        raise ValueError(
+            f"Expected predictions with shape (C, Z, Y, X); got shape {predictions.shape}."
+        )
+
+    ws_dust = args.ws_size_threshold if args.ws_dust_threshold is None else args.ws_dust_threshold
+    channels = _parse_int_list(args.channels, name="channels") if args.channels else None
+    boundary_flags = _parse_int_list(
+        args.abiss_boundary_flags,
+        expected_len=6,
+        name="abiss-boundary-flags",
+    )
+    abiss_home = Path(args.abiss_home).expanduser().resolve() if args.abiss_home else None
+    ws_binary = _resolve_ws_binary(abiss_home, args.ws_binary)
+    if ws_binary is None:
+        raise FileNotFoundError(
+            "ABISS ws binary was not found. "
+            "Set --ws-binary or --abiss-home to a valid ABISS checkout."
+        )
+
+    # Determine batch vs single merge threshold mode.
+    batch_merge_thresholds: Optional[list[float]] = None
+    if args.ws_merge_thresholds is not None:
+        batch_merge_thresholds = [float(x.strip()) for x in args.ws_merge_thresholds.split(",")]
+
+    # Resolve percentile thresholds against the affinity data.
+    all_thresh_strs = [args.ws_high_threshold, args.ws_low_threshold]
+    if args.ws_merge_threshold is not None:
+        all_thresh_strs.append(args.ws_merge_threshold)
+
+    needs_percentile = any(_parse_threshold(v)[1] for v in all_thresh_strs)
+    if needs_percentile:
+        aff_for_pct = _to_abiss_affinity(
+            predictions, channels=channels, edge_storage=args.edge_storage
+        )
+        print(
+            f"Resolving percentile thresholds (affinity range: "
+            f"[{aff_for_pct.min():.6f}, {aff_for_pct.max():.6f}]):"
+        )
+    else:
+        aff_for_pct = np.empty(0)  # unused, _resolve_threshold won't compute percentiles
+
+    ws_high = _resolve_threshold(args.ws_high_threshold, aff_for_pct, "ws_high_threshold")
+    ws_low = _resolve_threshold(args.ws_low_threshold, aff_for_pct, "ws_low_threshold")
+    ws_merge: Optional[float] = None
+    if args.ws_merge_threshold is not None:
+        ws_merge = _resolve_threshold(args.ws_merge_threshold, aff_for_pct, "ws_merge_threshold")
+
+    # Release the threshold-resolution affinity copy before _run_abiss_ws
+    # builds its own float32 XYZC array.
+    del aff_for_pct
+    gc.collect()
+
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+
+    ws_merge_function = args.ws_merge_function
+    holder = [predictions]
+    del predictions
+
+    if batch_merge_thresholds is not None and len(batch_merge_thresholds) > 1:
+        # Batch mode: run watershed once, merge with each threshold.
+        stem = output_path.stem
+        ext = output_path.suffix
+        parent = output_path.parent
+
+        def _write_one(i: int, mt: float, seg: np.ndarray) -> None:
+            _write_array(parent / f"{stem}_mt{i}{ext}", seg, dataset=args.output_dataset)
+
+        _run_abiss_ws(
+            predictions_czyx=holder,
+            ws_binary=ws_binary,
+            ws_high_threshold=ws_high,
+            ws_low_threshold=ws_low,
+            ws_size_threshold=int(args.ws_size_threshold),
+            ws_dust_threshold=int(ws_dust),
+            boundary_flags=boundary_flags,
+            offset=int(args.abiss_offset),
+            channels=channels,
+            workdir=Path(args.abiss_workdir).resolve() if args.abiss_workdir else None,
+            keep_workdir=bool(args.keep_abiss_workdir),
+            ws_merge_thresholds=batch_merge_thresholds,
+            ws_merge_function=ws_merge_function,
+            edge_storage=args.edge_storage,
+            on_batch_result=_write_one,
+            seg_dtype=args.seg_dtype,
+        )
+        return 0
+
+    segmentation = _run_abiss_ws(
+        predictions_czyx=holder,
+        ws_binary=ws_binary,
+        ws_high_threshold=ws_high,
+        ws_low_threshold=ws_low,
+        ws_size_threshold=int(args.ws_size_threshold),
+        ws_dust_threshold=int(ws_dust),
+        boundary_flags=boundary_flags,
+        offset=int(args.abiss_offset),
+        channels=channels,
+        workdir=Path(args.abiss_workdir).resolve() if args.abiss_workdir else None,
+        keep_workdir=bool(args.keep_abiss_workdir),
+        ws_merge_threshold=ws_merge,
+        ws_merge_function=ws_merge_function,
+        edge_storage=args.edge_storage,
+        seg_dtype=args.seg_dtype,
+    )
+
+    _write_array(output_path, cast(np.ndarray, segmentation), dataset=args.output_dataset)
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

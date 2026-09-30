@@ -1,49 +1,11 @@
 #!/usr/bin/env python3
-"""PyTorch Connectomics command-line entry point."""
+"""Run the installed PyTorch Connectomics CLI from a source checkout."""
 
-from __future__ import annotations
-
-import logging
 import sys
 from pathlib import Path
 
-logging.basicConfig(level=logging.INFO, format="%(message)s", stream=sys.stdout)
-
-# Add parent directory to path for direct script execution.
-REPO_ROOT = Path(__file__).parent.parent
-sys.path.insert(0, str(REPO_ROOT))
-
-from connectomics.runtime.cli import parse_args, setup_config  # noqa: E402
-from connectomics.runtime.dispatch import (  # noqa: E402
-    dispatch_runtime,
-    prepare_cli_args,
-    suppress_nonzero_rank_stdout,
-)
-from connectomics.runtime.torch_safe_globals import register_torch_safe_globals  # noqa: E402
-
-register_torch_safe_globals()
-
-
-def main() -> None:
-    """Parse CLI options, resolve config, and dispatch the requested runtime mode."""
-    suppress_nonzero_rank_stdout()
-    args = parse_args()
-    prepare_cli_args(args, REPO_ROOT)
-
-    mode_labels = {
-        "train": "Training",
-        "test": "Testing",
-        "tune": "Parameter Tuning",
-        "tune-test": "Parameter Tuning + Testing",
-    }
-    mode_label = mode_labels.get(args.mode, args.mode.capitalize())
-    print("\n" + "=" * 60)
-    print(f"PyTorch Connectomics | {mode_label}")
-    print("=" * 60)
-    cfg = setup_config(args)
-
-    dispatch_runtime(args, cfg)
-
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+from connectomics.cli import main  # noqa: E402
 
 if __name__ == "__main__":
     main()

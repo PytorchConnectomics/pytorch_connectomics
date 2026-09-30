@@ -6,32 +6,28 @@ package:
   version: {{ version }}
 
 source:
-  url: https://github.com/zudi-lin/pytorch_connectomics/archive/v{{ version }}.tar.gz
+  url: https://github.com/PytorchConnectomics/pytorch_connectomics/archive/v{{ version }}.tar.gz
   sha256: # Will be filled in during feedstock creation
 
 build:
   number: 0
-  skip: true  # [py<38 or py>=313]
+  skip: true  # [py<39 or py>=313]
   script: {{ PYTHON }} -m pip install . -vv --no-deps --no-build-isolation
   entry_points:
-    - pytc-demo = connectomics.utils.demo:run_demo
-    - pytc-download = connectomics.utils.download:main
+    - pytc = connectomics.cli:main
+    - pytc-download = connectomics.data.download:main
 
 requirements:
-  build:
-    - {{ compiler('c') }}
-    - {{ compiler('cxx') }}
   host:
     - python
     - pip
     - setuptools >=45
     - wheel
-    - cython >=0.29.22
-    - numpy
   run:
-    - python
+    - python >=3.9,<3.13
     - pytorch >=1.8.0
-    - {{ pin_compatible('numpy') }}
+    - torchvision >=0.9.0
+    - numpy >=1.23.0
     - pytorch-lightning >=2.0.0
     - monai >=0.9.1
     - torchmetrics >=0.11.0
@@ -39,32 +35,40 @@ requirements:
     - scipy >=1.5
     - scikit-learn >=0.23.1
     - scikit-image >=0.17.2
-    - opencv
+    - libopencv * headless*
+    - py-opencv >=4.3.0
     - h5py >=2.10.0
     - zarr >=2.10.0
     - imageio >=2.9.0
+    - nibabel >=3.0.0
     - matplotlib-base >=3.3.0
     - tensorboard >=2.2.2
     - tqdm >=4.58.0
     - einops >=0.3.0
     - psutil >=5.8.0
+    - filelock >=3.0.0
     - connected-components-3d >=3.0.0
     - fastremap >=1.10.0
+    - kimimaro >=1.0.0
+    - crackle-codec >=0.1.0
+    - mahotas >=1.4.0
+    - fastmorph >=1.0.0
 
 test:
   imports:
     - connectomics
     - connectomics.config
     - connectomics.data
-    - connectomics.training.lit
+    - connectomics.training.lightning
     - connectomics.models
     - connectomics.utils
   commands:
-    - pytc-demo --help
+    - pytc --help
+    - pytc --demo
     - pytc-download --list
 
 about:
-  home: https://github.com/zudi-lin/pytorch_connectomics
+  home: https://github.com/PytorchConnectomics/pytorch_connectomics
   license: MIT
   license_family: MIT
   license_file: LICENSE
@@ -75,7 +79,7 @@ about:
     Built on PyTorch Lightning and MONAI, it provides a scalable, flexible,
     and easy-to-use platform for electron microscopy image analysis.
   doc_url: https://connectomics.readthedocs.io
-  dev_url: https://github.com/zudi-lin/pytorch_connectomics
+  dev_url: https://github.com/PytorchConnectomics/pytorch_connectomics
 
 extra:
   recipe-maintainers:

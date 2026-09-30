@@ -3,10 +3,10 @@
 The source location is the only required argument, so this works for any public
 precomputed layer, image or segmentation:
 
-  # whole j0126 EM volume at mip 0 (9 x 9 x 20 nm) -- ~660 GB uint8, shard it
+  # download a public precomputed EM volume in shards
   python scripts/download_precompute.py \
-      gs://j0126-nature-methods-data/GgwKmcKgrcoNxJccKuGIzRnQqfit9hnfK1ctZzNbnuU/rawdata_realigned \
-      --out /path/to/j0126_em.zarr --mip 0 --tile-xy 2048 --slab 64
+      gs://bucket/path/image-layer \
+      --out /path/to/em.zarr --mip 0 --tile-xy 2048 --slab 64
 
   # one 1008^3 test chunk instead of the whole volume (a few minutes, ~1 GB)
   python scripts/download_precompute.py <source> --out crop.zarr --mip 0 \
@@ -14,8 +14,7 @@ precomputed layer, image or segmentation:
 
 Point a config at the array inside the store, e.g. `image: /path/to/crop.zarr/main`.
 
-Notes carried over from the measured full-volume runs
-(`dev/zebrafinch/download_ffn_gcs.py`, which this generalizes):
+Operational notes for large-volume downloads:
 
 * `--parallel` stays 1 by default. CloudVolume's multiprocessing path measured
   ~10x SLOWER here, and combined with `--fill-missing` a failed worker returns
@@ -39,11 +38,17 @@ from cloudvolume import CloudVolume
 
 
 def parse_args():
-    ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("source", help="precomputed location, e.g. gs://bucket/path/layer (precomputed:// optional)")
+    ap = argparse.ArgumentParser(
+        description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
+    )
+    ap.add_argument(
+        "source", help="precomputed location, e.g. gs://bucket/path/layer (precomputed:// optional)"
+    )
     ap.add_argument("--out", required=True, help="output zarr store path")
     ap.add_argument("--dataset", default="main", help="array name inside the store (default: main)")
-    ap.add_argument("--mip", type=int, default=0, help="source mip level (default: 0, full resolution)")
+    ap.add_argument(
+        "--mip", type=int, default=0, help="source mip level (default: 0, full resolution)"
+    )
     ap.add_argument(
         "--bbox",
         type=int,
@@ -52,9 +57,15 @@ def parse_args():
         help="ZYX voxel bounds at the chosen mip; default is the whole volume",
     )
     ap.add_argument("--slab", type=int, default=64, help="Z voxels per job (default: 64)")
-    ap.add_argument("--tile-xy", type=int, default=0, help="XY tile per job; 0 = whole XY plane per slab")
-    ap.add_argument("--parallel", type=int, default=1, help="CloudVolume workers (see module docstring)")
-    ap.add_argument("--fill-missing", action="store_true", help="return zeros for missing source chunks")
+    ap.add_argument(
+        "--tile-xy", type=int, default=0, help="XY tile per job; 0 = whole XY plane per slab"
+    )
+    ap.add_argument(
+        "--parallel", type=int, default=1, help="CloudVolume workers (see module docstring)"
+    )
+    ap.add_argument(
+        "--fill-missing", action="store_true", help="return zeros for missing source chunks"
+    )
     ap.add_argument("--init-only", action="store_true", help="create the zarr array and exit")
     ap.add_argument("--shard-id", type=int, default=0)
     ap.add_argument("--num-shards", type=int, default=1)
@@ -81,9 +92,15 @@ def main():
         z0, z1, y0, y1, x0, x1 = args.bbox
     else:
         z0, z1, y0, y1, x0, x1 = 0, size_z, 0, size_y, 0, size_x
-    for lo, hi, limit, axis in ((z0, z1, size_z, "z"), (y0, y1, size_y, "y"), (x0, x1, size_x, "x")):
+    for lo, hi, limit, axis in (
+        (z0, z1, size_z, "z"),
+        (y0, y1, size_y, "y"),
+        (x0, x1, size_x, "x"),
+    ):
         if not 0 <= lo < hi <= limit:
-            raise SystemExit(f"--bbox {axis} range [{lo}, {hi}) is outside the mip{args.mip} extent [0, {limit})")
+            raise SystemExit(
+                f"--bbox {axis} range [{lo}, {hi}) is outside the mip{args.mip} extent [0, {limit})"
+            )
     shape = (z1 - z0, y1 - y0, x1 - x0)
 
     print(
@@ -138,8 +155,8 @@ def main():
         if key in done:
             continue
         ze, ye, xe = min(zs + args.slab, z1), min(ys + tile, y1), min(xs + tile, x1)
-        block = cv[xs:xe, ys:ye, zs:ze]                        # (dx, dy, dz, channels)
-        block = np.asarray(block[..., 0]).transpose(2, 1, 0)   # -> (dz, dy, dx)
+        block = cv[xs:xe, ys:ye, zs:ze]  # (dx, dy, dz, channels)
+        block = np.asarray(block[..., 0]).transpose(2, 1, 0)  # -> (dz, dy, dx)
         arr[zs - z0 : ze - z0, ys - y0 : ye - y0, xs - x0 : xe - x0] = block
         with open(prog, "a") as f:
             f.write(f"{key}\n")

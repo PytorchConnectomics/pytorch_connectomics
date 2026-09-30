@@ -35,7 +35,7 @@ If any required input is missing, stop and ask.
    Strict-key validation will reject undeclared fields.
 
 5. Smoke run on one batch:
-   `python scripts/main.py --config tutorials/minimal.yaml model.arch.type=<name> --fast-dev-run`.
+   `python scripts/main.py --config tutorials/minimal.yaml train.model.arch.type=<name> --fast-dev-run`.
 
 6. Confirm registration:
    `python -c "from connectomics.models.architectures import list_architectures; assert '<name>' in list_architectures()"`.

@@ -3,13 +3,14 @@
 Converts 3-channel affinity predictions to instance segmentation using the
 waterz library (watershed followed by hierarchical region agglomeration).
 
-Requires: ``pip install -e lib/waterz``
+Requires the optional installed ``waterz`` package; see INSTALLATION.md.
 """
 
 from __future__ import annotations
 
 import logging
-from typing import Any, Dict, List, Optional, Sequence, Tuple, Union
+from collections.abc import Sequence
+from typing import Any, Optional, Union
 
 import numpy as np
 
@@ -34,7 +35,7 @@ def decode_waterz(
     predictions: np.ndarray,
     thresholds: Union[float, Sequence[float]] = 0.3,
     merge_function: str = "aff50_his256",
-    aff_threshold: Tuple[float, float] = (0.0001, 0.9999),
+    aff_threshold: tuple[float, float] = (0.0001, 0.9999),
     channel_order: str = "xyz",
     edge_offset: int = 1,
     use_aff_uint8: bool = False,
@@ -50,7 +51,7 @@ def decode_waterz(
     dust_remove_size: int = 0,
     return_all_thresholds: bool = False,
     **kwargs: Any,
-) -> "np.ndarray | Dict[float, np.ndarray]":
+) -> np.ndarray | dict[float, np.ndarray]:
     r"""Convert affinity predictions to instance segmentation via waterz.
 
     Performs watershed on the affinity graph to produce an initial
@@ -161,7 +162,7 @@ def decode_waterz(
     """
     if not WATERZ_AVAILABLE:
         raise ImportError(
-            "waterz is not installed. Install it with:\n" "  pip install -e lib/waterz"
+            "waterz is not installed. Install the optional waterz package; see INSTALLATION.md."
         )
 
     predictions = np.asarray(predictions)
@@ -205,7 +206,7 @@ def decode_waterz(
     if int(edge_offset) == 0:
         for c in range(3):
             rolled = np.roll(affs[c], shift=1, axis=c)
-            boundary: List[Any] = [slice(None)] * 3
+            boundary: list[Any] = [slice(None)] * 3
             boundary[c] = 0
             rolled[tuple(boundary)] = 0
             affs[c] = rolled
@@ -236,12 +237,12 @@ def decode_waterz(
     )
 
     # Build kwargs for waterz.waterz()
-    waterz_kwargs: Dict[str, Any] = dict(
-        scoring_function=scoring_function,
-        aff_threshold_low=aff_low,
-        aff_threshold_high=aff_high,
-        seg_dtype="uint32" if use_seg_uint32 else "uint64",
-    )
+    waterz_kwargs: dict[str, Any] = {
+        "scoring_function": scoring_function,
+        "aff_threshold_low": aff_low,
+        "aff_threshold_high": aff_high,
+        "seg_dtype": "uint32" if use_seg_uint32 else "uint64",
+    }
     if fragments is not None:
         waterz_kwargs["fragments"] = fragments.astype(np.uint64, copy=False)
     elif compute_fragments:
@@ -257,7 +258,7 @@ def decode_waterz(
     seg_list = waterz.waterz(affs, thresholds=thresholds_list, **waterz_kwargs)
 
     # Post-process each result
-    processed: List[np.ndarray] = []
+    processed: list[np.ndarray] = []
     for waterz_result in seg_list:
         if do_dust_merge:
             seg, region_graph = waterz_result
@@ -366,8 +367,8 @@ def naive_waterz(predictions: np.ndarray) -> np.ndarray:
     if predictions.shape[0] < 3:
         raise ValueError(f"Expected >= 3 affinity channels, got {predictions.shape[0]}.")
 
-    chunks: List[np.ndarray] = []
-    offsets: List[int] = []
+    chunks: list[np.ndarray] = []
+    offsets: list[int] = []
     cursor = 0
     for z0 in range(0, predictions.shape[1], _NAIVE_WATERZ_CHUNK_DEPTH):
         z1 = min(z0 + _NAIVE_WATERZ_CHUNK_DEPTH, predictions.shape[1])

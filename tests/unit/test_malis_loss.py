@@ -1,4 +1,4 @@
-"""Tests for MalisLoss wrapper around lib/malis."""
+"""Tests for the MalisLoss wrapper around the optional malis package."""
 
 import unittest
 from contextlib import contextmanager

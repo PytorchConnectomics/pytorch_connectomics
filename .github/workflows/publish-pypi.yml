@@ -3,52 +3,46 @@ name: Publish to PyPI
 on:
   release:
     types: [published]
-  workflow_dispatch:
 
 jobs:
-  build:
-    name: Build distribution
+  verify:
+    uses: ./.github/workflows/packaging.yml
+
+  check-version:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-
-      - name: Set up Python
-        uses: actions/setup-python@v5
+      - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
+      - name: Match release tag to package version
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          python - <<'PY'
+          import os
+          import tomllib
+          from pathlib import Path
 
-      - name: Install build tooling
-        run: python -m pip install --upgrade pip build twine
-
-      - name: Build sdist and wheel
-        run: python -m build
-
-      - name: Check distribution metadata
-        run: python -m twine check dist/*
-
-      - name: Upload distribution artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: python-package-distributions
-          path: dist/
+          version = tomllib.loads(Path('pyproject.toml').read_text())['project']['version']
+          tag_version = os.environ['RELEASE_TAG'].removeprefix('v')
+          assert tag_version == version, f'{tag_version} != {version}'
+          PY
 
   publish:
-    name: Publish to PyPI
-    needs: [build]
+    name: Publish verified distributions to PyPI
+    needs: [verify, check-version]
     runs-on: ubuntu-latest
-    # Publish only for a real GitHub Release; workflow_dispatch is a build-only dry run.
-    if: github.event_name == 'release'
     environment:
       name: pypi
       url: https://pypi.org/p/pytorch-connectomics
     permissions:
-      id-token: write  # OIDC token for PyPI Trusted Publishing (no API token needed)
+      id-token: write
     steps:
-      - name: Download distribution artifacts
+      - name: Download this run's verified distributions
         uses: actions/download-artifact@v4
         with:
-          name: python-package-distributions
+          name: dist
           path: dist/
-
       - name: Publish to PyPI
         uses: pypa/gh-action-pypi-publish@release/v1

@@ -4,28 +4,29 @@
 #     --config tutorials/basics/decoding_abiss.yaml \
 #     --mode test
 #
-# This uses scripts/run_abiss_volume.py and writes one HDF5 segmentation. It
-# does not use the ABISS chunk hierarchy or perform cross-chunk stitching.
+# Set abiss_home to an external ABISS checkout containing build/ws. The packaged
+# runner does not use the chunk hierarchy or perform cross-chunk stitching.
 
 _base_: ../../connectomics/config/all_profiles.yaml
 
-experiment_name: apl_decoding_abiss_afflow090
+experiment_name: decoding_abiss_afflow090
 description: >-
-  Decode the local APL optic-nerve affinity volume with the single-volume ABISS
+  Decode an optic-nerve affinity volume with the single-volume ABISS
   watershed using a 0.9 low-affinity threshold.
 
 default:
   inference: {}
 
   decoding:
-    load_prediction_path: datasets/apl_decoding/optic_nerve_afffinities.h5
-    save_path: outputs/apl_decoding_abiss_volume/afflow090
+    load_prediction_path: /path/to/affinities/optic_nerve_affinities.h5
+    save_path: outputs/decoding_abiss_volume/afflow090
 
     steps:
       - name: decode_abiss
         kwargs:
+          abiss_home: /path/to/abiss
           command: >-
-            {python_exe} scripts/run_abiss_volume.py
+            {python_exe} -m connectomics.decoding.abiss_runner --abiss-home {abiss_home}
             --input {input_h5}
             --output {output_h5}
           input_dataset: main
@@ -40,25 +41,7 @@ default:
             ws_dust_threshold: 200
             ws_merge_threshold: 0.9
 
-      # ---------------------------------------------------------------------
-      # Postprocessing: shape smoothing.
-      #
-      #   1. fastmorph label opening -- removes hairline necks and one-voxel
-      #      protrusions; label identity never moves, and the result is clamped
-      #      to the original support so the opening cannot add voxels.
-      #   2. cc3d relabel            -- turns a removed neck into two instances.
-      #
-      # The optional third part (`split`) carves cross-z area outliers; it is
-      # OFF here. See the "shape smoothing" section of the tutorial README for
-      # when each part helps and the numbers behind these defaults.
-      #
-      # Measured on this volume (139 ABISS labels, GT-free tube report):
-      #             labels  decent  COMPLETE      VALID        disconnected
-      #   baseline     139      38  26 (68.4%)    15 (39.5%)   0
-      #   open 2d      269      39  28 (71.8%)    17 (43.6%)   0   (-1.7% fg)
-      #   open 3d      241      46  33 (71.7%)    20 (43.5%)   0   (-3.4% fg)
-      #   open 3d+split 253     46  33 (71.7%)    20 (43.5%)   4
-      # ---------------------------------------------------------------------
+      # Optional shape smoothing: label opening, relabeling, and cross-z splitting.
       - name: shape_smooth
         kwargs:
           open: true
@@ -73,9 +56,7 @@ default:
           connectivity: 26
           dust_size: 0
 
-          # The cross-z carve. Off by default: on this volume it left COMPLETE
-          # and VALID unchanged while raising `disconnected` from 0 to 4, since
-          # a carved id can end up in two 3D pieces.
+          # Cross-z area-outlier splitting is disabled by default.
           split: false
           # An area outlier is a slice-to-slice STEP exceeding both a fraction of
           # the label's local median area and an absolute voxel count. The step
@@ -91,13 +72,12 @@ default:
           max_run: 64
           # Refuse to carve off a cross-section sitting on a volume z-face: it is
           # truncated by the face, so the step beside it is a boundary artifact,
-          # not a merge. Without this, 8 of 15 carves started at z1 and one ran
-          # the full 63 slices -- the one-sided-carve drift.
+          # not a merge.
           anchor_border: 2
 
 test:
   data:
     test:
-      name: apl_optic_nerve_abiss_afflow090
+      name: optic_nerve_abiss_afflow090
       label: null
       resolution: [8, 8, 8]

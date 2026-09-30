@@ -1,77 +1,52 @@
-# Tutorial Configs
+# Tutorial configs
 
-Tutorial configs are in this tree and are intended to be runnable with:
+Run a workflow from the repository root after installing PyTC and obtaining its data:
 
 ```bash
-python scripts/main.py --config tutorials/<config>.yaml
+python scripts/main.py --config tutorials/mito_lucchi++/mito_lucchi++.yaml
 ```
 
-## Active configs
+| Workflow | Config |
+|---|---|
+| Synthetic CPU demo | `tutorials/minimal.yaml` (`pytc --demo`) |
+| Lucchi++ mitochondria | `tutorials/mito_lucchi++/mito_lucchi++.yaml` |
+| MitoEM human, rat, joint | `tutorials/mitoEM/H.yaml`, `tutorials/mitoEM/R.yaml`, `tutorials/mitoEM/HR.yaml` |
+| MitoLab mitochondria | `tutorials/mito_mitolab.yaml` |
+| BetaSeg mitochondria | `tutorials/mito_betaseg.yaml` |
+| SNEMI3D neurons | `tutorials/neuron_snemi/neuron_snemi.yaml` |
+| NISB neurons | `tutorials/neuron_nisb/base_banis.yaml`, `tutorials/neuron_nisb/base_banis+.yaml` |
+| NucMM nuclei | `tutorials/nuc_nucmm-z.yaml` |
+| CREMI synapses | `tutorials/syn_cremi.yaml` |
+| Vesicles | `tutorials/vesicle_xm.yaml` |
+| External ABISS decoding | `tutorials/basics/decoding_abiss.yaml` |
+| waterz decoding | `tutorials/waterz_decoding.yaml` |
 
-- `tutorials/mito_lucchi++/mito_lucchi++.yaml`: Lucchi++ semantic mitochondria
-  segmentation (MedNeXt-S).
-- `tutorials/mitoEM/H.yaml`: MitoEM-Human (EM30-H) instance segmentation (MedNeXt, SDT).
-- `tutorials/mitoEM/R.yaml`: MitoEM-Rat (EM30-R) instance segmentation (MedNeXt, SDT).
-- `tutorials/mitoEM/HR.yaml`: Joint EM30-H + EM30-R training (MedNeXt, SDT).
-- `tutorials/mito_mitolab.yaml`: CEM-MitoLab 2D mitochondria segmentation (MedNeXt).
-- `tutorials/mito_betaseg.yaml`: BetaSeg mitochondria instance segmentation (MedNeXt, affinity+SDT).
-- `tutorials/neuron_snemi/neuron_snemi.yaml`: SNEMI3D neuron instance segmentation
-  (MedNeXt-S, 12-channel affinity, waterz).
-- `tutorials/nuc_nucmm-z.yaml`: NucMM zebrafish nuclei segmentation (MONAI UNet, multi-task).
-- `tutorials/neuron_microns_pinky.yaml`: MICrONS Pinky neuron instance segmentation
-  (MedNeXt-L, affinity + auxiliary LSD, source-volume train/test split).
+Use `python scripts/download_data.py --list` for available public downloads.
+Downloader layouts are relative to `datasets/`; replace `/path/to/` placeholders
+in other workflows with your local data and external-tool locations.
 
-## Shared recipes (not runnable on their own)
+Shared recipes `tutorials/banis.yaml`, `tutorials/banis+.yaml`,
+`tutorials/mitoEM/common.yaml`, and `tutorials/neuron_nisb/dataset.yaml` supply
+base settings and are composed by their dataset workflows.
 
-- `tutorials/banis.yaml`: BANIS neuron-affinity recipe (MedNeXt-L/k3, 6-channel affinity,
-  128-cube, 50k steps) with **no** data paths.
-- `tutorials/banis+.yaml`: `banis.yaml` + the ML-ops deltas (per-channel class-balanced BCE,
-  EMA, label erosion=2, 200k steps).
+## Config composition
 
-Dataset tutorials inherit one of these and add only their own data:
-`tutorials/neuron_nisb/base_banis+.yaml` = `banis+.yaml` + `neuron_nisb/dataset.yaml`;
-`tutorials/neuron_j0126/infer_affinity.yaml` = `banis+.yaml` + its own zebrafinch block.
-
-- `tutorials/mito_betaseg_base.yaml`: the betaSeg benchmark — data splits, label caching,
-  sparse-crop sampling, and the shared watershed decode + Adapted-Rand metric. The four
-  `mito_betaseg_banis_{v0,plus,v1,v2}.yaml` recipes inherit it and add only their model
-  and schedule; `_plus` is `_v0` plus its documented deltas (MedNeXt-L, PerChannelBCE,
-  erosion=2, EMA). These are a separate lineage from `banis.yaml` — 7-channel aff+SDT
-  multi-head, not 6-channel affinity — so they do not share it.
-
-## Config composition (`_base_`)
-
-Top-level configs now use inheritance via `_base_`:
-
-- `connectomics/config/all_profiles.yaml`: Canonical registry index loaded by top-level tutorials.
-- `connectomics/config/profiles/*.yaml`: Section-level registries selected by `*.profile`.
-- `connectomics/config/templates/*.yaml`: Explicit list-item templates, currently used for top-level `decoding`.
-
-`_base_` supports:
-
-- A single file path (`_base_: ../connectomics/config/all_profiles.yaml`)
-- A list of files (`_base_: [a.yaml, b.yaml]`) with left-to-right merge order
-- Relative paths resolved from the current config file
-
-Merge semantics:
-
-- Profile payloads are merged into the destination section first.
-- Explicit keys in the tutorial override profile keys.
-- Explicit lists replace profile lists; they are not additive.
-- Canonical decoding syntax is explicit list templating: `- template: decoding_waterz`.
+`_base_` accepts a path or a list of paths, resolved relative to the current YAML.
+Top-level recipes inherit `connectomics/config/all_profiles.yaml` for the shared
+section registries in `connectomics/config/profiles/` and list templates in
+`connectomics/config/templates/`. Select section profiles at `*.profile` and
+list templates with `template:`. Explicit keys override profile values; explicit
+lists replace profile lists.
 
 ## Validation
 
-Validate top-level tutorial configs:
+The validator checks every tutorial YAML by default, including shared recipes.
+It rejects unknown or removed schema keys and absolute paths outside `/path/to/`.
+No workflow is exempt from loading and runtime-coherence checks.
 
 ```bash
 python scripts/validate_tutorial_configs.py
+python scripts/validate_tutorial_configs.py --glob 'tutorials/*.yaml' --glob 'tutorials/**/*.yaml'
 ```
 
-Include nested tutorial families, including Lucchi++:
-
-```bash
-python scripts/validate_tutorial_configs.py --glob 'tutorials/**/*.yaml'
-```
-
-This check fails if a config cannot load or if legacy keys reappear (`inference.data`, `data.augmentation.enabled`, or `inference.test_time_augmentation.act`).
+Supplying `--glob` replaces the default patterns.

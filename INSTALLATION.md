@@ -5,7 +5,7 @@ PyTorch Connectomics (PyTC) installs into its own conda environment
 and about 6 GB of disk, most of it the PyTorch CUDA wheel.
 
 ```bash
-git clone https://github.com/zudi-lin/pytorch_connectomics.git
+git clone https://github.com/PytorchConnectomics/pytorch_connectomics.git
 cd pytorch_connectomics
 python install.py                    # creates env "pytc", picks the right PyTorch
 conda activate pytc
@@ -40,7 +40,7 @@ installing a PyTorch that imports fine but cannot run on the GPU.
 | Path | Use when | Command |
 |---|---|---|
 | **`install.py`** (recommended) | Almost always | `python install.py` |
-| `quickstart.sh` | Fresh machine, no conda, no clone yet | `curl -fsSL https://raw.githubusercontent.com/zudi-lin/pytorch_connectomics/master/quickstart.sh \| bash` |
+| `quickstart.sh` | Fresh machine, no conda, no clone yet | `curl -fsSL https://raw.githubusercontent.com/PytorchConnectomics/pytorch_connectomics/master/quickstart.sh \| bash` |
 | Coding agent | You'd rather have Claude Code / Codex drive and diagnose | `just install-claude` or `just install-codex` |
 | Manual | You need full control, or `install.py` fails on your host | [Manual install](#manual-install) |
 | Docker | Reproducible, isolated image | [`docker/README.md`](docker/README.md) |
@@ -56,7 +56,7 @@ python install.py [options]
 | Flag | Default | Purpose |
 |---|---|---|
 | `--env-name NAME` | `pytc` | Conda env to create or reuse |
-| `--python VER` | `3.11` | Python version (3.8–3.12) |
+| `--python VER` | `3.11` | Python version (3.9–3.12) |
 | `--install-type` | `basic` | `basic`, `dev` (adds pytest, linters), or `full` (adds wandb, optuna, tifffile, neuroglancer, nd2) |
 | `--cuda X.Y` | auto | Pretend the driver supports CUDA `X.Y` (see below) |
 | `--torch-index-url URL` | — | Install PyTorch from exactly this index and skip detection, e.g. `https://download.pytorch.org/whl/cu130` |
@@ -115,20 +115,18 @@ python scripts/main.py --demo
 This trains a small model on synthetic data for about 30 seconds and
 prints `DEMO COMPLETED SUCCESSFULLY`.
 
-**On shared GPU machines** (Slurm clusters, lab workstations), run
-the demo on an allocated GPU, not a login node or a GPU someone else
-is using:
+**For training on shared GPU machines**, request an allocated GPU:
 
 ```bash
-srun --gres=gpu:1 --time=00:10:00 python scripts/main.py --demo
+srun --gres=gpu:1 python scripts/main.py --config tutorials/mito_lucchi++/mito_lucchi++.yaml
 # or, on a workstation, pick an idle GPU first:
-nvidia-smi && CUDA_VISIBLE_DEVICES=0 python scripts/main.py --demo
+nvidia-smi
+CUDA_VISIBLE_DEVICES=0 python scripts/main.py --config tutorials/mito_lucchi++/mito_lucchi++.yaml
 ```
 
 `python -m pytest tests/unit -q` is a developer check (needs
-`--install-type dev`). Some tests need data or scripts that are not
-in a fresh clone, so failures there don't necessarily mean the install
-is broken.
+`--install-type dev`). Tests needing optional packages, a GPU, or explicitly configured external
+resources skip with a reason in a fresh clone.
 
 ---
 
@@ -152,11 +150,25 @@ python scripts/check_install.py
 
 ```bash
 pip install -e ".[full]"   # wandb, optuna, tifffile, neuroglancer, nd2, gputil
-pip install -e ".[dev]"    # pytest, pytest-cov, pytest-benchmark, black, flake8, isort, mypy
+pip install -e ".[dev]"    # pytest, pytest-cov, pytest-benchmark, ruff, mypy
 pip install git+https://github.com/PytorchConnectomics/MedNeXt.git
 ```
 
 `wandb` is part of `[full]`; there is no separate `[wandb]` extra.
+Focused extras: `[cloud]` installs cloud-volume, `[viz]` installs neuroglancer,
+and `[tune]` installs optuna.
+
+### Optional external packages
+
+Install these separately only for workflows that use them.
+
+| Package | Source / configuration |
+|---|---|
+| waterz | Install from `https://github.com/funkey/waterz`; imported as `waterz`. |
+| affogato | Install from `https://github.com/constantinpape/affogato`; imported as `affogato`. |
+| em_erl | Install an `em_erl` distribution into the active environment for NERL evaluation. |
+| MedNeXt | `pip install git+https://github.com/PytorchConnectomics/MedNeXt.git` |
+| ABISS | Build `https://github.com/seung-lab/abiss`; set decoder `abiss_home` or `PYTC_ABISS_HOME` to the checkout containing `build/ws`. The packaged `connectomics.decoding.abiss_runner` module runs it. |
 
 ---
 
@@ -177,16 +189,6 @@ just install-codex      # or: codex "$(cat prompts/INSTALL.md)"
 You approve each shell command. Expect prompts for the conda env,
 the PyTorch download, `pip install -e .`, and the checks.
 
-**Unattended (trusted, isolated machines only).** These flags give the
-agent unrestricted shell access. Use them only on throwaway VMs,
-containers, or a dedicated account, never on a shared workstation or
-a machine with private data.
-
-```bash
-claude -p --permission-mode bypassPermissions --allowedTools "Bash(*)" \
-       "$(cat prompts/INSTALL.md)"
-codex exec --dangerously-bypass-approvals-and-sandbox - < prompts/INSTALL.md
-```
 
 ---
 
@@ -293,14 +295,17 @@ solver hangs, make sure you are using a recent conda or Miniforge.
 
 ---
 
-## Cluster-specific helpers
+## Remote visualization
 
-On the BC Slurm cluster, `scripts/setup_slurm.sh` (`just
-setup-slurm`) detects the cluster's CUDA/cuDNN modules and patches
-`~/.bashrc` to load them. It is not part of the standard install, and
-current PyTorch wheels do not need those modules. Use it only if a
-workflow on that cluster needs a system CUDA toolkit.
+The Neuroglancer viewer binds to `127.0.0.1` by default. Forward its port over SSH:
 
-For Docker, see [`docker/README.md`](docker/README.md). The image pins
-an official CUDA-enabled PyTorch base and runs as a non-root user whose
-UID/GID can match the host.
+```bash
+ssh -L 9999:127.0.0.1:9999 user@server
+# On the server, in the active environment:
+python scripts/visualize_neuroglancer.py --port 9999 --image /path/to/image.h5
+```
+
+Open the printed viewer URL locally. Explicit `--bind-address 0.0.0.0` exposes
+an unauthenticated viewer to the network and prints a warning.
+
+For Docker, see [`docker/README.md`](docker/README.md).

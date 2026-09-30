@@ -9,7 +9,7 @@ import time
 from collections.abc import Sequence
 from dataclasses import replace
 from pathlib import Path
-from typing import Any
+from typing import Any, Union, cast
 
 import numpy as np
 import torch
@@ -133,9 +133,7 @@ def _open_precomputed_layer(
 def _to_abiss_affinity_convention(pred: np.ndarray) -> np.ndarray:
     """Convert BANIS/source-stored affinity to the convention ABISS reads.
 
-    Two independent changes, both required (see
-    ``dev/zebrafinch/upload_affinity_full_masked.py``, which applied them as a
-    post-hoc pass over saved HDF5 chunks):
+    Two independent changes are required:
 
     1. Edge shift ``dst[c, v] = src[c, v-1]`` along spatial axis ``c``. The model
        stores an edge on its *source* voxel (``v -> v+1``); ABISS expects it on the
@@ -156,8 +154,8 @@ def _to_abiss_affinity_convention(pred: np.ndarray) -> np.ndarray:
         )
     shifted = np.zeros_like(pred)
     for c in range(3):
-        dst = [slice(None)] * 4
-        src = [slice(None)] * 4
+        dst: list[Union[slice, int]] = [slice(None)] * 4
+        src: list[Union[slice, int]] = [slice(None)] * 4
         dst[0] = src[0] = c
         dst[c + 1] = slice(1, None)
         src[c + 1] = slice(0, -1)
@@ -249,8 +247,7 @@ def _filter_chunks_to_roi(chunks, roi, crop_before):
     Chunks entirely outside ``roi`` are dropped. Chunks that *straddle* an ROI
     boundary are cropped to it, so a border chunk's written core never extends past
     the real volume geometry into pure padding. Without the crop a straddling chunk
-    is emitted at the full nominal chunk size — 126 of the 726 zebrafinch chunks
-    straddle, writing 37e9 padding voxels (5.3% of the volume).
+    is emitted at the full nominal chunk size, writing padding outside the volume.
 
     ``index``/``key`` come from the pre-crop global grid and are preserved, so chunk
     filenames still match the full-grid naming.
@@ -364,8 +361,7 @@ def _stitch_chunk_prediction_files(
                 source = handle["main"]
                 if int(source.shape[0]) != channel_count:
                     raise ValueError(
-                        f"Chunk {chunk.key} channel mismatch: "
-                        f"{source.shape[0]} vs {channel_count}"
+                        f"Chunk {chunk.key} channel mismatch: {source.shape[0]} vs {channel_count}"
                     )
                 if tuple(int(v) for v in source.shape[-3:]) != expected_spatial:
                     raise ValueError(
@@ -483,7 +479,7 @@ def _run_chunked_prediction_per_rank(
     transform_cfg = getattr(cfg.inference, "prediction_transform", None)
 
     # Optional: stream chunks straight into a CloudVolume precomputed layer instead of
-    # per-chunk HDF5 + stitching, so ABISS/Seuron can read inference output directly.
+    # per-chunk HDF5 + stitching, so ABISS can read inference output directly.
     chunking_cfg = cfg.inference.chunking
     precomputed_out = bool(getattr(chunking_cfg, "precomputed", False))
     precomputed_cv: Any = None
@@ -587,7 +583,7 @@ def _run_chunked_prediction_per_rank(
                     volume_size_xyz=tuple(reversed(final_shape)),
                     num_channels=channel_count,
                     data_type=str(core_pred.dtype),
-                    resolution_xyz=pc_resolution,
+                    resolution_xyz=cast(Sequence[int], pc_resolution),
                     chunk_size_xyz=pc_chunk_xyz,
                 )
             # (C, Z, Y, X) -> CloudVolume's (X, Y, Z, C)
@@ -739,12 +735,13 @@ def run_chunked_prediction_inference(
     validate_chunked_output_format(cfg)
     chunking_cfg = cfg.inference.chunking
     reference_shape = get_lazy_image_reference_shape(cfg, image_path, mode="test")
-    input_shape = tuple(int(v) for v in reference_shape[-3:])
+    input_shape = cast(tuple[int, int, int], tuple(int(v) for v in reference_shape[-3:]))
     crop_pad = resolve_global_prediction_crop(cfg)
-    crop_before = tuple(int(crop_pad[axis][0]) for axis in range(3))
+    crop_before = cast(tuple[int, int, int], tuple(int(crop_pad[axis][0]) for axis in range(3)))
     crop_after = tuple(int(crop_pad[axis][1]) for axis in range(3))
-    final_shape = tuple(
-        input_shape[axis] - crop_before[axis] - crop_after[axis] for axis in range(3)
+    final_shape = cast(
+        tuple[int, int, int],
+        tuple(input_shape[axis] - crop_before[axis] - crop_after[axis] for axis in range(3)),
     )
     if any(size <= 0 for size in final_shape):
         raise ValueError(
@@ -752,7 +749,9 @@ def run_chunked_prediction_inference(
         )
 
     chunk_shape = resolve_chunk_shape(cfg, final_shape)
-    halo = tuple(int(v) for v in getattr(chunking_cfg, "halo", [0, 0, 0]))
+    halo = cast(
+        tuple[int, int, int], tuple(int(v) for v in getattr(chunking_cfg, "halo", [0, 0, 0]))
+    )
     chunks = build_chunk_grid(final_shape, chunk_shape)
     roi = _resolve_inference_roi(cfg)
     if roi is not None:

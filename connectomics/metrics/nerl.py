@@ -88,16 +88,11 @@ def import_em_erl():
         from em_erl import ERLGraph, compute_erl_score, compute_segment_lut
 
         return ERLGraph, compute_erl_score, compute_segment_lut
-    except ModuleNotFoundError:
-        import sys
-
-        repo_root = Path(__file__).resolve().parents[2]
-        em_erl_root = repo_root / "lib" / "em_erl"
-        if em_erl_root.exists():
-            sys.path.insert(0, str(em_erl_root))
-        from em_erl import ERLGraph, compute_erl_score, compute_segment_lut
-
-        return ERLGraph, compute_erl_score, compute_segment_lut
+    except ImportError as exc:
+        raise ImportError(
+            "NERL evaluation requires the optional em_erl package. "
+            "Install em_erl in the active Python environment; see INSTALLATION.md."
+        ) from exc
 
 
 def reorder_coordinate_axes(
@@ -269,7 +264,7 @@ def load_nerl_graph(
         _save_erl_cache(graph, True, cache_path)
         return graph, True
     raise ValueError(
-        "NERL skeleton must be an ERLGraph .npz or " f"NetworkX skeleton pickle, got {graph_path}"
+        f"NERL skeleton must be an ERLGraph .npz or NetworkX skeleton pickle, got {graph_path}"
     )
 
 
@@ -340,7 +335,7 @@ def extract_nerl_score_outputs(score: Any) -> tuple[float, float, int, np.ndarra
 def skeleton_voi(node_pred_ids: Any, node_gt_ids: Any) -> tuple[float, float, float]:
     """Skeleton-based Variation of Information, matching ``funlib.evaluate.rand_voi``.
 
-    Faithful numpy port of ``lib/funlib.evaluate`` (``impl/rand_voi.hpp``), which
+    Faithful numpy port of ``funlib.evaluate`` (``impl/rand_voi.hpp``), which
     is what BANIS uses: build the joint label histogram over skeleton nodes with a
     non-zero GT label — funlib counts a node only where ``labels_a`` (the GT) is
     non-zero, so GT id 0 is ignored while a predicted background id 0 is kept —

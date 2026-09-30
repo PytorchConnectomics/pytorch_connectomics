@@ -1,0 +1,26 @@
+# Synthetic embedding-supervision contract, independent of experiment configs.
+_base_:
+  - ../../tutorials/neuron_nisb/base_banis+.yaml
+
+default:
+  model:
+    out_channels: 18
+    loss:
+      losses:
+        - function: PerChannelBCEWithLogitsLoss
+          weight: 1.0
+          pred_slice: '0:6'
+          target_slice: '0:6'
+          kwargs:
+            auto_pos_weight: true
+            max_pos_weight: 10.0
+        - function: EmbeddingMeanLoss
+          weight: 0.3
+          pred_slice: '6:18'
+          target_slice: '0:3'
+          kwargs:
+            pair_checkpoint: true
+  data:
+    label_transform:
+      emit_gt_seg: true
+      erosion: 0

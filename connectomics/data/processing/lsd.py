@@ -1,6 +1,6 @@
 """Local Shape Descriptor (LSD) target generation for instance segmentation.
 
-Ported from ``lib/lsd/lsd/train/local_shape_descriptor.py`` (Sheridan et al.,
+Ported from ``lsd.train.local_shape_descriptor`` (Sheridan et al.,
 Nature Methods 2022, ``funkelab/lsd``). The original implementation depends
 on ``gunpowder.Coordinate`` / ``gunpowder.Roi``; this port strips those types
 so PyTC does not pick up a gunpowder dependency.
@@ -21,7 +21,8 @@ just mean offset + size in 3D.
 
 from __future__ import annotations
 
-from typing import Any, Iterable, Optional, Sequence, Union, cast
+from collections.abc import Iterable, Sequence
+from typing import Any, Optional, Union, cast
 
 import numpy as np
 from numpy.lib.stride_tricks import as_strided

@@ -14,7 +14,7 @@ ARG WATERZ_REF=3841cf5adf8b03e81b6f566c439eeee479fdbf27
 
 LABEL org.opencontainers.image.title="PyTorch Connectomics" \
       org.opencontainers.image.description="GPU training environment for PyTorch Connectomics" \
-      org.opencontainers.image.source="https://github.com/zudi-lin/pytorch_connectomics" \
+      org.opencontainers.image.source="https://github.com/PytorchConnectomics/pytorch_connectomics" \
       org.opencontainers.image.base.name="${PYTORCH_IMAGE}"
 
 ENV PYTHONUNBUFFERED=1 \

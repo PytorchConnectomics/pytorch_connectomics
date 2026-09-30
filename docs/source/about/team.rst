@@ -23,7 +23,7 @@ The following people regularly provide suggestions on the design and future dire
 Contributing
 --------------
 
-We would like to thank all current and previous `contributors <https://github.com/zudi-lin/pytorch_connectomics/graphs/contributors>`_ to the PyTorch Connectomics package.
+We would like to thank all current and previous `contributors <https://github.com/PytorchConnectomics/pytorch_connectomics/graphs/contributors>`_ to the PyTorch Connectomics package.
 
 We are looking for motivated contributors to become collaborators and help out with the project. Besides opening issues and pull request on Github, please
 join our `Slack community <https://join.slack.com/t/pytorchconnectomics/shared_invite/zt-obufj5d1-v5_NndNS5yog8vhxy4L12w>`_ to discuss bugs and feature 

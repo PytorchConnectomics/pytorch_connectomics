@@ -22,7 +22,7 @@ from connectomics.decoding.graph import run_decode_graph
 REPO_ROOT = Path(__file__).resolve().parents[2]
 requires_waterz = pytest.mark.skipif(
     find_spec("waterz") is None,
-    reason="requires the optional repository waterz package",
+    reason="requires the optional waterz package",
 )
 
 

@@ -11,10 +11,10 @@ from connectomics.models.losses.embedding import EmbeddingMeanLoss
 
 def test_real_config_label_pipeline_preserves_thin_identity():
     configs = []
-    for name in ("base_banis+.yaml", "base_banis+_embed12.yaml"):
-        cfg = resolve_default_profiles(
-            load_config(Path(__file__).parents[2] / "tutorials/neuron_nisb" / name)
-        )
+    for name in ("tutorials/neuron_nisb/base_banis+.yaml", "tests/fixtures/embedding.yaml"):
+        cfg = resolve_default_profiles(load_config(Path(__file__).parents[2] / name))
+        # GT emission follows erosion; disable erosion to preserve thin instances.
+        cfg.data.label_transform.erosion = 0
         cfg.data.augmentation = None
         cfg.data.image_transform.normalize = "none"
         cfg.data.dataloader.patch_size = [32, 32, 32]

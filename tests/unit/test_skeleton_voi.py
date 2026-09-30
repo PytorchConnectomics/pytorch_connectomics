@@ -1,14 +1,14 @@
 """Skeleton-based VOI must match funlib.evaluate.rand_voi exactly.
 
-``connectomics.metrics.nerl.skeleton_voi`` is a numpy port of the vendored
-``lib/funlib.evaluate`` (``impl/rand_voi.hpp``) — the implementation BANIS uses.
+``connectomics.metrics.nerl.skeleton_voi`` is a numpy port of upstream
+``funlib.evaluate`` (``impl/rand_voi.hpp``) — the implementation BANIS uses.
 These vectors are copied from funlib's own ``test_rand_voi.py`` so the port stays
 bit-faithful. funlib's ``rand_voi(labels_a=gt, labels_b=pred)`` maps to
 ``skeleton_voi(node_pred_ids=pred, node_gt_ids=gt)``.
 """
+
 from __future__ import annotations
 
-import numpy as np
 import pytest
 
 from connectomics.metrics.nerl import skeleton_voi

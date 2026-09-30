@@ -6,6 +6,7 @@ Provides automatic download of tutorial datasets from HuggingFace.
 
 from __future__ import annotations
 
+import argparse
 import shutil
 import sys
 import tarfile
@@ -20,8 +21,7 @@ DATASETS: dict[str, dict[str, Any]] = {
     "lucchi": {
         "name": "Lucchi++ Mitochondria Segmentation",
         "url": (
-            "https://huggingface.co/pytc/tutorial/resolve/main/"
-            "mito_lucchi%2B%2B/lucchi%2B%2B.zip"
+            "https://huggingface.co/pytc/tutorial/resolve/main/mito_lucchi%2B%2B/lucchi%2B%2B.zip"
         ),
         "filename": "lucchi++.zip",
         "extract_dir": "lucchi++",
@@ -38,8 +38,7 @@ DATASETS: dict[str, dict[str, Any]] = {
     "lucchi++": {  # Alias for lucchi
         "name": "Lucchi++ Mitochondria Segmentation",
         "url": (
-            "https://huggingface.co/pytc/tutorial/resolve/main/"
-            "mito_lucchi%2B%2B/lucchi%2B%2B.zip"
+            "https://huggingface.co/pytc/tutorial/resolve/main/mito_lucchi%2B%2B/lucchi%2B%2B.zip"
         ),
         "filename": "lucchi++.zip",
         "extract_dir": "lucchi++",
@@ -202,3 +201,37 @@ def list_datasets():
         print(f"    {info['description']}")
         print(f"    Size: {info['size']}")
         print()
+
+
+def main(argv: list[str] | None = None) -> int:
+    """List or download the public tutorial datasets."""
+    parser = argparse.ArgumentParser(description="Download PyTorch Connectomics tutorial datasets")
+    parser.add_argument("datasets", nargs="*", help="Dataset names, or 'all'")
+    parser.add_argument("--list", "-l", action="store_true", help="List available datasets")
+    parser.add_argument(
+        "--output",
+        "-o",
+        type=Path,
+        default=Path("."),
+        help="Base directory; datasets are saved to <output>/datasets/",
+    )
+    parser.add_argument(
+        "--force", "-f", action="store_true", help="Download existing datasets again"
+    )
+    args = parser.parse_args(argv)
+    if args.list:
+        list_datasets()
+        return 0
+    if not args.datasets:
+        parser.print_help()
+        return 1
+    datasets = (
+        [name for name in DATASETS if not name.endswith("++")]
+        if "all" in args.datasets
+        else args.datasets
+    )
+    success = True
+    for name in datasets:
+        if not download_dataset(name, args.output, args.force):
+            success = False
+    return 0 if success else 1

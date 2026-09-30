@@ -9,8 +9,8 @@ instead of upstream fp32 (required to compare both sides in fp64).
 from __future__ import annotations
 
 import os
+from collections.abc import Sequence
 from pathlib import Path
-from typing import Sequence
 
 import cc3d
 import numpy as np
@@ -129,9 +129,12 @@ class MeanLoss(nn.Module):
     ) -> torch.Tensor:
         """Compute the internal term of the loss."""
         assert len(vecs) == len(means) == len(weights)
-        zero = lambda: torch.zeros(
-            1, dtype=means[0].dtype if means else torch.float64, device=device
-        ).squeeze()
+
+        def zero():
+            return torch.zeros(
+                1, dtype=means[0].dtype if means else torch.float64, device=device
+            ).squeeze()
+
         loss = zero()
         for vec, mean, weight in zip(vecs, means, weights):
             margin = torch.norm(vec - mean, p=1, dim=1) - self.delta_v
@@ -148,9 +151,12 @@ class MeanLoss(nn.Module):
     ) -> torch.Tensor:
         """Compute the external term of the loss."""
         assert len(means) == len(weights)
-        zero = lambda: torch.zeros(
-            1, dtype=means[0].dtype if means else torch.float64, device=device
-        ).squeeze()
+
+        def zero():
+            return torch.zeros(
+                1, dtype=means[0].dtype if means else torch.float64, device=device
+            ).squeeze()
+
         loss = zero()
         count = len(means)
         if (count > 1) and (mext is not None):
@@ -165,9 +171,12 @@ class MeanLoss(nn.Module):
 
     def compute_loss_nrm(self, means: list[torch.Tensor], device: torch.device) -> torch.Tensor:
         """Compute the regularization term of the loss."""
-        zero = lambda: torch.zeros(
-            1, dtype=means[0].dtype if means else torch.float64, device=device
-        ).squeeze()
+
+        def zero():
+            return torch.zeros(
+                1, dtype=means[0].dtype if means else torch.float64, device=device
+            ).squeeze()
+
         loss = zero()
         if len(means) > 0:
             loss = torch.mean(torch.norm(torch.stack(means), p=1, dim=1))
@@ -514,7 +523,7 @@ def test_cuda_memory_stress():
         )
         del pred
     cfg = resolve_default_profiles(
-        load_config(Path(__file__).parents[2] / "tutorials/neuron_nisb/base_banis+_embed12.yaml")
+        load_config(Path(__file__).parents[2] / "tests/fixtures/embedding.yaml")
     )
     configured = cfg.model.loss.losses[1]["kwargs"].get("pair_checkpoint", False)
     assert peaks[configured] < 1.5e9, "Training pair_checkpoint must satisfy the memory gate"
@@ -522,7 +531,7 @@ def test_cuda_memory_stress():
 
 def test_orchestrator_embedding_routing():
     cfg = resolve_default_profiles(
-        load_config(Path(__file__).parents[2] / "tutorials/neuron_nisb/base_banis+_embed12.yaml")
+        load_config(Path(__file__).parents[2] / "tests/fixtures/embedding.yaml")
     )
     terms = cfg.model.loss.losses
     losses = nn.ModuleList([create_loss(term["function"], **term["kwargs"]) for term in terms])

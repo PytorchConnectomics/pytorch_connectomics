@@ -35,7 +35,7 @@ def parse_args():
     parser.add_argument(
         "--demo",
         action="store_true",
-        help="Run quick demo with tutorials/minimal.yaml (auto fast-dev-run=1)",
+        help="Run quick demo with the packaged synthetic config (auto fast-dev-run=1)",
     )
     parser.add_argument(
         "--debug-config",

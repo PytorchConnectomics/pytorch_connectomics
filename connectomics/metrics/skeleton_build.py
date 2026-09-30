@@ -13,8 +13,9 @@ from __future__ import annotations
 
 import logging
 import os
+from collections.abc import Sequence
 from pathlib import Path
-from typing import Any, Sequence
+from typing import Any
 
 import numpy as np
 
@@ -35,7 +36,7 @@ class _Skel:
 def _erl_api():
     from ..metrics.nerl import import_em_erl
 
-    import_em_erl()  # ensures lib/em_erl is importable, raises a clear error if not
+    import_em_erl()  # ensures the installed em_erl package is importable, raises a clear error if not
     from em_erl.erl import ERLGraph, skel_to_erlgraph
 
     return ERLGraph, skel_to_erlgraph

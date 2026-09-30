@@ -140,10 +140,10 @@ train:
       monitor: val_loss_total
       mode: min
   data:
-    root_path: /projects/weilab/dataset/mito/mitoEM
+    root_path: datasets/mitoem
 
 test:
   data:
-    root_path: /projects/weilab/dataset/mito/mitoEM
+    root_path: datasets/mitoem
     test:
       resolution: [30, 8, 8]

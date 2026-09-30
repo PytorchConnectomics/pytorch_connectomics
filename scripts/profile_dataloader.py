@@ -9,7 +9,7 @@ from pathlib import Path
 # Add parent directory to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from connectomics.config import load_config  # noqa: E402
+from connectomics.config import load_config, resolve_default_profiles  # noqa: E402
 from connectomics.config.pipeline import resolve_data_paths  # noqa: E402
 from connectomics.training.lightning import create_datamodule  # noqa: E402
 
@@ -23,6 +23,7 @@ def profile_dataloader(config_path: str, num_batches: int = 10):
 
     # Load config
     cfg = load_config(config_path)
+    cfg = resolve_default_profiles(cfg, mode="train")
     cfg = resolve_data_paths(cfg)
     print(f"Config: {config_path}")
     print(f"Batch size: {cfg.data.dataloader.batch_size}")

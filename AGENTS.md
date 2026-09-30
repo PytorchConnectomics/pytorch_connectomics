@@ -2,14 +2,15 @@
 
 This file is the Codex/OpenAI coding-agent memory for this repository. Claude
 startup memory lives in `CLAUDE.md`; when the two differ, treat this file as the
-Codex execution contract and `CLAUDE.md` as deeper background.
+Codex execution contract and `CLAUDE.md` as a quick command reference.
 
 ## Project
 
 PyTorch Connectomics (PyTC) is a Hydra/OmegaConf + PyTorch Lightning + MONAI
-framework for EM semantic and instance segmentation. The primary CLI entry is
-`scripts/main.py`, which should remain thin: parse/setup config, then dispatch
-through `connectomics.runtime`.
+framework for EM semantic and instance segmentation. The installed CLI is `pytc`, owned by `connectomics/cli.py`;
+`scripts/main.py` is a thin shim. Dispatch belongs in `connectomics.runtime`.
+This public distribution contains the library, public-data workflows and general
+tools. Research workflows are developed separately in a private repository.
 
 Core stack:
 - PyTorch Lightning owns training orchestration, distributed execution, mixed
@@ -92,9 +93,8 @@ inference must not run decoder-specific logic; evaluation must not depend on
   otherwise.
 - Top-level `inference`, `decoding`, and `evaluation` sections are distinct.
   Do not put decode/evaluation fields back under `inference`.
-- Custom large-volume workflow YAMLs under `tutorials/` may intentionally bypass
-  the structured `Config` schema only when declared in
-  `scripts/validate_tutorial_configs.py` as custom workflow roots.
+- Every tutorial YAML must pass the structured validator; there are no skipped
+  custom workflows. Absolute example paths must start with `/path/to/`.
 
 ## Environment
 
@@ -118,9 +118,8 @@ For changed Python files, prefer changed-file scope unless intentionally fixing
 global style debt:
 
 ```bash
-conda run -n pytc black --check <changed_py_files>
-conda run -n pytc isort --check-only <changed_py_files>
-conda run -n pytc flake8 --max-line-length=100 <changed_py_files>
+conda run -n pytc ruff check <changed_py_files>
+conda run -n pytc ruff format --check <changed_py_files>
 conda run -n pytc mypy --config-file .github/mypy_changed.ini <changed_py_files>
 ```
 
@@ -162,8 +161,10 @@ existing `install-claude` / `install-codex` pattern.
 | `prompts/ADD_ARCH.md` | `just add-arch-claude` | `just add-arch-codex` | Register a new model architecture |
 | `prompts/DEBUG_TUTORIAL.md` | `just debug-tutorial-claude` | `just debug-tutorial-codex` | Diagnose a failing tutorial run |
 
-For repo-wide intent → files lookup ("where do I look to add X?"), see
-`CLAUDE.md` § *Agent Quick Reference*.
+Register architectures with `@register_architecture` in
+`connectomics/models/architectures/`; query `list_architectures()` for the current
+set. Register decoders with `register_decoder(name, fn)` in
+`connectomics/decoding/registry.py`. Package ownership above is the lookup guide.
 
 Recipes are interactive (no `--print`); they expect an authenticated
 `claude` or `codex` CLI on PATH.

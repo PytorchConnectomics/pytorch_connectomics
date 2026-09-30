@@ -3,22 +3,23 @@
 
 Checks:
 1. Canonical tutorial configs can be loaded by the Hydra/OmegaConf loader.
-2. Legacy keys that should not appear in top-level tutorials are absent.
+2. Legacy keys that should not appear in tutorials are absent.
+3. Absolute paths use the portable ``/path/to/`` placeholder prefix.
 
-Some large-volume workflow recipes live under ``tutorials/`` but are consumed
-directly by workflow scripts instead of ``scripts/main.py --config``. These are
-identified by a custom top-level root in ``CUSTOM_WORKFLOW_ROOTS`` and reported
-separately rather than loaded through the structured Config schema.
+Every matched YAML is loaded through the structured Config schema.
 """
 
 from __future__ import annotations
 
 import argparse
 import sys
-from pathlib import Path
-from typing import Any, Iterable, List, Tuple
+from collections.abc import Iterable
+from dataclasses import asdict, is_dataclass
+from pathlib import Path, PureWindowsPath
+from typing import Any
 
 import yaml
+from omegaconf import OmegaConf
 
 _REPO_ROOT = Path(__file__).resolve().parents[1]
 if str(_REPO_ROOT) not in sys.path:
@@ -27,7 +28,7 @@ if str(_REPO_ROOT) not in sys.path:
 from connectomics.config import load_config  # noqa: E402
 from connectomics.runtime.preflight import validate_runtime_coherence  # noqa: E402
 
-LEGACY_PATTERNS: List[Tuple[Tuple[str, ...], str]] = [
+LEGACY_PATTERNS: list[tuple[tuple[str, ...], str]] = [
     (("inference", "data"), "Use `test.data` instead of `inference.data`."),
     (
         ("data", "augmentation", "enabled"),
@@ -113,7 +114,7 @@ for _root in (("tune",), ("default", "tune")):
 # `data.train.name` is structurally allowed but advisory only — train mode does
 # not write per-volume artifacts. Validator emits an info warning but does not
 # fail. Implemented inline in the validator main loop.
-ADVISORY_PATTERNS: List[Tuple[Tuple[str, ...], str]] = [
+ADVISORY_PATTERNS: list[tuple[tuple[str, ...], str]] = [
     (
         ("data", "train", "name"),
         "data.train.name has no effect; train mode writes no per-volume artifacts. "
@@ -125,10 +126,8 @@ ADVISORY_PATTERNS: List[Tuple[Tuple[str, ...], str]] = [
     ),
 ]
 
-CUSTOM_WORKFLOW_ROOTS = {"large_decode", "abiss_chunk", "seuron_replay", "error_correction"}
 
-
-def _has_path(data: Any, path: Tuple[str, ...]) -> bool:
+def _has_path(data: Any, path: tuple[str, ...]) -> bool:
     cur = data
     for key in path:
         if not isinstance(cur, dict) or key not in cur:
@@ -142,12 +141,35 @@ def _load_yaml(path: Path) -> Any:
         return yaml.safe_load(f) or {}
 
 
-def _iter_config_paths(glob_patterns: Iterable[str]) -> List[Path]:
-    paths: List[Path] = []
+def _invalid_absolute_paths(data: Any, prefix: str = "") -> list[str]:
+    """Find non-placeholder absolute strings, including nested and inherited values."""
+    if isinstance(data, dict):
+        return [
+            path
+            for key, value in data.items()
+            for path in _invalid_absolute_paths(value, f"{prefix}.{key}".lstrip("."))
+        ]
+    if isinstance(data, list):
+        return [
+            path
+            for index, value in enumerate(data)
+            for path in _invalid_absolute_paths(value, f"{prefix}[{index}]")
+        ]
+    if (
+        isinstance(data, str)
+        and (Path(data).is_absolute() or PureWindowsPath(data).is_absolute())
+        and not data.startswith("/path/to/")
+    ):
+        return [f"{prefix}: {data!r}"]
+    return []
+
+
+def _iter_config_paths(glob_patterns: Iterable[str]) -> list[Path]:
+    paths: list[Path] = []
     for pattern in glob_patterns:
         paths.extend(Path().glob(pattern))
     # Keep deterministic order and unique paths.
-    return sorted(set(p for p in paths if p.is_file()))
+    return sorted({p for p in paths if p.is_file()})
 
 
 def main() -> int:
@@ -155,25 +177,27 @@ def main() -> int:
     parser.add_argument(
         "--glob",
         action="append",
-        default=["tutorials/*.yaml"],
-        help="Glob pattern to include (can be passed multiple times).",
+        default=None,
+        help="Replace the default tutorial globs (repeat to include multiple patterns).",
     )
     args = parser.parse_args()
 
-    config_paths = _iter_config_paths(args.glob)
+    config_paths = _iter_config_paths(args.glob or ["tutorials/*.yaml", "tutorials/**/*.yaml"])
     if not config_paths:
         print("No matching config files found.")
         return 1
 
-    errors: List[str] = []
-    advisories: List[str] = []
+    errors: list[str] = []
+    advisories: list[str] = []
     canonical_count = 0
-    custom_workflows: List[Path] = []
     for config_path in config_paths:
-        raw = _load_yaml(config_path)
-        if isinstance(raw, dict) and CUSTOM_WORKFLOW_ROOTS.intersection(raw):
-            custom_workflows.append(config_path)
+        try:
+            raw = _load_yaml(config_path)
+        except yaml.YAMLError as exc:
+            errors.append(f"{config_path}: invalid YAML ({exc})")
             continue
+        for invalid in _invalid_absolute_paths(raw):
+            errors.append(f"{config_path}: absolute path must start with /path/to/: {invalid}")
 
         canonical_count += 1
         for pattern, message in LEGACY_PATTERNS:
@@ -189,6 +213,15 @@ def main() -> int:
         try:
             cfg = load_config(config_path)
             validate_runtime_coherence(cfg)
+            resolved = (
+                asdict(cfg)
+                if is_dataclass(cfg) and not isinstance(cfg, type)
+                else OmegaConf.to_container(cfg, resolve=True)
+            )
+            for invalid in _invalid_absolute_paths(resolved):
+                message = f"{config_path}: absolute path must start with /path/to/: {invalid}"
+                if message not in errors:
+                    errors.append(message)
         except Exception as exc:  # pragma: no cover - exact exception type may vary.
             errors.append(f"{config_path}: failed to load ({type(exc).__name__}: {exc})")
 
@@ -203,14 +236,7 @@ def main() -> int:
             print(f"  - {err}")
         return 1
 
-    print(
-        f"Validated {canonical_count} canonical tutorial configs successfully; "
-        f"skipped {len(custom_workflows)} custom workflow YAMLs."
-    )
-    if custom_workflows:
-        print("Custom workflows:")
-        for path in custom_workflows:
-            print(f"  - {path}")
+    print(f"Validated {canonical_count} tutorial configs successfully; skipped 0.")
     return 0
 
 

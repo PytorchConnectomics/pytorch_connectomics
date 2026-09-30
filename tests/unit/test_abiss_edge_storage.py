@@ -1,4 +1,4 @@
-"""`run_abiss_volume --edge-storage` must shift source-stored affinity by one voxel.
+"""`abiss_runner --edge-storage` must shift source-stored affinity by one voxel.
 
 An affinity value describes the edge between two adjacent voxels but is stored in
 a voxel-indexed array, so one of the two endpoints has to hold it. ABISS `ws`
@@ -14,26 +14,15 @@ The default stays ``destination`` so existing configs are unaffected.
 
 from __future__ import annotations
 
-import importlib.util
-from pathlib import Path
-
 import numpy as np
 import pytest
 
-REPO_ROOT = Path(__file__).resolve().parents[2]
-SCRIPT = REPO_ROOT / "scripts" / "run_abiss_volume.py"
-
-
-def _load_script():
-    spec = importlib.util.spec_from_file_location("run_abiss_volume", SCRIPT)
-    module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
-    return module
+from connectomics.decoding import abiss_runner
 
 
 @pytest.fixture(scope="module")
 def script():
-    return _load_script()
+    return abiss_runner
 
 
 def _ramp_czyx(shape=(3, 4, 5, 6)) -> np.ndarray:

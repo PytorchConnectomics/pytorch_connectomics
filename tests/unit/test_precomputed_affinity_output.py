@@ -5,6 +5,8 @@ Covers the two things that are silent when wrong: the ABISS affinity convention
 chunk writes safe.
 """
 
+from typing import Union
+
 import numpy as np
 import pytest
 
@@ -15,7 +17,7 @@ from connectomics.inference.chunked import (
 
 
 def _reference_convention(a: np.ndarray) -> np.ndarray:
-    """Independent port of dev/zebrafinch/upload_affinity_full_masked.py.
+    """Independent reference implementation of the output affinity convention.
 
     ``_load_affinity_neg_offset`` (dst[c, v] = src[c, v-1], global low face zeroed)
     followed by the ``a[::-1]`` channel reversal, which is how the reference affinity
@@ -30,7 +32,7 @@ def _reference_convention(a: np.ndarray) -> np.ndarray:
         hi[c] = slice(1, None)
         lo[c] = slice(0, -1)
         dst[tuple(hi)] = src[tuple(lo)]
-        face = [slice(None)] * 3
+        face: list[Union[slice, int]] = [slice(None)] * 3
         face[c] = 0
         dst[tuple(face)] = 0
         out[c] = dst

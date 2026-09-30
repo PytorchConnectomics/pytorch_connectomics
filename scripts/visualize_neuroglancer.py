@@ -6,7 +6,7 @@ Visualize image and label volumes in a web browser using Neuroglancer.
 Runs in interactive mode so you can examine loaded volumes.
 
 Usage:
-    python -i scripts/visualize_neuroglancer.py --config tutorials/monai_lucchi.yaml
+    python -i scripts/visualize_neuroglancer.py --config tutorials/mito_lucchi++/mito_lucchi++.yaml
     python -i scripts/visualize_neuroglancer.py --image path/to/image.tif \
         --label path/to/label.h5
     python -i scripts/visualize_neuroglancer.py --volumes image:path/img.tif \
@@ -42,8 +42,9 @@ Examples:
 import argparse
 import logging
 import sys
+from collections.abc import Sequence
 from pathlib import Path
-from typing import TYPE_CHECKING, Dict, List, Optional, Sequence, Tuple
+from typing import TYPE_CHECKING, Optional
 
 import numpy as np
 
@@ -72,7 +73,7 @@ def normalize_resolution_zyx(
     resolution: Optional[Sequence[float]],
     *,
     context: str = "resolution",
-) -> Optional[Tuple[float, float, float]]:
+) -> Optional[tuple[float, float, float]]:
     """Normalize resolution to explicit zyx order.
 
     Accepts:
@@ -140,8 +141,8 @@ def apply_image_transform(data: np.ndarray, cfg) -> np.ndarray:
             low_val = np.percentile(data, low_pct * 100)
             high_val = np.percentile(data, high_pct * 100)
             print(
-                f"    Clipping: {low_pct*100:.1f}th percentile ({low_val:.2f}) "
-                f"to {high_pct*100:.1f}th percentile ({high_val:.2f})"
+                f"    Clipping: {low_pct * 100:.1f}th percentile ({low_val:.2f}) "
+                f"to {high_pct * 100:.1f}th percentile ({high_val:.2f})"
             )
             data = np.clip(data, low_val, high_val)
 
@@ -229,8 +230,7 @@ def _select_file_paths(
             return [matching[0]]
 
         print(
-            f"  Warning: No file matches selector '{selector}', using first of "
-            f"{len(files)} files"
+            f"  Warning: No file matches selector '{selector}', using first of {len(files)} files"
         )
         return [files[0]]
 
@@ -259,9 +259,9 @@ def _load_config_volume_array(
 
 
 def _resolve_prediction_matched_path(
-    test_image_path: str,
+    test_image_path: Optional[str],
     prediction_base_name: Optional[str],
-) -> str:
+) -> Optional[str]:
     """Best-effort match of a test image path to a prediction basename."""
     if (
         not prediction_base_name
@@ -295,7 +295,7 @@ def _resolve_prediction_matched_path(
 
 
 def _store_config_volume_entries(
-    volumes: Dict[str, Tuple[np.ndarray, str, Optional[Tuple], None]],
+    volumes: dict[str, tuple[np.ndarray, str, Optional[tuple], None]],
     raw_paths,
     *,
     select: str,
@@ -303,7 +303,7 @@ def _store_config_volume_entries(
     display_label: str,
     volume_name: str,
     volume_type: str,
-    resolution: Optional[Tuple[float, float, float]],
+    resolution: Optional[tuple[float, float, float]],
     cfg=None,
     apply_transform: bool = False,
 ) -> None:
@@ -342,7 +342,7 @@ def parse_args():
         epilog="""
 Examples:
   # From config file (interactive mode recommended with -i)
-  python -i scripts/visualize_neuroglancer.py --config tutorials/monai_lucchi.yaml
+  python -i scripts/visualize_neuroglancer.py --config tutorials/mito_lucchi++/mito_lucchi++.yaml
 
   # Specify files directly
   python -i scripts/visualize_neuroglancer.py \\
@@ -371,17 +371,18 @@ Examples:
 
   # Mix config with additional volumes
   python -i scripts/visualize_neuroglancer.py \\
-    --config tutorials/monai_lucchi.yaml --mode test \\
+    --config tutorials/mito_lucchi++/mito_lucchi++.yaml --mode test \\
     --volumes prediction:image:outputs/lucchi_monai_unet/results/test_im_prediction.h5:5-5-5
 
   # Select from glob pattern by index or filename
   python -i scripts/visualize_neuroglancer.py \\
     --volumes "image:datasets/*.tiff[0]" "label:datasets/*.tiff[train_label]"
 
-  # Custom server settings
+  # Remote access: ssh -L 8080:127.0.0.1:8080 user@server
+  # Keep the server bound to loopback
   python -i scripts/visualize_neuroglancer.py \\
-    --config tutorials/monai_lucchi.yaml \\
-    --ip 0.0.0.0 --port 8080 \\
+    --config tutorials/mito_lucchi++/mito_lucchi++.yaml \\
+    --bind-address 127.0.0.1 --port 8080 \\
     --resolution 30-6-6
 
   # 2D images with 2D resolution (automatically padded to 3D)
@@ -431,10 +432,10 @@ Interactive mode (with -i flag):
 
     # Server settings
     parser.add_argument(
-        "--ip",
+        "--bind-address",
         type=str,
-        default="localhost",
-        help="Server IP address (default: localhost, use 0.0.0.0 for remote access)",
+        default="127.0.0.1",
+        help="Server bind address (default: 127.0.0.1). Use SSH forwarding for remote access.",
     )
     parser.add_argument("--port", type=int, default=9999, help="Server port (default: 9999)")
 
@@ -490,7 +491,7 @@ Interactive mode (with -i flag):
     return parser.parse_args()
 
 
-def parse_bbox_arg(bbox_str: str) -> Tuple[int, int, int, int, int, int]:
+def parse_bbox_arg(bbox_str: str) -> tuple[int, int, int, int, int, int]:
     """Parse bbox string 'zmin,ymin,xmin,zmax,ymax,xmax' into integer coordinates."""
     parts = [p.strip() for p in bbox_str.split(",")]
     if len(parts) != 6:
@@ -512,10 +513,10 @@ def parse_bbox_arg(bbox_str: str) -> Tuple[int, int, int, int, int, int]:
 
 
 def crop_volumes_to_bbox(
-    volumes: Dict[str, Tuple],
-    bbox: Tuple[int, int, int, int, int, int],
-    default_offset: Tuple[int, int, int],
-) -> Dict[str, Tuple]:
+    volumes: dict[str, tuple],
+    bbox: tuple[int, int, int, int, int, int],
+    default_offset: tuple[int, int, int],
+) -> dict[str, tuple]:
     """
     Crop all volumes to the same bbox and update voxel offsets accordingly.
 
@@ -528,7 +529,7 @@ def crop_volumes_to_bbox(
         New volume mapping with cropped arrays and adjusted offsets.
     """
     zmin, ymin, xmin, zmax, ymax, xmax = bbox
-    cropped_volumes: Dict[str, Tuple] = {}
+    cropped_volumes: dict[str, tuple] = {}
 
     print(f"\nApplying bbox crop to all volumes: {bbox} (end-exclusive)")
 
@@ -542,7 +543,11 @@ def crop_volumes_to_bbox(
 
         if data.ndim == 3:
             spatial_shape = data.shape
-            crop_slices = (slice(zmin, zmax), slice(ymin, ymax), slice(xmin, xmax))
+            crop_slices: tuple[slice, ...] = (
+                slice(zmin, zmax),
+                slice(ymin, ymax),
+                slice(xmin, xmax),
+            )
         elif data.ndim == 4:
             spatial_shape = data.shape[-3:]
             crop_slices = (
@@ -583,7 +588,7 @@ def load_volumes_from_config(
     mode: str = "train",
     prediction_base_name: Optional[str] = None,
     select: str = "0",
-) -> Dict[str, Tuple[np.ndarray, str, Optional[Tuple], None]]:
+) -> dict[str, tuple[np.ndarray, str, Optional[tuple], None]]:
     """
     Load volumes from a config file.
 
@@ -605,7 +610,7 @@ def load_volumes_from_config(
     resolve_mode = "train" if mode in ["train", "both"] else "test"
     cfg = resolve_default_profiles(cfg, mode=resolve_mode)
     cfg = resolve_data_paths(cfg)  # Resolve paths and expand globs
-    volumes = {}
+    volumes: dict[str, tuple[np.ndarray, str, Optional[tuple], None]] = {}
 
     # Get resolution from config (explicit zyx convention).
     train_resolution = None
@@ -771,7 +776,7 @@ def _parse_optional_resolution(
     raw_resolution: Optional[str],
     *,
     global_is_2d: bool,
-) -> Tuple[Optional[Tuple[float, float, float]], bool]:
+) -> tuple[Optional[tuple[float, float, float]], bool]:
     if raw_resolution is None:
         return None, global_is_2d
 
@@ -792,7 +797,7 @@ def _parse_optional_resolution(
     return None, global_is_2d
 
 
-def _parse_optional_offset(raw_offset: Optional[str]) -> Optional[Tuple[int, int, int]]:
+def _parse_optional_offset(raw_offset: Optional[str]) -> Optional[tuple[int, int, int]]:
     if raw_offset is None:
         return None
 
@@ -817,20 +822,20 @@ def _parse_volume_spec(
     spec: str,
     *,
     global_is_2d: bool,
-) -> Tuple[
+) -> tuple[
     str,
     str,
     Optional[str],
     Optional[int],
-    Optional[Tuple[float, float, float]],
-    Optional[Tuple[int, int, int]],
+    Optional[tuple[float, float, float]],
+    Optional[tuple[int, int, int]],
     bool,
 ]:
     """Parse one --volumes spec into normalized fields."""
     parts = spec.split(":")
     has_explicit_type = len(parts) >= 3 and parts[1] in ["image", "img", "seg", "segmentation"]
 
-    optional_parts: List[str] = []
+    optional_parts: list[str] = []
     if len(parts) == 1:
         name = Path(parts[0]).stem
         path = parts[0]
@@ -865,11 +870,11 @@ def _parse_volume_spec(
 
 
 def load_volumes_from_paths(
-    volume_specs: List[str],
+    volume_specs: list[str],
     select: str = "0",
     scale: float = 1.0,
-    global_resolution: Optional[Tuple[Tuple, bool]] = None,
-) -> Dict[str, Tuple[np.ndarray, str, Optional[Tuple], Optional[Tuple]]]:
+    global_resolution: Optional[tuple[tuple, bool]] = None,
+) -> dict[str, tuple[np.ndarray, str, Optional[tuple], Optional[tuple]]]:
     """
     Load volumes from path specifications.
 
@@ -935,7 +940,7 @@ def load_volumes_from_paths(
                 if channel >= data.shape[0]:
                     print(
                         f"  Warning: Channel {channel} out of range "
-                        f"(max: {data.shape[0]-1}), using channel 0"
+                        f"(max: {data.shape[0] - 1}), using channel 0"
                     )
                     data = data[0]
                 else:
@@ -948,7 +953,7 @@ def load_volumes_from_paths(
                     if channel >= data.shape[0]:
                         print(
                             f"  Warning: Channel {channel} out of range "
-                            f"(max: {data.shape[0]-1}), using channel 0"
+                            f"(max: {data.shape[0] - 1}), using channel 0"
                         )
                         data = data[0]
                     else:
@@ -1004,8 +1009,8 @@ def load_volumes_from_paths(
 
 def create_neuroglancer_layer(
     data: np.ndarray,
-    resolution: Tuple[float, float, float],
-    offset: Tuple[int, int, int] = (0, 0, 0),
+    resolution: tuple[float, float, float],
+    offset: tuple[int, int, int] = (0, 0, 0),
     volume_type: str = "image",
 ) -> "neuroglancer.LocalVolume":
     """
@@ -1042,11 +1047,11 @@ def create_neuroglancer_layer(
 
 
 def visualize_volumes(
-    volumes: Dict[str, Tuple],
-    ip: str = "localhost",
+    volumes: dict[str, tuple],
+    ip: str = "127.0.0.1",
     port: int = 9999,
-    resolution: Tuple[float, float, float] = (30, 6, 6),
-    offset: Tuple[int, int, int] = (0, 0, 0),
+    resolution: tuple[float, float, float] = (30, 6, 6),
+    offset: tuple[int, int, int] = (0, 0, 0),
 ) -> "neuroglancer.Viewer":
     """
     Visualize volumes with Neuroglancer.
@@ -1067,6 +1072,8 @@ def visualize_volumes(
         return None
 
     # Set up Neuroglancer server
+    if ip in {"0.0.0.0", "::"}:
+        print("WARNING: Neuroglancer is unauthenticated and is exposed on all interfaces.")
     print(f"\nStarting Neuroglancer server on {ip}:{port}")
     neuroglancer.set_server_bind_address(bind_address=ip, bind_port=port)
     viewer = neuroglancer.Viewer()
@@ -1257,14 +1264,14 @@ def main():
     # Start visualization (returns viewer for interactive access)
     viewer = visualize_volumes(
         volumes=volumes,
-        ip=args.ip,
+        ip=args.bind_address,
         port=args.port,
         resolution=resolution,
         offset=offset,
     )
 
     # Helper function for interactive mode: create neuroglancer layer from data and resolution
-    def ngLayer(data, res, oo=[0, 0, 0], tt="segmentation"):
+    def ngLayer(data, res, oo=(0, 0, 0), tt="segmentation"):
         """
         Create a Neuroglancer layer from volume data.
 
@@ -1298,7 +1305,7 @@ def main():
             data, dimensions=coord_space, volume_type=tt, voxel_offset=oo
         )
 
-    def add_layer(name, file_path=None, data=None, res=None, oo=[0, 0, 0], tt="image"):
+    def add_layer(name, file_path=None, data=None, res=None, oo=(0, 0, 0), tt="image"):
         """
         Add a layer to the viewer (convenience function for interactive mode).
 

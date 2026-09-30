@@ -2,9 +2,9 @@ name: Tests
 
 on:
   push:
-    branches: [ main, master, v2.0 ]
+    branches: [master]
   pull_request:
-    branches: [ main, master, v2.0 ]
+    branches: [master]
 
 jobs:
   test:
@@ -13,136 +13,70 @@ jobs:
       matrix:
         os: [ubuntu-latest, macos-latest, windows-latest]
         python-version: ['3.11']
-
+        include:
+          - os: ubuntu-latest
+            python-version: '3.9'
+          - os: ubuntu-latest
+            python-version: '3.12'
     steps:
-    - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install pytest pytest-cov
+          python -m pip install -e .
+      - name: Validate tutorial configs
+        run: python scripts/validate_tutorial_configs.py --glob 'tutorials/*.yaml' --glob 'tutorials/**/*.yaml'
+      - name: Run tests
+        run: python -m pytest tests/ -v --cov=connectomics --cov-report=xml
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v4
+        with:
+          files: ./coverage.xml
+          flags: unittests
+          name: codecov-${{ matrix.os }}-py${{ matrix.python-version }}
 
-    - name: Set up Python ${{ matrix.python-version }}
-      uses: actions/setup-python@v4
-      with:
-        python-version: ${{ matrix.python-version }}
-
-    - name: Install dependencies
-      run: |
-        python -m pip install --upgrade pip
-        pip install pytest pytest-cov
-        pip install -e .
-
-    - name: Validate tutorial configs
-      run: |
-        python scripts/validate_tutorial_configs.py
-
-    - name: Run tests
-      run: |
-        pytest tests/ -v --cov=connectomics --cov-report=xml
-
-    - name: Upload coverage to Codecov
-      uses: codecov/codecov-action@v3
-      with:
-        file: ./coverage.xml
-        flags: unittests
-        name: codecov-${{ matrix.os }}-py${{ matrix.python-version }}
+  packaging:
+    uses: ./.github/workflows/packaging.yml
 
   lint:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v3
-      with:
-        fetch-depth: 0
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: pip
+      - name: Install linters
+        run: python -m pip install ruff mypy
+      - name: Check changed Python files
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          BEFORE_SHA: ${{ github.event.before }}
+        run: |
+          python - <<'PY'
+          import os
+          import subprocess
 
-    - name: Set up Python
-      uses: actions/setup-python@v4
-      with:
-        python-version: '3.11'
-
-    - name: Install linters
-      run: |
-        python -m pip install --upgrade pip
-        pip install black flake8 isort mypy
-
-    - name: Collect changed Python files
-      id: changed-py
-      shell: bash
-      run: |
-        if [[ "${{ github.event_name }}" == "pull_request" ]]; then
-          git fetch --no-tags --depth=1 origin "${{ github.base_ref }}"
-          files=$(git diff --name-only --diff-filter=ACMRT "origin/${{ github.base_ref }}...HEAD" -- 'connectomics/**/*.py')
-        else
-          if git rev-parse --verify HEAD~1 >/dev/null 2>&1; then
-            files=$(git diff --name-only --diff-filter=ACMRT HEAD~1..HEAD -- 'connectomics/**/*.py')
-          else
-            files=$(git ls-files 'connectomics/**/*.py')
-          fi
-        fi
-
-        echo "files<<EOF" >> "$GITHUB_OUTPUT"
-        echo "$files" >> "$GITHUB_OUTPUT"
-        echo "EOF" >> "$GITHUB_OUTPUT"
-
-    - name: Run black
-      env:
-        CHANGED_FILES: ${{ steps.changed-py.outputs.files }}
-      run: |
-        python - <<'PY'
-        import os
-        import subprocess
-        import sys
-
-        files = [f for f in os.environ.get("CHANGED_FILES", "").splitlines() if f]
-        if not files:
-            print("No changed Python files under connectomics/. Skipping black.")
-            sys.exit(0)
-
-        subprocess.check_call(["black", "--check", *files])
-        PY
-
-    - name: Run flake8
-      env:
-        CHANGED_FILES: ${{ steps.changed-py.outputs.files }}
-      run: |
-        python - <<'PY'
-        import os
-        import subprocess
-        import sys
-
-        files = [f for f in os.environ.get("CHANGED_FILES", "").splitlines() if f]
-        if not files:
-            print("No changed Python files under connectomics/. Skipping flake8.")
-            sys.exit(0)
-
-        subprocess.check_call(["flake8", "--max-line-length=100", *files])
-        PY
-
-    - name: Run isort
-      env:
-        CHANGED_FILES: ${{ steps.changed-py.outputs.files }}
-      run: |
-        python - <<'PY'
-        import os
-        import subprocess
-        import sys
-
-        files = [f for f in os.environ.get("CHANGED_FILES", "").splitlines() if f]
-        if not files:
-            print("No changed Python files under connectomics/. Skipping isort.")
-            sys.exit(0)
-
-        subprocess.check_call(["isort", "--check", *files])
-        PY
-
-    - name: Run mypy
-      env:
-        CHANGED_FILES: ${{ steps.changed-py.outputs.files }}
-      run: |
-        python - <<'PY'
-        import os
-        import subprocess
-        import sys
-
-        files = [f for f in os.environ.get("CHANGED_FILES", "").splitlines() if f]
-        if not files:
-            print("No changed Python files under connectomics/. Skipping mypy.")
-            sys.exit(0)
-
-        subprocess.check_call(["mypy", "--config-file", ".github/mypy_changed.ini", *files])
-        PY
+          base = os.environ['BASE_SHA'] if os.environ['EVENT_NAME'] == 'pull_request' else os.environ['BEFORE_SHA']
+          if not base or set(base) == {'0'}:
+              base = subprocess.check_output(['git', 'hash-object', '-t', 'tree', '/dev/null'], text=True).strip()
+          changed = subprocess.check_output(
+              ['git', 'diff', '--name-only', '--diff-filter=ACMRT', base, 'HEAD', '--', 'connectomics/', 'tests/', 'scripts/'],
+              text=True,
+          )
+          files = [path for path in changed.splitlines() if path.endswith('.py')]
+          if files:
+              subprocess.check_call(['ruff', 'check', *files])
+              subprocess.check_call(['ruff', 'format', '--check', *files])
+              subprocess.check_call(['mypy', '--config-file', '.github/mypy_changed.ini', *files])
+          else:
+              print('No changed Python files under connectomics/, tests/, or scripts/.')
+          PY

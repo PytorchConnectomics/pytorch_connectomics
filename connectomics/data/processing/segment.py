@@ -51,9 +51,7 @@ def seg_erosion_instance(seg, tsz_h=1):
     else:
         tsz_h = tuple(tsz_h)
         if len(tsz_h) != seg_np.ndim:
-            raise ValueError(
-                f"tsz_h sequence length {len(tsz_h)} != seg ndim {seg_np.ndim}"
-            )
+            raise ValueError(f"tsz_h sequence length {len(tsz_h)} != seg ndim {seg_np.ndim}")
         size = tuple(2 * t + 1 for t in tsz_h)
 
     big = seg_np.max() + 1  # sentinel > any positive ID, so the min ignores background
@@ -65,7 +63,7 @@ def seg_erosion_instance(seg, tsz_h=1):
     # masks every edge touching seg < 0). They must survive erosion unchanged:
     # `seg * keep` would turn -1 into 0, i.e. silently relabel ignore as supervised
     # background. That matters wherever the GT is padded with an ignore ring — the
-    # zebrafinch cubes are ~40% -1 by volume, so the multiply taught the model that
+    # padded label cubes can be ~40% -1 by volume, so the multiply taught the model that
     # a large slab of real EM tissue was background.
     keep = keep | (seg_np < 0)
 

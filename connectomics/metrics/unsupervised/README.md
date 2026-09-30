@@ -118,10 +118,6 @@ unavailable values as JSON `null`. Arbor results use `None` for unknown values;
 class decisions are directly JSON-safe. Encode label IDs as decimal strings in
 webapp payloads to preserve values beyond JavaScript's safe integer range.
 
-The dataset-specific workflow in `dev/astra_nogt_eval/glia_revision/` imports
-these modules. Its legacy-class migration, frozen catalog/schema, review records,
-file paths and GCS publication stay outside the metric package.
-
 `classification.classify_semantic_candidate` combines local caliber, semantic
 type and shaft length into a coarse axon/dendrite/unclassified candidate and
 evidence basis. Callers supply calibrated caliber thresholds explicitly. Thin

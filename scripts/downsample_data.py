@@ -6,8 +6,8 @@ Outputs are always written as HDF5.
 
 Example:
   python scripts/downsample_data.py \
-      /projects/weilab/dataset/MitoLE/betaSeg/high_c1_im.h5 \
-      /projects/weilab/dataset/MitoLE/betaSeg/high_c1_mito.h5 \
+      /path/to/betaseg/high_c1_im.h5 \
+      /path/to/betaseg/high_c1_mito.h5 \
       --downsample-ratio-zyx 2 2 2
 
   python scripts/downsample_data.py my_volume.tif --downsample-ratio-zyx 1 4 4
@@ -18,8 +18,7 @@ next to it. Output dataset key defaults to `main`.
 Mode handling (image vs label):
   - `auto` (default): integer dtypes other than uint8 are treated as labels
     (strided sampling); everything else is treated as image (zoom).
-  - `image`: ndimage.zoom on each z-slice (reuses zoom_downsample_xy from
-    downsample_nisb) + strided z sampling.
+  - `image`: ndimage.zoom on each z-slice + strided z sampling.
   - `label`: strided sampling in (z, y, x).
 
 Volumes are assumed to be stored in (Z, Y, X) layout, which is the standard
@@ -33,10 +32,35 @@ from pathlib import Path
 from typing import Optional
 
 import numpy as np
+from scipy import ndimage
 
 from connectomics.data.io import read_volume, write_hdf5
 
-from downsample_nisb import zoom_downsample_xy  # reuse YX zoom helper
+
+def zoom_downsample_xy(
+    image_xy: np.ndarray,
+    out_shape_xy: tuple[int, int],
+    order: int = 1,
+) -> np.ndarray:
+    """
+    Downsample one XY slice using scipy.ndimage.zoom.
+
+    Args:
+        image_xy: 2D image slice.
+        out_shape_xy: target shape (x_out, y_out).
+    """
+    zoom_factors = (
+        out_shape_xy[0] / image_xy.shape[0],
+        out_shape_xy[1] / image_xy.shape[1],
+    )
+    down = ndimage.zoom(
+        image_xy,
+        zoom=zoom_factors,
+        order=order,
+        mode="nearest",
+        prefilter=(order > 1),
+    )
+    return down.astype(image_xy.dtype, copy=False)
 
 
 def _len_from_step(size: int, step: int) -> int:
@@ -44,7 +68,9 @@ def _len_from_step(size: int, step: int) -> int:
 
 
 def _detect_mode(volume: np.ndarray) -> str:
-    return "label" if np.issubdtype(volume.dtype, np.integer) and volume.dtype != np.uint8 else "image"
+    return (
+        "label" if np.issubdtype(volume.dtype, np.integer) and volume.dtype != np.uint8 else "image"
+    )
 
 
 def downsample_volume_zyx(
@@ -275,8 +301,8 @@ def main() -> None:
 
 # Examples:
 # python scripts/downsample_data.py \
-#     /projects/weilab/dataset/MitoLE/betaSeg/high_c1_im.h5 \
-#     /projects/weilab/dataset/MitoLE/betaSeg/high_c1_mito.h5 \
+#     /path/to/betaseg/high_c1_im.h5 \
+#     /path/to/betaseg/high_c1_mito.h5 \
 #     --downsample-ratio-zyx 2 2 2
 #
 # python scripts/downsample_data.py vol.h5 --mode label --downsample-ratio-zyx 1 4 4

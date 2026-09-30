@@ -124,7 +124,7 @@ class ChunkingConfig:
     # Write each chunk straight into a CloudVolume *precomputed* layer at the output path
     # instead of per-chunk HDF5 + a stitch pass. Chunks are disjoint and storage-chunk
     # aligned, so ranks can write the shared layer concurrently without locking. This is
-    # what downstream CloudVolume consumers (ABISS/Seuron) read, so it removes the
+    # what downstream CloudVolume consumers (ABISS) read, so it removes the
     # separate "mirror the h5 chunks into precomputed" conversion step entirely.
     precomputed: bool = False
     # XYZ nm. Required when `precomputed` is set (a precomputed layer must declare it).

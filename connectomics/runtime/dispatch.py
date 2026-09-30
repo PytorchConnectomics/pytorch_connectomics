@@ -52,15 +52,11 @@ def suppress_nonzero_rank_stdout() -> None:
     sys.stdout = _RANK_STDOUT_REDIRECT
 
 
-def prepare_cli_args(args: Any, repo_root: Path) -> None:
+def prepare_cli_args(args: Any, demo_config: Path) -> None:
     """Apply CLI-only defaults before config resolution."""
     if args.demo:
-        minimal_config = repo_root / "tutorials" / "minimal.yaml"
-        if not minimal_config.exists():
-            print(f"Error: Demo config not found: {minimal_config}")
-            sys.exit(1)
         if not args.config:
-            args.config = str(minimal_config)
+            args.config = str(demo_config)
         if args.fast_dev_run == 0:
             args.fast_dev_run = 1
         if args.mode != "train":

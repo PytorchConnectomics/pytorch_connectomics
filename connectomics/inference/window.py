@@ -15,9 +15,8 @@ Single in-house engine for both eager (in-memory tensor) and lazy
 from __future__ import annotations
 
 import logging
-import math
-from collections.abc import Mapping
-from typing import Callable, Optional, Sequence, Tuple, Union
+from collections.abc import Mapping, Sequence
+from typing import Callable, Optional, Union, cast
 
 import torch
 import torch.nn.functional as F
@@ -74,7 +73,7 @@ def compute_scan_interval(
     if isinstance(overlap, (list, tuple)):
         overlaps = [float(overlap[i]) for i in range(spatial_dims)]
     else:
-        overlaps = [float(overlap)] * spatial_dims
+        overlaps = [float(cast(float, overlap))] * spatial_dims
     overlaps = [max(0.0, min(o, 0.99)) for o in overlaps]
 
     intervals: list[int] = []
@@ -125,12 +124,11 @@ def dense_patch_slices(
             out.extend(_walk(axis + 1, prefix + (s,)))
         return out
 
-    starts = _walk(0, ())
+    patch_starts = _walk(0, ())
     if not return_slice:
-        return list(starts)
+        return list(patch_starts)
     return [
-        tuple(slice(s, s + int(roi_size[i])) for i, s in enumerate(start))
-        for start in starts
+        tuple(slice(s, s + int(roi_size[i])) for i, s in enumerate(start)) for start in patch_starts
     ]
 
 
@@ -155,7 +153,7 @@ def compute_importance_map(
       peak-normalized to ``1.0`` and floor-clamped to ``finfo.tiny`` so
       the weight accumulator never divides by zero.
 
-    See ``lib/DeepEM/deepem/test/mask.py::bump_map_wu`` for the reference
+    See ``deepem.test.mask.bump_map_wu`` for the reference
     implementation we follow.
     """
     spatial = tuple(int(v) for v in roi_size)
@@ -188,9 +186,7 @@ def compute_importance_map(
         view = [1] * len(spatial)
         view[axis] = size
         importance = (
-            axis_kernel.view(view)
-            if importance is None
-            else importance * axis_kernel.view(view)
+            axis_kernel.view(view) if importance is None else importance * axis_kernel.view(view)
         )
     assert importance is not None
     return importance.clamp_min(torch.finfo(dtype).tiny if dtype.is_floating_point else 0)
@@ -206,7 +202,7 @@ def build_sliding_importance_map(
 ) -> torch.Tensor:
     """Build per-window blending weights.
 
-    ``distance_transform`` matches ``lib/banis``:
+    ``distance_transform`` matches BANIS:
     ``distance_transform_cdt(np.pad(np.ones(roi), 1))[1:-1]``. For a solid
     rectangular window this is exactly ``min(distance_to_each_face) + 1``.
 
@@ -319,7 +315,7 @@ def apply_border_mask(importance_map: torch.Tensor, border_mask: Sequence[int]) 
     return importance_map
 
 
-_MODEL_OUTPUT_DTYPE_ALIASES: dict[str, "torch.dtype"] = {
+_MODEL_OUTPUT_DTYPE_ALIASES: dict[str, torch.dtype] = {
     "float32": torch.float32,
     "fp32": torch.float32,
     "float16": torch.float16,
@@ -370,7 +366,7 @@ def is_2d_inference_mode(cfg) -> bool:
     return bool(getattr(train_cfg, "do_2d", False) or getattr(val_cfg, "do_2d", False))
 
 
-def resolve_inferer_roi_size(cfg) -> Optional[Tuple[int, ...]]:
+def resolve_inferer_roi_size(cfg) -> Optional[tuple[int, ...]]:
     """Determine the ROI size for sliding-window inference."""
     if hasattr(cfg, "inference") and hasattr(cfg.inference, "sliding_window"):
         window_size = getattr(cfg.inference.sliding_window, "window_size", None)
@@ -396,7 +392,7 @@ def resolve_inferer_roi_size(cfg) -> Optional[Tuple[int, ...]]:
     return None
 
 
-def resolve_inferer_overlap(cfg, roi_size: Tuple[int, ...]) -> Union[float, Tuple[float, ...]]:
+def resolve_inferer_overlap(cfg, roi_size: tuple[int, ...]) -> Union[float, tuple[float, ...]]:
     """Resolve overlap parameter using inference config."""
     if not hasattr(cfg, "inference") or not hasattr(cfg.inference, "sliding_window"):
         return 0.5
@@ -410,7 +406,7 @@ def resolve_inferer_overlap(cfg, roi_size: Tuple[int, ...]) -> Union[float, Tupl
     return 0.5
 
 
-def _resolve_sliding_window_runtime(cfg, roi_size: Tuple[int, ...]) -> dict:
+def _resolve_sliding_window_runtime(cfg, roi_size: tuple[int, ...]) -> dict:
     overlap = resolve_inferer_overlap(cfg, roi_size)
     data_cfg = getattr(cfg, "data", None)
     data_loader_cfg = getattr(data_cfg, "dataloader", None) if data_cfg else None
@@ -510,8 +506,10 @@ def _extract_padded_patch_batch(
             mode = padding_mode
             if mode in {"reflect", "circular"}:
                 exceeds = any(
-                    (pad_pairs[axis][0] >= int(inner_dims[axis])
-                     or pad_pairs[axis][1] >= int(inner_dims[axis]))
+                    (
+                        pad_pairs[axis][0] >= int(inner_dims[axis])
+                        or pad_pairs[axis][1] >= int(inner_dims[axis])
+                    )
                     for axis in range(spatial_dims)
                 )
                 if exceeds:
@@ -581,8 +579,7 @@ class EagerSlidingWindowEngine:
         # produces a truncated probe / partial window. Output is cropped back
         # to ``original_image_size`` at the end.
         pad_per_axis = [
-            max(0, int(self.roi_size[i]) - original_image_size[i])
-            for i in range(spatial_dims)
+            max(0, int(self.roi_size[i]) - original_image_size[i]) for i in range(spatial_dims)
         ]
         if any(pad_per_axis):
             # ``reflect`` / ``replicate`` require pad < image dim per axis.
@@ -600,10 +597,11 @@ class EagerSlidingWindowEngine:
                 f_pad.extend([before, after])
             inputs = F.pad(inputs, tuple(f_pad), mode="constant", value=self.cval)
         image_size = tuple(int(v) for v in inputs.shape[-spatial_dims:])
-        scan_interval = compute_scan_interval(
-            image_size, self.roi_size, overlap=self.overlap
+        scan_interval = compute_scan_interval(image_size, self.roi_size, overlap=self.overlap)
+        patch_slices = cast(
+            list[tuple[slice, ...]],
+            dense_patch_slices(image_size, self.roi_size, scan_interval),
         )
-        patch_slices = dense_patch_slices(image_size, self.roi_size, scan_interval)
 
         sw_device = torch.device(self.sw_device) if self.sw_device else inputs.device
         output_device = torch.device(self.output_device) if self.output_device else inputs.device
@@ -646,12 +644,11 @@ class EagerSlidingWindowEngine:
         )
 
         def _accumulate(window_output: torch.Tensor, location: tuple[int, ...]) -> None:
-            target = tuple(slice(location[i], location[i] + self.roi_size[i])
-                           for i in range(spatial_dims))
-            window_on_out = window_output.to(device=output_device, dtype=out_dtype)
-            value_accum[(slice(None), slice(None)) + target] += (
-                window_on_out * value_map_b
+            target = tuple(
+                slice(location[i], location[i] + self.roi_size[i]) for i in range(spatial_dims)
             )
+            window_on_out = window_output.to(device=output_device, dtype=out_dtype)
+            value_accum[(slice(None), slice(None)) + target] += window_on_out * value_map_b
             weight_accum[(slice(None), slice(None)) + target] += weight_map_b
 
         # Accumulate the probe (location came from _extract_padded_patch_batch).

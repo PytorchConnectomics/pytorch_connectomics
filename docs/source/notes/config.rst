@@ -347,7 +347,7 @@ MedNeXt Configuration
       loss:
         deep_supervision: true
 
-See `.claude/MEDNEXT.md <https://github.com/zudi-lin/pytorch_connectomics/blob/master/.claude/MEDNEXT.md>`_ for details.
+See `.claude/MEDNEXT.md <https://github.com/PytorchConnectomics/pytorch_connectomics/blob/master/.claude/MEDNEXT.md>`_ for details.
 
 2D Configuration
 ----------------
@@ -545,9 +545,9 @@ Configuration Examples
 
 See the ``tutorials/`` directory for complete examples:
 
-- `tutorials/minimal.yaml <https://github.com/zudi-lin/pytorch_connectomics/blob/master/tutorials/minimal.yaml>`_: minimal MONAI smoke config
+- `tutorials/minimal.yaml <https://github.com/PytorchConnectomics/pytorch_connectomics/blob/master/tutorials/minimal.yaml>`_: minimal MONAI smoke config
 - `tutorials/mito_lucchi++/mito_lucchi++.yaml <https://github.com/PytorchConnectomics/pytorch_connectomics/blob/master/tutorials/mito_lucchi%2B%2B/mito_lucchi%2B%2B.yaml>`_: mitochondria segmentation
-- `tutorials/neuron_snemi/neuron_snemi_sdt.yaml <https://github.com/zudi-lin/pytorch_connectomics/blob/master/tutorials/neuron_snemi/neuron_snemi_sdt.yaml>`_: MedNeXt SNEMI config
+- `tutorials/neuron_snemi/neuron_snemi_sdt.yaml <https://github.com/PytorchConnectomics/pytorch_connectomics/blob/master/tutorials/neuron_snemi/neuron_snemi_sdt.yaml>`_: MedNeXt SNEMI config
 
 Best Practices
 --------------
@@ -563,4 +563,4 @@ For more information:
 
 - `Hydra Documentation <https://hydra.cc/>`_
 - `OmegaConf Documentation <https://omegaconf.readthedocs.io/>`_
-- `.claude/CLAUDE.md <https://github.com/zudi-lin/pytorch_connectomics/blob/master/.claude/CLAUDE.md>`_
+- `.claude/CLAUDE.md <https://github.com/PytorchConnectomics/pytorch_connectomics/blob/master/.claude/CLAUDE.md>`_

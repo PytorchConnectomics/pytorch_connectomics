@@ -57,7 +57,7 @@ def test_seg_erosion_instance_metatensor_3d_matches_numpy():
 
 def _sample_seg_3d_with_ignore_ring():
     """One labelled object surrounded by an unlabeled (-1) ring, as in the
-    zebrafinch padded GT cubes (~40% of each cube is the -1 ring)."""
+    padded GT cubes (~40% of each cube is the -1 ring)."""
     seg = np.full((5, 9, 9), -1, dtype=np.int32)
     seg[:, 3:6, 3:6] = 7
     return seg

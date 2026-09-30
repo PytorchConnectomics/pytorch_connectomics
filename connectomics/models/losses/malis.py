@@ -1,9 +1,10 @@
-"""PyTorch wrapper for the vendored MALIS affinity loss."""
+"""PyTorch wrapper for the optional MALIS affinity loss."""
 
 from __future__ import annotations
 
 import importlib
-from typing import Any, Sequence
+from collections.abc import Sequence
+from typing import Any
 
 import numpy as np
 import torch
@@ -23,9 +24,8 @@ class MalisLoss(nn.Module):
     """Constrained MALIS loss for 3D affinity tensors.
 
     v0 supports PyTC's canonical 3D affinity layout ``[B, C, Z, Y, X]`` only.
-    2D tensors are rejected explicitly because the vendored MALIS helpers operate
-    on 3D affinity graphs by default. See ``lib/malis/INVESTIGATION.md`` for
-    GPU MALIS candidates and algorithm-level speedup follow-ups.
+    2D tensors are rejected explicitly because the MALIS helpers operate
+    on 3D affinity graphs by default.
 
     Performance knobs (see ``docs/source/notes/malis.rst``):
 
@@ -65,7 +65,7 @@ class MalisLoss(nn.Module):
         if _malis_lib is None:
             raise ImportError(
                 "MalisLoss requires the optional 'malis' package/extension. "
-                "Build or install the vendored library under lib/malis before "
+                "Install malis in the active Python environment before "
                 "constructing this loss."
             ) from _MALIS_IMPORT_ERROR
         if reduction not in {"mean", "sum", "none"}:
@@ -162,7 +162,7 @@ class MalisLoss(nn.Module):
             return None
         if isinstance(value, bool):
             raise ValueError(
-                "malis_crop_size must be a positive int or length-3 sequence; " f"got {value!r}."
+                f"malis_crop_size must be a positive int or length-3 sequence; got {value!r}."
             )
         if isinstance(value, (int, np.integer)):
             value_int = int(value)
@@ -171,30 +171,28 @@ class MalisLoss(nn.Module):
             return (value_int, value_int, value_int)
         if isinstance(value, str):
             raise ValueError(
-                "malis_crop_size must be int or length-3 int sequence, not str; " f"got {value!r}."
+                f"malis_crop_size must be int or length-3 int sequence, not str; got {value!r}."
             )
 
         try:
             seq = list(value)
         except TypeError as e:
             raise ValueError(
-                "malis_crop_size must be int or length-3 int sequence; " f"got {value!r}."
+                f"malis_crop_size must be int or length-3 int sequence; got {value!r}."
             ) from e
 
         if len(seq) != 3:
             raise ValueError(
-                "malis_crop_size sequence must have length 3; "
-                f"got len={len(seq)} value={value!r}."
+                f"malis_crop_size sequence must have length 3; got len={len(seq)} value={value!r}."
             )
 
         out: list[int] = []
         for dim in seq:
             if isinstance(dim, bool):
-                raise ValueError("malis_crop_size element must be a positive int; " f"got {dim!r}.")
+                raise ValueError(f"malis_crop_size element must be a positive int; got {dim!r}.")
             if not isinstance(dim, (int, np.integer)):
                 raise ValueError(
-                    "malis_crop_size element must be int; "
-                    f"got {dim!r} (type {type(dim).__name__})."
+                    f"malis_crop_size element must be int; got {dim!r} (type {type(dim).__name__})."
                 )
             dim_int = int(dim)
             if dim_int <= 0:

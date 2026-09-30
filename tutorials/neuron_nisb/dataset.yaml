@@ -8,12 +8,12 @@
 train:
   data:
     train:
-      path: /projects/weilab/dataset/nisb/base/train
+      path: /path/to/nisb/base/train
       image: seed*/data.zarr/img
       label: seed*/data.zarr/seg
       resolution: [9, 9, 20]
     val:
-      path: /projects/weilab/dataset/nisb/base/val
+      path: /path/to/nisb/base/val
       image: seed100/data.zarr/img
       label: seed100/data.zarr/seg
       resolution: [9, 9, 20]
@@ -21,10 +21,10 @@ train:
 test:
   data:
     test:
-      #path: /projects/weilab/dataset/nisb/base/train/seed0/
-      #skeleton: /projects/weilab/dataset/nisb/base/train/seed0/skeleton.pkl
-      path: /projects/weilab/dataset/nisb/base/test/seed101/
-      skeleton: /projects/weilab/dataset/nisb/base/test/seed101/skeleton.pkl
+      #path: /path/to/nisb/base/train/seed0/
+      #skeleton: /path/to/nisb/base/train/seed0/skeleton.pkl
+      path: /path/to/nisb/base/test/seed101/
+      skeleton: /path/to/nisb/base/test/seed101/skeleton.pkl
       image: data.zarr/img
       label: data.zarr/seg
       resolution: [9, 9, 20]
@@ -43,8 +43,8 @@ test:
 tune:
   data:
     val:
-      path: /projects/weilab/dataset/nisb/base/val/seed100/
-      skeleton: /projects/weilab/dataset/nisb/base/val/seed100/skeleton.pkl
+      path: /path/to/nisb/base/val/seed100/
+      skeleton: /path/to/nisb/base/val/seed100/skeleton.pkl
       image: data.zarr/img
       label: data.zarr/seg
       resolution: [9, 9, 20]

@@ -3,7 +3,7 @@
 #
 # Usage:
 #   bash quickstart.sh [env_name]
-#   curl -fsSL https://raw.githubusercontent.com/zudi-lin/pytorch_connectomics/master/quickstart.sh | bash
+#   curl -fsSL https://raw.githubusercontent.com/PytorchConnectomics/pytorch_connectomics/master/quickstart.sh | bash
 #
 # After this finishes:
 #   cd pytorch_connectomics  (only if the script just cloned the repo)
@@ -38,7 +38,7 @@ fi
 # Require both install.py AND connectomics/__init__.py — neither alone is
 # specific enough to be a safe signal.
 if [ ! -f "install.py" ] || [ ! -f "connectomics/__init__.py" ]; then
-    git clone https://github.com/zudi-lin/pytorch_connectomics.git
+    git clone https://github.com/PytorchConnectomics/pytorch_connectomics.git
     cd pytorch_connectomics
 fi
 

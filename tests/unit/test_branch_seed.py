@@ -7,7 +7,7 @@ from connectomics.decoding.decoders.branch import linking, sections
 
 requires_waterz = pytest.mark.skipif(
     find_spec("waterz") is None,
-    reason="requires the optional repository waterz package",
+    reason="requires the optional waterz package",
 )
 
 

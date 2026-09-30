@@ -81,7 +81,7 @@ train:
 test:
   data:
     test:
-      path: "/projects/weilab/dataset/xiaomeng/vesicle/"
+      path: "/path/to/vesicle/"
       # debugging 
       image: "im/Bouton_228_EM.tif"
       mask: "mask/Bouton_228_em_mask.tif"

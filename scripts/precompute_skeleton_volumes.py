@@ -7,18 +7,18 @@ For each label path, writes a sibling ``*_skeleton`` array (zarr sub-key or
 instead of recomputing in-process on the GPU node.
 
 Examples (CPU node):
-    # All 6 NISB base volumes, sequentially in one job:
+    # All label volumes, sequentially in one job:
     python scripts/precompute_skeleton_volumes.py \\
-        --label '/projects/weilab/dataset/nisb/base/train/seed*/data.zarr/seg' \\
-        --label '/projects/weilab/dataset/nisb/base/val/seed*/data.zarr/seg'
+        --label '/path/to/labels/train/seed*/data.zarr/seg' \\
+        --label '/path/to/labels/val/seed*/data.zarr/seg'
 
     # Single volume (use this form with one SLURM job per volume for parallelism):
     python scripts/precompute_skeleton_volumes.py \\
-        --label /projects/weilab/dataset/nisb/base/train/seed0/data.zarr/seg
+        --label /path/to/labels/train/seed0/data.zarr/seg
 
     # Sharded across SLURM tasks:
     python scripts/precompute_skeleton_volumes.py \\
-        --label '/projects/weilab/dataset/nisb/base/train/seed*/data.zarr/seg' \\
+        --label '/path/to/labels/train/seed*/data.zarr/seg' \\
         --num-shards $SLURM_NTASKS --shard-index $SLURM_PROCID
 """
 
@@ -58,8 +58,8 @@ def parse_args() -> argparse.Namespace:
         help=(
             "Voxel resolution passed to kimimaro. Must match what training uses; "
             "the v2 skeleton_aware_edt target falls back to (1.0, 1.0, 1.0) when "
-            "no resolution is set in label_transform, so leave the default for "
-            "base_banis_v2*.yaml."
+            "no resolution is set in label_transform. Match this to "
+            "your training configuration."
         ),
     )
     p.add_argument(
@@ -145,9 +145,7 @@ def main() -> int:
         print("No label paths matched any --label argument.", file=sys.stderr)
         return 1
 
-    shard = [
-        p for i, p in enumerate(label_paths) if i % args.num_shards == args.shard_index
-    ]
+    shard = [p for i, p in enumerate(label_paths) if i % args.num_shards == args.shard_index]
     print(
         f"[shard {args.shard_index}/{args.num_shards}] "
         f"{len(shard)}/{len(label_paths)} label paths assigned:",
@@ -187,9 +185,7 @@ def main() -> int:
                 )
                 SkeletonVolumeProcessor(cfg).run()
             else:
-                precompute_skeleton_volume(
-                    lp, sp, resolution=tuple(args.resolution)
-                )
+                precompute_skeleton_volume(lp, sp, resolution=tuple(args.resolution))
         except Exception as e:
             print(f"FAILED {lp}: {e}", file=sys.stderr, flush=True)
             failures.append(lp)

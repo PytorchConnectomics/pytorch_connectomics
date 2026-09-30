@@ -51,7 +51,7 @@ default:
       normalize: "divide-255"
     # Match BANIS target semantics:
     # - 6 channels only: short-range + long-range@10
-    # - source zarr is XYZ and stays XYZ, matching lib/banis
+    # - source zarr is XYZ and stays XYZ, matching the BANIS source layout
     # - decode_affinity_cc expects the first 3 channels in axis0, axis1, axis2 order
     label_transform:
       erosion: 0
@@ -87,7 +87,7 @@ default:
       keep_input_on_cpu: true
       sw_device: cuda
       output_device: cpu
-      # Match lib/banis patched_inference: 128^3 windows, 50% overlap,
+      # Match BANIS sliding-window inference: 128^3 windows, 50% overlap,
       # snap-to-edge grid, and distance-transform blending.
       window_size: [128, 128, 128]
       sw_batch_size: 8

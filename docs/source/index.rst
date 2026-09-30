@@ -1,4 +1,4 @@
-:github_url: https://github.com/zudi-lin/pytorch_connectomics
+:github_url: https://github.com/PytorchConnectomics/pytorch_connectomics
 
 PyTorch Connectomics Documentation
 ===================================
@@ -7,7 +7,7 @@ PyTorch Connectomics Documentation
    **Version 2.0 is here!** PyTorch Connectomics has been completely rewritten with PyTorch Lightning orchestration
    and MONAI medical imaging tools. See the :ref:`installation guide <Installation>` for updated instructions.
 
-`PyTorch Connectomics <https://github.com/zudi-lin/pytorch_connectomics>`_ is a deep learning
+`PyTorch Connectomics <https://github.com/PytorchConnectomics/pytorch_connectomics>`_ is a deep learning
 framework for automatic and semi-automatic annotation of connectomics datasets, powered by
 `PyTorch <https://pytorch.org/>`_, `PyTorch Lightning <https://lightning.ai/>`_, and
 `MONAI <https://monai.io/>`_. This repository is actively developed and maintained by
@@ -81,7 +81,7 @@ Quick Start
     pip install torch torchvision --index-url https://download.pytorch.org/whl/cu118
 
     # Install PyTorch Connectomics
-    git clone https://github.com/zudi-lin/pytorch_connectomics.git
+    git clone https://github.com/PytorchConnectomics/pytorch_connectomics.git
     cd pytorch_connectomics
     pip install -e .[full]
 
@@ -166,7 +166,7 @@ Community & Support
 -------------------
 
 - 💬 **Slack**: `Join our community <https://join.slack.com/t/pytorchconnectomics/shared_invite/zt-obufj5d1-v5_NndNS5yog8vhxy4L12w>`_
-- 📧 **GitHub**: `Issues and discussions <https://github.com/zudi-lin/pytorch_connectomics/issues>`_
+- 📧 **GitHub**: `Issues and discussions <https://github.com/PytorchConnectomics/pytorch_connectomics/issues>`_
 - 📚 **Documentation**: `https://connectomics.readthedocs.io <https://connectomics.readthedocs.io>`_
 - 📄 **Paper**: `arXiv:2112.05754 <https://arxiv.org/abs/2112.05754>`_
 

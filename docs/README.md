@@ -123,5 +123,5 @@ Documentation is automatically deployed to ReadTheDocs on push to GitHub.
 ## Links
 
 - **Live Docs**: https://connectomics.readthedocs.io
-- **GitHub**: https://github.com/zudi-lin/pytorch_connectomics
+- **GitHub**: https://github.com/PytorchConnectomics/pytorch_connectomics
 - **Paper**: https://arxiv.org/abs/2112.05754
