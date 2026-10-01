@@ -165,7 +165,7 @@ Resubmit interrupted runs with the same geometry to reuse per-chunk DONE flags.
 When changing `BBOX` or `CHUNK_SIZE`, use a new output root: existing chunk descriptors
 are not regenerated, and `--force abiss` does not invalidate them.
 
-`AGG_THRESHOLD 0.20` with `WS_HIGH 0.9` / `WS_LOW 0.1` is the historical reference
+`AGG_THRESHOLD 0.3` with `WS_HIGH 0.99999` / `WS_LOW 0.00001` is the historical reference
 recipe, not a guarantee of its scores with a retrained model or corrected mask.
 The pipeline deliberately under-agglomerates here and attempts to repair splits in
 step 4 using morphology and, when supplied, nucleus identities.

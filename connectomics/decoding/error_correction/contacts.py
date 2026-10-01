@@ -396,6 +396,12 @@ def contact_chunk(
             dtype=bool,
         )
     )
+    if keep_zyx.shape != dense.shape:
+        keep_zyx = np.pad(
+            keep_zyx,
+            [(0, int(d - s)) for d, s in zip(dense.shape, keep_zyx.shape)],
+            mode="edge",
+        )
     boundary = segment_boundary_flags(
         dense,
         present,
@@ -526,7 +532,10 @@ def main() -> int:
         chunk_size=args.affinity_chunk_size,
         restore_scale=args.restore_sigmoid_scale,
     )
-    shape_xyz = np.asarray(cv.shape[:3], dtype=np.int64)
+    shape_xyz = np.minimum(
+        np.asarray(cv.shape[:3], dtype=np.int64),
+        np.asarray(args.volume_shape_zyx, dtype=np.int64)[::-1],
+    )
     chunks = list(grid_chunks(shape_xyz, np.asarray(args.core_xyz, dtype=np.int64)))
     owned = [item for index, item in enumerate(chunks) if index % args.num_tasks == args.task_id]
     if args.max_owned_chunks is not None:

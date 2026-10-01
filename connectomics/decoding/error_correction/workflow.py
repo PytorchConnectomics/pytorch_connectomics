@@ -295,6 +295,7 @@ class ErrorCorrectionConfig:
             "junctions": self.workdir / "junction_features_raw.npz",
             "skeleton_cache": self.workdir / "skeleton_cache",
             "boundary": self.workdir / "boundary_inventory.npz",
+            "nucleus_firewall": self.workdir / "nucleus_firewall.json",
         }
         return paths[name]
 
@@ -342,7 +343,7 @@ def _resolve_commands(config: ErrorCorrectionConfig) -> list[list[str]]:
         "--junctions",
         config.artifact("junctions"),
         "--nucleus-manifest",
-        config.nucleus_manifest,
+        config.artifact("nucleus_firewall"),
     ]
     commands: list[list[str]] = []
     previous: dict[str, Path] | None = None
@@ -403,7 +404,15 @@ def stage_commands(
         args: list[object] = ["--input-glob", config.size_glob, "--output", a("sizes")]
         if config.expected_size_files is not None:
             args.extend(["--expected-files", config.expected_size_files])
-        return [_module("sizes", *args)]
+        firewall = (
+            "--manifest",
+            config.nucleus_manifest,
+            "--segmentation",
+            config.segmentation,
+            "--output",
+            a("nucleus_firewall"),
+        )
+        return [_module("sizes", *args), _module("nucleus_manifest", *firewall)]
     if stage == "skeletonize":
         return [
             _module(
@@ -455,7 +464,7 @@ def stage_commands(
                 "--interiors",
                 a("interiors"),
                 "--nucleus-targets",
-                config.nucleus_manifest,
+                a("nucleus_firewall"),
                 "--expected-chunks",
                 config.expected_chunks,
                 *_parameter_args(config.parameters.get("morphology", {})),
