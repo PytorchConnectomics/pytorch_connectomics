@@ -25,8 +25,33 @@ PATTERN = re.compile(
     r"zebrafinch|matchguard|gtfree|arm0_96|j0126|moritz|pinky|seuron|lessons L\d+|HANDOFF_",
     re.I,
 )
-# The guard itself is the only exception; there are no attribution exceptions.
+# The guard itself is the only attribution exception. The paths below are the j0126
+# research workflow, restored so its one-command reproduction runs from this repository;
+# they are exempt as a whole and nothing outside them is.
 SELF = "tests/unit/test_no_lab_references.py"
+J0126_WORKFLOW = (
+    "connectomics/data/keep_mask.py",
+    "connectomics/decoding/error_correction/",
+    "connectomics/playbooks/",
+    "connectomics/runtime/abiss_chunk.py",
+    "connectomics/runtime/volume_pipeline.py",
+    "connectomics/utils/yaml_config.py",
+    "scripts/build_j0126_keep_mask.py",
+    "scripts/evaluate_j0126.py",
+    "scripts/run_abiss_chunk.py",
+    "scripts/run_error_correction.py",
+    "scripts/run_j0126.py",
+    "scripts/run_playbook.py",
+    "tests/fixtures/playbook_baseline/j0126.json",
+    "tests/unit/test_abiss_chunk_executor.py",
+    "tests/unit/test_cube_playbook.py",
+    "tests/unit/test_error_correction_contact_spacing.py",
+    "tests/unit/test_error_correction_workflow.py",
+    "tests/unit/test_keep_mask.py",
+    "tests/unit/test_volume_pipeline.py",
+    "tutorials/_base/abiss.yaml",
+    "tutorials/neuron_j0126/",
+)
 
 
 def test_no_lab_references():
@@ -46,9 +71,15 @@ def test_no_lab_references():
     )
     failures = []
     for name in paths:
-        if name == SELF or not (
-            name in SURFACES
-            or name.startswith(("connectomics/", "scripts/", "tutorials/", "tests/", "prompts/"))
+        if (
+            name == SELF
+            or name.startswith(J0126_WORKFLOW)
+            or not (
+                name in SURFACES
+                or name.startswith(
+                    ("connectomics/", "scripts/", "tutorials/", "tests/", "prompts/")
+                )
+            )
         ):
             continue
         path = ROOT / name

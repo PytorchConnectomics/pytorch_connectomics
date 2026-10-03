@@ -79,7 +79,7 @@ environment — legacy `libtbb.so.2` or Boost 1.85 fail in mean-edge agglomerati
 | 5 | eval | `scripts/evaluate_j0126.py` | `output_root/eval/nerl.json` exists |
 
 Keep the step YAMLs' thresholds unchanged to reproduce the reference recipe. Planning
-figures: [RESOURCE.md](RESOURCE.md). Disk cleanup mid-run: [CLEANUP.md](CLEANUP.md).
+figures: [RESOURCE](./RESOURCE.md). Disk cleanup mid-run: [CLEANUP](./CLEANUP.md).
 
 ### Step 0 — data and exclusion mask
 
@@ -221,7 +221,7 @@ score the intended layer explicitly.
 
 ## Reproduction status
 
-Audited against the local report `.agent/issues/j0126/reproduction.md`
+Audited against the local reproduction report
 and the current shared driver in `connectomics/playbooks/cube_decode.py`.
 Documentation corrections are not a new full-volume validation.
 

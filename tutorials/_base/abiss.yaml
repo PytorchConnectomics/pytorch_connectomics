@@ -1,0 +1,28 @@
+# Shared paths and structural settings for the cube decode playbook.
+# A dataset supplies params.yaml and 2_abiss.yaml. Keep fitted values local:
+# WS_HIGH_THRESHOLD, WS_LOW_THRESHOLD, AGG_THRESHOLD and CHUNK_SIZE are required
+# by the playbook before ABISS preparation. No value or null placeholder belongs
+# here. Storage chunk sizes, watershed size/dust limits and nucleus settings also
+# remain dataset choices.
+
+abiss_chunk:
+  abiss_home: ${params.paths.repository}/lib/abiss
+  workdir: ${params.paths.output_root}/abiss/run
+  secrets_dir: ${params.paths.output_root}/abiss/secrets
+  param_path: ${params.paths.output_root}/abiss/secrets/param
+  # ABISS stores integer display metadata; scoring uses the full-precision frame.
+  resolution_xyz: ${params.frame.resolution_xyz_nm}
+  overlap_mode: 0
+  meta_dirs: []
+
+  param:
+    AFF_PATH: file://${params.data.affinity_precomputed}
+    WS_PATH: file://${params.paths.output_root}/abiss/precomputed/ws
+    SEG_PATH: file://${params.paths.output_root}/abiss/precomputed/seg
+    SCRATCH_PATH: file://${params.paths.output_root}/abiss/scratch
+    CHUNKMAP_OUTPUT: file://${params.paths.output_root}/abiss/chunkmap
+    AFF_RESOLUTION: 0
+    AFF_KEEP_MASK: ${params.data.keep_mask}::main
+    AFF_KEEP_MASK_RATIO: ${params.data.masks.ratio_zyx}
+    PARANOID: false
+    CHUNKED_AGG_OUTPUT: false
