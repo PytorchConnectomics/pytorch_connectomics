@@ -15,7 +15,8 @@ Functions:
 from __future__ import annotations
 
 import warnings
-from typing import Optional, Sequence, Tuple
+from collections.abc import Sequence
+from typing import Optional
 
 import cc3d
 import fastremap
@@ -78,9 +79,9 @@ def decode_instance_binary_contour_distance(
     contour_channels: Optional[Sequence[int]] = (1,),
     distance_channels: Optional[Sequence[int]] = (2,),
     binary_channel_reduction: str = "mean",
-    binary_threshold: Tuple[float, float] = (0.9, 0.85),
-    contour_threshold: Optional[Tuple[float, float]] = (0.8, 1.1),
-    distance_threshold: Tuple[float, float] = (0.5, 0),
+    binary_threshold: tuple[float, float] = (0.9, 0.85),
+    contour_threshold: Optional[tuple[float, float]] = (0.8, 1.1),
+    distance_threshold: tuple[float, float] = (0.5, 0),
     precomputed_seed: Optional[np.ndarray] = None,
     min_seed_size: int = 32,
     min_instance_size: int = 0,
@@ -290,12 +291,12 @@ def decode_instance_binary_contour_distance(
 def decode_distance_watershed(
     predictions: np.ndarray,
     distance_channels: Optional[Sequence[int]] = (0,),
-    distance_threshold: Tuple[float, float] = (0.5, 0),
+    distance_threshold: tuple[float, float] = (0.5, 0),
     min_seed_size: int = 50,
     min_instance_size: int = 0,
     use_fast_edt: bool = True,
     edt_parallel: int = 4,
-    edt_anisotropy: Optional[Tuple[float, ...]] = None,
+    edt_anisotropy: Optional[tuple[float, ...]] = None,
     edt_downsample_factor: int = 1,
     return_seed: bool = False,
     **kwargs,  # Accept but ignore unused parameters for compatibility
@@ -413,6 +414,7 @@ def decode_distance_watershed(
             f"No foreground voxels found with threshold {distance_threshold[1]}. "
             "Returning empty segmentation.",
             UserWarning,
+            stacklevel=2,
         )
         empty_seg = np.zeros(distance.shape, dtype=np.uint32)
         if return_seed:
@@ -428,6 +430,7 @@ def decode_distance_watershed(
             f"No seed voxels found with threshold {distance_threshold[0]}. "
             "Returning empty segmentation.",
             UserWarning,
+            stacklevel=2,
         )
         empty_seg = np.zeros(distance.shape, dtype=np.uint32)
         if return_seed:
@@ -446,6 +449,7 @@ def decode_distance_watershed(
             f"No seeds remain after removing small objects (min_size={min_seed_size}). "
             "Returning empty segmentation.",
             UserWarning,
+            stacklevel=2,
         )
         empty_seg = np.zeros(distance.shape, dtype=np.uint32)
         if return_seed:
@@ -605,6 +609,7 @@ def decode_affinity_cc(
                 "Numba backend requested but numba is not available; falling back to cc3d. "
                 "Install numba>=0.60.0 or set backend='cc3d'.",
                 UserWarning,
+                stacklevel=2,
             )
             segmentation = cc3d.connected_components(hard_aff.any(axis=0))
         elif backend_normalized == "numba_serial":
