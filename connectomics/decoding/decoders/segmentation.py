@@ -506,11 +506,11 @@ def decode_affinity_cc(
     edge_offset: int = 0,
     orphan_fill: bool = False,
     affinity_channels: Optional[Sequence[int]] = None,
+    num_workers: Optional[int] = None,
+    parallel: str = "auto",
+    buffer_dir: Optional[str] = None,
 ) -> np.ndarray:
     r"""Convert affinity predictions to instance segmentation via connected components.
-
-    This function implements fast connected component labeling on affinity graphs,
-    providing 10-100x speedup when Numba is available compared to standard methods.
 
     The algorithm uses only **short-range affinities** (first 3 channels, or the
     first 3 of ``affinity_channels`` if supplied) to build a connectivity graph,
@@ -538,9 +538,13 @@ def decode_affinity_cc(
             - ``"cc3d"`` (default): Fast, predictable startup; ignores directed affinity graph
               and runs connected components on foreground voxels.
             - ``"numba"``: Multi-threaded affinity-graph CC via parallel min-label sweeps
-              (first call may incur JIT compile overhead). Bit-exact with ``"numba_serial"``.
+              (first call may incur JIT compile overhead). Same partition as
+              ``"numba_serial"``; identical labels for ``edge_offset=0``.
             - ``"numba_serial"``: Original single-threaded DFS flood-fill kept as a reference
               fallback.
+            - ``"slab"``: Slab graph CC, exactly equal to ``numba`` when its sweeps
+              converge. Serial labels can differ for ``edge_offset=1`` because its
+              seed order differs from first-voxel order. Opt-in parallelism.
             - ``"cupy"``: Single-GPU min-label sweeps via cupy. Same partition as
               ``"numba_serial"``; bit-exact for ``edge_offset=0``. Requires cupy and
               enough GPU memory for ~17×volume bytes.
@@ -549,12 +553,28 @@ def decode_affinity_cc(
             to source voxel ``v``. ``0`` = source-index (BANIS's ``comp_affinities``
             stores the edge at ``v``). ``1`` = destination-index
             (``affinity_mode=deepem``, zwatershed, abiss store the edge at ``v+1``).
-            Only used when ``backend="numba"``. Default: ``0``.
+            Used by the numba and slab backends. Default: ``0``.
         orphan_fill (bool): If True, recover voxels with positive but sub-threshold
             short-range affinities by running a second CC on the leftover foreground
             mask and assigning new labels. Default: ``False`` (BANIS reference
             behavior; avoids allocating the full ``(short > 0).any(axis=0)`` bool
             volume).
+
+        num_workers (int, optional): Worker count for slab only; defaults to CPU affinity.
+        parallel (str): Slab only: "auto", "processes", "fork", "forkserver", "threads".
+            Auto uses processes when available with multiple effective workers,
+            otherwise threads. Processes uses fork on Linux where available, otherwise
+            forkserver with spawn fallback. Explicit fork requires Linux and a
+            non-daemonic caller. On Linux the default process mode forks the calling
+            process; forking a process whose other threads hold locks can deadlock
+            children. Children only run precompiled nogil Numba kernels and cc3d for
+            labeling. Use parallel="forkserver" or "threads" when that is a concern.
+            Forkserver/spawn scripts need a main-module guard.
+        buffer_dir (str, optional): Slab forkserver shared-buffer directory; defaults
+            to writable /dev/shm, else the temporary directory. Hard affinities use
+            3 bytes/voxel and labels initially use 4 bytes/voxel. Fork uses an ordinary
+            hard array inherited by children and anonymous shared labels instead.
+            All storage counts toward memory limits.
 
     Returns:
         numpy.ndarray: Instance segmentation mask of shape :math:`(Z, Y, X)` with
@@ -596,14 +616,42 @@ def decode_affinity_cc(
 
     # Extract short-range affinities (first 3 channels) and binarize
     short_range_aff = affinities[:3]
-    hard_aff = short_range_aff > threshold
 
     # Connected components
     backend_normalized = str(backend).lower()
     if backend_normalized == "auto":
         backend_normalized = "numba" if NUMBA_AVAILABLE else "cc3d"
 
-    if backend_normalized in ("numba", "numba_serial"):
+    if backend_normalized != "slab" or not NUMBA_AVAILABLE:
+        hard_aff = short_range_aff > threshold
+
+    if backend_normalized == "slab" and NUMBA_AVAILABLE:
+        from connectomics.utils.shared_buffer import SharedArray
+
+        from .affinity_cc_slab import _connected_components_slab, _layout
+
+        _, _, mode = _layout(short_range_aff.shape, int(edge_offset), num_workers, None, parallel)
+        if mode == "forkserver" and short_range_aff.size:
+            buf = SharedArray.create(short_range_aff.shape, np.bool_, buffer_dir)
+            try:
+                np.greater(short_range_aff, threshold, out=buf.array)
+            except BaseException:
+                buf.close()
+                raise
+            hard_input = buf
+        else:
+            hard_input = short_range_aff > threshold
+        segmentation = _connected_components_slab(
+            hard_input,
+            edge_offset=int(edge_offset),
+            num_workers=num_workers,
+            parallel=parallel,
+            finalize=not orphan_fill,
+            buffer_dir=buffer_dir,
+        )
+        if not orphan_fill:
+            return segmentation
+    elif backend_normalized in ("numba", "numba_serial", "slab"):
         if not NUMBA_AVAILABLE:
             warnings.warn(
                 "Numba backend requested but numba is not available; falling back to cc3d. "
@@ -633,7 +681,7 @@ def decode_affinity_cc(
     else:
         raise ValueError(
             f"Unknown backend '{backend}'. Expected one of "
-            "['cc3d', 'numba', 'numba_serial', 'cupy', 'auto']."
+            "['cc3d', 'numba', 'numba_serial', 'slab', 'cupy', 'auto']."
         )
 
     # Recover foreground voxels with sub-threshold positive affinities
