@@ -322,11 +322,10 @@ class PerChannelBCEWithLogitsLoss(nn.Module):
             pos_counts = pos.sum(dim=reduce_dims).float()
             neg_counts = neg.sum(dim=reduce_dims).float()
 
-            pw = torch.ones(C, device=input.device, dtype=torch.float32)
-            nonzero = pos_counts > 0
-            pw[nonzero] = torch.clamp(
-                neg_counts[nonzero] / pos_counts[nonzero],
-                max=self.max_pos_weight,
+            pw = torch.where(
+                pos_counts > 0,
+                (neg_counts / pos_counts.clamp_min(1)).clamp(max=self.max_pos_weight),
+                torch.ones_like(pos_counts),
             )
             # (1, C, 1, ..., 1) for broadcasting; cast to input dtype for AMP
             pos_weight_tensor = pw.reshape(1, C, *([1] * (target.ndim - 2))).to(input.dtype)
@@ -340,6 +339,20 @@ class PerChannelBCEWithLogitsLoss(nn.Module):
 
         if weight is not None:
             bce = bce * weight
+
+        vectorize = weight is None or (
+            weight.ndim == bce.ndim
+            and weight.shape[1] == C
+            and torch.broadcast_shapes(weight.shape, bce.shape) == bce.shape
+        )
+        if self.reduction == "mean" and vectorize:
+            valid = weight > 0 if weight is not None else torch.ones_like(bce, dtype=torch.bool)
+            valid = torch.broadcast_to(valid, bce.shape)
+            dims = (0,) + tuple(range(2, bce.ndim))
+            masked = torch.where(valid, bce, bce.new_zeros(()))
+            sums = masked.sum(dim=dims, dtype=torch.promote_types(bce.dtype, torch.float32))
+            counts = valid.sum(dim=dims)
+            return (sums / counts.clamp_min(1)).sum().to(bce.dtype)
 
         # Per-channel reduction, then sum across channels.
         total = input.new_tensor(0.0)

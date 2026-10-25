@@ -904,11 +904,34 @@ class EMAWeightsCallback(Callback):
             return
 
         device = self._ema_device or pl_module.device
+        groups = {}
         with torch.no_grad():
             for name, param in pl_module.model.named_parameters():
                 if not param.requires_grad:
                     continue
-                self._update_single(name, param.detach(), decay, device, use_decay=True)
+                tensor = param.detach()
+                current = self._ema_state.get(name)
+                if (
+                    current is None
+                    or current.device != device
+                    or tensor.device != device
+                    # Low-precision foreach arithmetic differs from scalar add_ rounding.
+                    or (current.dtype, tensor.dtype)
+                    in {
+                        (torch.float32, torch.bfloat16),
+                        (torch.bfloat16, torch.bfloat16),
+                    }
+                    or not current.is_floating_point()
+                    or not tensor.is_floating_point()
+                ):
+                    self._update_single(name, tensor, decay, device, use_decay=True)
+                    continue
+                targets, sources = groups.setdefault((current.dtype, tensor.dtype), ([], []))
+                targets.append(current)
+                sources.append(tensor)
+            for targets, sources in groups.values():
+                torch._foreach_mul_(targets, decay)
+                torch._foreach_add_(targets, sources, alpha=1.0 - decay)
 
             for name, buffer in pl_module.model.named_buffers():
                 if not self.copy_buffers:

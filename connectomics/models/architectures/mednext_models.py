@@ -15,10 +15,12 @@ Installation:
 
 from __future__ import annotations
 
+import logging
 from typing import Any, Dict, Mapping, Union
 
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 
 try:
     from nnunet_mednext import MedNeXt as MedNeXtBase
@@ -33,6 +35,8 @@ except ImportError:
 
 from .base import ConnectomicsModel
 from .registry import register_architecture
+
+logger = logging.getLogger(__name__)
 
 
 class MedNeXtWrapper(ConnectomicsModel):
@@ -300,6 +304,76 @@ def _check_mednext_available():
         )
 
 
+class ShiftSumDepthwiseConv3d(nn.Conv3d):
+    """Stride-1 depthwise Conv3d computed as k^3 shifted multiply-adds.
+
+    Keeps nn.Conv3d's parameters and state_dict keys, so checkpoints load unchanged.
+    Under torch.compile, inductor fuses the shifts into Triton kernels (fp32 accumulation),
+    replacing the slow at::native conv_depthwise3d forward/backward kernels.
+    """
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        weight, bias = self.weight, self.bias
+        if torch.is_autocast_enabled(x.device.type):
+            # Match autocast's conv3d casting: input, weight and bias in the autocast dtype.
+            dtype = torch.get_autocast_dtype(x.device.type)
+            x, weight = x.to(dtype), weight.to(dtype)
+            bias = bias.to(dtype) if bias is not None else None
+        kd, kh, kw = self.kernel_size
+        pd, ph, pw = self.padding
+        channels = x.shape[1]
+        depth, height, width = x.shape[2:]
+        padded = F.pad(x, (pw, pw, ph, ph, pd, pd))
+        out = None
+        for i in range(kd):
+            for j in range(kh):
+                for k in range(kw):
+                    tap = weight[:, 0, i, j, k].view(1, channels, 1, 1, 1)
+                    term = tap * padded[:, :, i : i + depth, j : j + height, k : k + width]
+                    out = term if out is None else out + term
+        if bias is not None:
+            out = out + bias.view(1, channels, 1, 1, 1)
+        return out
+
+
+def _is_shift_sum_eligible(module: nn.Module) -> bool:
+    return (
+        type(module) is nn.Conv3d
+        and module.groups == module.in_channels == module.out_channels
+        and module.stride == (1, 1, 1)
+        and module.dilation == (1, 1, 1)
+        and module.padding_mode == "zeros"
+        and isinstance(module.padding, tuple)
+        and all(p == k // 2 and k % 2 == 1 for p, k in zip(module.padding, module.kernel_size))
+    )
+
+
+def _apply_mednext_depthwise_impl(model: nn.Module, cfg) -> None:
+    """Swap stride-1 depthwise convs in place when model.mednext_depthwise_impl='shift_sum'."""
+    impl = cfg.model.mednext_depthwise_impl
+    if impl == "native":
+        return
+    if impl != "shift_sum":
+        raise ValueError(
+            f"model.mednext_depthwise_impl must be 'native' or 'shift_sum', got {impl!r}"
+        )
+    if not cfg.model.compile:
+        raise ValueError(
+            "model.mednext_depthwise_impl='shift_sum' requires model.compile=true: "
+            "uncompiled it runs k^3 separate kernels and accumulates in the autocast dtype"
+        )
+    if not hasattr(torch, "get_autocast_dtype") or not hasattr(nn.Module, "compile"):
+        raise RuntimeError(
+            "shift_sum requires torch.get_autocast_dtype and torch.nn.Module.compile"
+        )
+    swapped = 0
+    for module in model.modules():
+        if _is_shift_sum_eligible(module):
+            module.__class__ = ShiftSumDepthwiseConv3d
+            swapped += 1
+    logger.info("MedNeXt: %d depthwise convs use the shift-sum implementation", swapped)
+
+
 @register_architecture("mednext")
 def build_mednext(cfg) -> ConnectomicsModel:
     """
@@ -391,6 +465,10 @@ def build_mednext(cfg) -> ConnectomicsModel:
     # Override the upstream M/L presets so the schema controls every model size.
     model.outside_block_checkpointing = checkpoint_style == "outside_block"
 
+    if cfg.model.mednext_freeze_dummy_tensor and not model.do_ds:
+        model.dummy_tensor.requires_grad_(False)
+    _apply_mednext_depthwise_impl(model, cfg)
+
     if head_cfg:
         return MedNeXtMultiHeadWrapper(model, head_cfg, primary_head=primary_head)
     return MedNeXtWrapper(model, deep_supervision=deep_supervision)
@@ -476,6 +554,10 @@ def build_mednext_custom(cfg) -> ConnectomicsModel:
 
     # Build custom model
     model = MedNeXtBase(**params)
+
+    if cfg.model.mednext_freeze_dummy_tensor and not model.do_ds:
+        model.dummy_tensor.requires_grad_(False)
+    _apply_mednext_depthwise_impl(model, cfg)
 
     if head_cfg:
         return MedNeXtMultiHeadWrapper(model, head_cfg, primary_head=primary_head)

@@ -111,6 +111,23 @@ def build_optimizer(cfg, model: torch.nn.Module) -> torch.optim.Optimizer:
 
             params.append({"params": [value], "lr": param_lr, "weight_decay": param_weight_decay})
 
+    if opt_cfg.merge_param_groups:
+        groups = {}
+        for group in params:
+            key = (group["lr"], group["weight_decay"])
+            if key not in groups:
+                groups[key] = {**group, "params": []}
+            groups[key]["params"].extend(group["params"])
+        params = list(groups.values())
+
+    adam_kwargs = {}
+    if opt_cfg.fused and optimizer_name in {"adam", "adamw"}:
+        if memo and all(p.is_cuda and p.is_floating_point() for p in memo):
+            adam_kwargs["fused"] = True
+        else:
+            logger.warning("Fused Adam requires CUDA floating-point parameters; using foreach=None")
+            adam_kwargs["foreach"] = None
+
     # Create optimizer
     if optimizer_name == "adamw":
         betas = tuple(opt_cfg.betas) if hasattr(opt_cfg, "betas") else (0.9, 0.999)
@@ -119,6 +136,7 @@ def build_optimizer(cfg, model: torch.nn.Module) -> torch.optim.Optimizer:
             params,
             lr=lr,
             betas=betas,
+            **adam_kwargs,
             eps=eps,
             weight_decay=weight_decay,
         )
@@ -129,6 +147,7 @@ def build_optimizer(cfg, model: torch.nn.Module) -> torch.optim.Optimizer:
             params,
             lr=lr,
             betas=betas,
+            **adam_kwargs,
             eps=eps,
             weight_decay=weight_decay,
         )

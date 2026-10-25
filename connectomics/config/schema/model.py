@@ -94,6 +94,13 @@ class ModelConfig:
     # Architecture
     arch: ModelArchConfig = field(default_factory=ModelArchConfig)
 
+    compile: bool = False
+    compile_mode: Optional[str] = None
+    mednext_freeze_dummy_tensor: bool = False
+    # "native" | "shift_sum": stride-1 depthwise convs as fused shifted multiply-adds
+    # (requires compile; avoids the slow at::native depthwise-3D kernels).
+    mednext_depthwise_impl: str = "native"
+
     # I/O dimensions
     input_size: List[int] = field(default_factory=lambda: [128, 128, 128])
     output_size: List[int] = field(default_factory=lambda: [128, 128, 128])

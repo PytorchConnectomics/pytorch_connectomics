@@ -40,6 +40,22 @@ _log = logging.getLogger(__name__)
 register_torch_safe_globals()
 
 
+def _select_ddp_strategy_kwargs(cfg) -> dict:
+    """Keep unused-parameter detection unless the configured graph permits disabling it."""
+    return {
+        "find_unused_parameters": bool(
+            cfg.model.loss.deep_supervision
+            or cfg.optimization.ddp_find_unused_parameters
+            or (
+                cfg.model.arch.type.startswith("mednext")
+                # Named heads bypass the trunk's trainable out_0 projection.
+                and (not cfg.model.mednext_freeze_dummy_tensor or cfg.model.heads)
+            )
+        ),
+        "static_graph": cfg.optimization.ddp_static_graph,
+    }
+
+
 def create_trainer(
     cfg: Config,
     run_dir: Optional[Path] = None,
@@ -228,6 +244,22 @@ def create_trainer(
         )
         trainer_precision = "32-true"
 
+    if (
+        cfg.optimization.gradient_clip_val is not None
+        and cfg.optimization.gradient_clip_val > 0
+        and cfg.optimization.optimizer.name.lower() in {"adam", "adamw"}
+        and cfg.optimization.optimizer.fused
+        and requested_devices > 0
+        and accelerator_type == "cuda"
+        and torch.cuda.is_available()
+        and str(trainer_precision) in {"16-mixed", "16", "fp16"}
+    ):
+        raise ValueError(
+            "optimization.optimizer.fused=true cannot be combined with "
+            "optimization.gradient_clip_val > 0 under fp16 GradScaler precision; "
+            "use bf16-mixed precision or set optimization.optimizer.fused=false"
+        )
+
     # Check if anomaly detection is enabled (useful for debugging NaN)
     detect_anomaly = getattr(cfg.monitor, "detect_anomaly", False)
     if detect_anomaly:
@@ -237,29 +269,9 @@ def create_trainer(
     # Configure DDP strategy for multi-GPU training with deep supervision
     strategy = "auto"  # Default strategy
     if requested_devices > 1:
-        # Multi-GPU training: configure DDP
-        loss_cfg = getattr(cfg.model, "loss", None)
-        deep_supervision_enabled = getattr(loss_cfg, "deep_supervision", False)
-        ddp_find_unused_params = getattr(cfg.model, "ddp_find_unused_parameters", False)
-        architecture = getattr(getattr(cfg.model, "arch", None), "type", "")
-        is_mednext = architecture.startswith("mednext")
-
-        # MedNeXt always creates deep supervision layers internally (even when disabled)
-        # so it always needs find_unused_parameters=True
-        if is_mednext or deep_supervision_enabled or ddp_find_unused_params:
-            strategy = DDPStrategy(find_unused_parameters=True)
-
-            # Determine reason for using find_unused_parameters
-            if is_mednext and not deep_supervision_enabled:
-                reason = "MedNeXt (has unused DS layers)"
-            elif deep_supervision_enabled:
-                reason = "deep supervision enabled"
-            else:
-                reason = "explicit config"
-            _log.info(f"  Strategy: DDP with find_unused_parameters=True ({reason})")
-        else:
-            strategy = DDPStrategy(find_unused_parameters=False)
-            _log.info("  Strategy: DDP (standard)")
+        ddp_kwargs = _select_ddp_strategy_kwargs(cfg)
+        _log.info("DDP strategy: %s", ddp_kwargs)
+        strategy = DDPStrategy(**ddp_kwargs)
 
     # [FIX 2] Implement TRUE step-based training
     # PyTorch Lightning stops when EITHER max_epochs OR max_steps is reached
@@ -329,6 +341,8 @@ def create_trainer(
         devices=requested_devices if requested_devices > 0 else 1,
         strategy=strategy,
         precision=trainer_precision,
+        benchmark=cfg.optimization.benchmark,
+        deterministic=cfg.optimization.deterministic,
         gradient_clip_val=cfg.optimization.gradient_clip_val,
         accumulate_grad_batches=cfg.optimization.accumulate_grad_batches,
         check_val_every_n_epoch=check_val_every_n_epoch,
