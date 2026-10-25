@@ -864,17 +864,24 @@ def _build_augmentations(aug_cfg: AugmentationConfig, keys: list[str], do_2d: bo
         # Interpolation per key: bilinear for images, nearest for labels/masks
         affine_modes = ["bilinear" if k == "image" else "nearest" for k in keys]
 
-        transforms.append(
-            RandAffined(
-                keys=keys,
-                prob=aug_cfg.affine.prob,
-                rotate_range=rotate_range,
-                scale_range=scale_range,
-                shear_range=shear_range,
-                mode=affine_modes,
-                padding_mode="reflection",
-            )
+        rand_affine = RandAffined(
+            keys=keys,
+            prob=aug_cfg.affine.prob,
+            rotate_range=rotate_range,
+            scale_range=scale_range,
+            shear_range=shear_range,
+            mode=affine_modes,
+            padding_mode="reflection",
         )
+        if aug_cfg.affine.fast_resample:
+            from .fast_resample import NUMBA_AVAILABLE, NumbaAffineResample
+
+            if not NUMBA_AVAILABLE:
+                raise ImportError(
+                    "data.augmentation.affine.fast_resample requires a working numba installation"
+                )
+            rand_affine.rand_affine.resampler = NumbaAffineResample(dtype=torch.float32)
+        transforms.append(rand_affine)
 
     if aug_cfg.elastic.enabled:
         # Unified elastic deformation that supports both 2D and 3D
