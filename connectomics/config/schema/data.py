@@ -296,6 +296,8 @@ class AffineConfig:
     rotate_range: Tuple[float, float, float] = (0.0, 0.0, 0.0)
     scale_range: Tuple[float, float, float] = (0.0, 0.0, 0.0)
     shear_range: Tuple[float, float, float] = (0.0, 0.0, 0.0)
+    # Use optional numba kernels for CPU float32 affine resampling.
+    fast_resample: bool = False
 
 
 @dataclass

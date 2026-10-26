@@ -14,6 +14,8 @@ class OptimizerConfig:
     momentum: float = 0.9  # For SGD
     betas: Tuple[float, float] = (0.9, 0.999)  # For Adam/AdamW
     eps: float = 1e-8
+    fused: bool = False
+    merge_param_groups: bool = False
 
 
 @dataclass
@@ -102,3 +104,6 @@ class OptimizationConfig:
     num_sanity_val_steps: int = 2
     deterministic: Optional[bool] = None
     benchmark: Optional[bool] = None
+    # Enable only when the used parameters and training graph stay fixed across steps.
+    ddp_static_graph: bool = False
+    ddp_find_unused_parameters: bool = False

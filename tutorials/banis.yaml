@@ -118,6 +118,7 @@ default:
 
 train:
   optimization:
+    benchmark: true
     optimizer:
       name: AdamW
       lr: 0.001

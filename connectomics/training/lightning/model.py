@@ -27,6 +27,7 @@ import pytorch_lightning as pl
 import torch
 import torch.nn as nn
 import torchmetrics
+from monai.data import MetaTensor
 from omegaconf import DictConfig, OmegaConf
 from pytorch_lightning.trainer.states import TrainerFn
 from pytorch_lightning.utilities.types import STEP_OUTPUT
@@ -102,6 +103,7 @@ class ConnectomicsModule(pl.LightningModule):
 
         # Build model
         self.model = model if model is not None else self._build_model(cfg)
+        self._model_compiled: bool = False
 
         self.loss_functions: nn.ModuleList
         self.loss_weights: List[float]
@@ -234,6 +236,51 @@ class ConnectomicsModule(pl.LightningModule):
                 forward_fn=self.forward,
             )
         return self._inference_manager
+
+    def configure_model(self) -> None:
+        self._maybe_compile_model()
+
+    def _maybe_compile_model(self) -> None:
+        if not self.cfg.model.compile or self._model_compiled:
+            return
+        from pytorch_lightning.accelerators import CUDAAccelerator
+
+        if self.device.type != "cuda" and not (
+            self._trainer is not None and isinstance(self._trainer.accelerator, CUDAAccelerator)
+        ):
+            if self.cfg.model.mednext_depthwise_impl == "shift_sum":
+                raise ValueError("shift_sum requires CUDA compilation")
+            logger.warning("model.compile requires CUDA; skipping compilation")
+            return
+        if not hasattr(nn.Module, "compile"):
+            raise RuntimeError("model.compile requires torch.nn.Module.compile")
+        kwargs = {}
+        if self.cfg.model.compile_mode is not None:
+            kwargs["mode"] = self.cfg.model.compile_mode
+        self.model.compile(**kwargs)
+        self._model_compiled = True
+
+    def configure_gradient_clipping(
+        self, optimizer, gradient_clip_val=None, gradient_clip_algorithm=None
+    ) -> None:
+        # Lightning's MixedPrecision refuses clipping for fused optimizers even under bf16, where
+        # there is no GradScaler and gradients are already unscaled; clip those directly.
+        scaler = getattr(self.trainer.precision_plugin, "scaler", None)
+        if gradient_clip_val and optimizer.defaults.get("fused") and scaler is None:
+            params = [p for group in optimizer.param_groups for p in group["params"]]
+            if gradient_clip_algorithm == "value":
+                torch.nn.utils.clip_grad_value_(params, gradient_clip_val)
+            else:
+                torch.nn.utils.clip_grad_norm_(params, gradient_clip_val)
+            return
+        self.clip_gradients(optimizer, gradient_clip_val, gradient_clip_algorithm)
+
+    @staticmethod
+    def _plain_batch(batch):
+        return {
+            key: value.as_tensor() if isinstance(value, MetaTensor) else value
+            for key, value in batch.items()
+        }
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """
@@ -900,6 +947,8 @@ class ConnectomicsModule(pl.LightningModule):
     def training_step(self, batch: Dict[str, torch.Tensor], batch_idx: int) -> STEP_OUTPUT:
         """Training step with deep supervision support."""
 
+        if self.cfg.model.compile:
+            batch = self._plain_batch(batch)
         images = batch["image"]
         labels = batch["label"]
         raw_mask = batch.get("mask", None)
@@ -948,6 +997,8 @@ class ConnectomicsModule(pl.LightningModule):
 
     def validation_step(self, batch: Dict[str, torch.Tensor], batch_idx: int) -> STEP_OUTPUT:
         """Validation step with deep supervision support."""
+        if self.cfg.model.compile:
+            batch = self._plain_batch(batch)
         images = batch["image"]
         labels = batch["label"]
         raw_mask = batch.get("mask", None)
