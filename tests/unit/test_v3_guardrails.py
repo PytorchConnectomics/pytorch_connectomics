@@ -49,7 +49,9 @@ def _forbidden_imports(root: Path, forbidden_prefixes: tuple[str, ...]) -> list[
                 imported_modules = [_resolve_import_from(module_name, node)]
 
             for imported_module in imported_modules:
-                if imported_module.startswith(forbidden_prefixes):
+                if isinstance(node, (ast.Import, ast.ImportFrom)) and imported_module.startswith(
+                    forbidden_prefixes
+                ):
                     rel = path.relative_to(REPO_ROOT)
                     violations.append(f"{rel}:{node.lineno}: {imported_module}")
     return violations
@@ -192,4 +194,21 @@ def test_connectomics_inference_public_api_snapshot():
         "resolve_inferer_overlap",
         "is_2d_inference_mode",
         "TTAPredictor",
+    }
+
+
+def test_data_io_public_api_snapshot():
+    import connectomics.data.io as io
+
+    assert set(io.__all__) == {
+        "read_hdf5",
+        "read_hdf5_affinity_threshold",
+        "write_hdf5",
+        "read_images",
+        "read_volume",
+        "save_volume",
+        "get_vol_shape",
+        "volume_exists",
+        "LoadVolumed",
+        "rgb_to_seg",
     }

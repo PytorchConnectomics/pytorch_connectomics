@@ -8,6 +8,7 @@ Organization:
     utils.py           - RGB/seg conversion, mask splitting
 """
 
+from .affinity import read_hdf5_affinity_threshold
 from .io import (
     get_vol_shape,
     read_hdf5,
@@ -24,6 +25,7 @@ from .utils import (
 
 __all__ = [
     "read_hdf5",
+    "read_hdf5_affinity_threshold",
     "write_hdf5",
     "read_images",
     "read_volume",
