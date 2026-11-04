@@ -38,13 +38,19 @@ reproduced numbers are far from every published value.
 
 ## Data
 
-Download the dataset (labeled training volumes and the `valid/` evaluation volumes, ~11 GB)
-and convert it:
+Download the dataset (two RAR archives, `labeled.rar` and `valid.rar`; ~11 GB extracted),
+extract them, and convert:
 
 ```bash
-hf download yanchaoz/EMNeuron --repo-type dataset --local-dir /path/to/EMNeuron
+hf download yanchaoz/EMNeuron --repo-type dataset --revision 62df92b933550cc2a5d3849fe8543191c356f2d4 \
+    --local-dir /path/to/EMNeuron
+cd /path/to/EMNeuron && unrar x labeled.rar && unrar x valid.rar   # or: 7z x <archive>
 python scripts/prepare_emneuron.py --src /path/to/EMNeuron --out /path/to/emneuron_pytc
 ```
+
+The revision is the one the reference run used. `manifest.json` from that run has sha256
+`058211d8718f49a3210e99de160dcc0ba5861cafa190f966a0f8d2abf4401d6c`; a different hash means
+different input volumes.
 
 `prepare_emneuron.py` reproduces SegNeuron's training-data semantics
 (`Train_and_Inference/supervised_provider.py`):
