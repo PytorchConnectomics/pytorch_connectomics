@@ -15,6 +15,7 @@ python scripts/main.py --config tutorials/mito_lucchi++/mito_lucchi++.yaml
 | BetaSeg mitochondria | `tutorials/mito_betaseg.yaml` |
 | SNEMI3D neurons | `tutorials/neuron_snemi/neuron_snemi.yaml` |
 | NISB neurons | `tutorials/neuron_nisb/base_banis.yaml`, `tutorials/neuron_nisb/base_banis+.yaml` |
+| EMNeuron neurons (SegNeuron split) | `tutorials/neuron_segneuron/banis+.yaml` |
 | NucMM nuclei | `tutorials/nuc_nucmm-z.yaml` |
 | CREMI synapses | `tutorials/syn_cremi.yaml` |
 | Vesicles | `tutorials/vesicle_xm.yaml` |

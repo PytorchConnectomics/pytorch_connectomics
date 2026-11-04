@@ -1,0 +1,36 @@
+# EMNeuron, the SegNeuron (MICCAI 2024) database: data paths only. This is
+# what makes a run "SegNeuron split". Not runnable on its own:
+#   _base_: [../banis+.yaml, dataset.yaml]
+#
+# Layout written by scripts/prepare_emneuron.py:
+#
+# train/ -- the 10 labeled sources of EMNeuron `labeled/` (76 volumes) as 308
+#   equal-weight chunks: ignore regions are -1, the FIB volumes also have
+#   z-stride 2 and 3 copies, and uniform chunk sampling gives every source
+#   ~10% of crops (SegNeuron's dataset-balanced sampler). Resolutions differ
+#   per source (6-9 nm xy, 8-50 nm z), so no `resolution` is declared.
+# tune/ -- one held-out chunk per source (the last chunk of its last volume,
+#   z-stride 1; its stride-2/3 copies are not trained on either). Validation
+#   loss and every decoding choice use only these 10 chunks.
+# val/ -- the paper's 8 evaluation volumes (EMNeuron `valid/`): in-distribution
+#   FAFB-1/2, FIB25-1/2, Kstr; out-of-distribution Harris, Ionsem (the paper's
+#   vEM4) and MicronsB (the paper's Basil). Inference only; they are scored
+#   once, with the final-step model and the decoder fixed on tune/.
+
+train:
+  data:
+    train:
+      path: /path/to/emneuron_pytc/train
+      image: "*_img.h5"
+      label: "*_seg.h5"
+    val:
+      path: /path/to/emneuron_pytc/tune
+      image: "*_img.h5"
+      label: "*_seg.h5"
+
+test:
+  data:
+    test:
+      path: /path/to/emneuron_pytc/val
+      image: "*_img.h5"
+      label: "*_seg.h5"

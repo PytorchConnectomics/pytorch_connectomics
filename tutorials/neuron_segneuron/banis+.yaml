@@ -1,0 +1,146 @@
+# BANIS+ on EMNeuron, SegNeuron's train/val split, with the MedNeXt training
+# speed knobs.
+#
+#   data:   python scripts/prepare_emneuron.py --src /path/to/EMNeuron --out /path/to/emneuron_pytc
+#   train:  python scripts/main.py --config tutorials/neuron_segneuron/banis+.yaml
+#   infer:  python scripts/main.py --config tutorials/neuron_segneuron/banis+.yaml --mode test \
+#               --checkpoint <run>/checkpoints/last.ckpt
+#   score:  python scripts/evaluate_emneuron.py --pred-dir <run>/results --gt /path/to/EMNeuron/valid
+#
+# Recipe = ../banis+.yaml (6-channel affinity, MedNeXt-L/k3, per-channel
+# class-balanced BCE, EMA 0.999, erosion 2, AdamW + cosine, 200k steps) with
+# these changes:
+#
+# AFFINITY LAYOUT -- ABISS's, not BANIS's: channels x, y, z (axes 2, 1, 0 of
+# the ZYX arrays) and each edge (i-1, i) stored at voxel i (`deepem` mode,
+# ABISS "destination" storage). The predictions go to decode_abiss as they
+# are; the BANIS layout (z, y, x at the source voxel) needs a channel reversal
+# and a one-voxel shift first.
+#
+# PATCH -- EMNeuron mixes 6-9 nm xy with 8-50 nm z, and a third of its volumes
+# hold only 31-50 sections, so the 128^3 cube becomes [32, 128, 128] ZYX
+# (SegNeuron trains on 20 x 128 x 128). MedNeXt-L is stride-16: 32/16 = 2.
+# Long-range offsets are 10 voxels in x/y and 4 sections in z (BANIS uses 10 on
+# every axis of a 9x9x20 nm volume; 10 sections would span a third of the
+# patch). Destination storage needs the voxel at i - offset, so target_context
+# reads 4/10/10 voxels on the leading side.
+#
+# AUGMENTATION -- aug_banis permutes z with y/x and rotates in 3D, which is
+# wrong for anisotropic sections. aug_em_neuron_fast keeps flips, xy
+# quarter-turns, contrast/brightness/noise and one section defect per sample;
+# motion blur rejoins the defect set, and an xy-only scale jitter (+-20%,
+# independent per axis) stands in for SegNeuron's anisotropic scaling. No 3D
+# elastic: its isotropic displacement would move 30-50 nm sections by many slices.
+#
+# SPEED -- the MedNeXt training knobs: torch.compile with the shift-sum
+# depthwise conv, fused AdamW with merged parameter groups (bf16, so no fp16
+# GradScaler blocks fused clipping), cudnn.benchmark, the numba affine
+# resampler, and a frozen MedNeXt dummy tensor so DDP runs with
+# find_unused_parameters=false.
+
+_base_:
+- ../banis+.yaml
+- dataset.yaml
+
+experiment_name: emneuron_banis+
+description: >-
+  BANIS+ (6-channel affinity, MedNeXt-L/k3, class-balanced BCE, EMA, erosion 2)
+  on SegNeuron's EMNeuron split: ABISS-layout affinities decoded with ABISS,
+  [32,128,128] patches, anisotropic EM augmentation, and the MedNeXt speed
+  knobs (compile + shift-sum depthwise, fused AdamW, bf16).
+
+default:
+  system:
+    num_workers: 8
+  model:
+    input_size: [32, 128, 128]
+    output_size: [32, 128, 128]
+    compile: true
+    mednext_depthwise_impl: shift_sum
+    mednext_freeze_dummy_tensor: true
+  data:
+    dataloader:
+      # 308 small chunks: preload them all (~17 GB per DDP rank); banis.yaml's
+      # `lazy` profile targets the large NISB zarr.
+      profile: cached
+      use_lazy_zarr: false
+      use_cache: false
+      use_preloaded_cache_train: true
+      use_preloaded_cache_val: true
+      patch_size: [32, 128, 128]
+      target_context: [4, 10, 10, 0, 0, 0]
+      batch_size: 4
+    label_transform:
+      targets:
+      - name: affinity
+        kwargs:
+          offsets: ["0-0-1", "0-1-0", "1-0-0", "0-0-10", "0-10-0", "4-0-0"]
+          affinity_mode: deepem
+    augmentation:
+      profile: aug_em_neuron_fast
+      motion_blur:
+        enabled: true
+        prob: 1.0
+        sections: [0, 5]
+        kernel_size: 11
+        sigma_range: [1.0, 3.0]
+        full_section_prob: 0.5
+        partial_ratio_range: [0.25, 0.75]
+      affine:
+        enabled: true
+        prob: 0.5
+        rotate_range: [0.0, 0.0, 0.0]
+        scale_range: [0.0, 0.2, 0.2]
+        shear_range: [0.0, 0.0, 0.0]
+        fast_resample: true
+  inference:
+    # Predict with the EMA weights the recipe trains and validates.
+    checkpoint_weights: ema
+    model:
+      # Short-range x, y, z: already ABISS's channel order.
+      select_channel: [0, 1, 2]
+    window:
+      # Infer at the trained window: MedNeXt's per-sample GroupNorm makes the
+      # forward pass depend on the window extent.
+      window_size: [32, 128, 128]
+      sw_batch_size: 16
+  decoding:
+    steps:
+    # ABISS ws: watershed, size-dependent single linkage, dust removal. The
+    # runner's default edge storage is "destination", which this model writes.
+    - template: decoding_abiss
+      kwargs:
+        abiss_home: /path/to/abiss
+  evaluation:
+    # VI / adapted Rand are scored by scripts/evaluate_emneuron.py with the
+    # SegNeuron evaluator's exact calls; the volumes have no NERL skeletons.
+    enabled: false
+
+test:
+  # Destination storage leaves the first voxel of every axis without an inside
+  # edge, so the test pipeline crops it from deepem predictions. One voxel of
+  # reflect context per side, minus the trailing voxel here, keeps the saved
+  # affinity on the input grid: ABISS reads it with no shift or pad.
+  data:
+    data_transform:
+      pad_size: [1, 1, 1]
+  inference:
+    model:
+      crop_pad: [0, 1, 0, 1, 0, 1]
+
+train:
+  optimization:
+    precision: "bf16-mixed"
+    benchmark: true
+    optimizer:
+      fused: true
+      merge_param_groups: true
+    ddp_find_unused_parameters: false
+    val_check_interval: 10000
+    val_steps_per_epoch: 50
+  monitor:
+    checkpoint:
+      # Step checkpoints every 25k plus last.ckpt; the reported model is the
+      # final step, so the val-loss top-1 copy is kept for diagnostics only.
+      save_top_k: 1
+      save_every_n_steps: 25000
