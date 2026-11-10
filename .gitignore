@@ -115,8 +115,6 @@ dmypy.json
 
 # data
 *.h5
-*.sh
-!tutorials/**/run_everything.sh
 ._*
 .DS_Store
 *.pth
