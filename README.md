@@ -19,42 +19,30 @@ Research workflows are developed separately and are not part of this distributio
 
 ## What you can segment
 
-| Scale           | Structure       | Datasets                                    | Tutorial config                                                  |
-|-----------------|-----------------|---------------------------------------------|------------------------------------------------------------------|
-| Tissue-scale    | Blood vessel    | —                                           | (coming)                                                         |
-| Tissue-scale    | Nuclei          | NucMM-Z                                     | `nuc_nucmm-z`                                                    |
-| Cell-scale      | Neurons         | SNEMI3D, BANIS, EMNeuron (SegNeuron) | `neuron_snemi/*`, `neuron_nisb/*`, `neuron_segneuron/*` |
-| Cell-scale      | Synapses        | CREMI                                       | `syn_cremi`                                                      |
-| Organelle-scale | Mitochondria    | Lucchi++, MitoEM, MitoLab, BetaSeg          | `mito_lucchi++/mito_lucchi++`, `mitoEM/*`, `mito_mitolab`, `mito_betaseg` |
-| Organelle-scale | Vesicles        | XM                                          | `vesicle_xm`                                                     |
+One tutorial per dataset (`tutorials/<config>`). Scores are for released checkpoints; each links
+to the weights on Hugging Face.
+
+| Structure    | Dataset              | Tutorial config               | Model              | Score |
+|--------------|----------------------|-------------------------------|--------------------|-------|
+| Neurons      | EMNeuron (SegNeuron) | `neuron_segneuron/*`          | MedNeXt-L + ABISS  | [VI 0.869 ↓](https://huggingface.co/pytc/tutorial/tree/main/neuron_segneuron) |
+| Neurons      | BANIS                | `neuron_nisb/*`               | MedNeXt-L + cc3d   | [NERL 0.601 ↑](https://huggingface.co/pytc/tutorial/tree/main/neuron_nisb) |
+| Neurons      | SNEMI3D              | `neuron_snemi/*`              | MedNeXt-S + waterz | — |
+| Mitochondria | Lucchi++             | `mito_lucchi++/mito_lucchi++` | MedNeXt-S          | [Jaccard 0.935 ↑](https://huggingface.co/pytc/tutorial/tree/main/mito_lucchi%2B%2B) |
+| Mitochondria | MitoEM               | `mitoEM/*`                    | MedNeXt-L + waterz | — |
+| Mitochondria | MitoLab, BetaSeg     | `mito_mitolab`, `mito_betaseg`| —                  | — |
+| Synapses     | CREMI                | `syn_cremi`                   | MONAI U-Net        | — |
+| Vesicles     | XM                   | `vesicle_xm`                  | —                  | — |
+| Nuclei       | NucMM-Z              | `nuc_nucmm-z`                 | —                  | — |
+| Blood vessel | —                    | (coming)                      | —                  | — |
+
+<!-- Maintainer TODO: replace "—" with scores of released checkpoints. -->
 
 Download sample data for `lucchi++`, `snemi`, `mitoem`, or `cremi` with
 `just download <name>`.
 
-**Neurons in your own EM volume, no training:** the pretrained EMNeuron model
-([`pytc/tutorial/neuron_segneuron`](https://huggingface.co/pytc/tutorial/tree/main/neuron_segneuron))
-runs zero-shot with `tutorials/neuron_segneuron/predict.sh` and fine-tunes with
+**Neurons in your own EM volume, no training:** the pretrained EMNeuron model runs zero-shot
+with `tutorials/neuron_segneuron/predict.sh` and fine-tunes with
 `tutorials/neuron_segneuron/finetune.sh`; see [its README](tutorials/neuron_segneuron/README.md).
-
----
-
-## Benchmarks
-
-Headline metric per public benchmark. Full tables, training curves, and pretrained
-checkpoints are linked in the table below.
-
-| Dataset   | Task                    | Architecture       | Metric          | Score |
-|-----------|-------------------------|--------------------|-----------------|-------|
-| Lucchi++  | Mito — semantic         | MedNeXt-S          | Jaccard ↑       | [0.935](https://huggingface.co/pytc/tutorial/tree/main/mito_lucchi%2B%2B) |
-| MitoEM-R  | Mito — instance         | MedNeXt-L + waterz | AP ↑            | —     |
-| SNEMI3D   | Neurons — instance      | MedNeXt-S + waterz | adapted Rand ↓  | —     |
-| BANIS     | Neurons — instance      | MedNeXt-L + cc3d   | NERL ↑          | [0.601](https://huggingface.co/pytc/tutorial/tree/main/neuron_nisb) |
-| EMNeuron (SegNeuron's 8 eval volumes) | Neurons — instance | MedNeXt-L + ABISS | VI ↓ | [0.869](https://huggingface.co/pytc/tutorial/tree/main/neuron_segneuron) |
-| CREMI     | Synapse — semantic      | MONAI U-Net        | F1 ↑            | —     |
-
-<!-- Maintainer TODO: replace "—" with current scores from the latest released
-checkpoints, prune rows you don't have data for, and link the docs/benchmarks/
-folder once it exists. -->
 
 ---
 
