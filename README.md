@@ -49,7 +49,7 @@ checkpoints are linked in the table below.
 | MitoEM-R  | Mito — instance         | MedNeXt-L + waterz | AP ↑            | —     |
 | SNEMI3D   | Neurons — instance      | MedNeXt-S + waterz | adapted Rand ↓  | —     |
 | BANIS     | Neurons — instance      | MedNeXt-L + cc3d   | NERL ↑          | [0.601](https://huggingface.co/pytc/tutorial/tree/main/neuron_nisb) |
-| EMNeuron (SegNeuron's 8 eval volumes) | Neurons — instance | MedNeXt-L + ABISS | VI ↓ | [0.870](https://huggingface.co/pytc/tutorial/tree/main/neuron_segneuron) |
+| EMNeuron (SegNeuron's 8 eval volumes) | Neurons — instance | MedNeXt-L + ABISS | VI ↓ | [0.869](https://huggingface.co/pytc/tutorial/tree/main/neuron_segneuron) |
 | CREMI     | Synapse — semantic      | MONAI U-Net        | F1 ↑            | —     |
 
 <!-- Maintainer TODO: replace "—" with current scores from the latest released

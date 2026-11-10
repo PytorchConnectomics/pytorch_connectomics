@@ -22,11 +22,11 @@ held-out training chunks only; the evaluation volumes are decoded only at that s
 | FIB25-1 | in-distribution | – | 0.5006 / 0.0095 |
 | FIB25-2 | in-distribution | – | 0.3734 / 0.0159 |
 | Kstr | in-distribution | – | 1.2464 / 0.0556 |
-| Ionsem (vEM4) | out-of-distribution | 0.8655 / 0.1022 | 1.0098 / 0.1143 |
+| Ionsem (vEM4) | out-of-distribution | 0.8655 / 0.1022 | 1.0083 / 0.1125 |
 | MicronsB (Basil) | out-of-distribution | 0.7719 / 0.1531 | 0.9050 / 0.1724 |
 | Harris | out-of-distribution | 1.0221 / 0.1170 | 1.1844 / 0.0987 |
-| **mean, out-of-distribution** | | **0.8865 / 0.1241** | **1.0331 / 0.1285** |
-| mean, all 8 | | – | 0.8695 / 0.1036 |
+| **mean, out-of-distribution** | | **0.8865 / 0.1241** | **1.0326 / 0.1279** |
+| mean, all 8 | | – | 0.8694 / 0.1033 |
 
 ## Use the pretrained model
 
@@ -112,5 +112,9 @@ python scripts/evaluate_emneuron.py --abiss-home /path/to/abiss --volume Harris 
     --pred <pred>.h5 --gt /path/to/EMNeuron/valid/OutofDistribution/Harris/label.tif --out scores.tsv
 ```
 
-Volumes thinner than the 32-section window (Ionsem, 30 sections) are padded by reflection and
-returned at 32 sections; crop `[d // 2 : d // 2 + z]` along z before decoding.
+Volumes thinner than the 32-section window (Ionsem, 30 sections) are padded to 32 sections
+and returned padded; crop `[d // 2 : d // 2 + z]` along z before decoding. The results above use
+zero padding, which is what this model saw in training (its 31-section Mira-scn chunks). PyTC
+versions that pad by reflection (PR #225) give results that differ in the fourth decimal on
+such volumes (mean VI 0.8695 instead of 0.8694); for this checkpoint, zero padding scores better
+at the padded face.
