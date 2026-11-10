@@ -113,8 +113,12 @@ python scripts/evaluate_emneuron.py --abiss-home /path/to/abiss --volume Harris 
 ```
 
 Volumes thinner than the 32-section window (Ionsem, 30 sections) are padded to 32 sections
-and returned padded; crop `[d // 2 : d // 2 + z]` along z before decoding. The results above use
-zero padding, which is what this model saw in training (its 31-section Mira-scn chunks). PyTC
-versions that pad by reflection (PR #225) give results that differ in the fourth decimal on
-such volumes (mean VI 0.8695 instead of 0.8694); for this checkpoint, zero padding scores better
-at the padded face.
+and returned padded; crop `[d // 2 : d // 2 + z]` along z before decoding.
+
+**Padding and these numbers.** The results above use zero padding, which is what this checkpoint
+saw in training (its 31-section Mira-scn chunks) and what PyTC did before PR #225. Current PyTC
+pads by reflection (#225), so rerunning the commands here reproduces Ionsem 1.0098 / 0.1143 and
+a mean over all 8 of 0.8695 / 0.1036; the other seven volumes are unchanged. For this checkpoint
+zero padding is the better match: on the held-out 31-section Mira-scn chunk, the two sections next
+to the padded face score VI 1.37 with zero padding vs 1.53 with reflection (equal elsewhere).
+To reproduce the table exactly, use PyTC before #225 (commit 7c8f145).
