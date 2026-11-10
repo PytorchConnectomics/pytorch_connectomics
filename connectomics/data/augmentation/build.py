@@ -8,6 +8,7 @@ from __future__ import annotations
 
 from functools import partial
 
+import numpy as np
 import torch
 from monai.transforms import MapTransform
 from monai.transforms import EnsureChannelFirstd  # Ensure channel-first format for 2D/3D images
@@ -1098,24 +1099,39 @@ class _PatchSizePadd(MapTransform):
 
     The image (and its labels, so they stay aligned with it) use
     ``data_transform.pad_mode`` (default ``reflect``): a zero-filled slab is
-    black EM the model never saw and biases predictions near it. Masks stay
-    zero so padded voxels are excluded wherever a mask is used. Reflection
-    needs the pad to be shorter than the axis; a thinner input (e.g. one
-    section padded to 32) falls back to edge replication.
+    black EM the model never saw and biases predictions near it, and edge
+    replication repeats one section into a constant "tube" that is also
+    out of distribution. Masks stay zero so padded voxels are excluded
+    wherever a mask is used. When the pad is longer than the axis, torch
+    reflection fails; numpy's reflect mode then mirrors repeatedly.
     """
 
     def __init__(self, keys, patch_size, pad_mode: str = "reflect"):
         super().__init__(keys, allow_missing_keys=False)
+        self.patch_size = tuple(int(v) for v in patch_size)
+        self.pad_mode = pad_mode
         modes = ["constant" if key == "mask" else pad_mode for key in self.keys]
-        edge = ["constant" if key == "mask" else "replicate" for key in self.keys]
-        self.pad = SpatialPadd(keys=self.keys, spatial_size=patch_size, mode=modes)
-        self.fallback = SpatialPadd(keys=self.keys, spatial_size=patch_size, mode=edge)
+        self.pad = SpatialPadd(keys=self.keys, spatial_size=self.patch_size, mode=modes)
 
     def __call__(self, data):
         try:
             return self.pad(data)
         except ValueError:
-            return self.fallback(data)
+            if self.pad_mode != "reflect":
+                raise
+        d = dict(data)
+        for key in self.keys:
+            x = d[key]
+            spatial = x.shape[-len(self.patch_size):]
+            widths = [(0, 0)] * (x.ndim - len(self.patch_size))
+            for size, target in zip(spatial, self.patch_size):
+                diff = max(int(target) - int(size), 0)
+                widths.append((diff // 2, diff - diff // 2))
+            arr = x.detach().cpu().numpy() if isinstance(x, torch.Tensor) else np.asarray(x)
+            mode = "constant" if key == "mask" else "reflect"
+            out = np.pad(arr, widths, mode=mode)
+            d[key] = torch.as_tensor(out) if isinstance(x, torch.Tensor) else out
+        return d
 
 
 def _patch_size_pad(keys, patch_size, data_cfg) -> MapTransform:
