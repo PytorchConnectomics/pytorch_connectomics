@@ -306,13 +306,7 @@ def build_train_transforms(
         patch_size = _effective_patch_size(cfg)
         if patch_size and all(size > 0 for size in patch_size):
             # Pad smaller volumes so random crops always succeed
-            transforms.append(
-                SpatialPadd(
-                    keys=keys,
-                    spatial_size=patch_size,
-                    constant_values=0.0,
-                )
-            )
+            transforms.append(_patch_size_pad(keys, patch_size, cfg.data))
             transforms.append(
                 RandSpatialCropd(
                     keys=keys,
@@ -617,13 +611,7 @@ def _build_eval_transforms_impl(
         else tuple(data_cfg.dataloader.patch_size) if data_cfg.dataloader.patch_size else None
     )
     if patch_size and all(size > 0 for size in patch_size):
-        transforms.append(
-            SpatialPadd(
-                keys=keys,
-                spatial_size=patch_size,
-                constant_values=0.0,
-            )
-        )
+        transforms.append(_patch_size_pad(keys, patch_size, data_cfg))
 
     if mode in {"test", "tune"}:
         context_pad = getattr(data_cfg.data_transform, "pad_size", None)
@@ -1102,6 +1090,19 @@ def _build_augmentations(aug_cfg: AugmentationConfig, keys: list[str], do_2d: bo
 
     return transforms
 
+
+
+def _patch_size_pad(keys, patch_size, data_cfg) -> SpatialPadd:
+    """Pad axes shorter than the patch so a full window fits.
+
+    The image (and its labels, so they stay aligned with it) use
+    ``data_transform.pad_mode`` (default ``reflect``): a zero-filled slab is
+    black EM the model never saw and biases predictions near it. Masks stay
+    zero so padded voxels are excluded wherever a mask is used.
+    """
+    pad_mode = getattr(data_cfg.data_transform, "pad_mode", "reflect")
+    modes = ["constant" if key == "mask" else pad_mode for key in keys]
+    return SpatialPadd(keys=keys, spatial_size=patch_size, mode=modes)
 
 __all__ = [
     "build_train_transforms",
