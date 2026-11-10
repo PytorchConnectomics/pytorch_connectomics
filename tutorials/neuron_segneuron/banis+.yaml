@@ -108,9 +108,19 @@ default:
     steps:
     # ABISS ws: watershed, size-dependent single linkage, dust removal. The
     # runner's default edge storage is "destination", which this model writes.
+    # Thresholds selected on the 10 tune/ chunks (TTA16, lowest mean VI) by
+    # scripts/evaluate_emneuron.py, which also fills voxels ABISS leaves
+    # unlabeled with the nearest segment before scoring.
     - template: decoding_abiss
       kwargs:
         abiss_home: /path/to/abiss
+        cli_args:
+          ws_high_threshold: 0.9
+          ws_low_threshold: 0.05
+          ws_size_threshold: 1000000000
+          ws_dust_threshold: 0
+          ws_merge_function: max
+          ws_merge_threshold: 0.6
   evaluation:
     # VI / adapted Rand are scored by scripts/evaluate_emneuron.py with the
     # SegNeuron evaluator's exact calls; the volumes have no NERL skeletons.
