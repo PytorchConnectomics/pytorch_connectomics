@@ -29,8 +29,9 @@ fi
 CKPT=$(realpath "$CKPT")
 ls "$IN"/*_img.h5 > /dev/null 2>&1 || { echo "no <name>_img.h5 in $IN"; exit 1; }
 
-# PyTC writes test outputs to <checkpoint dir>/../test_<checkpoint name>/; pin that location.
-W=$OUT/.work; mkdir -p "$W/model/checkpoints"; ln -sfn "$CKPT" "$W/model/checkpoints/model.ckpt"
+# PyTC derives the test output directory from the checkpoint path; keep it inside a fresh
+# work directory (and never reuse an earlier prediction).
+W=$OUT/.work; rm -rf "$W"; mkdir -p "$W/model/checkpoints"; ln -sfn "$CKPT" "$W/model/checkpoints/model.ckpt"
 OPTS=()
 if [ "$TTA" = 1 ]; then
   OPTS=(default.inference.test_time_augmentation.enabled=true
@@ -48,8 +49,8 @@ for img in "$IN"/*_img.h5; do
   python scripts/main.py --config tutorials/neuron_segneuron/banis+.yaml --mode test \
     --checkpoint "$W/model/checkpoints/model.ckpt" test.data.test.path="$W/in/$name" test.data.test.label=null default.decoding.enabled=false "${OPTS[@]}" \
     > "$W/$name.predict.log" 2>&1 || { tail -20 "$W/$name.predict.log"; exit 1; }
-  pred=$W/model/test_model/${name}_img/raw_x${X}_ch0-1-2_weights-ema.h5
-  [ -f "$pred" ] || { echo "no prediction at $pred (see $W/$name.predict.log)"; exit 1; }
+  pred=$(find "$W/model" -path "*/${name}_img/raw_x${X}_ch0-1-2_weights-ema.h5" | head -1)
+  [ -n "$pred" ] || { echo "no prediction for $name (see $W/$name.predict.log)"; exit 1; }
   # Volumes thinner than the 32-section window come back padded; crop to the input grid.
   python - "$img" "$pred" "$OUT/${name}_aff.h5" <<'EOF'
 import h5py, sys
