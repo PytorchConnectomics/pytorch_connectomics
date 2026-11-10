@@ -1,0 +1,26 @@
+# PyTorch Connectomics (PyTC)
+
+> Deep learning for 2D/3D electron-microscopy (EM) connectomics: train, predict, decode and
+> evaluate segmentation of neurons, mitochondria, synapses and nuclei. PyTorch Lightning +
+> MONAI, YAML configs, one entry point: `python scripts/main.py --config <yaml> --mode train|test`.
+
+## Segment neurons in a new EM volume (pretrained, no training)
+
+- Model: `neuron_segneuron/banis_emneuron_200k.ckpt` in https://huggingface.co/pytc/tutorial
+  (BANIS+: MedNeXt-L affinities + ABISS watershed; trained on EMNeuron, 10 labeled EM sources,
+  6-9 nm xy, 8-50 nm z).
+- Zero-shot: `ABISS_HOME=/path/to/abiss tutorials/neuron_segneuron/predict.sh INPUT_DIR OUTPUT_DIR`
+  (INPUT_DIR holds `<name>_img.h5`, one 3D uint8 ZYX dataset each; writes `<name>_seg.h5`).
+  The checkpoint downloads on first use. `TTA=1` for 16-view test-time augmentation.
+- Fine-tune: `tutorials/neuron_segneuron/finetune.sh TRAIN_DIR VAL_DIR RUN_DIR`
+  (`<name>_img.h5` + `<name>_seg.h5` instance labels), then `predict.sh CKPT INPUT_DIR OUTPUT_DIR`.
+- ABISS (affinity watershed): https://github.com/PytorchConnectomics/ABISS, needs `build/ws`.
+- Details and results: tutorials/neuron_segneuron/README.md
+
+## Docs
+
+- [README.md](README.md): install, benchmarks, tutorial list
+- [QUICKSTART.md](QUICKSTART.md): installation and first run
+- [TROUBLESHOOTING.md](TROUBLESHOOTING.md)
+- [tutorials/](tutorials): one directory per dataset/task, each with a README and YAML configs
+- Pretrained checkpoints: https://huggingface.co/pytc/tutorial (one folder per tutorial)

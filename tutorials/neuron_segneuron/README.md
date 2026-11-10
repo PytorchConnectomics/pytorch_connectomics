@@ -2,8 +2,8 @@
 
 A pretrained 3D EM neuron segmentation model: BANIS+ (MedNeXt-L, affinities + ABISS
 watershed) trained on [EMNeuron](https://huggingface.co/datasets/yanchaoz/EMNeuron), the
-16-source EM database of [SegNeuron](https://github.com/yanchaoz/SegNeuron) (Zhang et al.,
-MICCAI 2024). Use it zero-shot on a new EM volume or as the starting point for fine-tuning.
+EM database of [SegNeuron](https://github.com/yanchaoz/SegNeuron) (Zhang et al.,
+MICCAI 2024; 10 labeled sources). Use it zero-shot on a new EM volume or as the starting point for fine-tuning.
 
 **Weights:** [`pytc/tutorial` / `neuron_segneuron/banis_emneuron_200k.ckpt`](https://huggingface.co/pytc/tutorial/tree/main/neuron_segneuron)
 (EMA weights after 200k steps, 495 MB).
@@ -13,7 +13,7 @@ MICCAI 2024). Use it zero-shot on a new EM volume or as the starting point for f
 Variation of information (VI) / adapted Rand error against `label.tif` on SegNeuron's eight
 evaluation volumes; lower is better. SegNeuron's numbers are Table 3 of the paper, which gives
 values only for the out-of-distribution volumes. Ours: TTA16 and the ABISS setting chosen on
-held-out training chunks only; each evaluation volume scored once.
+held-out training chunks only; the evaluation volumes are decoded only at that setting.
 
 | volume | split | SegNeuron (published) | ours |
 |---|---|---|---|
@@ -22,10 +22,11 @@ held-out training chunks only; each evaluation volume scored once.
 | FIB25-1 | in-distribution | – | 0.5006 / 0.0095 |
 | FIB25-2 | in-distribution | – | 0.3734 / 0.0159 |
 | Kstr | in-distribution | – | 1.2464 / 0.0556 |
-| Ionsem (vEM4) | out-of-distribution | 0.8655 / 0.1022 | FILL |
+| Ionsem (vEM4) | out-of-distribution | 0.8655 / 0.1022 | 1.0098 / 0.1143 |
 | MicronsB (Basil) | out-of-distribution | 0.7719 / 0.1531 | 0.9050 / 0.1724 |
 | Harris | out-of-distribution | 1.0221 / 0.1170 | 1.1844 / 0.0987 |
-| **mean, out-of-distribution** | | **0.8865 / 0.1241** | **FILL** |
+| **mean, out-of-distribution** | | **0.8865 / 0.1241** | **1.0331 / 0.1285** |
+| mean, all 8 | | – | 0.8695 / 0.1036 |
 
 ## Use the pretrained model
 
