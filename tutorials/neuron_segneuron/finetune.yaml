@@ -1,0 +1,25 @@
+# Fine-tune the EMNeuron-pretrained BANIS+ neuron model (banis+.yaml, 200k steps) on new
+# labeled EM volumes. Run it through finetune.sh, which downloads the weights, checks that every
+# tensor loads, and sets the data paths and step count.
+#
+# Weights: https://huggingface.co/pytc/tutorial/tree/main/neuron_segneuron
+# The learning rate and step count are starting points, not tuned values.
+_base_: banis+.yaml
+
+model:
+  # Loaded into a fresh model before training (new optimizer, schedule and EMA).
+  external_weights_path: checkpoints/neuron_segneuron/banis_emneuron_200k.ckpt
+  external_weights_key_prefix: model.model.
+
+train:
+  optimization:
+    optimizer:
+      lr: 0.0002            # pretraining used 0.001
+    scheduler:
+      params:
+        t_max: 20000        # must equal max_steps
+    max_steps: 20000
+    val_check_interval: 1000
+  monitor:
+    checkpoint:
+      save_every_n_steps: 20000   # writes the final-step checkpoint

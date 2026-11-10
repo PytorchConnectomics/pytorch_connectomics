@@ -23,13 +23,18 @@ Research workflows are developed separately and are not part of this distributio
 |-----------------|-----------------|---------------------------------------------|------------------------------------------------------------------|
 | Tissue-scale    | Blood vessel    | —                                           | (coming)                                                         |
 | Tissue-scale    | Nuclei          | NucMM-Z                                     | `nuc_nucmm-z`                                                    |
-| Cell-scale      | Neurons         | SNEMI3D, BANIS                  | `neuron_snemi/*`, `neuron_nisb/*`           |
+| Cell-scale      | Neurons         | SNEMI3D, BANIS, EMNeuron (SegNeuron) | `neuron_snemi/*`, `neuron_nisb/*`, `neuron_segneuron/*` |
 | Cell-scale      | Synapses        | CREMI                                       | `syn_cremi`                                                      |
 | Organelle-scale | Mitochondria    | Lucchi++, MitoEM, MitoLab, BetaSeg          | `mito_lucchi++/mito_lucchi++`, `mitoEM/*`, `mito_mitolab`, `mito_betaseg` |
 | Organelle-scale | Vesicles        | XM                                          | `vesicle_xm`                                                     |
 
 Download sample data for `lucchi++`, `snemi`, `mitoem`, or `cremi` with
 `just download <name>`.
+
+**Neurons in your own EM volume, no training:** the pretrained EMNeuron model
+([`pytc/tutorial/neuron_segneuron`](https://huggingface.co/pytc/tutorial/tree/main/neuron_segneuron))
+runs zero-shot with `tutorials/neuron_segneuron/predict.sh` and fine-tunes with
+`tutorials/neuron_segneuron/finetune.sh`; see [its README](tutorials/neuron_segneuron/README.md).
 
 ---
 
@@ -44,6 +49,7 @@ checkpoints are linked in the table below.
 | MitoEM-R  | Mito — instance         | MedNeXt-L + waterz | AP ↑            | —     |
 | SNEMI3D   | Neurons — instance      | MedNeXt-S + waterz | adapted Rand ↓  | —     |
 | BANIS     | Neurons — instance      | MedNeXt-L + cc3d   | NERL ↑          | [0.601](https://huggingface.co/pytc/tutorial/tree/main/neuron_nisb) |
+| EMNeuron (SegNeuron's 8 eval volumes) | Neurons — instance | MedNeXt-L + ABISS | VI ↓ | [0.869](https://huggingface.co/pytc/tutorial/tree/main/neuron_segneuron) |
 | CREMI     | Synapse — semantic      | MONAI U-Net        | F1 ↑            | —     |
 
 <!-- Maintainer TODO: replace "—" with current scores from the latest released
