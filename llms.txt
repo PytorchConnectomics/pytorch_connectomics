@@ -19,7 +19,7 @@
 
 ## Docs
 
-- [README.md](README.md): install, benchmarks, tutorial list
+- [README.md](README.md): install; one table of tutorials, models and released scores
 - [QUICKSTART.md](QUICKSTART.md): installation and first run
 - [TROUBLESHOOTING.md](TROUBLESHOOTING.md)
 - [tutorials/](tutorials): one directory per dataset/task, each with a README and YAML configs
