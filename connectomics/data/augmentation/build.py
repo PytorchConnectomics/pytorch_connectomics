@@ -9,6 +9,7 @@ from __future__ import annotations
 from functools import partial
 
 import torch
+from monai.transforms import MapTransform
 from monai.transforms import EnsureChannelFirstd  # Ensure channel-first format for 2D/3D images
 from monai.transforms import LoadImaged  # For filename-based datasets (PNG, JPG, etc.)
 from monai.transforms import (
@@ -1092,17 +1093,34 @@ def _build_augmentations(aug_cfg: AugmentationConfig, keys: list[str], do_2d: bo
 
 
 
-def _patch_size_pad(keys, patch_size, data_cfg) -> SpatialPadd:
+class _PatchSizePadd(MapTransform):
     """Pad axes shorter than the patch so a full window fits.
 
     The image (and its labels, so they stay aligned with it) use
     ``data_transform.pad_mode`` (default ``reflect``): a zero-filled slab is
     black EM the model never saw and biases predictions near it. Masks stay
-    zero so padded voxels are excluded wherever a mask is used.
+    zero so padded voxels are excluded wherever a mask is used. Reflection
+    needs the pad to be shorter than the axis; a thinner input (e.g. one
+    section padded to 32) falls back to edge replication.
     """
+
+    def __init__(self, keys, patch_size, pad_mode: str = "reflect"):
+        super().__init__(keys, allow_missing_keys=False)
+        modes = ["constant" if key == "mask" else pad_mode for key in self.keys]
+        edge = ["constant" if key == "mask" else "replicate" for key in self.keys]
+        self.pad = SpatialPadd(keys=self.keys, spatial_size=patch_size, mode=modes)
+        self.fallback = SpatialPadd(keys=self.keys, spatial_size=patch_size, mode=edge)
+
+    def __call__(self, data):
+        try:
+            return self.pad(data)
+        except ValueError:
+            return self.fallback(data)
+
+
+def _patch_size_pad(keys, patch_size, data_cfg) -> MapTransform:
     pad_mode = getattr(data_cfg.data_transform, "pad_mode", "reflect")
-    modes = ["constant" if key == "mask" else pad_mode for key in keys]
-    return SpatialPadd(keys=keys, spatial_size=patch_size, mode=modes)
+    return _PatchSizePadd(keys, patch_size, pad_mode)
 
 __all__ = [
     "build_train_transforms",
