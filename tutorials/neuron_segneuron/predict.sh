@@ -46,7 +46,7 @@ for img in "$IN"/*_img.h5; do
   mkdir -p "$W/in/$name"; ln -sfn "$img" "$W/in/$name/"
   echo "== $name: predict (x$X)"
   python scripts/main.py --config tutorials/neuron_segneuron/banis+.yaml --mode test \
-    --checkpoint "$W/model/checkpoints/model.ckpt" test.data.test.path="$W/in/$name" "${OPTS[@]}" \
+    --checkpoint "$W/model/checkpoints/model.ckpt" test.data.test.path="$W/in/$name" test.data.test.label=null "${OPTS[@]}" \
     > "$W/$name.predict.log" 2>&1 || { tail -20 "$W/$name.predict.log"; exit 1; }
   pred=$W/model/test_model/${name}_img/raw_x${X}_ch0-1-2_weights-ema.h5
   [ -f "$pred" ] || { echo "no prediction at $pred (see $W/$name.predict.log)"; exit 1; }
