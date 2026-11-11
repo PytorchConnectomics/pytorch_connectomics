@@ -15,18 +15,24 @@ evaluation volumes; lower is better. SegNeuron's numbers are Table 3 of the pape
 values only for the out-of-distribution volumes. Ours: TTA16 and the ABISS setting chosen on
 held-out training chunks only; the evaluation volumes are decoded only at that setting.
 
-| volume | split | SegNeuron (published) | ours |
-|---|---|---|---|
-| FAFB-1 | in-distribution | – | 0.9965 / 0.1793 |
-| FAFB-2 | in-distribution | – | 0.7403 / 0.1827 |
-| FIB25-1 | in-distribution | – | 0.5006 / 0.0095 |
-| FIB25-2 | in-distribution | – | 0.3734 / 0.0159 |
-| Kstr | in-distribution | – | 1.2464 / 0.0556 |
-| Ionsem (vEM4) | out-of-distribution | 0.8655 / 0.1022 | 1.0083 / 0.1125 |
-| MicronsB (Basil) | out-of-distribution | 0.7719 / 0.1531 | 0.9050 / 0.1724 |
-| Harris | out-of-distribution | 1.0221 / 0.1170 | 1.1844 / 0.0987 |
-| **mean, out-of-distribution** | | **0.8865 / 0.1241** | **1.0326 / 0.1279** |
-| mean, all 8 | | – | 0.8694 / 0.1033 |
+The paper's VI was computed with scikit-image 0.17.2, which ignores ground-truth 0 but divides
+by the total voxel count, so it equals the current scikit-image VI times the foreground fraction
+of the ground truth ([SegNeuron issue #8](https://github.com/yanchaoz/SegNeuron/issues/8)); the
+adapted Rand error is the same in both. The "paper's VI" column is the one to compare with
+SegNeuron; `scripts/evaluate_emneuron.py` writes both (`vi_old`, `vi`).
+
+| volume | split | SegNeuron (published) | ours, paper's VI | ours, current scikit-image VI |
+|---|---|---|---|---|
+| FAFB-1 | in-distribution | – | 0.7562 / 0.1793 | 0.9965 / 0.1793 |
+| FAFB-2 | in-distribution | – | 0.5593 / 0.1827 | 0.7403 / 0.1827 |
+| FIB25-1 | in-distribution | – | 0.3693 / 0.0095 | 0.5006 / 0.0095 |
+| FIB25-2 | in-distribution | – | 0.2737 / 0.0159 | 0.3734 / 0.0159 |
+| Kstr | in-distribution | – | 1.0341 / 0.0556 | 1.2464 / 0.0556 |
+| Ionsem (vEM4) | out-of-distribution | 0.8655 / 0.1022 | 0.9929 / 0.1125 | 1.0083 / 0.1125 |
+| MicronsB (Basil) | out-of-distribution | 0.7719 / 0.1531 | 0.6821 / 0.1724 | 0.9050 / 0.1724 |
+| Harris | out-of-distribution | 1.0221 / 0.1170 | 1.0257 / 0.0987 | 1.1844 / 0.0987 |
+| **mean, out-of-distribution** | | **0.8865 / 0.1241** | **0.9002 / 0.1279** | 1.0326 / 0.1279 |
+| mean, all 8 | | – | 0.7117 / 0.1033 | 0.8694 / 0.1033 |
 
 ## Use the pretrained model
 
@@ -118,7 +124,8 @@ and returned padded; crop `[d // 2 : d // 2 + z]` along z before decoding.
 **Padding and these numbers.** The results above use zero padding, which is what this checkpoint
 saw in training (its 31-section Mira-scn chunks) and what PyTC did before PR #225. Current PyTC
 pads by reflection (#225), so rerunning the commands here reproduces Ionsem 1.0098 / 0.1143 and
-a mean over all 8 of 0.8695 / 0.1036; the other seven volumes are unchanged. For this checkpoint
+a mean over all 8 of 0.8695 / 0.1036 (current scikit-image VI; 0.9944 and 0.7119 as the paper's
+VI); the other seven volumes are unchanged. For this checkpoint
 zero padding is the better match: on the held-out 31-section Mira-scn chunk, the two sections next
 to the padded face score VI 1.37 with zero padding vs 1.53 with reflection (equal elsewhere).
 To reproduce the table exactly, use PyTC before #225 (commit 7c8f145).
