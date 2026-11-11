@@ -1,0 +1,31 @@
+# Low-res MICrONS (256 x 256 x 320 nm, xyz): data paths only. Not runnable on its own:
+#   _base_: [../neuron_segneuron/banis+.yaml, dataset.yaml]
+#
+# Layout written by the workbench job `valid_region.py export` (research workbench
+# `projects/seg120nm-2611/scripts/`), which aligns each downsampled image with the public
+# automatic segmentation, keeps the region where both are non-zero, and cuts 256 x 512 x 512
+# chunks (image uint8, labels uint32 relabelled per chunk, 0 = background):
+#
+# train/ -- chunks from MICrONS phase 1 and phase 2 (minnie65, minnie35).
+# tune/  -- the highest-x column of chunks of each volume, one chunk column away from train/.
+#   Validation loss and every decoding choice use only these.
+# overfit/ -- one 160 x 640 x 640 crop per volume from the centre of its valid region, for the
+#   overfit check (overfit.yaml).
+
+train:
+  data:
+    train:
+      path: /path/to/seg256nm/train
+      image: "*_img.h5"
+      label: "*_seg.h5"
+    val:
+      path: /path/to/seg256nm/tune
+      image: "*_img.h5"
+      label: "*_seg.h5"
+
+test:
+  data:
+    test:
+      path: /path/to/seg256nm/tune
+      image: "*_img.h5"
+      label: "*_seg.h5"

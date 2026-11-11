@@ -1,0 +1,62 @@
+# BANIS+ on low-res MICrONS (256 x 256 x 320 nm): soma and thick-process segmentation.
+#
+#   train:  python scripts/main.py --config tutorials/neuron_seg256nm/banis+.yaml
+#   infer:  python scripts/main.py --config tutorials/neuron_seg256nm/banis+.yaml --mode test \
+#               --checkpoint <run>/checkpoints/last.ckpt
+#
+# Recipe = ../neuron_segneuron/banis+.yaml (ABISS-layout 6-channel affinity: channels x, y, z,
+# edge (i-1, i) stored at i, `deepem` mode; class-balanced BCE; EMA; the MedNeXt speed knobs;
+# the test-stage pad/crop that keeps predictions on the input grid) with these changes:
+#
+# MODEL -- MedNeXt-S instead of L: the targets at this grid are blobs tens of voxels wide, not
+# 100 nm neurites. Set `mednext.size: M` for the larger variant.
+#
+# PATCH -- the voxels are near-isotropic (320 nm sections, 256 nm pixels), so the BANIS 128
+# cube and 10-voxel long-range offsets on every axis come back.
+#
+# LABELS -- the public automatic segmentation, block-downsampled. A neurite thinner than a
+# voxel is label noise at this grid, so what is learnable is the soma, the nucleus region and
+# the thick proximal dendrites. Erosion 1 (256-320 nm per side) instead of the recipe's 2:
+# erosion 2 would also delete the 1 um dendrite stumps that help tell cell types apart.
+#
+# AUGMENTATION -- aug_light (flips, xy quarter turns, mild intensity). The EMNeuron recipe's
+# section defects are sized for 4-8 nm pixels (a 17-voxel section shift is 4 um here, and a
+# downsampled volume has no such jumps), so they, the motion blur and the xy-scale jitter are off.
+
+_base_:
+- ../neuron_segneuron/banis+.yaml
+- dataset.yaml
+
+experiment_name: seg256nm_banis+
+description: >-
+  BANIS+ (MedNeXt-S/k3, 6-channel ABISS-layout affinity, class-balanced BCE, EMA, erosion 1) on
+  MICrONS phase 1 and phase 2 at 256 x 256 x 320 nm, decoded with ABISS.
+
+default:
+  model:
+    input_size: [128, 128, 128]
+    output_size: [128, 128, 128]
+    mednext:
+      size: S
+  data:
+    dataloader:
+      patch_size: [128, 128, 128]
+      target_context: [10, 10, 10, 0, 0, 0]
+      batch_size: 4
+    label_transform:
+      erosion: 1
+      targets:
+      - name: affinity
+        kwargs:
+          offsets: ["0-0-1", "0-1-0", "1-0-0", "0-0-10", "0-10-0", "10-0-0"]
+          affinity_mode: deepem
+    augmentation:
+      profile: aug_light
+      motion_blur:
+        enabled: false
+      affine:
+        enabled: false
+  inference:
+    window:
+      window_size: [128, 128, 128]
+      sw_batch_size: 8
