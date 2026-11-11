@@ -1,0 +1,38 @@
+# Overfit check: can the model reproduce the labels of the crop it trains on?
+#
+#   python scripts/main.py --config tutorials/neuron_seg256nm/overfit.yaml
+#   python scripts/main.py --config tutorials/neuron_seg256nm/overfit.yaml --mode test \
+#       --checkpoint <run>/checkpoints/last.ckpt
+#
+# Train, validation and test all read overfit/ (one aligned image/label crop per volume).
+# This tests the image-label pairing and the pipeline, not generalisation: a mis-registered
+# pair, a wrong affinity layout or a broken target shows up as a loss that will not fall or as
+# predicted boundaries offset from the labels. Same recipe and augmentation as banis+.yaml,
+# 5k steps.
+
+_base_:
+- banis+.yaml
+
+experiment_name: seg256nm_overfit
+
+train:
+  data:
+    train:
+      path: /path/to/seg256nm/overfit
+    val:
+      path: /path/to/seg256nm/overfit
+  optimization:
+    max_steps: 5000
+    scheduler:
+      params:
+        t_max: 5000
+    val_check_interval: 1000
+    val_steps_per_epoch: 20
+  monitor:
+    checkpoint:
+      save_every_n_steps: 0
+
+test:
+  data:
+    test:
+      path: /path/to/seg256nm/overfit
