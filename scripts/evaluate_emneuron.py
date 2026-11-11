@@ -9,6 +9,12 @@ Metrics equal the calls in SegNeuron's ``Postprocess/FRMC_post.py``::
 computed here from one contingency table (``--check-skimage`` asserts the equality once):
 voxels where the ground truth is 0 (membrane) are ignored, and VI = split + merge in bits.
 
+``vi_old`` is the VI of the SegNeuron paper's tables. They were scored with scikit-image
+0.17.2, which drops the GT-0 counts but divides the contingency table by the total voxel
+count, so every VI term is scaled by the GT foreground fraction (``gt_fg_frac``):
+``vi_old = vi * count(gt != 0) / gt.size`` (SegNeuron issue #8). ARE is the same in both.
+Compare ``vi_old``, not ``vi``, with the published numbers.
+
 Decoder: ABISS ws through ``decode_abiss`` on ABISS-layout affinities (channels x, y, z;
 edge (i-1, i) stored at i), with no shift or reorder. One watershed per (high, low,
 size, dust, merge function) runs every merge threshold in batch mode. ``ws_size``
@@ -57,6 +63,8 @@ FIELDS = [
     "are",
     "are_precision",
     "are_recall",
+    "vi_old",
+    "gt_fg_frac",
     "n_seg",
     "unlabeled_fg",
     "seconds",
@@ -96,6 +104,8 @@ def scores(gt: np.ndarray, seg: np.ndarray) -> dict[str, float]:
         "are": 1.0 - 2.0 * precision * recall / (precision + recall),
         "are_precision": precision,
         "are_recall": recall,
+        "vi_old": (2 * h_joint - h_gt - h_seg) * n / gt.size,  # skimage 0.17.2 normalization
+        "gt_fg_frac": n / gt.size,
     }
 
 
