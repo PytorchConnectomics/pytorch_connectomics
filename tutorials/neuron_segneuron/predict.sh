@@ -13,13 +13,23 @@
 # Environment (defaults): TTA=0 (1: 16-view test-time augmentation, as in the reported
 #                         results, ~4x slower per GPU)  GPUS=1  MERGE=0.6 (ABISS merge
 #                         threshold: raise to ~0.7 if neurons merge, lower if they split)
+#                         DECODER=abiss (single linkage at MERGE, the default) | agglo (then
+#                         greedy mean-affinity agglomeration down to AGGLO, default 0.4) |
+#                         basins (the same agglomeration from the watershed basins, AGGLO
+#                         default 0.35); see README.md for when each is better
 #                         ABISS_HOME (required: a build of github.com/PytorchConnectomics/ABISS)
 set -euo pipefail
 if [ $# -eq 2 ]; then CKPT=""; IN=$1; OUT=$2
 elif [ $# -eq 3 ]; then CKPT=$1; IN=$2; OUT=$3
-else sed -n '2,17p' "$0"; exit 2; fi
+else sed -n '2,21p' "$0"; exit 2; fi
 : "${ABISS_HOME:?set ABISS_HOME to an ABISS build with build/ws}"
-TTA=${TTA:-0}; GPUS=${GPUS:-1}; MERGE=${MERGE:-0.6}
+TTA=${TTA:-0}; GPUS=${GPUS:-1}; MERGE=${MERGE:-0.6}; DECODER=${DECODER:-abiss}
+case $DECODER in
+  abiss) SIZE=1000000000; AGGLO="" ;;
+  agglo) SIZE=1000000000; AGGLO=${AGGLO:-0.4} ;;
+  basins) SIZE=0; AGGLO=${AGGLO:-0.35} ;;
+  *) echo "DECODER must be abiss, agglo or basins"; exit 2 ;;
+esac
 IN=$(realpath "$IN"); OUT=$(realpath -m "$OUT")
 cd "$(dirname "$(realpath "$0")")/../.."   # PyTC root
 if [ -z "$CKPT" ]; then
@@ -64,11 +74,17 @@ with h5py.File(sys.argv[3], "w") as f:
     f.create_dataset("main", data=a, compression="gzip")
 print("affinities", a.shape, "for input", shape)
 EOF
-  echo "== $name: decode (ABISS, merge $MERGE)"
+  echo "== $name: decode ($DECODER, merge $MERGE${AGGLO:+, agglomerate $AGGLO})"
   python -m connectomics.decoding.abiss_runner --abiss-home "$ABISS_HOME" \
     --input "$OUT/${name}_aff.h5" --output "$OUT/${name}_seg.h5" \
-    --ws-high-threshold 0.9 --ws-low-threshold 0.05 --ws-size-threshold 1000000000 \
+    --ws-high-threshold 0.9 --ws-low-threshold 0.05 --ws-size-threshold "$SIZE" \
     --ws-dust-threshold 0 --ws-merge-function max --ws-merge-threshold "$MERGE" \
     > "$W/$name.decode.log" 2>&1 || { tail -20 "$W/$name.decode.log"; exit 1; }
+  if [ -n "$AGGLO" ]; then
+    python -m connectomics.decoding.decoders.affinity_agglomeration --seg "$OUT/${name}_seg.h5" \
+      --aff "$OUT/${name}_aff.h5" --output "$W/$name.agglo.h5" --threshold "$AGGLO" \
+      >> "$W/$name.decode.log" 2>&1 || { tail -20 "$W/$name.decode.log"; exit 1; }
+    mv "$W/$name.agglo.h5" "$OUT/${name}_seg.h5"
+  fi
   echo "wrote $OUT/${name}_seg.h5"
 done

@@ -612,6 +612,10 @@ def main() -> int:
     holder = [predictions]
     del predictions
 
+    if batch_merge_thresholds is not None and len(batch_merge_thresholds) == 1:
+        # One threshold: the binary's single mode, written under the batch name callers read.
+        ws_merge = batch_merge_thresholds[0]
+        output_path = output_path.with_name(f"{output_path.stem}_mt0{output_path.suffix}")
     if batch_merge_thresholds is not None and len(batch_merge_thresholds) > 1:
         # Batch mode: run watershed once, merge with each threshold.
         stem = output_path.stem

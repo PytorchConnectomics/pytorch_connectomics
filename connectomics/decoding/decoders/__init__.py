@@ -3,6 +3,7 @@
 from importlib import import_module
 
 _LAZY_DECODERS = {
+    "agglomerate_mean_affinity": "connectomics.decoding.decoders.affinity_agglomeration",
     "branch_merge": "connectomics.decoding.decoders.branch.merge",
     "branch_split": "connectomics.decoding.decoders.branch.split",
     "decode_abiss": "connectomics.decoding.decoders.abiss",
@@ -39,4 +40,5 @@ __all__ = [
     "branch_split",
     "polarity2instance",
     "decode_abiss",
+    "agglomerate_mean_affinity",
 ]

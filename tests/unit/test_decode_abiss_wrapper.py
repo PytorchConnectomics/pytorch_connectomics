@@ -154,3 +154,31 @@ def test_default_template_invokes_packaged_abiss_runner(monkeypatch, tmp_path):
     actual = decode_abiss(predictions, abiss_home=str(installation), **step.kwargs)
     assert len(commands) == 1
     np.testing.assert_array_equal(actual, expected)
+
+
+def test_single_batch_threshold_is_run_and_named_as_batch(tmp_path, monkeypatch):
+    """One value in ``ws_merge_thresholds`` must use that value and write ``_mt0``."""
+    binary = tmp_path / "build/ws"
+    binary.parent.mkdir(parents=True)
+    binary.touch()
+    pred = tmp_path / "pred.h5"
+    abiss_runner.write_hdf5(str(pred), np.ones((3, 2, 3, 4), dtype=np.float32), dataset="main")
+    expected = np.arange(24, dtype=np.uint64).reshape(2, 3, 4)
+    seen = {}
+
+    def fake_ws(**kwargs):
+        seen.update(kwargs)
+        return expected
+
+    monkeypatch.setattr(abiss_runner, "_run_abiss_ws", fake_ws)
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [abiss_runner.__file__, "--abiss-home", str(tmp_path), "--input", str(pred)]
+        + ["--output", str(tmp_path / "seg.h5"), "--ws-merge-thresholds", "0.54"],
+    )
+    assert abiss_runner.main() == 0
+    assert seen["ws_merge_threshold"] == 0.54 and "ws_merge_thresholds" not in seen
+    np.testing.assert_array_equal(
+        abiss_runner.read_hdf5(str(tmp_path / "seg_mt0.h5"), dataset="main"), expected
+    )
