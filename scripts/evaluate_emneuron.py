@@ -21,7 +21,8 @@ size, dust, merge function) runs every merge threshold in batch mode. ``ws_size`
 0 keeps the watershed basins (decoded once: the merge threshold has no effect); a large
 value turns the merge into single linkage at the merge threshold. Voxels ABISS leaves at 0 take the label of the nearest labeled voxel
 (otherwise they would score as one giant segment); their fraction inside the GT
-foreground is reported.
+foreground is reported. ``--agglomerate`` also scores greedy mean-affinity agglomeration of
+each (filled) ABISS result (decoder ``abiss+agglo``).
 
 Writes one TSV row per (volume, GT file, parameter set).
 """
@@ -47,6 +48,9 @@ REPO = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(REPO))
 
 from connectomics.decoding.decoders.abiss import decode_abiss  # noqa: E402
+from connectomics.decoding.decoders.affinity_agglomeration import (  # noqa: E402
+    agglomerate_mean_affinity,
+)
 
 ABISS_CMD = (
     "{python_exe} -m connectomics.decoding.abiss_runner --abiss-home {abiss_home} "
@@ -172,6 +176,14 @@ def main() -> None:
         default=[0.02, 0.05, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9],
     )
     ap.add_argument(
+        "--agglomerate",
+        type=float,
+        nargs="+",
+        default=[],
+        help="also score greedy mean-affinity agglomeration of each ABISS result down to "
+        "these thresholds (decoder abiss+agglo)",
+    )
+    ap.add_argument(
         "--check-skimage", action="store_true", help="assert equality with skimage once"
     )
     args = ap.parse_args()
@@ -237,24 +249,29 @@ def main() -> None:
                     "merge": merge,
                 }
                 filled = fill_unlabeled(seg)
-                for gt_name, gt in gts.items():
-                    if not checked:
-                        check_skimage(gt, filled)
-                        checked = True
-                    row = dict(
-                        volume=args.volume,
-                        gt=gt_name,
-                        decoder="abiss",
-                        params=json.dumps(params, sort_keys=True),
-                        n_seg=int(len(np.unique(filled))),
-                        unlabeled_fg=float((seg[gt > 0] == 0).mean()),
-                        seconds=seconds,
-                        **scores(gt, filled),
-                    )
-                    writer.writerow(
-                        {k: round(v, 5) if isinstance(v, float) else v for k, v in row.items()}
-                    )
-                    f.flush()
+                variants = [("abiss", params, filled)]
+                for t in args.agglomerate:
+                    merged = agglomerate_mean_affinity(filled, aff, t)
+                    variants.append(("abiss+agglo", {**params, "agglo": t}, merged))
+                for decoder, variant_params, result in variants:
+                    for gt_name, gt in gts.items():
+                        if not checked:
+                            check_skimage(gt, result)
+                            checked = True
+                        row = dict(
+                            volume=args.volume,
+                            gt=gt_name,
+                            decoder=decoder,
+                            params=json.dumps(variant_params, sort_keys=True),
+                            n_seg=int(len(np.unique(result))),
+                            unlabeled_fg=float((seg[gt > 0] == 0).mean()),
+                            seconds=seconds,
+                            **scores(gt, result),
+                        )
+                        writer.writerow(
+                            {k: round(v, 5) if isinstance(v, float) else v for k, v in row.items()}
+                        )
+                        f.flush()
             print(args.volume, params, f"{time.time() - start:.0f}s", flush=True)
 
 
