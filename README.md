@@ -28,9 +28,9 @@ pre-specified default; see the tutorial README).
 | Structure | Dataset | Tutorial config | PyTC | SOTA |
 | --- | --- | --- | --- | --- |
 | Neurons | EMNeuron (SegNeuron) | `neuron_segneuron/*` | [**VI 0.821 ↓**](https://huggingface.co/pytc/tutorial/tree/main/neuron_segneuron) | VI 0.887 ([SegNeuron](https://github.com/yanchaoz/SegNeuron)) |
-| Neurons | BANIS | `neuron_nisb/*` | [NERL 0.601 ↑](https://huggingface.co/pytc/tutorial/tree/main/neuron_nisb) | — |
+| Neurons | NISB-base | `neuron_nisb/*` | [NERL 0.601 ↑](https://huggingface.co/pytc/tutorial/tree/main/neuron_nisb) | Ours |
 | Neurons | SNEMI3D | `neuron_snemi/*` | — | — |
-| Mitochondria | Lucchi++ | `mito_lucchi++/mito_lucchi++` | [Jaccard 0.935 ↑](https://huggingface.co/pytc/tutorial/tree/main/mito_lucchi%2B%2B) | — |
+| Mitochondria | Lucchi++ | `mito_lucchi++/mito_lucchi++` | [Jaccard 0.935 ↑](https://huggingface.co/pytc/tutorial/tree/main/mito_lucchi%2B%2B) | Ours |
 | Mitochondria | MitoEM | `mitoEM/*` | — | — |
 | Mitochondria | MitoLab, BetaSeg | `mito_mitolab`, `mito_betaseg` | — | — |
 | Synapses | CREMI | `syn_cremi` | — | — |
