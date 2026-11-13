@@ -24,18 +24,18 @@ its weights on Hugging Face), "SOTA" the best published score on the same data a
 better of the two is **bold**. EMNeuron: mean VI over the three out-of-distribution volumes, default
 decoder (0.821 with `DECODER=agglo`, added after scoring; see the tutorial README).
 
-| Structure | Dataset | Tutorial config | Model | PyTC | SOTA |
-| --- | --- | --- | --- | --- | --- |
-| Neurons | EMNeuron (SegNeuron) | `neuron_segneuron/*` | MedNeXt-L + ABISS | [VI 0.900 ↓](https://huggingface.co/pytc/tutorial/tree/main/neuron_segneuron) | **VI 0.887** ([SegNeuron](https://github.com/yanchaoz/SegNeuron)) |
-| Neurons | BANIS | `neuron_nisb/*` | MedNeXt-L + cc3d | [NERL 0.601 ↑](https://huggingface.co/pytc/tutorial/tree/main/neuron_nisb) | — |
-| Neurons | SNEMI3D | `neuron_snemi/*` | MedNeXt-S + waterz | — | — |
-| Mitochondria | Lucchi++ | `mito_lucchi++/mito_lucchi++` | MedNeXt-S | [Jaccard 0.935 ↑](https://huggingface.co/pytc/tutorial/tree/main/mito_lucchi%2B%2B) | — |
-| Mitochondria | MitoEM | `mitoEM/*` | MedNeXt-L + waterz | — | — |
-| Mitochondria | MitoLab, BetaSeg | `mito_mitolab`, `mito_betaseg` | — | — | — |
-| Synapses | CREMI | `syn_cremi` | MONAI U-Net | — | — |
-| Vesicles | XM | `vesicle_xm` | — | — | — |
-| Nuclei | NucMM-Z | `nuc_nucmm-z` | — | — | — |
-| Blood vessel | — | (coming) | — | — | — |
+| Structure | Dataset | Tutorial config | PyTC | SOTA |
+| --- | --- | --- | --- | --- |
+| Neurons | EMNeuron (SegNeuron) | `neuron_segneuron/*` | [VI 0.900 ↓](https://huggingface.co/pytc/tutorial/tree/main/neuron_segneuron) | **VI 0.887** ([SegNeuron](https://github.com/yanchaoz/SegNeuron)) |
+| Neurons | BANIS | `neuron_nisb/*` | [NERL 0.601 ↑](https://huggingface.co/pytc/tutorial/tree/main/neuron_nisb) | — |
+| Neurons | SNEMI3D | `neuron_snemi/*` | — | — |
+| Mitochondria | Lucchi++ | `mito_lucchi++/mito_lucchi++` | [Jaccard 0.935 ↑](https://huggingface.co/pytc/tutorial/tree/main/mito_lucchi%2B%2B) | — |
+| Mitochondria | MitoEM | `mitoEM/*` | — | — |
+| Mitochondria | MitoLab, BetaSeg | `mito_mitolab`, `mito_betaseg` | — | — |
+| Synapses | CREMI | `syn_cremi` | — | — |
+| Vesicles | XM | `vesicle_xm` | — | — |
+| Nuclei | NucMM-Z | `nuc_nucmm-z` | — | — |
+| Blood vessel | — | (coming) | — | — |
 
 <!-- Maintainer TODO: replace "—" with scores of released checkpoints and published SOTA. -->
 
