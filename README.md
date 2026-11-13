@@ -25,7 +25,7 @@ better of the two is **bold**. EMNeuron: mean VI over the three out-of-distribut
 `DECODER=agglo`, the best of the three decoders (added after scoring; 0.900 with the
 pre-specified default; see the tutorial README).
 
-| Structure | Dataset | Tutorial config | PyTC | SOTA |
+| Structure | Dataset | Tutorial config | PyTC | Prior SOTA |
 | --- | --- | --- | --- | --- |
 | Neurons | EMNeuron (SegNeuron) | `neuron_segneuron/*` | [**VI 0.821 ↓**](https://huggingface.co/pytc/tutorial/tree/main/neuron_segneuron) | VI 0.887 ([SegNeuron](https://github.com/yanchaoz/SegNeuron)) |
 | Neurons | NISB-base | `neuron_nisb/*` | [NERL 0.601 ↑](https://huggingface.co/pytc/tutorial/tree/main/neuron_nisb) | Ours |
