@@ -1,21 +1,24 @@
 # BANIS+ on four low-res volumes (MICrONS phase 1, minnie65, minnie35, H01; 256 nm pixels,
-# 264-320 nm sections), no label erosion, affinities at 1 and 5 voxels.
+# 264-320 nm sections), label erosion 1, affinities at 1 and 5 voxels.
 #
 #   data:   python tutorials/neuron_seg256nm/prepare_data.py clahe ...   (minnie65, minnie35 images)
 #           python tutorials/neuron_seg256nm/prepare_data.py cubes ...   (once per volume)
-#   train:  python scripts/main.py --config tutorials/neuron_seg256nm/banis+_e0_aff1-5.yaml
-#   infer:  python scripts/main.py --config tutorials/neuron_seg256nm/banis+_e0_aff1-5.yaml --mode test \
+#   train:  python scripts/main.py --config tutorials/neuron_seg256nm/banis+_aff1-5.yaml
+#   infer:  python scripts/main.py --config tutorials/neuron_seg256nm/banis+_aff1-5.yaml --mode test \
 #               --checkpoint <run>/checkpoints/last.ckpt
 #
 # Recipe = banis+.yaml in this folder (MedNeXt-S/k3, 128 cube, ABISS-layout 6-channel affinity,
-# class-balanced BCE, EMA, aug_light, the MedNeXt speed knobs) with these changes:
-#
-# LABELS -- erosion 0: the affinity target is computed from the labels as they are, so a
-# boundary is one voxel-pair wide (erosion 1 in banis+.yaml removes 256-320 nm per side).
+# class-balanced BCE, EMA, erosion 1, aug_light, the MedNeXt speed knobs) with these changes:
 #
 # AFFINITY -- offsets 1 and 5 voxels on every axis (banis+.yaml: 1 and 10). Channels are
 # x, y, z at 1 voxel, then x, y, z at 5 voxels, edge (i-k, i) stored at voxel i. Destination
 # storage needs the voxel at i - 5, so target_context reads 5 voxels on the leading side.
+#
+# LABELS -- erosion 1, as in banis+.yaml, on purpose: the target is the soma. A voxel whose
+# 3 x 3 xy window holds two labels becomes background, which leaves about a fifth of the
+# voxels labelled (soma cores and thick proximal dendrites) and makes the neuropil, where the
+# label fragments are smaller than a voxel and differ by volume, a uniform 0. The cost is the
+# thin branches: segments of 100-10k voxels keep 3-13% of their voxels.
 #
 # DATA -- 256^3 cubes written by prepare_data.py: per volume, the quarter-point cubes
 # (`<volume>_q?`) train and the centre cube (`<volume>_ctr`) validates. The minnie65 and
@@ -25,17 +28,16 @@
 _base_:
 - banis+.yaml
 
-experiment_name: seg256nm_banis+_e0_aff1-5
+experiment_name: seg256nm_banis+_aff1-5
 description: >-
   BANIS+ (MedNeXt-S/k3, 6-channel ABISS-layout affinity at 1 and 5 voxels, class-balanced BCE,
-  EMA, erosion 0) on 256^3 cubes of MICrONS phase 1, minnie65, minnie35 and H01 at 256 nm.
+  EMA, erosion 1) on 256^3 cubes of MICrONS phase 1, minnie65, minnie35 and H01 at 256 nm.
 
 default:
   data:
     dataloader:
       target_context: [5, 5, 5, 0, 0, 0]
     label_transform:
-      erosion: 0
       targets:
       - name: affinity
         kwargs:

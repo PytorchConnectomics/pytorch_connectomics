@@ -9,7 +9,7 @@ telling cell types (neuron vs glia, excitatory vs inhibitory) from a cheap whole
 |---|---|---|
 | `overfit.yaml` | `banis+.yaml` for 5k steps on one aligned crop per volume, tested on the same crops | ABISS ws |
 | `banis+.yaml` | BANIS+ (MedNeXt-S/k3, 6-channel ABISS-layout affinity, class-balanced BCE, EMA, erosion 1, 128 cube, 200k steps) with the MedNeXt speed knobs | ABISS ws |
-| `banis+_e0_aff1-5.yaml` | `banis+.yaml` with erosion 0 and affinities at 1 and 5 voxels, on 256^3 cubes of phase 1, minnie65, minnie35 and H01 | ABISS ws |
+| `banis+_aff1-5.yaml` | `banis+.yaml` with affinities at 1 and 5 voxels (erosion 1 kept), on 256^3 cubes of phase 1, minnie65, minnie35 and H01 | ABISS ws |
 
 ## Results
 
@@ -32,7 +32,7 @@ The volumes are not public downloads in this layout. They are cut by the researc
 Images are uint8, labels uint32 relabelled per chunk with 0 as background. Point the three
 `path:` entries of `dataset.yaml` (or a run-local config that inherits it) at the folders.
 
-### Four-volume cubes (`banis+_e0_aff1-5.yaml`)
+### Four-volume cubes (`banis+_aff1-5.yaml`)
 
 `prepare_data.py` in this folder writes what that config reads:
 
