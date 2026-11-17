@@ -2,7 +2,7 @@
 
     python prepare_data.py clahe --src IMAGE.h5 --dst IMAGE_clahe.h5 [--cpus N]
     python prepare_data.py cubes --name m65 --image IMAGE.h5 --seg SEG.h5 --offset 4,515,392 \
-        --out DIR [--split split_m65.json]
+        --out DIR [--split split_m65.json | --starts q0:37,3848,8444 ...] [--min-seg 0.9]
 
 `clahe` writes a contrast-equalised copy of a uint8 volume once, so training does not repeat it
 on the fly. Per z-section: the non-zero pixels are stretched linearly from their 0.5 and 99.5
@@ -14,10 +14,13 @@ equalised (phase 1, H01) alone.
 `cubes` cuts 256^3 image/label cubes on one grid. `--offset` is zyx with
 image index = seg index + offset. With `--split` the cube positions are read from an earlier
 cut's JSON (`train[].name`, `train[].start_image`), so a new image or label version lands on
-the same cubes; without it the cubes sit on the quarter points of the region the two volumes
+the same cubes; `--starts` names them one by one (`tag:z,y,x`, image index), for a volume
+whose labels cover only part of the region (H01's are a diagonal band); with neither the cubes
+sit on the quarter points of the region the two volumes
 share (`<name>_q0..q7`, or `q0..q3` on the mid-plane when the region is thinner than two cubes
 in z) and on its centre (`<name>_ctr`). Images are written as uint8, labels as uint32 relabelled
-per cube with 0 as background. A cube with under 90% non-zero image or label voxels is an error.
+per cube with 0 as background. A cube with under 90% non-zero image voxels, or under `--min-seg`
+(default 0.9) non-zero label voxels, is an error.
 
 All arrays, shapes and offsets are zyx.
 """
@@ -164,6 +167,8 @@ def cmd_cubes(a):
         starts = [(t["name"].split("_", 1)[1], np.array(t["start_image"])) for t in sp["train"]]
         if any(t["size"] != [CUBE] * 3 for t in sp["train"]):
             raise SystemExit(f"{a.split}: cubes are not {CUBE}^3")
+    elif a.starts:
+        starts = [(t.split(":")[0], np.array([int(v) for v in t.split(":")[1].split(",")])) for t in a.starts]
     else:
         lo = np.maximum(off, 0)
         hi = np.minimum(np.array(seg.shape) + off, np.array(im.shape))
@@ -189,7 +194,7 @@ def cmd_cubes(a):
                 f.create_dataset("main", data=arr, chunks=(32, 32, 32), compression="gzip", compression_opts=4)
         if tag == "ctr":
             overlay_png(os.path.join(a.out, f"{name}_overlay.png"), img, out)
-        if min(row["seg_nonzero"], row["image_nonzero"]) < MIN_NONZERO:
+        if row["seg_nonzero"] < a.min_seg or row["image_nonzero"] < MIN_NONZERO:
             bad.append(name)
         rows.append(row)
         print(row, flush=True)
@@ -198,9 +203,10 @@ def cmd_cubes(a):
                        seg_attrs={k: str(seg.attrs[k]) for k in ("gt_version", "source") if k in seg.attrs},
                        image_attrs={k: str(v) for k, v in im.attrs.items()},
                        convention="zyx; image index = seg index + offset", offset=off.tolist(),
-                       positions_from=a.split or "quarter points of the shared region", cubes=rows), f, indent=1)
+                       positions_from=a.split or ("--starts" if a.starts else "quarter points of the shared region"),
+                       min_seg=a.min_seg, cubes=rows), f, indent=1)
     if bad:
-        raise SystemExit(f"under {MIN_NONZERO} non-zero: {bad}")
+        raise SystemExit(f"image under {MIN_NONZERO} or labels under {a.min_seg} non-zero: {bad}")
 
 
 def main():
@@ -220,6 +226,8 @@ def main():
     c.add_argument("--seg", required=True)
     c.add_argument("--offset", required=True, help="z,y,x with image index = seg index + offset")
     c.add_argument("--split", help="JSON of an earlier cut; reuse its cube positions")
+    c.add_argument("--starts", nargs="+", help="explicit cubes, tag:z,y,x in image index")
+    c.add_argument("--min-seg", type=float, default=MIN_NONZERO, help="least non-zero label fraction per cube")
     c.add_argument("--out", required=True)
     c.set_defaults(fn=cmd_cubes)
     a = p.parse_args()
