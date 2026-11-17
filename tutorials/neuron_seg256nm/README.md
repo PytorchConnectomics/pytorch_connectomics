@@ -42,7 +42,7 @@ Images are uint8, labels uint32 relabelled per chunk with 0 as background. Point
   phase 1 and H01 were equalised at the source and are used as they are.
 - `cubes` cuts 256^3 image/label cubes per volume on one grid: `<volume>_q0..q7` on the quarter
   points of the region image and labels share (`q0..q3` for phase 1, which is thin in z) and
-  `<volume>_ctr` on its centre. The quarter-point cubes train; the centre cubes validate.
+  `<volume>_ctr` on its centre. `banis+_aff1-5.yaml` trains on all of them and has no validation split.
 
 ## Recipe
 
