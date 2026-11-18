@@ -24,6 +24,53 @@ class _NoMetricContext:
         return False
 
 
+class _DiceContext:
+    def metric(self, _name):
+        return None
+
+    def metric_requested(self, name):
+        return name == "dice"
+
+
+def test_binary_dice_is_the_foreground_dice():
+    pred = torch.tensor([[0.9, 0.8, 0.1, 0.0], [0.0, 0.0, 0.0, 0.0]])
+    labels = torch.tensor([[1.0, 0.0, 1.0, 0.0], [0.0, 0.0, 0.0, 0.0]])
+    metrics = {}
+
+    compute_binary_metrics(
+        _DiceContext(),
+        pred,
+        labels,
+        volume_prefix="",
+        metrics_dict=metrics,
+        prediction_threshold=0.5,
+    )
+
+    # tp=1, fp=1, fn=1, so Dice = 2 / (2 + 1 + 1). Pixel accuracy would be 0.75.
+    assert metrics["dice"] == pytest.approx(0.5)
+
+
+@pytest.mark.parametrize("num_classes, use_binary", [(1, True), (3, False)])
+def test_dice_metric_can_be_created(num_classes, use_binary):
+    from types import SimpleNamespace
+
+    from connectomics.training.lightning.model import ConnectomicsModule
+
+    module = SimpleNamespace(device="cpu")
+    ConnectomicsModule._create_metrics(module, "val_", ["dice"], num_classes, use_binary)
+
+    if use_binary:
+        preds = torch.tensor([1, 1, 0, 0])
+        targets = torch.tensor([1, 0, 1, 0])
+        expected = 0.5
+    else:
+        preds = torch.tensor([0, 1, 2, 2])
+        targets = torch.tensor([0, 1, 2, 1])
+        expected = (1.0 + 2 / 3 + 2 / 3) / 3
+    module.val_dice.update(preds, targets)
+    assert module.val_dice.compute().item() == pytest.approx(expected)
+
+
 def test_uint16_predictions_are_instance_segmentations():
     pred = torch.tensor([[0, 1], [2, 3]], dtype=torch.uint16)
 
@@ -109,7 +156,7 @@ def _tube_evaluation_config() -> Config:
 
 
 def _complete_tube_segmentation() -> np.ndarray:
-    segmentation = np.zeros((6, 12, 12), dtype=np.uint16)
+    segmentation: np.ndarray = np.zeros((6, 12, 12), dtype=np.uint16)
     segmentation[:, 4:6, 4:6] = 1
     return segmentation
 
