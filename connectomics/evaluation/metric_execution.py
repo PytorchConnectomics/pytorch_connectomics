@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import logging
-from typing import Any, Dict, Optional
+from typing import Any, Optional
 
 import torch
 import torchmetrics
@@ -60,7 +60,7 @@ def align_metric_tensors(
 
     if pred_tensor.shape != labels_tensor.shape:
         logger.warning(
-            "Cannot compute metrics: incompatible shapes after alignment, " "pred=%s, labels=%s",
+            "Cannot compute metrics: incompatible shapes after alignment, pred=%s, labels=%s",
             pred_tensor.shape,
             labels_tensor.shape,
         )
@@ -80,7 +80,7 @@ def compute_instance_metrics(
     pred_tensor: torch.Tensor,
     labels_tensor: torch.Tensor,
     volume_prefix: str,
-    metrics_dict: Dict[str, Any],
+    metrics_dict: dict[str, Any],
     instance_iou_threshold: float,
 ) -> None:
     pred_instances = pred_tensor.long()
@@ -168,7 +168,7 @@ def compute_binary_metrics(
     pred_tensor: torch.Tensor,
     labels_tensor: torch.Tensor,
     volume_prefix: str,
-    metrics_dict: Dict[str, Any],
+    metrics_dict: dict[str, Any],
     prediction_threshold: float,
 ) -> None:
     pred_for_threshold = pred_tensor if pred_tensor.is_floating_point() else pred_tensor.float()

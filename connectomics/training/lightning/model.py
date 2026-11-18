@@ -20,7 +20,7 @@ import logging
 import os
 import warnings
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Optional, Union
 
 import numpy as np
 import pytorch_lightning as pl
@@ -106,8 +106,8 @@ class ConnectomicsModule(pl.LightningModule):
         self._model_compiled: bool = False
 
         self.loss_functions: nn.ModuleList
-        self.loss_weights: List[float]
-        self.loss_metadata: List[Any]
+        self.loss_weights: list[float]
+        self.loss_metadata: list[Any]
         self.loss_weighter: Optional[nn.Module]
         self.loss_orchestrator: Optional[LossOrchestrator]
 
@@ -290,7 +290,7 @@ class ConnectomicsModule(pl.LightningModule):
         """
         return self.model(x)
 
-    def on_save_checkpoint(self, checkpoint: Dict[str, Any]) -> None:
+    def on_save_checkpoint(self, checkpoint: dict[str, Any]) -> None:
         """Persist primitive PyTC metadata without embedding config objects."""
         hyper_parameters = checkpoint.get("hyper_parameters")
         if isinstance(hyper_parameters, dict):
@@ -299,7 +299,7 @@ class ConnectomicsModule(pl.LightningModule):
 
         checkpoint["pytc_metadata"] = self._checkpoint_metadata()
 
-    def on_load_checkpoint(self, checkpoint: Dict[str, Any]) -> None:
+    def on_load_checkpoint(self, checkpoint: dict[str, Any]) -> None:
         """Select inference weights before Lightning restores the model state."""
         source = self.cfg.inference.checkpoint_weights
         if source not in {"raw", "ema"}:
@@ -334,7 +334,7 @@ class ConnectomicsModule(pl.LightningModule):
         }
         logger.info("Loading saved EMA checkpoint weights (%d tensors)", len(ema_state))
 
-    def _checkpoint_metadata(self) -> Dict[str, Any]:
+    def _checkpoint_metadata(self) -> dict[str, Any]:
         metadata = {
             "format_version": 1,
             "config_embedded": False,
@@ -360,7 +360,7 @@ class ConnectomicsModule(pl.LightningModule):
             logger.debug("Unable to compute checkpoint config hash", exc_info=True)
             return None
 
-    def load_state_dict(self, state_dict: Dict[str, torch.Tensor], strict: bool = True):
+    def load_state_dict(self, state_dict: dict[str, torch.Tensor], strict: bool = True):
         """Load checkpoint state with compatibility filtering for stale loss-function buffers."""
         if strict and isinstance(state_dict, dict):
             current_keys = set(self.state_dict().keys())
@@ -408,7 +408,8 @@ class ConnectomicsModule(pl.LightningModule):
         except (TypeError, ValueError):
             warnings.warn(
                 f"Config key '{key}' value {value!r} cannot be converted to float, "
-                f"using default {default}"
+                f"using default {default}",
+                stacklevel=2,
             )
             return float(default)
 
@@ -652,8 +653,8 @@ class ConnectomicsModule(pl.LightningModule):
         self._setup_validation_metrics()
 
     def _resolve_test_output_config(
-        self, batch: Dict[str, Any]
-    ) -> tuple[str, Optional[str], str, List[str]]:
+        self, batch: dict[str, Any]
+    ) -> tuple[str, Optional[str], str, list[str]]:
         """Determine output dir/cache suffix from merged runtime inference config."""
         mode = "test"
         inference_cfg = self._get_runtime_inference_config()
@@ -699,7 +700,7 @@ class ConnectomicsModule(pl.LightningModule):
         return ""
 
     def _load_cached_predictions(
-        self, output_dir_value: Optional[str], filenames: List[str], cache_suffix: str, mode: str
+        self, output_dir_value: Optional[str], filenames: list[str], cache_suffix: str, mode: str
     ):
         """Attempt to load cached predictions from disk."""
         # Check decoding.load_prediction_path first (decode-only mode)
@@ -895,7 +896,7 @@ class ConnectomicsModule(pl.LightningModule):
         )
         return tta_active or window_active
 
-    def _test_metric_handles(self) -> Dict[str, Any]:
+    def _test_metric_handles(self) -> dict[str, Any]:
         return {
             "jaccard": self.test_jaccard,
             "dice": self.test_dice,
@@ -919,7 +920,7 @@ class ConnectomicsModule(pl.LightningModule):
             distributed_single_volume_sharding=self._is_distributed_single_volume_sharding_active(),
         )
 
-    def _save_metrics_to_file(self, metrics_dict: Dict[str, Any]):
+    def _save_metrics_to_file(self, metrics_dict: dict[str, Any]):
         save_metrics_to_file(self._evaluation_context(), metrics_dict)
 
     def _compute_loss(
@@ -944,7 +945,7 @@ class ConnectomicsModule(pl.LightningModule):
             outputs, labels, stage=stage, mask=mask, target_mask=target_mask, gt_seg=gt_seg
         )
 
-    def training_step(self, batch: Dict[str, torch.Tensor], batch_idx: int) -> STEP_OUTPUT:
+    def training_step(self, batch: dict[str, torch.Tensor], batch_idx: int) -> STEP_OUTPUT:
         """Training step with deep supervision support."""
 
         if self.cfg.model.compile:
@@ -995,7 +996,7 @@ class ConnectomicsModule(pl.LightningModule):
 
         return total_loss
 
-    def validation_step(self, batch: Dict[str, torch.Tensor], batch_idx: int) -> STEP_OUTPUT:
+    def validation_step(self, batch: dict[str, torch.Tensor], batch_idx: int) -> STEP_OUTPUT:
         """Validation step with deep supervision support."""
         if self.cfg.model.compile:
             batch = self._plain_batch(batch)
@@ -1235,15 +1236,14 @@ class ConnectomicsModule(pl.LightningModule):
             return f"Enabled ({geometric_transforms} geometric transforms, {total_passes} passes)"
         if channel_activation_groups > 0:
             return (
-                f"Enabled (0 geometric transforms; channel_activations="
-                f"{channel_activation_groups})"
+                f"Enabled (0 geometric transforms; channel_activations={channel_activation_groups})"
             )
         return "Enabled (0 transforms; single pass)"
 
-    def test_step(self, batch: Dict[str, torch.Tensor], batch_idx: int) -> STEP_OUTPUT:
+    def test_step(self, batch: dict[str, torch.Tensor], batch_idx: int) -> STEP_OUTPUT:
         return run_test_step(self, batch, batch_idx)
 
-    def configure_optimizers(self) -> Dict[str, Any]:
+    def configure_optimizers(self) -> dict[str, Any]:
         """Configure optimizers and learning rate schedulers."""
         # Optimize the full Lightning module so trainable auxiliaries such as
         # adaptive loss weighters are included alongside the base network.

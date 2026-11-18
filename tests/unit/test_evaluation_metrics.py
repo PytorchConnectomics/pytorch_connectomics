@@ -109,7 +109,7 @@ def _tube_evaluation_config() -> Config:
 
 
 def _complete_tube_segmentation() -> np.ndarray:
-    segmentation = np.zeros((6, 12, 12), dtype=np.uint16)
+    segmentation: np.ndarray = np.zeros((6, 12, 12), dtype=np.uint16)
     segmentation[:, 4:6, 4:6] = 1
     return segmentation
 
