@@ -201,7 +201,10 @@ def compute_binary_metrics(
 
     dice_metric = context.metric("dice")
     if context.metric_requested("dice"):
-        dice_value = torchmetrics.functional.dice(pred_binary, labels_binary)
+        # Foreground Dice, 2TP / (2TP + FP + FN), is the binary F1 score.
+        dice_value = torchmetrics.functional.classification.binary_f1_score(
+            pred_binary, labels_binary
+        )
         logger.info("%sDice: %.6f", volume_prefix, dice_value.item())
         metrics_dict["dice"] = dice_value.item()
         if dice_metric is not None:

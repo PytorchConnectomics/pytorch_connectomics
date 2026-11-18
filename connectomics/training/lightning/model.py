@@ -538,13 +538,17 @@ class ConnectomicsModule(pl.LightningModule):
                 ),
             )
         if "dice" in metrics:
+            # Dice is the F1 score of the foreground (2TP / (2TP + FP + FN)).
+            # torchmetrics.Dice was removed in torchmetrics 1.7.
             setattr(
                 self,
                 f"{prefix}dice",
                 (
-                    torchmetrics.Dice(task="binary").to(self.device)
+                    torchmetrics.F1Score(task="binary").to(self.device)
                     if use_binary
-                    else torchmetrics.Dice(num_classes=num_classes, average="macro").to(self.device)
+                    else torchmetrics.F1Score(
+                        task="multiclass", num_classes=num_classes, average="macro"
+                    ).to(self.device)
                 ),
             )
         if "accuracy" in metrics:
