@@ -141,6 +141,11 @@ def _load_yaml(path: Path) -> Any:
         return yaml.safe_load(f) or {}
 
 
+# Configs consumed by their own runners rather than scripts/main.py; their root key
+# is not part of the structured Config schema.
+RUNNER_CONFIG_ROOTS = ("abiss_chunk", "error_correction")
+
+
 def _invalid_absolute_paths(data: Any, prefix: str = "") -> list[str]:
     """Find non-placeholder absolute strings, including nested and inherited values."""
     if isinstance(data, dict):
@@ -190,6 +195,7 @@ def main() -> int:
     errors: list[str] = []
     advisories: list[str] = []
     canonical_count = 0
+    skipped_count = 0
     for config_path in config_paths:
         try:
             raw = _load_yaml(config_path)
@@ -198,6 +204,10 @@ def main() -> int:
             continue
         for invalid in _invalid_absolute_paths(raw):
             errors.append(f"{config_path}: absolute path must start with /path/to/: {invalid}")
+
+        if isinstance(raw, dict) and any(root in raw for root in RUNNER_CONFIG_ROOTS):
+            skipped_count += 1
+            continue
 
         canonical_count += 1
         for pattern, message in LEGACY_PATTERNS:
@@ -236,7 +246,7 @@ def main() -> int:
             print(f"  - {err}")
         return 1
 
-    print(f"Validated {canonical_count} tutorial configs successfully; skipped 0.")
+    print(f"Validated {canonical_count} tutorial configs successfully; skipped {skipped_count}.")
     return 0
 
 

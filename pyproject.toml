@@ -50,7 +50,7 @@ dependencies = [
     "monai>=0.9.1",
     "torchmetrics>=0.11.0",
     # Configuration management
-    "omegaconf>=2.1.0",
+    "omegaconf>=2.1.0,<2.4",  # 2.4 rejects the schema's tuple defaults
     # Scientific computing
     "scipy>=1.5",
     "scikit-learn>=0.23.1",

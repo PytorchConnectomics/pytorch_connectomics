@@ -27,10 +27,14 @@ import os
 import h5py
 import numpy as np
 
-try:
-    from cloudvolume import CloudVolume
-except ImportError as exc:  # pragma: no cover
-    raise SystemExit("cloud-volume is required. Install: pip install cloud-volume") from exc
+
+def _cloudvolume():
+    """Import CloudVolume on use, so ``--help`` works without cloud-volume installed."""
+    try:
+        from cloudvolume import CloudVolume
+    except ImportError as exc:  # pragma: no cover - exercised only without dependency
+        raise SystemExit("cloud-volume is required. Install: pip install cloud-volume") from exc
+    return CloudVolume
 
 
 def _is_zarr_path(path: str) -> bool:
@@ -90,6 +94,7 @@ def convert(
     start_z: int,
     compress: bool,
 ) -> None:
+    CloudVolume = _cloudvolume()
     if not (cloudpath.startswith(("gs://", "s3://", "file://")) or "://" in cloudpath):
         cloudpath = f"file://{os.path.abspath(cloudpath)}"
 
@@ -102,12 +107,16 @@ def convert(
         # Resolve which source axis is c/x/y/z.
         if dset.ndim == 4:
             if sorted(src_axes) != list("cxyz"):
-                raise ValueError(f"--src-axes must be a permutation of 'cxyz' for 4D input, got {src_axes!r}")
+                raise ValueError(
+                    f"--src-axes must be a permutation of 'cxyz' for 4D input, got {src_axes!r}"
+                )
             cax = src_axes.index("c")
             num_channels = dset.shape[cax]
         elif dset.ndim == 3:
             if sorted(src_axes) != list("xyz"):
-                raise ValueError(f"--src-axes must be a permutation of 'xyz' for 3D input, got {src_axes!r}")
+                raise ValueError(
+                    f"--src-axes must be a permutation of 'xyz' for 3D input, got {src_axes!r}"
+                )
             cax = None
             num_channels = 1
         else:
@@ -148,8 +157,12 @@ def convert(
             max_mip=0,
         )
         vol = CloudVolume(
-            cloudpath, info=info, mip=0,
-            compress=compress, progress=False, fill_missing=True,
+            cloudpath,
+            info=info,
+            mip=0,
+            compress=compress,
+            progress=False,
+            fill_missing=True,
         )
         vol.commit_info()
         vol.non_aligned_writes = True
@@ -162,15 +175,15 @@ def convert(
                 continue
             sl = [slice(None)] * dset.ndim
             sl[zax] = slice(z0, z1)
-            slab = dset[tuple(sl)]                      # source order, z axis sliced
+            slab = dset[tuple(sl)]  # source order, z axis sliced
             if reverse_channels and cax is not None:
-                slab = np.flip(slab, axis=cax)          # e.g. zyx-affinity -> xyz-affinity
+                slab = np.flip(slab, axis=cax)  # e.g. zyx-affinity -> xyz-affinity
             slab = _to_dtype(slab, out_dtype)
             if cax is None:
                 slab = np.ascontiguousarray(slab.transpose(xax, yax, zax))[..., np.newaxis]
             else:
                 slab = np.ascontiguousarray(slab.transpose(xax, yax, zax, cax))  # (X, Y, dz, C)
-            vol[ox:ox + x_size, oy:oy + y_size, oz + z0:oz + z1, :] = slab
+            vol[ox : ox + x_size, oy : oy + y_size, oz + z0 : oz + z1, :] = slab
             pct = (z1 / z_size) * 100
             print(f"  [{idx}/{n_chunks}] z={z0}:{z1}  ({pct:.1f}%)", flush=True)
 
@@ -178,27 +191,68 @@ def convert(
 
 
 def parse_args() -> argparse.Namespace:
-    p = argparse.ArgumentParser(description="Stream an HDF5 or Zarr volume to precomputed (cloud-capable).")
+    p = argparse.ArgumentParser(
+        description="Stream an HDF5 or Zarr volume to precomputed (cloud-capable)."
+    )
     p.add_argument("input", help="Input HDF5 file or Zarr directory (auto-detected)")
     p.add_argument("output", help="Output cloudpath (gs://, s3://, file://, or local dir)")
-    p.add_argument("--dataset", default=None, help="Source dataset / zarr array name (default: first)")
-    p.add_argument("--src-axes", default="czyx",
-                   help="Source axis order: permutation of cxyz (4D) or xyz (3D). Default: czyx")
-    p.add_argument("--reverse-channels", action="store_true",
-                   help="Reverse channel order on write (e.g. zyx-affinity -> xyz-affinity)")
-    p.add_argument("--out-dtype", default="float32",
-                   help="float32, uint8 (scale [0,1]->[0,255]), or any numpy dtype (default: float32)")
-    p.add_argument("--layer-type", default="image", choices=["image", "segmentation"],
-                   help="Precomputed layer type (default: image)")
-    p.add_argument("--resolution", type=float, nargs=3, metavar=("Z", "Y", "X"), required=True,
-                   help="Voxel resolution in nm, z y x order")
-    p.add_argument("--offset", type=int, nargs=3, metavar=("Z", "Y", "X"), default=[0, 0, 0],
-                   help="Voxel offset, z y x order (default: 0 0 0)")
-    p.add_argument("--chunk-size", type=int, nargs=3, metavar=("Z", "Y", "X"), default=[64, 128, 128],
-                   help="Precomputed chunk size, z y x order (default: 64 128 128)")
-    p.add_argument("--write-z", type=int, default=64,
-                   help="Source z-slab thickness per write; keep a multiple of chunk z (default: 64)")
-    p.add_argument("--start-z", type=int, default=0, help="Resume: skip slabs ending at/below this z")
+    p.add_argument(
+        "--dataset", default=None, help="Source dataset / zarr array name (default: first)"
+    )
+    p.add_argument(
+        "--src-axes",
+        default="czyx",
+        help="Source axis order: permutation of cxyz (4D) or xyz (3D). Default: czyx",
+    )
+    p.add_argument(
+        "--reverse-channels",
+        action="store_true",
+        help="Reverse channel order on write (e.g. zyx-affinity -> xyz-affinity)",
+    )
+    p.add_argument(
+        "--out-dtype",
+        default="float32",
+        help="float32, uint8 (scale [0,1]->[0,255]), or any numpy dtype (default: float32)",
+    )
+    p.add_argument(
+        "--layer-type",
+        default="image",
+        choices=["image", "segmentation"],
+        help="Precomputed layer type (default: image)",
+    )
+    p.add_argument(
+        "--resolution",
+        type=float,
+        nargs=3,
+        metavar=("Z", "Y", "X"),
+        required=True,
+        help="Voxel resolution in nm, z y x order",
+    )
+    p.add_argument(
+        "--offset",
+        type=int,
+        nargs=3,
+        metavar=("Z", "Y", "X"),
+        default=[0, 0, 0],
+        help="Voxel offset, z y x order (default: 0 0 0)",
+    )
+    p.add_argument(
+        "--chunk-size",
+        type=int,
+        nargs=3,
+        metavar=("Z", "Y", "X"),
+        default=[64, 128, 128],
+        help="Precomputed chunk size, z y x order (default: 64 128 128)",
+    )
+    p.add_argument(
+        "--write-z",
+        type=int,
+        default=64,
+        help="Source z-slab thickness per write; keep a multiple of chunk z (default: 64)",
+    )
+    p.add_argument(
+        "--start-z", type=int, default=0, help="Resume: skip slabs ending at/below this z"
+    )
     p.add_argument("--no-compress", action="store_true", help="Disable gzip chunk compression")
     return p.parse_args()
 
@@ -206,7 +260,8 @@ def parse_args() -> argparse.Namespace:
 def main() -> None:
     a = parse_args()
     convert(
-        a.input, a.output,
+        a.input,
+        a.output,
         dataset=a.dataset,
         src_axes=a.src_axes,
         reverse_channels=a.reverse_channels,
