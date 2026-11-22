@@ -10,11 +10,13 @@ jobs:
   test:
     runs-on: ${{ matrix.os }}
     strategy:
+      fail-fast: false
       matrix:
         os: [ubuntu-latest, macos-latest, windows-latest]
         python-version: ['3.11']
         include:
-          - os: ubuntu-latest
+          # ubuntu-latest (26.04) has no Python 3.9 build in setup-python.
+          - os: ubuntu-24.04
             python-version: '3.9'
           - os: ubuntu-latest
             python-version: '3.12'
