@@ -2,13 +2,10 @@
 
 from __future__ import annotations
 
-from collections.abc import Sequence
-from typing import Any, Union
+from typing import Any, Sequence, TypeAlias
 
-# Module-level aliases are evaluated at import time, so they cannot use
-# ``X | Y`` or ``typing.TypeAlias`` while Python 3.9 is supported.
-ChannelRangeSelector = Union[int, str]
-ChannelSelector = Union[int, str, Sequence[int]]
+ChannelRangeSelector: TypeAlias = int | str
+ChannelSelector: TypeAlias = int | str | Sequence[int]
 
 
 def _parse_selector_string(value: str, *, context: str) -> int | slice:

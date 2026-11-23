@@ -7,7 +7,7 @@ name = "pytorch-connectomics"
 version = "2.0.0"
 description = "Semantic and instance segmentation toolbox for EM connectomics"
 readme = "README.md"
-requires-python = ">=3.9,<3.13"
+requires-python = ">=3.11,<3.13"
 license = {text = "MIT"}
 authors = [
     {name = "PyTorch Connectomics Contributors"}
@@ -30,8 +30,6 @@ classifiers = [
     "Intended Audience :: Science/Research",
     "License :: OSI Approved :: MIT License",
     "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.9",
-    "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Topic :: Scientific/Engineering :: Artificial Intelligence",

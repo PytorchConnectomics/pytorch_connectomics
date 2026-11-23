@@ -17,9 +17,6 @@ jobs:
         os: [ubuntu-latest, macos-latest]
         python-version: ['3.11']
         include:
-          # ubuntu-latest (26.04) has no Python 3.9 build in setup-python.
-          - os: ubuntu-24.04
-            python-version: '3.9'
           - os: ubuntu-latest
             python-version: '3.12'
     steps:

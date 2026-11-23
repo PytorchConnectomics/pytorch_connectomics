@@ -2,7 +2,7 @@
 <img src="./.github/logo_fullname.png" width="450"></a>
 
 <p align="left">
-    <a href="https://www.python.org/"><img src="https://img.shields.io/badge/Python-3.9+-ff69b4.svg" /></a>
+    <a href="https://www.python.org/"><img src="https://img.shields.io/badge/Python-3.11+-ff69b4.svg" /></a>
     <a href="https://pytorch.org/"><img src="https://img.shields.io/badge/PyTorch-1.8+-2BAF2B.svg" /></a>
     <a href="https://lightning.ai/"><img src="https://img.shields.io/badge/Lightning-2.0+-792EE5.svg" /></a>
     <a href="https://monai.io/"><img src="https://img.shields.io/badge/MONAI-0.9+-00A3E0.svg" /></a>
