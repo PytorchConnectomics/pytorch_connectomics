@@ -1,5 +1,7 @@
 """Tests for the MalisLoss wrapper around the optional malis package."""
 
+from __future__ import annotations
+
 import unittest
 from contextlib import contextmanager
 from pathlib import Path

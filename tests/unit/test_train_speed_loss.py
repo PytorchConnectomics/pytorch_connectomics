@@ -1,5 +1,7 @@
 """Equivalence to the pre-optimization loss, preserved verbatim below."""
 
+from __future__ import annotations
+
 import pytest
 import torch
 from torch import nn
