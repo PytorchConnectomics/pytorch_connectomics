@@ -126,6 +126,11 @@ ADVISORY_PATTERNS: list[tuple[tuple[str, ...], str]] = [
     ),
 ]
 
+# Workflow configs consumed by their own runner (scripts/run_abiss_chunk.py,
+# scripts/run_error_correction.py), not by scripts/main.py --config: their top-level
+# root is not a Config section, so they are path-checked but not schema-loaded.
+WORKFLOW_ROOTS = {"abiss_chunk", "error_correction"}
+
 
 def _has_path(data: Any, path: tuple[str, ...]) -> bool:
     cur = data
@@ -139,11 +144,6 @@ def _has_path(data: Any, path: tuple[str, ...]) -> bool:
 def _load_yaml(path: Path) -> Any:
     with path.open("r", encoding="utf-8") as f:
         return yaml.safe_load(f) or {}
-
-
-# Configs consumed by their own runners rather than scripts/main.py; their root key
-# is not part of the structured Config schema.
-RUNNER_CONFIG_ROOTS = ("abiss_chunk", "error_correction")
 
 
 def _invalid_absolute_paths(data: Any, prefix: str = "") -> list[str]:
@@ -195,7 +195,7 @@ def main() -> int:
     errors: list[str] = []
     advisories: list[str] = []
     canonical_count = 0
-    skipped_count = 0
+    skipped = 0
     for config_path in config_paths:
         try:
             raw = _load_yaml(config_path)
@@ -204,9 +204,8 @@ def main() -> int:
             continue
         for invalid in _invalid_absolute_paths(raw):
             errors.append(f"{config_path}: absolute path must start with /path/to/: {invalid}")
-
-        if isinstance(raw, dict) and any(root in raw for root in RUNNER_CONFIG_ROOTS):
-            skipped_count += 1
+        if isinstance(raw, dict) and WORKFLOW_ROOTS & set(raw):
+            skipped += 1
             continue
 
         canonical_count += 1
@@ -246,7 +245,7 @@ def main() -> int:
             print(f"  - {err}")
         return 1
 
-    print(f"Validated {canonical_count} tutorial configs successfully; skipped {skipped_count}.")
+    print(f"Validated {canonical_count} tutorial configs successfully; skipped {skipped}.")
     return 0
 
 

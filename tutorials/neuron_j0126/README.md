@@ -79,7 +79,7 @@ environment — legacy `libtbb.so.2` or Boost 1.85 fail in mean-edge agglomerati
 | 5 | eval | `scripts/evaluate_j0126.py` | `output_root/eval/nerl.json` exists |
 
 Keep the step YAMLs' thresholds unchanged to reproduce the reference recipe. Planning
-figures: [RESOURCE.md](RESOURCE.md). Disk cleanup mid-run: [CLEANUP.md](CLEANUP.md).
+figures: [RESOURCE](./RESOURCE.md). Disk cleanup mid-run: [CLEANUP](./CLEANUP.md).
 
 ### Step 0 — data and exclusion mask
 
@@ -165,7 +165,7 @@ Resubmit interrupted runs with the same geometry to reuse per-chunk DONE flags.
 When changing `BBOX` or `CHUNK_SIZE`, use a new output root: existing chunk descriptors
 are not regenerated, and `--force abiss` does not invalidate them.
 
-`AGG_THRESHOLD 0.20` with `WS_HIGH 0.9` / `WS_LOW 0.1` is the historical reference
+`AGG_THRESHOLD 0.3` with `WS_HIGH 0.99999` / `WS_LOW 0.00001` is the historical reference
 recipe, not a guarantee of its scores with a retrained model or corrected mask.
 The pipeline deliberately under-agglomerates here and attempts to repair splits in
 step 4 using morphology and, when supplied, nucleus identities.
@@ -221,7 +221,7 @@ score the intended layer explicitly.
 
 ## Reproduction status
 
-Audited against the local report `.agent/issues/j0126/reproduction.md`
+Audited against the local reproduction report
 and the current shared driver in `connectomics/playbooks/cube_decode.py`.
 Documentation corrections are not a new full-volume validation.
 
