@@ -324,7 +324,6 @@ def test_config_only_onboarding(tmp_path, monkeypatch, capsys):
     assert resolved.param.AFF_KEEP_MASK == str(tmp_path / "third_keep.h5") + "::main"
 
 
-
 def test_unknown_sequence(tmp_path):
     params = OmegaConf.create({"pipeline": "cube_typo"})
     with pytest.raises(ValueError, match="cube_from_scratch"):

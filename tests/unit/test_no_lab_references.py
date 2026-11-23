@@ -52,6 +52,8 @@ J0126_WORKFLOW = (
     "tutorials/_base/abiss.yaml",
     "tutorials/neuron_j0126/",
 )
+# EMNeuron (SegNeuron split) names its source volumes publicly, one of them "J0126-sbem".
+PUBLIC_DATASET_NAMES = ("scripts/prepare_emneuron.py",)
 
 
 def test_no_lab_references():
@@ -74,6 +76,7 @@ def test_no_lab_references():
         if (
             name == SELF
             or name.startswith(J0126_WORKFLOW)
+            or name in PUBLIC_DATASET_NAMES
             or not (
                 name in SURFACES
                 or name.startswith(

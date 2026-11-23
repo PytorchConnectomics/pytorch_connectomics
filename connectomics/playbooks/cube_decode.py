@@ -491,7 +491,7 @@ def _from_scratch_steps(params, tutorial: Path) -> list[Step]:
             title="5. NERL / VOI against the 50 test skeletons",
             command=(
                 f"{PYTHON} scripts/evaluate_j0126.py"
-                f" --segmentation \"$([ -f {shlex.quote(str(_ec_seg / 'info'))} ]"
+                f' --segmentation "$([ -f {shlex.quote(str(_ec_seg / "info"))} ]'
                 f" && echo {shlex.quote(str(_ec_seg))}"
                 f' || echo {shlex.quote(str(eval_seg))})"'
                 f" --skeletons {shlex.quote(str(skeletons))}"

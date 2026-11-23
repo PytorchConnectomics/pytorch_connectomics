@@ -36,8 +36,9 @@ rewards a wrong join that happens to reach a face exactly as much as a right one
 from __future__ import annotations
 
 import math
-from dataclasses import dataclass, field, replace
-from typing import Callable, Sequence
+from collections.abc import Sequence
+from dataclasses import dataclass, field
+from typing import Callable
 
 import numpy as np
 
@@ -174,40 +175,36 @@ def default_schedule(
     is the argument for assignment over union, and for treating any union result
     from this cascade as unproven until reviewed.
     """
-    common = dict(
-        min_affinity=min_affinity,
-        require_mutual=False,
-        apply_semantic_gate=False,
-        max_group_size=max_group_size,
-    )
+    common = {
+        "min_affinity": min_affinity,
+        "require_mutual": False,
+        "apply_semantic_gate": False,
+        "max_group_size": max_group_size,
+    }
     # Assignment only. See CascadePass for the measured reason: unions were
     # net-negative on zebrafinch at every setting tried, assignment was not.
-    risk = dict(allow_union=allow_union)
+    risk = {"allow_union": allow_union}
     return CascadeConfig(
         passes=(
             CascadePass(
                 "strict",
-                LinkConfig(max_gap_um=0.25, min_caliber_ratio=0.6, max_tangent_deg=30.0,
-                           **common),
+                LinkConfig(max_gap_um=0.25, min_caliber_ratio=0.6, max_tangent_deg=30.0, **common),
                 require_border_gain=False,
                 **risk,
             ),
             CascadePass(
                 "relaxed-angle",
-                LinkConfig(max_gap_um=0.25, min_caliber_ratio=0.5, max_tangent_deg=50.0,
-                           **common),
+                LinkConfig(max_gap_um=0.25, min_caliber_ratio=0.5, max_tangent_deg=50.0, **common),
                 **risk,
             ),
             CascadePass(
                 "relaxed-caliber",
-                LinkConfig(max_gap_um=0.35, min_caliber_ratio=0.35, max_tangent_deg=60.0,
-                           **common),
+                LinkConfig(max_gap_um=0.35, min_caliber_ratio=0.35, max_tangent_deg=60.0, **common),
                 **risk,
             ),
             CascadePass(
                 "wide-gap",
-                LinkConfig(max_gap_um=0.60, min_caliber_ratio=0.35, max_tangent_deg=60.0,
-                           **common),
+                LinkConfig(max_gap_um=0.60, min_caliber_ratio=0.35, max_tangent_deg=60.0, **common),
                 **risk,
             ),
         ),
@@ -440,9 +437,7 @@ def run_cascade(
     union = _Union(faces, length_um)
     for label in labels:
         union.find(label)
-    before = border_state(
-        labels, faces=faces, free_ends=free_end_counts, length_um=length_um
-    )
+    before = border_state(labels, faces=faces, free_ends=free_end_counts, length_um=length_um)
 
     allowed = set(config.repair_semantic_types)
     open_sites = [site for site in sites if site.semantic_type in allowed]
@@ -455,11 +450,7 @@ def run_cascade(
         uncontested_total = taken_total = dropped_total = 0
         assigned_total = united_total = refused_total = 0
         for _ in range(config.max_iterations_per_pass):
-            live = [
-                site
-                for site in open_sites
-                if (site.label, site.vertex_index) not in consumed
-            ]
+            live = [site for site in open_sites if (site.label, site.vertex_index) not in consumed]
             if not live:
                 break
             scored = propose_links(
@@ -490,9 +481,7 @@ def run_cascade(
                 by_source.setdefault(key, []).append(candidate)
             # "No other choice": exactly one admissible partner for this end.
             unique = {
-                source: options[0]
-                for source, options in by_source.items()
-                if len(options) == 1
+                source: options[0] for source, options in by_source.items() if len(options) == 1
             }
             unique_total += len(unique)
 
@@ -502,8 +491,11 @@ def run_cascade(
                 if points is None or candidate.right_vertex_index >= len(points):
                     continue
                 claims.append(
-                    (source, candidate,
-                     np.asarray(points[candidate.right_vertex_index], dtype=np.float64))
+                    (
+                        source,
+                        candidate,
+                        np.asarray(points[candidate.right_vertex_index], dtype=np.float64),
+                    )
                 )
             confident = [
                 (source, candidate)
@@ -525,13 +517,14 @@ def run_cascade(
                 confident,
                 key=lambda item: (-gain(item[1]), item[1].gap_um),
             )
+
             def is_assignment(candidate: LinkCandidate) -> bool:
                 """A small fragment taking a much longer host's label."""
                 source_length = union.component_length(candidate.left_label)
                 host_length = union.component_length(candidate.right_label)
                 return (
-                    source_length <= step.assignment_max_length_um
-                    and host_length >= step.assignment_min_host_ratio * max(source_length, 1e-9)
+                    source_length <= step.assignment_max_length_um  # noqa: B023 - called within this iteration
+                    and host_length >= step.assignment_min_host_ratio * max(source_length, 1e-9)  # noqa: B023 - called within this iteration
                 )
 
             taken = assigned = united = refused = 0
@@ -598,12 +591,8 @@ def run_cascade(
     grouped: dict[int, list[int]] = {}
     for label in labels:
         grouped.setdefault(union.find(label), []).append(label)
-    groups = tuple(
-        tuple(sorted(members)) for members in grouped.values() if len(members) > 1
-    )
-    label_to_group = {
-        label: index for index, members in enumerate(groups) for label in members
-    }
+    groups = tuple(tuple(sorted(members)) for members in grouped.values() if len(members) > 1)
+    label_to_group = {label: index for index, members in enumerate(groups) for label in members}
     after = border_state(
         labels, faces=faces, free_ends=free_end_counts, length_um=length_um, union=union
     )

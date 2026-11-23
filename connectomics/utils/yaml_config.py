@@ -8,12 +8,12 @@ are intentionally lightweight standalone scripts, but still need the same
 from __future__ import annotations
 
 import re
+from collections.abc import Mapping
 from copy import deepcopy
 from pathlib import Path
-from typing import Any, Mapping
+from typing import Any
 
 import yaml  # type: ignore[import-untyped]
-
 
 _PARAMETER = re.compile(r"\$\{params\.([A-Za-z0-9_.-]+)\}")
 

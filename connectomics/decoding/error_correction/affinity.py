@@ -8,9 +8,9 @@ channel transformation during feature extraction.
 from __future__ import annotations
 
 import math
+from collections.abc import Sequence
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Sequence
 
 import h5py
 import numpy as np

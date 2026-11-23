@@ -25,9 +25,9 @@ Nothing here reads GT.
 from __future__ import annotations
 
 import time
+from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Iterable, Sequence
 
 import h5py
 import numpy as np

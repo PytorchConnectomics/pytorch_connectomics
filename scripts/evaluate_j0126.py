@@ -28,7 +28,7 @@ REPOSITORY = Path(__file__).resolve().parents[1]
 if str(REPOSITORY) not in sys.path:
     sys.path.insert(0, str(REPOSITORY))
 
-from connectomics.metrics.nerl import (
+from connectomics.metrics.nerl import (  # noqa: E402 - after the sys.path insert
     extract_nerl_score_outputs,
     import_em_erl,
     skeleton_voi,
@@ -168,9 +168,7 @@ def main() -> int:
         owners[int(label)].add(int(skeleton_index))
     multi_owner_labels = [label for label, values in owners.items() if len(values) > 1]
     multi_owner_nodes = (
-        np.isin(lut, multi_owner_labels)
-        if multi_owner_labels
-        else np.zeros(lut.shape, dtype=bool)
+        np.isin(lut, multi_owner_labels) if multi_owner_labels else np.zeros(lut.shape, dtype=bool)
     )
     fragments_per_skeleton = []
     dominant_fraction_per_skeleton = []
@@ -193,9 +191,7 @@ def main() -> int:
         "multi_owner_labels": len(multi_owner_labels),
         "multi_owner_node_fraction": float(np.mean(multi_owner_nodes)),
         "mean_fragments_per_skeleton": float(np.mean(fragments_per_skeleton)),
-        "median_dominant_label_fraction": float(
-            np.median(dominant_fraction_per_skeleton)
-        ),
+        "median_dominant_label_fraction": float(np.median(dominant_fraction_per_skeleton)),
         "nerl": {
             "mt0": _score(graph, lut, 0),
             "mt5": _score(graph, lut, 5),

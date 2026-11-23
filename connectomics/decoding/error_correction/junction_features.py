@@ -606,9 +606,9 @@ def compute(
                 if done % 2048 < chunk:
                     rate = done / max(time.time() - start_time, 1e-9)
                     remaining = (len(rows) - done) / max(rate, 1e-9)
-                    log(f"{done:,}/{len(rows):,} {rate:.1f} rows/s eta {remaining/60:.1f} min")
+                    log(f"{done:,}/{len(rows):,} {rate:.1f} rows/s eta {remaining / 60:.1f} min")
 
-    payload = {key: value for key, value in store.items()}
+    payload = dict(store.items())
     payload["row"] = rows.astype(np.int64)
     payload["left"] = left
     payload["right"] = right
@@ -621,7 +621,7 @@ def compute(
     np.savez(out_path, **payload)
     log(
         f"features -> {out_path} rows={len(rows):,} ok={int(ok.sum()):,} "
-        f"{time.time()-start_time:.0f}s"
+        f"{time.time() - start_time:.0f}s"
     )
 
 

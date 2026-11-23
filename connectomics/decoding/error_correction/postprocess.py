@@ -58,7 +58,7 @@ def prepare_output(
         return
     info = copy.deepcopy(source.info)
     scale = info["scales"][0]
-    scale["chunk_sizes"] = [list(int(value) for value in chunk_size_xyz)]
+    scale["chunk_sizes"] = [[int(value) for value in chunk_size_xyz]]
     info["type"] = "segmentation"
     info["data_type"] = "uint64"
     from cloudvolume import CloudVolume
@@ -75,8 +75,7 @@ def prepare_output(
     )
     destination.commit_info()
     destination.provenance.description = (
-        "GT-free morphology error correction: frozen branch unions followed by "
-        "inter-object erosion"
+        "GT-free morphology error correction: frozen branch unions followed by inter-object erosion"
     )
     destination.commit_provenance()
 

@@ -7,12 +7,13 @@ import json
 import os
 import subprocess
 import sys
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Mapping, Sequence
+from typing import Any
 
-from .artifacts import load_frozen_merge_roots, reject_evaluation_path
 from ...utils.yaml_config import load_yaml_with_bases_and_params
+from .artifacts import load_frozen_merge_roots, reject_evaluation_path
 
 STAGES = (
     "sizes",
@@ -201,7 +202,7 @@ class ErrorCorrectionConfig:
     parameters: Mapping[str, Mapping[str, Any]]
 
     @classmethod
-    def load(cls, path: Path) -> "ErrorCorrectionConfig":
+    def load(cls, path: Path) -> ErrorCorrectionConfig:
         payload = load_yaml_with_bases_and_params(path)
         if not isinstance(payload, dict) or set(payload) != {"error_correction"}:
             raise ValueError("config must have exactly one top-level 'error_correction' key")

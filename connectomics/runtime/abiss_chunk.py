@@ -20,14 +20,16 @@ import math
 import os
 import subprocess
 import sys
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, replace
 from pathlib import Path
-from typing import Any, Dict, List, Mapping, Optional, Sequence
+from typing import Any, Optional
 from urllib.parse import urlparse
 from urllib.request import url2pathname
 
 import h5py
 import numpy as np
+
 from ..utils.yaml_config import load_yaml_with_bases_and_params
 
 STAGES_ALL = (
@@ -46,7 +48,7 @@ STAGES_WITH_NUCLEUS = (
 STAGE_CHOICES = tuple(dict.fromkeys(STAGES_ALL + STAGES_WITH_NUCLEUS))
 
 
-def _aff_channels(configured: Any, source_num_channels: int) -> Optional[List[int]]:
+def _aff_channels(configured: Any, source_num_channels: int) -> Optional[list[int]]:
     """Channel INDICES for ABISS' ``AFF_CHANNELS``, or None to leave the key out.
 
     `volume_backends._channels_for` reads this key as a list of channel indices;
@@ -110,7 +112,7 @@ def _validate_keep_mask_is_reachable(payload: Mapping[str, Any]) -> None:
     )
 
 
-def _drop_disabled_nucleus_keys(payload: Dict[str, Any]) -> None:
+def _drop_disabled_nucleus_keys(payload: dict[str, Any]) -> None:
     """Remove every ``NUC_*`` key when no nucleus volume is configured.
 
     ABISS gates on key PRESENCE, not truthiness (`cut_chunk_agg.py`:
@@ -241,7 +243,7 @@ class ChunkWorkflowConfig:
     aff_chunk_size_xyz: list[int]
     seg_chunk_size_xyz: list[int]
     resolution_xyz: list[int]
-    param_payload: Dict[str, Any]
+    param_payload: dict[str, Any]
 
     def execution_config(
         self,
@@ -539,8 +541,8 @@ def _validate_abiss_upload_alignment(
     if bad_axes:
         raise ValueError(
             "ABISS logical chunk uploads would require non-aligned CloudVolume writes for "
-            f"seg_chunk_size_xyz={list(int(v) for v in storage_chunk_size_xyz)} and "
-            f"param.CHUNK_SIZE={list(int(v) for v in logical_chunk_size_xyz)}. "
+            f"seg_chunk_size_xyz={[int(v) for v in storage_chunk_size_xyz]} and "
+            f"param.CHUNK_SIZE={[int(v) for v in logical_chunk_size_xyz]}. "
             "This is unsafe because ABISS uploads chunk outputs in parallel. "
             f"Misaligned axes: {', '.join(bad_axes)}. "
             "Use seg_chunk_size_xyz values that align with every internal CHUNK_SIZE boundary "
@@ -699,7 +701,7 @@ def _copy_affinity_h5_to_precomputed(
                         )
 
 
-def _load_yaml(path: Path) -> Dict[str, Any]:
+def _load_yaml(path: Path) -> dict[str, Any]:
     return load_yaml_with_bases_and_params(path)
 
 

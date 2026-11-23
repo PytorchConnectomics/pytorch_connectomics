@@ -8,9 +8,10 @@ import json
 import shlex
 import subprocess
 import sys
+from collections.abc import Iterable, Mapping
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Callable, Iterable, Mapping
+from typing import Callable
 
 from omegaconf import DictConfig, OmegaConf
 

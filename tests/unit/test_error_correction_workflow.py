@@ -139,7 +139,9 @@ def test_tutorial_config_has_exhaustive_gt_free_scope():
 def test_tutorial_params_are_inherited_and_fully_resolved():
     affinity = load_config("tutorials/neuron_j0126/2_infer.yaml")
     abiss = load_yaml_with_bases_and_params(Path("tutorials/neuron_j0126/3_abiss.yaml"))
-    correction = load_yaml_with_bases_and_params(Path("tutorials/neuron_j0126/4_error_correction.yaml"))
+    correction = load_yaml_with_bases_and_params(
+        Path("tutorials/neuron_j0126/4_error_correction.yaml")
+    )
 
     assert affinity.save_path.endswith("outputs/neuron_j0126/affinity")
     assert affinity.test.data.test.image.endswith("j0126_em.zarr/main")
