@@ -8,9 +8,11 @@ import fastremap
 import numpy as np
 import pytest
 
-from connectomics.decoding.decoders import affinity_cc_slab as fc
-from connectomics.decoding.decoders.segmentation import decode_affinity_cc
-from connectomics.utils.shared_buffer import process_parallel_available
+pytest.importorskip("numba")  # affinity_cc_slab needs numba, an optional dependency
+
+from connectomics.decoding.decoders import affinity_cc_slab as fc  # noqa: E402
+from connectomics.decoding.decoders.segmentation import decode_affinity_cc  # noqa: E402
+from connectomics.utils.shared_buffer import process_parallel_available  # noqa: E402
 
 PROCESS_MODES = [
     pytest.param(

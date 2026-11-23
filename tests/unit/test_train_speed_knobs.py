@@ -240,6 +240,7 @@ def _small_mednext_cfg(**model):
         ({"mednext_depthwise_impl": "bogus", "compile": True}, "must be 'native' or 'shift_sum'"),
     ],
 )
+@pytest.mark.skipif(not MEDNEXT_AVAILABLE, reason="nnunet_mednext unavailable")
 def test_shift_sum_config_errors(model_cfg, match):
     with pytest.raises(ValueError, match=match):
         build_mednext_custom(_small_mednext_cfg(**model_cfg))
@@ -382,6 +383,7 @@ def test_ema_device_fallback():
 
 
 @pytest.mark.parametrize("api", ["compile", "get_autocast_dtype"])
+@pytest.mark.skipif(not MEDNEXT_AVAILABLE, reason="nnunet_mednext unavailable")
 def test_shift_sum_missing_api(api, monkeypatch):
     monkeypatch.delattr(torch.nn.Module if api == "compile" else torch, api, raising=False)
     with pytest.raises(RuntimeError, match="shift_sum requires"):

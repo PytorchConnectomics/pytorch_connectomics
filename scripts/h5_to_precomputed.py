@@ -22,15 +22,19 @@ import os
 
 import numpy as np
 
-try:
-    from cloudvolume import CloudVolume
-except ImportError as exc:  # pragma: no cover - exercised only without dependency
-    raise SystemExit(
-        "cloud-volume is required to write Neuroglancer precomputed data. "
-        "Install it with: pip install cloud-volume"
-    ) from exc
-
 from connectomics.data.io import read_volume
+
+
+def _cloudvolume():
+    """Import CloudVolume on use, so ``--help`` works without cloud-volume installed."""
+    try:
+        from cloudvolume import CloudVolume
+    except ImportError as exc:  # pragma: no cover - exercised only without dependency
+        raise SystemExit(
+            "cloud-volume is required to write Neuroglancer precomputed data. "
+            "Install it with: pip install cloud-volume"
+        ) from exc
+    return CloudVolume
 
 
 def load_volume(input_path: str, dataset: str | None, channel: int) -> np.ndarray:
@@ -76,8 +80,10 @@ def prepare_output_volume(
             f"Upcasting segmentation labels from {input_dtype} to uint32 "
             "for compressed_segmentation."
         )
-        return volume.astype(np.uint32, copy=False), np.dtype("uint32"), (
-            encoding or "compressed_segmentation"
+        return (
+            volume.astype(np.uint32, copy=False),
+            np.dtype("uint32"),
+            (encoding or "compressed_segmentation"),
         )
 
     raise ValueError(f"segmentation labels must be unsigned integer; got {input_dtype}")
@@ -97,6 +103,7 @@ def convert_h5_to_precomputed(
     encoding: str | None,
 ) -> None:
     """Convert one HDF5 volume to a base-mip precomputed directory."""
+    CloudVolume = _cloudvolume()
     if chunk_z <= 0:
         raise ValueError(f"--chunk-z must be positive, got {chunk_z}")
     if min(chunk_size_zyx) <= 0:

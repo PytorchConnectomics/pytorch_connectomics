@@ -88,6 +88,7 @@ def test_invalid(tmp_path, kwargs, error):
 
 @pytest.mark.skipif(not process_parallel_available(), reason="Processes unavailable")
 def test_process_reader_and_decode(tmp_path):
+    pytest.importorskip("numba")  # affinity_cc_slab needs numba, an optional dependency
     from connectomics.decoding.decoders.affinity_cc_slab import (
         connected_components_affinity_3d_slab,
     )

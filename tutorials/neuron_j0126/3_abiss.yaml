@@ -14,7 +14,7 @@
 # merge is expensive (it corrupts two neurons), and step 3's grow round is provably
 # merge-safe -- it only ever assigns a fragment to a host, never welds two segments. So
 # every ambiguous decision is better deferred to step 3 than taken here.
-# AGG_THRESHOLD 0.20 with WS_HIGH 0.9 / WS_LOW 0.1 is the setting that reproduces the
+# AGG_THRESHOLD 0.3 with WS_HIGH 0.99999 / WS_LOW 0.00001 is the setting that reproduces the
 # reference segmentation this tutorial was measured on.
 #
 # CPU scaling: ABISS uses every CPU granted to this process by the scheduler. Submit this
@@ -54,6 +54,8 @@ abiss_chunk:
 
     AFF_PATH: ${params.data.affinity_h5}
     AFF_CHANNELS: [0, 1, 2]
+    AFF_CONVENTION: banis
+    AFF_RESTORE_SIGMOID: 0.2
     WS_PATH: file://${params.paths.output_root}/abiss/precomputed/ws
     SEG_PATH: file://${params.paths.output_root}/abiss/precomputed/seg
     SCRATCH_PATH: file://${params.paths.output_root}/abiss/scratch
@@ -103,13 +105,13 @@ abiss_chunk:
     CHUNK_SIZE: [2048, 2048, 80]
 
     # Conservative watershed: seeds only where affinity is unambiguous.
-    WS_HIGH_THRESHOLD: 0.9
-    WS_LOW_THRESHOLD: 0.1
-    WS_SIZE_THRESHOLD: 400
+    WS_HIGH_THRESHOLD: 0.99999
+    WS_LOW_THRESHOLD: 0.00001
+    WS_SIZE_THRESHOLD: 200
     WS_DUST_THRESHOLD: 200
 
     # Mean-edge agglomeration threshold. Deliberately conservative -- see the header.
-    AGG_THRESHOLD: 0.20
+    AGG_THRESHOLD: 0.3
 
     PARANOID: false
     CHUNKED_AGG_OUTPUT: false

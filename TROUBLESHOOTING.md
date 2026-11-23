@@ -78,7 +78,7 @@ intended conda environment before using `just slurm` or `just slurm-cpu`. Reques
 sufficient time and memory and inspect the job logs after a killed job.
 
 Check the active interpreter with `which python` and `python --version`. The
-supported range is Python 3.9–3.12, with 3.9 validation pending CI. The recommended
+supported range is Python 3.11–3.12 (zarr 3 needs 3.11). The recommended
 installation uses Python 3.11.
 
 ## Reporting an issue

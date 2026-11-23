@@ -341,9 +341,9 @@ def install_pytorch_connectomics(
 
     # Validate Python version
     py_major, py_minor = map(int, python_version.split(".")[:2])
-    if py_major != 3 or py_minor < 8 or py_minor >= 13:
+    if py_major != 3 or py_minor < 11 or py_minor >= 13:
         print_error(f"Python {python_version} is not supported")
-        print_error("Supported versions: 3.8 to 3.12")
+        print_error("Supported versions: 3.11 to 3.12")
         return False
     else:
         print_info(f"Target Python: {python_version} (recommended: 3.11)")
@@ -723,7 +723,7 @@ def main():
 Examples:
   python install.py                    # Auto-detect everything (basic, non-interactive)
   python install.py --env-name my_env         # Custom environment name
-  python install.py --python 3.10             # Use Python 3.10
+  python install.py --python 3.12             # Use Python 3.12
   python install.py --cuda 12.6               # Target a driver CUDA version
   python install.py --torch-index-url https://download.pytorch.org/whl/cu130
   python install.py --cpu-only                # CPU-only installation
