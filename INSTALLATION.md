@@ -56,7 +56,7 @@ python install.py [options]
 | Flag | Default | Purpose |
 |---|---|---|
 | `--env-name NAME` | `pytc` | Conda env to create or reuse |
-| `--python VER` | `3.11` | Python version (3.9–3.12) |
+| `--python VER` | `3.11` | Python version (3.11–3.12) |
 | `--install-type` | `basic` | `basic`, `dev` (adds pytest, linters), or `full` (adds wandb, optuna, tifffile, neuroglancer, nd2) |
 | `--cuda X.Y` | auto | Pretend the driver supports CUDA `X.Y` (see below) |
 | `--torch-index-url URL` | — | Install PyTorch from exactly this index and skip detection, e.g. `https://download.pytorch.org/whl/cu130` |

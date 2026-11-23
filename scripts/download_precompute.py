@@ -34,7 +34,15 @@ from pathlib import Path
 
 import numpy as np
 import zarr
-from cloudvolume import CloudVolume
+
+
+def _cloudvolume():
+    """Import CloudVolume on use, so ``--help`` works without cloud-volume installed."""
+    try:
+        from cloudvolume import CloudVolume
+    except ImportError as exc:  # pragma: no cover - exercised only without dependency
+        raise SystemExit("cloud-volume is required. Install: pip install cloud-volume") from exc
+    return CloudVolume
 
 
 def parse_args():
@@ -76,7 +84,7 @@ def main():
     args = parse_args()
     source = args.source if "://" in args.source else f"precomputed://{args.source}"
 
-    cv = CloudVolume(
+    cv = _cloudvolume()(
         source,
         mip=args.mip,
         parallel=args.parallel,

@@ -10,12 +10,13 @@ jobs:
   test:
     runs-on: ${{ matrix.os }}
     strategy:
+      fail-fast: false
       matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest]
+        # Windows is not a supported target (ABISS, shared-memory buffers and zarr
+        # sub-paths assume POSIX).
+        os: [ubuntu-latest, macos-latest]
         python-version: ['3.11']
         include:
-          - os: ubuntu-latest
-            python-version: '3.9'
           - os: ubuntu-latest
             python-version: '3.12'
     steps:

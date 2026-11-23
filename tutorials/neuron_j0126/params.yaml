@@ -121,7 +121,7 @@ params:
   error_correction:
     slurm_partition: ""
     cpus: 16
-    memory: 128G
+    memory: 256G
     time: "24:00:00"
 
   # --------------------------------------------------------------- derived
