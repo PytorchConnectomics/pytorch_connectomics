@@ -1,0 +1,70 @@
+# BANIS+ on four low-res volumes (MICrONS phase 1, minnie65, minnie35, H01; 256 nm pixels,
+# 264-320 nm sections), label erosion 1, affinities at 1 and 5 voxels.
+#
+#   data:   python tutorials/neuron_seg256nm/prepare_data.py clahe ...   (minnie65, minnie35 images)
+#           python tutorials/neuron_seg256nm/prepare_data.py cubes ...   (once per volume)
+#   train:  python scripts/main.py --config tutorials/neuron_seg256nm/banis+_aff1-5.yaml
+#   infer:  python scripts/main.py --config tutorials/neuron_seg256nm/banis+_aff1-5.yaml --mode test \
+#               --checkpoint <run>/checkpoints/step=00200000.ckpt
+#
+# Recipe = banis+.yaml in this folder (MedNeXt-S/k3, 128 cube, ABISS-layout 6-channel affinity,
+# class-balanced BCE, EMA, erosion 1, aug_light, the MedNeXt speed knobs) with these changes:
+#
+# AFFINITY -- offsets 1 and 5 voxels on every axis (banis+.yaml: 1 and 10). Channels are
+# x, y, z at 1 voxel, then x, y, z at 5 voxels, edge (i-k, i) stored at voxel i. Destination
+# storage needs the voxel at i - 5, so target_context reads 5 voxels on the leading side.
+#
+# LABELS -- erosion 1, as in banis+.yaml, on purpose: the target is the soma. A voxel whose
+# 3 x 3 xy window holds two labels becomes background, which leaves about a fifth of the
+# voxels labelled (soma cores and thick proximal dendrites) and makes the neuropil, where the
+# label fragments are smaller than a voxel and differ by volume, a uniform 0. The cost is the
+# thin branches: segments of 100-10k voxels keep 3-13% of their voxels.
+#
+# DATA -- 256^3 cubes written by prepare_data.py: per volume, eight quarter-point cubes
+# (`<volume>_q?`) and one centre cube (`<volume>_ctr`). All of them train; there is no
+# validation split, so no validation loss is logged and nothing here measures generalisation.
+# The minnie65 and minnie35 images are contrast-equalised once on disk (prepare_data.py clahe);
+# phase 1 and H01 were equalised at the source. Nothing is equalised on the fly.
+#
+# CHECKPOINTS -- without validation Lightning never writes last.ckpt, so the run saves
+# `step=<step>.ckpt` every 5k steps; resume from the newest one, and step=00200000.ckpt is the final model.
+# The test section reads the centre cubes, which are training data: a pipeline check only.
+
+_base_:
+- banis+.yaml
+
+experiment_name: seg256nm_banis+_aff1-5
+description: >-
+  BANIS+ (MedNeXt-S/k3, 6-channel ABISS-layout affinity at 1 and 5 voxels, class-balanced BCE,
+  EMA, erosion 1) on 256^3 cubes of MICrONS phase 1, minnie65, minnie35 and H01 at 256 nm.
+
+default:
+  data:
+    dataloader:
+      target_context: [5, 5, 5, 0, 0, 0]
+    label_transform:
+      targets:
+      - name: affinity
+        kwargs:
+          offsets: ["0-0-1", "0-1-0", "1-0-0", "0-0-5", "0-5-0", "5-0-0"]
+          affinity_mode: deepem
+
+train:
+  data:
+    train:
+      path: /path/to/seg256nm/cubes
+      image: "*_img.h5"
+      label: "*_seg.h5"
+    val:
+      image: null
+      label: null
+  monitor:
+    checkpoint:
+      save_every_n_steps: 5000
+
+test:
+  data:
+    test:
+      path: /path/to/seg256nm/cubes
+      image: "*_ctr_img.h5"
+      label: "*_ctr_seg.h5"

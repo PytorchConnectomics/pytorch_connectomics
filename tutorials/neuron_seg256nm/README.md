@@ -9,6 +9,7 @@ telling cell types (neuron vs glia, excitatory vs inhibitory) from a cheap whole
 |---|---|---|
 | `overfit.yaml` | `banis+.yaml` for 5k steps on one aligned crop per volume, tested on the same crops | ABISS ws |
 | `banis+.yaml` | BANIS+ (MedNeXt-S/k3, 6-channel ABISS-layout affinity, class-balanced BCE, EMA, erosion 1, 128 cube, 200k steps) with the MedNeXt speed knobs | ABISS ws |
+| `banis+_aff1-5.yaml` | `banis+.yaml` with affinities at 1 and 5 voxels (erosion 1 kept), on 256^3 cubes of phase 1, minnie65, minnie35 and H01 | ABISS ws |
 
 ## Results
 
@@ -30,6 +31,18 @@ The volumes are not public downloads in this layout. They are cut by the researc
 
 Images are uint8, labels uint32 relabelled per chunk with 0 as background. Point the three
 `path:` entries of `dataset.yaml` (or a run-local config that inherits it) at the folders.
+
+### Four-volume cubes (`banis+_aff1-5.yaml`)
+
+`prepare_data.py` in this folder writes what that config reads:
+
+- `clahe` writes a contrast-equalised copy of an image volume once (per section: percentile
+  stretch of the non-zero pixels, then CLAHE with clip limit 4 and about 128-pixel tiles; zeros
+  kept). The minnie65 and minnie35 downsamples span only a few tens of grey levels and need it;
+  phase 1 and H01 were equalised at the source and are used as they are.
+- `cubes` cuts 256^3 image/label cubes per volume on one grid: `<volume>_q0..q7` on the quarter
+  points of the region image and labels share (`q0..q3` for phase 1, which is thin in z) and
+  `<volume>_ctr` on its centre. `banis+_aff1-5.yaml` trains on all of them and has no validation split.
 
 ## Recipe
 
