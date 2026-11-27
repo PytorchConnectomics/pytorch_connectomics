@@ -22,7 +22,8 @@ size, dust, merge function) runs every merge threshold in batch mode. ``ws_size`
 value turns the merge into single linkage at the merge threshold. Voxels ABISS leaves at 0 take the label of the nearest labeled voxel
 (otherwise they would score as one giant segment); their fraction inside the GT
 foreground is reported. ``--agglomerate`` also scores greedy mean-affinity agglomeration of
-each (filled) ABISS result (decoder ``abiss+agglo``).
+each (filled) ABISS result (decoder ``abiss+agglo``), once per ``--agglo-contact-prior``
+(pseudo-edges of affinity 0 that make two large segments need a large contact; 0 = plain mean).
 
 Writes one TSV row per (volume, GT file, parameter set).
 """
@@ -184,6 +185,14 @@ def main() -> None:
         "these thresholds (decoder abiss+agglo)",
     )
     ap.add_argument(
+        "--agglo-contact-prior",
+        type=float,
+        nargs="+",
+        default=None,
+        help="contact priors of the agglomeration (default 0, the plain boundary mean); "
+        "recorded as params 'prior' when given",
+    )
+    ap.add_argument(
         "--check-skimage", action="store_true", help="assert equality with skimage once"
     )
     args = ap.parse_args()
@@ -250,9 +259,12 @@ def main() -> None:
                 }
                 filled = fill_unlabeled(seg)
                 variants = [("abiss", params, filled)]
+                priors = args.agglo_contact_prior
                 for t in args.agglomerate:
-                    merged = agglomerate_mean_affinity(filled, aff, t)
-                    variants.append(("abiss+agglo", {**params, "agglo": t}, merged))
+                    for prior in priors if priors is not None else [0.0]:
+                        merged = agglomerate_mean_affinity(filled, aff, t, contact_prior=prior)
+                        extra = {"agglo": t} if priors is None else {"agglo": t, "prior": prior}
+                        variants.append(("abiss+agglo", {**params, **extra}, merged))
                 for decoder, variant_params, result in variants:
                     for gt_name, gt in gts.items():
                         if not checked:
