@@ -26,10 +26,11 @@ The volumes are not public downloads in this layout. They are cut by the researc
   a nucleus label volume exists, by nuclei lying inside one segment), estimates the region where
   both are non-zero, and writes `overfit/<volume>_img.h5`, `_seg.h5` (160 x 640 x 640) and an
   overlay PNG.
-- `export` cuts 256 x 512 x 512 chunks from that region into `train/` and `tune/` (the highest-x
-  column of chunks, one chunk column away from `train/`).
+- `export` cuts 256^3 train cubes from that region into `train/`: eight on its quarter points
+  and one on its centre per volume (five for phase 1, which is thin in z). The benchmark's test
+  set is the whole region, train cubes included; the configs here validate on the centre cubes.
 
-Images are uint8, labels uint32 relabelled per chunk with 0 as background. Point the three
+Images are uint8, labels uint32 relabelled per cube with 0 as background. Point the three
 `path:` entries of `dataset.yaml` (or a run-local config that inherits it) at the folders.
 
 ### Four-volume cubes (`banis+_aff1-5.yaml`)

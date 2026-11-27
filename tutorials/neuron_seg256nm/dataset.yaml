@@ -3,12 +3,14 @@
 #
 # Layout written by the workbench job `valid_region.py export` (research workbench
 # `projects/seg120nm-2611/scripts/`), which aligns each downsampled image with the public
-# automatic segmentation, keeps the region where both are non-zero, and cuts 256 x 512 x 512
-# chunks (image uint8, labels uint32 relabelled per chunk, 0 = background):
+# automatic segmentation, keeps the region where both are non-zero, and cuts 256^3 train
+# cubes (image uint8, labels uint32 relabelled per cube, 0 = background):
 #
-# train/ -- chunks from MICrONS phase 1 and phase 2 (minnie65, minnie35).
-# tune/  -- the highest-x column of chunks of each volume, one chunk column away from train/.
-#   Validation loss and every decoding choice use only these.
+# train/ -- per volume (MICrONS phase 1, minnie65, minnie35), cubes centred on the eight quarter
+#   points of the valid region (`<volume>_q0..q7`) and one on its centre (`<volume>_ctr`); phase 1
+#   is thin in z and has four plus the centre. The benchmark's test set is the whole valid region
+#   of each volume, train cubes included; cross-validation among the cubes is the user's choice.
+#   Here: train on the quarter-point cubes, validate and choose decoding on the centre cubes.
 # overfit/ -- one 160 x 640 x 640 crop per volume from the centre of its valid region, for the
 #   overfit check (overfit.yaml).
 
@@ -16,16 +18,16 @@ train:
   data:
     train:
       path: /path/to/seg256nm/train
-      image: "*_img.h5"
-      label: "*_seg.h5"
+      image: "*_q?_img.h5"
+      label: "*_q?_seg.h5"
     val:
-      path: /path/to/seg256nm/tune
-      image: "*_img.h5"
-      label: "*_seg.h5"
+      path: /path/to/seg256nm/train
+      image: "*_ctr_img.h5"
+      label: "*_ctr_seg.h5"
 
 test:
   data:
     test:
-      path: /path/to/seg256nm/tune
-      image: "*_img.h5"
-      label: "*_seg.h5"
+      path: /path/to/seg256nm/train
+      image: "*_ctr_img.h5"
+      label: "*_ctr_seg.h5"
