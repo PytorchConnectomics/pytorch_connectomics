@@ -134,6 +134,32 @@ class TestLossFunctions(unittest.TestCase):
         self.assertTrue(torch.isfinite(loss))
         self.assertTrue(loss >= 0.0)
 
+    def test_soft_cldice_perfect_prediction_is_zero(self):
+        """Identical binary prediction and target should give zero loss even with smooth=1.0."""
+        loss_fn = create_loss("SoftClDiceLoss", mode="binary", num_iters=3, smooth=1.0)
+        target = torch.zeros(1, 1, 8, 8, 8)
+        target[:, :, 2:6, 2:6, 2:6] = 1.0
+
+        loss = loss_fn(target, target)
+        self.assertAlmostEqual(loss.item(), 0.0, places=6)
+
+    def test_soft_cldice_non_unit_weight_stays_bounded(self):
+        """Non-unit spatial weights should weight voxels linearly without producing negative loss."""
+        loss_fn = create_loss("SoftClDiceLoss", mode="binary", num_iters=3, smooth=1.0)
+        target = torch.zeros(1, 1, 8, 8, 8)
+        target[:, :, 2:6, 2:6, 2:6] = 1.0
+
+        for scale in (0.5, 2.0, 5.0):
+            weight = torch.full_like(target, scale)
+            loss = loss_fn(target, target, weight=weight)
+            self.assertAlmostEqual(loss.item(), 0.0, places=6)
+
+        pred = torch.zeros_like(target)
+        pred[:, :, 3:7, 3:7, 3:7] = 1.0
+        weighted_loss = loss_fn(pred, target, weight=torch.full_like(target, 5.0))
+        self.assertGreaterEqual(weighted_loss.item(), 0.0)
+        self.assertLessEqual(weighted_loss.item(), 1.0)
+
 
 if __name__ == "__main__":
     unittest.main()

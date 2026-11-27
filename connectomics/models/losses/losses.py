@@ -7,7 +7,7 @@ Only includes losses that are truly unique to connectomics use cases.
 
 from __future__ import annotations
 
-from typing import List, Union
+from typing import Union
 
 import torch
 import torch.nn as nn
@@ -426,6 +426,8 @@ class ScnpLoss(nn.Module):
 
     def _scnp_logits(self, logits: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
         ns = self.neighborhood_size
+        kernel: tuple[int, ...]
+        pad: tuple[int, ...]
         if logits.ndim == 5:
             mp = F.max_pool3d
             kernel = (ns, ns, ns)
@@ -597,7 +599,7 @@ class SoftClDiceLoss(nn.Module):
 
     def _select_foreground_channels(
         self, pred: torch.Tensor, target: torch.Tensor
-    ) -> tuple[torch.Tensor, torch.Tensor, List[int]]:
+    ) -> tuple[torch.Tensor, torch.Tensor, list[int]]:
         channels = pred.shape[1]
         if self.mode == "binary":
             fg_idx = 0 if channels == 1 else self.foreground_channel
@@ -636,7 +638,7 @@ class SoftClDiceLoss(nn.Module):
         self,
         weight: torch.Tensor,
         pred: torch.Tensor,
-        foreground_indices: List[int],
+        foreground_indices: list[int],
         num_fg_channels: int,
     ) -> torch.Tensor:
         if weight.ndim == pred.ndim - 1:
@@ -702,29 +704,25 @@ class SoftClDiceLoss(nn.Module):
         target_skeleton = _soft_skeletonize_pool(target_fg, self.num_iters)
 
         if fg_weight is not None:
-            pred_eval = pred_fg * fg_weight
-            target_eval = target_fg * fg_weight
-            pred_skeleton_eval = pred_skeleton * fg_weight
-            target_skeleton_eval = target_skeleton * fg_weight
+            weighted_pred_skeleton = pred_skeleton * fg_weight
+            weighted_target_skeleton = target_skeleton * fg_weight
         else:
-            pred_eval = pred_fg
-            target_eval = target_fg
-            pred_skeleton_eval = pred_skeleton
-            target_skeleton_eval = target_skeleton
+            weighted_pred_skeleton = pred_skeleton
+            weighted_target_skeleton = target_skeleton
 
         spatial_dims = tuple(range(2, pred_fg.ndim))
         topology_precision = (
-            (pred_skeleton_eval * target_eval).sum(dim=spatial_dims) + self.smooth
-        ) / (pred_skeleton_eval.sum(dim=spatial_dims) + self.smooth)
+            (weighted_pred_skeleton * target_fg).sum(dim=spatial_dims) + self.smooth
+        ) / (weighted_pred_skeleton.sum(dim=spatial_dims) + self.smooth)
         topology_sensitivity = (
-            (target_skeleton_eval * pred_eval).sum(dim=spatial_dims) + self.smooth
-        ) / (target_skeleton_eval.sum(dim=spatial_dims) + self.smooth)
+            (weighted_target_skeleton * pred_fg).sum(dim=spatial_dims) + self.smooth
+        ) / (weighted_target_skeleton.sum(dim=spatial_dims) + self.smooth)
 
         cl_dice = (
             2.0
             * topology_precision
             * topology_sensitivity
-            / (topology_precision + topology_sensitivity + self.smooth)
+            / (topology_precision + topology_sensitivity).clamp_min(1e-12)
         )
         loss = 1.0 - cl_dice
 
